@@ -124,35 +124,31 @@ therefore requires a maintainer decision on the *canonical* shape per method,
 or a layered guard where the shared record carries the common shape and each
 surface widens specific methods.
 
-### A fourth mount-shaped surface: genie `LocalMount`
+### A fourth mount-shaped surface: genie `LocalMount` (now folded in)
 
-`packages/genie/src/sandbox/local-powers.js` defines its **own**
-`LocalMountInterface` / `LocalMountFileInterface` rather than importing any of
-the three reconciled surfaces. It is a host-backed, in-process sandbox facet
-(`provideScratchMount` / `provideHostPath` mint it) that deliberately mirrors
-the daemon's `Mount` *shape* — `has`, `list`, `lookup`, `readText`,
-`maybeReadText`, `writeText`, `makeDirectory`, `remove`, `move` — using a
-locally-defined `PathArgShape` of `string | string[]` (no `MountEntry` arm: a
-genie sandbox never traffics in daemon mount-entry caps). It is the **fourth**
-independent definition of the mount vocabulary, and reinforces C1's
-canonical-shape question: any `ReadableNameHubInterface` (or shared method
-record) that genie could eventually consume must commit to a `string | string[]`
-baseline, with the `MountEntry` arm strictly a daemon-side widening.
+`packages/genie/src/sandbox/local-powers.js` is a host-backed, in-process
+sandbox facet (`provideScratchMount` / `provideHostPath` mint it) that mirrors
+the daemon's `Mount` *shape* — `help`, `has`, `list`, `lookup`, `maybeLookup`,
+`readText`, `maybeReadText`, `writeText`, `makeDirectory`, `remove`, `move` —
+using `string | string[]` path arguments (no `MountEntry` arm: a genie sandbox
+never traffics in daemon mount-entry caps). It was the **fourth** independent
+definition of the mount vocabulary.
 
-Genie is **not** a near-term consolidation target. Its interface is load-bearing
-for two security gates that must not be perturbed by a refactor:
+It is **now folded in**: because genie already depends on `@endo/daemon` and its
+local `PathArgShape` is exactly the daemon's `NameOrPathShape`, `LocalMount`
+spreads the daemon's `readableNameHubMethodGuards` (help / has / list / lookup /
+maybeLookup) and `directoryFileMethodGuards` (makeDirectory / readText /
+maybeReadText / writeText), declaring only `remove` / `move` inline (those live
+in the fuller `nameHubMethodGuards`, which carries registry methods genie does
+not expose). genie gained `maybeLookup` as part of the fold-in.
 
-- `assertIsMountCap` is a *shape* gate — it checks for the presence of
-  `['readText','writeText','makeDirectory','has','list']`. Renaming or
-  re-homing those methods would silently break the gate.
+genie's two security gates are **undisturbed** — they key on method names / cap
+identity, not the interface object:
+
+- `assertIsMountCap` is a *shape* gate checking for the presence of
+  `['readText','writeText','makeDirectory','has','list']` — all still present.
 - `provideHostPath` is an *identity* gate keyed on a `WeakSet`/`WeakMap` of
   powers-minted caps, independent of the interface shape.
-
-The actionable record here is the table column above plus this note: when C1
-fixes the canonical path-argument shape, genie's local `PathArgShape` should be
-re-pointed at the shared definition (it already matches the `string | string[]`
-baseline), but genie keeps its own *interface object* so its security gates stay
-self-contained.
 
 This is exactly the choice-point that
 [namehub-interface-unification.md](namehub-interface-unification.md) anticipated
@@ -345,6 +341,12 @@ no `BlobRef → SnapshotBlob` adapter.
 - [x] C1: declare `EndoMount.followNameChanges` (throws ENOSYS until a
       filesystem watcher lands; the live feed itself remains blocked on
       filesystem-watchers.md).
+- [x] C1: add `help` to `readableNameHubMethodGuards`; extract
+      `directoryFileMethodGuards` (makeDirectory / readText / maybeReadText /
+      writeText) consumed by EndoDirectory / EndoGuest / EndoHost / genie;
+      remove the dead `NameHubInterface`.
+- [x] C1: fold genie's `LocalMount` onto the shared records (+ `maybeLookup`),
+      keeping its security gates intact.
 - [x] C2: export `readableBlobMethodGuards` / `readableTreeMethodGuards` from
       `@endo/platform/fs/lite`; consume them in the lite + daemon read surfaces.
 - [x] C3 / C4: `sha256` confirmed as the content-address accessor; `EndoBlob` /
