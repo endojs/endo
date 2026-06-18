@@ -11,6 +11,8 @@ import path from 'path';
 import fs from 'fs';
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
+import { encodeHex } from '@endo/hex';
+import { decodeBase64 } from '@endo/base64';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { start, stop, purge, makeEndoClient } from '../index.js';
 import { parseId } from '../src/formula-identifier.js';
@@ -124,8 +126,14 @@ test.afterEach.always(async t => {
   }
 });
 
-const contentPathOf = (statePath, sha256) =>
-  path.join(statePath, 'store-sha256', sha256);
+const contentPathOf = (statePath, sha256Hex) =>
+  path.join(statePath, 'store-sha256', sha256Hex);
+
+// A blob reports its content hash via `getInfo().hash` (base64); the content
+// store keys files by hex digest, so convert for path-building. (Trees still
+// expose `sha256()`, which returns the hex digest directly.)
+const blobStoreKey = async blob =>
+  encodeHex(decodeBase64((await E(blob).getInfo()).hash));
 
 const mountPathOf = (statePath, formulaNumber) =>
   path.join(statePath, 'mounts', formulaNumber);
@@ -138,7 +146,7 @@ test('content-store blob is reclaimed when its only formula is collected', async
     new TextEncoder().encode('blob-content'),
   ]);
   const blob = await E(host).storeBlob(readerRef, 'lonely-blob');
-  const sha256 = await E(blob).sha256();
+  const sha256 = await blobStoreKey(blob);
 
   const filePath = contentPathOf(config.statePath, sha256);
   t.true(fs.existsSync(filePath), 'blob file written to content store');
@@ -166,8 +174,8 @@ test('content-store blob survives when a sibling formula still references the sa
     'twin-b',
   );
 
-  const shaA = await E(blobA).sha256();
-  const shaB = await E(blobB).sha256();
+  const shaA = await blobStoreKey(blobA);
+  const shaB = await blobStoreKey(blobB);
   t.is(shaA, shaB, 'both blobs dedupe to the same content hash');
 
   const filePath = contentPathOf(config.statePath, shaA);
@@ -346,7 +354,7 @@ test('readable-tree collection preserves a child blob hash that a surviving read
     bytesReaderFromIterator([sharedBytes]),
     'shared-leaf-blob',
   );
-  const sharedSha256 = await E(sharedBlob).sha256();
+  const sharedSha256 = await blobStoreKey(sharedBlob);
 
   const remoteTree = makeRemoteBlobTree({
     'shared.txt': sharedBytes,

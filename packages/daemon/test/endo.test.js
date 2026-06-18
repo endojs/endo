@@ -21,13 +21,11 @@ import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper'
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
 import { ZipReader } from '@endo/zip/reader.js';
-import { encodeBase64 } from '@endo/base64';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
-import { fromHex } from '../src/hex.js';
 import { makeDaemonDatabase } from '../src/daemon-database-node.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
 import {
@@ -742,13 +740,12 @@ test('stored blob exposes the rich BlobRef range-I/O surface (getInfo + fetch)',
     return new TextDecoder().decode(out);
   };
 
-  // getInfo() returns the content-address triple in one round-trip.
+  // getInfo() is the blob's content-address accessor (there is no separate
+  // sha256() method — getInfo().hash, base64, is the canonical content hash).
   const info = await E(blob).getInfo();
   t.is(info.algorithm, 'sha256');
   t.is(info.size, 12n);
-  // hash is base64 (aligned with the extended BlobRef); sha256() stays hex.
-  const sha256Hex = await E(blob).sha256();
-  t.is(info.hash, encodeBase64(fromHex(sha256Hex)));
+  t.is(info.hash, crypto.createHash('sha256').update(payload).digest('base64'));
 
   // fetch(offset, length) is a windowed read, clamped at EOF.
   t.is(await collect(await E(blob).fetch(0n, 12n)), 'hello world\n');

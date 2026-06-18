@@ -1520,7 +1520,6 @@ const makeDaemonCore = async (
       `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
       /** @type {any} */ ({
-        sha256: () => sha256,
         /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
         streamBase64(synPromise) {
           const pump = makeReaderPump(
@@ -1894,7 +1893,6 @@ const makeDaemonCore = async (
       BlobInterface,
       /** @type {any} */ ({
         help: () => 'Transient in-memory blob',
-        sha256: () => sha256Hex,
         /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
         streamBase64(synPromise) {
           const pump = makeReaderPump(

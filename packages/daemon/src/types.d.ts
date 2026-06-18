@@ -1067,12 +1067,13 @@ export type RequestFn = (
 ) => Promise<unknown>;
 
 export interface EndoReadable {
-  sha256(): string;
   streamBase64(
     synPromise: ERef<StreamNode<Passable, Passable>>,
   ): Promise<StreamNode<string, undefined>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
+  getInfo(): Promise<BlobInfo>;
+  fetch(offset: bigint, length: bigint): Promise<PassableBytesReader>;
 }
 
 export interface EndoReadableTree {

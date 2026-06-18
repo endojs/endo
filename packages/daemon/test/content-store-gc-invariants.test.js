@@ -16,6 +16,8 @@ import path from 'path';
 import fs from 'fs';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
+import { encodeHex } from '@endo/hex';
+import { decodeBase64 } from '@endo/base64';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { start, stop, purge, makeEndoClient } from '../index.js';
 import { parseId } from '../src/formula-identifier.js';
@@ -114,8 +116,13 @@ test.afterEach.always(async t => {
   }
 });
 
-const contentPathOf = (statePath, sha256) =>
-  path.join(statePath, 'store-sha256', sha256);
+const contentPathOf = (statePath, sha256Hex) =>
+  path.join(statePath, 'store-sha256', sha256Hex);
+
+// Blobs report their content hash via `getInfo().hash` (base64); the content
+// store keys files by hex digest, so convert for path-building.
+const blobStoreKey = async blob =>
+  encodeHex(decodeBase64((await E(blob).getInfo()).hash));
 
 const mountPathOf = (statePath, formulaNumber) =>
   path.join(statePath, 'mounts', formulaNumber);
@@ -185,7 +192,7 @@ test('does not throw when a content-store blob is already missing', async t => {
     new TextEncoder().encode('about-to-vanish'),
   ]);
   const blob = await E(host).storeBlob(readerRef, 'phantom-blob');
-  const sha256 = await E(blob).sha256();
+  const sha256 = await blobStoreKey(blob);
   const filePath = contentPathOf(config.statePath, sha256);
 
   // Yank the content file out from under the daemon.
@@ -218,7 +225,7 @@ test('reclaims many distinct content hashes across sequential collections', asyn
       `batch-${i}`,
     );
     // eslint-disable-next-line no-await-in-loop
-    const sha = await E(blob).sha256();
+    const sha = await blobStoreKey(blob);
     shas.push(sha);
   }
 
@@ -265,7 +272,7 @@ test('retains a shared hash when one of many collected formulas references it', 
     bytesReaderFromIterator([sharedBytes]),
     'keepsake',
   );
-  const sharedSha = await E(survivor).sha256();
+  const sharedSha = await blobStoreKey(survivor);
 
   // Several blobs that will be collected, one of which dedupes
   // against the survivor.
@@ -277,14 +284,14 @@ test('retains a shared hash when one of many collected formulas references it', 
       `distractor-${i}`,
     );
     // eslint-disable-next-line no-await-in-loop
-    distractorShas.push(await E(blob).sha256());
+    distractorShas.push(await blobStoreKey(blob));
   }
   // The dedupe-against-survivor blob.
   const twin = await E(host).storeBlob(
     bytesReaderFromIterator([sharedBytes]),
     'doomed-twin',
   );
-  t.is(await E(twin).sha256(), sharedSha);
+  t.is(await blobStoreKey(twin), sharedSha);
 
   // Drop every doomed name.  The shared hash should survive
   // because keepsake still references it.

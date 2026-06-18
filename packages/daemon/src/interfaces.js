@@ -485,23 +485,17 @@ export const InspectorInterface = M.interface('EndoInspector', {
 });
 
 // `EndoBlob` is the daemon's immutable-bytes cap and the CapTP remote-read
-// target, so it carries the full rich surface: the whole-value
-// `readableBlobMethodGuards` (help / text / json / streamBase64), `sha256` for
-// content addressing (the `SnapshotBlob` shape), and the range-I/O
-// `rangeReadMethodGuards` (getInfo / fetch) that align it with the extended
-// `BlobRef` for optimal remote usage. See
+// target. It carries the whole-value `readableBlobMethodGuards` (help / text /
+// json / streamBase64) plus the range-I/O `rangeReadMethodGuards` (getInfo /
+// fetch) — i.e. exactly the shared `ReadableBlobRangeInterface`. The content
+// hash is reported by `getInfo().hash` (base64); there is no separate
+// `sha256()` accessor (the daemon's internals always already hold the hex
+// digest from `contentStore.store()` / the formula, so the cap method was
+// only ever a remote accessor, now superseded by `getInfo`). See
 // designs/fs-interface-consolidation.md § C4.
-//
-// Hash-encoding note: the canonical public content hash is `getInfo().hash`,
-// **base64** (matching `BlobRef`). `sha256()` returns the **hex** digest
-// because it is literally the content-store address — blobs are stored at
-// `state/store-sha256/<hex>`, and base64 (with `/`, `+`, and case-sensitivity)
-// is unsafe as a filename. Both encode the same sha256 digest; hex is retained
-// only as the storage-address accessor.
 export const BlobInterface = M.interface('EndoBlob', {
   ...readableBlobMethodGuards,
   ...rangeReadMethodGuards,
-  sha256: M.call().returns(M.string()),
 });
 
 const PathSegmentsShape = M.arrayOf(M.string());
