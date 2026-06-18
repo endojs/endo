@@ -34,7 +34,7 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
  * Store a git archive tar stream into the daemon content store's tree JSON
  * format. This accepts only the regular files, directories, and symlinks that
  * native `git archive --format=tar` emits. The tar format parsing lives in
- * `@endo/tar`; the daemon supplies the CapTP base64 ref decoding
+ * `@endo/tar`; the daemon supplies the consumer-side traversal
  * (`iterateBytesReader`), the content-store wiring, and the tree assembly.
  *
  * @param {import('@endo/far').ERef<import('@endo/exo-stream').PassableBytesReader>} readerRef

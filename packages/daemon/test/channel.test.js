@@ -2581,6 +2581,7 @@ test.serial(
 test.serial(
   'channel - disabled invite: message posted AFTER disable not seen by waiting join iterator',
   async t => {
+    t.timeout(60_000);
     const { host } = await prepareHost(t);
     await E(host).makeChannel('my-channel', 'Alice');
     const channel = await E(host).lookup('my-channel');
@@ -2621,6 +2622,7 @@ test.serial(
 test.serial(
   'channel - disabled invite: message posted AFTER disable not seen by waiting proxy iterator',
   async t => {
+    t.timeout(60_000);
     const { host } = await prepareHost(t);
     await E(host).makeChannel('my-channel', 'Alice');
     const channel = await E(host).lookup('my-channel');

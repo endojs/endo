@@ -16,17 +16,6 @@ import { makeHelp } from './help-text.js';
 /** @import { Context, EndoChannel, EndoChannelMember, ChannelMessage, FormulaIdentifier, FormulaNumber, PetName, Provide, StoreController, Topic } from './types.js' */
 
 /**
- * Minimal async iterator interface matching the AsyncIteratorInterface
- * exo guard (next takes 0 arguments).
- *
- * @template T
- * @typedef {object} IterRef
- * @property {() => Promise<IteratorResult<T>>} next
- * @property {(value: any) => Promise<IteratorResult<T>>} return
- * @property {(error: any) => Promise<IteratorResult<T>>} throw
- */
-
-/**
  * @type {Record<string, string>}
  */
 const channelHelp = {
