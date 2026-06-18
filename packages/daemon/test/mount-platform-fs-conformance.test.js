@@ -157,7 +157,15 @@ test('EndoMount exposes every method on PlatformDirectoryInterface', async t => 
   }
 });
 
-/** Mount-specific extensions beyond the platform Directory contract. */
+/**
+ * Extensions beyond the minimal platform `Directory` contract.
+ * `entry` / `stat` / `readText` / `maybeReadText` / `writeText` / `makeFile`
+ * are mount-specific shortcuts. `subView` is the catalog confined-sub-root
+ * method (shared with the extended `Directory`, not strictly mount-specific);
+ * it is listed here only because the minimal `lite` `Directory` vocabulary does
+ * not yet carry it — see designs/fs-interface-consolidation.md (C2/C5) for
+ * whether the vocabulary should grow to include it.
+ */
 const ENDOMOUNT_EXTENSIONS = [
   'entry',
   'stat',
@@ -165,6 +173,7 @@ const ENDOMOUNT_EXTENSIONS = [
   'maybeReadText',
   'writeText',
   'makeFile',
+  'subView',
   'help',
 ];
 
