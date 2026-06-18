@@ -50,7 +50,7 @@ const {
  */
 const makeHubParentPath = ast => {
   const wrapper = { type: 'File', container: ast };
-  // @ts-expect-error - XXX unsure
+  // @ts-ignore - XXX unsure
   return BabelNodePath.get({
     hub: new BabelHub(),
     parentPath: null,
@@ -138,7 +138,7 @@ export const makeModuleSourceAnalyzer = () =>
           {
             sourceFileName: sourceMapUrl,
             sourceMaps: !!sourceMapHook,
-            // @ts-expect-error - unknown/undocumented option
+            // @ts-ignore - unknown/undocumented option
             inputSourceMap: sourceMap,
             experimental_preserveFormat: true,
             preserveFormat: true,
