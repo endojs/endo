@@ -104,12 +104,19 @@ the degenerate composition dirs reject or walk as appropriate.
 `packages/endo-fs` (244 tests, incl. new path-array-`lookup` / `lookupStep` /
 `subView` / `write` / `move` cases) and `packages/9p-server` (20 tests) pass.
 
-**Not yet crossed over (tracked):** the daemon `EndoDirectory` and
-`@endo/platform/fs` `Directory` guards (their `lookup` already accepts a path
-shape; `move` / `subView` parity is pending), and the D4 / Phase 1.5 retire
-package-move of endo-fs into `@endo/platform/fs/extended` (the larger
-cross-package cutover). The renames above are additive and backward-compatible,
-so they do not depend on that move.
+**Daemon / platform parity (done).** The daemon `Mount` already spoke
+`lookup(string | string[])`, `move`, and `makeDirectory`; the genuine gap was
+endo-fs's `lookup`/`move` calling conventions, now aligned (`lookup` is
+`string | string[]`; `move(fromPath, toPath)` replaces the cap-form, which
+survives as the cross-cap `rename` primitive 9p-server needs). `subView` was
+added to the `Mount` as a genuinely-confined attenuator (F8). The
+`@endo/platform/fs` `Directory` guard remains an unimplemented minimal
+vocabulary; `copy` (present on platform/daemon, absent on endo-fs) is the one
+remaining catalog method not yet on the extended surface.
+
+**D4 / Phase 1.5 (done).** `@endo/endo-fs` has been retired into
+`@endo/platform/fs/extended`; all six consumers are re-homed. See the commit
+`refactor: retire @endo/endo-fs into @endo/platform/fs/extended`.
 
 ## What is the Problem Being Solved?
 
