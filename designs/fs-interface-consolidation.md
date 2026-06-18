@@ -44,12 +44,15 @@ another design are called out below and left as follow-ups.
   `SnapshotBlob` (and removing the unbuilt `BlobRef → SnapshotBlob` adapter)
   remains a follow-up — it is woven through the extended snapshot path and CAS
   cache and needs its own validation pass.
-- **C1 (done for the hub/directory pair).** `EndoNameHub` and `EndoDirectory`
-  now share `nameHubMethodGuards`. The cross-surface
-  `ReadableNameHubInterface` that `EndoMount` would also extend — plus
-  `maybeLookup` / `followNameChanges` on the mount — is still a follow-up: it
-  needs the `PathArgShape`-vs-`NameOrPathShape` canonical-shape decision, and
-  `followNameChanges` on the mount is blocked on
+- **C1 (done).** `EndoNameHub` and `EndoDirectory` share `nameHubMethodGuards`.
+  The canonical-shape question is **resolved: `NameOrPathShape`** — the shared
+  `readableNameHubMethodGuards` (has / list / lookup / maybeLookup) and the
+  named `ReadableNameHubInterface` standardize on `string | string[]`.
+  `EndoMount` satisfies that contract by method name and **widens** its own
+  `has` / `lookup` / `maybeLookup` to `PathArgShape` (it accepts a `MountEntry`
+  cap; entry-as-path-arg is load-bearing and was verified not to be narrowable
+  without a breaking change). `EndoMount.maybeLookup` is now implemented. The
+  one remaining C1 item is `followNameChanges` on the mount, blocked on
   [filesystem-watchers.md](filesystem-watchers.md).
 - **C5 (done).** The dead `ContentStoreInterface` / `SnapshotStoreInterface`
   (re-exported but never implemented) were removed. The remaining lite
@@ -287,10 +290,12 @@ no `BlobRef → SnapshotBlob` adapter.
 ## Known gaps and TODOs
 
 - [x] C1: unify `EndoNameHub` + `EndoDirectory` on `nameHubMethodGuards`.
-- [ ] C1: define `ReadableNameHubInterface` that `EndoMount` also extends;
-      resolve the `PathArgShape` vs `NameOrPathShape` canonical-shape question;
-      add `maybeLookup` / `followNameChanges` to the mount (the latter blocked
-      on filesystem-watchers.md).
+- [x] C1: define `ReadableNameHubInterface` + `readableNameHubMethodGuards`
+      (canonical shape resolved: `NameOrPathShape`); `EndoMount` satisfies it by
+      method name, widening `has`/`lookup`/`maybeLookup` to `PathArgShape`; add
+      `EndoMount.maybeLookup`.
+- [ ] C1: add `followNameChanges` to the mount (blocked on
+      filesystem-watchers.md).
 - [x] C2: export `readableBlobMethodGuards` / `readableTreeMethodGuards` from
       `@endo/platform/fs/lite`; consume them in the lite + daemon read surfaces.
 - [x] C3 / C4: `sha256` confirmed as the content-address accessor; `EndoBlob` /
