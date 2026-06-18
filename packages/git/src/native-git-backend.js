@@ -1661,7 +1661,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
   const makeGitBlob = blobOid =>
     makeExo('GitBlob', ReadableBlobInterface, {
       /**
-       * @param {import('@endo/eventual-send').ERef<unknown>} synPromise
+       * @param {unknown} synPromise
        */
       streamBase64(synPromise) {
         const pump = makeReaderPump(
