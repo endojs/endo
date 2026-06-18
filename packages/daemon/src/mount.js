@@ -212,6 +212,30 @@ const normalizeSegments = (baseSegments, segments) => {
 harden(normalizeSegments);
 
 /**
+ * Render an absolute host path as a path relative to the mount root. Error
+ * messages reach whoever holds the mount capability — typically a guest — and
+ * must never disclose the host's filesystem layout. `resolveSegments` clamps
+ * `..` at the root, so a resolved path always sits lexically under
+ * `confinementRoot`; the fallback exists only so a future caller that breaks
+ * that invariant still cannot leak the absolute path.
+ *
+ * @param {string} candidatePath
+ * @param {string} confinementRoot
+ * @returns {string}
+ */
+const relativeToRoot = (candidatePath, confinementRoot) => {
+  if (candidatePath === confinementRoot) {
+    return '/';
+  }
+  const prefix = `${confinementRoot}/`;
+  if (candidatePath.startsWith(prefix)) {
+    return `/${candidatePath.slice(prefix.length)}`;
+  }
+  return '/';
+};
+harden(relativeToRoot);
+
+/**
  * Assert that a resolved path is contained within the confinement root.
  *
  * @param {string} candidatePath
@@ -224,12 +248,14 @@ const assertConfined = async (candidatePath, confinementRoot, filePowers) => {
     resolved = await filePowers.realPath(candidatePath);
   } catch {
     throw new Error(
-      `Path does not exist and cannot be verified: ${q(candidatePath)}`,
+      `ENOENT: path does not exist and cannot be verified: ${q(
+        relativeToRoot(candidatePath, confinementRoot),
+      )}`,
     );
   }
   const rootResolved = await filePowers.realPath(confinementRoot);
   if (resolved !== rootResolved && !resolved.startsWith(`${rootResolved}/`)) {
-    throw new Error(`Path escapes mount root: ${q(candidatePath)}`);
+    throw new Error(`Path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`);
   }
 };
 harden(assertConfined);
@@ -257,7 +283,7 @@ const assertConfinedOrAncestor = async (
         resolved !== rootResolved &&
         !resolved.startsWith(`${rootResolved}/`)
       ) {
-        throw new Error(`Path escapes mount root: ${q(candidatePath)}`);
+        throw new Error(`Path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`);
       }
       return;
     } catch (/** @type {any} */ e) {
@@ -266,7 +292,7 @@ const assertConfinedOrAncestor = async (
       }
       const parent = filePowers.joinPath(check, '..');
       if (parent === check) {
-        throw new Error(`Path escapes mount root: ${q(candidatePath)}`);
+        throw new Error(`Path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`);
       }
       check = parent;
     }
@@ -766,7 +792,7 @@ const makeMountExo = ctx => {
       const to = resolveFromRoot(toSegments);
       const rejectDescendant = () => {
         throw new Error(
-          `Cannot copy ${q(from)} into its own descendant ${q(to)}`,
+          `Cannot copy ${q(relativeToRoot(from, confinementRoot))} into its own descendant ${q(relativeToRoot(to, confinementRoot))}`,
         );
       };
       if (
