@@ -591,6 +591,20 @@ const makeMountExo = ctx => {
       return openExisting(resolveFromRoot(segments), segments);
     },
 
+    // The `ReadableNameHub` lookup-or-undefined primitive: resolve `pathArg`
+    // and return its handle, or `undefined` when the path is absent (or
+    // escapes confinement). Mirrors `maybeReadText`'s broad catch — any
+    // resolution failure yields `undefined` rather than throwing.
+    async maybeLookup(pathArg) {
+      await null;
+      const segments = segmentsFromPathArg(pathArg);
+      try {
+        return await openExisting(resolveFromRoot(segments), segments);
+      } catch {
+        return undefined;
+      }
+    },
+
     async subView(pathArg) {
       await null;
       const segments = segmentsFromPathArg(pathArg);

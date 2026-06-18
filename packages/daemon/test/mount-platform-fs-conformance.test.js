@@ -166,8 +166,10 @@ test('EndoMount exposes every method on PlatformDirectoryInterface', async t => 
  * method (shared with the extended `Directory`, not strictly mount-specific);
  * it is listed here only because the minimal `lite` `Directory` vocabulary does
  * not yet carry it — see designs/fs-interface-consolidation.md (C2/C5) for
- * whether the vocabulary should grow to include it. (`help` is now part of the
- * platform contract, so it is not an extension.)
+ * whether the vocabulary should grow to include it. `maybeLookup` is the
+ * `ReadableNameHub` lookup-or-undefined primitive (C1), not part of the lite
+ * `Directory` vocabulary. (`help` is now part of the platform contract, so it
+ * is not an extension.)
  */
 const ENDOMOUNT_EXTENSIONS = [
   'entry',
@@ -177,6 +179,7 @@ const ENDOMOUNT_EXTENSIONS = [
   'writeText',
   'makeFile',
   'subView',
+  'maybeLookup',
 ];
 
 /** Mount-specific extensions beyond the platform File contract. */

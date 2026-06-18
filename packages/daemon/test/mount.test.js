@@ -145,6 +145,34 @@ test('maybeReadText returns the content for an existing file', async t => {
   t.is(await E(mount).maybeReadText(['present.txt']), 'hello');
 });
 
+test('maybeLookup returns undefined for a missing path', async t => {
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  t.is(await E(mount).maybeLookup(['does-not-exist.txt']), undefined);
+});
+
+test('maybeLookup returns a usable file handle for an existing file', async t => {
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText(['present.txt'], 'hello');
+  const file = await E(mount).maybeLookup(['present.txt']);
+  t.not(file, undefined);
+  t.is(await E(file).text(), 'hello');
+});
+
+test('maybeLookup accepts a MountEntry path argument', async t => {
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText(['present.txt'], 'hello');
+  const entry = await E(mount).entry(['present.txt']);
+  const file = await E(mount).maybeLookup(entry);
+  t.not(file, undefined);
+  t.is(await E(file).text(), 'hello');
+  // A fresh entry for an absent path still yields undefined.
+  const absent = await E(mount).entry(['gone.txt']);
+  t.is(await E(mount).maybeLookup(absent), undefined);
+});
+
 test('stat returns undefined for a missing path', async t => {
   const rootPath = makeTempRoot(t);
   const mount = makeMount({ rootPath, readOnly: false, filePowers });

@@ -1162,6 +1162,14 @@ export interface EndoMount {
     path: string | string[] | EndoMountEntry,
   ): Promise<EndoMount | EndoMountFile>;
   /**
+   * The `ReadableNameHub` lookup-or-undefined primitive: resolve `path`
+   * and return its handle, or `undefined` when the path is absent or
+   * escapes confinement.
+   */
+  maybeLookup(
+    path: string | string[] | EndoMountEntry,
+  ): Promise<EndoMount | EndoMountFile | undefined>;
+  /**
    * Confined sub-root: returns a sub-mount whose own confinement root is
    * the target directory, so `..` cannot escape it. The transient,
    * in-session counterpart to `provideSubMount`.

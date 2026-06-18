@@ -68,25 +68,47 @@ export const ResponderInterface = M.interface('EndoResponder', {
   resolveWithId: M.callWhen(M.or(IdShape, M.promise())).returns(),
 });
 
-// The shared name-hub method-guard record (designs/fs-interface-consolidation
-// § C1, namehub-interface-unification.md). `EndoNameHub` *is* exactly this
-// record; `EndoDirectory` spreads it and adds the directory-only surface
-// (help / makeDirectory / readText / maybeReadText / writeText). The `follow*`
-// methods return `M.remotable()` here — `EndoGuest` / `EndoHost` deliberately
-// return `M.promise()` instead, so they do NOT consume this record (the
-// divergence the consolidation doc records).
-export const nameHubMethodGuards = harden({
+// The narrow, read-only name-hub contract (designs/fs-interface-consolidation
+// § C1, namehub-interface-unification.md). Every name-hub-shaped surface —
+// `EndoNameHub`, `EndoDirectory`, and `EndoMount` — exposes at least these four
+// read methods by name. The canonical path-argument shape is `NameOrPathShape`
+// (`string | string[]`): the honest, narrow contract. `EndoMount` accepts more
+// (a `MountEntry` cap) and therefore *widens* `has` / `lookup` / `maybeLookup`
+// to `PathArgShape` in its own guard rather than here, so the shared contract
+// stays honest (the maintainer canonical-shape decision: standardize on
+// `NameOrPathShape`, widen per-surface).
+export const readableNameHubMethodGuards = harden({
   has: M.call().rest(NamePathShape).returns(M.promise()),
+  list: M.call().rest(NamePathShape).returns(M.promise()),
+  lookup: M.call(NameOrPathShape).returns(M.promise()),
+  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
+});
+
+// The documentation-contract interface for the narrow read surface. It is not
+// used to build an exo directly (each surface assembles its own guard from the
+// records); it names the contract that `__getMethodNames__`-based feature
+// detection keys on (namehub-interface-unification.md Decision 3).
+export const ReadableNameHubInterface = M.interface('ReadableNameHub', {
+  ...readableNameHubMethodGuards,
+});
+harden(ReadableNameHubInterface);
+
+// The full name-hub method-guard record: the read contract plus the
+// registry/locator/mutation surface. `EndoNameHub` *is* exactly this record;
+// `EndoDirectory` spreads it and adds the directory-only surface (help /
+// makeDirectory / readText / maybeReadText / writeText). The `follow*` methods
+// return `M.remotable()` here — `EndoGuest` / `EndoHost` deliberately return
+// `M.promise()` instead, so they do NOT consume this record (the divergence the
+// consolidation doc records).
+export const nameHubMethodGuards = harden({
+  ...readableNameHubMethodGuards,
   identify: M.call().rest(NamePathShape).returns(M.promise()),
   locate: M.call().rest(NamePathShape).returns(M.promise()),
   reverseLocate: M.call(LocatorShape).returns(M.promise()),
   followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
-  list: M.call().rest(NamePathShape).returns(M.promise()),
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
   listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.remotable()),
-  lookup: M.call(NameOrPathShape).returns(M.promise()),
-  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
   storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
@@ -539,6 +561,11 @@ export const MountInterface = M.interface('EndoMount', {
   has: M.call().rest(M.any()).returns(M.promise()),
   list: M.call().rest(PathSegmentsShape).returns(M.promise()),
   lookup: M.call(PathArgShape).returns(M.promise()),
+  // `maybeLookup` is the `ReadableNameHub` primitive (lookup-or-undefined).
+  // Widened from the shared `NameOrPathShape` contract to `PathArgShape` so the
+  // mount accepts a `MountEntry` cap as the path argument, exactly like
+  // `lookup`. See designs/fs-interface-consolidation.md § C1.
+  maybeLookup: M.call(PathArgShape).returns(M.any()),
   // Confined sub-root: returns a sub-mount whose own confinement root is
   // the target directory, so `..` cannot escape it (unlike a `lookup`
   // sub-handle, which shares the mount's confinement root). The

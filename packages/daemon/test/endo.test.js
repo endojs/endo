@@ -4669,11 +4669,14 @@ test('mount readOnly() attenuation', async t => {
 
   // Mount-specific extensions are not on the read-only view; the
   // method names are constrained to the ReadableTree surface
-  // (filtering Exo introspection helpers).
+  // (filtering Exo introspection helpers). `help` is part of the
+  // platform ReadableTree contract (every capability is
+  // self-documenting), so it appears alongside has/list/lookup.
   // eslint-disable-next-line no-underscore-dangle
   const methods = await E(roTree).__getMethodNames__();
   t.deepEqual(methods.filter(name => !name.startsWith('__')).sort(), [
     'has',
+    'help',
     'list',
     'lookup',
   ]);
