@@ -86,16 +86,19 @@ export const DirectoryInterface = M.interface(
   'Directory',
   {
     ...NodeBaseMethods,
-    // Catalog `lookup`: resolve a path to its cap in one call. Accepts
-    // one-or-more path segments (`lookup('a')` or `lookup('a', 'b')`),
-    // walking the whole path and returning the deepest cap. The
-    // one-segment form is also exposed under the explicit name
-    // `lookupStep` for callers that want the CapTP-pipelining-optimized
+    // Catalog `lookup`: resolve a path to its cap in one call. Accepts a
+    // single name (`lookup('a')`) or a path array (`lookup(['a', 'b'])`),
+    // walking the whole path and returning the deepest cap. This is the
+    // same `string | string[]` calling convention `@endo/platform/fs`'s
+    // `Directory.lookup` and the daemon's `EndoDirectory.lookup`
+    // (`NameOrPathShape`) use, so a viewer calls `lookup` identically on
+    // every backing. The one-segment form is also exposed under the
+    // explicit name `lookupStep` for the CapTP-pipelining-optimized
     // single-step walk. See designs/fs-interface-reconciliation.md
     // §"Review findings incorporated" (F1).
-    lookup: M.call(M.string())
-      .rest(M.arrayOf(M.string()))
-      .returns(M.eref(M.or(M.remotable('Directory'), M.remotable('File')))),
+    lookup: M.call(M.or(M.string(), M.arrayOf(M.string()))).returns(
+      M.eref(M.or(M.remotable('Directory'), M.remotable('File'))),
+    ),
     // One path segment, the pipelining-optimized walk:
     // `E(d).lookupStep('a').lookupStep('b')` collapses depth-N into one
     // round-trip via promise-chaining.
@@ -104,10 +107,11 @@ export const DirectoryInterface = M.interface(
     ),
     // Narrow to a confined sub-tree: resolve `path` (which must name a
     // directory) and return its Directory cap. The result has no parent
-    // reference, so it cannot navigate above the new root.
-    subView: M.call(M.string())
-      .rest(M.arrayOf(M.string()))
-      .returns(M.eref(M.remotable('Directory'))),
+    // reference, so it cannot navigate above the new root. Same
+    // `string | string[]` convention as `lookup`.
+    subView: M.call(M.or(M.string(), M.arrayOf(M.string()))).returns(
+      M.eref(M.remotable('Directory')),
+    ),
     list: M.call().returns(M.eref(M.remotable('Cursor'))),
     create: M.call(M.string(), Pass).returns(M.eref(M.remotable('OpenFile'))),
     // Catalog whole-blob `write`: create-or-overwrite the named child

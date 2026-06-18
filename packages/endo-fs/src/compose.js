@@ -49,6 +49,7 @@ import {
   computeOpenMode,
   materialiseViaWalk,
   mintBrand,
+  toSegments,
 } from './shared/helpers.js';
 
 /**
@@ -66,8 +67,8 @@ const fresh = () => Symbol('endo-fs:tag');
 
 // Resolve trailing path segments by chaining one-segment `lookup`s.
 // Used by the composed Directory exos to implement the catalog's
-// path-array `lookup(...segments)` / `subView(...segments)` on top of
-// their per-segment resolution logic.
+// `lookup(nameOrPath)` / `subView(nameOrPath)` on top of their
+// per-segment resolution logic.
 const walkRest = async (node, restSegments) => {
   let cur = node;
   for (const seg of restSegments) {
@@ -76,6 +77,20 @@ const walkRest = async (node, restSegments) => {
   return cur;
 };
 harden(walkRest);
+
+// Enforce the catalog `subView` contract: the resolved node must be a
+// directory (the returned view is a confined sub-root). Without this,
+// `subView('file')` would silently return a File cap, violating the
+// guard's `M.remotable('Directory')` return — which CapTP does NOT
+// catch, since the interface label is cosmetic.
+const assertDir = async node => {
+  const qid = await E(node).getQid();
+  if (!qid || qid.type !== 'directory') {
+    throw makeError(X`ENOTDIR: subView target is not a directory`);
+  }
+  return node;
+};
+harden(assertDir);
 
 /**
  * Build a `NodeWatcher` that subscribes to each of `participants`'
@@ -371,14 +386,14 @@ export const emptyFilesystem = () => {
       async xattrs() {
         throw reject('xattrs');
       },
-      async lookup(...segments) {
-        throw makeError(X`ENOENT: ${q(segments.join('/'))}`);
+      async lookup(nameOrPath) {
+        throw makeError(X`ENOENT: ${q(toSegments(nameOrPath).join('/'))}`);
       },
       async lookupStep(name) {
         throw makeError(X`ENOENT: ${q(name)}`);
       },
-      async subView(...segments) {
-        throw makeError(X`ENOENT: ${q(segments.join('/'))}`);
+      async subView(nameOrPath) {
+        throw makeError(X`ENOENT: ${q(toSegments(nameOrPath).join('/'))}`);
       },
       async list() {
         return makeEmptyCursor();
@@ -608,13 +623,13 @@ export const bind = (host, mountPath, guest) => {
       async lookupStep(name) {
         return resolveStep(name);
       },
-      async lookup(...segments) {
-        const [first, ...rest] = segments;
+      async lookup(nameOrPath) {
+        const [first, ...rest] = toSegments(nameOrPath);
         return walkRest(await resolveStep(first), rest);
       },
-      async subView(...segments) {
-        const [first, ...rest] = segments;
-        return walkRest(await resolveStep(first), rest);
+      async subView(nameOrPath) {
+        const [first, ...rest] = toSegments(nameOrPath);
+        return assertDir(await walkRest(await resolveStep(first), rest));
       },
       async list() {
         return E(dir).list();
@@ -800,17 +815,17 @@ export const namespace = mounts => {
         if (!mount) throw makeError(X`ENOENT: ${q(name)}`);
         return E(mount).root();
       },
-      async lookup(...segments) {
-        const [head, ...rest] = segments;
+      async lookup(nameOrPath) {
+        const [head, ...rest] = toSegments(nameOrPath);
         const mount = mounts[head];
         if (!mount) throw makeError(X`ENOENT: ${q(head)}`);
         return walkRest(await E(mount).root(), rest);
       },
-      async subView(...segments) {
-        const [head, ...rest] = segments;
+      async subView(nameOrPath) {
+        const [head, ...rest] = toSegments(nameOrPath);
         const mount = mounts[head];
         if (!mount) throw makeError(X`ENOENT: ${q(head)}`);
-        return walkRest(await E(mount).root(), rest);
+        return assertDir(await walkRest(await E(mount).root(), rest));
       },
       async list() {
         const childMounts = names.map(name => ({ name, mount: mounts[name] }));
@@ -1474,15 +1489,17 @@ export const compose = (layer, backing, _opts = {}) => {
         if (layerDir) return E(layerDir).xattrs();
         return E(backingDir).xattrs();
       },
-      async lookup(...segments) {
-        const [first, ...rest] = segments;
+      async lookup(nameOrPath) {
+        const [first, ...rest] = toSegments(nameOrPath);
         // eslint-disable-next-line no-use-before-define
         return walkRest(await composedExo.lookupStep(first), rest);
       },
-      async subView(...segments) {
-        const [first, ...rest] = segments;
-        // eslint-disable-next-line no-use-before-define
-        return walkRest(await composedExo.lookupStep(first), rest);
+      async subView(nameOrPath) {
+        const [first, ...rest] = toSegments(nameOrPath);
+        return assertDir(
+          // eslint-disable-next-line no-use-before-define
+          await walkRest(await composedExo.lookupStep(first), rest),
+        );
       },
       async lookupStep(name) {
         reqDir();

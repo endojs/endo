@@ -99,13 +99,13 @@ const makeReadOnlyDirectory = dir => {
       const inner = await E(dir).xattrs();
       return makeReadOnlyXattrs(inner);
     },
-    async lookup(...segments) {
+    async lookup(nameOrPath) {
       // Pipeline lookup + getQid in one batch so the type
       // discrimination remains correct when `dir` is a remote
       // presence. A sync `child.getQid()` against a remote cap
       // returns a promise (its `type` is `undefined`), which would
       // mis-wrap every node as a File.
-      const childP = E(dir).lookup(...segments);
+      const childP = E(dir).lookup(nameOrPath);
       const qidP = E(childP).getQid();
       const [child, qid] = await Promise.all([childP, qidP]);
       if (qid && qid.type === 'directory') {
@@ -122,9 +122,10 @@ const makeReadOnlyDirectory = dir => {
       }
       return makeReadOnlyFile(child);
     },
-    async subView(...segments) {
-      // A sub-tree of a read-only view is itself read-only.
-      return makeReadOnlyDirectory(await E(dir).subView(...segments));
+    async subView(nameOrPath) {
+      // A sub-tree of a read-only view is itself read-only. Inner
+      // `subView` enforces the directory-only contract.
+      return makeReadOnlyDirectory(await E(dir).subView(nameOrPath));
     },
     async list() {
       // Cursor is read-only by nature.

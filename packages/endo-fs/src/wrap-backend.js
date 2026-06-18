@@ -36,6 +36,7 @@ import {
   assertChildName,
   computeOpenMode,
   mintBrand,
+  toSegments,
   EMPTY_BYTES,
 } from './shared/helpers.js';
 import { synthQid } from './shared/qid.js';
@@ -790,15 +791,13 @@ export const wrapBackend = (backend, opts = {}) => {
       async watch() {
         return watcherExoFor(path);
       },
-      // Catalog `lookup`: resolve one-or-more path segments in a single
-      // call and return the deepest cap. `lookup('a')` is the one-step
-      // form; `lookup('a', 'b')` walks the whole path. The backend is
-      // in-vat, so `backend.kind(fullPath)` resolves the walk without a
+      // Catalog `lookup`: resolve a name or path array in a single call
+      // and return the deepest cap. `lookup('a')` is the one-step form;
+      // `lookup(['a', 'b'])` walks the whole path. The backend is in-vat,
+      // so `backend.kind(fullPath)` resolves the walk without a
       // per-segment round-trip.
-      async lookup(...segments) {
-        if (segments.length === 0) {
-          throw makeError(X`lookup requires at least one path segment`);
-        }
+      async lookup(nameOrPath) {
+        const segments = toSegments(nameOrPath);
         segments.forEach(assertChildName);
         const childPath = [...path, ...segments];
         const k = await backend.kind(childPath);
@@ -821,11 +820,10 @@ export const wrapBackend = (backend, opts = {}) => {
       },
       // Narrow to a confined sub-tree. The returned Directory exo is
       // rooted at the sub-path and exposes no parent reference, so it
-      // cannot navigate above the new root.
-      async subView(...segments) {
-        if (segments.length === 0) {
-          throw makeError(X`subView requires at least one path segment`);
-        }
+      // cannot navigate above the new root. The target must be a
+      // directory (ENOTDIR otherwise).
+      async subView(nameOrPath) {
+        const segments = toSegments(nameOrPath);
         segments.forEach(assertChildName);
         const childPath = [...path, ...segments];
         const k = await backend.kind(childPath);
@@ -850,15 +848,19 @@ export const wrapBackend = (backend, opts = {}) => {
         assertChildName(name);
         const childPath = [...path, name];
         const bytes = textEncoder.encode(value);
-        await backend.write(childPath, bytes, 0n);
-        // Truncate any trailing bytes from a previously-longer file so
-        // `write` is a whole-blob overwrite, not a prefix patch.
-        if (caps.setStat) {
-          const setStatFn = /** @type {NonNullable<typeof backend.setStat>} */ (
-            backend.setStat
-          );
-          await setStatFn(childPath, { size: BigInt(bytes.length) });
+        // Whole-blob `write` must truncate any trailing bytes of a
+        // previously-longer file (otherwise `backend.write` at offset 0
+        // is a prefix patch that leaves a stale tail). That requires
+        // `setStat`; a backend without it cannot honor whole-blob
+        // semantics, so surface ENOSYS rather than silently corrupting.
+        if (!caps.setStat) {
+          throw notSupported('write (whole-blob; backend has no setStat)');
         }
+        const setStatFn = /** @type {NonNullable<typeof backend.setStat>} */ (
+          backend.setStat
+        );
+        await backend.write(childPath, bytes, 0n);
+        await setStatFn(childPath, { size: BigInt(bytes.length) });
       },
       async create(name, openOpts) {
         assertChildName(name);

@@ -369,24 +369,31 @@ test('collectStream drains a Cursor.stream', async t => {
 
 // ---------- Catalog naming crossover (fs-interface-reconciliation) ----------
 
-test('lookup resolves a multi-segment path in one call', async t => {
+test('lookup resolves a path array in one call (string | string[])', async t => {
   const fs = makeFs();
   const root = await E(fs).root();
   const a = await E(root).makeDirectory('a', {});
   const b = await E(a).makeDirectory('b', {});
   const bQid = await E(b).getQid();
 
-  const walked = await E(root).lookup('a', 'b');
+  // Path-array form, matching @endo/platform/fs and the daemon's
+  // EndoDirectory calling convention.
+  const walked = await E(root).lookup(['a', 'b']);
   const walkedQid = await E(walked).getQid();
   t.is(walkedQid.type, 'directory');
   t.is(walkedQid.pathId, bQid.pathId);
+
+  // Single-name form resolves the same as a one-element array.
+  const aById = await E(root).lookup('a');
+  const aByArr = await E(root).lookup(['a']);
+  t.is((await E(aById).getQid()).pathId, (await E(aByArr).getQid()).pathId);
 });
 
-test('lookup of a missing multi-segment path throws ENOENT', async t => {
+test('lookup of a missing path-array throws ENOENT', async t => {
   const fs = makeFs();
   const root = await E(fs).root();
   await E(root).makeDirectory('a', {});
-  await t.throwsAsync(() => E(root).lookup('a', 'nope'), {
+  await t.throwsAsync(() => E(root).lookup(['a', 'nope']), {
     message: /ENOENT/,
   });
 });
@@ -406,7 +413,7 @@ test('subView returns a confined directory; rejects non-directories', async t =>
   const a = await E(root).makeDirectory('a', {});
   await E(a).makeDirectory('b', {});
 
-  const view = await E(root).subView('a', 'b');
+  const view = await E(root).subView(['a', 'b']);
   t.is((await E(view).getQid()).type, 'directory');
 
   await E(root).write('file.txt', 'x');

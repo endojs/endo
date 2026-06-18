@@ -239,14 +239,12 @@ const makeCachingDirectory = (
     async xattrs() {
       return E(dir).xattrs();
     },
-    async lookup(...segments) {
+    async lookup(nameOrPath) {
       // Pipeline lookup + getQid as one batch so a CapTP-mediated
       // lookup still costs one RTT total — and we cache the qid
       // on the wrapper exo so its sync `getQid()` getter doesn't
       // need a follow-up round-trip (DESIGN.md §4.10 convention).
-      const { node, qid } = await resolveNodeWithQid(
-        E(dir).lookup(...segments),
-      );
+      const { node, qid } = await resolveNodeWithQid(E(dir).lookup(nameOrPath));
       if (qid && qid.type === 'directory') {
         return makeCachingDirectory(
           node,
@@ -271,9 +269,11 @@ const makeCachingDirectory = (
       }
       return makeCachingFile(node, qid, cas, populateInBackground);
     },
-    async subView(...segments) {
+    async subView(nameOrPath) {
+      // Inner `subView` enforces the directory-only contract; the
+      // result is always a Directory cap.
       const { node, qid } = await resolveNodeWithQid(
-        E(dir).subView(...segments),
+        E(dir).subView(nameOrPath),
       );
       return makeCachingDirectory(
         node,

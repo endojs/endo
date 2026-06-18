@@ -71,6 +71,20 @@ export const assertChildName = name => {
 };
 
 /**
+ * Normalize the catalog `lookup` / `subView` argument — a single name
+ * or a path array (`string | string[]`) — to an array of segments.
+ * This is the same calling convention `@endo/platform/fs` and the
+ * daemon's `EndoDirectory` use, so a viewer can call `lookup`
+ * identically on every backing.
+ *
+ * @param {string | string[]} nameOrPath
+ * @returns {string[]}
+ */
+export const toSegments = nameOrPath =>
+  Array.isArray(nameOrPath) ? nameOrPath : [nameOrPath];
+harden(toSegments);
+
+/**
  * Convert a `bigint` (or `number`) offset/length to a safe
  * `Number`, throwing `EINVAL` on overflow, non-integer values,
  * or negatives. Used at the boundary where the bigint-shaped

@@ -142,6 +142,31 @@ test('bind grafts guest at mountPath', async t => {
   t.is(await readFile(mnt, 'guest-file'), 'guest');
 });
 
+test('subView on a composed (bind) directory enforces the directory-only contract', async t => {
+  // The bind overlay is a distinct Directory exo from wrap-backend;
+  // confirm its catalog `subView` rejects a file with ENOTDIR (not
+  // silently returns the File cap) and accepts string | string[].
+  const host = makeInMemoryFilesystem();
+  const guest = makeInMemoryFilesystem();
+  const hostRoot = await E(host).root();
+  await E(hostRoot).mkdir('mnt', {});
+  await E(hostRoot).mkdir('host-dir', {});
+  await writeFile(hostRoot, 'host-file', 'host');
+
+  const fs = bind(host, ['mnt'], guest);
+  const root = await E(fs).root();
+
+  const view = await E(root).subView('host-dir');
+  t.is((await E(view).getQid()).type, 'directory');
+  // path-array form resolves the same directory.
+  const viewByArr = await E(root).subView(['host-dir']);
+  t.is((await E(viewByArr).getQid()).type, 'directory');
+
+  await t.throwsAsync(() => E(root).subView('host-file'), {
+    message: /ENOTDIR/,
+  });
+});
+
 test('bind rejects when host == guest (cycle)', async t => {
   const host = makeInMemoryFilesystem();
   t.throws(() => bind(host, ['mnt'], host), { message: /cycle/ });
