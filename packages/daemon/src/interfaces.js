@@ -491,6 +491,13 @@ export const InspectorInterface = M.interface('EndoInspector', {
 // `rangeReadMethodGuards` (getInfo / fetch) that align it with the extended
 // `BlobRef` for optimal remote usage. See
 // designs/fs-interface-consolidation.md § C4.
+//
+// Hash-encoding note: the canonical public content hash is `getInfo().hash`,
+// **base64** (matching `BlobRef`). `sha256()` returns the **hex** digest
+// because it is literally the content-store address — blobs are stored at
+// `state/store-sha256/<hex>`, and base64 (with `/`, `+`, and case-sensitivity)
+// is unsafe as a filename. Both encode the same sha256 digest; hex is retained
+// only as the storage-address accessor.
 export const BlobInterface = M.interface('EndoBlob', {
   ...readableBlobMethodGuards,
   ...rangeReadMethodGuards,

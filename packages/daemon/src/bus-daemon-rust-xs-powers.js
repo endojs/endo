@@ -310,7 +310,17 @@ export const makeXsFilePowers = () => {
   /** @type {FilePowers['statPath']} */
   const statPath = async path => {
     const { kind, sizeBytes, modifiedMs } = await statRaw(path);
-    return harden({ kind, sizeBytes, modifiedMs });
+    // Align to the extended `Stat` shape (size: bigint, mtime/atime: bigint
+    // nanoseconds). The XS host stat JSON carries ms; convert to ns. It does
+    // not provide atime, so atime mirrors mtime (a documented XS limitation,
+    // like pathIdentity below).
+    const mtimeNs = BigInt(modifiedMs) * 1_000_000n;
+    return harden({
+      kind,
+      size: BigInt(sizeBytes),
+      mtime: mtimeNs,
+      atime: mtimeNs,
+    });
   };
 
   /**

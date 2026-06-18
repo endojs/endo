@@ -17,10 +17,10 @@
  * @property {() => import('@endo/stream').Reader<Uint8Array>} makeFileReader
  * @property {() => Promise<string>} text
  * @property {() => Promise<any>} json
- * @property {() => Promise<number>} [size]
- *   Byte length of the blob (the `size` half of a content-addressed
- *   `getInfo()` triple). Optional: not every ContentStore backing
- *   surfaces it yet.
+ * @property {() => Promise<bigint>} [size]
+ *   Byte length of the blob as a bigint (the `size` half of a
+ *   content-addressed `getInfo()` triple). Optional: not every ContentStore
+ *   backing surfaces it yet.
  * @property {(offset: number, length: number) => Promise<Uint8Array>} [readRange]
  *   Windowed read of `[offset, offset + length)`, clamped at EOF.
  *   Optional for the same reason as `size`.

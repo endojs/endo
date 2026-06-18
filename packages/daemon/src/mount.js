@@ -1122,7 +1122,7 @@ const makeMountFileExo = (
       return harden({
         algorithm: 'sha256',
         hash: encodeBase64(fromHex(hashHex)),
-        size: BigInt(fileStat.sizeBytes),
+        size: fileStat.size,
       });
     },
 

@@ -238,7 +238,12 @@ test('stat returns a populated record for an existing file', async t => {
   const mount = makeMount({ rootPath, readOnly: false, filePowers });
   await E(mount).writeText(['present.txt'], 'hello');
   const result = await E(mount).stat(['present.txt']);
-  t.truthy(result);
+  // Aligned with the extended `Stat` shape: size + mtime/atime as bigint
+  // (mtime/atime in nanoseconds). See fs-interface-consolidation § stat.
+  t.is(result.kind, 'file');
+  t.is(result.size, 5n);
+  t.is(typeof result.mtime, 'bigint');
+  t.is(typeof result.atime, 'bigint');
 });
 
 // --- has() variants ---

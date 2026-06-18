@@ -162,11 +162,10 @@ export const makeDaemonicPersistencePowers = (
         const makeFileReader = () => filePowers.makeFileReader(storagePath);
         const text = async () => filePowers.readFileText(storagePath);
         const json = async () => JSON.parse(await text());
-        // Byte length of the stored blob — the `size` half of the
+        // Byte length of the stored blob (bigint) — the `size` half of the
         // content-addressed `getInfo()` triple, and the clamp bound for
         // range reads.
-        const size = async () =>
-          (await filePowers.statPath(storagePath)).sizeBytes;
+        const size = async () => (await filePowers.statPath(storagePath)).size;
         // Windowed read for `BlobRef.fetch`-style range access: only the
         // requested `[offset, offset + length)` window leaves disk.
         const readRange = (offset, length) =>

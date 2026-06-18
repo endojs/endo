@@ -5045,7 +5045,10 @@ test('mount entry descriptors support has, lookup, stat, makeFile, and provenanc
   t.true(await E(mount).has(createdEntry));
 
   const stat = await E(mount).stat(createdEntry);
-  t.like(stat, { kind: 'file', sizeBytes: 'created and appended'.length });
+  t.like(stat, {
+    kind: 'file',
+    size: BigInt('created and appended'.length),
+  });
 
   const srcEntry = await E(mount).entry('src');
   const srcDir = await E(mount).lookup(srcEntry);

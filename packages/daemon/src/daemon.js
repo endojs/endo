@@ -113,7 +113,7 @@ import {
  * `ReadableBlob` type, where they are optional for stores that lack range I/O.
  *
  * @typedef {import('@endo/platform/fs/lite/types').ReadableBlob & {
- *   size: () => Promise<number>,
+ *   size: () => Promise<bigint>,
  *   readRange: (offset: number, length: number) => Promise<Uint8Array>,
  * }} RangeReadableBlob
  */
@@ -1538,7 +1538,7 @@ const makeDaemonCore = async (
           return harden({
             algorithm: 'sha256',
             hash: encodeBase64(fromHex(sha256)),
-            size: BigInt(await size()),
+            size: await size(),
           });
         },
         /**

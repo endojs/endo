@@ -1082,10 +1082,18 @@ export interface EndoReadableTree {
   lookup(path: string | string[]): Promise<EndoReadableTree | EndoReadable>;
 }
 
+/**
+ * File metadata, aligned with the extended `Stat` shape from
+ * `@endo/platform/fs/extended` (size: bigint, mtime/atime: bigint nanoseconds
+ * since epoch). `kind` is additive — the mount stats a *path*, which may be a
+ * file or directory, where the extended engine relies on the cap type. See
+ * designs/fs-interface-consolidation.md.
+ */
 export type EndoMountStat = {
   kind: 'file' | 'directory' | 'symlink';
-  sizeBytes: number;
-  modifiedMs: number;
+  size: bigint;
+  mtime: bigint;
+  atime: bigint;
 };
 
 export interface EndoMountEntry {
@@ -1728,8 +1736,9 @@ export type FilePowers = {
   pathIdentity: (path: string) => Promise<string>;
   statPath: (path: string) => Promise<{
     kind: 'file' | 'directory' | 'symlink';
-    sizeBytes: number;
-    modifiedMs: number;
+    size: bigint;
+    mtime: bigint;
+    atime: bigint;
   }>;
   isDirectory: (path: string) => Promise<boolean>;
   exists: (path: string) => Promise<boolean>;

@@ -387,7 +387,10 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
 
   /** @param {string} path */
   const statPath = async path => {
-    const stat = await fs.promises.lstat(path);
+    // `bigint: true` yields `size` / `mtimeNs` / `atimeNs` as bigint
+    // nanoseconds, matching the extended `Stat` shape (size: bigint,
+    // mtime/atime: bigint ns) — see designs/fs-interface-consolidation.md.
+    const stat = await fs.promises.lstat(path, { bigint: true });
     const kind = /** @type {'directory' | 'file' | 'symlink'} */ (
       stat.isDirectory()
         ? 'directory'
@@ -397,8 +400,9 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     );
     return harden({
       kind,
-      sizeBytes: stat.size,
-      modifiedMs: stat.mtimeMs,
+      size: stat.size,
+      mtime: stat.mtimeNs,
+      atime: stat.atimeNs,
     });
   };
 
