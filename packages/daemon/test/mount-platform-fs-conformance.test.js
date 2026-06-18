@@ -180,6 +180,9 @@ const ENDOMOUNT_EXTENSIONS = [
   'makeFile',
   'subView',
   'maybeLookup',
+  // Declared as part of the name-hub contract but throws ENOSYS until a
+  // filesystem watcher is wired (filesystem-watchers.md) — see § C1.
+  'followNameChanges',
 ];
 
 /** Mount-specific extensions beyond the platform File contract. */

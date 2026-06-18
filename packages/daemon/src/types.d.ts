@@ -1170,6 +1170,12 @@ export interface EndoMount {
     path: string | string[] | EndoMountEntry,
   ): Promise<EndoMount | EndoMountFile | undefined>;
   /**
+   * Part of the name-hub contract, but a live change feed requires a
+   * filesystem watcher behind the mount (filesystem-watchers.md), which is
+   * not yet implemented; throws ENOSYS until then.
+   */
+  followNameChanges(): never;
+  /**
    * Confined sub-root: returns a sub-mount whose own confinement root is
    * the target directory, so `..` cannot escape it. The transient,
    * in-session counterpart to `provideSubMount`.

@@ -157,29 +157,21 @@ export const DirectoryInterface = M.interface('EndoDirectory', {
 export const GuestInterface = M.interface('EndoGuest', {
   // Self-documentation
   help: M.call().optional(M.string()).returns(M.string()),
-  // Directory
-  has: M.call().rest(NamePathShape).returns(M.promise()),
-  identify: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseIdentify: M.call(IdShape).returns(M.array()),
-  locate: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseLocate: M.call(LocatorShape).returns(M.promise()),
+  // Name hub — the shared read + registry/locator/mutation surface.
+  ...nameHubMethodGuards,
+  // `followNameChanges` / `followLocatorNameChanges` are async on agents
+  // (the exo awaits before wrapping the reader), so they return a Promise
+  // where the bare `EndoNameHub` / `EndoDirectory` return the reader
+  // synchronously (`M.remotable()`). Override the shared record's remotable
+  // shape with the agent's promise shape.
   followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
-  list: M.call().rest(NamePathShape).returns(M.promise()),
-  listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.promise()),
-  lookup: M.call(NameOrPathShape).returns(M.promise()),
-  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
+  // Agent-only registry extras beyond the bare name hub.
+  reverseIdentify: M.call(IdShape).returns(M.array()),
   lookupById: M.call(IdShape).returns(M.promise()),
   lookupByLocator: M.call(LocatorShape).returns(M.promise()),
-  reverseLookup: M.call(M.any()).returns(M.promise()),
-  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  remove: M.call().rest(NamePathShape).returns(M.promise()),
-  move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
+  // Directory surface (delegated to the agent's mount).
   makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
-  // Text I/O (delegated to mount)
   readText: M.call(NameOrPathShape).returns(M.promise()),
   maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
   writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
@@ -258,29 +250,18 @@ export const GuestInterface = M.interface('EndoGuest', {
 export const HostInterface = M.interface('EndoHost', {
   // Self-documentation
   help: M.call().optional(M.string()).returns(M.string()),
-  // Directory
-  has: M.call().rest(NamePathShape).returns(M.promise()),
-  identify: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseIdentify: M.call(IdShape).returns(M.array()),
-  locate: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseLocate: M.call(LocatorShape).returns(M.promise()),
+  // Name hub — the shared read + registry/locator/mutation surface.
+  ...nameHubMethodGuards,
+  // Async on agents (see EndoGuest): override the shared record's
+  // synchronous remotable shape with the agent's promise shape.
   followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
-  list: M.call().rest(NamePathShape).returns(M.promise()),
-  listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.promise()),
-  lookup: M.call(NameOrPathShape).returns(M.promise()),
-  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
+  // Agent-only registry extras beyond the bare name hub.
+  reverseIdentify: M.call(IdShape).returns(M.array()),
   lookupById: M.call(IdShape).returns(M.promise()),
   lookupByLocator: M.call(LocatorShape).returns(M.promise()),
-  reverseLookup: M.call(M.any()).returns(M.promise()),
-  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  remove: M.call().rest(NamePathShape).returns(M.promise()),
-  move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
+  // Directory surface (delegated to the agent's mount).
   makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
-  // Text I/O (delegated to mount)
   readText: M.call(NameOrPathShape).returns(M.promise()),
   maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
   writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
@@ -571,6 +552,14 @@ export const MountInterface = M.interface('EndoMount', {
   // mount accepts a `MountEntry` cap as the path argument, exactly like
   // `lookup`. See designs/fs-interface-consolidation.md § C1.
   maybeLookup: M.call(PathArgShape).returns(M.any()),
+  // `followNameChanges` is part of the full name-hub contract, but a live
+  // change feed requires a filesystem watcher behind the mount
+  // (filesystem-watchers.md), which is not yet implemented. The method is
+  // declared so the mount honestly advertises the surface (and a future
+  // watcher slots in without an interface bump); until then the
+  // implementation throws a clear "not supported" error rather than being
+  // silently absent. See designs/fs-interface-consolidation.md § C1.
+  followNameChanges: M.call().returns(M.any()),
   // Confined sub-root: returns a sub-mount whose own confinement root is
   // the target directory, so `..` cannot escape it (unlike a `lookup`
   // sub-handle, which shares the mount's confinement root). The

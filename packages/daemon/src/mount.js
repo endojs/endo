@@ -4,7 +4,7 @@
 /** @import { FilePowers } from './types.js' */
 
 import { E } from '@endo/far';
-import { q } from '@endo/errors';
+import { makeError, q, X } from '@endo/errors';
 import { makeExo } from '@endo/exo';
 import { encodeBase64 } from '@endo/base64';
 import { mapReader } from '@endo/stream';
@@ -603,6 +603,17 @@ const makeMountExo = ctx => {
       } catch {
         return undefined;
       }
+    },
+
+    // Part of the name-hub contract, but a live change feed needs a
+    // filesystem watcher behind the mount (filesystem-watchers.md), which is
+    // not yet implemented. Throw an explicit ENOSYS-style error rather than
+    // being silently absent, so callers get a clear signal that the surface
+    // exists but is not wired yet.
+    followNameChanges() {
+      throw makeError(
+        X`ENOSYS: followNameChanges is not yet supported on EndoMount; a filesystem watcher (see filesystem-watchers.md) is required to emit name changes`,
+      );
     },
 
     async subView(pathArg) {

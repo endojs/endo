@@ -160,6 +160,14 @@ test('maybeLookup returns a usable file handle for an existing file', async t =>
   t.is(await E(file).text(), 'hello');
 });
 
+test('followNameChanges throws ENOSYS until a filesystem watcher is wired', async t => {
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await t.throwsAsync(() => E(mount).followNameChanges(), {
+    message: /ENOSYS.*followNameChanges.*filesystem watcher/,
+  });
+});
+
 test('maybeLookup accepts a MountEntry path argument', async t => {
   const rootPath = makeTempRoot(t);
   const mount = makeMount({ rootPath, readOnly: false, filePowers });
