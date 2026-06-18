@@ -3,6 +3,7 @@
 export {
   readableBlobMethodGuards,
   readableTreeMethodGuards,
+  rangeReadMethodGuards,
   ReadableBlobInterface,
   SnapshotBlobInterface,
   ReadableTreeInterface,

@@ -151,6 +151,26 @@ export const makeXsFilePowers = () => {
   const readFileBytes = async path => readFile(path);
 
   /**
+   * Binary-safe range read returning `[offset, offset + length)`. The XS
+   * host has no native pread primitive, so this reads the whole file and
+   * slices — correct, if not as I/O-efficient as the Node powers' windowed
+   * read. Mirrors the `BlobRef.fetch` clamp: a short read past EOF returns
+   * the available bytes, and `offset` at/beyond EOF returns empty.
+   *
+   * @type {FilePowers['readFileRange']}
+   */
+  const readFileRange = async (path, offset, length) => {
+    if (length <= 0) {
+      return new Uint8Array(0);
+    }
+    const bytes = await readFile(path);
+    if (offset >= bytes.length) {
+      return new Uint8Array(0);
+    }
+    return bytes.subarray(offset, Math.min(offset + length, bytes.length));
+  };
+
+  /**
    * Like {@link readFile} but resolves to `undefined` when the file
    * does not exist (or the path is a directory).  The host returns
    * `undefined` for those cases natively; other I/O errors come back
@@ -386,6 +406,7 @@ export const makeXsFilePowers = () => {
     readFileText,
     readFileBytes,
     readFile,
+    readFileRange,
     maybeReadFile,
     maybeReadFileText,
     readDirectory,

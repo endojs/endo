@@ -28,6 +28,7 @@ import {
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 import { checkinTarTree } from './tar-checkin.js';
 import { makeDirectoryMaker } from './directory.js';
@@ -104,6 +105,35 @@ import {
 /**
  * @typedef {{ kind: 'bearer', token: string } | { kind: 'basic', username: string, password: string }} GitCredentialMaterial
  */
+
+/**
+ * The daemon's content store always surfaces the optional `size` / `readRange`
+ * members of `ReadableBlob` (its backing is the on-disk sha256 store), so its
+ * `fetch` result can be treated as having them present — unlike the shared
+ * `ReadableBlob` type, where they are optional for stores that lack range I/O.
+ *
+ * @typedef {import('@endo/platform/fs/lite/types').ReadableBlob & {
+ *   size: () => Promise<number>,
+ *   readRange: (offset: number, length: number) => Promise<Uint8Array>,
+ * }} RangeReadableBlob
+ */
+
+/**
+ * Wrap a byte range as a `PassableBytesReader`, the CapTP-passable bytes
+ * stream `BlobRef.fetch` returns. Empty ranges yield a reader that is
+ * immediately done. Mirrors the extended layer's `makeBytesReaderFromBytes`.
+ *
+ * @param {Uint8Array} bytes
+ */
+const bytesFromRange = bytes => {
+  function* generator() {
+    if (bytes.length > 0) {
+      yield bytes;
+    }
+  }
+  return bytesReaderFromIterator(generator());
+};
+harden(bytesFromRange);
 
 /**
  * Creates a delayed promise that can be cancelled.
@@ -1484,7 +1514,8 @@ const makeDaemonCore = async (
    * @param {string} sha256
    */
   const makeReadableBlob = sha256 => {
-    const { makeFileReader, text, json } = contentStore.fetch(sha256);
+    const { makeFileReader, text, json, size, readRange } =
+      /** @type {RangeReadableBlob} */ (contentStore.fetch(sha256));
     return makeExo(
       `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
@@ -1499,6 +1530,25 @@ const makeDaemonCore = async (
         },
         text,
         json,
+        // Range-I/O surface (aligns with the extended `BlobRef`): the
+        // `{ algorithm, hash, size }` triple in one round-trip, then a
+        // windowed `fetch`. `hash` is base64 to match `BlobRef.getInfo`;
+        // the daemon's `sha256()` accessor keeps the hex spelling.
+        async getInfo() {
+          return harden({
+            algorithm: 'sha256',
+            hash: encodeBase64(fromHex(sha256)),
+            size: BigInt(await size()),
+          });
+        },
+        /**
+         * @param {bigint} offset
+         * @param {bigint} length
+         */
+        async fetch(offset, length) {
+          const bytes = await readRange(Number(offset), Number(length));
+          return bytesFromRange(bytes);
+        },
         help: makeHelp(blobHelp),
       }),
     );
@@ -1834,6 +1884,11 @@ const makeDaemonCore = async (
       digester.update(bytes);
       return digester.digestHex();
     })();
+    const info = harden({
+      algorithm: 'sha256',
+      hash: encodeBase64(fromHex(sha256Hex)),
+      size: BigInt(bytes.length),
+    });
     return makeExo(
       'TransientBlob',
       BlobInterface,
@@ -1852,6 +1907,21 @@ const makeDaemonCore = async (
         },
         text: async () => bytesToText(bytes),
         json: async () => JSON.parse(bytesToText(bytes)),
+        getInfo: () => info,
+        /**
+         * @param {bigint} offset
+         * @param {bigint} length
+         */
+        fetch: async (offset, length) => {
+          const off = Number(offset);
+          const len = Number(length);
+          const end = Math.min(off + len, bytes.length);
+          const slice =
+            off >= bytes.length || len <= 0
+              ? new Uint8Array(0)
+              : bytes.subarray(off, end);
+          return bytesFromRange(slice);
+        },
       }),
     );
   };

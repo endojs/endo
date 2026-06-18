@@ -38,6 +38,20 @@ export const readableTreeMethodGuards = harden({
   lookup: M.call(NameOrPathShape).returns(M.promise()),
 });
 
+// The range-I/O surface for content-addressed bytes — the richer
+// `BlobRef` shape (see `@endo/platform/fs/extended` `BlobRefInterface`),
+// lifted to a portable record so the daemon's remote blob cap can expose it
+// too. `getInfo()` returns the `{ algorithm, hash, size }` triple in a single
+// round-trip (so a caller can consult a local CAS before fetching), and
+// `fetch(offset, length)` reads a byte *range* without streaming the whole
+// blob — the two methods that make remote reads optimal. The whole-value
+// `text` / `json` / `streamBase64` accessors layer on top. See
+// designs/fs-interface-consolidation.md § C4.
+export const rangeReadMethodGuards = harden({
+  getInfo: M.call().returns(M.any()),
+  fetch: M.call(M.bigint(), M.bigint()).returns(M.any()),
+});
+
 export const ReadableBlobInterface = M.interface('ReadableBlob', {
   ...readableBlobMethodGuards,
 });

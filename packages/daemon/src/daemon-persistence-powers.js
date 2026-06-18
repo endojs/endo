@@ -162,7 +162,16 @@ export const makeDaemonicPersistencePowers = (
         const makeFileReader = () => filePowers.makeFileReader(storagePath);
         const text = async () => filePowers.readFileText(storagePath);
         const json = async () => JSON.parse(await text());
-        return harden({ makeFileReader, text, json });
+        // Byte length of the stored blob — the `size` half of the
+        // content-addressed `getInfo()` triple, and the clamp bound for
+        // range reads.
+        const size = async () =>
+          (await filePowers.statPath(storagePath)).sizeBytes;
+        // Windowed read for `BlobRef.fetch`-style range access: only the
+        // requested `[offset, offset + length)` window leaves disk.
+        const readRange = (offset, length) =>
+          filePowers.readFileRange(storagePath, offset, length);
+        return harden({ makeFileReader, text, json, size, readRange });
       },
       /**
        * @param {string} sha256

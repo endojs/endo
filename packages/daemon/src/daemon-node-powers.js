@@ -256,6 +256,32 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
   const readFile = async path => fs.promises.readFile(path);
 
   /**
+   * Binary-safe range read: returns the bytes in `[offset, offset +
+   * length)`, reading only that window from disk rather than the whole
+   * file. Returns fewer bytes when the window extends past EOF (and an
+   * empty array when `offset` is already at or beyond EOF), mirroring
+   * the in-memory `BlobRef.fetch` clamp semantics.
+   *
+   * @param {string} path
+   * @param {number} offset
+   * @param {number} length
+   * @returns {Promise<Uint8Array>}
+   */
+  const readFileRange = async (path, offset, length) => {
+    if (length <= 0) {
+      return new Uint8Array(0);
+    }
+    const handle = await fs.promises.open(path, 'r');
+    try {
+      const buffer = new Uint8Array(length);
+      const { bytesRead } = await handle.read(buffer, 0, length, offset);
+      return buffer.subarray(0, bytesRead);
+    } finally {
+      await handle.close();
+    }
+  };
+
+  /**
    * Binary-safe whole-file read that returns `undefined` when the
    * file does not exist (ENOENT) or the path is a directory (EISDIR).
    * Other I/O errors propagate.
@@ -401,6 +427,7 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     readFileText,
     readFileBytes,
     readFile,
+    readFileRange,
     maybeReadFile,
     maybeReadFileText,
     readDirectory,

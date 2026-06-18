@@ -6,6 +6,7 @@ import {
   FileInterface as PlatformFileInterface,
   readableBlobMethodGuards,
   readableTreeMethodGuards,
+  rangeReadMethodGuards,
 } from '@endo/platform/fs/lite';
 
 // #region Patterns
@@ -531,12 +532,16 @@ export const InspectorInterface = M.interface('EndoInspector', {
   list: M.call().returns(M.array()),
 });
 
-// `EndoBlob` is the daemon's immutable-bytes cap. Its read surface is the
-// shared `readableBlobMethodGuards` from `@endo/platform/fs` (help / text /
-// json / streamBase64); it adds `sha256` for content addressing, making it the
-// `SnapshotBlob` shape. See designs/fs-interface-consolidation.md § C4.
+// `EndoBlob` is the daemon's immutable-bytes cap and the CapTP remote-read
+// target, so it carries the full rich surface: the whole-value
+// `readableBlobMethodGuards` (help / text / json / streamBase64), `sha256` for
+// content addressing (the `SnapshotBlob` shape), and the range-I/O
+// `rangeReadMethodGuards` (getInfo / fetch) that align it with the extended
+// `BlobRef` for optimal remote usage. See
+// designs/fs-interface-consolidation.md § C4.
 export const BlobInterface = M.interface('EndoBlob', {
   ...readableBlobMethodGuards,
+  ...rangeReadMethodGuards,
   sha256: M.call().returns(M.string()),
 });
 

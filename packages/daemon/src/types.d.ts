@@ -1685,6 +1685,11 @@ export type FilePowers = {
   readFileText: (path: string) => Promise<string>;
   readFileBytes: (path: string) => Promise<Uint8Array>;
   readFile: (path: string) => Promise<Uint8Array>;
+  readFileRange: (
+    path: string,
+    offset: number,
+    length: number,
+  ) => Promise<Uint8Array>;
   maybeReadFile: (path: string) => Promise<Uint8Array | undefined>;
   maybeReadFileText: (path: string) => Promise<string | undefined>;
   readDirectory: (path: string) => Promise<Array<string>>;

@@ -21,11 +21,13 @@ import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper'
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
 import { ZipReader } from '@endo/zip/reader.js';
+import { encodeBase64 } from '@endo/base64';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
+import { fromHex } from '../src/hex.js';
 import { makeDaemonDatabase } from '../src/daemon-database-node.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
 import {
@@ -714,6 +716,45 @@ test('store with name', async t => {
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
   }
+});
+
+test('stored blob exposes the rich BlobRef range-I/O surface (getInfo + fetch)', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  const payload = new TextEncoder().encode('hello world\n'); // 12 bytes
+  const readerRef = bytesReaderFromIterator([payload]);
+  const blob = await E(host).storeBlob(readerRef, 'rich-blob');
+
+  /** @param {any} reader */
+  const collect = async reader => {
+    const chunks = [];
+    for await (const chunk of iterateBytesReader(reader)) {
+      chunks.push(chunk);
+    }
+    const total = chunks.reduce((n, c) => n + c.length, 0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const c of chunks) {
+      out.set(c, offset);
+      offset += c.length;
+    }
+    return new TextDecoder().decode(out);
+  };
+
+  // getInfo() returns the content-address triple in one round-trip.
+  const info = await E(blob).getInfo();
+  t.is(info.algorithm, 'sha256');
+  t.is(info.size, 12n);
+  // hash is base64 (aligned with the extended BlobRef); sha256() stays hex.
+  const sha256Hex = await E(blob).sha256();
+  t.is(info.hash, encodeBase64(fromHex(sha256Hex)));
+
+  // fetch(offset, length) is a windowed read, clamped at EOF.
+  t.is(await collect(await E(blob).fetch(0n, 12n)), 'hello world\n');
+  t.is(await collect(await E(blob).fetch(0n, 5n)), 'hello');
+  t.is(await collect(await E(blob).fetch(6n, 100n)), 'world\n');
+  t.is(await collect(await E(blob).fetch(100n, 4n)), '');
 });
 
 test('store blob in subdirectory', async t => {
