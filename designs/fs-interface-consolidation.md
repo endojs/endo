@@ -279,6 +279,24 @@ assembled `lite` `M.interface` objects still earn their keep or whether the
 code should ship only records + the real extended guard. This is a cleanup that
 falls out of C2; no separate analysis needed.
 
+## Result-shape inconsistencies (record/value alignment)
+
+C1–C5 aligned method *names and argument shapes*. A separate audit found a
+class of "same concept, different **result** shape" divergences — the same
+logical value spelled differently depending on which surface returns it. The
+flagged ones and their resolutions:
+
+| Concept | Divergence | Resolution |
+|---|---|---|
+| **File stat** | `EndoMountStat` `{ kind, sizeBytes: number, modifiedMs: ms }` vs extended `Stat` `{ size: bigint, mtime: bigint ns, atime }` — and `getInfo().size` is bigint, colliding with `stat().sizeBytes` within the daemon mount | **Aligned to extended.** `EndoMountStat` is now `{ kind, size: bigint, mtime: bigint ns, atime: bigint }`. `kind` is kept (the mount stats a path). XS approximates `atime ← mtime` (host stat lacks it). |
+| **Content hash** | `sha256()` is hex but `getInfo().hash` is base64 — two encodings of one digest on one cap | **base64 is canonical** (`getInfo().hash`). `sha256()` stays hex because it is the on-disk content-store address (`store-sha256/<hex>`); base64 is filename-unsafe. Documented as a role split, not changed. |
+| **Dir-change record** | NameHub `{ add, value: idRecord }` vs proposed mount `{ add, type }` vs extended `WatchEvent { kind, name }` — three shapes | **Deferred** with `followNameChanges` (ENOSYS). When the mount feed lands, align on a common `{ add: name } \| { remove: name }` base with surface-specific additive fields (`value` for hubs, `type` for mounts). |
+| **Listing** | daemon/lite `list()` → `string[]` vs extended `Cursor`/`DirEntry[]` (name + qid) | **Intentional layer split** (the reconciliation chose names for lite/daemon, rich `Cursor` for the cap-FS engine). Not aligned. |
+
+Other audited items (`getStat`/`getAttrs` narrow-vs-wide, `mkdir`/`unlink`
+aliases, `Qid` vs `getInfo`, `has`/`exists`, symlink scoping) are
+documented-intentional divergences, not accidental inconsistencies.
+
 ## Target consolidated inventory
 
 After C1–C5 the fs/name-hub interface set collapses roughly as:
