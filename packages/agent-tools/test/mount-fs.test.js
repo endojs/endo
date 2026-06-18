@@ -15,7 +15,11 @@ import fs from 'fs';
 import { Buffer } from 'buffer';
 import { E, Far } from '@endo/far';
 
-import { makeNodeFilesystem, readOnly, chroot } from '@endo/platform/fs/extended';
+import {
+  makeNodeFilesystem,
+  readOnly,
+  chroot,
+} from '@endo/platform/fs/extended';
 
 import { makeMountReadTool } from '../src/mount-fs.js';
 

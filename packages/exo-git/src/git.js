@@ -4,7 +4,10 @@
 import { q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
-import { readOnly as readOnlyFs, wrapBackend } from '@endo/platform/fs/extended';
+import {
+  readOnly as readOnlyFs,
+  wrapBackend,
+} from '@endo/platform/fs/extended';
 
 import { makeGitFsBackend } from './git-filesystem.js';
 import { GitInterface } from './interfaces.js';

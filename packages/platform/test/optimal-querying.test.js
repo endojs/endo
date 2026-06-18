@@ -444,7 +444,8 @@ test('PATTERN: Filesystem.statfs aggregates across mounts (namespace sums partic
   // `statfs` numbers (`totalBytes`, `freeBytes`, `availableBytes`).
   // A namespace with one populated mount carries that mount's
   // bytes-used; participants reporting zeros don't affect the sum.
-  const { namespace, emptyFilesystem } = await import('../src/fs/extended/compose.js');
+  const { namespace, emptyFilesystem } =
+    await import('../src/fs/extended/compose.js');
   const a = makeInMemoryFilesystem();
   await writeFile(await E(a).root(), 'sample', 'X'.repeat(100));
   const ns = namespace({ a, _empty: emptyFilesystem() });
