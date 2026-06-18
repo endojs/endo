@@ -19,6 +19,9 @@ const repoRoot = path.resolve(dirname, '../..');
 const tcpNetstringUrl = pathToFileURL(
   path.join(repoRoot, 'packages/daemon/src/networks/tcp-netstring.js'),
 ).href;
+const irohUrl = pathToFileURL(
+  path.join(repoRoot, 'packages/daemon/src/networks/iroh.js'),
+).href;
 const wsRelayUrl = pathToFileURL(
   path.join(repoRoot, 'packages/daemon/src/networks/ws-relay.js'),
 ).href;
@@ -259,6 +262,7 @@ export const makeEndoPlugin = () => {
           'import.meta.env.ENDO_GATEWAY': JSON.stringify(''),
           'import.meta.env.ENDO_AGENT': JSON.stringify(''),
           'import.meta.env.TCP_NETSTRING_PATH': JSON.stringify(tcpNetstringUrl),
+          'import.meta.env.IROH_PATH': JSON.stringify(irohUrl),
           'import.meta.env.WS_RELAY_PATH': JSON.stringify(wsRelayUrl),
           'import.meta.env.ENDO_FS_IN_MEMORY_PATH':
             JSON.stringify(endoFsInMemoryUrl),

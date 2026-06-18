@@ -688,6 +688,39 @@ export const createCommandExecutor = ({
           };
         }
 
+        case 'network-iroh': {
+          const effectiveModulePath =
+            String(params.modulePath || '') ||
+            // @ts-ignore Vite injects this at build time
+            (import.meta.env?.IROH_PATH ?? '');
+
+          if (!effectiveModulePath) {
+            return {
+              success: false,
+              message:
+                'Module path required. Provide the file:// URL to iroh.js',
+            };
+          }
+
+          console.log(
+            `[Chat] /network-iroh: loading module ${effectiveModulePath}`,
+          );
+          // The iroh module self-configures (binds an in-memory endpoint and
+          // resolves peers through iroh discovery and relays) so there is no
+          // request/resolve step like the TCP network.
+          await E(powers).makeUnconfined(undefined, effectiveModulePath, {
+            powersName: '@agent',
+            resultName: 'network-service-iroh',
+          });
+          console.log(`[Chat] /network-iroh: moving to @nets/iroh`);
+          await E(powers).move(['network-service-iroh'], ['@nets', 'iroh']);
+          console.log(`[Chat] /network-iroh: iroh network ready`);
+          return {
+            success: true,
+            message: 'iroh network started',
+          };
+        }
+
         case 'network-ws-relay': {
           const effectiveModulePath =
             String(params.modulePath || '') ||

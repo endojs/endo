@@ -721,6 +721,26 @@ export const COMMANDS = {
     ],
     submitLabel: 'Enable',
   },
+  'network-iroh': {
+    name: 'network-iroh',
+    label: 'Enable iroh Network',
+    description: 'Enable iroh peer-to-peer network (no open ports needed)',
+    category: 'connections',
+    mode: 'inline',
+    fields: [
+      {
+        name: 'modulePath',
+        label: 'Module',
+        type: 'text',
+        required: false,
+        placeholder: 'file:// URL to iroh.js',
+        // @ts-ignore Vite injects this at build time
+        defaultValue: import.meta.env?.IROH_PATH || '',
+      },
+    ],
+    submitLabel: 'Enable',
+  },
+
   'network-ws-relay': {
     name: 'network-ws-relay',
     label: 'Enable Relay Network',
