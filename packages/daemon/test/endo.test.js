@@ -73,7 +73,7 @@ const drainIterator = async (iteratorRef, count) => {
   let remaining = count;
   while (remaining > 0) {
     // eslint-disable-next-line no-await-in-loop
-    await E(iteratorRef).next();
+    await iteratorRef.next();
     remaining -= 1;
   }
 };
@@ -1025,8 +1025,8 @@ testNeedsNodeWorker(
         [],
         ['grant'],
       );
-      const iteratorRef = E(host).followMessages();
-      const { value: message } = await E(iteratorRef).next();
+      const iterator = iterateReader(E(host).followMessages());
+      const { value: message } = await iterator.next();
       const { number, from: fromId } = E.get(message);
       const [fromName] = await E(host).reverseLocate(await fromId);
       t.is(await fromName, 'h1');
@@ -1093,8 +1093,8 @@ testNeedsNodeWorker('persist confined services and their requests', async t => {
       [],
       ['grant'],
     );
-    const iteratorRef = E(host).followMessages();
-    const { value: message } = await E(iteratorRef).next();
+    const iterator = iterateReader(E(host).followMessages());
+    const { value: message } = await iterator.next();
     const { number, from: fromId } = E.get(message);
     const [fromName] = await E(host).reverseLocate(await fromId);
     t.is(await fromName, 'h1');
@@ -1150,16 +1150,16 @@ test('guest facet receives a message for host', async t => {
   await E(host).provideWorker(['worker']);
   await E(host).evaluate('worker', '10', [], [], ['ten1']);
 
-  const iteratorRef = E(host).followMessages();
+  const iterator = iterateReader(E(host).followMessages());
   const numberP = E(guest).request('@host', 'a number', 'number');
-  const { value: message0 } = await E(iteratorRef).next();
+  const { value: message0 } = await iterator.next();
   t.is(message0.number, 0n);
   await E(host).resolve(message0.number, 'ten1');
   await numberP;
 
   await E(guest).send('@host', ['Hello, World!'], ['gift'], ['number']);
 
-  const { value: message1 } = await E(iteratorRef).next();
+  const { value: message1 } = await iterator.next();
   t.is(message1.number, 1n);
   await E(host).adopt(message1.number, 'gift', ['ten2']);
   const ten = await E(host).lookup(['ten2']);
@@ -1211,14 +1211,14 @@ test('reply links to parent message', async t => {
   const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  const hostMessages = E(host).followMessages();
-  const guestMessages = E(guest).followMessages();
+  const hostMessages = iterateReader(E(host).followMessages());
+  const guestMessages = iterateReader(E(guest).followMessages());
 
   await E(guest).send('@host', ['hello'], [], []);
 
   const [{ value: hostMessage }, { value: sentMessage }] = await Promise.all([
-    E(hostMessages).next(),
-    E(guestMessages).next(),
+    hostMessages.next(),
+    guestMessages.next(),
   ]);
 
   t.is(hostMessage.type, 'package');
@@ -1227,7 +1227,7 @@ test('reply links to parent message', async t => {
 
   await E(host).reply(hostMessage.number, ['hi'], [], []);
 
-  const { value: replyMessage } = await E(guestMessages).next();
+  const { value: replyMessage } = await guestMessages.next();
   t.is(replyMessage.type, 'package');
   t.is(replyMessage.replyTo, hostMessage.messageId);
 });
@@ -1236,12 +1236,12 @@ test('message hub avoids kebab-case reply metadata names', async t => {
   const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  const hostMessages = E(host).followMessages();
+  const hostMessages = iterateReader(E(host).followMessages());
 
   await E(guest).send('@host', ['hello'], [], []);
-  const { value: hostMessage } = await E(hostMessages).next();
+  const { value: hostMessage } = await hostMessages.next();
   await E(host).reply(hostMessage.number, ['hi'], [], []);
-  const { value: replyMessage } = await E(hostMessages).next();
+  const { value: replyMessage } = await hostMessages.next();
 
   const replyHub = await E(host).lookup(['@mail', String(replyMessage.number)]);
   const replyNames = await E(replyHub).list();
@@ -1259,14 +1259,14 @@ test('mailboxes persist messages across restart', async t => {
   const { cancelled, config, host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  const iteratorRef = E(host).followMessages();
+  const iterator = iterateReader(E(host).followMessages());
 
   // Await delivery of the first message before sending the second to
   // guarantee deterministic message numbering.
   E.sendOnly(guest).request('@host', 'first request', 'response0');
-  const { value: message0 } = await E(iteratorRef).next();
+  const { value: message0 } = await iterator.next();
   E.sendOnly(guest).request('@host', 'second request', 'response1');
-  const { value: message1 } = await E(iteratorRef).next();
+  const { value: message1 } = await iterator.next();
   t.is(message0.number, 0n);
   t.is(message1.number, 1n);
 
@@ -1306,11 +1306,11 @@ test('rehydrated requests can be resolved after restart', async t => {
   await E(host).storeValue(10, 'ten');
 
   const guest = E(host).provideGuest('guest');
-  const guestMessages = E(guest).followMessages();
+  const guestMessages = iterateReader(E(guest).followMessages());
 
   E.sendOnly(guest).request('@host', 'need a number');
 
-  const { value: guestMessage } = await E(guestMessages).next();
+  const { value: guestMessage } = await guestMessages.next();
   const { promiseId: promiseLocatorP } = E.get(guestMessage);
   const promiseLocator = await promiseLocatorP;
   await E(host).storeLocator(['pending'], promiseLocator);
@@ -2171,7 +2171,7 @@ testNeedsNodeWorker('indirect cancellation via worker', async t => {
 // Regression test 2 for https://github.com/endojs/endo/issues/2074
 testNeedsNodeWorker('indirect cancellation via caplet', async t => {
   const { host } = await prepareHost(t);
-  const messages = E(host).followMessages();
+  const messages = iterateReader(E(host).followMessages());
 
   await E(host).provideWorker(['w1']);
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -2190,7 +2190,7 @@ testNeedsNodeWorker('indirect cancellation via caplet', async t => {
     resultName: 'doubler',
   });
   {
-    const { value: message } = await E(messages).next();
+    const { value: message } = await messages.next();
     t.is(message.type, 'request');
     t.is(message.description, 'a counter, suitable for doubling');
     await E(host).resolve(message.number, 'counter');
@@ -2227,7 +2227,7 @@ testNeedsNodeWorker('cancel because of requested capability', async t => {
   await E(host).provideWorker(['worker']);
   await E(host).provideGuest('guest', { agentName: 'guest-agent' });
 
-  const messages = E(host).followMessages();
+  const messages = iterateReader(E(host).followMessages());
 
   const counterPath = path.join(dirname, 'test', 'counter-agent.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
@@ -2237,7 +2237,7 @@ testNeedsNodeWorker('cancel because of requested capability', async t => {
   });
 
   await E(host).evaluate('worker', '0', [], [], ['zero']);
-  const { value: message } = await E(messages).next();
+  const { value: message } = await messages.next();
   t.is(message.type, 'request');
   await E(host).resolve(message.number, 'zero');
 
@@ -2958,16 +2958,16 @@ testNeedsNodeWorker('follow messages across nodes', async t => {
   const invitationLocator = await E(invitation).locate();
   await E(hostB).accept(invitationLocator, 'alice');
 
-  const iteratorRef = E(hostB).followMessages();
+  const iterator = iterateReader(E(hostB).followMessages());
   const existingMessages = /** @type {unknown[]} */ (
     await E(hostB).listMessages()
   );
-  await drainIterator(iteratorRef, existingMessages.length);
+  await drainIterator(iterator, existingMessages.length);
 
   await E(hostA).evaluate('@main', '"streamed"', [], [], ['stream-val']);
   await E(hostA).send('bob', ['Stream test'], ['stream-val'], ['stream-val']);
 
-  const { value: msg } = await E(iteratorRef).next();
+  const { value: msg } = await iterator.next();
   t.is(msg.type, 'package');
   t.is(msg.strings[0], 'Stream test');
 });
@@ -2980,8 +2980,8 @@ testNeedsNodeWorker('reply across nodes', async t => {
   const invitationLocator = await E(invitation).locate();
   await E(hostB).accept(invitationLocator, 'alice');
 
-  const iteratorA = E(hostA).followMessages();
-  const iteratorB = E(hostB).followMessages();
+  const iteratorA = iterateReader(E(hostA).followMessages());
+  const iteratorB = iterateReader(E(hostB).followMessages());
   const existingA = /** @type {unknown[]} */ (await E(hostA).listMessages());
   await drainIterator(iteratorA, existingA.length);
   const existingB = /** @type {unknown[]} */ (await E(hostB).listMessages());
@@ -2990,18 +2990,18 @@ testNeedsNodeWorker('reply across nodes', async t => {
   await E(hostA).send('bob', ['Hello Bob'], [], []);
 
   // A's outgoing message appears in A's own iterator
-  const { value: sentMsg } = await E(iteratorA).next();
+  const { value: sentMsg } = await iteratorA.next();
   t.is(sentMsg.type, 'package');
 
   // B receives the message
-  const { value: received } = await E(iteratorB).next();
+  const { value: received } = await iteratorB.next();
   t.is(received.type, 'package');
   t.is(received.strings[0], 'Hello Bob');
 
   await E(hostB).reply(received.number, ['Hello Alice'], [], []);
 
   // A receives the reply via its iterator
-  const { value: replyMsg } = await E(iteratorA).next();
+  const { value: replyMsg } = await iteratorA.next();
   t.is(replyMsg.type, 'package');
   t.is(replyMsg.strings[0], 'Hello Alice');
 });
@@ -3016,13 +3016,13 @@ testNeedsNodeWorker('request and resolve across nodes', async t => {
 
   await E(hostB).evaluate('@main', '42', [], [], ['answer']);
 
-  const iteratorB = E(hostB).followMessages();
+  const iteratorB = iterateReader(E(hostB).followMessages());
   const existingB = /** @type {unknown[]} */ (await E(hostB).listMessages());
   await drainIterator(iteratorB, existingB.length);
 
   const resultP = E(hostA).request('bob', 'need a number', 'result');
 
-  const { value: requestMsg } = await E(iteratorB).next();
+  const { value: requestMsg } = await iteratorB.next();
   t.is(requestMsg.type, 'request');
 
   await E(hostB).resolve(requestMsg.number, 'answer');
@@ -3134,9 +3134,9 @@ test('resolve with pet name path', async t => {
   // Create a guest and have it make a request
   const guest = E(host).provideGuest('guest');
 
-  const iteratorRef = E(host).followMessages();
+  const iterator = iterateReader(E(host).followMessages());
   E.sendOnly(guest).request('@host', 'a response');
-  const { value: message } = await E(iteratorRef).next();
+  const { value: message } = await iterator.next();
   t.is(message.number, 0n);
 
   // Resolve using a pet name path
@@ -3156,14 +3156,14 @@ test('request with pet name path for response storage', async t => {
   await E(guest).makeDirectory(['responses']);
 
   // Have the guest make a request, storing response in a path within guest's directory
-  const iteratorRef = E(host).followMessages();
+  const iterator = iterateReader(E(host).followMessages());
   const requestP = E(guest).request('@host', 'give me something', [
     'responses',
     'result',
   ]);
 
   // Host receives and resolves the request
-  const { value: message } = await E(iteratorRef).next();
+  const { value: message } = await iterator.next();
   t.is(message.type, 'request');
 
   // Create something to respond with
@@ -3476,8 +3476,8 @@ test('form happy path: guest sends form, host submits', async t => {
   const guest = await E(host).provideGuest('guest');
 
   // Follow messages on both sides
-  const hostIteratorRef = E(host).followMessages();
-  const guestIteratorRef = E(guest).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
+  const guestIterator = iterateReader(E(guest).followMessages());
 
   // Guest sends a form to the host (fire-and-forget)
   await E(guest).form(
@@ -3490,7 +3490,7 @@ test('form happy path: guest sends form, host submits', async t => {
   );
 
   // Host receives the form message
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
   t.is(formMsg.description, 'Please configure');
 
@@ -3502,9 +3502,9 @@ test('form happy path: guest sends form, host submits', async t => {
 
   // Guest should receive the value message in followMessages
   // First message is the form itself (self-delivery), then the value reply
-  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  const { value: guestFormMsg } = await guestIterator.next();
   t.is(guestFormMsg.type, 'form');
-  const { value: valueMsg } = await E(guestIteratorRef).next();
+  const { value: valueMsg } = await guestIterator.next();
   t.is(valueMsg.type, 'value');
   t.is(typeof valueMsg.valueId, 'string');
   t.is(valueMsg.replyTo, formMsg.messageId);
@@ -3514,7 +3514,7 @@ test('form submit rejects when a field is missing', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3525,7 +3525,7 @@ test('form submit rejects when a field is missing', async t => {
     ]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   // Submit with only one field — should throw
@@ -3539,7 +3539,7 @@ test('form submit with pattern validation rejects non-matching value', async t =
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3547,7 +3547,7 @@ test('form submit with pattern validation rejects non-matching value', async t =
     harden([{ name: 'count', label: 'Count', pattern: M.number() }]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   // Submit with wrong type — should throw
@@ -3561,7 +3561,7 @@ test('form submit with pattern validation accepts matching value', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3569,7 +3569,7 @@ test('form submit with pattern validation accepts matching value', async t => {
     harden([{ name: 'count', label: 'Count', pattern: M.number() }]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   // Should not throw
@@ -3581,7 +3581,7 @@ test('form default pattern is M.string() — rejects non-string', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3589,7 +3589,7 @@ test('form default pattern is M.string() — rejects non-string', async t => {
     harden([{ name: 'name', label: 'Name' }]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   // Submit with a number — should throw because default pattern is M.string()
@@ -3603,8 +3603,8 @@ test('form multi-submission: same form submitted twice produces two value messag
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
-  const guestIteratorRef = E(guest).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
+  const guestIterator = iterateReader(E(guest).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3612,7 +3612,7 @@ test('form multi-submission: same form submitted twice produces two value messag
     harden([{ name: 'answer', label: 'Answer' }]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   // Submit twice
@@ -3620,11 +3620,11 @@ test('form multi-submission: same form submitted twice produces two value messag
   await E(host).submit(formMsg.number, harden({ answer: 'second' }));
 
   // Guest should see the form + two value messages
-  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  const { value: guestFormMsg } = await guestIterator.next();
   t.is(guestFormMsg.type, 'form');
-  const { value: value1 } = await E(guestIteratorRef).next();
+  const { value: value1 } = await guestIterator.next();
   t.is(value1.type, 'value');
-  const { value: value2 } = await E(guestIteratorRef).next();
+  const { value: value2 } = await guestIterator.next();
   t.is(value2.type, 'value');
 
   // Both should reference the same form
@@ -3652,8 +3652,8 @@ test('form reverse: host sends form to guest, guest submits', async t => {
   const guest = await E(host).provideGuest('alice');
 
   // Follow guest messages
-  const guestIteratorRef = E(guest).followMessages();
-  const hostIteratorRef = E(host).followMessages();
+  const guestIterator = iterateReader(E(guest).followMessages());
+  const hostIterator = iterateReader(E(host).followMessages());
 
   // Host sends a form to the guest
   await E(host).form(
@@ -3663,7 +3663,7 @@ test('form reverse: host sends form to guest, guest submits', async t => {
   );
 
   // Guest receives the form message
-  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  const { value: guestFormMsg } = await guestIterator.next();
   t.is(guestFormMsg.type, 'form');
   t.is(guestFormMsg.description, 'Survey');
 
@@ -3674,9 +3674,9 @@ test('form reverse: host sends form to guest, guest submits', async t => {
   );
 
   // Host should see the form (self-delivery) and then the value message
-  const { value: hostFormMsg } = await E(hostIteratorRef).next();
+  const { value: hostFormMsg } = await hostIterator.next();
   t.is(hostFormMsg.type, 'form');
-  const { value: hostValueMsg } = await E(hostIteratorRef).next();
+  const { value: hostValueMsg } = await hostIterator.next();
   t.is(hostValueMsg.type, 'value');
   t.is(hostValueMsg.replyTo, guestFormMsg.messageId);
 });
@@ -3690,23 +3690,23 @@ test('sendValue replies to a message with a retained value', async t => {
   await E(host).send('guest', ['Here is a question'], [], []);
 
   // Guest receives the package
-  const guestIteratorRef = E(guest).followMessages();
-  const { value: pkgMsg } = await E(guestIteratorRef).next();
+  const guestIterator = iterateReader(E(guest).followMessages());
+  const { value: pkgMsg } = await guestIterator.next();
   t.is(pkgMsg.type, 'package');
 
   // Set up host iterator and drain existing messages BEFORE sendValue
-  const hostIteratorRef = E(host).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
   const existingMessages = /** @type {unknown[]} */ (
     await E(host).listMessages()
   );
-  await drainIterator(hostIteratorRef, existingMessages.length);
+  await drainIterator(hostIterator, existingMessages.length);
 
   // Guest stores a value and sends it back as a reply
   await E(guest).storeValue(99, 'my-reply');
   await E(guest).sendValue(pkgMsg.number, 'my-reply');
 
   // Host receives the value message via the iterator
-  const { value: valueMsg } = await E(hostIteratorRef).next();
+  const { value: valueMsg } = await hostIterator.next();
   t.is(valueMsg.type, 'value');
   t.is(valueMsg.replyTo, pkgMsg.messageId);
 
@@ -3727,8 +3727,8 @@ test('sendValue rejects unknown pet name', async t => {
   // Send a message to the guest so there's something to reply to
   await E(host).send('guest', ['Hello'], [], []);
 
-  const guestIteratorRef = E(guest).followMessages();
-  const { value: pkgMsg } = await E(guestIteratorRef).next();
+  const guestIterator = iterateReader(E(guest).followMessages());
+  const { value: pkgMsg } = await guestIterator.next();
 
   // Attempt to sendValue with a nonexistent pet name
   await t.throwsAsync(() => E(guest).sendValue(pkgMsg.number, 'nonexistent'), {
@@ -3753,8 +3753,8 @@ test('form value message @value is addressable via @mail/N/@value', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
-  const guestIteratorRef = E(guest).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
+  const guestIterator = iterateReader(E(guest).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3762,15 +3762,15 @@ test('form value message @value is addressable via @mail/N/@value', async t => {
     harden([{ name: 'displayName', label: 'Display Name' }]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   await E(host).submit(formMsg.number, harden({ displayName: 'Bob' }));
 
   // Guest receives form + value
-  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  const { value: guestFormMsg } = await guestIterator.next();
   t.is(guestFormMsg.type, 'form');
-  const { value: valueMsg } = await E(guestIteratorRef).next();
+  const { value: valueMsg } = await guestIterator.next();
   t.is(valueMsg.type, 'value');
 
   // Look up the value message hub
