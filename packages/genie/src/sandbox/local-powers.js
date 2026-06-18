@@ -109,6 +109,7 @@ const LocalMountFileInterface = M.interface('LocalMountFile', {
 });
 
 const LocalSandboxPowersInterface = M.interface('LocalSandboxPowers', {
+  help: M.call().optional(M.string()).returns(M.string()),
   provideScratchMount: M.call(M.string()).returns(M.promise()),
   provideHostPath: M.call(M.any()).returns(M.promise()),
 });
@@ -499,6 +500,13 @@ export const makeLocalSandboxPowers = () => {
   const scratchDirs = [];
 
   const powersExo = makeExo('LocalSandboxPowers', LocalSandboxPowersInterface, {
+    /** @param {string} [method] */
+    help(method) {
+      return method === undefined
+        ? 'LocalSandboxPowers: host-backed sandbox powers (provideScratchMount, provideHostPath).'
+        : `No documentation for method ${q(method)}.`;
+    },
+
     /** @param {string} petName */
     async provideScratchMount(petName) {
       // `mkdtemp` ensures distinct tmpdirs per call even when two

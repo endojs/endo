@@ -62,12 +62,12 @@ The reconciliation aligned method *names*. It did **not** make the argument
 inputs. This is the single most important fact for every phase below, so it is
 stated once here.
 
-| Method | `EndoMount` (`MountInterface`) | `EndoDirectory` (`NameHubInterface`) | extended `Directory` |
-|---|---|---|---|
-| arg shape | `PathArgShape` = `string \| string[] \| MountEntry` | `NameOrPathShape` = `string \| string[]` | `string \| string[]` |
-| `lookup` | `M.call(PathArgShape)` | `M.call(NameOrPathShape)` | `M.call(M.or(string, arrayOf string))` |
-| `move` | `M.call(PathArgShape, PathArgShape)` | `M.call(NamePathShape, NamePathShape)` | `M.call(or(string,array), or(string,array))` |
-| `remove` | `M.call(PathArgShape)` | `M.call().rest(NamePathShape)` | `M.call(string)` |
+| Method | `EndoMount` (`MountInterface`) | `EndoDirectory` (`NameHubInterface`) | extended `Directory` | genie `LocalMount` |
+|---|---|---|---|---|
+| arg shape | `PathArgShape` = `string \| string[] \| MountEntry` | `NameOrPathShape` = `string \| string[]` | `string \| string[]` | `PathArgShape` = `string \| string[]` |
+| `lookup` | `M.call(PathArgShape)` | `M.call(NameOrPathShape)` | `M.call(M.or(string, arrayOf string))` | `M.call(PathArgShape)` |
+| `move` | `M.call(PathArgShape, PathArgShape)` | `M.call(NamePathShape, NamePathShape)` | `M.call(or(string,array), or(string,array))` | `M.call(PathArgShape, PathArgShape)` |
+| `remove` | `M.call(PathArgShape)` | `M.call().rest(NamePathShape)` | `M.call(string)` | `M.call(PathArgShape)` |
 
 So `EndoMount` accepts a `MountEntry` cap as a path argument where the others
 do not, and `EndoDirectory.remove` is variadic where the others are not. **A
@@ -77,6 +77,36 @@ guard advertise inputs its implementation rejects. Every consolidation below
 therefore requires a maintainer decision on the *canonical* shape per method,
 or a layered guard where the shared record carries the common shape and each
 surface widens specific methods.
+
+### A fourth mount-shaped surface: genie `LocalMount`
+
+`packages/genie/src/sandbox/local-powers.js` defines its **own**
+`LocalMountInterface` / `LocalMountFileInterface` rather than importing any of
+the three reconciled surfaces. It is a host-backed, in-process sandbox facet
+(`provideScratchMount` / `provideHostPath` mint it) that deliberately mirrors
+the daemon's `Mount` *shape* — `has`, `list`, `lookup`, `readText`,
+`maybeReadText`, `writeText`, `makeDirectory`, `remove`, `move` — using a
+locally-defined `PathArgShape` of `string | string[]` (no `MountEntry` arm: a
+genie sandbox never traffics in daemon mount-entry caps). It is the **fourth**
+independent definition of the mount vocabulary, and reinforces C1's
+canonical-shape question: any `ReadableNameHubInterface` (or shared method
+record) that genie could eventually consume must commit to a `string | string[]`
+baseline, with the `MountEntry` arm strictly a daemon-side widening.
+
+Genie is **not** a near-term consolidation target. Its interface is load-bearing
+for two security gates that must not be perturbed by a refactor:
+
+- `assertIsMountCap` is a *shape* gate — it checks for the presence of
+  `['readText','writeText','makeDirectory','has','list']`. Renaming or
+  re-homing those methods would silently break the gate.
+- `provideHostPath` is an *identity* gate keyed on a `WeakSet`/`WeakMap` of
+  powers-minted caps, independent of the interface shape.
+
+The actionable record here is the table column above plus this note: when C1
+fixes the canonical path-argument shape, genie's local `PathArgShape` should be
+re-pointed at the shared definition (it already matches the `string | string[]`
+baseline), but genie keeps its own *interface object* so its security gates stay
+self-contained.
 
 This is exactly the choice-point that
 [namehub-interface-unification.md](namehub-interface-unification.md) anticipated
