@@ -19,7 +19,7 @@ import { makeExo } from '@endo/exo';
 import { Far } from '@endo/far';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import {
   makeConversationTree,
   makeEndoPetstoreBackend,
@@ -425,7 +425,7 @@ export const makeStreamingAgent = async (
     inboxStarted = true;
     (async () => {
       const selfLocator = await E(powers).locate('@self');
-      const messages = makeRefIterator(E(powers).followMessages());
+      const messages = iterateReader(E(powers).followMessages());
       // followMessages can deliver the same message twice: its initial drain
       // iterates a *live* Map that our own reply() mutates (so the iterator
       // re-yields the freshly-added reply), and that reply is also republished
