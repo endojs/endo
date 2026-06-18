@@ -610,11 +610,20 @@ const makeMountExo = ctx => {
       // `confinementRoot` for in-mount navigation. For a *persisted*
       // sub-root, use `provideSubMount` (a new formula); `subView` is the
       // transient, in-session attenuator.
+      //
+      // Mint a FRESH `rootId` so the sub-view is its own identity domain:
+      // a `mountEntry` minted by the parent (whose `segments` are
+      // parent-root-relative) is rejected by `segmentsFromPathArg`'s
+      // `record.rootId !== rootId` check rather than being silently
+      // re-based against the sub-view root. Entries minted *by* the
+      // sub-view capture this new id (via the new exo's closure) and keep
+      // working.
       return makeMountExo({
         ...ctx,
         currentDir: target,
         currentSegments: [],
         confinementRoot: target,
+        rootId: harden({}),
         description: `Subview of ${description}`,
       });
     },

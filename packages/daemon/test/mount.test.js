@@ -432,6 +432,28 @@ test('subView of a file throws ENOTDIR', async t => {
   await t.throwsAsync(() => E(mount).subView('a.txt'), { message: /ENOTDIR/ });
 });
 
+test('subView rejects a parent-minted entry (own identity domain)', async t => {
+  // A `mountEntry` minted by the parent carries parent-root-relative
+  // segments. The sub-view has its own `rootId`, so passing a parent
+  // entry to it must be rejected (not silently re-based against the
+  // sub-view root, which would be authority/identity confusion).
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).makeDirectory('sub');
+  await E(mount).writeText('secret.txt', 'top');
+  await E(mount).writeText(['sub', 'secret.txt'], 'inner');
+
+  const parentEntry = await E(mount).entry('secret.txt');
+  const view = await E(mount).subView('sub');
+
+  await t.throwsAsync(() => E(view).readText(parentEntry), {
+    message: /different mount root/,
+  });
+  // A sub-view-minted entry, by contrast, works within the sub-view.
+  const ownEntry = await E(view).entry('secret.txt');
+  t.is(await E(view).readText(ownEntry), 'inner');
+});
+
 // --- snapshot() not configured ---
 
 test('snapshot() throws when no snapshotTree was wired in', async t => {
