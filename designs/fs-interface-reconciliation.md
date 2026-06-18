@@ -9,6 +9,11 @@
 
 ## Status
 
+This document reconciles three filesystem-shaped capability surfaces in the
+Endo project into one method catalog; see
+[What is the Problem Being Solved](#what-is-the-problem-being-solved) for
+background.
+
 Adopted onto `claude/fs-object-interfaces-m9tcat` and checked against the
 live code (not just the prior designs).
 A first code audit folded in two corrections (below); a **second-round design
@@ -428,7 +433,10 @@ checked against them.
 **How the reconciliation honors both:** the catalog names the *intersection*
 job-for-job (so a viewer reads one vocabulary), while the layered-entry merge
 keeps platform/fs's narrow storage guards as the base **and** preserves
-endo-fs's cap-FS primitives — and the `FsBackend` seam — as the extended tier.
+endo-fs's cap-FS primitives, and the `FsBackend` seam (the per-backing storage
+protocol that lets `wrapBackend(backend)` own all the exo plumbing once, so a
+new backing is a handful of methods rather than a full cap surface), as the
+extended tier.
 No driver above is dropped; each is relocated, not deleted.
 
 ### Interface differences (load-bearing)
@@ -523,12 +531,12 @@ Every backing in §Backing-implementation conformance matrix implements a subset
 | Method | Signature | Returns |
 |---|---|---|
 | `write` | `write(path: string[], value: ReadableBlob \| string \| ReadableTree) → Promise<void>` | Write or overwrite an entry at `path`. String value means UTF-8 text; `ReadableBlob` streams. `ReadableTree` value triggers recursive copy. Creates parents as needed. |
-| `writeText` | `writeText(path: string[], content: string) → Promise<void>` (Mutable Tree) or `writeText(content: string) → Promise<void>` (Mutable Blob) | Convenience over `write` for text. |
+| `writeText` | `writeText(content: string) → Promise<void>` (Mutable Blob) | Whole-text convenience on a blob, peer of `writeBytes` / `append`. One signature only (per the same-name-implies-same-signature invariant, review finding 3). Writing text to a *named tree entry* is not a second `writeText`; it is `write(path, content)`, whose `string` value is UTF-8 text. |
 | `writeBytes` | `writeBytes(readable: AsyncIterable<Uint8Array>) → Promise<void>` (Mutable Blob) | Convenience for streaming bytes into a blob. |
 | `append` | `append(text: string) → Promise<void>` (Mutable Blob) | Append text to a blob. |
 | `remove` | `remove(path: string[]) → Promise<void>` | Remove a file or empty directory. Recursive remove is caller's responsibility per the daemon-mount precedent. |
 | `move` | `move(source: string[], target: string[]) → Promise<void>` | Move an entry from `source` to `target`. Semantics follow [daemon-move-transfer-negotiation](daemon-move-transfer-negotiation.md): same-mount POSIX `renameat` to cross-peer CapTP byte stream, negotiated. |
-| `copy` | `copy(source: string[], target: string[]) → Promise<void>` | Copy an entry. May be elided to refcount-bump on CAS-backed trees. |
+| `copy` | `copy(source: string[], target: string[]) → Promise<void>` | Copy an entry (recursive for directories). **Observable equivalence:** on a mutable backing (mount, extended) the target is independent byte storage, so writing one handle does not affect the other; on a CAS-backed tree the copy is a refcount bump and the two handles share content-addressed bytes until one is rewritten (copy-on-write). Callers needing an independently writable duplicate must not assume independence on CAS without a subsequent write. Copying a tree into its own descendant is rejected. |
 | `makeDirectory` | `makeDirectory(path: string[]) → Promise<Directory \| sub-Mount>` | Create a directory at `path` (recursive). Return value is the live cap for the new subtree. |
 | `makeFile` | `makeFile(path: string[], initial?: ReadableBlob \| string) → Promise<File>` (Mutable Tree) | Create a file at `path` and return its cap. Convenience for "open a new file for editing" without going through `write` first. |
 
