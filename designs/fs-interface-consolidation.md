@@ -361,10 +361,17 @@ no `BlobRef → SnapshotBlob` adapter.
       `BlobRef` (now mutually interchangeable with `EndoBlob` across `getInfo` /
       `fetch` / `text` / `json`; `streamBase64` stays daemon-only as `fetch` is
       the common streaming primitive).
-- [ ] C4 (optional follow-up): extend the other blob implementers (git, local,
-      mount-file view) to the rich shape if they ever become remote-read
-      targets.
-- [x] C5: remove the dead `ContentStore` / `SnapshotStore` guards.
+- [x] C4: extend `LocalBlob` (platform) and `GitBlob` to the rich shape via a
+      shared `ReadableBlobRangeInterface` (readable-blob + `getInfo`/`fetch`).
+- [ ] C4 (follow-up): extend the daemon mount-file `readOnly()` view —
+      deferred because it wraps a *live* mount file with no crypto powers
+      threaded through the mount, so a content-address `getInfo` would need
+      invasive plumbing and is a poor fit for a mutable file.
+- [x] C1 layering: hoist `readableNameHubMethodGuards` /
+      `directoryFileMethodGuards` from `@endo/daemon` to `@endo/platform/fs`;
+      genie now imports them from platform (no daemon-internals reach).
+- [x] C5: remove the dead `ContentStore` / `SnapshotStore` / `NameHubInterface`
+      guards.
 
 ## Prompt
 
