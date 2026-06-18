@@ -1,7 +1,7 @@
 // @ts-nocheck
 /* global process */
-// Integration test for the iroh transport's byte path: two real iroh memory
-// nodes exchange a CapTP message through the same stream adapter and
+// Integration test for the iroh transport's byte path: two real iroh
+// endpoints exchange a CapTP message through the same stream adapter and
 // netstring/CapTP layering the transport uses. Guarded so CI stays green
 // when the optional native `@number0/iroh` binding is unavailable.
 import test from '@endo/ses-ava/prepare-endo.js';
@@ -35,7 +35,7 @@ const ALPN = Array.from(new TextEncoder().encode('endo/captp/0'));
 // (network-dependent and occasionally flaky). Run it explicitly with
 // ENDO_IROH_INTEGRATION=1 to validate the end-to-end byte path. The pure
 // logic it covers (framing, adapter, key derivation) is also unit tested in
-// iroh-stream-adapter.test.js and iroh-address.test.js.
+// iroh-stream-adapter.test.js (and the address scheme in iroh-address.test.js).
 const integrationEnabled =
   Endpoint && process.env.ENDO_IROH_INTEGRATION === '1';
 const itIroh = integrationEnabled ? test.serial : test.serial.skip;

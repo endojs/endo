@@ -195,7 +195,7 @@ Fill in the fields:
 - **Module**: The `file://` URL to the iroh network module.
   Typically `file:///path/to/endo/packages/daemon/src/networks/iroh.js`
 
-The module starts an in-memory iroh node, derives a stable NodeId, and
+The module binds an in-memory iroh endpoint, derives a stable NodeId, and
 registers itself in the daemon's `NETS/iroh` directory. No listen address
 or relay configuration is needed.
 

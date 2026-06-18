@@ -28,11 +28,17 @@ const makeFakeRecv = chunks => {
  */
 const makeFakeSend = () => {
   const writes = [];
+  // Record whether each writeAll argument was a plain Array<number>. The napi
+  // `Vec<u8>` binding rejects a TypedArray, so the adapter must convert; this
+  // lets a test assert the argument type, which Uint8Array.from would mask.
+  const writeArgIsArray = [];
   const calls = { finished: 0, reset: 0 };
   return {
     writes,
+    writeArgIsArray,
     calls,
     async writeAll(buf) {
+      writeArgIsArray.push(Array.isArray(buf));
       writes.push(Uint8Array.from(buf));
     },
     async finish() {
@@ -132,6 +138,11 @@ test('writer.next forwards bytes via writeAll', async t => {
   await writer.next(enc.encode('!'));
 
   t.is(send.writes.length, 2);
+  t.deepEqual(
+    send.writeArgIsArray,
+    [true, true],
+    'writeAll receives a plain Array<number>, not a TypedArray',
+  );
   t.is(new TextDecoder().decode(send.writes[0]), 'yo');
   t.is(new TextDecoder().decode(send.writes[1]), '!');
 });

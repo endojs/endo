@@ -1,6 +1,6 @@
 # Iroh Network Transport for the Endo Daemon
 
-Status: Draft / proposal with an initial implementation.
+Status: Implemented.
 Owner: networking.
 
 ## Motivation
@@ -222,7 +222,7 @@ is unit-testable with a fake stream and needs no native binding.
 ### Keep-alive and liveness
 
 iroh's QUIC stack closes a connection after its default max idle timeout
-(~2 minutes), and `@number0/iroh`'s `NodeOptions` exposes no transport config
+(~2 minutes), and `@number0/iroh`'s `EndpointOptions` exposes no transport config
 to shorten that or to enable QUIC-level keep-alive.
 A quiet but healthy CapTP session — two daemons that have swapped bootstrap
 references and are each awaiting the other — was therefore being torn down

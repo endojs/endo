@@ -90,8 +90,8 @@ export const buildIrohAddress = (nodeAddr, options = {}) => {
 harden(buildIrohAddress);
 
 /**
- * Parse an iroh address string into an iroh NodeAddr. The result is a plain
- * object suitable to pass directly to `Endpoint.connect`.
+ * Parse an iroh address string into the fields needed to construct an
+ * `EndpointAddr` (node id plus optional relay/direct-address dialing hints).
  *
  * @param {string} address
  * @returns {{ nodeId: string, relayUrl?: string, addresses?: string[] }}
