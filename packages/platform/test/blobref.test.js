@@ -78,6 +78,19 @@ test('BlobRef.fetch reads the captured bytes', async t => {
   t.is(fromUtf8(bytes), 'hello world');
 });
 
+test('BlobRef.text and BlobRef.json decode the captured bytes', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  const opened = await E(root).create('x', {});
+  await writeBytes(await E(opened).write(0n), utf8('{"hello":"world"}'));
+  await E(opened).close();
+
+  const file = await E(root).lookup('x');
+  const blob = await E(file).snapshot();
+  t.is(await E(blob).text(), '{"hello":"world"}');
+  t.deepEqual(await E(blob).json(), { hello: 'world' });
+});
+
 test('BlobRef survives a later mutation to the source file', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();

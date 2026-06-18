@@ -283,12 +283,22 @@ harden(NodeWatcherInterface);
  * time. `getInfo()` is a sync getter on the responder; callers
  * pipeline it alongside `snapshot` / `fetch` so the round-trip is
  * shared with the surrounding call (DESIGN.md §4.10).
+ *
+ * `text()` / `json()` are whole-value conveniences mirroring the daemon
+ * `EndoBlob` / lite `SnapshotBlob` surface, so a `BlobRef` and a daemon blob
+ * are mutually interchangeable for the common read shapes: `getInfo` + `fetch`
+ * (range I/O) and `text` + `json` (whole value). `streamBase64` stays
+ * daemon-only — the extended layer streams via `fetch` / `PassableBytesReader`
+ * rather than the CapTP base64 pump. See
+ * designs/fs-interface-consolidation.md § C4.
  */
 export const BlobRefInterface = M.interface('BlobRef', {
   getInfo: M.call().returns(Pass),
   fetch: M.call(M.bigint(), M.bigint()).returns(
     M.eref(M.remotable('PassableBytesReader')),
   ),
+  text: M.call().returns(M.promise()),
+  json: M.call().returns(M.promise()),
   help: M.call().optional(M.string()).returns(M.string()),
 });
 harden(BlobRefInterface);

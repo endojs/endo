@@ -23,6 +23,8 @@ import {
   toSafeNumber,
 } from './helpers.js';
 
+const textDecoder = new TextDecoder();
+
 /**
  * Mint a `BlobRef` from a captured `Uint8Array`. The `BlobRef`'s
  * identity (algorithm + hash + size) is computed at construction;
@@ -51,6 +53,14 @@ export const makeBlobRefExo = (bytes, help) => {
       const slice =
         off >= captured.length ? EMPTY_BYTES : captured.slice(off, end);
       return makeBytesReaderFromBytes(slice);
+    },
+    // Whole-value conveniences mirroring the daemon `EndoBlob` / lite
+    // `SnapshotBlob` surface, decoding the captured bytes as UTF-8.
+    async text() {
+      return textDecoder.decode(captured);
+    },
+    async json() {
+      return JSON.parse(textDecoder.decode(captured));
     },
     help(method) {
       if (method === undefined) {
