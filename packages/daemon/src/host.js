@@ -2,6 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
+/** @import { PassableBytesReader } from '@endo/exo-stream' */
 /** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGit, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
@@ -12,7 +13,7 @@ import {
   getGitRemoteController as getGitRemoteControllerForCap,
   isGitReadOnly,
 } from '@endo/exo-git';
-import { makeIteratorRef } from './reader-ref.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import {
   assertPetName,
   assertPetNamePath,
@@ -238,7 +239,7 @@ export const makeHostMaker = ({
     const getEndoBootstrap = async () => provide(endoId, 'endo');
 
     /**
-     * @param {ERef<AsyncIterableIterator<string>>} readerRef
+     * @param {ERef<PassableBytesReader>} readerRef
      * @param {NameOrPath} petName
      */
     const storeBlob = async (readerRef, petName) => {
@@ -1710,19 +1711,19 @@ export const makeHostMaker = ({
         /** @param {string} locator */
         followLocatorNameChanges: async locator => {
           const iterator = host.followLocatorNameChanges(locator);
-          return makeIteratorRef(iterator);
+          return readerFromIterator(iterator);
         },
         followMessages: async () => {
           const iterator = host.followMessages();
-          return makeIteratorRef(iterator);
+          return readerFromIterator(/** @type {any} */ (iterator));
         },
         followNameChanges: async () => {
           const iterator = host.followNameChanges();
-          return makeIteratorRef(iterator);
+          return readerFromIterator(iterator);
         },
         followPeerChanges: async () => {
           const iterator = await host.followPeerChanges();
-          return makeIteratorRef(iterator);
+          return readerFromIterator(iterator);
         },
       }),
     );

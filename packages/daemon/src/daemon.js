@@ -9,6 +9,8 @@ import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
 import { ZipWriter } from '@endo/zip/writer.js';
+import { encodeBase64 } from '@endo/base64';
+import { mapReader } from '@endo/stream';
 import { bytesFromText } from '@endo/bytes/from-string.js';
 import { bytesToText } from '@endo/bytes/to-string.js';
 import {
@@ -23,9 +25,12 @@ import {
   makeGitRemote,
   makeUnavailableGitCredential,
 } from '@endo/exo-git';
-import { makeRefReader, makeRefIterator } from './ref-reader.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 import { checkinTarTree } from './tar-checkin.js';
-import { makeIteratorRef, makeReaderRef } from './reader-ref.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
@@ -1260,7 +1265,7 @@ const makeDaemonCore = async (
      * Subsequent deltas are batched over microtasks.
      *
      * @param {string} peerNodeNumber
-     * @returns {Promise<FarRef<AsyncIterableIterator<import('./retention-accumulator.js').RetentionDelta>>>}
+     * @returns {Promise<import('@endo/exo-stream').PassableReader<import('./retention-accumulator.js').RetentionDelta, undefined>>}
      */
     followRetentionSet: async peerNodeNumber => {
       const snapshot =
@@ -1282,7 +1287,9 @@ const makeDaemonCore = async (
         }
       })();
 
-      return makeIteratorRef(accumulator.subscribe());
+      return /** @type {any} */ (
+        readerFromIterator(/** @type {any} */ (accumulator.subscribe()))
+      );
     },
   });
 
@@ -1320,7 +1327,13 @@ const makeDaemonCore = async (
           : undefined;
 
         let isFirst = true;
-        for await (const delta of makeRefIterator(/** @type {any} */ (iter))) {
+        for await (const rawDelta of iterateReader(
+          /** @type {any} */ (iter),
+        )) {
+          const delta =
+            /** @type {import('./retention-accumulator.js').RetentionDelta} */ (
+              /** @type {any} */ (rawDelta)
+            );
           if (isFirst) {
             // First delta is the full snapshot.
             persistencePowers.replaceRetention(remoteNodeId, delta.add);
@@ -1473,16 +1486,26 @@ const makeDaemonCore = async (
   /**
    * @param {string} sha256
    */
-  const makeReadableBlob = sha256 =>
-    makeExo(
+  const makeReadableBlob = sha256 => {
+    const { makeFileReader, text, json } = contentStore.fetch(sha256);
+    return makeExo(
       `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
       /** @type {any} */ ({
         sha256: () => sha256,
-        ...contentStore.fetch(sha256),
+        /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
+        streamBase64(synPromise) {
+          const pump = makeReaderPump(
+            mapReader(makeFileReader(), encodeBase64),
+          );
+          return pump(/** @type {any} */ (synPromise));
+        },
+        text,
+        json,
         help: makeHelp(blobHelp),
       }),
     );
+  };
 
   /**
    * @param {string} sha256
@@ -1820,7 +1843,16 @@ const makeDaemonCore = async (
       /** @type {any} */ ({
         help: () => 'Transient in-memory blob',
         sha256: () => sha256Hex,
-        streamBase64: () => makeReaderRef([bytes]),
+        /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
+        streamBase64(synPromise) {
+          const pump = makeReaderPump(
+            mapReader(
+              /** @type {any} */ ([bytes][Symbol.iterator]()),
+              encodeBase64,
+            ),
+          );
+          return pump(/** @type {any} */ (synPromise));
+        },
         text: async () => bytesToText(bytes),
         json: async () => JSON.parse(bytesToText(bytes)),
       }),
@@ -2259,12 +2291,12 @@ const makeDaemonCore = async (
             locate,
             reverseLocate,
             followLocatorNameChanges: locator =>
-              makeIteratorRef(followLocatorNameChanges(locator)),
+              readerFromIterator(followLocatorNameChanges(locator)),
             list,
             listIdentifiers,
             listLocators,
             followNameChanges: (...petNamePath) =>
-              makeIteratorRef(followNameChanges(...petNamePath)),
+              readerFromIterator(followNameChanges(...petNamePath)),
             lookup,
             maybeLookup,
             reverseLookup,
@@ -2636,12 +2668,12 @@ const makeDaemonCore = async (
             locate,
             reverseLocate,
             followLocatorNameChanges: locator =>
-              makeIteratorRef(followLocatorNameChanges(locator)),
+              readerFromIterator(followLocatorNameChanges(locator)),
             list,
             listIdentifiers,
             listLocators,
             followNameChanges: (...petNamePath) =>
-              makeIteratorRef(followNameChanges(...petNamePath)),
+              readerFromIterator(followNameChanges(...petNamePath)),
             lookup,
             maybeLookup,
             reverseLookup,
@@ -2732,7 +2764,6 @@ const makeDaemonCore = async (
       }
       const backend = makeNativeGitBackend({
         repoRoot: backing.physicalRoot,
-        makeReaderRef,
       });
       await backend.assertRepositoryRoot();
       return makeGit({
@@ -3572,7 +3603,11 @@ const makeDaemonCore = async (
           await randomHex256()
         );
         const contentSha256 = await contentStore.store(
-          makeRefReader(readerRef),
+          // Use a higher string length limit to accommodate large
+          // payloads like bundles. 10MB base64 ~= 7.5MB binary.
+          await iterateBytesReader(readerRef, {
+            stringLengthLimit: 10_000_000,
+          }),
         );
 
         await deferredTasks.execute({
@@ -5286,7 +5321,13 @@ const makeDaemonCore = async (
           : undefined;
 
         let isFirst = true;
-        for await (const delta of makeRefIterator(/** @type {any} */ (iter))) {
+        for await (const rawDelta of iterateReader(
+          /** @type {any} */ (iter),
+        )) {
+          const delta =
+            /** @type {import('./retention-accumulator.js').RetentionDelta} */ (
+              /** @type {any} */ (rawDelta)
+            );
           if (isFirst) {
             persistencePowers.replaceRetention(nodeId, delta.add);
             if (peerAgentIdStr !== undefined) {

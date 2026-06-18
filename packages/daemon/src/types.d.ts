@@ -3,6 +3,7 @@ import type { ERef } from '@endo/eventual-send';
 import type { FarRef } from '@endo/far';
 import type { CapTPOptions } from '@endo/captp';
 import type { Reader, Writer, Stream } from '@endo/stream';
+import type { PassableBytesReader, StreamNode } from '@endo/exo-stream';
 
 // Branded string types for pet names and special names
 declare const PetNameBrand: unique symbol;
@@ -1067,7 +1068,9 @@ export type RequestFn = (
 
 export interface EndoReadable {
   sha256(): string;
-  streamBase64(): FarRef<Reader<string>>;
+  streamBase64(
+    synPromise: ERef<StreamNode<Passable, Passable>>,
+  ): Promise<StreamNode<string, undefined>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
 }
@@ -1096,7 +1099,9 @@ export interface EndoMountEntry {
  * Mirrors `ReadableBlob` from `@endo/platform/fs`.
  */
 export interface ReadableBlobView {
-  streamBase64(): FarRef<Reader<string>>;
+  streamBase64(
+    synPromise: ERef<StreamNode<Passable, Passable>>,
+  ): Promise<StreamNode<string, undefined>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
 }
@@ -1113,7 +1118,7 @@ export interface ReadableTreeView {
 }
 
 export interface EndoGitTree {
-  archiveTar(): FarRef<Reader<string>>;
+  archiveTar(): PassableBytesReader;
   archiveLossless(): Promise<boolean>;
   has(...pathSegments: string[]): Promise<boolean>;
   list(...pathSegments: string[]): Promise<string[]>;
@@ -1128,11 +1133,13 @@ export interface EndoGitTree {
  */
 export interface EndoMountFile {
   text(): Promise<string>;
-  streamBase64(): FarRef<Reader<string>>;
+  streamBase64(
+    synPromise: ERef<StreamNode<Passable, Passable>>,
+  ): Promise<StreamNode<string, undefined>>;
   json(): Promise<unknown>;
   writeText(content: string): Promise<void>;
   append(content: string): Promise<void>;
-  writeBytes(readableRef: FarRef<AsyncIterator<Uint8Array>>): Promise<void>;
+  writeBytes(readableRef: ERef<PassableBytesReader>): Promise<void>;
   stat(): Promise<EndoMountStat>;
   snapshot(): Promise<FarRef<EndoReadable>>;
   readOnly(): ReadableBlobView;
@@ -1211,8 +1218,9 @@ export interface EndoGateway {
   followRetentionSet: (
     peerNodeNumber: string,
   ) => Promise<
-    FarRef<
-      AsyncIterableIterator<import('./retention-accumulator.js').RetentionDelta>
+    import('@endo/exo-stream').PassableReader<
+      import('./retention-accumulator.js').RetentionDelta,
+      undefined
     >
   >;
 }
@@ -1288,7 +1296,7 @@ export interface EndoGuest extends EndoAgent {
     fields: FormField[],
   ): Promise<void>;
   storeBlob(
-    readerRef: ERef<AsyncIterableIterator<string>>,
+    readerRef: ERef<PassableBytesReader>,
     petName?: string | string[],
   ): Promise<unknown>;
   storeValue<T extends Passable>(
@@ -1308,7 +1316,7 @@ export interface EndoHost extends EndoAgent {
     fields: FormField[],
   ): Promise<void>;
   storeBlob(
-    readerRef: ERef<AsyncIterableIterator<string>>,
+    readerRef: ERef<PassableBytesReader>,
     petName: string | string[],
   ): Promise<FarRef<EndoReadable>>;
   storeValue<T extends Passable>(
@@ -2099,7 +2107,7 @@ export interface DaemonCore {
   ) => FormulateResult<EndoPeer>;
 
   formulateReadableBlob: (
-    readerRef: ERef<AsyncIterableIterator<string>>,
+    readerRef: ERef<PassableBytesReader>,
     deferredTasks: DeferredTasks<ReadableBlobDeferredTaskParams>,
   ) => FormulateResult<FarRef<EndoReadable>>;
 

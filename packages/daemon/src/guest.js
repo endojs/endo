@@ -3,7 +3,7 @@
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
-import { makeIteratorRef } from './reader-ref.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePetSitter } from './pet-sitter.js';
 import {
   assertName,
@@ -381,15 +381,15 @@ export const makeGuestMaker = ({
         /** @param {string} locator */
         followLocatorNameChanges: async locator => {
           const iterator = guest.followLocatorNameChanges(locator);
-          return makeIteratorRef(iterator);
+          return readerFromIterator(iterator);
         },
         followMessages: async () => {
           const iterator = guest.followMessages();
-          return makeIteratorRef(iterator);
+          return readerFromIterator(/** @type {any} */ (iterator));
         },
         followNameChanges: async () => {
           const iterator = guest.followNameChanges();
-          return makeIteratorRef(iterator);
+          return readerFromIterator(iterator);
         },
       }),
     );

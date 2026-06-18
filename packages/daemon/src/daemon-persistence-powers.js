@@ -22,7 +22,6 @@
 import harden from '@endo/harden';
 import { makeSnapshotStore } from '@endo/platform/fs/lite';
 
-import { makeReaderRef } from './reader-ref.js';
 import { toHex, fromHex } from './hex.js';
 
 /** @import { Config, CryptoPowers, DaemonicPersistencePowers, FilePowers, Formula, FormulaNumber } from './types.js' */
@@ -160,13 +159,10 @@ export const makeDaemonicPersistencePowers = (
       /** @param {string} sha256 */
       fetch(sha256) {
         const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
-        const streamBase64 = () => {
-          const reader = filePowers.makeFileReader(storagePath);
-          return makeReaderRef(reader);
-        };
+        const makeFileReader = () => filePowers.makeFileReader(storagePath);
         const text = async () => filePowers.readFileText(storagePath);
         const json = async () => JSON.parse(await text());
-        return harden({ streamBase64, text, json });
+        return harden({ makeFileReader, text, json });
       },
       /**
        * @param {string} sha256

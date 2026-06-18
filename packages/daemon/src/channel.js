@@ -3,10 +3,9 @@
 
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
-import { makeIteratorRef } from './reader-ref.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makeChangeTopic } from './pubsub.js';
 import {
-  AsyncIteratorInterface,
   AttenuatorInterface,
   ChannelInterface,
   ChannelInvitationInterface,
@@ -350,23 +349,24 @@ export const makeChannelMaker = ({
         yield* messages;
         yield* messagesTopic.subscribe();
       })();
-      const rawIterRef = /** @type {IterRef<ChannelMessage>} */ (
-        /** @type {unknown} */ (makeIteratorRef(iterator))
-      );
-      return makeExo('GatedAsyncIterator', AsyncIteratorInterface, {
-        async next() {
-          checkAccess();
-          const result = await rawIterRef.next();
-          checkAccess();
-          return result;
-        },
-        async return(value) {
-          return rawIterRef.return(value);
-        },
-        async throw(error) {
-          return rawIterRef.throw(error);
-        },
-      });
+      // Wrap the iterator with an access-gated proxy so every pulled
+      // value is bracketed by a checkAccess() call (before and after).
+      const gatedIterator = (async function* gatedChannelMessages() {
+        try {
+          while (true) {
+            checkAccess();
+            const result = await iterator.next();
+            checkAccess();
+            if (result.done) return result.value;
+            yield result.value;
+          }
+        } finally {
+          if (iterator.return) {
+            await iterator.return(undefined);
+          }
+        }
+      })();
+      return readerFromIterator(gatedIterator);
     };
 
     /**
@@ -661,23 +661,24 @@ export const makeChannelMaker = ({
         }
       })();
 
-      const rawIterRef = /** @type {IterRef<unknown>} */ (
-        /** @type {unknown} */ (makeIteratorRef(iterator))
-      );
-      return makeExo('GatedHeatEventIterator', AsyncIteratorInterface, {
-        async next() {
-          checkAccess();
-          const result = await rawIterRef.next();
-          checkAccess();
-          return result;
-        },
-        async return(value) {
-          return rawIterRef.return(value);
-        },
-        async throw(error) {
-          return rawIterRef.throw(error);
-        },
-      });
+      // Wrap with an access-gated proxy so each yielded heat event is
+      // bracketed by a checkAccess() call before and after.
+      const gatedIterator = (async function* gatedHeatEvents() {
+        try {
+          while (true) {
+            checkAccess();
+            const result = await iterator.next();
+            checkAccess();
+            if (result.done) return result.value;
+            yield result.value;
+          }
+        } finally {
+          if (iterator.return) {
+            await iterator.return(undefined);
+          }
+        }
+      })();
+      return readerFromIterator(gatedIterator);
     };
 
     /**
@@ -1050,7 +1051,7 @@ export const makeChannelMaker = ({
               yield* messages;
               yield* messagesTopic.subscribe();
             })();
-            return makeIteratorRef(iterator);
+            return readerFromIterator(iterator);
           },
           listMessages: async () => harden([...messages]),
           createInvitation: async memberProposedName => {
@@ -1181,7 +1182,7 @@ export const makeChannelMaker = ({
             // Admin gets an empty iterator (no hops to monitor)
             // eslint-disable-next-line no-empty-function, require-yield
             const iterator = (async function* emptyHeatEvents() {})();
-            return makeIteratorRef(iterator);
+            return readerFromIterator(iterator);
           },
         })
       )

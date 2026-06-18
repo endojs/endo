@@ -5,7 +5,7 @@ import harden from '@endo/harden';
 import { q } from '@endo/errors';
 import { readTarEntries, tarPathSegments } from '@endo/tar/reader.js';
 import { bytesFromText } from '@endo/bytes/from-string.js';
-import { makeRefReader } from './ref-reader.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 
 /**
  * The slice of a content store `checkinTarTree` actually exercises: it only
@@ -26,7 +26,7 @@ import { makeRefReader } from './ref-reader.js';
 /**
  * @typedef {object} ArchiveTreeMethods
  * @property {() => Promise<string[]>} __getMethodNames__
- * @property {() => Promise<import('@endo/far').ERef<AsyncIterator<string>>>} archiveTar
+ * @property {() => import('@endo/exo-stream').PassableBytesReader} archiveTar
  * @property {() => Promise<boolean>} archiveLossless
  */
 
@@ -35,9 +35,9 @@ import { makeRefReader } from './ref-reader.js';
  * format. This accepts only the regular files, directories, and symlinks that
  * native `git archive --format=tar` emits. The tar format parsing lives in
  * `@endo/tar`; the daemon supplies the CapTP base64 ref decoding
- * (`makeRefReader`), the content-store wiring, and the tree assembly.
+ * (`iterateBytesReader`), the content-store wiring, and the tree assembly.
  *
- * @param {import('@endo/far').ERef<AsyncIterator<string>>} readerRef
+ * @param {import('@endo/far').ERef<import('@endo/exo-stream').PassableBytesReader>} readerRef
  * @param {TarCheckinContentStore} contentStore
  * @returns {Promise<string>} The sha256 of the stored root tree JSON blob.
  */
@@ -107,7 +107,7 @@ export const checkinTarTree = async (readerRef, contentStore) => {
     parent.entries.set(name, { type: 'blob', sha256 });
   };
 
-  for await (const entry of readTarEntries(makeRefReader(readerRef))) {
+  for await (const entry of readTarEntries(iterateBytesReader(readerRef))) {
     const segments = tarPathSegments(entry.path);
     const normalizedPath = segments.join('/');
     if (seenPaths.has(normalizedPath)) {

@@ -7,8 +7,8 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { ZipWriter } from '@endo/zip/writer.js';
 import { bytesFromText } from '@endo/bytes/from-string.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { makeNetstringCapTP } from './connection.js';
-import { makeRefReader } from './ref-reader.js';
 
 import { WorkerFacetForDaemonInterface } from './interfaces.js';
 
@@ -183,8 +183,8 @@ export const makeWorkerFacet = ({ cancel }) => {
         /** @type {Uint8Array[]} */
         const chunks = [];
         let total = 0;
-        for await (const chunk of makeRefReader(
-          /** @type {any} */ (await E(readableP).streamBase64()),
+        for await (const chunk of iterateBytesReader(
+          /** @type {any} */ (readableP),
         )) {
           chunks.push(chunk);
           total += chunk.byteLength;

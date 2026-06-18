@@ -1,12 +1,12 @@
 // @ts-check
 
 import harden from '@endo/harden';
-import { encodeBase64 } from '@endo/base64';
 import { bytesFromText } from '@endo/bytes/from-string.js';
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
-import { makeIteratorRef } from './reader-ref.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { externalizeId, internalizeLocator } from './locator.js';
 import {
   assertNamePath,
@@ -383,9 +383,7 @@ export const makeDirectoryMaker = ({
       assertNamePath(namePath);
       if (namePath.length < 2) {
         const bytes = bytesFromText(content);
-        const readerRef = makeIteratorRef(
-          harden([encodeBase64(bytes)])[Symbol.iterator](),
-        );
+        const readerRef = bytesReaderFromIterator([bytes]);
         /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
         const tasks = makeDeferredTasks();
         tasks.push(identifiers =>
@@ -477,11 +475,11 @@ export const makeDirectoryMaker = ({
         locate,
         reverseLocate,
         followLocatorNameChanges: locator =>
-          makeIteratorRef(directory.followLocatorNameChanges(locator)),
+          readerFromIterator(directory.followLocatorNameChanges(locator)),
         list,
         listIdentifiers,
         listLocators,
-        followNameChanges: () => makeIteratorRef(directory.followNameChanges()),
+        followNameChanges: () => readerFromIterator(directory.followNameChanges()),
         lookup,
         maybeLookup: directory.maybeLookup,
         reverseLookup,

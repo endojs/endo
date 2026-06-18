@@ -534,7 +534,7 @@ export const InspectorInterface = M.interface('EndoInspector', {
 export const BlobInterface = M.interface('EndoBlob', {
   help: M.call().optional(M.string()).returns(M.string()),
   sha256: M.call().returns(M.string()),
-  streamBase64: M.call().returns(M.remotable()),
+  streamBase64: M.call(M.any()).returns(M.promise()),
   text: M.call().returns(M.promise()),
   json: M.call().returns(M.promise()),
 });
@@ -598,7 +598,7 @@ export const MountInterface = M.interface('EndoMount', {
 // extensions.  `readOnly` narrows to a structural ReadableBlob view.
 export const MountFileInterface = M.interface('EndoMountFile', {
   text: M.call().returns(M.promise()),
-  streamBase64: M.call().returns(M.remotable()),
+  streamBase64: M.call(M.any()).returns(M.promise()),
   json: M.call().returns(M.promise()),
   writeText: M.call(M.string()).returns(M.promise()),
   append: M.call(M.string()).returns(M.promise()),
