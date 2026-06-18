@@ -15,6 +15,9 @@
 // in the session guest's petstore via @endo/conversation-tree, and a single
 // pinned factory caplet revives every session on daemon restart.
 
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
 import { makeExo } from '@endo/exo';
 import { Far } from '@endo/far';
 import { M } from '@endo/patterns';
@@ -42,6 +45,38 @@ import { makeReplyChannel } from './src/stream.js';
 // Cap the tool-call loop so a misbehaving model can't spin forever before it
 // produces a spoken reply.
 const MAX_TOOL_ROUNDS = 8;
+
+const execFileAsync = promisify(execFile);
+
+// Initialize a fresh, empty directory as a git repository so a daemon git cap
+// can be derived from it: provideGit requires an existing worktree, but a new
+// scratch mount is just an empty dir. The exo git backend supplies its own
+// author identity for the commits it makes; we only pin signing off here (so
+// creation doesn't depend on a user-global commit.gpgSign) and seed an empty
+// initial commit so the repo has a HEAD on the default branch.
+const initGitRepo = async repoRoot => {
+  await execFileAsync('git', ['init', '-q', '-b', 'main'], { cwd: repoRoot });
+  await execFileAsync('git', ['config', '--local', 'commit.gpgsign', 'false'], {
+    cwd: repoRoot,
+  });
+  await execFileAsync('git', ['config', '--local', 'tag.gpgsign', 'false'], {
+    cwd: repoRoot,
+  });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=floot@endo',
+      '-c',
+      'user.name=Floot',
+      'commit',
+      '--allow-empty',
+      '-m',
+      'Initialize workspace',
+    ],
+    { cwd: repoRoot },
+  );
+};
 
 /**
  * A writer (same shape as makeReplyChannel's) that buffers a turn's output
@@ -78,8 +113,11 @@ const makeBufferingWriter = () => {
 };
 
 const FlootFactoryInterface = M.interface('FlootFactory', {
-  createSession: M.callWhen().optional(M.string()).returns(M.remotable()),
+  createSession: M.callWhen()
+    .optional(M.string(), M.string())
+    .returns(M.remotable()),
   listSessions: M.callWhen().returns(M.arrayOf(M.record())),
+  listPresets: M.callWhen().returns(M.arrayOf(M.record())),
   getSession: M.callWhen(M.string()).returns(M.remotable()),
   renameSession: M.callWhen(M.string(), M.string()).returns(M.undefined()),
   deleteSession: M.callWhen(M.string()).returns(M.undefined()),
@@ -134,6 +172,109 @@ Caplet tools dropped into your \`tools/\` directory are discovered automatically
 so your abilities can grow over time. When asked what you can do, you can list
 your tools and petnames to find out.
 `;
+
+// Flagship "vibe code a new project" persona: the base voice persona plus the
+// framing that the session starts with a writable, git-backed workspace object
+// already in its petstore (provisioned by the "new-project" preset).
+const newProjectSystemPrompt = `${defaultSystemPrompt}
+You are starting a fresh project. Your petstore already contains a writable,
+git-backed project workspace under the petname "workspace" — an EndoGit
+capability. Use it via exec:
+- \`const wt = await E(workspace).worktree()\` gives the working tree, a mount you
+  can write to: \`E(wt).makeFile(path, text)\`, \`E(wt).writeText(path, text)\`,
+  \`E(wt).remove(path)\`, \`E(wt).move(from, to)\`.
+- \`E(workspace).status()\` returns entries shaped \`{ entry, path, worktree }\`;
+  \`E(workspace).diff()\` inspects changes.
+- To stage, pass the \`entry\` capabilities (NOT path strings) from status to
+  \`add\`: \`const st = await E(workspace).status(); await E(workspace).add(st.map(s => s.entry))\`.
+  Then \`E(workspace).commit(message)\` records them.
+Build what the user asks for in the workspace, committing as you reach working
+states. Speak short, plain summaries of what you did — never read code aloud.`;
+
+// Catalog of session presets. Each preset pairs a system prompt with a set of
+// objects to provision (idempotently) into the session guest's petstore the
+// first time the session's agent is built. Provisioned objects are referenced
+// ONLY by the session guest, so the daemon's GC reaps them (and their on-disk
+// backing) when the session is deleted — there is no manual cleanup.
+const PRESETS = [
+  {
+    id: 'general',
+    title: 'General assistant',
+    description: 'A blank session with no project workspace.',
+    systemPrompt: defaultSystemPrompt,
+    objects: [],
+  },
+  {
+    id: 'new-project',
+    title: 'New project',
+    description:
+      'Start a project with a writable, git-backed workspace ready to populate.',
+    systemPrompt: newProjectSystemPrompt,
+    objects: [{ kind: 'git-workspace', petName: 'workspace' }],
+  },
+];
+const DEFAULT_PRESET_ID = 'general';
+const getPreset = id =>
+  PRESETS.find(p => p.id === id) ||
+  /** @type {(typeof PRESETS)[number]} */ (
+    PRESETS.find(p => p.id === DEFAULT_PRESET_ID)
+  );
+
+/**
+ * Provision a preset's objects into a session guest's petstore, referenced ONLY
+ * by the guest so deleting the session collects them (and their on-disk backing)
+ * automatically. Idempotent: an object whose petname already exists is left
+ * untouched, so this is safe to call on every revival.
+ *
+ * @param {any} host - the factory's own host powers
+ * @param {string} agentName - petname (in the host) of the session's guest agent
+ * @param {any} sessionGuest - the resolved guest facet (for `has` checks)
+ * @param {string} id - session id (used to namespace temporary host petnames)
+ * @param {Array<{ kind: string, petName: string }>} objects
+ */
+const provisionPresetObjects = async (
+  host,
+  agentName,
+  sessionGuest,
+  id,
+  objects,
+) => {
+  for (const obj of objects) {
+    const alreadyPresent = await E(sessionGuest).has(obj.petName);
+    if (alreadyPresent) {
+      // Idempotent: a revived session already has its provisioned objects.
+    } else if (obj.kind === 'git-workspace') {
+      // Mint a daemon-managed scratch mount, derive a git cap over it, then move
+      // the git cap into the guest's petstore and drop the host-side scratch
+      // petname. The git formula keeps the mount alive by reference (daemon GC:
+      // git depends on its mount), so the only petstore reference left is the
+      // guest's — deleting the session reaps the whole chain (and the scratch
+      // dir on disk). Temporary host petnames are namespaced by session id and
+      // cleared first in case a prior attempt aborted mid-way.
+      const scratchTmp = `_floot-scratch-${id}`;
+      const gitTmp = `_floot-git-${id}`;
+      for (const tmp of [gitTmp, scratchTmp]) {
+        if (await E(host).has(tmp)) await E(host).remove(tmp);
+      }
+      const mount = await E(host).provideScratchMount(scratchTmp);
+      // provideGit requires an existing worktree, but a fresh scratch mount is
+      // an empty dir — git-init it first. The factory is an unconfined,
+      // fully-privileged host caplet, so resolving the host path and running
+      // git here is in-bounds; that path never reaches the session guest or the
+      // UI (they only ever receive the derived git cap, not its filesystem
+      // location).
+      const repoRoot = await E(host).provideHostPath(mount);
+      await initGitRepo(repoRoot);
+      await E(host).provideGit(mount, gitTmp);
+      await E(host).move([gitTmp], [agentName, obj.petName]);
+      await E(host).remove(scratchTmp);
+    } else {
+      console.warn(
+        `[floot-factory] unknown preset object kind "${obj.kind}" for session ${id}`,
+      );
+    }
+  }
+};
 
 /**
  * @typedef {object} ProviderConstructorConfig
@@ -687,12 +828,36 @@ export const make = (hostPowers, _context, { env } = {}) => {
             err instanceof Error ? err.message : String(err),
           );
         }
+        // Resolve the session's preset to pick its system prompt and provision
+        // its objects. The prompt was snapshotted into the registry at creation
+        // (so catalog edits don't retroactively change live sessions); the
+        // object set is read from the catalog by id (objects are provisioned
+        // once and idempotency makes re-reads harmless).
+        await loadRegistry();
+        const entry = (registry || []).find(s => s.id === id);
+        const preset = getPreset(entry?.presetId || DEFAULT_PRESET_ID);
+        const sessionPrompt =
+          entry?.systemPrompt || systemPrompt || preset.systemPrompt;
+        try {
+          await provisionPresetObjects(
+            host,
+            agentName,
+            sessionGuest,
+            id,
+            preset.objects,
+          );
+        } catch (err) {
+          console.warn(
+            `[floot-factory] could not provision preset objects for session ${id}:`,
+            err instanceof Error ? err.message : String(err),
+          );
+        }
         const provider = await getProvider();
         const agent = await makeStreamingAgent(
           sessionGuest,
           undefined,
           { provider },
-          systemPrompt,
+          sessionPrompt,
         );
         // Each session is addressable by mail: start following its inbox.
         agent.startInbox();
@@ -721,6 +886,7 @@ export const make = (hostPowers, _context, { env } = {}) => {
             id,
             title: entry?.title || '',
             createdAt: entry?.createdAt || 0,
+            presetId: entry?.presetId || DEFAULT_PRESET_ID,
           });
         },
         /**
@@ -780,31 +946,61 @@ export const make = (hostPowers, _context, { env } = {}) => {
   return makeExo('FlootFactory', FlootFactoryInterface, {
     /**
      * @param {string} [title]
+     * @param {string} [presetId]
      * @returns {Promise<object>} an opaque session facet
      */
-    async createSession(title) {
+    async createSession(title, presetId) {
       await loadRegistry();
+      const preset = getPreset(presetId || DEFAULT_PRESET_ID);
       const id = newSessionId();
+      // Snapshot the preset's id and prompt so later catalog edits don't change
+      // a live session. The object set is re-read from the catalog by id in
+      // getAgent (objects are provisioned once, idempotently).
       const entry = harden({
         id,
         title: title || 'New chat',
         createdAt: Date.now(),
+        presetId: preset.id,
+        systemPrompt: preset.systemPrompt,
       });
       /** @type {any[]} */ (registry).push(entry);
       await saveRegistry();
       // Build the agent now so the new session immediately follows its inbox
-      // (addressable by mail without waiting for a first UI converse).
+      // (addressable by mail without waiting for a first UI converse) and its
+      // preset objects are provisioned up front.
       getAgent(id).catch(() => {});
-      console.log(`[floot-factory] Created session "${id}"`);
+      console.log(
+        `[floot-factory] Created session "${id}" (preset "${preset.id}")`,
+      );
       return getFacet(id);
     },
 
     /**
-     * @returns {Promise<Array<{ id: string, title: string, createdAt: number }>>}
+     * @returns {Promise<Array<{ id: string, title: string, createdAt: number, presetId: string }>>}
      */
     async listSessions() {
       await loadRegistry();
-      return harden((registry || []).map(s => ({ ...s })));
+      return harden(
+        (registry || []).map(({ id, title, createdAt, presetId }) => ({
+          id,
+          title,
+          createdAt,
+          presetId: presetId || DEFAULT_PRESET_ID,
+        })),
+      );
+    },
+
+    /**
+     * @returns {Promise<Array<{ id: string, title: string, description: string }>>}
+     */
+    async listPresets() {
+      return harden(
+        PRESETS.map(({ id, title, description }) => ({
+          id,
+          title,
+          description,
+        })),
+      );
     },
 
     /**
@@ -867,13 +1063,15 @@ export const make = (hostPowers, _context, { env } = {}) => {
      */
     help(methodName) {
       if (methodName === undefined) {
-        return 'Floot factory: owns all chat sessions. createSession(title?) -> session facet; listSessions() -> [{id,title,createdAt}]; getSession(id) -> facet; renameSession(id,title); deleteSession(id). A session facet exposes converse(input) (streaming reply reader), getHistory(), and getInfo().';
+        return 'Floot factory: owns all chat sessions. createSession(title?, presetId?) -> session facet; listSessions() -> [{id,title,createdAt,presetId}]; listPresets() -> [{id,title,description}]; getSession(id) -> facet; renameSession(id,title); deleteSession(id). A session facet exposes converse(input) (streaming reply reader), getHistory(), and getInfo().';
       }
       const docs = {
         createSession:
-          'createSession(title?) — Create a new session (its own guest/petstore) and return an opaque session facet.',
+          'createSession(title?, presetId?) — Create a new session (its own guest/petstore) seeded by a preset (default "general") and return an opaque session facet.',
         listSessions:
-          'listSessions() — Return metadata [{id, title, createdAt}] for all sessions.',
+          'listSessions() — Return metadata [{id, title, createdAt, presetId}] for all sessions.',
+        listPresets:
+          'listPresets() — Return the available session presets [{id, title, description}].',
         getSession: 'getSession(id) — Return the session facet for an id.',
         renameSession: 'renameSession(id, title) — Rename a session.',
         deleteSession:
