@@ -9,11 +9,13 @@ import crypto from 'crypto';
 import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
-import { makeReaderRef } from '@endo/daemon';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
 import { parseOptionalPetNamePath } from '../pet-name.js';
 import { randomHex16 } from '../random.js';
+
+/** @import { PassableBytesReader } from '@endo/exo-stream' */
 
 export const makeCommand = async ({
   filePath,
@@ -45,7 +47,7 @@ export const makeCommand = async ({
 
   const resultPath = parseOptionalPetNamePath(resultName);
 
-  /** @type {import('@endo/eventual-send').FarRef<import('@endo/stream').Reader<string>> | undefined} */
+  /** @type {PassableBytesReader | undefined} */
   let archiveReaderRef;
   /** @type {string | undefined} */
   let temporaryArchiveName;
@@ -64,7 +66,7 @@ export const makeCommand = async ({
       moduleLocation,
       { parserForLanguage: sourceParserForLanguage },
     );
-    archiveReaderRef = makeReaderRef([archiveBytes]);
+    archiveReaderRef = bytesReaderFromIterator([archiveBytes]);
   }
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
