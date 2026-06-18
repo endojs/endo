@@ -9,11 +9,19 @@
  * adapter projects it into the `FsBackend` protocol.
  *
  * - No partial-range I/O: `read(path, offset, length)` fetches the
- *   whole file via `streamBase64()` and slices.
+ *   whole file via `streamBase64()` and slices. `write`/`setStat`
+ *   likewise read-modify-write the whole file, since Mount has no
+ *   partial-range write. Cost is O(filesize) on the wire (≈1.33×, base64)
+ *   and in memory; the write side sends the file as a *single* base64
+ *   chunk via `makeBytesBlob` (no back-pressure). Acceptable for the
+ *   config/source-tree files this adapter targets; large-blob streaming
+ *   would need a chunked `makeBytesBlob`.
  * - No xattrs / locks / events surface (left absent so wrapBackend
  *   uses its vat-local lock table and synthesizes empty watchers).
  * - `kind` returns 'file' | 'directory' | undefined based on
- *   CapTP method introspection of the lookup result.
+ *   CapTP method introspection of the lookup result. `list` pipelines
+ *   each entry's introspection probe onto its lookup (one round-trip per
+ *   entry, all entries concurrent) rather than two serial sends each.
  */
 
 import { E } from '@endo/eventual-send';
@@ -22,7 +30,7 @@ import { encodeBase64 } from '@endo/base64';
 import { makeError, X, q } from '@endo/errors';
 
 /**
- * @import { FsBackend, NodeKind, DirEntry } from '../backend-types.js'
+ * @import { FsBackend, NodeKind, DirEntry, NodeStat } from '../backend-types.js'
  */
 
 /**
@@ -103,6 +111,23 @@ const drainBase64Stream = async streamRef => {
 };
 
 /**
+ * Map a Mount child's CapTP method names to a node kind. A sub-Mount
+ * (directory) advertises `lookup`; a MountFile advertises `text` /
+ * `streamBase64`.
+ *
+ * @param {string[]} methods
+ * @returns {NodeKind | undefined}
+ */
+const kindFromMethods = methods => {
+  if (methods.includes('lookup')) return 'directory';
+  if (methods.includes('text') || methods.includes('streamBase64')) {
+    return 'file';
+  }
+  return undefined;
+};
+harden(kindFromMethods);
+
+/**
  * Probe a Mount.lookup() result and determine whether it's a
  * sub-Mount (directory) or a MountFile (file).
  *
@@ -117,16 +142,13 @@ const probeMountChild = async cap => {
     // double-underscore form is part of the CapTP protocol.
     // eslint-disable-next-line no-underscore-dangle
     const methods = await E(cap).__getMethodNames__();
-    if (methods.includes('lookup')) return 'directory';
-    if (methods.includes('text') || methods.includes('streamBase64')) {
-      return 'file';
-    }
+    return kindFromMethods(methods);
   } catch (_e) {
     // Lookup may reject for non-FS reasons; treat as "unknown kind"
     // and let the caller decide (kind() returns undefined → consumer
     // sees ENOENT).
+    return undefined;
   }
-  return undefined;
 };
 
 /**
@@ -169,18 +191,28 @@ export const makeFromMountBackend = rootMount => {
         throw makeError(X`ENOENT: ${q(dirPath.join('/'))}`);
       }
       const names = await E(mount).list();
-      for (const name of /** @type {string[]} */ (names)) {
-        let kind;
-        try {
-          const child = await E(mount).lookup(name);
-          kind = await probeMountChild(child);
-        } catch (e) {
-          // Same policy as resolve(): missing nodes drop silently
-          // from the listing; real I/O / permission errors re-raise.
-          const msg = /** @type {Error} */ (e).message;
-          if (!isNotFoundMessage(msg)) throw e;
-          kind = undefined;
-        }
+      // Resolve every entry's kind concurrently, pipelining each entry's
+      // `__getMethodNames__` probe onto its still-unresolved `lookup` so an
+      // entry costs one round-trip instead of two. This turns the listing
+      // from `2 + 2n` serial round-trips into a single pipelined batch (see
+      // fs-interface-reconciliation §"Review findings incorporated").
+      const settled = await Promise.all(
+        /** @type {string[]} */ (names).map(async name => {
+          try {
+            // eslint-disable-next-line no-underscore-dangle
+            const methods = await E(E(mount).lookup(name)).__getMethodNames__();
+            return { name, kind: kindFromMethods(methods) };
+          } catch (e) {
+            // Same policy as resolve(): missing nodes (and confinement
+            // escapes, surfaced as EACCES) drop silently from the listing;
+            // real I/O / permission errors re-raise.
+            const msg = /** @type {Error} */ (e).message;
+            if (!isNotFoundMessage(msg)) throw e;
+            return { name, kind: undefined };
+          }
+        }),
+      );
+      for (const { name, kind } of settled) {
         if (kind !== undefined) {
           yield /** @type {DirEntry} */ (harden({ name, kind }));
         }
@@ -246,7 +278,7 @@ export const makeFromMountBackend = rootMount => {
      * whole-file overwrites work instead of throwing ENOSYS.
      *
      * @param {string[]} path
-     * @param {import('../backend-types.js').NodeStat} patch
+     * @param {NodeStat} patch
      */
     async setStat(path, patch) {
       if (path.length === 0) {
