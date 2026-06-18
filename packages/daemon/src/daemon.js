@@ -25,7 +25,6 @@ import {
   makeGitRemote,
   makeUnavailableGitCredential,
 } from '@endo/exo-git';
-import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
@@ -1327,9 +1326,7 @@ const makeDaemonCore = async (
           : undefined;
 
         let isFirst = true;
-        for await (const rawDelta of iterateReader(
-          /** @type {any} */ (iter),
-        )) {
+        for await (const rawDelta of iterateReader(/** @type {any} */ (iter))) {
           const delta =
             /** @type {import('./retention-accumulator.js').RetentionDelta} */ (
               /** @type {any} */ (rawDelta)
@@ -5321,9 +5318,7 @@ const makeDaemonCore = async (
           : undefined;
 
         let isFirst = true;
-        for await (const rawDelta of iterateReader(
-          /** @type {any} */ (iter),
-        )) {
+        for await (const rawDelta of iterateReader(/** @type {any} */ (iter))) {
           const delta =
             /** @type {import('./retention-accumulator.js').RetentionDelta} */ (
               /** @type {any} */ (rawDelta)

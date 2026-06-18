@@ -7,9 +7,9 @@ import harden from '@endo/harden';
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { createAddSpaceModal } from './add-space-modal.js';
 import { createEditSpaceModal } from './edit-space-modal.js';
-import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 /** @type {ReadonlySet<string>} */
 const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers', 'files']);

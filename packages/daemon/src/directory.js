@@ -479,7 +479,8 @@ export const makeDirectoryMaker = ({
         list,
         listIdentifiers,
         listLocators,
-        followNameChanges: () => readerFromIterator(directory.followNameChanges()),
+        followNameChanges: () =>
+          readerFromIterator(directory.followNameChanges()),
         lookup,
         maybeLookup: directory.maybeLookup,
         reverseLookup,

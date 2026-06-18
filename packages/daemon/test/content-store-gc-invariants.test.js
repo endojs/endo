@@ -213,7 +213,10 @@ test('reclaims many distinct content hashes across sequential collections', asyn
   for (let i = 0; i < count; i += 1) {
     const bytes = new TextEncoder().encode(`distinct-${i}`);
     // eslint-disable-next-line no-await-in-loop
-    const blob = await E(host).storeBlob(bytesReaderFromIterator([bytes]), `batch-${i}`);
+    const blob = await E(host).storeBlob(
+      bytesReaderFromIterator([bytes]),
+      `batch-${i}`,
+    );
     // eslint-disable-next-line no-await-in-loop
     const sha = await E(blob).sha256();
     shas.push(sha);

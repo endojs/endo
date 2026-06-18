@@ -13,7 +13,6 @@ import {
   ReadableTreeInterface,
 } from '@endo/platform/fs/lite';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
-import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 
 import { mountHelp, mountFileHelp, makeHelp } from './help-text.js';

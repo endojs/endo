@@ -12,10 +12,7 @@ import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
-import {
-  ReadableBlobInterface,
-  checkinTree,
-} from '@endo/platform/fs/lite';
+import { checkinTree } from '@endo/platform/fs/lite';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
 import { makeMount } from '../src/mount.js';
@@ -775,9 +772,12 @@ test('EndoMountFile.writeBytes is reachable through the read-only-rejection bran
   async function* iter() {
     yield new Uint8Array([1]);
   }
-  await t.throwsAsync(() => E(file).writeBytes(bytesReaderFromIterator(iter())), {
-    message: /read-only/,
-  });
+  await t.throwsAsync(
+    () => E(file).writeBytes(bytesReaderFromIterator(iter())),
+    {
+      message: /read-only/,
+    },
+  );
 });
 
 test('readOnly() narrows to a ReadableTree view that recursively narrows file lookups', async t => {

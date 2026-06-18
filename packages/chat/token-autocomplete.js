@@ -65,9 +65,7 @@ export const tokenAutocompleteComponent = (
   // Subscribe to inventory changes (skip if external names are provided)
   if (!externalPetNames) {
     (async () => {
-      for await (const change of iterateReader(
-        E(powers).followNameChanges(),
-      )) {
+      for await (const change of iterateReader(E(powers).followNameChanges())) {
         if ('add' in /** @type {object} */ (change)) {
           petNames.push(/** @type {{ add: string }} */ (change).add);
           petNames.sort();

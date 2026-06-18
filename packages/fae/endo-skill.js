@@ -35,7 +35,6 @@ import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import os from 'os';
 import path from 'path';
 
-
 /** Resolve the daemon socket path (same logic as @endo/where). */
 const getEndoSockPath = () => {
   if (process.env.ENDO_SOCK) return process.env.ENDO_SOCK;

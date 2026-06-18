@@ -2502,9 +2502,6 @@ test('Git.filesystemAt: lsTree and resolvePath are cached per Filesystem', async
  * @param {any} readerRef
  */
 const collectReader = async readerRef => {
-  // eslint-disable-next-line global-require
-  const { iterateBytesReader } =
-    await import('@endo/exo-stream/iterate-bytes-reader.js');
   const chunks = [];
   let total = 0;
   for await (const chunk of iterateBytesReader(readerRef)) {

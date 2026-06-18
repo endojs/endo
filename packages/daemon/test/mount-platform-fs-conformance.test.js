@@ -1,5 +1,4 @@
 // @ts-check
-/* global Buffer */
 
 // Establish a perimeter:
 // eslint-disable-next-line import/order
@@ -17,11 +16,9 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import {
   DirectoryInterface as PlatformDirectoryInterface,
   FileInterface as PlatformFileInterface,
-  ReadableBlobInterface,
   ReadableTreeInterface,
   checkinTree,
 } from '@endo/platform/fs/lite';
-import { M } from '@endo/patterns';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
 import { makeXsFilePowers } from '../src/bus-daemon-rust-xs-powers.js';

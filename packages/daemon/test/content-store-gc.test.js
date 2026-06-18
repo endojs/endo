@@ -134,7 +134,9 @@ test('content-store blob is reclaimed when its only formula is collected', async
   const { cancelled, config } = await prepareConfig(t);
   const { host } = await makeHost(config, cancelled);
 
-  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('blob-content')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('blob-content'),
+  ]);
   const blob = await E(host).storeBlob(readerRef, 'lonely-blob');
   const sha256 = await E(blob).sha256();
 
@@ -155,8 +157,14 @@ test('content-store blob survives when a sibling formula still references the sa
 
   const bytes = new TextEncoder().encode('shared-content');
 
-  const blobA = await E(host).storeBlob(bytesReaderFromIterator([bytes]), 'twin-a');
-  const blobB = await E(host).storeBlob(bytesReaderFromIterator([bytes]), 'twin-b');
+  const blobA = await E(host).storeBlob(
+    bytesReaderFromIterator([bytes]),
+    'twin-a',
+  );
+  const blobB = await E(host).storeBlob(
+    bytesReaderFromIterator([bytes]),
+    'twin-b',
+  );
 
   const shaA = await E(blobA).sha256();
   const shaB = await E(blobB).sha256();

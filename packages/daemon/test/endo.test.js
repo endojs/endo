@@ -687,7 +687,9 @@ test('persist spawn and evaluation', async t => {
 test('store blob without name fails', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await t.throwsAsync(E(host).storeBlob(readerRef), {
     message: 'Invalid name path',
   });
@@ -698,7 +700,9 @@ test('store with name', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
+    const readerRef = bytesReaderFromIterator([
+      new TextEncoder().encode('hello\n'),
+    ]);
     const readable = await E(host).storeBlob(readerRef, 'hello-text');
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
@@ -718,7 +722,9 @@ test('store blob in subdirectory', async t => {
   {
     const { host } = await makeHost(config, cancelled);
     await E(host).makeDirectory('subdir');
-    const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
+    const readerRef = bytesReaderFromIterator([
+      new TextEncoder().encode('hello\n'),
+    ]);
     const readable = await E(host).storeBlob(readerRef, [
       'subdir',
       'hello-text',
@@ -738,7 +744,9 @@ test('store blob in subdirectory', async t => {
 test('store blob requires a name', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await t.throwsAsync(E(host).storeBlob(readerRef, []), {
     message: 'Invalid name path',
   });
@@ -2510,7 +2518,9 @@ test('evaluate name resolved by lookup path', async t => {
 test('list special names', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = bytesReaderFromIterator([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await E(host).storeBlob(readerRef, 'hello-text');
 
   /** @type {string[]} */
