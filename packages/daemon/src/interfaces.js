@@ -6,6 +6,8 @@ import {
   FileInterface as PlatformFileInterface,
   readableBlobMethodGuards,
   readableTreeMethodGuards,
+  readableNameHubMethodGuards,
+  directoryFileMethodGuards,
   rangeReadMethodGuards,
 } from '@endo/platform/fs/lite';
 
@@ -28,10 +30,6 @@ const IdShape = M.string();
 
 // Locators are formatted formula identifiers
 const LocatorShape = M.string();
-
-// `help(method?) -> string` is conventional on every capability (root
-// CLAUDE.md). Shared so the name-hub records declare it once.
-const HelpMethod = M.call().optional(M.string()).returns(M.string());
 
 // Message numbers are non-negative BigInts
 const MessageNumberShape = M.bigint();
@@ -73,23 +71,12 @@ export const ResponderInterface = M.interface('EndoResponder', {
   resolveWithId: M.callWhen(M.or(IdShape, M.promise())).returns(),
 });
 
-// The narrow, read-only name-hub contract (designs/fs-interface-consolidation
-// § C1, namehub-interface-unification.md). Every name-hub-shaped surface —
-// `EndoDirectory`, `EndoGuest`, `EndoHost`, `EndoMount`, and genie's
-// `LocalMount` — exposes at least these read methods by name (plus the
-// universal `help`). The canonical path-argument shape is `NameOrPathShape`
-// (`string | string[]`): the honest, narrow contract. `EndoMount` accepts more
-// (a `MountEntry` cap) and therefore *widens* `has` / `lookup` / `maybeLookup`
-// to `PathArgShape` in its own guard rather than here, so the shared contract
-// stays honest (the maintainer canonical-shape decision: standardize on
-// `NameOrPathShape`, widen per-surface).
-export const readableNameHubMethodGuards = harden({
-  help: HelpMethod,
-  has: M.call().rest(NamePathShape).returns(M.promise()),
-  list: M.call().rest(NamePathShape).returns(M.promise()),
-  lookup: M.call(NameOrPathShape).returns(M.promise()),
-  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
-});
+// `readableNameHubMethodGuards` (help / has / list / lookup / maybeLookup) and
+// `directoryFileMethodGuards` (makeDirectory / readText / maybeReadText /
+// writeText) are the portable name-hub records, now owned by
+// `@endo/platform/fs` so non-daemon hosts (genie, future browser/Go/Rust
+// clients) can consume them without depending on the daemon. They are imported
+// above; the daemon adds only the registry/locator surface below.
 
 // The documentation-contract interface for the narrow read surface. It is not
 // used to build an exo directly (each surface assembles its own guard from the
@@ -100,23 +87,12 @@ export const ReadableNameHubInterface = M.interface('ReadableNameHub', {
 });
 harden(ReadableNameHubInterface);
 
-// The live-filesystem read/write surface a `Directory` or `Mount` adds on top
-// of the read contract: text I/O plus directory creation. Shared by
-// `EndoDirectory`, `EndoGuest`, `EndoHost`, and genie's `LocalMount` (all on
-// `NameOrPathShape`); `EndoMount` widens these to `PathArgShape` in its own
-// guard. See designs/fs-interface-consolidation.md § C1.
-export const directoryFileMethodGuards = harden({
-  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
-  readText: M.call(NameOrPathShape).returns(M.promise()),
-  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
-  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
-});
-
-// The full name-hub method-guard record: the read contract plus the
-// registry/locator/mutation surface. `EndoDirectory` spreads it (and
-// `directoryFileMethodGuards`); `EndoGuest` / `EndoHost` spread it but override
-// the two `follow*` methods (which return `M.promise()` on agents, where the
-// hub returns `M.remotable()` — the exo awaits before wrapping the reader).
+// The full name-hub method-guard record: the portable read contract plus the
+// daemon-specific registry/locator/mutation surface. `EndoDirectory` spreads it
+// (and `directoryFileMethodGuards`); `EndoGuest` / `EndoHost` spread it but
+// override the two `follow*` methods (which return `M.promise()` on agents,
+// where the hub returns `M.remotable()` — the exo awaits before wrapping the
+// reader).
 export const nameHubMethodGuards = harden({
   ...readableNameHubMethodGuards,
   identify: M.call().rest(NamePathShape).returns(M.promise()),

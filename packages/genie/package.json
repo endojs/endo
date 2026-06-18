@@ -44,6 +44,7 @@
     "@endo/init": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/patterns": "workspace:^",
+    "@endo/platform": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "@endo/sandbox": "workspace:^",
     "better-sqlite3": "^11.0.0"

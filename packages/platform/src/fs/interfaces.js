@@ -38,6 +38,32 @@ export const readableTreeMethodGuards = harden({
   lookup: M.call(NameOrPathShape).returns(M.promise()),
 });
 
+// `readableNameHubMethodGuards` is the read surface of a *mutable* name hub /
+// directory: the readable-tree read methods plus `maybeLookup`
+// (lookup-or-undefined). It is the portable contract that the daemon's
+// `EndoDirectory` / `EndoGuest` / `EndoHost` / `EndoMount` and genie's
+// `LocalMount` all satisfy by method name (the daemon's full registry hub adds
+// locator/identifier methods on top, which stay daemon-side). Lives here, not
+// in `@endo/daemon`, so non-daemon hosts (genie, a browser/Go/Rust client) can
+// consume it without depending on the daemon. See
+// designs/fs-interface-consolidation.md § C1.
+export const readableNameHubMethodGuards = harden({
+  ...readableTreeMethodGuards,
+  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
+});
+
+// `directoryFileMethodGuards` is the live read/write surface a directory or
+// mount adds on top of the read contract: directory creation plus text I/O.
+// Shared by `EndoDirectory` / `EndoGuest` / `EndoHost` and genie's `LocalMount`
+// (all on `NameOrPathShape`); `EndoMount` widens these to its entry-accepting
+// shape in its own guard.
+export const directoryFileMethodGuards = harden({
+  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
+  readText: M.call(NameOrPathShape).returns(M.promise()),
+  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
+  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
+});
+
 // The range-I/O surface for content-addressed bytes — the richer
 // `BlobRef` shape (see `@endo/platform/fs/extended` `BlobRefInterface`),
 // lifted to a portable record so the daemon's remote blob cap can expose it

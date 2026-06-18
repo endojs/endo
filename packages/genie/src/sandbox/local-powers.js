@@ -80,7 +80,7 @@ import { M } from '@endo/patterns';
 import {
   directoryFileMethodGuards,
   readableNameHubMethodGuards,
-} from '@endo/daemon/src/interfaces.js';
+} from '@endo/platform/fs/lite';
 
 /** @import { MountCap, SandboxPowers } from '@endo/sandbox/types.js' */
 
