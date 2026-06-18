@@ -9,12 +9,14 @@ import { makeExo } from '@endo/exo';
 import { encodeBase64 } from '@endo/base64';
 import { mapReader } from '@endo/stream';
 import {
-  ReadableBlobInterface,
+  ReadableBlobRangeInterface,
   ReadableTreeInterface,
 } from '@endo/platform/fs/lite';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 
+import { fromHex } from './hex.js';
 import { mountHelp, mountFileHelp, makeHelp } from './help-text.js';
 import {
   MountEntryInterface,
@@ -24,6 +26,22 @@ import {
 
 const mountEntryRecords = new WeakMap();
 const mountRecords = new WeakMap();
+
+/**
+ * Wrap a byte range as a `PassableBytesReader` (what `fetch` returns). An empty
+ * range yields a reader that is immediately done.
+ *
+ * @param {Uint8Array} bytes
+ */
+const bytesFromRange = bytes => {
+  function* generator() {
+    if (bytes.length > 0) {
+      yield bytes;
+    }
+  }
+  return bytesReaderFromIterator(generator());
+};
+harden(bytesFromRange);
 
 // Monotonic suffix for the scratch path `write()` streams a blob into
 // before atomically renaming it onto the target.  The counter alone is
@@ -1089,6 +1107,40 @@ const makeMountFileExo = (
       return filePowers.statPath(filePath);
     },
 
+    // `getInfo` / `fetch` are the rich `BlobRef` range-I/O surface over the
+    // *live* file (this is a read-only face, not a snapshot — the content can
+    // still change underneath and is observed on each call). `getInfo` returns
+    // the `{ algorithm, hash, size }` triple of the current bytes (hash base64,
+    // matching `BlobRef`); `fetch` is a windowed read.
+    async getInfo() {
+      await null;
+      await assertConfined(filePath, confinementRoot, filePowers);
+      const [hashHex, fileStat] = await Promise.all([
+        filePowers.sha256(filePath),
+        filePowers.statPath(filePath),
+      ]);
+      return harden({
+        algorithm: 'sha256',
+        hash: encodeBase64(fromHex(hashHex)),
+        size: BigInt(fileStat.sizeBytes),
+      });
+    },
+
+    /**
+     * @param {bigint} offset
+     * @param {bigint} length
+     */
+    async fetch(offset, length) {
+      await null;
+      await assertConfined(filePath, confinementRoot, filePowers);
+      const bytes = await filePowers.readFileRange(
+        filePath,
+        Number(offset),
+        Number(length),
+      );
+      return bytesFromRange(bytes);
+    },
+
     async snapshot() {
       if (snapshotFile === undefined) {
         throw new Error('snapshot() is not available for this mount file');
@@ -1116,14 +1168,17 @@ const makeMountFileExo = (
 harden(makeMountFileExo);
 
 /**
- * Structural-narrowing view exposing only the `ReadableBlob` surface
- * (`streamBase64`, `text`, `json`) over a read-only mount file.
+ * Structural-narrowing view exposing the read-only `ReadableBlob` surface
+ * (`streamBase64`, `text`, `json`) plus the rich range-I/O surface (`getInfo`,
+ * `fetch`) over a read-only mount file. This is a write-disabled *face* over a
+ * live file — it delegates to the underlying file, so content changes are
+ * observed; it just cannot be written through.
  *
  * @param {object} readOnlyFile - An EndoMountFile whose `readOnly` is true.
  * @returns {object}
  */
 const makeReadableBlobView = readOnlyFile => {
-  return makeExo('EndoMountReadableBlob', ReadableBlobInterface, {
+  return makeExo('EndoMountReadableBlob', ReadableBlobRangeInterface, {
     /** @param {import('@endo/eventual-send').ERef<any>} synPromise */
     async streamBase64(synPromise) {
       return /** @type {{ streamBase64: (synPromise: unknown) => Promise<any> }} */ (
@@ -1136,9 +1191,19 @@ const makeReadableBlobView = readOnlyFile => {
     async json() {
       return E(readOnlyFile).json();
     },
+    async getInfo() {
+      return E(readOnlyFile).getInfo();
+    },
+    /**
+     * @param {bigint} offset
+     * @param {bigint} length
+     */
+    async fetch(offset, length) {
+      return E(readOnlyFile).fetch(offset, length);
+    },
     help(method) {
       return method === undefined
-        ? 'EndoMountReadableBlob: read-only ReadableBlob view over a mount file.'
+        ? 'EndoMountReadableBlob: read-only ReadableBlob view over a live mount file (text, json, streamBase64, getInfo, fetch).'
         : `No documentation for method ${q(method)}.`;
     },
   });

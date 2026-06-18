@@ -1,6 +1,7 @@
 // @ts-check
 /* global Buffer, process */
 
+import { createHash } from 'node:crypto';
 import harden from '@endo/harden';
 import { encodeHex } from '@endo/hex';
 import { bytesFromText } from '@endo/bytes/from-string.js';
@@ -282,6 +283,21 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
   };
 
   /**
+   * Content hash of a file: the hex sha256 of its current bytes. The `hash`
+   * half of a content-addressed `getInfo()` triple for a *live* file (recomputed
+   * on each call, since the file may change).
+   *
+   * @param {string} path
+   * @returns {Promise<string>}
+   */
+  const sha256 = async path =>
+    encodeHex(
+      createHash('sha256')
+        .update(await readFile(path))
+        .digest(),
+    );
+
+  /**
    * Binary-safe whole-file read that returns `undefined` when the
    * file does not exist (ENOENT) or the path is a directory (EISDIR).
    * Other I/O errors propagate.
@@ -428,6 +444,7 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     readFileBytes,
     readFile,
     readFileRange,
+    sha256,
     maybeReadFile,
     maybeReadFileText,
     readDirectory,

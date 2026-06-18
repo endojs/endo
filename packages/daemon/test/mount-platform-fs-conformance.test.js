@@ -118,8 +118,20 @@ const PLATFORM_FILE_METHODS = [
 /** Method names the platform `ReadableTree` contract requires. */
 const PLATFORM_READABLE_TREE_METHODS = ['has', 'list', 'lookup', 'help'];
 
-/** Method names the platform `ReadableBlob` contract requires. */
-const PLATFORM_READABLE_BLOB_METHODS = ['streamBase64', 'text', 'json', 'help'];
+/**
+ * Method names the rich `ReadableBlob` view exposes: the whole-value surface
+ * plus the `BlobRef` range-I/O surface (`getInfo` / `fetch`). The mount-file
+ * `readOnly()` view is a write-disabled face over a live file, so it carries
+ * the range methods too. See designs/fs-interface-consolidation.md § C4.
+ */
+const PLATFORM_READABLE_BLOB_METHODS = [
+  'streamBase64',
+  'text',
+  'json',
+  'help',
+  'getInfo',
+  'fetch',
+];
 
 /**
  * Construct an `EndoMount` with an in-memory snapshot pipeline.
@@ -185,8 +197,11 @@ const ENDOMOUNT_EXTENSIONS = [
   'followNameChanges',
 ];
 
-/** Mount-specific extensions beyond the platform File contract. */
-const ENDOMOUNTFILE_EXTENSIONS = ['stat'];
+/**
+ * Mount-specific extensions beyond the platform File contract. `getInfo` /
+ * `fetch` are the rich `BlobRef` range-I/O surface over the live file (§ C4).
+ */
+const ENDOMOUNTFILE_EXTENSIONS = ['stat', 'getInfo', 'fetch'];
 
 test('EndoMount diverges from PlatformDirectoryInterface by named extensions only', async t => {
   // The divergence is deliberate and named: callers who hold a plain

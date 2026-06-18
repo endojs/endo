@@ -1095,8 +1095,19 @@ export interface EndoMountEntry {
 }
 
 /**
+ * The `{ algorithm, hash, size }` content-address triple returned by a rich
+ * blob's `getInfo()`. `hash` is base64; `algorithm` is `'sha256'`.
+ */
+export type BlobInfo = {
+  algorithm: string;
+  hash: string;
+  size: bigint;
+};
+
+/**
  * Structural `ReadableBlob` view exposed by `EndoMountFile.readOnly()`.
- * Mirrors `ReadableBlob` from `@endo/platform/fs`.
+ * Mirrors the rich `ReadableBlob` (range I/O) from `@endo/platform/fs`: a
+ * write-disabled face over a live file.
  */
 export interface ReadableBlobView {
   streamBase64(
@@ -1104,6 +1115,8 @@ export interface ReadableBlobView {
   ): Promise<StreamNode<string, undefined>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
+  getInfo(): Promise<BlobInfo>;
+  fetch(offset: bigint, length: bigint): Promise<PassableBytesReader>;
 }
 
 /**
@@ -1137,6 +1150,8 @@ export interface EndoMountFile {
     synPromise: ERef<StreamNode<Passable, Passable>>,
   ): Promise<StreamNode<string, undefined>>;
   json(): Promise<unknown>;
+  getInfo(): Promise<BlobInfo>;
+  fetch(offset: bigint, length: bigint): Promise<PassableBytesReader>;
   writeText(content: string): Promise<void>;
   append(content: string): Promise<void>;
   writeBytes(readableRef: ERef<PassableBytesReader>): Promise<void>;
@@ -1696,6 +1711,7 @@ export type FilePowers = {
     offset: number,
     length: number,
   ) => Promise<Uint8Array>;
+  sha256: (path: string) => Promise<string>;
   maybeReadFile: (path: string) => Promise<Uint8Array | undefined>;
   maybeReadFileText: (path: string) => Promise<string | undefined>;
   readDirectory: (path: string) => Promise<Array<string>>;

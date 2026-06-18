@@ -171,6 +171,19 @@ export const makeXsFilePowers = () => {
   };
 
   /**
+   * Content hash of a file: the hex sha256 of its current bytes, via the XS
+   * host's streaming sha256 (the same host functions `makeXsCryptoPowers` uses).
+   *
+   * @type {FilePowers['sha256']}
+   */
+  const sha256 = async path => {
+    const bytes = await readFile(path);
+    const handle = hostSha256Init();
+    hostSha256UpdateBytes(handle, bytes);
+    return hostSha256Finish(handle);
+  };
+
+  /**
    * Like {@link readFile} but resolves to `undefined` when the file
    * does not exist (or the path is a directory).  The host returns
    * `undefined` for those cases natively; other I/O errors come back
@@ -407,6 +420,7 @@ export const makeXsFilePowers = () => {
     readFileBytes,
     readFile,
     readFileRange,
+    sha256,
     maybeReadFile,
     maybeReadFileText,
     readDirectory,

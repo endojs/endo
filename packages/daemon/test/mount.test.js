@@ -12,6 +12,7 @@ import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { checkinTree } from '@endo/platform/fs/lite';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
@@ -158,6 +159,50 @@ test('maybeLookup returns a usable file handle for an existing file', async t =>
   const file = await E(mount).maybeLookup(['present.txt']);
   t.not(file, undefined);
   t.is(await E(file).text(), 'hello');
+});
+
+test('readOnly() blob view exposes getInfo/fetch over the LIVE file (not a snapshot)', async t => {
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText(['f.txt'], 'hello');
+
+  /** @param {any} reader */
+  const collect = async reader => {
+    const chunks = [];
+    for await (const chunk of iterateBytesReader(reader)) {
+      chunks.push(chunk);
+    }
+    const total = chunks.reduce((n, c) => n + c.length, 0);
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) {
+      out.set(c, off);
+      off += c.length;
+    }
+    return new TextDecoder().decode(out);
+  };
+
+  const file = await E(mount).lookup('f.txt');
+  const view = await E(file).readOnly();
+
+  const info1 = await E(view).getInfo();
+  t.is(info1.algorithm, 'sha256');
+  t.is(info1.size, 5n);
+  t.is(await collect(await E(view).fetch(0n, 5n)), 'hello');
+  t.is(await collect(await E(view).fetch(0n, 3n)), 'hel');
+
+  // The view is a read-only FACE, not a snapshot: change the underlying file
+  // and the same view observes the new content + size + hash.
+  await E(mount).writeText(['f.txt'], 'goodbye world');
+  const info2 = await E(view).getInfo();
+  t.is(info2.size, 13n);
+  t.not(info2.hash, info1.hash);
+  t.is(await collect(await E(view).fetch(0n, 13n)), 'goodbye world');
+
+  // But the face itself cannot be written to (no write methods).
+  // eslint-disable-next-line no-underscore-dangle
+  const viewMethods = await E(view).__getMethodNames__();
+  t.false(viewMethods.includes('writeText'));
 });
 
 test('followNameChanges throws ENOSYS until a filesystem watcher is wired', async t => {

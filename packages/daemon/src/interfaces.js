@@ -570,9 +570,13 @@ export const MountInterface = M.interface('EndoMount', {
 // `EndoMountFile` extends `File` from `@endo/platform/fs`.  The
 // overlapping methods (`streamBase64`, `text`, `json`, `writeText`,
 // `writeBytes`, `append`, `snapshot`) carry the same shapes as
-// `PlatformFileInterface`; `stat` and `help` are mount-specific
-// extensions.  `readOnly` narrows to a structural ReadableBlob view.
+// `PlatformFileInterface`; `stat`, `help`, and the `rangeReadMethodGuards`
+// (`getInfo` / `fetch`) are mount-specific extensions.  `getInfo` / `fetch`
+// expose the rich `BlobRef` range-I/O surface over the *live* file.
+// `readOnly` narrows to a structural ReadableBlob view that carries the same
+// rich surface.
 export const MountFileInterface = M.interface('EndoMountFile', {
+  ...rangeReadMethodGuards,
   text: M.call().returns(M.promise()),
   streamBase64: M.call(M.any()).returns(M.promise()),
   json: M.call().returns(M.promise()),
