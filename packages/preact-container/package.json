@@ -59,6 +59,7 @@
   "files": [
     "src",
     "LICENSE*",
+    "NOTICE*",
     "SECURITY*"
   ],
   "eslintConfig": {

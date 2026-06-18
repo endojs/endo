@@ -959,7 +959,19 @@ function sanitizeVNode(vnode, allowedTags, safeAttrs) {
   // components legitimately consume rich, structured props bags,
   // and rebuilding them would break host code.
   else if (Object.prototype.hasOwnProperty.call(props, 'ref')) {
-    delete props.ref;
+    // `props` may be a frozen/sealed bag — an attacker can hand-build a
+    // vnode with `Object.freeze({ ref })`. A bare `delete` throws in
+    // strict mode (all ESM is strict) and would abort the host render
+    // as a DoS. The critical ref defense already happened above
+    // (`vnode.ref` is nulled); a surviving own `props.ref` on a
+    // function component is inert (function components are never written
+    // to the DOM), so dropping it is best-effort. Guard the delete and
+    // fail closed so sanitization never throws.
+    try {
+      delete props.ref;
+    } catch (_) {
+      // frozen/sealed props bag — leave the inert slot in place.
+    }
   }
 }
 
