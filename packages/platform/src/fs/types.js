@@ -14,7 +14,7 @@
  * Exposed by platform as an Exo; directly usable locally.
  *
  * @typedef {object} ReadableBlob
- * @property {() => unknown} streamBase64
+ * @property {() => import('@endo/stream').Reader<Uint8Array>} makeFileReader
  * @property {() => Promise<string>} text
  * @property {() => Promise<any>} json
  */
@@ -81,7 +81,7 @@
  * a mount root).
  *
  * @typedef {object} File
- * @property {() => unknown} streamBase64
+ * @property {(synPromise: unknown) => Promise<unknown>} streamBase64
  * @property {() => Promise<string>} text
  * @property {() => Promise<any>} json
  * @property {(content: string) => Promise<void>} writeText

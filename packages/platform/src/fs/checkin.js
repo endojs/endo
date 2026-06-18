@@ -3,8 +3,7 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-
-import { makeRefReader } from './ref-reader.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 
 /** @import { SnapshotStore } from './types.js' */
 
@@ -37,11 +36,8 @@ export const checkinTree = async (remoteTree, store, options = {}) => {
 
     if (!isTree) {
       // It's a blob — stream its content into the content store.
-      const readerRef = E(
-        /** @type {SnapshotBlob} */ (remoteNode),
-      ).streamBase64();
       const sha256 = await store.store(
-        makeRefReader(/** @type {any} */ (readerRef)),
+        iterateBytesReader(/** @type {any} */ (remoteNode)),
       );
       return { type: 'blob', sha256 };
     }

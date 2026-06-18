@@ -10,7 +10,7 @@ export const AsyncIteratorInterface = M.interface('AsyncIterator', {
 harden(AsyncIteratorInterface);
 
 export const ReadableBlobInterface = M.interface('ReadableBlob', {
-  streamBase64: M.call().returns(M.remotable()),
+  streamBase64: M.call(M.any()).returns(M.promise()),
   text: M.call().returns(M.promise()),
   json: M.call().returns(M.promise()),
 });
@@ -18,7 +18,7 @@ harden(ReadableBlobInterface);
 
 export const SnapshotBlobInterface = M.interface('SnapshotBlob', {
   sha256: M.call().returns(M.string()),
-  streamBase64: M.call().returns(M.remotable()),
+  streamBase64: M.call(M.any()).returns(M.promise()),
   text: M.call().returns(M.promise()),
   json: M.call().returns(M.promise()),
 });
@@ -62,7 +62,7 @@ export const TreeWriterInterface = M.interface('TreeWriter', {
 harden(TreeWriterInterface);
 
 export const FileInterface = M.interface('File', {
-  streamBase64: M.call().returns(M.remotable()),
+  streamBase64: M.call(M.any()).returns(M.promise()),
   text: M.call().returns(M.promise()),
   json: M.call().returns(M.promise()),
   writeText: M.call(M.string()).returns(M.promise()),
