@@ -116,13 +116,10 @@ test.afterEach.always(async t => {
   }
 });
 
-const contentPathOf = (statePath, sha256Hex) =>
-  path.join(statePath, 'store-sha256', sha256Hex);
-
-// Blobs report their content hash via `getInfo().hash` (base64); the content
-// store keys files by hex digest, so convert for path-building.
-const blobStoreKey = async blob =>
-  encodeHex(decodeBase64((await E(blob).getInfo()).hash));
+// Both blobs (getInfo().hash) and trees (sha256()) report the content hash as
+// base64; the content store keys files by hex digest, so convert here.
+const contentPathOf = (statePath, hashBase64) =>
+  path.join(statePath, 'store-sha256', encodeHex(decodeBase64(hashBase64)));
 
 const mountPathOf = (statePath, formulaNumber) =>
   path.join(statePath, 'mounts', formulaNumber);
@@ -192,7 +189,7 @@ test('does not throw when a content-store blob is already missing', async t => {
     new TextEncoder().encode('about-to-vanish'),
   ]);
   const blob = await E(host).storeBlob(readerRef, 'phantom-blob');
-  const sha256 = await blobStoreKey(blob);
+  const sha256 = (await E(blob).getInfo()).hash;
   const filePath = contentPathOf(config.statePath, sha256);
 
   // Yank the content file out from under the daemon.
@@ -225,7 +222,7 @@ test('reclaims many distinct content hashes across sequential collections', asyn
       `batch-${i}`,
     );
     // eslint-disable-next-line no-await-in-loop
-    const sha = await blobStoreKey(blob);
+    const sha = (await E(blob).getInfo()).hash;
     shas.push(sha);
   }
 
@@ -272,7 +269,7 @@ test('retains a shared hash when one of many collected formulas references it', 
     bytesReaderFromIterator([sharedBytes]),
     'keepsake',
   );
-  const sharedSha = await blobStoreKey(survivor);
+  const sharedSha = (await E(survivor).getInfo()).hash;
 
   // Several blobs that will be collected, one of which dedupes
   // against the survivor.
@@ -284,14 +281,14 @@ test('retains a shared hash when one of many collected formulas references it', 
       `distractor-${i}`,
     );
     // eslint-disable-next-line no-await-in-loop
-    distractorShas.push(await blobStoreKey(blob));
+    distractorShas.push((await E(blob).getInfo()).hash);
   }
   // The dedupe-against-survivor blob.
   const twin = await E(host).storeBlob(
     bytesReaderFromIterator([sharedBytes]),
     'doomed-twin',
   );
-  t.is(await blobStoreKey(twin), sharedSha);
+  t.is((await E(twin).getInfo()).hash, sharedSha);
 
   // Drop every doomed name.  The shared hash should survive
   // because keepsake still references it.

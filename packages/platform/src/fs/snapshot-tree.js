@@ -2,6 +2,8 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
+import { encodeBase64 } from '@endo/base64';
+import { decodeHex } from '@endo/hex';
 
 /** @import { SnapshotStore, SnapshotTree } from './types.js' */
 
@@ -42,7 +44,11 @@ export const snapshotTreeMethods = (store, sha256) => {
   };
 
   return harden({
-    sha256: () => sha256,
+    // `sha256()` returns the digest as **base64** (the canonical public hash
+    // encoding). The hex form is the internal content-store address (and the
+    // encoding of the child references in the manifest); callers that need hex
+    // convert at the callsite.
+    sha256: () => encodeBase64(decodeHex(sha256)),
     /**
      * @param {...string} petNamePath
      */

@@ -1238,7 +1238,7 @@ the narrow portable (`getStat` / `setStat`) and wide legacy
 | Interface | Location | Role |
 |---|---|---|
 | `FilePowers` | `packages/daemon/src/types.d.ts` (type, not an exo) | Host `fs`-module powers object (`readFile`, `writeFileText`, `readDirectory`, `makePath`, `statPath`, `realPath`, …). The seam between host filesystem authority and daemon-side caps. Node and XS implementations. |
-| `EndoReadable` | `packages/daemon/src/types.d.ts` | Daemon blob cap: `sha256`, `streamBase64`, `text`, `json`. |
+| `EndoReadable` | `packages/daemon/src/types.d.ts` | Daemon blob cap. As of the consolidation work (see [fs-interface-consolidation.md](fs-interface-consolidation.md) § C4): `streamBase64`, `text`, `json`, `getInfo`, `fetch` — exactly `ReadableBlobRangeInterface`. Content hash is `getInfo().hash` (base64); the former `sha256()` accessor was removed as redundant. |
 | `EndoGitTree` | `packages/daemon/src/types.d.ts` | Immutable git tree: `archiveTar`, `archiveLossless`, `has`, `list`, `lookup`. |
 | `FsBridge9p` | `packages/9p-server/src/fs-bridge.js:11` | 9P2000.L protocol bridge over an endo-fs `Filesystem` cap: `start`, `stop`. The canonical consumer of the cap-FS surface. |
 | `PassableReader` / `PassableWriter` | `packages/exo-stream/type-guards.js:29,56` | Generic pattern-validated streams (directory listings, JSON). |

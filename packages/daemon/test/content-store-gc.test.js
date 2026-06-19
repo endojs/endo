@@ -126,14 +126,12 @@ test.afterEach.always(async t => {
   }
 });
 
-const contentPathOf = (statePath, sha256Hex) =>
-  path.join(statePath, 'store-sha256', sha256Hex);
-
-// A blob reports its content hash via `getInfo().hash` (base64); the content
-// store keys files by hex digest, so convert for path-building. (Trees still
-// expose `sha256()`, which returns the hex digest directly.)
-const blobStoreKey = async blob =>
-  encodeHex(decodeBase64((await E(blob).getInfo()).hash));
+// Both blobs (getInfo().hash) and trees (sha256()) report the content hash as
+// base64; the content store keys files by the hex digest, so convert via
+// storeKeyOf wherever the store address is needed.
+const storeKeyOf = hashBase64 => encodeHex(decodeBase64(hashBase64));
+const contentPathOf = (statePath, hashBase64) =>
+  path.join(statePath, 'store-sha256', storeKeyOf(hashBase64));
 
 const mountPathOf = (statePath, formulaNumber) =>
   path.join(statePath, 'mounts', formulaNumber);
@@ -146,7 +144,7 @@ test('content-store blob is reclaimed when its only formula is collected', async
     new TextEncoder().encode('blob-content'),
   ]);
   const blob = await E(host).storeBlob(readerRef, 'lonely-blob');
-  const sha256 = await blobStoreKey(blob);
+  const sha256 = (await E(blob).getInfo()).hash;
 
   const filePath = contentPathOf(config.statePath, sha256);
   t.true(fs.existsSync(filePath), 'blob file written to content store');
@@ -174,8 +172,8 @@ test('content-store blob survives when a sibling formula still references the sa
     'twin-b',
   );
 
-  const shaA = await blobStoreKey(blobA);
-  const shaB = await blobStoreKey(blobB);
+  const shaA = (await E(blobA).getInfo()).hash;
+  const shaB = (await E(blobB).getInfo()).hash;
   t.is(shaA, shaB, 'both blobs dedupe to the same content hash');
 
   const filePath = contentPathOf(config.statePath, shaA);
@@ -315,10 +313,11 @@ test('readable-tree collection reclaims transitively-referenced child blob hashe
   // so the assertion can name the leaked candidates explicitly.
   const beforeEntries = storeDirEntries(config.statePath);
   t.true(
-    beforeEntries.includes(rootSha256),
+    beforeEntries.includes(storeKeyOf(rootSha256)),
     'tree root JSON present before collection',
   );
-  const leafHashesBefore = beforeEntries.filter(name => name !== rootSha256);
+  const rootKey = storeKeyOf(rootSha256);
+  const leafHashesBefore = beforeEntries.filter(name => name !== rootKey);
   t.is(
     leafHashesBefore.length,
     2,
@@ -354,7 +353,7 @@ test('readable-tree collection preserves a child blob hash that a surviving read
     bytesReaderFromIterator([sharedBytes]),
     'shared-leaf-blob',
   );
-  const sharedSha256 = await blobStoreKey(sharedBlob);
+  const sharedSha256 = (await E(sharedBlob).getInfo()).hash;
 
   const remoteTree = makeRemoteBlobTree({
     'shared.txt': sharedBytes,
@@ -367,11 +366,11 @@ test('readable-tree collection preserves a child blob hash that a surviving read
 
   const beforeEntries = storeDirEntries(config.statePath);
   t.true(
-    beforeEntries.includes(rootSha256),
+    beforeEntries.includes(storeKeyOf(rootSha256)),
     'tree root JSON present before collection',
   );
   t.true(
-    beforeEntries.includes(sharedSha256),
+    beforeEntries.includes(storeKeyOf(sharedSha256)),
     'shared blob hash present before collection',
   );
 
@@ -392,7 +391,7 @@ test('readable-tree collection preserves a child blob hash that a surviving read
   const afterEntries = storeDirEntries(config.statePath);
   t.deepEqual(
     afterEntries,
-    [sharedSha256],
+    [storeKeyOf(sharedSha256)],
     'only the shared blob hash remains; tree-only entries reclaimed',
   );
 
@@ -422,7 +421,7 @@ test('readable-tree collection walks nested subtrees and reclaims grandchild has
   // top.txt blob, grand.txt blob.
   const beforeEntries = storeDirEntries(config.statePath);
   t.true(
-    beforeEntries.includes(rootSha256),
+    beforeEntries.includes(storeKeyOf(rootSha256)),
     'outer tree root JSON present before collection',
   );
   t.is(

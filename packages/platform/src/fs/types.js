@@ -28,6 +28,8 @@
 
 /**
  * A SnapshotBlob is a ReadableBlob with a content-addressed identity.
+ * `sha256()` returns the digest as base64 (the canonical public hash encoding);
+ * the hex form is the internal content-store address.
  *
  * @typedef {ReadableBlob & { sha256: () => string }} SnapshotBlob
  */
@@ -43,6 +45,8 @@
 
 /**
  * A SnapshotTree is a ReadableTree with a content-addressed identity.
+ * `sha256()` returns the digest as base64 (the canonical public hash encoding);
+ * the hex form is the internal content-store address.
  *
  * @typedef {ReadableTree & { sha256: () => string }} SnapshotTree
  */
