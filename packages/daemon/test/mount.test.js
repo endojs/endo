@@ -161,6 +161,23 @@ test('maybeLookup returns a usable file handle for an existing file', async t =>
   t.is(await E(file).text(), 'hello');
 });
 
+test('maybeLookup confines a `..` escape to undefined (does not leak an out-of-root file)', async t => {
+  const parent = makeTempRoot(t);
+  const rootPath = path.join(parent, 'root');
+  fs.mkdirSync(rootPath);
+  // A secret file one level ABOVE the mount root.
+  fs.writeFileSync(path.join(parent, 'secret.txt'), 'do-not-leak');
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  // `..` clamps to the confinement root, so the clamped path
+  // (root/secret.txt) does not exist and maybeLookup returns undefined —
+  // the out-of-root secret is never reachable, and the escape attempt is
+  // reported as "absent" rather than throwing or returning the host file.
+  t.is(await E(mount).maybeLookup(['..', 'secret.txt']), undefined);
+  // And the secret is genuinely there on the host, so the undefined above
+  // is confinement, not a missing fixture.
+  t.is(fs.readFileSync(path.join(parent, 'secret.txt'), 'utf8'), 'do-not-leak');
+});
+
 test('readOnly() blob view exposes getInfo/fetch over the LIVE file (not a snapshot)', async t => {
   const rootPath = makeTempRoot(t);
   const mount = makeMount({ rootPath, readOnly: false, filePowers });

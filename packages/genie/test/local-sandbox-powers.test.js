@@ -316,6 +316,27 @@ test('Mount.maybeLookup returns the cap for a present path and undefined for an 
   t.is(await E(mount).maybeLookup('missing.txt'), undefined);
 });
 
+test('Mount.maybeLookup confines a symlink escape to undefined (no host-fs leak)', async t => {
+  const { makeMountCapForPath, dispose } = makeLocalSandboxPowers();
+  t.teardown(dispose);
+
+  // Same escape geometry as the `lookup` symlink-rejection test, but
+  // exercised through `maybeLookup`: the out-of-root rejection that
+  // `lookup` throws must surface as `undefined` here (lookup-or-absent),
+  // never as the leaked sibling cap.
+  const tmp = mkdtempSync(join(tmpdir(), 'genie-local-test-ml-escape-'));
+  t.teardown(() => fs.rm(tmp, { recursive: true, force: true }));
+  const workspaceDir = join(tmp, 'ws');
+  const siblingDir = join(tmp, 'sibling');
+  await fs.mkdir(workspaceDir);
+  await fs.mkdir(siblingDir);
+  await fs.writeFile(join(siblingDir, 'secret.txt'), 'must not leak');
+  await fs.symlink(siblingDir, join(workspaceDir, 'escape'));
+
+  const mount = /** @type {any} */ (makeMountCapForPath(workspaceDir));
+  t.is(await E(mount).maybeLookup('escape'), undefined);
+});
+
 test('provideHostPath rejects sub-Mounts minted by Mount.lookup', async t => {
   // Composition of saboteur findings 1 and 2: if `lookup` returned a
   // sub-Mount and `provideHostPath` accepted it, an attacker could
