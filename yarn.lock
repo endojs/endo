@@ -2426,6 +2426,7 @@ __metadata:
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
+    "@endo/hex": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
