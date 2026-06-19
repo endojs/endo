@@ -161,6 +161,10 @@ A control disabled with a tooltip naming the gap is a first-class outcome.
 
 ## Library and project references
 
+> Readers already familiar with the prior designs may skip to
+> [§ Divergence survey](#divergence-survey); this section catalogues the
+> prior-art context that motivated the reconciliation.
+
 The maintainer's hint "this work has been done before" maps to two
 recently-active designs in the corpus that the new design must reconcile
 with explicitly rather than re-derive: `designs/daemon-capability-filesystem.md`
@@ -1043,6 +1047,17 @@ empty stream.** Overrides the design's original *absent* pick.
   stream as "snapshot / point-in-time," not as "live with no events yet."
   See the [conformance matrix](#backing-implementation-conformance-matrix) and
   the [observation row](#observation).
+- *Known limitation (distinguishability):* an immediately-closed stream is
+  indistinguishable, to a caller with no prior knowledge of the backing type,
+  from a watcher whose connection was lost the instant it opened — both present
+  as a closed stream with zero events. D6 deliberately accepts this: the
+  contract is "a closed stream means no further changes will be observed
+  *through this reference*," and a caller that needs to tell "immutable by
+  construction" from "observation unavailable" must consult the backing's type
+  (e.g. `__getMethodNames__()` / a CAS marker) rather than infer it from the
+  stream. A future revision may add an explicit `reason` to the terminal node
+  (`'immutable'` vs `'disconnected'`); that is out of scope here because the
+  live feed itself is deferred to [filesystem-watchers.md](filesystem-watchers.md).
 
 **D7 — Streaming substrate: `@endo/exo-stream`.** Confirmed.
 - *Consideration:* `@endo/exo-stream` is the established substrate endo-fs
