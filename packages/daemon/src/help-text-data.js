@@ -201,8 +201,12 @@ export const helpTextEntries = harden([
   [
     'ReadableTree',
     {
-      '': 'ReadableTree - A read-only tree of files and subdirectories.\n\nAn immutable directory: entries cannot be added, removed, or modified.\nlookup() returns EndoReadable values for files and nested ReadableTree\nvalues for subdirectories.',
+      '': 'ReadableTree - A read-only tree of files and subdirectories.\n\nAn immutable, content-addressed directory: entries cannot be added, removed,\nor modified. lookup() returns EndoReadable values for files and nested\nReadableTree values for subdirectories. Its identity is available via sha256()\nor, uniformly with blobs, via getInfo().',
       help: 'help(methodName?) -> string\nGet documentation for this interface or a specific method.',
+      sha256:
+        "sha256() -> string\nThe content address of the tree's manifest, as base64.",
+      getInfo:
+        'getInfo() -> Promise<{ algorithm, hash, size }>\nThe content-addressed identity of the tree in one round-trip: algorithm\n("sha256"), hash (base64, the same value as sha256()), and size (the byte\nlength of the tree\'s own manifest). The uniform identity accessor shared with\nblobs, so generic code can read a content hash off any blob or tree.',
       has: 'has(...names) -> Promise<boolean>\nCheck if an entry exists at the given path.\nnames: string[] - Path segments.\nExample: has("index.html") → true\nExample: has("assets", "style.css") → true',
       list: 'list(...names) -> Promise<string[]>\nList entry names at the given path (or root).\nnames: string[] - Path segments (optional, defaults to root).\nExample: list() → ["index.html", "app.js", "assets"]\nExample: list("assets") → ["style.css", "logo.png"]',
       lookup:

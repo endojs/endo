@@ -64,6 +64,18 @@ export const directoryFileMethodGuards = harden({
   writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
 });
 
+// `getInfo()` is the uniform content-address identity accessor: it returns the
+// `{ algorithm, hash, size }` triple in one round-trip. It is the shared half
+// of the range-I/O surface (live blobs add `fetch` for windowed reads) and is
+// *also* carried by the content-addressed snapshot caps (`SnapshotBlob`,
+// `SnapshotTree`, daemon `EndoReadableTree`), so a caller can read a content
+// hash off *any* blob or tree uniformly via `getInfo().hash` without
+// feature-detecting `sha256()` vs `getInfo()`. See
+// designs/fs-interface-consolidation.md § C4.
+export const getInfoMethodGuard = harden({
+  getInfo: M.call().returns(M.any()),
+});
+
 // The range-I/O surface for content-addressed bytes — the richer
 // `BlobRef` shape (see `@endo/platform/fs/extended` `BlobRefInterface`),
 // lifted to a portable record so the daemon's remote blob cap can expose it
@@ -74,7 +86,7 @@ export const directoryFileMethodGuards = harden({
 // `text` / `json` / `streamBase64` accessors layer on top. See
 // designs/fs-interface-consolidation.md § C4.
 export const rangeReadMethodGuards = harden({
-  getInfo: M.call().returns(M.any()),
+  ...getInfoMethodGuard,
   fetch: M.call(M.bigint(), M.bigint()).returns(M.any()),
 });
 
@@ -99,6 +111,7 @@ harden(ReadableBlobRangeInterface);
 
 export const SnapshotBlobInterface = M.interface('SnapshotBlob', {
   ...readableBlobMethodGuards,
+  ...getInfoMethodGuard,
   sha256: M.call().returns(M.string()),
 });
 harden(SnapshotBlobInterface);
@@ -110,6 +123,7 @@ harden(ReadableTreeInterface);
 
 export const SnapshotTreeInterface = M.interface('SnapshotTree', {
   ...readableTreeMethodGuards,
+  ...getInfoMethodGuard,
   sha256: M.call().returns(M.string()),
 });
 harden(SnapshotTreeInterface);

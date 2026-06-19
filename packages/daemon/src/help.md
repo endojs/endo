@@ -628,13 +628,25 @@ peerInfo: { node: string, addresses: string[] }
 
 # ReadableTree - A read-only tree of files and subdirectories.
 
-An immutable directory: entries cannot be added, removed, or modified.
-lookup() returns EndoReadable values for files and nested ReadableTree
-values for subdirectories.
+An immutable, content-addressed directory: entries cannot be added, removed,
+or modified. lookup() returns EndoReadable values for files and nested
+ReadableTree values for subdirectories. Its identity is available via sha256()
+or, uniformly with blobs, via getInfo().
 
 ## help(methodName?) -> string
 
 Get documentation for this interface or a specific method.
+
+## sha256() -> string
+
+The content address of the tree's manifest, as base64.
+
+## getInfo() -> Promise<{ algorithm, hash, size }>
+
+The content-addressed identity of the tree in one round-trip: algorithm
+("sha256"), hash (base64, the same value as sha256()), and size (the byte
+length of the tree's own manifest). The uniform identity accessor shared with
+blobs, so generic code can read a content hash off any blob or tree.
 
 ## has(...names) -> Promise<boolean>
 

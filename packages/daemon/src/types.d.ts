@@ -1079,6 +1079,7 @@ export interface EndoReadable {
 
 export interface EndoReadableTree {
   sha256(): string;
+  getInfo(): Promise<BlobInfo>;
   has(...pathSegments: string[]): Promise<boolean>;
   list(...pathSegments: string[]): Promise<string[]>;
   lookup(path: string | string[]): Promise<EndoReadableTree | EndoReadable>;

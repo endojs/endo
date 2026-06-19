@@ -249,6 +249,18 @@ test('content-store blob from a readable-tree formula is reclaimed when the tree
   const tree = await E(host).lookup(['lonely-tree']);
   const sha256 = await E(tree).sha256();
 
+  // getInfo() is the uniform identity accessor on the real content store:
+  // its base64 hash equals sha256() and the cheap size() path yields the
+  // manifest byte length as a bigint.
+  const info =
+    /** @type {{ algorithm: string, hash: string, size: bigint }} */ (
+      await E(tree).getInfo()
+    );
+  t.is(info.algorithm, 'sha256');
+  t.is(info.hash, sha256);
+  t.is(typeof info.size, 'bigint');
+  t.true(info.size > 0n);
+
   const filePath = contentPathOf(config.statePath, sha256);
   t.true(fs.existsSync(filePath), 'tree root JSON written to content store');
 

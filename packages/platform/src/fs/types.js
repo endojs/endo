@@ -27,11 +27,26 @@
  */
 
 /**
+ * The `{ algorithm, hash, size }` content-address triple returned by
+ * `getInfo()`. `hash` is base64; `algorithm` is `'sha256'`; `size` is the byte
+ * length (of the blob, or of a tree's own manifest).
+ *
+ * @typedef {object} BlobInfo
+ * @property {string} algorithm
+ * @property {string} hash
+ * @property {bigint} size
+ */
+
+/**
  * A SnapshotBlob is a ReadableBlob with a content-addressed identity.
  * `sha256()` returns the digest as base64 (the canonical public hash encoding);
- * the hex form is the internal content-store address.
+ * the hex form is the internal content-store address. `getInfo()` is the
+ * uniform identity accessor (the same shape live blobs and trees expose).
  *
- * @typedef {ReadableBlob & { sha256: () => string }} SnapshotBlob
+ * @typedef {ReadableBlob & {
+ *   sha256: () => string,
+ *   getInfo: () => Promise<BlobInfo>,
+ * }} SnapshotBlob
  */
 
 /**
@@ -46,9 +61,13 @@
 /**
  * A SnapshotTree is a ReadableTree with a content-addressed identity.
  * `sha256()` returns the digest as base64 (the canonical public hash encoding);
- * the hex form is the internal content-store address.
+ * the hex form is the internal content-store address. `getInfo()` is the
+ * uniform identity accessor (its `size` is the manifest byte length).
  *
- * @typedef {ReadableTree & { sha256: () => string }} SnapshotTree
+ * @typedef {ReadableTree & {
+ *   sha256: () => string,
+ *   getInfo: () => Promise<BlobInfo>,
+ * }} SnapshotTree
  */
 
 /**

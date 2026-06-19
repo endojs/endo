@@ -879,7 +879,7 @@ deferred — there is no surviving `@endo/endo-fs` package to keep them honest.
 - **[exo-zip-package.md](exo-zip-package.md)** § *reuse-platform-interface-not-daemon-interface*: the precedent for the catalog living in `packages/platform/src/fs/interfaces.js` rather than a daemon-specific shape.
 - **[daemon-message-streaming.md](daemon-message-streaming.md)**: substrate for `streamRead` when added. Backings that implement `streamRead` use `streamReader` / `streamWriter` from this design.
 
-## Design Decisions
+## Design decisions
 
 1. **Each method name is chosen on merit and recorded — not adopted verbatim.**
    (Maintainer decision 2026-06-18; supersedes the original verbatim-adoption

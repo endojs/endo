@@ -9,6 +9,7 @@ import {
   readableNameHubMethodGuards,
   directoryFileMethodGuards,
   rangeReadMethodGuards,
+  getInfoMethodGuard,
 } from '@endo/platform/fs/lite';
 
 // #region Patterns
@@ -620,6 +621,7 @@ export {
 // the `SnapshotTree` shape. See designs/fs-interface-consolidation.md § C3.
 export const ReadableTreeInterface = M.interface('EndoReadableTree', {
   ...readableTreeMethodGuards,
+  ...getInfoMethodGuard,
   sha256: M.call().returns(M.string()),
 });
 

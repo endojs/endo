@@ -5,6 +5,7 @@ export {
   readableTreeMethodGuards,
   readableNameHubMethodGuards,
   directoryFileMethodGuards,
+  getInfoMethodGuard,
   rangeReadMethodGuards,
   ReadableBlobInterface,
   ReadableBlobRangeInterface,

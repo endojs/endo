@@ -510,6 +510,12 @@ test('EndoMount.snapshot returns a SnapshotTree-shaped capability', async t => {
   t.true(methods.includes('list'));
   t.true(methods.includes('lookup'));
   t.true(methods.includes('sha256'));
+  // The tree also carries the uniform `getInfo()` identity accessor. (Its
+  // *value* behavior is exercised against a real content store in
+  // content-store-gc.test.js and at the platform layer in snapshot-hash.test.js;
+  // this mount mock fabricates non-hex content ids, so only existence is
+  // asserted here.)
+  t.true(methods.includes('getInfo'));
 });
 
 // --- XS file-powers / Node file-powers contract conformance ---
