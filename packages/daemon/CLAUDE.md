@@ -101,21 +101,29 @@ Never use `--ours` or `--theirs` strategies when merging. All conflicts must be 
 
 ## Exo and Interface Authoring
 
-### `M.interface()` rest patterns take a per-element shape
+### `M.interface()` `.rest(shape)` matches the whole collected rest array
 
-`M.call(...).rest(shape)` repeats `shape` for every element of the rest
-arguments; it does **not** take an array-of-element-shape.
+`M.call(...).rest(shape)` matches `shape` against the **collected rest
+arguments as a single array**, not element-by-element. So for a method
+that takes a varargs of strings (`foo(...segments)`), the rest shape is
+`M.arrayOf(M.string())` — an array whose every element is a string.
 
 ```js
-// Good — rest of strings:
-foo: M.call(M.string()).rest(M.string()).returns(M.promise()),
-
-// Wrong — describes a call whose rest is a single array argument:
+// Good — varargs of strings, i.e. foo('a', 'b', 'c'):
 foo: M.call(M.string()).rest(M.arrayOf(M.string())).returns(M.promise()),
+
+// Wrong — requires the collected rest array to *be* a single string,
+// which no varargs-of-strings call can satisfy (it rejects foo('a')):
+foo: M.call(M.string()).rest(M.string()).returns(M.promise()),
 ```
 
-Mixing these up silently accepts or rejects the wrong call shapes and
-is a recurring review finding on the mount and host facets.
+Verified empirically against the installed `@endo/patterns`: with
+`.rest(M.string())`, `foo('a', 'b', 'c')` fails with
+`rest: copyArray (an object) - Must be a string`; with
+`.rest(M.arrayOf(M.string()))` it passes. The `has` / `list` guards on
+the mount and name-hub facets use `.rest(M.arrayOf(M.string()))` for
+exactly this reason. Mixing these up silently accepts or rejects the
+wrong call shapes and is a recurring review finding.
 
 ### Keep exported facet `.d.ts` interfaces in sync
 
