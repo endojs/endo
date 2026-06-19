@@ -1,6 +1,5 @@
 // @ts-nocheck
 /* eslint-disable import/order, no-await-in-loop */
-/* global Buffer */
 
 /**
  * `mountAsFilesystem` tests (F5).
@@ -19,6 +18,9 @@ import { E } from '@endo/eventual-send';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
+import { mapReader } from '@endo/stream';
+import { encodeBase64 } from '@endo/base64';
 
 import { mountAsFilesystem } from '../src/fs/extended/from-mount.js';
 import { makeFromMountBackend } from '../src/fs/extended/backends/from-mount-backend.js';
@@ -83,19 +85,15 @@ const makeMockMount = () => {
       async text() {
         return fromUtf8(node.content);
       },
-      async streamBase64() {
-        // Yield the whole content as one base64 chunk.
-        let yielded = false;
-        return Far('AsyncIterator', {
-          async next() {
-            if (yielded) return harden({ done: true, value: undefined });
-            yielded = true;
-            return harden({
-              done: false,
-              value: Buffer.from(node.content).toString('base64'),
-            });
-          },
-        });
+      // Mirrors the real `EndoMountFile.streamBase64(synPromise)`: an
+      // `@endo/exo-stream` reader pump over the whole content, base64
+      // encoded. The `synPromise` argument drives the flow-control chain.
+      streamBase64(synPromise) {
+        async function* contentBytes() {
+          yield node.content;
+        }
+        const pump = makeReaderPump(mapReader(contentBytes(), encodeBase64));
+        return pump(synPromise);
       },
       async json() {
         return JSON.parse(fromUtf8(node.content));
@@ -113,15 +111,11 @@ const makeMockMount = () => {
             'writeBytes expects a reader reference, not raw bytes',
           );
         }
-        const reader = await E(readableRef).streamBase64();
         const chunks = [];
         let total = 0;
-        for (;;) {
-          const { done, value: b64 } = await E(reader).next();
-          if (done) break;
-          const decoded = new Uint8Array(Buffer.from(b64, 'base64'));
-          chunks.push(decoded);
-          total += decoded.length;
+        for await (const chunk of iterateBytesReader(readableRef)) {
+          chunks.push(chunk);
+          total += chunk.length;
         }
         const content = new Uint8Array(total);
         let o = 0;
@@ -207,15 +201,11 @@ const makeMockMount = () => {
           }
           parentNode = child;
         }
-        const reader = await E(value).streamBase64();
         const chunks = [];
         let total = 0;
-        for (;;) {
-          const { done, value: b64 } = await E(reader).next();
-          if (done) break;
-          const decoded = new Uint8Array(Buffer.from(b64, 'base64'));
-          chunks.push(decoded);
-          total += decoded.length;
+        for await (const chunk of iterateBytesReader(value)) {
+          chunks.push(chunk);
+          total += chunk.length;
         }
         const content = new Uint8Array(total);
         let o = 0;

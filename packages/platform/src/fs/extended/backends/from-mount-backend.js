@@ -1,6 +1,5 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
-/* global atob */
 /**
  * `FsBackend` adapter for an `@endo/daemon` `Mount` cap.
  *
@@ -22,11 +21,16 @@
  *   CapTP method introspection of the lookup result. `list` pipelines
  *   each entry's introspection probe onto its lookup (one round-trip per
  *   entry, all entries concurrent) rather than two serial sends each.
+ *
+ * Bytes streaming uses the `@endo/exo-stream` wire protocol on both
+ * sides: reads drain a file's `streamBase64` via `iterateBytesReader`,
+ * and the write-blob is produced by `bytesReaderFromIterator` (which
+ * `Mount.write` drains the same way).
  */
 
 import { E } from '@endo/eventual-send';
-import { Far } from '@endo/far';
-import { encodeBase64 } from '@endo/base64';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { makeError, X, q } from '@endo/errors';
 
 import { toSafeNumber } from '../shared/helpers.js';
@@ -52,56 +56,37 @@ const isNotFoundMessage = message => /ENOENT|EACCES|ELOOP/.test(message);
 harden(isNotFoundMessage);
 
 /**
- * Wrap a `Uint8Array` as a `ReadableBlob`-shaped remotable that `Mount.write`
- * accepts. `Mount.write` introspects for a `streamBase64` method and drains it
- * through `makeRefReader` (base64-decode), so the blob yields its bytes as a
- * single base64 chunk. A raw `Uint8Array` cannot cross CapTP (byte arrays are
- * not yet passable), which is why writes must hand over a reader reference
- * rather than the bytes themselves.
+ * Wrap a `Uint8Array` as a `PassableBytesReader` that `Mount.write`
+ * accepts. `Mount.write` introspects for a `streamBase64` method and
+ * drains it through `iterateBytesReader` (the `@endo/exo-stream`
+ * protocol), so the producer must speak that protocol too. A raw
+ * `Uint8Array` cannot cross CapTP (byte arrays are not yet passable),
+ * which is why writes must hand over a reader reference rather than the
+ * bytes themselves.
  *
  * @param {Uint8Array} bytes
  */
 const makeBytesBlob = bytes => {
-  const base64 = encodeBase64(bytes);
-  return Far('ReadableBlob', {
-    streamBase64() {
-      let sent = false;
-      return Far('AsyncIterator', {
-        async next() {
-          if (sent) {
-            return harden({ done: true, value: undefined });
-          }
-          sent = true;
-          return harden({ done: false, value: base64 });
-        },
-        async return() {
-          sent = true;
-          return harden({ done: true, value: undefined });
-        },
-      });
-    },
-  });
+  async function* singleChunk() {
+    yield bytes;
+  }
+  return bytesReaderFromIterator(singleChunk());
 };
 harden(makeBytesBlob);
 
 /**
- * Drain a Mount/MountFile `streamBase64` reader into a `Uint8Array`.
+ * Drain a Mount/MountFile `streamBase64` reader into a `Uint8Array`
+ * using the `@endo/exo-stream` consumer protocol.
  *
- * @param {any} streamRef
+ * @param {any} fileCap - a remotable exposing `streamBase64`
  */
-const drainBase64Stream = async streamRef => {
+const drainBytesReader = async fileCap => {
   /** @type {Uint8Array[]} */
   const chunks = [];
   let total = 0;
-  for (;;) {
-    const { done, value } = await E(streamRef).next();
-    if (done) break;
-    // The wire format is a base64 string; decode it.
-    const decoded = Uint8Array.from(atob(/** @type {string} */ (value)), c =>
-      c.charCodeAt(0),
-    );
-    chunks.push(decoded);
-    total += decoded.length;
+  for await (const chunk of iterateBytesReader(fileCap)) {
+    chunks.push(chunk);
+    total += chunk.length;
   }
   const out = new Uint8Array(total);
   let off = 0;
@@ -228,8 +213,7 @@ export const makeFromMountBackend = rootMount => {
       }
       // A bytes-stream error mid-fetch propagates as a real failure
       // rather than being silently coerced to "empty file."
-      const stream = await E(cap).streamBase64();
-      const bytes = await drainBase64Stream(stream);
+      const bytes = await drainBytesReader(cap);
       const off = offset === undefined ? 0 : toSafeNumber(offset, 'offset');
       if (length === undefined) return bytes.slice(off);
       const end = off + toSafeNumber(length, 'length');
@@ -253,8 +237,7 @@ export const makeFromMountBackend = rootMount => {
       const cap = await resolve(path);
       let current = new Uint8Array(0);
       if (cap !== undefined) {
-        const stream = await E(cap).streamBase64();
-        current = await drainBase64Stream(stream);
+        current = await drainBytesReader(cap);
       }
       const needed = off + bytes.length;
       const outLen = Math.max(needed, current.length);
@@ -291,8 +274,7 @@ export const makeFromMountBackend = rootMount => {
       const cap = await resolve(path);
       let current = new Uint8Array(0);
       if (cap !== undefined) {
-        const stream = await E(cap).streamBase64();
-        current = await drainBase64Stream(stream);
+        current = await drainBytesReader(cap);
       }
       const out = new Uint8Array(size);
       out.set(current.subarray(0, Math.min(current.length, size)), 0);
