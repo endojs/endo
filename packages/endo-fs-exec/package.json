@@ -2,7 +2,7 @@
   "name": "@endo/endo-fs-exec",
   "version": "0.0.0",
   "private": true,
-  "description": "Adapt an @endo/endo-fs Filesystem cap to the ReadableTree shape @endo/daemon's `make-from-tree` formula consumes, so a compartment-mapper program backed by endo-fs source files can be loaded as a formula with no new formula type.",
+  "description": "Adapt an @endo/platform/fs/extended Filesystem cap to the ReadableTree shape @endo/daemon's `make-from-tree` formula consumes, so a compartment-mapper program backed by cap-FS source files can be loaded as a formula with no new formula type.",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",

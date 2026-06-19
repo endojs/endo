@@ -222,6 +222,21 @@ test('readOnly() blob view exposes getInfo/fetch over the LIVE file (not a snaps
   t.false(viewMethods.includes('writeText'));
 });
 
+test('EndoMountFile.fetch rejects a negative or out-of-range window with EINVAL', async t => {
+  const rootPath = makeTempRoot(t);
+  const mount = makeMount({ rootPath, readOnly: false, filePowers });
+  await E(mount).writeText(['f.txt'], 'hello');
+  const file = await E(mount).lookup('f.txt');
+  // The mount-file fetch validates the bigint→Number boundary via
+  // toSafeNumber, so a negative or over-MAX_SAFE_INTEGER window throws EINVAL
+  // rather than reaching readFileRange with a bad position.
+  await t.throwsAsync(() => E(file).fetch(-1n, 4n), { message: /EINVAL/ });
+  await t.throwsAsync(() => E(file).fetch(0n, -1n), { message: /EINVAL/ });
+  await t.throwsAsync(() => E(file).fetch(2n ** 60n, 4n), {
+    message: /EINVAL/,
+  });
+});
+
 test('followNameChanges throws ENOSYS until a filesystem watcher is wired', async t => {
   const rootPath = makeTempRoot(t);
   const mount = makeMount({ rootPath, readOnly: false, filePowers });
@@ -602,7 +617,13 @@ test('EndoMountFile.stat returns a record for a present file', async t => {
   await E(mount).writeText(['s.txt'], 'x');
   const file = await E(mount).lookup('s.txt');
   const st = await E(file).stat();
-  t.truthy(st);
+  // Pin the realigned bigint/ns `Stat` shape (this PR's whole point), not just
+  // truthiness: a regression to the old `{ sizeBytes: number, modifiedMs }`
+  // shape must fail here.
+  t.is(st.kind, 'file');
+  t.is(st.size, 1n);
+  t.is(typeof st.mtime, 'bigint');
+  t.is(typeof st.atime, 'bigint');
 });
 
 test('EndoMountFile.snapshot throws when no snapshotFile was wired in', async t => {

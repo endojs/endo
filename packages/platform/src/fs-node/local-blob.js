@@ -15,6 +15,7 @@ import { makeNodeReader } from '@endo/stream-node';
 // content hash + size in one round-trip and read byte ranges without
 // streaming the whole file. See designs/fs-interface-consolidation.md § C4.
 import { ReadableBlobRangeInterface } from '../fs/interfaces.js';
+import { toSafeNumber } from '../fs/extended/shared/helpers.js';
 
 /**
  * Wrap a byte range as a `PassableBytesReader`. Empty ranges yield a reader
@@ -66,15 +67,26 @@ export const makeLocalBlob = filePath => {
      * @param {bigint} length
      */
     async fetch(offset, length) {
-      const off = Number(offset);
-      const len = Number(length);
+      // Validate at the bigint→Number boundary (same `toSafeNumber` the
+      // daemon and `BlobRef` paths use) so negative / out-of-range windows
+      // throw `EINVAL` rather than reaching `fs.read` with a bad position.
+      const off = toSafeNumber(offset, 'offset');
+      const len = toSafeNumber(length, 'length');
       if (len <= 0) {
         return bytesFromRange(new Uint8Array(0));
       }
       const handle = await fs.promises.open(filePath, 'r');
       try {
-        const buffer = new Uint8Array(len);
-        const { bytesRead } = await handle.read(buffer, 0, len, off);
+        // Clamp the request to the bytes actually available before
+        // allocating, so a huge `length` against a small file can't drive a
+        // multi-GB host allocation (the buffer is bounded by the file size).
+        const { size } = await handle.stat();
+        const clamped = Math.min(len, Math.max(0, size - off));
+        if (clamped <= 0) {
+          return bytesFromRange(new Uint8Array(0));
+        }
+        const buffer = new Uint8Array(clamped);
+        const { bytesRead } = await handle.read(buffer, 0, clamped, off);
         return bytesFromRange(buffer.subarray(0, bytesRead));
       } finally {
         await handle.close();

@@ -274,8 +274,16 @@ export const makeFilePowers = ({ fs, path: fspath }) => {
     }
     const handle = await fs.promises.open(path, 'r');
     try {
-      const buffer = new Uint8Array(length);
-      const { bytesRead } = await handle.read(buffer, 0, length, offset);
+      // Clamp the request to the bytes actually available before allocating,
+      // so a huge `length` against a small file can't drive a multi-GB host
+      // allocation (the buffer stays bounded by the file size).
+      const { size } = await handle.stat();
+      const clamped = Math.min(length, Math.max(0, size - offset));
+      if (clamped <= 0) {
+        return new Uint8Array(0);
+      }
+      const buffer = new Uint8Array(clamped);
+      const { bytesRead } = await handle.read(buffer, 0, clamped, offset);
       return buffer.subarray(0, bytesRead);
     } finally {
       await handle.close();

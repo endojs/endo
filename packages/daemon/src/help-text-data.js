@@ -244,11 +244,15 @@ export const helpTextEntries = harden([
   [
     'EndoMountFile',
     {
-      '': 'EndoMountFile - A file within a mounted directory.',
+      '': 'EndoMountFile - A file within a mounted directory.\n\nA live, host-backed file. Read it with text() / json() / streamBase64(),\ninspect and range-read it with getInfo() / fetch(), write it with\nwriteText() / append() / writeBytes(), or snapshot() it into the content\nstore. stat() returns the bigint-nanosecond metadata record.',
       help: 'help(methodName?) -> string\nGet documentation for this interface or a specific method.',
+      getInfo:
+        'getInfo() -> Promise<{ algorithm, hash, size }>\nThe content-addressed identity of the file\'s current bytes in one\nround-trip: algorithm ("sha256"), hash (base64), and size (bigint).\nRecomputed each call, since the live file may change.',
+      fetch:
+        'fetch(offset, length) -> Promise<PassableBytesReader>\nRead the byte range [offset, offset + length) of the live file without\nstreaming the whole thing. offset and length are bigints; the range is\nclamped at end-of-content.',
       text: 'text() -> Promise<string>\nRead the file content as a UTF-8 string.',
       streamBase64:
-        'streamBase64() -> AsyncIterator<string>\nStream the file content as base64 chunks.',
+        'streamBase64(syndicationPromise) -> Promise\nStream the file content as base64 chunks, driven by the syndication\npromise (the reader-pump flow-control protocol).',
       json: 'json() -> Promise<any>\nRead and parse the file as JSON.',
       writeText:
         'writeText(content) -> Promise<void>\nWrite a string to the file. Throws if read-only.',
@@ -257,7 +261,7 @@ export const helpTextEntries = harden([
       writeBytes:
         'writeBytes(readableRef) -> Promise<void>\nWrite bytes from an async iterator. Throws if read-only.',
       readOnly:
-        'readOnly() -> ReadableBlob\nReturns a structural ReadableBlob view (streamBase64, text, json) of this file.\nMount-specific extensions (stat, snapshot) are not on the view.',
+        'readOnly() -> ReadableBlob\nReturns a structural ReadableBlob view (text, json, streamBase64, getInfo,\nfetch) of this file. The view is a write-disabled face over the live file,\nnot a snapshot. Mount-specific extensions (stat, snapshot) are not on it.',
     },
   ],
 ]);

@@ -29,7 +29,9 @@ two first-audit corrections:
 
 1. **endo-fs already names `remove` and `makeDirectory` as canonical**, with
    `unlink` / `mkdir` retained as legacy aliases.
-   See `packages/endo-fs/src/type-guards.js` lines 93-102.
+   See the `Directory` guard's `mkdir` / `unlink` aliases in
+   `packages/platform/src/fs/extended/type-guards.js` (the cap-FS engine
+   formerly at `packages/endo-fs/src/type-guards.js`, retired by this PR).
    The [Migration plan](#migration-plan) Phase 2 therefore only needs to add
    `write` (whole-blob) and `move` (versus endo-fs's wider-arity `rename`) to
    the endo-fs `DirectoryInterface`; `remove` / `makeDirectory` are already
@@ -568,7 +570,7 @@ range I/O").
 
 | Method | Signature | Returns |
 |---|---|---|
-| `followNameChanges` | `followNameChanges() → ReaderRef<NameChangeEvent>` | Returns a **remotable async-iterator reference** (a `ReaderRef`), matching the live `EndoDirectory.followNameChanges` shape (`M.call().returns(M.remotable())`, daemon `interfaces.js:78`) — **not** a `Promise<AsyncIterable>`. The catalog standardizes on the remotable-ref form for every backing; the other daemon hubs that currently declare `M.promise()` are brought to the `remotable()` form as part of [filesystem-watchers.md](filesystem-watchers.md) (review finding 6). Per [Resolved decisions](#resolved-decisions-2026-06-18) D6, implementations that cannot observe (CAS; immutable snapshots) return an **immediately-terminating empty** `ReaderRef` (not a rejected promise, not absent) so polymorphic consumers can call it without a presence check; memfs without a registered listener likewise returns an immediately-terminating `ReaderRef`. The viewer reads an immediately-closed stream as "snapshot / point-in-time." |
+| `followNameChanges` | `followNameChanges() → ReaderRef<NameChangeEvent>` | Returns a **remotable async-iterator reference** (a `ReaderRef`), matching the live `EndoDirectory.followNameChanges` shape (`M.call().returns(M.remotable())`, in the daemon's shared `nameHubMethodGuards` record) — **not** a `Promise<AsyncIterable>`. The catalog standardizes on the remotable-ref form for every backing; the other daemon hubs that currently declare `M.promise()` are brought to the `remotable()` form as part of [filesystem-watchers.md](filesystem-watchers.md) (review finding 6). Per [Resolved decisions](#resolved-decisions-2026-06-18) D6, implementations that cannot observe (CAS; immutable snapshots) return an **immediately-terminating empty** `ReaderRef` (not a rejected promise, not absent) so polymorphic consumers can call it without a presence check; memfs without a registered listener likewise returns an immediately-terminating `ReaderRef`. The viewer reads an immediately-closed stream as "snapshot / point-in-time." |
 
 ### Discoverability
 

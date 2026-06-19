@@ -22,6 +22,7 @@ import { mapReader } from '@endo/stream';
 // learn a blob's content hash + size in one round-trip and read byte ranges.
 // See designs/fs-interface-consolidation.md § C4.
 import { ReadableBlobRangeInterface } from '@endo/platform/fs/lite';
+import { toSafeNumber } from '@endo/platform/fs/extended/shared/helpers.js';
 import { GitTreeInterface } from '@endo/exo-git';
 
 // `TextDecoder` is portable across XS, browsers, and SES realms;
@@ -1708,8 +1709,11 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
        * @param {bigint} length
        */
       async fetch(offset, length) {
-        const off = Number(offset);
-        const len = Number(length);
+        // Validate at the bigint→Number boundary (same `toSafeNumber` the
+        // daemon and `BlobRef` paths use) so a negative offset can't slip
+        // through to `subarray` and silently return the tail of the object.
+        const off = toSafeNumber(offset, 'offset');
+        const len = toSafeNumber(length, 'length');
         if (len <= 0) {
           return bytesReaderFromIterator([][Symbol.iterator]());
         }

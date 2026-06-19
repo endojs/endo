@@ -29,6 +29,8 @@ import { Far } from '@endo/far';
 import { encodeBase64 } from '@endo/base64';
 import { makeError, X, q } from '@endo/errors';
 
+import { toSafeNumber } from '../shared/helpers.js';
+
 /**
  * @import { FsBackend, NodeKind, DirEntry, NodeStat } from '../backend-types.js'
  */
@@ -228,9 +230,9 @@ export const makeFromMountBackend = rootMount => {
       // rather than being silently coerced to "empty file."
       const stream = await E(cap).streamBase64();
       const bytes = await drainBase64Stream(stream);
-      const off = offset === undefined ? 0 : Number(offset);
+      const off = offset === undefined ? 0 : toSafeNumber(offset, 'offset');
       if (length === undefined) return bytes.slice(off);
-      const end = off + Number(length);
+      const end = off + toSafeNumber(length, 'length');
       return bytes.slice(off, end);
     },
 
@@ -243,7 +245,7 @@ export const makeFromMountBackend = rootMount => {
       if (path.length === 0) {
         throw makeError(X`EISDIR: cannot write the root`);
       }
-      const off = offset === undefined ? 0 : Number(offset);
+      const off = offset === undefined ? 0 : toSafeNumber(offset, 'offset');
       // Read current content (if the file already exists) so a ranged
       // write can be coalesced locally — Mount has no partial-range
       // write. A missing path resolves to undefined (treated as empty);
@@ -285,7 +287,7 @@ export const makeFromMountBackend = rootMount => {
         throw makeError(X`EISDIR: cannot setStat the root`);
       }
       if (patch.size === undefined) return;
-      const size = Number(patch.size);
+      const size = toSafeNumber(patch.size, 'size');
       const cap = await resolve(path);
       let current = new Uint8Array(0);
       if (cap !== undefined) {

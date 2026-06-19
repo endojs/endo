@@ -87,8 +87,11 @@ harden(ReadableBlobInterface);
 // (`getInfo` / `fetch`) — the rich shape for content-addressed blobs read
 // remotely. Pre-assembled so implementers (LocalBlob, GitBlob) can adopt the
 // full surface without re-spreading the records or depending on `@endo/patterns`
-// themselves. See designs/fs-interface-consolidation.md § C4.
-export const ReadableBlobRangeInterface = M.interface('ReadableBlob', {
+// themselves. The interface tag is distinct from `ReadableBlobInterface`'s so
+// the two shapes don't collide in diagnostics / marshaled interface names
+// (feature detection keys on method names, not the tag). See
+// designs/fs-interface-consolidation.md § C4.
+export const ReadableBlobRangeInterface = M.interface('ReadableBlobRange', {
   ...readableBlobMethodGuards,
   ...rangeReadMethodGuards,
 });

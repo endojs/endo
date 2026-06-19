@@ -85,7 +85,6 @@ export const ResponderInterface = M.interface('EndoResponder', {
 export const ReadableNameHubInterface = M.interface('ReadableNameHub', {
   ...readableNameHubMethodGuards,
 });
-harden(ReadableNameHubInterface);
 
 // The full name-hub method-guard record: the portable read contract plus the
 // daemon-specific registry/locator/mutation surface. `EndoDirectory` spreads it
@@ -577,17 +576,17 @@ export const MountInterface = M.interface('EndoMount', {
 // `readOnly` narrows to a structural ReadableBlob view that carries the same
 // rich surface.
 export const MountFileInterface = M.interface('EndoMountFile', {
+  // Whole-value read surface (help / streamBase64 / text / json) shared with
+  // every other readable blob, plus the rich `rangeReadMethodGuards`
+  // (getInfo / fetch) over the live file, plus the mount-file write surface.
+  ...readableBlobMethodGuards,
   ...rangeReadMethodGuards,
-  text: M.call().returns(M.promise()),
-  streamBase64: M.call(M.any()).returns(M.promise()),
-  json: M.call().returns(M.promise()),
   writeText: M.call(M.string()).returns(M.promise()),
   append: M.call(M.string()).returns(M.promise()),
   writeBytes: M.call(M.remotable()).returns(M.promise()),
   stat: M.call().returns(M.promise()),
   snapshot: M.call().returns(M.promise()),
   readOnly: M.call().returns(M.remotable('ReadableBlob')),
-  help: M.call().optional(M.string()).returns(M.string()),
 });
 
 // Re-export so importing modules that already pull from
