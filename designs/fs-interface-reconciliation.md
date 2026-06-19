@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-06-18 |
-| **Updated** | 2026-06-18 |
+| **Updated** | 2026-06-19 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
@@ -1173,19 +1173,35 @@ Verified on `claude/fs-object-interfaces-m9tcat`.
 
 ### Surface 1 — `@endo/platform/fs` (the vocabulary)
 
-All guards in `packages/platform/src/fs/interfaces.js`:
+> **Snapshot note (updated 2026-06-19).** The interface tables in this
+> appendix were captured *before* the `fs-interface-consolidation` work landed,
+> as a pre-consolidation inventory. The line numbers are stale and the method
+> sets have since converged. The columns below are updated to the post-
+> consolidation shape; for the authoritative current state see
+> [fs-interface-consolidation.md](fs-interface-consolidation.md) and the live
+> `packages/platform/src/fs/interfaces.js`.
 
-| Interface | Line | Methods |
-|---|---|---|
-| `ReadableBlobInterface` | 12 | `streamBase64`, `text`, `json` |
-| `SnapshotBlobInterface` | 19 | `sha256`, `streamBase64`, `text`, `json` |
-| `ReadableTreeInterface` | 27 | `has`, `list`, `lookup` |
-| `SnapshotTreeInterface` | 34 | `sha256`, `has`, `list`, `lookup` |
-| `ContentStoreInterface` | 42 | `store`, `fetch`, `has` |
-| `SnapshotStoreInterface` | 49 | `store`, `fetch`, `has`, `loadBlob`, `loadTree` |
-| `TreeWriterInterface` | 58 | `writeBlob`, `makeDirectory` (minimal push interface) |
-| `FileInterface` (Mutable Blob) | 64 | `streamBase64`, `text`, `json`, `writeText`, `writeBytes`, `append`, `readOnly`, `snapshot` |
-| `DirectoryInterface` (Mutable Tree) | 76 | `has`, `list`, `lookup`, `write`, `remove`, `move`, `copy`, `makeDirectory`, `readOnly`, `snapshot` |
+Guards in `packages/platform/src/fs/interfaces.js` (post-consolidation):
+
+| Interface / record | Methods |
+|---|---|
+| `readableBlobMethodGuards` (shared record) | `help`, `streamBase64`, `text`, `json` |
+| `readableTreeMethodGuards` (shared record) | `help`, `has`, `list`, `lookup` |
+| `readableNameHubMethodGuards` (shared record) | `readableTreeMethodGuards` + `maybeLookup` |
+| `directoryFileMethodGuards` (shared record) | `makeDirectory`, `readText`, `maybeReadText`, `writeText` |
+| `rangeReadMethodGuards` (shared record) | `getInfo`, `fetch(offset, length)` |
+| `ReadableBlobInterface` | `readableBlobMethodGuards` |
+| `ReadableBlobRangeInterface` | `readableBlobMethodGuards` + `rangeReadMethodGuards` (the rich blob shape implementers adopt) |
+| `SnapshotBlobInterface` | `readableBlobMethodGuards` + `sha256` |
+| `ReadableTreeInterface` | `readableTreeMethodGuards` |
+| `SnapshotTreeInterface` | `readableTreeMethodGuards` + `sha256` |
+| `TreeWriterInterface` | `help`, `writeBlob`, `makeDirectory` (minimal push interface) |
+| `FileInterface` (Mutable Blob) | `readableBlobMethodGuards` + `writeText`, `writeBytes`, `append`, `readOnly`, `snapshot` |
+| `DirectoryInterface` (Mutable Tree) | `readableTreeMethodGuards` + `write`, `remove`, `move`, `copy`, `makeDirectory`, `readOnly`, `snapshot` |
+
+The former `ContentStoreInterface` / `SnapshotStoreInterface` guards were
+**removed** in the consolidation (the content store is a powers object, not a
+remotable cap, so it needs no `M.interface`).
 
 Note: the Mutable `FileInterface` / `DirectoryInterface` are **already
 landed** (platform-fs Phase 4 shipped). They lack the catalog's `makeFile`,
@@ -1197,15 +1213,20 @@ landed** (platform-fs Phase 4 shipped). They lack the catalog's `makeFile`,
 All guards in `packages/daemon/src/interfaces.js`; exos in
 `packages/daemon/src/mount.js`:
 
-| Interface | Line | Methods |
-|---|---|---|
-| `EndoMount` | 555 | `has`, `list`, `lookup`, `write`, `copy`, `entry`, `stat`, `readText`, `maybeReadText`, `writeText`, `makeDirectory`, `makeFile`, `remove`, `move`, `readOnly`, `snapshot`, `help` |
-| `EndoMountFile` | 599 | `text`, `streamBase64`, `json`, `writeText`, `append`, `writeBytes`, `stat`, `snapshot`, `readOnly`, `help` |
-| `EndoMountEntry` | 617 | `segments`, `displayPath`, `child`, `help` (path descriptor; no I/O) |
-| `EndoReadableTree` | 637 | `sha256`, `has`, `list`, `lookup`, `help` (content-store tree) |
+Guards in `packages/daemon/src/interfaces.js` (post-consolidation; line numbers
+omitted as stale — see the snapshot note above):
 
-`EndoMount` extends platform's `DirectoryInterface`; `EndoMountFile` extends
-platform's `FileInterface`. `readOnly()` returns structural projections
+| Interface | Methods |
+|---|---|
+| `EndoMount` | `has`, `list`, `lookup`, `maybeLookup`, `followNameChanges` (ENOSYS until a watcher lands), `subView`, `write`, `copy`, `entry`, `stat`, `readText`, `maybeReadText`, `writeText`, `makeDirectory`, `makeFile`, `remove`, `move`, `readOnly`, `snapshot`, `help` |
+| `EndoMountFile` | `text`, `streamBase64`, `json`, `getInfo`, `fetch`, `writeText`, `append`, `writeBytes`, `stat`, `snapshot`, `readOnly`, `help` |
+| `EndoMountEntry` | `segments`, `displayPath`, `child`, `help` (path descriptor; no I/O) |
+| `EndoBlob` (`EndoReadable`) | `streamBase64`, `text`, `json`, `getInfo`, `fetch`, `help` — exactly `ReadableBlobRangeInterface`; the former hex `sha256()` was removed (content hash served by `getInfo().hash`, base64) |
+| `EndoReadableTree` | `sha256` (base64), `has`, `list`, `lookup`, `help` (content-store tree) |
+
+`EndoMount` spreads the shared name-hub records on top of `DirectoryInterface`;
+`EndoMountFile` spreads `rangeReadMethodGuards` on top of platform's `File`
+surface. `readOnly()` returns structural projections
 (`ReadableTreeView` / `ReadableBlobView`, declared in `types.d.ts`) whose
 method sets exactly match the platform Readable guards.
 Backed by `FilePowers` (see below) for host authority.

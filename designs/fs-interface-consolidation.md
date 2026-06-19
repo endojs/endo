@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-06-18 |
-| **Updated** | 2026-06-18 |
+| **Updated** | 2026-06-19 |
 | **Author** | Aaron (prompted) |
 | **Status** | In Progress |
 
@@ -40,7 +40,7 @@ another design are called out below and left as follow-ups.
 - **C3 (done) / C4 (done for the daemon blob).** `EndoReadableTree` is now
   `{ ...readableTreeMethodGuards, sha256 }` (the `SnapshotTree` shape).
   `EndoBlob` is aligned *up* to the richer `BlobRef` range-I/O shape: it carries
-  `{ ...readableBlobMethodGuards, ...rangeReadMethodGuards, sha256 }`, i.e. the
+  `{ ...readableBlobMethodGuards, ...rangeReadMethodGuards }`, i.e. the
   whole-value `text`/`json`/`streamBase64` accessors **plus**
   `getInfo()` (the `{ algorithm, hash, size }` triple in one round-trip) and
   `fetch(offset, length)` (a windowed read) — the surface that makes remote
@@ -134,13 +134,15 @@ using `string | string[]` path arguments (no `MountEntry` arm: a genie sandbox
 never traffics in daemon mount-entry caps). It was the **fourth** independent
 definition of the mount vocabulary.
 
-It is **now folded in**: because genie already depends on `@endo/daemon` and its
-local `PathArgShape` is exactly the daemon's `NameOrPathShape`, `LocalMount`
-spreads the daemon's `readableNameHubMethodGuards` (help / has / list / lookup /
-maybeLookup) and `directoryFileMethodGuards` (makeDirectory / readText /
-maybeReadText / writeText), declaring only `remove` / `move` inline (those live
-in the fuller `nameHubMethodGuards`, which carries registry methods genie does
-not expose). genie gained `maybeLookup` as part of the fold-in.
+It is **now folded in**: genie took a `@endo/platform` dependency and its local
+path shape is exactly the portable `NameOrPathShape`, so `LocalMount` spreads the
+portable `readableNameHubMethodGuards` (help / has / list / lookup / maybeLookup)
+and `directoryFileMethodGuards` (makeDirectory / readText / maybeReadText /
+writeText) from `@endo/platform/fs/lite` — the same records the daemon spreads,
+now owned by platform rather than the daemon — declaring only `remove` / `move`
+inline (those live in the daemon-side `nameHubMethodGuards`, which carries
+registry methods genie does not expose). genie gained `maybeLookup` as part of
+the fold-in.
 
 genie's two security gates are **undisturbed** — they key on method names / cap
 identity, not the interface object:
@@ -225,10 +227,10 @@ because the read surface is small and stable, but still daemon-deep.
 
 **Direction resolved (maintainer decision):** align *up* to the **richer
 `BlobRef` shape**, not down to the whole-value `SnapshotBlob`. The daemon
-read-surface convergence already done (`EndoBlob` = `{ ...readableBlobMethodGuards,
-sha256 }`) is the whole-value half; the remaining work is to give the
-content-addressed blob the **range-I/O surface** `BlobRef` already has, because
-that surface is what makes remote reads optimal:
+read-surface convergence (`EndoBlob` spreads `readableBlobMethodGuards`) is the
+whole-value half; the remaining work was to give the content-addressed blob the
+**range-I/O surface** `BlobRef` already has, because that surface is what makes
+remote reads optimal:
 
 - `getInfo() → { algorithm, hash, size }` lets a caller learn the content hash
   and size in **one** round-trip and consult a local CAS before fetching bytes
@@ -243,27 +245,37 @@ layered *on top of* this; the unified rich blob keeps them. The earlier "retire
 they are not redundant spellings — `BlobRef` is the strictly richer one, and the
 direction is to bring the daemon/lite blobs up to it.
 
-**This is a multi-layer feature, not an interface refactor**, and should land as
-its own follow-up PR:
+**This is a multi-layer feature, not an interface refactor.** It was originally
+scoped as a follow-up PR but **landed in this one**; the four layers, as built:
 
 1. *Powers / content store* (`daemon-persistence-powers.js`): the store's
-   `fetch(sha256)` returns a whole-file `makeFileReader` today. Add `size`
-   (a `stat` on the storage file) and a **range-capable** reader
-   (`makeFileReader({ offset, length })`, backed by Node `createReadStream({
-   start, end })`).
+   `fetch(sha256)` now also surfaces `size` (a `stat` on the storage file) and a
+   **range-capable** `readRange(offset, length)`; the Node/XS `FilePowers`
+   gained `readFileRange` (Node `fs.open` + positional `read`).
 2. *Hash format reconciliation:* `BlobRef.getInfo().hash` is **base64**; the
-   daemon `sha256()` is **hex** (`digester.digestHex()`). Pick one canonical
-   encoding for `getInfo().hash` (recommend hex, to match the existing daemon
-   `sha256()` and the content-store filenames) and document it; keep `sha256()`
-   as the convenience accessor.
-3. *Blob exos:* add `getInfo` + `fetch` to every content-addressed blob exo —
-   the persisted `makeReadableBlob` and transient `makeBytesBlob`
-   (`daemon.js`), the mount file's `readOnly()` blob view (`mount.js`), and the
-   git blob (`native-git-backend.js`).
-4. *Interface:* extend `readableBlobMethodGuards` with `getInfo` / `fetch`; the
-   extended `BlobRef` gains the `text` / `json` / `streamBase64` conveniences so
-   there is a single rich shape. The `BlobRef → SnapshotBlob` adapter
-   disappears because the shapes converge from below.
+   daemon hash was **hex** (`digestHex()`, the content-store filename). Resolved
+   in favour of **base64 as the single canonical public encoding** — every
+   public hash accessor (`getInfo().hash`, and the `sha256()` on `SnapshotBlob` /
+   `SnapshotTree` / `EndoReadableTree`) returns base64. Hex survives only as the
+   internal `store-sha256/<hex>` address and the tree-manifest child references;
+   callers convert base64↔hex via `@endo/hex` + `@endo/base64` at the store
+   boundary. `EndoBlob.sha256()` was **removed** outright (a remote-only
+   accessor now subsumed by `getInfo().hash`), so the daemon blob no longer
+   carries a redundant hex spelling at all. (Earlier drafts of this list
+   recommended *hex* as the canonical encoding to match the store filenames;
+   that was reversed — base64 is the portable on-the-wire spelling and the store
+   key is an internal detail.)
+3. *Blob exos:* `getInfo` + `fetch` were added to every content-addressed blob
+   exo — the persisted `makeReadableBlob` and transient `makeBytesBlob`
+   (`daemon.js`), the mount file and its `readOnly()` blob view (`mount.js`), and
+   the platform `LocalBlob` / git `GitBlob`.
+4. *Interface:* the range-I/O surface is the shared `rangeReadMethodGuards`
+   (`getInfo` / `fetch`) record, and the pre-assembled
+   `ReadableBlobRangeInterface` (`readableBlobMethodGuards` +
+   `rangeReadMethodGuards`) that implementers adopt without re-spreading; the
+   extended `BlobRef` gained the `text` / `json` conveniences so there is a
+   single rich shape. The `BlobRef → SnapshotBlob` adapter disappears because the
+   shapes converge from below.
 
 *Blast radius:* the widest — content-store powers, the CAS cache, every blob
 exo across daemon / platform / git, plus the daemon integration suite (~15 min).
@@ -305,7 +317,12 @@ After C1–C5 the fs/name-hub interface set collapses roughly as:
   `EndoDirectory` are `ReadableNameHubInterface` + their own extensions (C1);
   extended `Directory` is the record + cap-FS extensions.
 - **Immutable trees:** one `SnapshotTree` / `ReadableTree` shape (C3).
-- **Immutable bytes:** one `SnapshotBlob` shape (C4); `BlobRef` retired.
+- **Immutable bytes:** one rich range-I/O shape (C4). The convergence went the
+  other way from the early "retire `BlobRef`" framing: `BlobRef` is the *richest*
+  shape, so the daemon/lite blobs aligned **up** to it via the shared
+  `rangeReadMethodGuards` / `ReadableBlobRangeInterface`. The `BlobRef →
+  SnapshotBlob` adapter is gone because the shapes now converge from below;
+  `BlobRef` itself remains (enriched with `text` / `json`).
 - **Vocabulary:** records exported from `lite`; the catalog doc is the prose
   vocabulary (C5).
 
@@ -367,14 +384,17 @@ no `BlobRef → SnapshotBlob` adapter.
       keeping its security gates intact.
 - [x] C2: export `readableBlobMethodGuards` / `readableTreeMethodGuards` from
       `@endo/platform/fs/lite`; consume them in the lite + daemon read surfaces.
-- [x] C3 / C4: `sha256` confirmed as the content-address accessor; `EndoBlob` /
-      `EndoReadableTree` converged onto the shared records + `sha256`.
+- [x] C3 / C4: `EndoReadableTree` converged onto the shared records + `sha256`
+      (the `SnapshotTree` shape); `EndoBlob` converged onto the shared records +
+      the range-I/O surface. `EndoBlob.sha256()` was **removed** — the daemon
+      blob is `{ ...readableBlobMethodGuards, ...rangeReadMethodGuards }`, with
+      the content hash served by `getInfo().hash`.
 - [x] C4: align the daemon `EndoBlob` *up* to the richer `BlobRef` range-I/O
       shape — `rangeReadMethodGuards` (getInfo / fetch) exported from
       `@endo/platform/fs`; `EndoBlob` carries them plus the whole-value
       accessors; Node/XS powers gain `readFileRange`; content store surfaces
-      `size` / `readRange`. `getInfo().hash` is base64 (matches `BlobRef`),
-      `sha256()` stays hex.
+      `size` / `readRange`. Every public hash accessor is base64 (matches
+      `BlobRef`); hex survives only as the internal content-store address.
 - [x] C4: mirror the whole-value `text`/`json` conveniences onto the extended
       `BlobRef` (now mutually interchangeable with `EndoBlob` across `getInfo` /
       `fetch` / `text` / `json`; `streamBase64` stays daemon-only as `fetch` is
