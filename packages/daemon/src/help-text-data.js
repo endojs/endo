@@ -162,12 +162,14 @@ export const helpTextEntries = harden([
   [
     'EndoReadable',
     {
-      '': 'EndoReadable - A readable blob of binary data.\n\nBlobs store binary content with a content-addressed hash.\nUse text() to read as a string, json() to parse as JSON,\nor streamBase64() for streaming access.',
+      '': 'EndoReadable - A readable blob of binary data.\n\nBlobs store binary content with a content-addressed hash.\nUse text() to read as a string, json() to parse as JSON,\nstreamBase64() for streaming access, or getInfo()/fetch()\nfor the content-addressed range-I/O surface.',
       help: 'help(methodName?) -> string\nGet documentation for this interface or a specific method.',
-      sha256:
-        'sha256() -> string\nGet the SHA-256 hash of the blob content.\nThis is the content address used for storage.',
+      getInfo:
+        'getInfo() -> Promise<{ algorithm, hash, size }>\nThe content-addressed identity of the blob in one round-trip:\nalgorithm ("sha256"), hash (base64), and size (bigint bytes).\nLets a caller consult a local content store before fetching.',
+      fetch:
+        'fetch(offset, length) -> Promise<PassableBytesReader>\nRead the byte range [offset, offset + length) without\nstreaming the whole blob. offset and length are bigints;\nthe range is clamped at end-of-content.',
       streamBase64:
-        'streamBase64() -> AsyncIterator<string>\nStream the blob content as base64-encoded chunks.\nUse for large files to avoid loading everything into memory.',
+        'streamBase64(syndicationPromise) -> Promise\nStream the blob content as base64 chunks, driven by the\nsyndication promise (the reader-pump flow-control protocol).\nUse for large files to avoid loading everything into memory.',
       text: 'text() -> Promise<string>\nRead the entire blob as a UTF-8 string.',
       json: 'json() -> Promise<any>\nRead and parse the blob as JSON.',
     },

@@ -565,7 +565,7 @@ export const MountInterface = M.interface('EndoMount', {
   // Snapshot
   snapshot: M.call().returns(M.promise()),
   // Discoverability
-  help: M.call().returns(M.string()),
+  help: M.call().optional(M.string()).returns(M.string()),
 });
 
 // `EndoMountFile` extends `File` from `@endo/platform/fs`.  The
@@ -587,7 +587,7 @@ export const MountFileInterface = M.interface('EndoMountFile', {
   stat: M.call().returns(M.promise()),
   snapshot: M.call().returns(M.promise()),
   readOnly: M.call().returns(M.remotable('ReadableBlob')),
-  help: M.call().returns(M.string()),
+  help: M.call().optional(M.string()).returns(M.string()),
 });
 
 // Re-export so importing modules that already pull from
@@ -599,7 +599,7 @@ export const MountEntryInterface = M.interface('EndoMountEntry', {
   segments: M.call().returns(PathSegmentsShape),
   displayPath: M.call().returns(M.string()),
   child: M.call(M.string()).returns(MountEntryShape),
-  help: M.call().returns(M.string()),
+  help: M.call().optional(M.string()).returns(M.string()),
 });
 
 // The git-only interface guards and shape constants moved into

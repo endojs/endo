@@ -17,6 +17,7 @@ import {
   checkinTree as platformCheckinTree,
   snapshotTreeMethods,
 } from '@endo/platform/fs/lite';
+import { toSafeNumber } from '@endo/platform/fs/extended/shared/helpers.js';
 import { makeNativeGitBackend } from '@endo/git';
 import {
   makeBasicCredential,
@@ -1531,8 +1532,9 @@ const makeDaemonCore = async (
         json,
         // Range-I/O surface (aligns with the extended `BlobRef`): the
         // `{ algorithm, hash, size }` triple in one round-trip, then a
-        // windowed `fetch`. `hash` is base64 to match `BlobRef.getInfo`;
-        // the daemon's `sha256()` accessor keeps the hex spelling.
+        // windowed `fetch`. `hash` is base64 to match `BlobRef.getInfo`
+        // (this `EndoBlob` cap no longer carries a hex `sha256()` accessor;
+        // the hex spelling lives only in the internal content-store address).
         async getInfo() {
           return harden({
             algorithm: 'sha256',
@@ -1545,7 +1547,13 @@ const makeDaemonCore = async (
          * @param {bigint} length
          */
         async fetch(offset, length) {
-          const bytes = await readRange(Number(offset), Number(length));
+          // Validate at the bigint→Number boundary (same `toSafeNumber`
+          // the extended `BlobRef.fetch` uses) so negative or out-of-range
+          // windows throw `EINVAL` rather than silently losing precision.
+          const bytes = await readRange(
+            toSafeNumber(offset, 'offset'),
+            toSafeNumber(length, 'length'),
+          );
           return bytesFromRange(bytes);
         },
         help: makeHelp(blobHelp),
@@ -1911,8 +1919,8 @@ const makeDaemonCore = async (
          * @param {bigint} length
          */
         fetch: async (offset, length) => {
-          const off = Number(offset);
-          const len = Number(length);
+          const off = toSafeNumber(offset, 'offset');
+          const len = toSafeNumber(length, 'length');
           const end = Math.min(off + len, bytes.length);
           const slice =
             off >= bytes.length || len <= 0
@@ -3670,7 +3678,9 @@ const makeDaemonCore = async (
         const contentSha256 = await contentStore.store(
           // Use a higher string length limit to accommodate large
           // payloads like bundles. 10MB base64 ~= 7.5MB binary.
-          await iterateBytesReader(readerRef, {
+          // `iterateBytesReader` returns the iterator synchronously; the
+          // store consumes it, so no `await` here.
+          iterateBytesReader(readerRef, {
             stringLengthLimit: 10_000_000,
           }),
         );

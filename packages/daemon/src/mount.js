@@ -12,6 +12,7 @@ import {
   ReadableBlobRangeInterface,
   ReadableTreeInterface,
 } from '@endo/platform/fs/lite';
+import { toSafeNumber } from '@endo/platform/fs/extended/shared/helpers.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
@@ -1112,6 +1113,15 @@ const makeMountFileExo = (
     // still change underneath and is observed on each call). `getInfo` returns
     // the `{ algorithm, hash, size }` triple of the current bytes (hash base64,
     // matching `BlobRef`); `fetch` is a windowed read.
+    //
+    // The hash and size are read with one concurrent `Promise.all` to keep the
+    // window minimal, but a fully atomic snapshot would require a single
+    // combined hash+size host primitive (the XS host hashes by *path*, not over
+    // an in-memory buffer, so there is no portable read-bytes-once path). A
+    // concurrent writer mutating the file between the two reads can therefore
+    // yield a hash and size from adjacent instants; callers needing a stable
+    // identity should `snapshot()` (content-addressed, immutable) rather than
+    // reading a live face. See designs/fs-interface-consolidation.md § C4.
     async getInfo() {
       await null;
       await assertConfined(filePath, confinementRoot, filePowers);
@@ -1133,10 +1143,13 @@ const makeMountFileExo = (
     async fetch(offset, length) {
       await null;
       await assertConfined(filePath, confinementRoot, filePowers);
+      // Validate at the bigint→Number boundary (same `toSafeNumber` the
+      // extended `BlobRef.fetch` uses) so negative or out-of-range windows
+      // throw `EINVAL` rather than silently losing precision in `fs.read`.
       const bytes = await filePowers.readFileRange(
         filePath,
-        Number(offset),
-        Number(length),
+        toSafeNumber(offset, 'offset'),
+        toSafeNumber(length, 'length'),
       );
       return bytesFromRange(bytes);
     },
@@ -1181,9 +1194,7 @@ const makeReadableBlobView = readOnlyFile => {
   return makeExo('EndoMountReadableBlob', ReadableBlobRangeInterface, {
     /** @param {import('@endo/eventual-send').ERef<any>} synPromise */
     async streamBase64(synPromise) {
-      return /** @type {{ streamBase64: (synPromise: unknown) => Promise<any> }} */ (
-        readOnlyFile
-      ).streamBase64(synPromise);
+      return E(readOnlyFile).streamBase64(synPromise);
     },
     async text() {
       return E(readOnlyFile).text();

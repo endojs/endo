@@ -14,6 +14,7 @@
 import { createHash } from 'node:crypto';
 
 import { makeExo } from '@endo/exo';
+import { encodeBase64 } from '@endo/base64';
 import { q } from '@endo/errors';
 
 import { BlobRefInterface } from '../type-guards.js';
@@ -38,7 +39,10 @@ export const makeBlobRefExo = (bytes, help) => {
   const hashBytes = createHash('sha256').update(captured).digest();
   const info = harden({
     algorithm: 'sha256',
-    hash: hashBytes.toString('base64'),
+    // `encodeBase64` (over the `Buffer`, a `Uint8Array` subclass) matches the
+    // base64 hash spelling every other implementer in this PR uses, rather
+    // than the Node-only `Buffer.prototype.toString('base64')`.
+    hash: encodeBase64(hashBytes),
     size: BigInt(captured.length),
   });
 

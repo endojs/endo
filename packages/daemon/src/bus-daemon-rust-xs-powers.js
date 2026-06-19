@@ -314,7 +314,13 @@ export const makeXsFilePowers = () => {
     // nanoseconds). The XS host stat JSON carries ms; convert to ns. It does
     // not provide atime, so atime mirrors mtime (a documented XS limitation,
     // like pathIdentity below).
-    const mtimeNs = BigInt(modifiedMs) * 1_000_000n;
+    //
+    // `modifiedMs` is a Number and may be fractional (`fs.Stats.mtimeMs` is),
+    // so `BigInt(modifiedMs)` would throw `RangeError: not an integer`. Round
+    // to whole milliseconds *first* (well within `Number.MAX_SAFE_INTEGER`),
+    // then scale to nanoseconds in BigInt space so the multiply stays exact —
+    // rounding after `* 1_000_000` would instead lose precision past 2**53.
+    const mtimeNs = BigInt(Math.round(modifiedMs)) * 1_000_000n;
     return harden({
       kind,
       size: BigInt(sizeBytes),

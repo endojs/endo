@@ -1074,6 +1074,7 @@ export interface EndoReadable {
   json(): Promise<unknown>;
   getInfo(): Promise<BlobInfo>;
   fetch(offset: bigint, length: bigint): Promise<PassableBytesReader>;
+  help(method?: string): string;
 }
 
 export interface EndoReadableTree {
@@ -1081,6 +1082,7 @@ export interface EndoReadableTree {
   has(...pathSegments: string[]): Promise<boolean>;
   list(...pathSegments: string[]): Promise<string[]>;
   lookup(path: string | string[]): Promise<EndoReadableTree | EndoReadable>;
+  help(method?: string): string;
 }
 
 /**
@@ -1101,6 +1103,7 @@ export interface EndoMountEntry {
   segments(): string[];
   displayPath(): string;
   child(name: string): EndoMountEntry;
+  help(method?: string): string;
 }
 
 /**
@@ -1126,6 +1129,7 @@ export interface ReadableBlobView {
   json(): Promise<unknown>;
   getInfo(): Promise<BlobInfo>;
   fetch(offset: bigint, length: bigint): Promise<PassableBytesReader>;
+  help(method?: string): string;
 }
 
 /**
@@ -1137,6 +1141,7 @@ export interface ReadableTreeView {
   has(...pathSegments: string[]): Promise<boolean>;
   list(...pathSegments: string[]): Promise<string[]>;
   lookup(path: string | string[]): Promise<ReadableTreeView | ReadableBlobView>;
+  help(method?: string): string;
 }
 
 export interface EndoGitTree {
@@ -1167,6 +1172,7 @@ export interface EndoMountFile {
   stat(): Promise<EndoMountStat>;
   snapshot(): Promise<FarRef<EndoReadable>>;
   readOnly(): ReadableBlobView;
+  help(method?: string): string;
 }
 
 /**
@@ -1237,6 +1243,7 @@ export interface EndoMount {
   ): Promise<void>;
   readOnly(): ReadableTreeView;
   snapshot(): Promise<unknown>;
+  help(method?: string): string;
 }
 
 export interface EndoWorker {}
