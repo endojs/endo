@@ -552,6 +552,38 @@ test('XS file powers expose the EndoMount call sites that regressed', t => {
   }
 });
 
+test('XS statPath converts a fractional mtime (ms) to bigint nanoseconds without crashing', async t => {
+  // The XS host stat JSON carries `modifiedMs` as a Number, which — like
+  // Node's `fs.Stats.mtimeMs` — can be fractional. `BigInt(modifiedMs)`
+  // throws RangeError on a non-integer, so statPath must round to whole
+  // milliseconds before scaling to nanoseconds in BigInt space. Inject a
+  // mock `hostStat` (read as a free global by the XS powers) returning a
+  // fractional ms and assert statPath succeeds with the rounded ns value.
+  const realHostStat = /** @type {any} */ (globalThis).hostStat;
+  /** @type {any} */ (globalThis).hostStat = () =>
+    JSON.stringify({
+      kind: 'file',
+      sizeBytes: 5,
+      modifiedMs: 1_750_000_000_123.456,
+      dev: 1,
+      ino: 2,
+    });
+  t.teardown(() => {
+    /** @type {any} */ (globalThis).hostStat = realHostStat;
+  });
+
+  const xsPowers = makeXsFilePowers();
+  const stat = await xsPowers.statPath('f.txt');
+  t.is(stat.kind, 'file');
+  t.is(stat.size, 5n);
+  // 1_750_000_000_123.456 ms → round to 1_750_000_000_123 ms → ×1e6 ns,
+  // the multiply done in BigInt space so no precision is lost past 2**53.
+  t.is(stat.mtime, 1_750_000_000_123n * 1_000_000n);
+  t.is(typeof stat.mtime, 'bigint');
+  // XS host stat lacks atime, so it mirrors mtime (documented limitation).
+  t.is(stat.atime, stat.mtime);
+});
+
 // Suppress unused-import warnings for the platform interfaces; their
 // presence in this file documents the conformance target.
 void PlatformDirectoryInterface;
