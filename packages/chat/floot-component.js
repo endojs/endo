@@ -109,7 +109,7 @@ export const flootComponent = (
     presets.find(p => p.id === id)?.title || id;
   // Short noun shown in the session-list pill. The preset's own title reads as an
   // action ("New project"); the pill wants the capability noun ("project").
-  const PILL_LABELS = { 'new-project': 'project' };
+  const PILL_LABELS = { 'new-project': 'project', 'full-control': 'endo' };
   const pillLabel = (/** @type {string} */ id) =>
     PILL_LABELS[id] || presetTitle(id);
 

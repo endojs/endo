@@ -191,6 +191,39 @@ capability. Use it via exec:
 Build what the user asks for in the workspace, committing as you reach working
 states. Speak short, plain summaries of what you did — never read code aloud.`;
 
+// "Full control" persona: the base voice persona plus a reference to the daemon
+// host itself ("endo") and the framing that this is dangerous, high-trust
+// access that must be exercised carefully.
+const fullControlSystemPrompt = `${defaultSystemPrompt}
+You hold full control of this Endo daemon. Your petstore contains "endo" — a
+reference to the daemon host itself, the most powerful capability there is.
+Through it you can read, create, move, and destroy ANY capability in the daemon,
+mint new agents, and run arbitrary code. Treat this access with great care:
+- Move slowly and deliberately. Before anything destructive or irreversible —
+  removing or cancelling a capability, overwriting a name, deleting an agent —
+  say plainly what you are about to do and wait for the user to agree first.
+- Prefer reading over writing. Inspect with list and lookup before you change
+  anything; when unsure what a capability is, look before you act on it.
+- Make the smallest change that satisfies the request. Don't tidy, reorganize,
+  or "improve" the daemon's namespace unasked.
+- Guard secrets. Never read API keys, tokens, or host filesystem paths aloud,
+  and don't hand the "endo" reference (or anything derived from it) to another
+  agent unless the user explicitly tells you to.
+
+Operating the daemon — reach the host in exec with
+\`const endo = await E(powers).lookup('endo')\`, then:
+- \`E(endo).list()\` shows the names in the daemon's namespace; \`E(endo).lookup(name)\`
+  retrieves one as a live capability.
+- \`E(endo).makeDirectory(name)\` creates a sub-namespace; \`E(endo).move(from, to)\`,
+  \`E(endo).copy(from, to)\`, and \`E(endo).remove(name)\` manage names.
+- \`E(endo).evaluate(...)\` runs code in a worker — use it to build new caplets or
+  one-off tools.
+- \`E(endo).provideGuest(name)\` and \`E(endo).provideHost(name)\` mint new agents;
+  \`E(endo).provideWorker(name)\` mints a worker.
+- \`E(endo).cancel(name)\` tears a capability down — destructive, so confirm first.
+Speak short, plain summaries of what you did — never read code or raw capability
+output aloud.`;
+
 // Catalog of session presets. Each preset pairs a system prompt with a set of
 // objects to provision (idempotently) into the session guest's petstore the
 // first time the session's agent is built. Provisioned objects are referenced
@@ -211,6 +244,14 @@ const PRESETS = [
       'Start a project with a writable, git-backed workspace ready to populate.',
     systemPrompt: newProjectSystemPrompt,
     objects: [{ kind: 'git-workspace', petName: 'workspace' }],
+  },
+  {
+    id: 'full-control',
+    title: 'Full Endo control',
+    description:
+      'Full control of the Endo daemon via an "endo" host reference. High access — handle with care.',
+    systemPrompt: fullControlSystemPrompt,
+    objects: [{ kind: 'host-powers', petName: 'endo' }],
   },
 ];
 const DEFAULT_PRESET_ID = 'general';
@@ -268,6 +309,13 @@ const provisionPresetObjects = async (
       await E(host).provideGit(mount, gitTmp);
       await E(host).move([gitTmp], [agentName, obj.petName]);
       await E(host).remove(scratchTmp);
+    } else if (obj.kind === 'host-powers') {
+      // Copy the factory's own host agent (@agent — the full host powers, not
+      // the weaker @self handle) into the guest's petstore, granting the
+      // session full daemon control. The host outlives every session, so this
+      // only adds a name in the guest; deleting the session drops that name and
+      // reaps nothing else.
+      await E(host).copy(['@agent'], [agentName, obj.petName]);
     } else {
       console.warn(
         `[floot-factory] unknown preset object kind "${obj.kind}" for session ${id}`,
