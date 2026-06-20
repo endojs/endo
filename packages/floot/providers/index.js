@@ -45,8 +45,8 @@ const adaptBufferedProvider = base => ({
  *
  * Selection order:
  *   1. `FLOOT_PROVIDER` if set (`anthropic` | `lal`).
- *   2. legacy `LAL_HOST` detection (anthropic.com → streaming Anthropic, else lal).
- *   3. default → Anthropic API.
+ *   2. otherwise, if legacy `LAL_HOST` is set (to any host) → `@endo/lal` backend.
+ *   3. default → streaming Anthropic API.
  *
  * @param {{
  *   FLOOT_PROVIDER?: string,

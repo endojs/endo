@@ -550,7 +550,16 @@ export const makeStreamingAgent = async (
       writer.setPhase('using tools');
       /** @type {Array<{ role: 'tool', tool_call_id: string, content: string }>} */
       const toolResults = [];
-      for (const tc of toolCalls) {
+      // Some providers omit tool-call ids. Synthesize a stable one per call so
+      // the persisted assistant tool_call and its tool_result share the same id;
+      // without it the Anthropic conversion fabricates a fresh random id for the
+      // tool_use and maps the tool_result to "unknown", breaking their
+      // association on the next round.
+      const normalizedToolCalls = toolCalls.map((tc, i) => ({
+        ...tc,
+        id: tc.id || `call_${round}_${i}`,
+      }));
+      for (const tc of normalizedToolCalls) {
         const name = tc.function?.name;
         let args = {};
         let parseError;
@@ -584,7 +593,10 @@ export const makeStreamingAgent = async (
         });
       }
 
-      const stepNode = await tree.addNode(leafId, [rm, ...toolResults]);
+      const stepNode = await tree.addNode(leafId, [
+        { ...rm, tool_calls: normalizedToolCalls },
+        ...toolResults,
+      ]);
       leafId = stepNode.id;
       writer.setPhase('thinking');
     }

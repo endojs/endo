@@ -271,8 +271,20 @@ const pump = async (piper, textReader, writer) => {
 export const make = async (_powers, _context, { env = {} } = {}) => {
   const binary = env.FLOOT_TTS_BINARY || 'piper';
   const modelPath = env.FLOOT_TTS_MODEL;
-  const speed = Number(env.FLOOT_TTS_SPEED || '1.0') || 1.0;
   if (!modelPath) throw new Error('FLOOT_TTS_MODEL is required');
+  // Speed drives piper's --length-scale (1/speed), so a non-positive or
+  // non-finite value yields a nonsensical scale and piper fails obscurely.
+  // Reject it up front with a capability-level error instead.
+  let speed = 1.0;
+  if (env.FLOOT_TTS_SPEED !== undefined && env.FLOOT_TTS_SPEED !== '') {
+    const parsed = Number(env.FLOOT_TTS_SPEED);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      throw new Error(
+        `FLOOT_TTS_SPEED must be a positive number, got "${env.FLOOT_TTS_SPEED}".`,
+      );
+    }
+    speed = parsed;
+  }
 
   // Parse the voice's sample rate once; every chunk uses it for the wire event.
   const config = JSON.parse(readFileSync(`${modelPath}.json`, 'utf-8'));
