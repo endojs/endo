@@ -18,7 +18,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { mkdtemp, rm } from 'node:fs/promises';
 
-import { E } from '@endo/far';
+import { E, Far } from '@endo/far';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -94,6 +94,37 @@ const setupNodeFsBridge = async t => {
   t.teardown(() => E(bridge).stop());
 
   return { fs, rootDir, socketPath };
+};
+
+/**
+ * A minimal `Filesystem` whose `Directory.create()` makes the new entry
+ * visible to `lookup()` only *after* its own promise resolves — exactly
+ * how node-fs behaves (the backend writes the dir entry after an internal
+ * await). This makes the Tlcreate create-vs-lookup race *deterministic*:
+ * a server that dispatches `lookup(name)` concurrently with `create(name)`
+ * sees ENOENT, while one that awaits `create` first sees the entry. Only
+ * the surface the Tattach → Twalk(clone) → Tlcreate path touches is
+ * implemented.
+ */
+const makeRaceFs = () => {
+  /** @type {Map<string, any>} */
+  const entries = new Map();
+  const dirQid = { type: 'directory', pathId: 0n, version: 0n };
+  const fileQid = { type: 'file', pathId: 7n, version: 0n };
+  const root = Far('RaceDir', {
+    getQid: () => dirQid,
+    async create(_name) {
+      await null; // entry is written only after this resolves
+      entries.set(_name, Far('RaceFile', { getQid: () => fileQid }));
+      return Far('RaceOpenFile', { close: async () => {} });
+    },
+    async lookup(name) {
+      const child = entries.get(name);
+      if (!child) throw Error('ENOENT: not found');
+      return child;
+    },
+  });
+  return Far('RaceFilesystem', { root: () => root });
 };
 
 /**
@@ -536,6 +567,31 @@ test.serial(
       existsSync(path.join(rootDir, 'newfile.txt')),
       'file exists on disk',
     );
+  },
+);
+
+test.serial(
+  'Tlcreate awaits create before lookup (deterministic race regression)',
+  async t => {
+    // Unlike the node-fs test above (which leans on real disk timing),
+    // makeRaceFs exposes the new entry only after create() resolves, so
+    // the race is deterministic on every machine: with the fix (await
+    // create, then lookup) this is Rlcreate; reverting to a concurrent
+    // create+lookup batch yields ENOENT here every time.
+    const fs = makeRaceFs();
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'claude-9p-race-'));
+    t.teardown(() => rm(dir, { recursive: true, force: true }));
+    const socketPath = path.join(dir, '9p.sock');
+    const bridge = makeFsBridge9p({ fs, socketPath });
+    await E(bridge).start();
+    t.teardown(() => E(bridge).stop());
+
+    const c = await setupClient(t, socketPath);
+    await negotiate(c);
+    await attach(c, 1);
+    await walk(c, 1, 2, []); // clone root to fid 2
+    const create = await tlcreate(c, 2, 'newfile.txt');
+    t.is(create.type, T.Rlcreate);
   },
 );
 
