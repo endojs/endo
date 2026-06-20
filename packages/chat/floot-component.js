@@ -1081,6 +1081,9 @@ export const flootComponent = (
 
   const selectSession = (/** @type {string} */ id) => {
     if (busy) return; // don't switch context mid-turn
+    // A per-message replay plays without setting busy; silence it so it doesn't
+    // keep speaking over the session we're switching to.
+    stopTts();
     activeSessionId = id;
     $streamingBubble = null;
     closeSidebar();
@@ -1095,6 +1098,8 @@ export const flootComponent = (
   const deleteSession = (/** @type {FlootSession} */ session) => {
     // eslint-disable-next-line no-alert
     if (!window.confirm(`Delete "${session.title}"?`)) return;
+    // Stop any replay still speaking the session we're deleting.
+    stopTts();
     sessions = sessions.filter(s => s.id !== session.id);
     sessionStatus.delete(session.id);
     if (activeSessionId === session.id) {
@@ -1668,11 +1673,12 @@ export const flootComponent = (
     ttsSources = [];
     ttsNextStart = 0;
     if (ttsActiveReader) {
-      try {
-        E(ttsActiveReader).return();
-      } catch {
-        // already closed
-      }
+      // return() is an eventual-send; swallow its async rejection (the reader
+      // may already be closed remotely) instead of leaking an unhandled
+      // rejection from the sync try/catch this used to sit in.
+      E(ttsActiveReader)
+        .return()
+        .catch(() => {});
       ttsActiveReader = null;
     }
   };
@@ -1861,11 +1867,10 @@ export const flootComponent = (
     const tooShort = Date.now() - speechStart < VAD.MIN_SPEECH_MS;
     if (tooShort) {
       // A blip below the minimum-speech duration — discard as noise.
-      try {
-        if (channel) E(channel.reader).return();
-      } catch {
-        // already closed
-      }
+      if (channel)
+        E(channel.reader)
+          .return()
+          .catch(() => {});
       channel = null;
       $input.value = '';
       autoGrow();
@@ -1879,11 +1884,10 @@ export const flootComponent = (
     speaking = false;
     silenceStart = 0;
     $mic?.classList.remove('recording');
-    try {
-      if (channel) E(channel.reader).return();
-    } catch {
-      // already closed
-    }
+    if (channel)
+      E(channel.reader)
+        .return()
+        .catch(() => {});
     channel = null;
   };
 

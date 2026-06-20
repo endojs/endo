@@ -372,12 +372,13 @@ export const voiceComponent = (
       // already disconnected
     }
     mediaStream?.getTracks().forEach(t => t.stop());
-    audioCtx?.close();
     channel?.end();
+    audioCtx?.close();
     source = null;
     processor = null;
     mediaStream = null;
     audioCtx = null;
+    channel = null;
   };
 
   // Toggle: click once to start recording, click again to stop.
