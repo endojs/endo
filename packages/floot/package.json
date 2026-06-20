@@ -31,7 +31,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
     "@endo/conversation-tree": "workspace:^",
-    "@endo/daemon": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/exo-stream": "workspace:^",
