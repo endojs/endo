@@ -494,7 +494,7 @@ export const makeStreamingAgent = async (
     return text;
   };
 
-  const runTurn = async (input, writer, meta) => {
+  const runTurn = async (input, writer, meta, signal) => {
     const text = await resolveUserText(input);
     const baseLeafId = await getOrCreateLeaf();
     // `meta` rides along on the user node (the provider ignores unknown fields)
@@ -513,6 +513,9 @@ export const makeStreamingAgent = async (
     writer.setPhase('thinking');
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+      // The consumer (reply reader) may have stopped pulling between rounds —
+      // its onClose aborts `signal`. Bail before spending another provider call.
+      if (signal?.aborted) return;
       const { schemas, toolMap } = await discoverTools(powers, localTools);
       // Always lead with the *current* system prompt and drop whatever system
       // message the tree's root happens to store. This decouples the prompt from
@@ -535,6 +538,7 @@ export const makeStreamingAgent = async (
           streamed += delta;
           writer.delta(delta);
         },
+        signal,
       );
 
       const rm = message || { role: 'assistant', content: streamed };
@@ -606,9 +610,13 @@ export const makeStreamingAgent = async (
     writer.end();
   };
 
-  const converse = (input, writer, meta) => {
+  const converse = (input, writer, meta, signal) => {
     const result = turnChain.then(() =>
-      runTurn(input, writer, meta).catch(err => {
+      runTurn(input, writer, meta, signal).catch(err => {
+        // A consumer that stopped pulling (reply reader closed) aborts `signal`,
+        // tearing down the in-flight provider stream. That's a clean stop, not a
+        // failure, and the writer is already settled, so swallow it.
+        if (signal?.aborted) return;
         // runTurn has no internal catch, so on failure the writer is still
         // unsettled — abort it here or every consumer (UI stream and the mail
         // inbox's turnDone) would hang forever. Rethrow so callers still see it.
@@ -954,12 +962,18 @@ export const make = (hostPowers, _context, { env } = {}) => {
          * @returns {object} replyReader
          */
         converse(input) {
-          const { writer, reader } = makeReplyChannel();
+          // Abort the in-flight turn when the consumer stops pulling the reply
+          // (UI Stop / barge-in): makeReplyChannel fires onClose on
+          // reader.return/throw, aborting the signal threaded into the provider
+          // stream so the model stops generating instead of running on unseen.
+          const controller = new AbortController();
+          const { writer, reader } = makeReplyChannel(() => controller.abort());
           (async () => {
             try {
               const agent = await getAgent(id);
-              await agent.converse(input, writer);
+              await agent.converse(input, writer, undefined, controller.signal);
             } catch (error) {
+              if (controller.signal.aborted) return;
               writer.abort(
                 error instanceof Error ? error.message : String(error),
               );

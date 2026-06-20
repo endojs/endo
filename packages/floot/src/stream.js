@@ -31,10 +31,13 @@ import { makeBufferedReader } from './buffered-channel.js';
 /**
  * Create a writer + Far StreamReader pair backed by an in-memory buffer.
  *
+ * @param {(() => void) | null} [onClose] Fires when the consumer stops pulling
+ *   (reader.return/throw) before the stream finished, so the producer (the
+ *   in-flight agent turn) can be aborted rather than left generating for no one.
  * @returns {{ writer: object, reader: object }}
  */
-export const makeReplyChannel = () => {
-  const { push, reader } = makeBufferedReader('ReplyReader');
+export const makeReplyChannel = (onClose = null) => {
+  const { push, reader } = makeBufferedReader('ReplyReader', { onClose });
 
   const writer = harden({
     /** @param {string} phase */

@@ -175,7 +175,7 @@ const rethrowAnthropic = error => {
  * @param {{ apiKey: string, model: string, maxTokens?: number }} options
  * @returns {{
  *   chat: (messages: CommonChatMessage[], tools: CommonTool[]) => Promise<{ message: CommonChatMessage }>,
- *   chatStream: (messages: CommonChatMessage[], tools: CommonTool[], onToken?: (delta: string) => void) => Promise<{ message: CommonChatMessage }>,
+ *   chatStream: (messages: CommonChatMessage[], tools: CommonTool[], onToken?: (delta: string) => void, signal?: AbortSignal) => Promise<{ message: CommonChatMessage }>,
  * }}
  */
 export const makeStreamingAnthropicProvider = ({
@@ -216,24 +216,33 @@ export const makeStreamingAnthropicProvider = ({
       }
     },
 
-    async chatStream(messages, tools, onToken) {
+    async chatStream(messages, tools, onToken, signal) {
       const client = await getClient();
       const { system, messages: anthropicMessages } =
         toAnthropicMessages(messages);
       try {
-        const stream = client.messages.stream({
-          model,
-          max_tokens: maxTokens,
-          system,
-          tools: toAnthropicTools(tools),
-          messages: anthropicMessages,
-        });
+        // `signal` lets the agent abort an in-flight turn (UI Stop / barge-in):
+        // aborting tears down the HTTP request so the model stops generating.
+        const stream = client.messages.stream(
+          {
+            model,
+            max_tokens: maxTokens,
+            system,
+            tools: toAnthropicTools(tools),
+            messages: anthropicMessages,
+          },
+          { signal },
+        );
         if (onToken) {
           stream.on('text', delta => onToken(delta));
         }
         const response = await stream.finalMessage();
         return { message: fromAnthropicMessage(response) };
       } catch (error) {
+        // A consumer barge-in aborts the signal; that surfaces here as an abort
+        // error, but it is an intentional stop, not a provider failure — rethrow
+        // quietly so the agent's converse() can swallow it without log noise.
+        if (signal?.aborted) throw error;
         console.error(
           '[floot] Anthropic streaming error:',
           describeError(error),
