@@ -41,8 +41,14 @@ PARTIAL_INTERVAL_S = 0.5
 
 
 def pcm_to_floats(b64: str) -> list[float]:
+    raw = base64.b64decode(b64)
+    # array("h") needs a whole number of 16-bit samples; a frame chunked
+    # mid-sample by the sender would otherwise raise ValueError and kill the
+    # whole utterance. Drop a trailing odd byte instead.
+    if len(raw) % 2:
+        raw = raw[:-1]
     samples = array("h")
-    samples.frombytes(base64.b64decode(b64))
+    samples.frombytes(raw)
     return [s / 32768.0 for s in samples]
 
 

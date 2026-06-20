@@ -72,9 +72,9 @@ The voice id encodes its path: `en_GB-alba-medium` → `en/en_GB/alba/medium/`.
 
    Stands up `floot-stt` (warms up Moonshine) and `floot-tts`.
 
-4. **Open the UI.** In [`@endo/chat`](../chat): `yarn dev`. Create a Chat Space
-   and set its object paths to `floot-factory`, STT path `floot-stt`, TTS path
-   `floot-tts`.
+4. **Open the UI.** In [`@endo/chat`](../chat): `yarn dev`.
+   Create a Chat Space and set its object paths to `floot-factory`, STT path
+   `floot-stt`, TTS path `floot-tts`.
 
 ## Swapping an implementation
 
