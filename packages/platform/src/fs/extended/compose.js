@@ -343,6 +343,9 @@ export const emptyFilesystem = () => {
       async rewind() {
         // no-op
       },
+      async close() {
+        // no-op — already empty, holds no iteration state.
+      },
       help: method =>
         method === undefined
           ? 'Cursor (emptyFilesystem): always empty.'
@@ -900,6 +903,11 @@ export const namespace = mounts => {
           async rewind() {
             cursor = 0;
           },
+          async close() {
+            // Drop the snapshot so subsequent reads yield nothing.
+            snapshot = [];
+            cursor = 0;
+          },
           help: method =>
             method === undefined
               ? 'Cursor (namespace root).'
@@ -1020,6 +1028,10 @@ export const namespace = mounts => {
             pos = Math.min(entries.length, pos + Number(n));
           },
           async rewind() {
+            pos = 0;
+          },
+          async close() {
+            snapshot = [];
             pos = 0;
           },
           help: m =>
@@ -1629,6 +1641,11 @@ export const compose = (layer, backing, _opts = {}) => {
           },
           async rewind() {
             pos = 0;
+          },
+          async close() {
+            // Snapshot already materialised; drop our position to the
+            // end so subsequent reads yield nothing.
+            pos = entries.length;
           },
           help: method =>
             method === undefined

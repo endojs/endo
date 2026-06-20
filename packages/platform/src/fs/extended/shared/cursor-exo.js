@@ -30,6 +30,7 @@ export const makeCursorExo = ({ backend, dirPath }) => {
   /** @type {AsyncIterator<DirEntry> | null} */
   let iter = null;
   let exhausted = false;
+  let closed = false;
 
   const ensureIter = () => {
     if (iter === null) {
@@ -104,6 +105,7 @@ export const makeCursorExo = ({ backend, dirPath }) => {
       return harden(out);
     },
     async skip(n) {
+      if (closed) return;
       const count = toSafeNumber(n, 'n');
       const it = ensureIter();
       for (let i = 0; i < count; i += 1) {
@@ -115,8 +117,22 @@ export const makeCursorExo = ({ backend, dirPath }) => {
       }
     },
     async rewind() {
+      if (closed) return;
       iter = null;
       exhausted = false;
+    },
+    async close() {
+      if (closed) return;
+      closed = true;
+      exhausted = true;
+      const current = iter;
+      iter = null;
+      // Let the backend iterator release any resource it holds (e.g.
+      // an open directory handle on a lazy/streaming backing) by
+      // running its `return()` cleanup. Best-effort.
+      if (current !== null && typeof current.return === 'function') {
+        await current.return(undefined).catch(() => {});
+      }
     },
     help(method) {
       if (method === undefined) {

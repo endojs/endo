@@ -437,6 +437,35 @@ test.serial('Tlopen advertises a nonzero iounit (msize - 24)', async t => {
   t.is(r.u32(), msize - 24);
 });
 
+test.serial('Tclunk closes an open directory cursor', async t => {
+  const closes = { n: 0 };
+  const dirQid = { type: 'directory', pathId: 0n, version: 0n };
+  const cursor = Far('FakeCursor', {
+    close: async () => {
+      closes.n += 1;
+    },
+  });
+  const dir = Far('FakeDir', {
+    getQid: () => dirQid,
+    list: async () => cursor,
+  });
+  const fs = Far('FakeFs', { root: () => dir });
+
+  const tmp = await mkdtemp(path.join(os.tmpdir(), 'claude-9p-curclose-'));
+  t.teardown(() => rm(tmp, { recursive: true, force: true }));
+  const socketPath = path.join(tmp, '9p.sock');
+  const bridge = makeFsBridge9p({ fs, socketPath });
+  await E(bridge).start();
+  t.teardown(() => E(bridge).stop());
+
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  t.is((await lopen(c, 1, 0)).type, T.Rlopen); // open root dir → cursor
+  t.is((await tclunk(c, 1)).type, T.Rclunk);
+  t.is(closes.n, 1, 'cursor.close() invoked on Tclunk');
+});
+
 test.serial('Tgetattr st_result_mask honours the requested mask', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);

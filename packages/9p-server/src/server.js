@@ -128,6 +128,21 @@ export const serveConnection = ({
 
   let closed = false;
 
+  // Close any open handle a fid holds — a File's OpenFile and/or a
+  // Directory's Cursor — so the backing FS releases resources promptly
+  // instead of waiting for the dropped cap to be GC'd. Best-effort.
+  /** @param {Fid} f */
+  const closeFidHandles = f => {
+    const ps = [];
+    if (f.openFile) {
+      ps.push(Promise.resolve(E(f.openFile).close()).catch(() => {}));
+    }
+    if (f.cursor) {
+      ps.push(Promise.resolve(E(f.cursor).close()).catch(() => {}));
+    }
+    return Promise.all(ps);
+  };
+
   const close = () => {
     // Idempotent. `'error'` and `'close'` can both fire (an
     // error usually triggers a subsequent close), and `dispatch`
@@ -137,15 +152,12 @@ export const serveConnection = ({
     socket.removeListener('error', close);
     socket.removeListener('close', close);
     socket.removeListener('data', onData);
-    // Best-effort close of every fid's open handle so the
-    // underlying FS doesn't leak `FileHandle`s when a client
-    // disconnects without `Tclunk`-ing each fid. We fire the
-    // closes in parallel and ignore failures; the connection is
-    // already going away.
+    // Best-effort close of every fid's open handle (OpenFile and/or
+    // Cursor) so the underlying FS doesn't leak handles when a client
+    // disconnects without `Tclunk`-ing each fid. We fire the closes in
+    // parallel and ignore failures; the connection is already going away.
     for (const f of fids.values()) {
-      if (f.openFile) {
-        Promise.resolve(E(f.openFile).close()).catch(() => {});
-      }
+      closeFidHandles(f);
     }
     fids.clear();
     socket.destroy();
@@ -604,14 +616,7 @@ export const serveConnection = ({
     const fid = r.u32();
     const f = fids.get(fid);
     if (f) {
-      // Best-effort close of any open handle.
-      if (f.openFile) {
-        try {
-          await E(f.openFile).close();
-        } catch {
-          // ignore
-        }
-      }
+      await closeFidHandles(f);
       fids.delete(fid);
     }
     sendEmpty(tag, T.Rclunk);
@@ -803,7 +808,9 @@ export const serveConnection = ({
         E(childCapP).getQid(),
       ]);
       // Replace fid: 9P semantics put newly-created file at the
-      // original fid. Ancestry extends.
+      // original fid. Ancestry extends. If the directory fid was open
+      // (carries a Cursor), close it first so the listing isn't leaked.
+      await closeFidHandles(f);
       const newAncestry = [{ parent: f.cap, name }, ...f.ancestry];
       fids.set(fid, {
         cap: childCap,

@@ -44,6 +44,24 @@ test('Cursor.stream yields every DirEntry once', async t => {
   }
 });
 
+test('Cursor.close releases the cursor; subsequent reads are empty and idempotent', async t => {
+  const fs = makeInMemoryFilesystem();
+  const root = await E(fs).root();
+  await populateDir(root);
+  const cursor = await E(root).list();
+  // Close before consuming any entries.
+  await E(cursor).close();
+  const page = await E(cursor).read();
+  t.deepEqual(page, { entries: [], atEnd: true });
+  t.deepEqual(await collectStream(await E(cursor).stream()), []);
+  t.deepEqual(await E(cursor).toArray(), []);
+  // skip / rewind are no-ops after close; second close is idempotent.
+  await E(cursor).skip(2n);
+  await E(cursor).rewind();
+  await E(cursor).close();
+  t.deepEqual(await E(cursor).read(), { entries: [], atEnd: true });
+});
+
 test('Cursor.stream resumes from current position when reopened', async t => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();

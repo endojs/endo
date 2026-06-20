@@ -222,6 +222,10 @@ export const CursorInterface = M.interface('Cursor', {
   toArray: M.call().returns(M.promise()),
   skip: M.call(M.bigint()).returns(M.promise()),
   rewind: M.call().returns(M.promise()),
+  // Release the cursor's iteration state (e.g. an open directory
+  // handle on a lazy backing). Idempotent; after close, read/stream/
+  // toArray yield nothing and skip/rewind are no-ops.
+  close: M.call().returns(M.promise()),
   help: M.call().optional(M.string()).returns(M.string()),
 });
 harden(CursorInterface);
