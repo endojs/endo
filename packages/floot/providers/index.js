@@ -83,12 +83,14 @@ export const createStreamingProvider = env => {
       }
       maxTokens = parsed;
     }
-    console.log(`[floot] Streaming Anthropic provider with model: ${model}`);
+    console.error(`[floot] Streaming Anthropic provider with model: ${model}`);
     return makeStreamingAnthropicProvider({ apiKey, model, maxTokens });
   }
 
   const baseURL = env.LAL_HOST || 'http://localhost:11434';
-  console.log(`[floot] Buffered (non-streaming) provider for host: ${baseURL}`);
+  console.error(
+    `[floot] Buffered (non-streaming) provider for host: ${baseURL}`,
+  );
   return adaptBufferedProvider(createLalProvider(env));
 };
 harden(createStreamingProvider);

@@ -34,15 +34,17 @@ export const makeBufferedReader = (name, { onClose = null } = {}) => {
   const buffer = [];
   let finished = false;
   let cursor = 0;
-  /** @type {(() => void) | null} */
-  let wake = null;
+  // A FIFO of parked next() resolvers. A single slot would drop an earlier
+  // parker when a second next() overlaps it, hanging that call forever; draining
+  // every waiter keeps concurrent consumers safe (each re-checks on wake).
+  /** @type {Array<() => void>} */
+  const waiters = [];
   let closeHook = onClose;
 
   const drainWake = () => {
-    if (wake) {
-      const w = wake;
-      wake = null;
-      w();
+    while (waiters.length) {
+      const wake = waiters.shift();
+      if (wake) wake();
     }
   };
 
@@ -74,7 +76,7 @@ export const makeBufferedReader = (name, { onClose = null } = {}) => {
         if (finished) return harden({ value: undefined, done: true });
         // eslint-disable-next-line no-await-in-loop
         await new Promise(resolve => {
-          wake = () => resolve(undefined);
+          waiters.push(() => resolve(undefined));
         });
       }
     },

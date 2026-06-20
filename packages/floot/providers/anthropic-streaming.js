@@ -155,12 +155,11 @@ const rethrowAnthropic = error => {
     );
   const status = err.status ?? err.statusCode;
   const errBody = err.error ?? err.body;
+  // Rely on the structured signals only. A free-text match on "api key" /
+  // "authentication" misclassifies unrelated 400s (and a 403 is a permission
+  // error, not a bad key), so don't relabel those as auth failures.
   const isAuthError =
-    status === 401 ||
-    errBody?.type === 'authentication_error' ||
-    /invalid x-api-key|api key|authentication/i.test(
-      errBody?.message || err.message || '',
-    );
+    status === 401 || errBody?.type === 'authentication_error';
   if (isAuthError) {
     throw new Error(
       'Anthropic API authentication failed (invalid or expired API key). Check FLOOT_AUTH_TOKEN (or LAL_AUTH_TOKEN).',

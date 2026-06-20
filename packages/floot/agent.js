@@ -510,6 +510,9 @@ export const makeStreamingAgent = async (
     // model creates mid-turn (e.g. via exec/store) is immediately callable.
     let leafId = userNode.id;
     let finalContent = '';
+    // Whether the model produced a plain (toolless) answer. If it never does
+    // within MAX_TOOL_ROUNDS, we send a fallback instead of an empty reply.
+    let answered = false;
     writer.setPhase('thinking');
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
@@ -526,7 +529,7 @@ export const makeStreamingAgent = async (
         { role: 'system', content: effectivePrompt },
         ...path.filter(m => m.role !== 'system'),
       ];
-      console.log(
+      console.error(
         `[floot] round ${round}: ${conversationContext.length} messages, ${schemas.length} tools`,
       );
 
@@ -548,6 +551,7 @@ export const makeStreamingAgent = async (
         finalContent = rm.content || streamed;
         const finalNode = await tree.addNode(leafId, [rm]);
         leafId = finalNode.id;
+        answered = true;
         break;
       }
 
@@ -561,7 +565,10 @@ export const makeStreamingAgent = async (
       // association on the next round.
       const normalizedToolCalls = toolCalls.map((tc, i) => ({
         ...tc,
-        id: tc.id || `call_${round}_${i}`,
+        // The `floot-synth-` prefix keeps a synthesized id from colliding with a
+        // real provider id (e.g. Anthropic's `toolu_…`) when a single response
+        // mixes calls that have ids with ones that don't.
+        id: tc.id || `floot-synth-${round}-${i}`,
       }));
       for (const tc of normalizedToolCalls) {
         const name = tc.function?.name;
@@ -589,7 +596,11 @@ export const makeStreamingAgent = async (
           }
         }
         writer.toolResult({ name: `${name}`, result: `${resultText}` });
-        console.log(`[floot] tool ${name} -> ${resultText}`);
+        // Diagnostics go to stderr and omit the result payload, which can carry
+        // capability output or secrets — log only the tool name and size.
+        console.error(
+          `[floot] tool ${name} -> ${`${resultText}`.length} chars`,
+        );
         toolResults.push({
           role: 'tool',
           tool_call_id: tc.id,
@@ -603,6 +614,22 @@ export const makeStreamingAgent = async (
       ]);
       leafId = stepNode.id;
       writer.setPhase('thinking');
+    }
+
+    if (!answered) {
+      // The loop hit MAX_TOOL_ROUNDS while the model still wanted to call tools,
+      // so it never produced a spoken answer. Persist and speak a fallback so the
+      // turn ends on a well-formed assistant message instead of an empty reply
+      // sitting atop a dangling tool_result.
+      finalContent =
+        "I wasn't able to finish that within my tool-step limit. Could you narrow it down or try again?";
+      const fallbackNode = await tree.addNode(leafId, [
+        { role: 'assistant', content: finalContent },
+      ]);
+      leafId = fallbackNode.id;
+      console.error(
+        `[floot] turn hit MAX_TOOL_ROUNDS (${MAX_TOOL_ROUNDS}); sent fallback reply`,
+      );
     }
 
     cachedLeaf = leafId;
@@ -1043,7 +1070,7 @@ export const make = (hostPowers, _context, { env } = {}) => {
       // (addressable by mail without waiting for a first UI converse) and its
       // preset objects are provisioned up front.
       getAgent(id).catch(() => {});
-      console.log(
+      console.error(
         `[floot-factory] Created session "${id}" (preset "${preset.id}")`,
       );
       return getFacet(id);
@@ -1128,7 +1155,7 @@ export const make = (hostPowers, _context, { env } = {}) => {
           }`,
         );
       }
-      console.log(`[floot-factory] Deleted session "${id}"`);
+      console.error(`[floot-factory] Deleted session "${id}"`);
     },
 
     /**
