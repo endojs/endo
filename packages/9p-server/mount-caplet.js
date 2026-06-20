@@ -67,7 +67,7 @@ const MountHandleInterface = M.interface('Fs9pMountHandle', {
 });
 
 const MounterInterface = M.interface('Fs9pMounter', {
-  mount: M.call(M.any(), M.string()).optional(M.any()).returns(M.promise()),
+  mount: M.call(M.any(), M.string()).optional(M.record()).returns(M.promise()),
   list: M.call().returns(M.array()),
   help: M.call().returns(M.string()),
 });
@@ -195,22 +195,24 @@ export const make = async (_powers, context, options = {}) => {
   /**
    * @param {ERef<any>} fs - endo-fs `Filesystem` capability to project.
    * @param {string} mountPoint - host path to mount onto.
-   * @param {Record<string, unknown>} [mountOptions]
+   * @param {object} [mountOptions]
    */
   const mount = async (fs, mountPoint, mountOptions = {}) => {
     if (cancelled) {
       throw makeError(X`mounter is cancelled; refusing to mount`);
     }
-    // Defensively deep-copy + harden the caller's options before any
-    // field flows toward a privileged `mount(2)`.  `mountOptions`
-    // arrives over CapTP from a potentially adversarial caller; a
-    // Proxy whose getters drift between reads could differentiate the
-    // value validated here from the one passed to `mount`.  The
-    // null-proto shallow spread reads every own-enumerable property
-    // exactly once and `harden` freezes the result (cf.
+    // Defensively copy + harden the caller's options before any field
+    // flows toward a privileged `mount(2)`.  `mountOptions` arrives
+    // over CapTP from a potentially adversarial caller; the shallow
+    // spread reads every own-enumerable property exactly once,
+    // defeating a `Proxy`-backed record whose per-access getter could
+    // otherwise differentiate the value validated here from the one
+    // passed to `mount`, and `harden` freezes the result (cf.
     // `packages/genie/CLAUDE.md` § "deep-harden every structured
     // input").
-    const opts = harden({ __proto__: null, ...mountOptions });
+    const opts = /** @type {Record<string, unknown>} */ (
+      harden({ ...mountOptions })
+    );
 
     mountCounter += 1;
     const resolvedMountPoint = nodePath.resolve(mountPoint);
