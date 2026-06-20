@@ -12,7 +12,11 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
-set -a; source "$ENV_FILE"; set +a
+set -a
+# The env file is user-provided, so its path is not resolvable statically.
+# shellcheck source=/dev/null
+source "$ENV_FILE"
+set +a
 
 endo run --UNCONFINED floot-factory-setup.js --powers @agent \
   -E FACTORY_NAME="${FACTORY_NAME:-floot-factory}" \

@@ -13,7 +13,11 @@ set -euo pipefail
 
 ENV_FILE="${1:-.env}"
 if [ -f "$ENV_FILE" ]; then
-  set -a; source "$ENV_FILE"; set +a
+  set -a
+  # The env file is user-provided, so its path is not resolvable statically.
+  # shellcheck source=/dev/null
+  source "$ENV_FILE"
+  set +a
 fi
 
 if [ -z "${FLOOT_TTS_MODEL:-}" ]; then
