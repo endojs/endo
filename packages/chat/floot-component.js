@@ -3,6 +3,154 @@
 import { E, Far } from '@endo/far';
 import harden from '@endo/harden';
 
+// ── Background turns ─────────────────────────────────────────────────────────
+// A Floot turn keeps running on the daemon even after you leave its space: the
+// reply reader is consumed by a background loop kept HERE, outside any component
+// instance, so unmounting a Floot space never returns the reader (which would
+// abort the agent) — the turn finishes and persists in the background. Keeping
+// the loop module-level also lets a remounted component reattach to a still-
+// streaming reply and show a "thinking" indicator. The entry is removed once the
+// turn ends, so a finished reply simply falls back to getHistory().
+/**
+ * @typedef {{ role: 'assistant' | 'tool', text?: string, name?: string,
+ *   args?: string, result?: string | null }} TurnMessage
+ * @typedef {{
+ *   sessionId: string,
+ *   messages: TurnMessage[],
+ *   streamingText: string,
+ *   phase: string,
+ *   done: boolean,
+ *   error: string | null,
+ *   whenDone: Promise<void>,
+ *   subscribe: (fn: (ev: { type: string }) => void) => () => void,
+ *   stop: () => void,
+ * }} FlootTurn
+ */
+/** @type {Map<string, FlootTurn>} */
+const inFlightTurns = new Map();
+
+/**
+ * Consume a reply reader in the background, accumulating renderable turn state
+ * and notifying subscribers as events arrive. Survives component unmount.
+ *
+ * @param {string} key registry key (factory path + session id)
+ * @param {string} sessionId
+ * @param {any} reader the Far reply reader returned by session.converse()
+ * @returns {FlootTurn}
+ */
+const startFlootTurn = (key, sessionId, reader) => {
+  /** @type {Set<(ev: { type: string }) => void>} */
+  const listeners = new Set();
+  /** @type {TurnMessage[]} */
+  const messages = [];
+  /** @type {TurnMessage | null} */
+  let pendingTool = null;
+  let stopped = false;
+  /** @type {() => void} */
+  let resolveDone = () => {};
+  const whenDone = new Promise(resolve => {
+    resolveDone = resolve;
+  });
+
+  /** @param {{ type: string }} ev */
+  const emit = ev => {
+    for (const fn of [...listeners]) {
+      try {
+        fn(ev);
+      } catch {
+        // a view error must not stall the background loop
+      }
+    }
+  };
+
+  /** @type {FlootTurn} */
+  const turn = {
+    sessionId,
+    messages,
+    streamingText: '',
+    phase: 'thinking',
+    done: false,
+    error: null,
+    whenDone,
+    subscribe(fn) {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
+    stop() {
+      if (stopped) return;
+      stopped = true;
+      // Returning the reader fires the producer's onClose, which aborts the
+      // in-flight agent turn (stops token generation and tool rounds).
+      E(reader)
+        .return()
+        .catch(() => {});
+    },
+  };
+  inFlightTurns.set(key, turn);
+
+  (async () => {
+    try {
+      for (;;) {
+        // eslint-disable-next-line no-await-in-loop
+        const { value, done } = await E(reader).next();
+        if (done || stopped) break;
+        if (value.type === 'delta') {
+          turn.streamingText += value.text;
+          emit({ type: 'delta' });
+        } else if (value.type === 'final') {
+          turn.streamingText = value.text;
+          emit({ type: 'final' });
+        } else if (value.type === 'tool_call') {
+          if (turn.streamingText.trim()) {
+            messages.push({
+              role: 'assistant',
+              text: turn.streamingText.trim(),
+            });
+          }
+          turn.streamingText = '';
+          pendingTool = {
+            role: 'tool',
+            name: value.name,
+            args: value.args,
+            result: null,
+          };
+          messages.push(pendingTool);
+          emit({ type: 'tool_call' });
+        } else if (value.type === 'tool_result') {
+          if (pendingTool) {
+            pendingTool.result = value.result;
+            pendingTool = null;
+          }
+          emit({ type: 'tool_result' });
+        } else if (value.type === 'phase') {
+          turn.phase = value.phase;
+          emit({ type: 'phase' });
+        } else if (value.type === 'end') {
+          break;
+        } else if (value.type === 'abort') {
+          turn.error = value.reason;
+          emit({ type: 'abort' });
+          break;
+        }
+      }
+      if (turn.streamingText.trim()) {
+        messages.push({ role: 'assistant', text: turn.streamingText.trim() });
+        turn.streamingText = '';
+      }
+    } catch (err) {
+      turn.error = /** @type {Error} */ (err)?.message || String(err);
+      emit({ type: 'abort' });
+    } finally {
+      turn.done = true;
+      inFlightTurns.delete(key);
+      emit({ type: 'done' });
+      resolveDone();
+    }
+  })();
+
+  return turn;
+};
+
 /**
  * Floot Chat Space. Resolves a Floot factory from the profilePath (the
  * `floot-factory` caplet created by @endo/floot — see packages/floot in the
@@ -134,6 +282,16 @@ export const flootComponent = (
   const facetFor = (/** @type {FlootSession} */ session) => {
     if (!session.facet) session.facet = E(factory).getSession(session.id);
     return session.facet;
+  };
+
+  // Registry key for a session's background turn. Scoped by the factory path so
+  // two Floot spaces pointing at different factories can't collide on a shared
+  // session id.
+  const turnKey = (/** @type {string} */ id) =>
+    `${profilePath.join(' ')} ${id}`;
+  const liveTurnFor = (/** @type {string} */ id) => {
+    const turn = inFlightTurns.get(turnKey(id));
+    return turn && !turn.done ? turn : null;
   };
 
   // Pull the spoken transcript for a session from its guest into the cache.
@@ -552,7 +710,10 @@ export const flootComponent = (
       $item.className = `floot-session-item${session.id === activeSessionId ? ' active' : ''}`;
 
       const $dot = document.createElement('span');
-      const st = sessionStatus.get(session.id) || 'idle';
+      // A background turn (even on a non-active session) shows as "thinking".
+      const st = liveTurnFor(session.id)
+        ? 'streaming'
+        : sessionStatus.get(session.id) || 'idle';
       $dot.className = `floot-status-dot${st === 'idle' ? '' : ` ${st}`}`;
       $item.appendChild($dot);
 
@@ -706,6 +867,10 @@ export const flootComponent = (
     // were following the bottom, in which case snap back down.
     const prevTop = $messages.scrollTop;
     $messages.innerHTML = '';
+    // The DOM we tracked is gone; ensureStreamingBubble / renderActiveTurn
+    // rebuild these as needed.
+    $streamingBubble = null;
+    $thinkingRow = null;
     const session = getActiveSession();
     if (!session) {
       const $e = document.createElement('div');
@@ -723,7 +888,8 @@ export const flootComponent = (
       $messages.appendChild($e);
       return;
     }
-    if (!session.messages.length) {
+    const liveTurn = liveTurnFor(session.id);
+    if (!session.messages.length && !liveTurn) {
       const $e = document.createElement('div');
       $e.className = 'floot-empty-state';
       $e.textContent = 'Say hello to Floot.';
@@ -734,8 +900,30 @@ export const flootComponent = (
       if (msg.role === 'tool') appendToolRow(msg);
       else appendBubble(msg.role, msg.text || '', msg.meta);
     }
+    // Paint the in-flight turn (its flushed output plus the live streaming
+    // bubble) after the persisted transcript, so a reattached turn renders
+    // identically to the one that produced it.
+    if (liveTurn) renderActiveTurn(liveTurn);
     if (stickToBottom) $messages.scrollTop = $messages.scrollHeight;
     else $messages.scrollTop = prevTop;
+  };
+
+  // Render an in-flight turn's accumulated output: the assistant/tool messages
+  // it has flushed so far, then either the live streaming bubble or a thinking
+  // indicator while it works.
+  const renderActiveTurn = (/** @type {FlootTurn} */ turn) => {
+    for (const msg of turn.messages) {
+      if (msg.role === 'tool') appendToolRow(msg);
+      else appendBubble('assistant', msg.text || '');
+    }
+    if (turn.streamingText) {
+      const $bubble = appendBubble('assistant', '');
+      $bubble.classList.add('streaming');
+      $bubble.textContent = turn.streamingText;
+      $streamingBubble = $bubble;
+    } else if (!turn.done) {
+      showThinking();
+    }
   };
 
   const appendBubble = (
@@ -834,8 +1022,6 @@ export const flootComponent = (
   let $thinkingRow = null;
   /** @type {HTMLElement | null} */
   let $streamingBubble = null;
-  /** @type {any} */
-  let pendingTool = null;
 
   const showThinking = () => {
     hideThinking();
@@ -870,13 +1056,26 @@ export const flootComponent = (
     // Opening a session starts at the latest message.
     stickToBottom = true;
     const session = getActiveSession();
-    if (session && !session.loaded) {
+    if (!session) return;
+    // If this session has a turn still running in the background (e.g. it was
+    // left mid-reply and we've returned to the space), reattach to its live
+    // stream. The busy guard keeps this from firing during another turn.
+    const reattach = () => {
+      const turn = liveTurnFor(session.id);
+      if (turn && !busy) {
+        turnPromise = attachTurnView(turn, session);
+      }
+    };
+    if (!session.loaded) {
       loadHistory(session).then(() => {
         if (activeSessionId === session.id) {
           renderMessages();
           renderSidebar();
+          reattach();
         }
       });
+    } else {
+      reattach();
     }
   };
 
@@ -884,7 +1083,6 @@ export const flootComponent = (
     if (busy) return; // don't switch context mid-turn
     activeSessionId = id;
     $streamingBubble = null;
-    pendingTool = null;
     closeSidebar();
     renderSidebar();
     renderHeader();
@@ -993,8 +1191,14 @@ export const flootComponent = (
   let cancelled = false;
   let busy = false;
   let turnCancelled = false;
-  /** @type {any} */
-  let activeReader = null;
+  /** @type {FlootTurn | null} */
+  let activeTurn = null;
+  /** @type {(() => void) | null} */
+  let unsubscribeTurn = null;
+  // Detaches this component's view from the active turn without stopping it
+  // (used on unmount so the turn keeps running in the background).
+  /** @type {(() => void) | null} */
+  let detachActiveTurnView = null;
 
   /** @type {Promise<void>} */
   let submitChain = Promise.resolve();
@@ -1012,23 +1216,119 @@ export const flootComponent = (
   const cancelTurn = () => {
     if (!busy) return Promise.resolve();
     turnCancelled = true;
-    try {
-      if (activeReader) E(activeReader).return();
-    } catch {
-      // reader already closed
-    }
+    // Stop button / barge-in: explicitly tear the turn down (unlike leaving the
+    // space, which lets it keep running in the background).
+    if (activeTurn) activeTurn.stop();
     if (turnTtsFeed) turnTtsFeed.abort();
     stopTts(); // barge-in / Stop also silences any spoken reply in progress
     return turnPromise || Promise.resolve();
   };
 
+  // Attach this component's view to a background turn — the one it just started,
+  // or one still running after a remount. Renders the turn's events live and
+  // resolves when the turn ends. Detaching (on unmount) leaves the turn running.
+  /**
+   * @param {FlootTurn} turn
+   * @param {FlootSession} session
+   * @param {boolean} [speakLive] feed reply deltas to TTS (producing view only)
+   * @returns {Promise<void>}
+   */
+  const attachTurnView = (turn, session, speakLive = false) => {
+    busy = true;
+    turnCancelled = false;
+    activeTurn = turn;
+    updateSendButton();
+    sessionStatus.delete(session.id);
+    // On reattach the bubble already shows what streamed before; only speak text
+    // that arrives from here on.
+    let lastSpoken = turn.streamingText.length;
+    renderSidebar();
+    renderHeader();
+    renderMessages();
+    setStatus(`${turn.phase || 'thinking'}…`);
+
+    return new Promise(resolve => {
+      const detach = () => {
+        if (unsubscribeTurn) {
+          unsubscribeTurn();
+          unsubscribeTurn = null;
+        }
+        detachActiveTurnView = null;
+        if (activeTurn === turn) activeTurn = null;
+        busy = false;
+        updateSendButton();
+        resolve();
+      };
+      detachActiveTurnView = detach;
+
+      /** @param {{ type: string }} ev */
+      const onEvent = ev => {
+        // Ignore events for a session we're no longer viewing (defensive; the
+        // busy guard normally blocks switching mid-turn).
+        if (activeSessionId !== turn.sessionId) return;
+        if (ev.type === 'delta' || ev.type === 'final') {
+          ensureStreamingBubble().textContent = turn.streamingText;
+          scrollToBottom();
+          if (
+            speakLive &&
+            turnTtsFeed &&
+            turn.streamingText.length > lastSpoken
+          ) {
+            turnTtsFeed.delta(turn.streamingText.slice(lastSpoken));
+            lastSpoken = turn.streamingText.length;
+          }
+        } else if (ev.type === 'tool_call') {
+          lastSpoken = 0;
+          if ($streamingBubble) {
+            $streamingBubble.classList.remove('streaming');
+            $streamingBubble = null;
+          }
+          renderMessages();
+          scrollToBottom();
+        } else if (ev.type === 'tool_result') {
+          renderMessages();
+          scrollToBottom();
+        } else if (ev.type === 'phase') {
+          setStatus(`${turn.phase}…`);
+        } else if (ev.type === 'abort') {
+          sessionStatus.set(turn.sessionId, 'error');
+        } else if (ev.type === 'done') {
+          const stopped = turnCancelled;
+          if (turnTtsFeed) {
+            if (turn.error) turnTtsFeed.abort();
+            else turnTtsFeed.end();
+            turnTtsFeed = null;
+          }
+          $streamingBubble = null;
+          hideThinking();
+          if (turn.error) {
+            sessionStatus.set(turn.sessionId, 'error');
+            setStatus(`error: ${turn.error}`);
+          } else {
+            sessionStatus.set(turn.sessionId, 'idle');
+            setStatus(stopped ? 'stopped.' : 'Ready.');
+          }
+          // Repaint from the daemon's canonical transcript (now including this
+          // turn's persisted reply) so the turn's output is never double-shown.
+          loadHistory(session).then(() => {
+            if (activeSessionId === session.id) {
+              renderMessages();
+              renderSidebar();
+            }
+          });
+          renderSidebar();
+          detach();
+        }
+      };
+      unsubscribeTurn = turn.subscribe(onEvent);
+      // Settle immediately if the turn finished between start and subscribe.
+      if (turn.done) onEvent({ type: 'done' });
+    });
+  };
+
   const runConverse = async (/** @type {string} */ text) => {
     let session = getActiveSession();
     if (!session) session = await createSession();
-
-    busy = true;
-    turnCancelled = false;
-    updateSendButton();
 
     session.messages.push({ role: 'user', text });
     // Sending a message is an explicit "follow along" intent — re-stick.
@@ -1039,127 +1339,19 @@ export const flootComponent = (
         .renameSession(session.id, session.title)
         .catch(() => {});
     }
-    sessionStatus.set(session.id, 'streaming');
-    renderSidebar();
-    renderHeader();
-    renderMessages();
-    showThinking();
-    setStatus('thinking…');
 
-    const sessionId = session.id;
-    let full = '';
     // Speak the reply as it streams: feed deltas to the TTS object and play the
     // returned audio stream. Sentence-by-sentence, so audio starts mid-reply.
-    let lastSpoken = 0;
     const speakLive = ttsEnabled && Boolean(ttsServer);
     if (speakLive) {
       turnTtsFeed = makeTextFeed();
       playAudioStream(E(ttsServer).synthesize(turnTtsFeed.reader));
     }
-    try {
-      const reader = E(facetFor(session)).converse(text);
-      activeReader = reader;
-      for (;;) {
-        // eslint-disable-next-line no-await-in-loop
-        const { value, done } = await E(reader).next();
-        if (done || cancelled || turnCancelled) break;
-        if (value.type === 'delta') {
-          full += value.text;
-          ensureStreamingBubble().textContent = full;
-          scrollToBottom();
-          if (turnTtsFeed) {
-            turnTtsFeed.delta(value.text);
-            lastSpoken = full.length;
-          }
-        } else if (value.type === 'final') {
-          full = value.text;
-          ensureStreamingBubble().textContent = full;
-          scrollToBottom();
-          // Feed any text not already streamed as deltas (e.g. final-only replies).
-          if (turnTtsFeed && full.length > lastSpoken) {
-            turnTtsFeed.delta(full.slice(lastSpoken));
-            lastSpoken = full.length;
-          }
-        } else if (value.type === 'tool_call') {
-          // Flush narration streamed before this tool call as its own assistant
-          // message (it was spoken, so it must be shown), then reset the buffer
-          // so post-tool text becomes a fresh bubble below the tool row. Without
-          // this, pre- and post-tool text merge into one bubble placed after the
-          // tool — and the pre-tool narration vanishes on the next repaint.
-          if (full.trim()) {
-            session.messages.push({ role: 'assistant', text: full.trim() });
-          }
-          full = '';
-          lastSpoken = 0;
-          // Close out any in-progress assistant bubble so the tool row renders
-          // beneath it, then start a tool entry awaiting its result.
-          if ($streamingBubble) {
-            $streamingBubble.classList.remove('streaming');
-            $streamingBubble = null;
-          }
-          pendingTool = {
-            role: 'tool',
-            name: value.name,
-            args: value.args,
-            result: null,
-          };
-          session.messages.push(pendingTool);
-          appendToolRow(pendingTool);
-          scrollToBottom();
-        } else if (value.type === 'tool_result') {
-          if (pendingTool) {
-            pendingTool.result = value.result;
-            $messages.appendChild(
-              makeToolBlock(pendingTool.name, value.result, true),
-            );
-            pendingTool = null;
-          }
-          scrollToBottom();
-        } else if (value.type === 'phase') {
-          setStatus(value.phase);
-        } else if (value.type === 'end') {
-          break;
-        } else if (value.type === 'abort') {
-          sessionStatus.set(sessionId, 'error');
-          setStatus(`error: ${value.reason}`);
-          break;
-        }
-      }
-      if (turnTtsFeed) {
-        if (turnCancelled) turnTtsFeed.abort();
-        else turnTtsFeed.end();
-        turnTtsFeed = null;
-      }
-      hideThinking();
-      if ($streamingBubble) $streamingBubble.classList.remove('streaming');
-      $streamingBubble = null;
-      if (full.trim()) {
-        session.messages.push({ role: 'assistant', text: full.trim() });
-      }
-      if (sessionStatus.get(sessionId) !== 'error') {
-        sessionStatus.set(sessionId, 'idle');
-        setStatus(turnCancelled ? 'stopped.' : 'Ready.');
-      }
-      renderSidebar();
-      renderMessages();
-    } catch (err) {
-      hideThinking();
-      $streamingBubble = null;
-      if (turnTtsFeed) {
-        turnTtsFeed.abort();
-        turnTtsFeed = null;
-      }
-      stopTts();
-      sessionStatus.set(sessionId, 'error');
-      renderSidebar();
-      renderMessages();
-      setStatus(`error: ${/** @type {Error} */ (err).message}`);
-    } finally {
-      busy = false;
-      turnCancelled = false;
-      activeReader = null;
-      updateSendButton();
-    }
+    // Start the turn in the background — it owns the reply reader and keeps
+    // running if this space is left — then render it through the shared view.
+    const reader = E(facetFor(session)).converse(text);
+    const turn = startFlootTurn(turnKey(session.id), session.id, reader);
+    await attachTurnView(turn, session, speakLive);
   };
 
   // Serialize submissions so an auto-sent voice utterance can't overlap a typed
@@ -1906,6 +2098,14 @@ export const flootComponent = (
 
   return () => {
     cancelled = true;
+    // Leave any in-flight turn running in the background — just detach our view
+    // (don't return the reader, which would abort the agent). The turn finishes
+    // and persists; a later remount reattaches or falls back to history.
+    if (detachActiveTurnView) detachActiveTurnView();
+    if (turnTtsFeed) {
+      turnTtsFeed.abort();
+      turnTtsFeed = null;
+    }
     stopMic();
     stopTts();
     if (ttsCtx) {
