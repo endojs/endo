@@ -21,7 +21,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { E } from '@endo/far';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 import { makeInMemoryFilesystem } from '@endo/platform/fs/extended/in-memory.js';
 import { makeNodeFilesystem } from '@endo/platform/fs/extended/node-fs.js';
@@ -285,6 +285,33 @@ const tunlinkat = async (c, dfid, name) => {
   return c.recv();
 };
 
+const trenameat = async (c, oldDirFid, oldName, newDirFid, newName) => {
+  const w = makeWriter();
+  w.u32(oldDirFid);
+  w.str(oldName);
+  w.u32(newDirFid);
+  w.str(newName);
+  c.send(T.Trenameat, 12, w.finish());
+  return c.recv();
+};
+
+// Tsetattr with only ATTR_SIZE set — i.e. ftruncate(fid, size).
+const tsetattrSize = async (c, fid, size) => {
+  const w = makeWriter();
+  w.u32(fid);
+  w.u32(0x8); // valid = ATTR_SIZE
+  w.u32(0); // mode
+  w.u32(0); // uid
+  w.u32(0); // gid
+  w.u64(size);
+  w.u64(0n); // atime_sec
+  w.u64(0n); // atime_nsec
+  w.u64(0n); // mtime_sec
+  w.u64(0n); // mtime_nsec
+  c.send(T.Tsetattr, 13, w.finish());
+  return c.recv();
+};
+
 test('Tversion negotiates 9P2000.L', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
@@ -436,6 +463,112 @@ test('Tlcreate on a disk-backed (node-fs) FS creates without ENOENT (regression)
   const create = await tlcreate(c, 2, 'newfile.txt');
   t.is(create.type, T.Rlcreate, 'Tlcreate must return Rlcreate, not Rlerror');
   t.true(existsSync(path.join(rootDir, 'newfile.txt')), 'file exists on disk');
+});
+
+// The in-memory backing registers mutations eagerly and is the only one
+// the rest of this file exercises; the Tlcreate race showed that hides
+// real-backend bugs. This block re-runs the mutating ops against a
+// disk-backed (node-fs) Filesystem to catch sibling regressions.
+
+test('node-fs: Tlcreate + Twrite + reopen + Tread round-trips on disk', async t => {
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, []); // clone root to fid 2
+  t.is((await tlcreate(c, 2, 'f.txt')).type, T.Rlcreate);
+  t.is((await twrite(c, 2, 0n, Buffer.from('on disk'))).type, T.Rwrite);
+  // Reopen via a fresh walk from root so we read through a new fid.
+  t.is((await walk(c, 1, 3, ['f.txt'])).type, T.Rwalk);
+  t.is((await lopen(c, 3, 0)).type, T.Rlopen);
+  const rd = await tread(c, 3, 0n, 4096);
+  t.is(rd.type, T.Rread);
+  const r = makeReader(rd.payload);
+  t.is(r.take(r.u32()).toString('utf8'), 'on disk');
+  t.is(readFileSync(path.join(rootDir, 'f.txt'), 'utf8'), 'on disk');
+});
+
+test('node-fs: Tmkdir creates a directory reachable by Twalk', async t => {
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  const mk = await tmkdir(c, 1, 'd');
+  t.is(mk.type, T.Rmkdir);
+  const w = await walk(c, 1, 2, ['d']);
+  t.is(w.type, T.Rwalk);
+  const r = makeReader(w.payload);
+  t.is(r.u16(), 1);
+  t.is(readQid(r).type, QT.DIR);
+  t.true(existsSync(path.join(rootDir, 'd')));
+});
+
+test('node-fs: Trenameat moves a file', async t => {
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, []);
+  t.is((await tlcreate(c, 2, 'old.txt')).type, T.Rlcreate);
+  t.is((await trenameat(c, 1, 'old.txt', 1, 'new.txt')).type, T.Rrenameat);
+  t.is((await walk(c, 1, 3, ['new.txt'])).type, T.Rwalk);
+  t.is((await walk(c, 1, 4, ['old.txt'])).type, T.Rlerror);
+  t.false(existsSync(path.join(rootDir, 'old.txt')));
+  t.true(existsSync(path.join(rootDir, 'new.txt')));
+});
+
+test('node-fs: Tunlinkat removes a file', async t => {
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, []);
+  t.is((await tlcreate(c, 2, 'doomed.txt')).type, T.Rlcreate);
+  t.is((await tunlinkat(c, 1, 'doomed.txt')).type, T.Runlinkat);
+  const w = await walk(c, 1, 3, ['doomed.txt']);
+  t.is(w.type, T.Rlerror);
+  t.is(makeReader(w.payload).u32(), ERRNO.ENOENT);
+  t.false(existsSync(path.join(rootDir, 'doomed.txt')));
+});
+
+test('node-fs: Tsetattr truncates a file (ftruncate)', async t => {
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, []);
+  t.is((await tlcreate(c, 2, 'trunc.txt')).type, T.Rlcreate);
+  t.is((await twrite(c, 2, 0n, Buffer.from('hello world'))).type, T.Rwrite);
+  t.is((await tsetattrSize(c, 2, 5n)).type, T.Rsetattr);
+  const ga = await tgetattr(c, 2);
+  t.is(ga.type, T.Rgetattr);
+  t.is(readFileSync(path.join(rootDir, 'trunc.txt'), 'utf8'), 'hello');
+});
+
+test('node-fs: Treaddir lists entries from disk', async t => {
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  // Seed the directory on disk (node-fs reads the backing live) so
+  // readdir reflects real backing content, not just bytes written
+  // through the bridge.
+  writeFileSync(path.join(rootDir, 'alpha.txt'), 'a');
+  mkdirSync(path.join(rootDir, 'beta'));
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  t.is((await lopen(c, 1, 0)).type, T.Rlopen);
+  const rep = await treaddir(c, 1, 0n, 4096);
+  t.is(rep.type, T.Rreaddir);
+  const r = makeReader(rep.payload);
+  r.u32(); // total bytes
+  const names = new Set();
+  while (r.remaining() > 0) {
+    readQid(r);
+    r.u64();
+    r.u8();
+    names.add(r.str());
+  }
+  t.true(names.has('alpha.txt'));
+  t.true(names.has('beta'));
 });
 
 test('Tmkdir + Twalk + Tunlinkat lifecycle', async t => {

@@ -136,21 +136,27 @@ const resolveCancelled = async context => {
 };
 
 /**
- * `make-unconfined` entry point.
+ * Build the mounter exo from injected effects.  `make()` wires the real
+ * Node bindings (`execFile`, `fs.mkdir`/`rmdir`, `makeFsBridge9p`);
+ * tests inject fakes so the privileged `mount(2)` path can be exercised
+ * without root or a real kernel.
  *
- * @param {unknown} _powers - guest powers (unused; mounting uses the
- *   worker's ambient Node authority, which is what `--UNCONFINED`
- *   grants).
- * @param {Promise<any> | any} context - daemon cancellation context.
- * @param {{ env?: Record<string, string> }} [options]
+ * @param {object} deps
+ * @param {Record<string, string>} [deps.env] - caplet env (e.g. NINEP_SUDO).
+ * @param {Promise<never> | null} [deps.cancelledP] - settles on caplet teardown.
+ * @param {(file: string, args: string[]) => Promise<unknown>} deps.runProgram - `execFile`-shaped runner.
+ * @param {(path: string, opts: { recursive: boolean }) => Promise<unknown>} deps.makeDir
+ * @param {(path: string) => Promise<unknown>} deps.removeDir
+ * @param {(opts: { fs: ERef<any>, socketPath: string, cancelled?: Promise<unknown> }) => any} deps.makeBridge
  */
-export const make = async (_powers, context, options = {}) => {
-  const env = options.env ?? {};
-
-  // Cancellation context → unmount-everything trigger.  `whenCancelled`
-  // rejects on teardown, so wire both settlement paths to the sweeper.
-  const cancelledP = await resolveCancelled(context);
-
+export const makeFsMounter = ({
+  env = {},
+  cancelledP = null,
+  runProgram,
+  makeDir,
+  removeDir,
+  makeBridge,
+}) => {
   /** @type {Set<{ unmount: () => Promise<void> }>} */
   const handles = new Set();
 
@@ -244,13 +250,13 @@ export const make = async (_powers, context, options = {}) => {
 
     // 1. Ensure the mount point exists (unless told not to).
     if (opts.makeMountPoint !== false) {
-      await mkdir(resolvedMountPoint, { recursive: true });
+      await makeDir(resolvedMountPoint, { recursive: true });
     }
 
     // 2. Serve the FS cap on the per-mount UDS.  Thread the caplet's
     //    cancellation in so in-flight 9P dispatchers short-circuit on
     //    teardown rather than blocking on the socket-close cascade.
-    const bridge = makeFsBridge9p({
+    const bridge = makeBridge({
       fs,
       socketPath,
       ...(cancelledP ? { cancelled: cancelledP } : {}),
@@ -277,7 +283,7 @@ export const make = async (_powers, context, options = {}) => {
       resolvedMountPoint,
     ];
     try {
-      await execFileP(mountBin, mountArgv);
+      await runProgram(mountBin, mountArgv);
     } catch (cause) {
       // Don't leak a listening socket if the mount itself failed.
       await E(bridge)
@@ -309,7 +315,7 @@ export const make = async (_powers, context, options = {}) => {
         resolvedMountPoint,
       ];
       try {
-        await execFileP(umountBin, umountArgv);
+        await runProgram(umountBin, umountArgv);
       } catch (cause) {
         const reason = /** @type {Error} */ (cause).message;
         const stderr = /** @type {{ stderr?: string }} */ (cause).stderr || '';
@@ -323,7 +329,7 @@ export const make = async (_powers, context, options = {}) => {
         .stop()
         .catch(() => {});
       if (removeMountPointOnUnmount) {
-        await rmdir(resolvedMountPoint).catch(() => {});
+        await removeDir(resolvedMountPoint).catch(() => {});
       }
     };
 
@@ -361,6 +367,29 @@ export const make = async (_powers, context, options = {}) => {
     help() {
       return `endo-fs → 9P mounter.\n  mount(fs, mountPoint, options?) -> MountHandle\nOptions: { socketPath, trans='unix', version='9p2000.L', msize=131072, access='any', cache='none', readOnly=false, extraMountOptions, mountProgram, umountProgram, makeMountPoint=true, removeMountPointOnUnmount=false, lazyUnmount=false }.\nmount(2) needs CAP_SYS_ADMIN — pass mountProgram:['sudo','mount'] or set NINEP_SUDO=1 when the daemon is unprivileged.\nunmount() leaves the bridge up if umount fails (EBUSY) so the mount never outlives its transport; pass lazyUnmount (or NINEP_LAZY_UMOUNT=1) to force-detach a busy mount on teardown.\nEvery live mount is unmounted when this caplet is cancelled.`;
     },
+  });
+};
+harden(makeFsMounter);
+
+/**
+ * `make-unconfined` entry point.  Resolves the daemon cancellation
+ * context and wires the real Node effects into {@link makeFsMounter}.
+ *
+ * @param {unknown} _powers - guest powers (unused; mounting uses the
+ *   worker's ambient Node authority, which is what `--UNCONFINED`
+ *   grants).
+ * @param {Promise<any> | any} context - daemon cancellation context.
+ * @param {{ env?: Record<string, string> }} [options]
+ */
+export const make = async (_powers, context, options = {}) => {
+  const cancelledP = await resolveCancelled(context);
+  return makeFsMounter({
+    env: options.env ?? {},
+    cancelledP,
+    runProgram: execFileP,
+    makeDir: mkdir,
+    removeDir: rmdir,
+    makeBridge: makeFsBridge9p,
   });
 };
 harden(make);
