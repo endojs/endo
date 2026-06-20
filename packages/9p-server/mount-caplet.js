@@ -9,7 +9,7 @@
  *
  * ```sh
  * endo make-unconfined packages/9p-server/mount-caplet.js \
- *   --name fs-mounter --powers @none
+ *   --name fs-mounter --powers \@none
  * # then, from a caplet/REPL that holds both `fs-mounter` and an
  * # endo-fs `Filesystem` cap named `my-fs`:
  * #   const h = await E(fsMounter).mount(myFs, '/mnt/endo', {});
@@ -41,7 +41,7 @@
  * @module
  */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makeError, q, X } from '@endo/errors';
@@ -51,6 +51,7 @@ import { promisify } from 'node:util';
 import { mkdir, rmdir } from 'node:fs/promises';
 import os from 'node:os';
 import nodePath from 'node:path';
+import process from 'node:process';
 
 import { makeFsBridge9p } from './src/fs-bridge.js';
 
@@ -90,7 +91,7 @@ const buildMountOptionString = options => {
   const {
     trans = 'unix',
     version = '9p2000.L',
-    msize = 512000,
+    msize = 512_000,
     access = 'any',
     cache = 'none',
     readOnly = false,
