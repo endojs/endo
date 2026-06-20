@@ -402,6 +402,46 @@ pub fn decode_listen_path_request(data: &[u8]) -> io::Result<String> {
 }
 
 // ---------------------------------------------------------------------------
+// listen-iroh request decoding (CBOR map: {"node": <hex text>})
+//
+// The manager asks the supervisor to host an iroh network device. The
+// payload carries the daemon's NodeNumber (64-hex-character Ed25519 public
+// key); the supervisor derives the iroh secret key from it, exactly as the
+// Node.js transport does, so the iroh NodeId is stable and consistent.
+// ---------------------------------------------------------------------------
+
+pub fn decode_listen_iroh_request(data: &[u8]) -> io::Result<String> {
+    let mut c = Cursor::new(data);
+    let n = c.read_map_header()?;
+    let mut node = String::new();
+    for _ in 0..n {
+        let key = c.read_text()?;
+        match key.as_str() {
+            "node" => node = c.read_text()?,
+            _ => c.skip()?,
+        }
+    }
+    if node.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "listen-iroh: missing or empty node",
+        ));
+    }
+    Ok(node)
+}
+
+/// Encode the `listening-iroh` acknowledgement (CBOR map: {"address": <text>}).
+/// The address is the published `iroh+captp0://` locator the manager should
+/// advertise so peers can dial this daemon.
+pub fn encode_listening_iroh(address: &str) -> Vec<u8> {
+    let mut buf = Vec::new();
+    cbor_append_head(&mut buf, CBOR_MAP, 1);
+    cbor_append_text(&mut buf, "address");
+    cbor_append_text(&mut buf, address);
+    buf
+}
+
+// ---------------------------------------------------------------------------
 // Suspend request decoding (CBOR map: {"handle": <i64>})
 // ---------------------------------------------------------------------------
 

@@ -1,0 +1,19 @@
+[package]
+name = "endo_iroh"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Iroh QUIC network transport for Endo, wire-compatible with the @endo/daemon Node.js iroh transport."
+
+[dependencies]
+hex = "0.4"
+iroh = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "io-util", "net", "time"] }
+url = "2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+
+[[bin]]
+name = "endo-iroh"
+path = "src/bin/endo_iroh.rs"

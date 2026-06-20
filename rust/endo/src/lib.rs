@@ -7,6 +7,7 @@ pub mod endo;
 pub mod engine;
 pub mod error;
 pub mod inproc;
+pub mod iroh_net;
 pub mod mailbox;
 pub mod paths;
 pub mod pidfile;
