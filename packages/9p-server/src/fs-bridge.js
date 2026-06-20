@@ -104,6 +104,16 @@ export const makeFsBridge9p = ({
       // 0600: the 9P bridge exposes the full authority of the FS
       // capability projected through it. Anyone who can connect can
       // exercise that authority; restrict to the owning UID only.
+      //
+      // There is a small window between `listen()` creating the socket
+      // (at the process umask) and this `chmod`. The atomic fix would be
+      // a restrictive umask across the bind, but `process.umask()` is
+      // unsupported in worker threads (where bridges may run), so we
+      // narrow exposure two other ways instead: callers place the socket
+      // in a private dir (`mount-caplet.js` prefers `XDG_RUNTIME_DIR`,
+      // which is 0700), and the socket name is unpredictable, so a local
+      // user can't pre-position to connect during the window even on the
+      // world-writable `os.tmpdir()` fallback.
       await chmod(socketPath, 0o600);
     },
 
