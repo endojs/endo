@@ -161,7 +161,10 @@ export const flootComponent = (
    * @param {string} [presetId]
    */
   const createSession = async (title, presetId) => {
-    const facet = await E(factory).createSession(title || DEFAULT_TITLE, presetId);
+    const facet = await E(factory).createSession(
+      title || DEFAULT_TITLE,
+      presetId,
+    );
     const info = await E(facet).getInfo();
     /** @type {FlootSession} */
     const session = {
