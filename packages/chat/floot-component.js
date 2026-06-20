@@ -1275,12 +1275,28 @@ export const flootComponent = (
   const cancelTurn = () => {
     if (!busy) return Promise.resolve();
     turnCancelled = true;
-    // Stop button / barge-in: explicitly tear the turn down (unlike leaving the
-    // space, which lets it keep running in the background).
+    // Stop button: explicitly tear the turn down (unlike leaving the space,
+    // which lets it keep running in the background).
     if (activeTurn) activeTurn.stop();
     if (turnTtsFeed) turnTtsFeed.abort();
-    stopTts(); // barge-in / Stop also silences any spoken reply in progress
+    stopTts(); // also silences any spoken reply in progress
     return turnPromise || Promise.resolve();
+  };
+
+  // Voice barge-in: the user started speaking over a live reply. Unlike the Stop
+  // button's hard cancel, don't abort the turn — just silence its spoken reply
+  // and let it finish in the background (and in history). The user's interjection
+  // is queued after it (submitChain waits on the running turn, and the agent
+  // serializes turns), so the assistant resumes with the completed reply as
+  // context instead of discarding it.
+  const softBargeIn = () => {
+    if (!busy) return;
+    if (turnTtsFeed) {
+      turnTtsFeed.abort();
+      turnTtsFeed = null;
+    }
+    stopTts();
+    setStatus('continuing in background…');
   };
 
   // Attach this component's view to a background turn — the one it just started,
@@ -2041,7 +2057,7 @@ export const flootComponent = (
         );
       }
       if (vol > onsetThreshold) {
-        if (busy) cancelTurn();
+        if (busy) softBargeIn();
         beginUtterance();
       }
     } else if (vol > speechThreshold) {
