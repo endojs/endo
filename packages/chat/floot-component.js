@@ -12,8 +12,8 @@ import harden from '@endo/harden';
 // streaming reply and show a "thinking" indicator. The entry is removed once the
 // turn ends, so a finished reply simply falls back to getHistory().
 /**
- * @typedef {{ role: 'assistant' | 'tool', text?: string, name?: string,
- *   args?: string, result?: string | null }} TurnMessage
+ * @typedef {{ role: 'assistant' | 'tool', text?: string, id?: string,
+ *   name?: string, args?: string, result?: string | null }} TurnMessage
  * @typedef {{
  *   sessionId: string,
  *   messages: TurnMessage[],
@@ -44,8 +44,10 @@ const startFlootTurn = (key, sessionId, reader) => {
   const listeners = new Set();
   /** @type {TurnMessage[]} */
   const messages = [];
-  /** @type {TurnMessage | null} */
-  let pendingTool = null;
+  // Tool calls in one batch run concurrently, so results arrive out of order —
+  // track each pending call by its id and pair its result back by id.
+  /** @type {Map<string, TurnMessage>} */
+  const pendingTools = new Map();
   let stopped = false;
   /** @type {() => void} */
   let resolveDone = () => {};
@@ -110,18 +112,21 @@ const startFlootTurn = (key, sessionId, reader) => {
             });
           }
           turn.streamingText = '';
-          pendingTool = {
-            role: 'tool',
+          const toolMsg = {
+            role: /** @type {const} */ ('tool'),
+            id: value.id,
             name: value.name,
             args: value.args,
-            result: null,
+            result: /** @type {string | null} */ (null),
           };
-          messages.push(pendingTool);
+          pendingTools.set(value.id, toolMsg);
+          messages.push(toolMsg);
           emit({ type: 'tool_call' });
         } else if (value.type === 'tool_result') {
-          if (pendingTool) {
-            pendingTool.result = value.result;
-            pendingTool = null;
+          const toolMsg = pendingTools.get(value.id);
+          if (toolMsg) {
+            toolMsg.result = value.result;
+            pendingTools.delete(value.id);
           }
           emit({ type: 'tool_result' });
         } else if (value.type === 'phase') {

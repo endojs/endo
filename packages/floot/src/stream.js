@@ -21,8 +21,8 @@ import { makeBufferedReader } from './buffered-channel.js';
  *   | { type: 'phase', phase: string }
  *   | { type: 'delta', text: string }
  *   | { type: 'final', text: string }
- *   | { type: 'tool_call', name: string, args: string }
- *   | { type: 'tool_result', name: string, result: string }
+ *   | { type: 'tool_call', id: string, name: string, args: string }
+ *   | { type: 'tool_result', id: string, name: string, result: string }
  *   | { type: 'usage', inputTokens: number, outputTokens: number, turns: number }
  *   | { type: 'end' }
  *   | { type: 'abort', reason: string }
@@ -47,12 +47,22 @@ export const makeReplyChannel = (onClose = null) => {
     delta: text => push({ type: 'delta', text: `${text}` }),
     /** @param {string} text */
     final: text => push({ type: 'final', text: `${text}` }),
-    /** @param {{ name: string, args: string }} call */
-    toolCall: ({ name, args }) =>
-      push({ type: 'tool_call', name: `${name}`, args: `${args}` }),
-    /** @param {{ name: string, result: string }} result */
-    toolResult: ({ name, result }) =>
-      push({ type: 'tool_result', name: `${name}`, result: `${result}` }),
+    /** @param {{ id: string, name: string, args: string }} call */
+    toolCall: ({ id, name, args }) =>
+      push({
+        type: 'tool_call',
+        id: `${id}`,
+        name: `${name}`,
+        args: `${args}`,
+      }),
+    /** @param {{ id: string, name: string, result: string }} result */
+    toolResult: ({ id, name, result }) =>
+      push({
+        type: 'tool_result',
+        id: `${id}`,
+        name: `${name}`,
+        result: `${result}`,
+      }),
     /** @param {{ inputTokens: number, outputTokens: number, turns: number }} u */
     usage: u =>
       push({

@@ -603,8 +603,6 @@ export const makeStreamingAgent = async (
       }
 
       writer.setPhase('using tools');
-      /** @type {Array<{ role: 'tool', tool_call_id: string, content: string }>} */
-      const toolResults = [];
       // Some providers omit tool-call ids. Synthesize a stable one per call so
       // the persisted assistant tool_call and its tool_result share the same id;
       // without it the Anthropic conversion fabricates a fresh random id for the
@@ -617,7 +615,11 @@ export const makeStreamingAgent = async (
         // mixes calls that have ids with ones that don't.
         id: tc.id || `floot-synth-${round}-${i}`,
       }));
-      for (const tc of normalizedToolCalls) {
+      // The model can emit several independent tool calls in one turn — run them
+      // concurrently. Each call announces itself (in call order, before any
+      // await), then results stream back as they land; the reply wire carries the
+      // call id so the UI can pair an out-of-order result with its call.
+      const runOne = async tc => {
         const name = tc.function?.name;
         let args = {};
         let parseError;
@@ -629,7 +631,11 @@ export const makeStreamingAgent = async (
         } catch (err) {
           parseError = err instanceof Error ? err.message : String(err);
         }
-        writer.toolCall({ name: `${name}`, args: JSON.stringify(args) });
+        writer.toolCall({
+          id: tc.id,
+          name: `${name}`,
+          args: JSON.stringify(args),
+        });
         let resultText;
         if (parseError !== undefined) {
           // Report malformed arguments back to the model instead of silently
@@ -642,18 +648,26 @@ export const makeStreamingAgent = async (
             resultText = `Error: ${err instanceof Error ? err.message : String(err)}`;
           }
         }
-        writer.toolResult({ name: `${name}`, result: `${resultText}` });
+        writer.toolResult({
+          id: tc.id,
+          name: `${name}`,
+          result: `${resultText}`,
+        });
         // Diagnostics go to stderr and omit the result payload, which can carry
         // capability output or secrets — log only the tool name and size.
         console.error(
           `[floot] tool ${name} -> ${`${resultText}`.length} chars`,
         );
-        toolResults.push({
+        return {
           role: 'tool',
           tool_call_id: tc.id,
           content: `${resultText}`,
-        });
-      }
+        };
+      };
+      // Collected in call order (Promise.all preserves it) for a stable
+      // tool_result sequence in the persisted history.
+      /** @type {Array<{ role: 'tool', tool_call_id: string, content: string }>} */
+      const toolResults = await Promise.all(normalizedToolCalls.map(runOne));
 
       const stepNode = await tree.addNode(leafId, [
         { ...rm, tool_calls: normalizedToolCalls },
