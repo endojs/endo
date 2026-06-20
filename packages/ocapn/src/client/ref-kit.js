@@ -213,6 +213,70 @@ export const makeReferenceKit = (
     return remoteObject;
   };
 
+  /**
+   * Build a "frozen forwarder" presence pinned to `target`'s current network
+   * address. New E() calls on the forwarder always emit `op:deliver` with the
+   * underlying target as the message target; the codec encodes that target
+   * via its slot, which is stable regardless of any further resolution the
+   * target itself undergoes (e.g. when its host vat fulfills it).
+   *
+   * This implements capnproto's Tribble 4-way rule: once a promise P has
+   * been resolved to a remote reference R, messages addressed to P keep
+   * forwarding to R rather than shortcutting through R's own resolution
+   * (which could have shortened to yet another vat). Single-hop forwarding
+   * keeps embargo accounting tractable.
+   *
+   * Note: the rule only matters when R is itself a *remote promise* that
+   * resolves further. OCapN's current protocol restricts gifts to remotable
+   * (passStyle === 'remotable'), and `fulfillRemoteResolverWithPromise`
+   * auto-unwraps before encoding, so a remote-promise reference never
+   * appears as a resolution value in practice. The wrap is kept as
+   * defensive code: it fires correctly if a future protocol revision
+   * permits promise gifts or pipes promise references through fulfillment.
+   *
+   * @param {object | Promise<unknown>} target
+   * @param {string} label
+   * @returns {object}
+   */
+  const makeFrozenForwarder = (target, label) => {
+    const { settler } = makeRemoteKit(() => target);
+    const stub = Remotable(
+      `Alleged: ${label}`,
+      undefined,
+      settler.resolveWithPresence(),
+    );
+    return stub;
+  };
+
+  /**
+   * Wrap a value as a frozen forwarder when it's a remote-to-us promise; pass
+   * other shapes through. Remote objects already use a fixed presence handler
+   * and don't shorten further; primitives and copy values can never shorten;
+   * locally-hosted references go through the level-1 embargo path.
+   *
+   * @param {unknown} value
+   * @returns {unknown}
+   */
+  const maybeWrapAsFrozenForwarder = value => {
+    if (
+      value === null ||
+      (typeof value !== 'object' && typeof value !== 'function')
+    ) {
+      return value;
+    }
+    /** @type {any} */
+    const v = value;
+    const valueSlot = ocapnTable.getSlotForValue(v);
+    if (valueSlot === undefined) {
+      return value;
+    }
+    const { type, isLocal } = parseSlot(valueSlot);
+    if (isLocal || type !== 'p') {
+      return value;
+    }
+    return makeFrozenForwarder(v, `Frozen Forwarder ${valueSlot}`);
+  };
+
   const makeRemoteResolver = position => {
     return makeRemoteObject(position, `Remote Resolver ${position}`);
   };
@@ -285,7 +349,12 @@ export const makeReferenceKit = (
           });
           return;
         }
-        settler.resolve(value);
+        // Capnproto's Tribble 4-way rule: when shortening a promise to a
+        // remote-to-us promise reference, pin it via a frozen forwarder so
+        // the receiving promise's HP never follows the remote ref's further
+        // resolution. Multi-hop shortening would otherwise bypass the
+        // per-hop embargo accounting.
+        settler.resolve(maybeWrapAsFrozenForwarder(value));
       },
       break: reason => {
         logger.info(`ocapnResolver break ${slot}`, reason);
@@ -518,7 +587,16 @@ export const makeReferenceKit = (
           giftId,
         }),
       });
-      return makeHandoff(signedGive);
+      // Capnproto Tribble 4-way rule (defensive): if the eventual gift is a
+      // remote-to-us promise reference, pin it behind a frozen forwarder so
+      // the resolving promise can never shortcut through any further
+      // resolution that promise undergoes on its host vat. OCapN's
+      // deposit-gift currently requires `passStyle === 'remotable'`, so the
+      // gift is always an object presence and the wrap is a no-op; it
+      // remains in place against future protocol revisions.
+      return makeHandoff(signedGive).then(gift =>
+        maybeWrapAsFrozenForwarder(gift),
+      );
     },
     sendHandoff,
 
