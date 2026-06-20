@@ -154,6 +154,69 @@ test('a failed mount stops the bridge and leaks no handle', async t => {
   t.is((await E(mounter).list()).length, 0);
 });
 
+test('a failed bridge.start() is cleaned up and leaks no handle', async t => {
+  const calls = { run: [], bridges: [] };
+  const makeBridge = ({ fs, socketPath }) => {
+    const rec = { fs, socketPath, started: 0, stopped: 0 };
+    calls.bridges.push(rec);
+    return Far('FakeBridge', {
+      async start() {
+        rec.started += 1;
+        throw new Error('EADDRINUSE: socket already in use');
+      },
+      async stop() {
+        rec.stopped += 1;
+      },
+    });
+  };
+  const mounter = makeFsMounter({
+    runProgram: (bin, argv) => {
+      calls.run.push({ bin, argv });
+      return Promise.resolve();
+    },
+    makeDir: () => Promise.resolve(),
+    removeDir: () => Promise.resolve(),
+    makeBridge,
+  });
+  await t.throwsAsync(
+    E(mounter).mount(fakeFs(), '/mnt/x', harden({ socketPath: '/tmp/s.sock' })),
+    { message: /bridge failed to start/ },
+  );
+  t.is(calls.bridges[0].stopped, 1, 'bridge stopped after start() failure');
+  t.is(calls.run.length, 0, 'mount never attempted');
+  t.is((await E(mounter).list()).length, 0, 'no handle leaked');
+});
+
+test('cancellation during an in-flight mount unmounts it (no orphan)', async t => {
+  let rejectCancelled;
+  const cancelledP = new Promise((_resolve, reject) => {
+    rejectCancelled = reject;
+  });
+  cancelledP.catch(() => {});
+  // Fire teardown *during* the mount shell-out and let its sweep run
+  // before mount() resumes — the deterministic version of the
+  // "settle between the last await and handles.add" race.
+  const { mounter, calls } = makeHarness({
+    cancelledP,
+    runBehavior: async bin => {
+      if (bin === 'mount') {
+        rejectCancelled(new Error('teardown'));
+        await flush();
+      }
+    },
+  });
+  await t.throwsAsync(
+    E(mounter).mount(fakeFs(), '/mnt/x', harden({ socketPath: '/tmp/s.sock' })),
+    { message: /cancelled during mount/ },
+  );
+  t.truthy(
+    calls.run.find(c => c.bin === 'umount'),
+    'the mount was unmounted',
+  );
+  t.is(calls.bridges[0].stopped, 1, 'bridge stopped');
+  t.is((await E(mounter).list()).length, 0, 'no orphan handle');
+});
+
 test('unmount detaches with `umount -- <mp>`, stops the bridge, drops the handle', async t => {
   const { mounter, calls } = makeHarness();
   const h = await E(mounter).mount(

@@ -261,7 +261,20 @@ export const makeFsMounter = ({
       socketPath,
       ...(cancelledP ? { cancelled: cancelledP } : {}),
     });
-    await E(bridge).start();
+    try {
+      await E(bridge).start();
+    } catch (cause) {
+      // start() may have partially set up (created the net.Server,
+      // bound the socket, etc.) before rejecting; stop() so we never
+      // leak a half-open listener / socket file.
+      await E(bridge)
+        .stop()
+        .catch(() => {});
+      const reason = /** @type {Error} */ (cause).message;
+      throw makeError(
+        X`9p bridge failed to start on ${q(socketPath)}: ${q(reason)}`,
+      );
+    }
 
     // 3. Attach the socket to the kernel.  `trans=unix` is the v9fs
     //    transport that connects to a UNIX-domain socket whose path is
@@ -356,6 +369,21 @@ export const makeFsMounter = ({
       },
     });
     handles.add(handle);
+    // Close the mount-vs-teardown race: if cancellation fired while we
+    // were awaiting (makeDir / start / mount), the one-shot teardown
+    // sweep ran before this handle was registered and will never run
+    // again. `handles.add` and this `cancelled` read are synchronous,
+    // so they cannot interleave with the teardown turn (which sets
+    // `cancelled` and snapshots `handles` in one turn) — either it
+    // already ran (we see `cancelled` and unmount here) or it runs
+    // later and sees this handle in the set. `unmount()` is idempotent,
+    // so a double with the sweep is harmless.
+    if (cancelled) {
+      await handle.unmount().catch(() => {});
+      throw makeError(
+        X`mounter cancelled during mount of ${q(resolvedMountPoint)}`,
+      );
+    }
     return handle;
   };
 
