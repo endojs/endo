@@ -749,18 +749,20 @@ export const serveConnection = ({
     if (!f) return sendError(tag, ERRNO.EBADF);
     if (f.qid.type !== 'directory') return sendError(tag, ERRNO.ENOTDIR);
     try {
-      // Pipeline create + lookup + getQid into one CapTP batch.
-      // create returns an OpenFile (we keep it on the fid);
-      // lookup returns the File cap (so we can take its qid);
-      // getQid runs against the lookup-result promise. All three
-      // CTP_CALLs reach the wire before any reply.
-      const ohP = E(f.cap).create(name, harden({}));
+      // create() makes the new directory entry and returns an OpenFile
+      // we keep on the fid. Await it before looking the child up:
+      // dispatching lookup(name) concurrently in the same batch races
+      // backends whose create writes the entry only after an await
+      // (e.g. node-fs), so the same-turn lookup can ENOENT even though
+      // the file was created — the in-memory backend registers entries
+      // eagerly, which is why this only surfaced on a disk-backed
+      // mount. Once create resolves the entry exists, so lookup +
+      // getQid still pipeline into one further round-trip.
+      const oh = await E(f.cap).create(name, harden({}));
       const childCapP = E(f.cap).lookup(name);
-      const childQidP = E(childCapP).getQid();
-      const [oh, childCap, childQid] = await Promise.all([
-        ohP,
+      const [childCap, childQid] = await Promise.all([
         childCapP,
-        childQidP,
+        E(childCapP).getQid(),
       ]);
       // Replace fid: 9P semantics put newly-created file at the
       // original fid. Ancestry extends.

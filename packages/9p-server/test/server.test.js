@@ -21,7 +21,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { E } from '@endo/far';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
+import { existsSync } from 'node:fs';
+
 import { makeInMemoryFilesystem } from '@endo/platform/fs/extended/in-memory.js';
+import { makeNodeFilesystem } from '@endo/platform/fs/extended/node-fs.js';
 
 import { makeFsBridge9p } from '../src/fs-bridge.js';
 import {
@@ -67,6 +70,30 @@ const setupBridge = async t => {
   t.teardown(() => E(bridge).stop());
 
   return { fs, socketPath };
+};
+
+/**
+ * Serve a real disk-backed (node-fs) Filesystem on a fresh UDS. The
+ * in-memory backing registers new entries eagerly, which masks the
+ * Tlcreate create-vs-lookup race; node-fs writes the entry after an
+ * await, so it exercises the real-mount path.
+ *
+ * @param {import('ava').ExecutionContext<any>} t
+ */
+const setupNodeFsBridge = async t => {
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), 'claude-9p-nodefs-'));
+  t.teardown(() => rm(rootDir, { recursive: true, force: true }));
+  const fs = makeNodeFilesystem({ rootPath: rootDir });
+
+  const sockDir = await mkdtemp(path.join(os.tmpdir(), 'claude-9p-sock-'));
+  t.teardown(() => rm(sockDir, { recursive: true, force: true }));
+  const socketPath = path.join(sockDir, '9p.sock');
+
+  const bridge = makeFsBridge9p({ fs, socketPath });
+  await E(bridge).start();
+  t.teardown(() => E(bridge).stop());
+
+  return { fs, rootDir, socketPath };
 };
 
 /**
@@ -391,6 +418,24 @@ test('Tlcreate + Twrite + Tread round-trips writes', async t => {
   const r = makeReader(readRep.payload);
   const count = r.u32();
   t.is(r.take(count).toString('utf8'), 'written via 9P');
+});
+
+test('Tlcreate on a disk-backed (node-fs) FS creates without ENOENT (regression)', async t => {
+  // `echo x > newfile.txt` on a real mount is O_CREAT|O_WRONLY|O_TRUNC
+  // on a missing path → a single Tlcreate. Before the onLcreate fix,
+  // the same-batch lookup(name) raced create(name) on node-fs (whose
+  // create writes the entry after an await), so the server returned
+  // Rlerror(ENOENT) even though the 0-byte file landed on disk. The
+  // in-memory backend masks this, so the regression test must use
+  // node-fs.
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, []); // clone root to fid 2
+  const create = await tlcreate(c, 2, 'newfile.txt');
+  t.is(create.type, T.Rlcreate, 'Tlcreate must return Rlcreate, not Rlerror');
+  t.true(existsSync(path.join(rootDir, 'newfile.txt')), 'file exists on disk');
 });
 
 test('Tmkdir + Twalk + Tunlinkat lifecycle', async t => {
