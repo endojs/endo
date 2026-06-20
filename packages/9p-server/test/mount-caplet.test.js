@@ -135,6 +135,64 @@ test('NINEP_SUDO routes mount/umount through sudo', async t => {
   t.truthy(umount);
 });
 
+test('extraMountOptions cannot override the pinned trans option', async t => {
+  const { mounter } = makeHarness();
+  await t.throwsAsync(
+    E(mounter).mount(
+      fakeFs(),
+      '/mnt/x',
+      harden({
+        socketPath: '/tmp/s.sock',
+        extraMountOptions: 'trans=tcp,port=564',
+      }),
+    ),
+    { message: /may not set the pinned option .*trans/ },
+  );
+});
+
+test('caller cannot choose the mount/umount program', async t => {
+  const { mounter } = makeHarness();
+  await t.throwsAsync(
+    E(mounter).mount(
+      fakeFs(),
+      '/mnt/x',
+      harden({ socketPath: '/tmp/s.sock', umountProgram: ['rm'] }),
+    ),
+    { message: /operator configuration/ },
+  );
+});
+
+test('NINEP_MOUNT_PROGRAM lets the operator set a custom helper', async t => {
+  const { mounter, calls } = makeHarness({
+    env: {
+      NINEP_MOUNT_PROGRAM: 'sudo -u svc mount',
+      NINEP_UMOUNT_PROGRAM: 'sudo umount',
+    },
+  });
+  await E(mounter).mount(
+    fakeFs(),
+    '/mnt/x',
+    harden({ socketPath: '/tmp/s.sock' }),
+  );
+  t.is(calls.run[0].bin, 'sudo');
+  t.deepEqual(calls.run[0].argv.slice(0, 3), ['-u', 'svc', 'mount']);
+});
+
+test('a NINEP_MOUNT_PROGRAM that does not run mount is rejected at construction', t => {
+  t.throws(
+    () =>
+      makeFsMounter({
+        env: { NINEP_MOUNT_PROGRAM: 'rm -rf' },
+        runProgram: () => Promise.resolve(),
+        makeDir: () => Promise.resolve(),
+        removeDir: () => Promise.resolve(),
+        makeBridge: () =>
+          Far('B', { start: async () => {}, stop: async () => {} }),
+      }),
+    { message: /must invoke .*mount/ },
+  );
+});
+
 test('a failed mount stops the bridge and leaks no handle', async t => {
   const { mounter, calls } = makeHarness({
     runBehavior: bin =>

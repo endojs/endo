@@ -49,6 +49,7 @@ import { makeError, q, X } from '@endo/errors';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, rmdir } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
 import os from 'node:os';
 import nodePath from 'node:path';
 import process from 'node:process';
@@ -83,6 +84,68 @@ const defaultSocketDir = env =>
   env.XDG_RUNTIME_DIR || env.NINEP_SOCKET_DIR || os.tmpdir();
 
 /**
+ * Mount options whose value is load-bearing for confinement: `trans`
+ * pins the kernel mount to *this* bridge socket, `version` pins the
+ * dialect, and `access` governs the uid model. A caller must not be
+ * able to override them via `extraMountOptions` (which is appended last
+ * and would win under v9fs's last-key-wins parsing) — e.g.
+ * `extraMountOptions: 'trans=tcp,port=…'` would redirect the privileged
+ * mount to an attacker-chosen 9P server. So we reject those keys.
+ */
+const PINNED_MOUNT_OPTION_KEYS = harden(['trans', 'version', 'access']);
+
+const baseName = s => {
+  const t = String(s);
+  return t.slice(t.lastIndexOf('/') + 1);
+};
+
+/**
+ * Reject `extraMountOptions` that try to override a pinned key.
+ *
+ * @param {unknown} extra
+ */
+const assertExtraMountOptions = extra => {
+  if (extra === undefined || extra === '') return;
+  if (typeof extra !== 'string') {
+    throw makeError(
+      X`extraMountOptions must be a string, got ${q(typeof extra)}`,
+    );
+  }
+  for (const part of extra.split(',')) {
+    const key = part.split('=')[0].trim();
+    if (PINNED_MOUNT_OPTION_KEYS.includes(key)) {
+      throw makeError(
+        X`extraMountOptions may not set the pinned option ${q(key)} (it carries the mount's transport/confinement); got ${q(extra)}`,
+      );
+    }
+  }
+};
+
+/**
+ * Footgun guard (not a security boundary — the mounter cap is held only
+ * by trusted callers): a caller-supplied `mount`/`umount` program vector
+ * must actually invoke the expected command, so a typo like
+ * `umountProgram: ['rm']` fails loudly instead of `rm`-ing the mount
+ * point. The trailing element is the binary the fixed `9p` argv is
+ * appended to; only its basename is checked, so a privilege-helper
+ * prefix with flags (`['sudo', '-u', 'svc', 'mount']`) is preserved.
+ *
+ * @param {string[]} program
+ * @param {string} expectedCommand  `'mount'` | `'umount'`
+ * @param {string} label
+ */
+const assertProgram = (program, expectedCommand, label) => {
+  if (!Array.isArray(program) || program.length === 0) {
+    throw makeError(X`${label} must be a non-empty array of strings`);
+  }
+  if (baseName(program[program.length - 1]) !== expectedCommand) {
+    throw makeError(
+      X`${label} must invoke ${q(expectedCommand)}; got ${q(String(program[program.length - 1]))}`,
+    );
+  }
+};
+
+/**
  * Build the comma-separated `-o` value for `mount -t 9p`.
  *
  * @param {Record<string, unknown>} options
@@ -108,6 +171,7 @@ const buildMountOptionString = options => {
     `cache=${cache}`,
   ];
   if (readOnly) parts.push('ro');
+  assertExtraMountOptions(extraMountOptions);
   if (extraMountOptions) parts.push(String(extraMountOptions));
   return parts.join(',');
 };
@@ -198,6 +262,28 @@ export const makeFsMounter = ({
     );
   }
 
+  // mount/umount programs are OPERATOR configuration (env), never a
+  // per-call option. The mounter cap is handed to an otherwise-untrusted
+  // party whose only granted authority is "mount any files"; letting the
+  // caller choose the program would be arbitrary privileged execution
+  // (e.g. `umountProgram: ['rm']` → `rm -- <mountPoint>`). `NINEP_SUDO`
+  // routes through sudo; `NINEP_MOUNT_PROGRAM` / `NINEP_UMOUNT_PROGRAM`
+  // (whitespace-separated) let the operator name a custom helper.
+  const sudo = env.NINEP_SUDO === '1';
+  const splitProgram = v => v.trim().split(/\s+/).filter(Boolean);
+  const mountProgram = env.NINEP_MOUNT_PROGRAM
+    ? splitProgram(env.NINEP_MOUNT_PROGRAM)
+    : sudo
+      ? ['sudo', 'mount']
+      : ['mount'];
+  const umountProgram = env.NINEP_UMOUNT_PROGRAM
+    ? splitProgram(env.NINEP_UMOUNT_PROGRAM)
+    : sudo
+      ? ['sudo', 'umount']
+      : ['umount'];
+  assertProgram(mountProgram, 'mount', 'NINEP_MOUNT_PROGRAM');
+  assertProgram(umountProgram, 'umount', 'NINEP_UMOUNT_PROGRAM');
+
   /**
    * @param {ERef<any>} fs - endo-fs `Filesystem` capability to project.
    * @param {string} mountPoint - host path to mount onto.
@@ -227,20 +313,20 @@ export const makeFsMounter = ({
         ? opts.socketPath
         : nodePath.join(
             defaultSocketDir(env),
-            `endo-9p-${process.pid}-${mountCounter}-${Date.now()}.sock`,
+            // Random suffix so the path isn't predictable: the UDS
+            // carries the full authority of the projected FS cap, and on
+            // the `os.tmpdir()` fallback (world-writable) a guessable
+            // name would let a local user pre-position and connect.
+            `endo-9p-${process.pid}-${mountCounter}-${randomBytes(9).toString('hex')}.sock`,
           );
 
-    const sudo = env.NINEP_SUDO === '1';
-    const mountProgram = Array.isArray(opts.mountProgram)
-      ? opts.mountProgram.map(String)
-      : sudo
-        ? ['sudo', 'mount']
-        : ['mount'];
-    const umountProgram = Array.isArray(opts.umountProgram)
-      ? opts.umountProgram.map(String)
-      : sudo
-        ? ['sudo', 'umount']
-        : ['umount'];
+    // The program is operator config, not a caller option (see above);
+    // reject a caller that tries to choose it.
+    if (opts.mountProgram !== undefined || opts.umountProgram !== undefined) {
+      throw makeError(
+        X`mountProgram/umountProgram are operator configuration (NINEP_SUDO / NINEP_MOUNT_PROGRAM env), not a per-call option`,
+      );
+    }
     const removeMountPointOnUnmount = opts.removeMountPointOnUnmount === true;
     // Lazy detach (`umount -l`) so an unattended teardown can release a
     // busy mount instead of leaving a live mount over a dead bridge
@@ -393,7 +479,7 @@ export const makeFsMounter = ({
       return harden([...handles]);
     },
     help() {
-      return `endo-fs → 9P mounter.\n  mount(fs, mountPoint, options?) -> MountHandle\nOptions: { socketPath, trans='unix', version='9p2000.L', msize=131072, access='any', cache='none', readOnly=false, extraMountOptions, mountProgram, umountProgram, makeMountPoint=true, removeMountPointOnUnmount=false, lazyUnmount=false }.\nmount(2) needs CAP_SYS_ADMIN — pass mountProgram:['sudo','mount'] or set NINEP_SUDO=1 when the daemon is unprivileged.\nunmount() leaves the bridge up if umount fails (EBUSY) so the mount never outlives its transport; pass lazyUnmount (or NINEP_LAZY_UMOUNT=1) to force-detach a busy mount on teardown.\nEvery live mount is unmounted when this caplet is cancelled.`;
+      return `endo-fs → 9P mounter.\n  mount(fs, mountPoint, options?) -> MountHandle\nCaller options: { socketPath, msize=131072, cache='none', readOnly=false, extraMountOptions, makeMountPoint=true, removeMountPointOnUnmount=false, lazyUnmount=false }.\nThe trans/version/access options are pinned (extraMountOptions may not override them); the mount/umount program is operator config, not a caller option.\nmount(2) needs CAP_SYS_ADMIN — the operator sets NINEP_SUDO=1 (or NINEP_MOUNT_PROGRAM/NINEP_UMOUNT_PROGRAM) when the daemon is unprivileged.\nunmount() leaves the bridge up if umount fails (EBUSY) so the mount never outlives its transport; lazyUnmount (or NINEP_LAZY_UMOUNT=1) force-detaches a busy mount on teardown.\nEvery live mount is unmounted when this caplet is cancelled.`;
     },
   });
 };
