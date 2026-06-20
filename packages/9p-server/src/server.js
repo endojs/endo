@@ -58,6 +58,8 @@ const MASK_U64 = (1n << 64n) - 1n;
  *   back to the FS root. Used for `..` walks and the (parent,
  *   name) bookkeeping Tunlinkat / Trenameat need.
  * @property {boolean} open
+ * @property {boolean} [readable]      open mode allows Tread (File)
+ * @property {boolean} [writable]      open mode allows Twrite (File)
  * @property {any} [openFile]          endo-fs OpenFile cap (File open)
  * @property {any} [cursor]            endo-fs Cursor cap (Directory open)
  * @property {Array<{ name: string, qid: any }>} [dirBuffer]
@@ -380,6 +382,10 @@ export const serveConnection = ({
 
     const src = fids.get(fid);
     if (!src) return sendError(tag, ERRNO.EBADF);
+    // 9P forbids walking from a fid already opened for I/O. Enforcing it
+    // is also what stops a `Twalk(fid, fid, …)` from silently
+    // overwriting (and leaking) an open fid's OpenFile / cursor.
+    if (src.open) return sendError(tag, ERRNO.EBADF);
 
     // Build the pipelined chain. `steps[i]` describes the i-th
     // step's resulting cap + qid promise + new ancestry. Caps
@@ -501,6 +507,8 @@ export const serveConnection = ({
         f.dirBuffer = [];
         f.dirBufferDone = false;
         f.open = true;
+        f.readable = true;
+        f.writable = false;
       } else {
         // POSIX-style flag bits: O_RDWR=0o2, O_WRONLY=0o1, O_RDONLY=0o0.
         const oflag = flags & 0o3;
@@ -518,13 +526,18 @@ export const serveConnection = ({
         );
         f.openFile = oh;
         f.open = true;
+        f.readable = wantRead;
+        f.writable = wantWrite;
       }
     } catch (e) {
       return sendError(tag, errnoOf(e));
     }
     const w = makeWriter(13 + 4);
     writeQid(w, qidToWire(f.qid));
-    w.u32(0); // iounit = use msize - 24
+    // iounit: the max bytes the client may Tread/Twrite in one frame.
+    // The onWrite/onRead clamps cap at `msize - header`; advertise that
+    // rather than 0 ("just use msize") so the client sizes I/O to fit.
+    w.u32(Math.max(0, msize - 24));
     send(wrapMessage(T.Rlopen, tag, w.finish()));
     return undefined;
   };
@@ -550,6 +563,10 @@ export const serveConnection = ({
       return sendError(tag, ERRNO.EISDIR);
     }
     if (!f.openFile) return sendError(tag, ERRNO.EBADF);
+    // Reading a fid not opened for read is EBADF (matches read(2) on an
+    // O_WRONLY fd), enforced at the protocol layer rather than relying on
+    // the backend OpenFile to reject it.
+    if (!f.readable) return sendError(tag, ERRNO.EBADF);
     try {
       const reader = await E(f.openFile).read(offset, BigInt(count));
       const chunks = [];
@@ -612,7 +629,10 @@ export const serveConnection = ({
       w.u32(mode);
       w.u32(1000); // uid — base FS has no concept; default for guest mount.
       w.u32(1000); // gid
-      w.u64(1n); // nlink
+      // nlink: directories have >= 2 (`.` plus the parent's entry);
+      // reporting 1 confuses `find`'s link-count traversal optimisation.
+      // The base FS exposes no real link count, so synthesise 2/1.
+      w.u64(isDir ? 2n : 1n); // nlink
       w.u64(0n); // rdev
       w.u64(BigInt(attrs.size ?? 0n));
       w.u64(4096n); // blksize
@@ -698,7 +718,12 @@ export const serveConnection = ({
     while (i < entries.length) {
       const { name, qid } = entries[i];
       const size = offSize(name);
-      if (written + size > count) break;
+      // Always emit at least the first entry at `offset`, even if it
+      // alone exceeds the requested count: returning zero entries would
+      // make the kernel re-request the same cookie forever. (The writer
+      // grows as needed; under the negotiated msize floor a single entry
+      // always fits anyway.)
+      if (written > 0 && written + size > count) break;
       writeQid(w, qidToWire(qid));
       w.u64(BigInt(i + 1)); // next offset cookie
       w.u8(qid.type === 'directory' ? 4 : 8); // DT_DIR | DT_REG
@@ -742,9 +767,12 @@ export const serveConnection = ({
   const onLcreate = async (/** @type {number} */ tag, r) => {
     const fid = r.u32();
     const name = r.str();
-    r.u32(); // flags
+    const flags = r.u32();
     r.u32(); // mode
     r.u32(); // gid
+    const oflag = flags & 0o3;
+    const newReadable = oflag === 0 || oflag === 0o2;
+    const newWritable = oflag === 0o1 || oflag === 0o2;
     const f = fids.get(fid);
     if (!f) return sendError(tag, ERRNO.EBADF);
     if (f.qid.type !== 'directory') return sendError(tag, ERRNO.ENOTDIR);
@@ -773,10 +801,12 @@ export const serveConnection = ({
         ancestry: newAncestry,
         open: true,
         openFile: oh,
+        readable: newReadable,
+        writable: newWritable,
       });
       const w = makeWriter(17);
       writeQid(w, qidToWire(childQid));
-      w.u32(0);
+      w.u32(Math.max(0, msize - 24)); // iounit (see onLopen)
       send(wrapMessage(T.Rlcreate, tag, w.finish()));
     } catch (e) {
       return sendError(tag, errnoOf(e));
@@ -806,6 +836,9 @@ export const serveConnection = ({
     if (!f || !f.open) return sendError(tag, ERRNO.EBADF);
     if (f.qid.type === 'directory') return sendError(tag, ERRNO.EISDIR);
     if (!f.openFile) return sendError(tag, ERRNO.EBADF);
+    // Writing a fid not opened for write is EBADF (matches write(2) on an
+    // O_RDONLY fd).
+    if (!f.writable) return sendError(tag, ERRNO.EBADF);
     try {
       const writer = await E(f.openFile).write(offset);
       // `buffer: 1` lets us push the one chunk this Twrite carries

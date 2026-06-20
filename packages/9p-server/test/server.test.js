@@ -357,6 +357,71 @@ test('Twalk + Tlopen + Tread round-trips file content', async t => {
   t.is(bytes.toString('utf8'), 'hello');
 });
 
+test('Twrite to a read-only fid is EBADF', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, ['greet.txt']);
+  await lopen(c, 2, 0); // O_RDONLY
+  const wr = await twrite(c, 2, 0n, Buffer.from('nope'));
+  t.is(wr.type, T.Rlerror);
+  t.is(makeReader(wr.payload).u32(), ERRNO.EBADF);
+});
+
+test('Tread from a write-only fid is EBADF', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, ['greet.txt']);
+  await lopen(c, 2, 1); // O_WRONLY
+  const rd = await tread(c, 2, 0n, 16);
+  t.is(rd.type, T.Rlerror);
+  t.is(makeReader(rd.payload).u32(), ERRNO.EBADF);
+});
+
+test('Twalk from an open fid is rejected (EBADF)', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, ['sub']); // fid 2 = /sub (directory)
+  await lopen(c, 2, 0); // open it
+  const wrep = await walk(c, 2, 3, ['inner.txt']); // walk from the open fid
+  t.is(wrep.type, T.Rlerror);
+  t.is(makeReader(wrep.payload).u32(), ERRNO.EBADF);
+});
+
+test('Tlopen advertises a nonzero iounit (msize - 24)', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  const { msize } = await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, ['greet.txt']);
+  const open = await lopen(c, 2, 0);
+  t.is(open.type, T.Rlopen);
+  const r = makeReader(open.payload);
+  readQid(r); // qid (13 bytes)
+  t.is(r.u32(), msize - 24);
+});
+
+test('Tgetattr reports nlink >= 2 for a directory', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1); // root directory, fid 1
+  const ga = await tgetattr(c, 1);
+  t.is(ga.type, T.Rgetattr);
+  const r = makeReader(ga.payload);
+  r.u64(); // valid mask
+  readQid(r); // qid
+  r.u32(); // mode
+  r.u32(); // uid
+  r.u32(); // gid
+  t.is(r.u64(), 2n); // nlink
+});
+
 test('Twalk pipelined chain walks /sub/inner.txt', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
