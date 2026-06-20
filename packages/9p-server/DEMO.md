@@ -11,6 +11,14 @@ of the server's cap.
 > commands are accurate against the CLI and caplets on this branch but
 > have not been wired into CI. See the compatibility caveats in
 > [`README.md`](./README.md) § "Expected `Filesystem` compatibility".
+>
+> The Part A / Part B steps below describe the **two-machine, iroh**
+> topology. The flow has also been executed **end-to-end on a single
+> host** (both daemons on one box) — see
+> [§ "Verified single-host run"](#verified-single-host-run), which
+> carries CapTP over a loopback-TCP transport instead of iroh and notes
+> two environment gotchas (the optional iroh binding, and iroh stream
+> stability for two peers behind one NAT).
 
 ## Roles
 
@@ -46,6 +54,26 @@ Binds an in-memory iroh endpoint, derives a stable Ed25519 NodeId, and
 registers the transport at `@nets/iroh`. No open ports; iroh discovery +
 relays handle NAT traversal (needs outbound internet). Relies on the
 optional `@number0/iroh` native binding.
+
+> **Gotcha — the iroh binding may be skipped at install time.**
+> `@number0/iroh` is an `optionalDependency` of `@endo/daemon`; if the
+> platform-specific prebuilt isn't pulled in by the initial
+> `yarn install` (observed on `linux/arm64`), `setup-iroh.js` instantiates
+> nothing and `@nets/iroh` never appears. Confirm and, if missing, force
+> it explicitly:
+>
+> ```bash
+> node -e 'require("@number0/iroh")'   # should not throw
+> # if it throws "Cannot find module":
+> yarn add -D @number0/iroh@^1.0.0 @number0/iroh-linux-arm64-gnu@1.0.0
+> ```
+>
+> **Same-host only:** when both daemons share one machine, set
+> `ENDO_IROH_PUBLISH_PRIVATE=1` in each daemon's environment *before*
+> `endo start` so the iroh endpoint advertises its loopback/private
+> address (otherwise the locator only carries the public/relay path,
+> which two co-located peers can't usefully use). See the caveat in
+> [§ "Verified single-host run"](#verified-single-host-run).
 
 ### A3. Expose a directory as a `Filesystem` cap
 
@@ -120,6 +148,25 @@ workspace-fs` on server.)
 
 ### B4. Install the mount caplet
 
+`mount(2)` / `umount(2)` need `CAP_SYS_ADMIN`. How you grant it decides
+whether you pass `NINEP_SUDO=1`:
+
+**Privileged / root daemon (verified path — containers, dev VMs).** If
+the daemon (hence its caplet workers) already runs as root with
+`CAP_SYS_ADMIN` — e.g. a `--privileged` container — install the caplet
+*without* `NINEP_SUDO`; it then calls `mount` / `umount` directly:
+
+```bash
+laptop$ yarn exec endo make --UNCONFINED \
+  packages/9p-server/mount-caplet.js \
+  --powers @none \
+  --name fs-mounter
+```
+
+**Unprivileged daemon (typical laptop).** Pass `-E NINEP_SUDO=1` to route
+through `sudo mount` / `sudo umount`, and grant passwordless sudo for
+exactly those binaries:
+
 ```bash
 laptop$ yarn exec endo make --UNCONFINED \
   packages/9p-server/mount-caplet.js \
@@ -128,10 +175,8 @@ laptop$ yarn exec endo make --UNCONFINED \
   --name fs-mounter
 ```
 
-`-E NINEP_SUDO=1` routes through `sudo mount` / `sudo umount` (the daemon
-worker is not root). You need passwordless sudo for those binaries:
-
 ```
+# /etc/sudoers.d/endo-9p
 youruser ALL=(root) NOPASSWD: /usr/bin/mount, /usr/bin/umount
 ```
 
@@ -157,6 +202,123 @@ laptop$ yarn exec endo eval 'E(m).mount(fs, "/mnt/endo", harden({ readOnly: true
 laptop$ yarn exec endo eval 'E(h).unmount()' h:endo-mount   # this mount
 laptop$ yarn exec endo cancel fs-mounter                    # or: tear down all mounts
 ```
+
+## Verified single-host run
+
+The Part A / B flow above targets two machines over iroh. To exercise the
+*entire* pipeline on one box — and to sidestep two environment issues
+found while doing so — this variant runs both daemons locally and carries
+CapTP over a **loopback-TCP** transport instead of iroh. Everything else
+(the `node-fs` export, invite/accept, send/adopt, the mount caplet, the
+kernel 9P mount) is identical and transport-agnostic.
+
+### Why not iroh here
+
+iroh's handshake, pairing, and cap transfer all succeed on a single host
+(with `ENDO_IROH_PUBLISH_PRIVATE=1`, A2) — a one-shot
+`E(remote-fs).root()` returns a live `Directory`. But for two peers
+behind one NAT, the relay/hole-punched QUIC stream tears down under
+sustained traffic (`Error: iroh stream closed` on both daemons), which is
+enough to break continuous 9P I/O. On two real machines iroh negotiates a
+stable path and this doesn't bite; on one box, use the loopback-TCP
+carrier below. (To keep chasing iroh locally, try a direct-only profile —
+`presetN0DisableRelay` — so it never falls back to the relay.)
+
+### Two daemons on one box
+
+Per [`MULTIPLAYER.md`](../daemon/MULTIPLAYER.md): the `server` persona
+uses the default state tree; the `laptop` persona gets its own via env.
+Define a `laptop` helper, then create its dirs:
+
+```bash
+laptop() { env XDG_STATE_HOME=/tmp/endo-laptop/state \
+  XDG_RUNTIME_DIR=/tmp/endo-laptop/run XDG_CACHE_HOME=/tmp/endo-laptop/cache \
+  ENDO_SOCK=/tmp/endo-laptop/endo.sock ENDO_ADDR=127.0.0.1:8921 \
+  yarn exec endo "$@"; }
+mkdir -p /tmp/endo-laptop/{state,run,cache}
+```
+
+### Loopback-TCP transport
+
+`setup-tcp.js` (companion to `setup-iroh.js`) stores a listen address
+under the agent pet name `tcp-listen-addr` and registers the repo's
+`tcp-netstring` transport at `@nets/tcp`. Install on both daemons; the
+default `127.0.0.1:0` auto-assigns a free port:
+
+```bash
+server$ yarn exec endo run --UNCONFINED \
+  packages/daemon/src/networks/setup-tcp.js --powers @agent
+laptop run --UNCONFINED \
+  packages/daemon/src/networks/setup-tcp.js --powers @agent   # laptop helper
+```
+
+With only `@nets/tcp` registered, `endo invite host` emits a
+`tcp+netstring+json+captp0://127.0.0.1:<port>` locator. The remainder is
+verbatim Part A3–A5 / B2–B5, using the `laptop` helper for the laptop
+persona and installing the mount caplet **without** `NINEP_SUDO` (the
+daemon runs as root here — see B4).
+
+### What was verified
+
+Against a `node-fs` export of `/srv/data`, mounted at `/mnt/endo-remote`
+on the laptop daemon:
+
+- `ls -la /mnt/endo-remote`, `cat HELLO.txt`, `cat docs/readme.md` — reads
+  and directory walks across the CapTP link ✓
+- `mkdir /mnt/endo-remote/from-laptop` — propagated to the server's real
+  disk at `/srv/data/from-laptop` ✓
+- write to an existing file — round-tripped to the server backing ✓
+
+The `O_CREAT | O_TRUNC`-on-new-file failure in
+[§ "Fixed issues"](#fixed-issues) was first reproduced through this exact
+remote stack; with that commit applied, `echo x > newfile` round-trips
+too.
+
+## Variant: adopt the cap into another daemon's inventory (no mount)
+
+Mounting is Linux-only (it needs v9fs + `CAP_SYS_ADMIN`). But the
+`Filesystem` cap is useful on its own: a second daemon can hold it in its
+inventory and drive it programmatically (`E(fs).root()`, `list()`,
+`read`/`write`) over CapTP — including on a host that can't 9P-mount at
+all (e.g. macOS). This variant stops at `adopt`; it skips Part B4–B5.
+
+**Reachability decides the dial direction, not the cap direction.** The
+acceptor always dials the inviter, but mail (`send`/`adopt`) flows either
+way once the session is up. So make the **reachable** side the inviter/
+listener regardless of which side holds the cap. Example: a daemon in a
+Docker container can reach the host's LAN IP, but the host can't reach
+into the container — so the **host** is the inviter/listener and the
+**container** (which holds the cap) dials out and then `send`s.
+
+```bash
+# 1. On the reachable side (here: the host) — listen on an address the
+#    other daemon can actually dial, and invite a guest for it.
+host$ endo run --UNCONFINED packages/daemon/src/networks/setup-tcp.js \
+  --powers @agent -E ENDO_TCP_LISTEN=192.168.1.105:9200   # host LAN IP
+host$ endo invite box                                     # -> locator (tcp+netstring://192.168.1.105:9200)
+
+# 2. On the cap-holder (here: the container's server daemon) — accept,
+#    which dials the host, then send the cap back over the session.
+box$  endo accept mac < locator.txt                       # peer 'mac' dials 192.168.1.105:9200
+box$  endo send mac 'workspace fs @workspace-fs'
+
+# 3. Back on the host — adopt from the inbox into the local inventory.
+host$ endo inbox                                          # note the message number, e.g. 79
+host$ endo adopt 79 workspace-fs --name container-fs
+host$ endo eval 'E(fs).root()' fs:container-fs            # -> Object [Alleged: Directory]
+```
+
+`container-fs` now lives in the host daemon's inventory and resolves —
+over the network — to the remote backing dir. On Linux you could then
+feed it to the mount caplet (B4–B5); on macOS you use it as a capability
+only. `setup-tcp.js` is the same companion script from
+[§ "Verified single-host run"](#verified-single-host-run); pass
+`-E ENDO_TCP_LISTEN=<reachable-host:port>` (or bake a default) so the
+locator advertises an address the dialing peer can reach.
+
+> Cross-version note: this was exercised between two daemons on
+> *different branches* over `tcp+netstring+json+captp0` — the handshake
+> and locator format are compatible across the versions tried here.
 
 ## Useful information
 
