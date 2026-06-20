@@ -308,17 +308,30 @@ export const makeFsMounter = ({
 
     mountCounter += 1;
     const resolvedMountPoint = nodePath.resolve(mountPoint);
-    const socketPath =
-      typeof opts.socketPath === 'string'
-        ? opts.socketPath
-        : nodePath.join(
-            defaultSocketDir(env),
-            // Random suffix so the path isn't predictable: the UDS
-            // carries the full authority of the projected FS cap, and on
-            // the `os.tmpdir()` fallback (world-writable) a guessable
-            // name would let a local user pre-position and connect.
-            `endo-9p-${process.pid}-${mountCounter}-${randomBytes(9).toString('hex')}.sock`,
-          );
+    // The UDS path is internal plumbing, not a free-form caller input:
+    // the bridge `unlink()`s it before binding, so an arbitrary
+    // caller-chosen path would be an arbitrary-delete primitive with the
+    // daemon's authority. A caller may still pin a name, but only inside
+    // the socket directory; otherwise we generate a random one (the UDS
+    // carries the projected FS cap's full authority, so on the
+    // world-writable `os.tmpdir()` fallback an unpredictable name keeps a
+    // local user from pre-positioning and connecting).
+    const socketDir = defaultSocketDir(env);
+    let socketPath;
+    if (typeof opts.socketPath === 'string') {
+      socketPath = nodePath.resolve(opts.socketPath);
+      const rel = nodePath.relative(socketDir, socketPath);
+      if (rel === '' || rel.startsWith('..') || nodePath.isAbsolute(rel)) {
+        throw makeError(
+          X`socketPath must be inside the socket directory ${q(socketDir)}; got ${q(opts.socketPath)}`,
+        );
+      }
+    } else {
+      socketPath = nodePath.join(
+        socketDir,
+        `endo-9p-${process.pid}-${mountCounter}-${randomBytes(9).toString('hex')}.sock`,
+      );
+    }
 
     // The program is operator config, not a caller option (see above);
     // reject a caller that tries to choose it.

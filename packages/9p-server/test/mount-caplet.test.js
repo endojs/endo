@@ -11,9 +11,17 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
+import os from 'node:os';
+import nodePath from 'node:path';
 import { E, Far } from '@endo/far';
 
 import { makeFsMounter } from '../mount-caplet.js';
+
+// A caller-supplied socketPath must live inside the socket directory
+// (defaults to os.tmpdir() when XDG_RUNTIME_DIR is unset), so build the
+// test paths there rather than hard-coding `/tmp`.
+const SOCK = nodePath.join(os.tmpdir(), 's.sock');
+const SOCK2 = nodePath.join(os.tmpdir(), 's2.sock');
 
 const fakeFs = () => Far('FakeFs', {});
 
@@ -69,12 +77,12 @@ test('mount builds the 9P mount argv, makes the dir, and starts the bridge', asy
   const h = await E(mounter).mount(
     fakeFs(),
     '/mnt/x',
-    harden({ socketPath: '/tmp/s.sock' }),
+    harden({ socketPath: SOCK }),
   );
 
   t.deepEqual(calls.makeDir[0], { p: '/mnt/x', o: { recursive: true } });
   t.is(calls.bridges.length, 1);
-  t.is(calls.bridges[0].socketPath, '/tmp/s.sock');
+  t.is(calls.bridges[0].socketPath, SOCK);
   t.is(calls.bridges[0].started, 1);
 
   t.is(calls.run.length, 1);
@@ -93,11 +101,11 @@ test('mount builds the 9P mount argv, makes the dir, and starts the bridge', asy
   }
   // `--` terminates options so a dash-leading path can't be a flag.
   t.is(argv[4], '--');
-  t.is(argv[5], '/tmp/s.sock');
+  t.is(argv[5], SOCK);
   t.is(argv[6], '/mnt/x');
 
   t.is(await E(h).mountPoint(), '/mnt/x');
-  t.is(await E(h).socketPath(), '/tmp/s.sock');
+  t.is(await E(h).socketPath(), SOCK);
   t.is((await E(mounter).list()).length, 1);
 });
 
@@ -107,7 +115,7 @@ test('readOnly, msize override, and extraMountOptions reach the -o string', asyn
     fakeFs(),
     '/mnt/x',
     harden({
-      socketPath: '/tmp/s.sock',
+      socketPath: SOCK,
       readOnly: true,
       msize: 65_536,
       extraMountOptions: 'cache=loose',
@@ -124,7 +132,7 @@ test('NINEP_SUDO routes mount/umount through sudo', async t => {
   const h = await E(mounter).mount(
     fakeFs(),
     '/mnt/x',
-    harden({ socketPath: '/tmp/s.sock' }),
+    harden({ socketPath: SOCK }),
   );
   t.is(calls.run[0].bin, 'sudo');
   t.is(calls.run[0].argv[0], 'mount');
@@ -142,7 +150,7 @@ test('extraMountOptions cannot override the pinned trans option', async t => {
       fakeFs(),
       '/mnt/x',
       harden({
-        socketPath: '/tmp/s.sock',
+        socketPath: SOCK,
         extraMountOptions: 'trans=tcp,port=564',
       }),
     ),
@@ -156,9 +164,21 @@ test('caller cannot choose the mount/umount program', async t => {
     E(mounter).mount(
       fakeFs(),
       '/mnt/x',
-      harden({ socketPath: '/tmp/s.sock', umountProgram: ['rm'] }),
+      harden({ socketPath: SOCK, umountProgram: ['rm'] }),
     ),
     { message: /operator configuration/ },
+  );
+});
+
+test('a socketPath outside the socket directory is rejected', async t => {
+  const { mounter } = makeHarness();
+  await t.throwsAsync(
+    E(mounter).mount(
+      fakeFs(),
+      '/mnt/x',
+      harden({ socketPath: '/etc/evil.sock' }),
+    ),
+    { message: /must be inside the socket directory/ },
   );
 });
 
@@ -169,11 +189,7 @@ test('NINEP_MOUNT_PROGRAM lets the operator set a custom helper', async t => {
       NINEP_UMOUNT_PROGRAM: 'sudo umount',
     },
   });
-  await E(mounter).mount(
-    fakeFs(),
-    '/mnt/x',
-    harden({ socketPath: '/tmp/s.sock' }),
-  );
+  await E(mounter).mount(fakeFs(), '/mnt/x', harden({ socketPath: SOCK }));
   t.is(calls.run[0].bin, 'sudo');
   t.deepEqual(calls.run[0].argv.slice(0, 3), ['-u', 'svc', 'mount']);
 });
@@ -205,7 +221,7 @@ test('a failed mount stops the bridge and leaks no handle', async t => {
         : Promise.resolve(),
   });
   await t.throwsAsync(
-    E(mounter).mount(fakeFs(), '/mnt/x', harden({ socketPath: '/tmp/s.sock' })),
+    E(mounter).mount(fakeFs(), '/mnt/x', harden({ socketPath: SOCK })),
     { message: /9p mount of .* failed/ },
   );
   t.is(calls.bridges[0].stopped, 1);
@@ -237,7 +253,7 @@ test('a failed bridge.start() is cleaned up and leaks no handle', async t => {
     makeBridge,
   });
   await t.throwsAsync(
-    E(mounter).mount(fakeFs(), '/mnt/x', harden({ socketPath: '/tmp/s.sock' })),
+    E(mounter).mount(fakeFs(), '/mnt/x', harden({ socketPath: SOCK })),
     { message: /bridge failed to start/ },
   );
   t.is(calls.bridges[0].stopped, 1, 'bridge stopped after start() failure');
@@ -264,7 +280,7 @@ test('cancellation during an in-flight mount unmounts it (no orphan)', async t =
     },
   });
   await t.throwsAsync(
-    E(mounter).mount(fakeFs(), '/mnt/x', harden({ socketPath: '/tmp/s.sock' })),
+    E(mounter).mount(fakeFs(), '/mnt/x', harden({ socketPath: SOCK })),
     { message: /cancelled during mount/ },
   );
   t.truthy(
@@ -280,7 +296,7 @@ test('unmount detaches with `umount -- <mp>`, stops the bridge, drops the handle
   const h = await E(mounter).mount(
     fakeFs(),
     '/mnt/x',
-    harden({ socketPath: '/tmp/s.sock' }),
+    harden({ socketPath: SOCK }),
   );
   await E(h).unmount();
   const umount = calls.run.find(c => c.bin === 'umount');
@@ -307,7 +323,7 @@ test('a failed umount (EBUSY) keeps the bridge up and the handle, and is retryab
   const h = await E(mounter).mount(
     fakeFs(),
     '/mnt/x',
-    harden({ socketPath: '/tmp/s.sock' }),
+    harden({ socketPath: SOCK }),
   );
   await t.throwsAsync(E(h).unmount(), { message: /busy/ });
   // The mount must not outlive its transport: bridge still up, handle retained.
@@ -324,7 +340,7 @@ test('lazyUnmount adds -l to the umount argv', async t => {
   const h = await E(mounter).mount(
     fakeFs(),
     '/mnt/x',
-    harden({ socketPath: '/tmp/s.sock', lazyUnmount: true }),
+    harden({ socketPath: SOCK, lazyUnmount: true }),
   );
   await E(h).unmount();
   const umount = calls.run.find(c => c.bin === 'umount');
@@ -345,11 +361,7 @@ test('cancellation unmounts live mounts and refuses new ones', async t => {
   });
   cancelledP.catch(() => {});
   const { mounter, calls } = makeHarness({ cancelledP });
-  await E(mounter).mount(
-    fakeFs(),
-    '/mnt/x',
-    harden({ socketPath: '/tmp/s.sock' }),
-  );
+  await E(mounter).mount(fakeFs(), '/mnt/x', harden({ socketPath: SOCK }));
 
   rejectCancelled(new Error('teardown'));
   await flush();
@@ -359,11 +371,7 @@ test('cancellation unmounts live mounts and refuses new ones', async t => {
   t.is((await E(mounter).list()).length, 0);
 
   await t.throwsAsync(
-    E(mounter).mount(
-      fakeFs(),
-      '/mnt/y',
-      harden({ socketPath: '/tmp/s2.sock' }),
-    ),
+    E(mounter).mount(fakeFs(), '/mnt/y', harden({ socketPath: SOCK2 })),
     { message: /cancelled/ },
   );
 });
