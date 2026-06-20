@@ -21,6 +21,7 @@ import harden from '@endo/harden';
  *   phase: string,
  *   done: boolean,
  *   error: string | null,
+ *   usage: { inputTokens: number, outputTokens: number, turns: number } | null,
  *   whenDone: Promise<void>,
  *   subscribe: (fn: (ev: { type: string }) => void) => () => void,
  *   stop: () => void,
@@ -71,6 +72,7 @@ const startFlootTurn = (key, sessionId, reader) => {
     phase: 'thinking',
     done: false,
     error: null,
+    usage: null,
     whenDone,
     subscribe(fn) {
       listeners.add(fn);
@@ -125,6 +127,13 @@ const startFlootTurn = (key, sessionId, reader) => {
         } else if (value.type === 'phase') {
           turn.phase = value.phase;
           emit({ type: 'phase' });
+        } else if (value.type === 'usage') {
+          turn.usage = {
+            inputTokens: value.inputTokens,
+            outputTokens: value.outputTokens,
+            turns: value.turns,
+          };
+          emit({ type: 'usage' });
         } else if (value.type === 'end') {
           break;
         } else if (value.type === 'abort') {
@@ -461,6 +470,8 @@ export const flootComponent = (
         border-top: 1px solid var(--fl-border); min-height: 1.6rem;
         display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
       .floot-status-bar.error { color: var(--fl-red); }
+      .floot-tokens { margin-left: auto; opacity: 0.6;
+        font-variant-numeric: tabular-nums; white-space: nowrap; }
 
       .floot-meter { display: none; position: relative; height: 6px;
         background: var(--fl-border); overflow: hidden; flex-shrink: 0; }
@@ -578,7 +589,10 @@ export const flootComponent = (
         <div class="floot-header-title" id="floot-header-title">Floot</div>
       </div>
       <div class="floot-messages" id="floot-messages"></div>
-      <div class="floot-status-bar" id="floot-status">Ready.</div>
+      <div class="floot-status-bar" id="floot-status">
+        <span id="floot-status-text">Ready.</span>
+        <span class="floot-tokens" id="floot-tokens"></span>
+      </div>
       ${
         hasMic
           ? `<div class="floot-meter" id="floot-meter" aria-hidden="true">
@@ -637,8 +651,11 @@ export const flootComponent = (
       $messages.scrollHeight - $messages.scrollTop - $messages.clientHeight;
     stickToBottom = dist <= STICK_THRESHOLD_PX;
   });
-  const $status = /** @type {HTMLElement} */ (
-    $root.querySelector('#floot-status')
+  const $statusText = /** @type {HTMLElement} */ (
+    $root.querySelector('#floot-status-text')
+  );
+  const $tokens = /** @type {HTMLElement} */ (
+    $root.querySelector('#floot-tokens')
   );
   const $input = /** @type {HTMLTextAreaElement} */ (
     $root.querySelector('#floot-input')
@@ -677,7 +694,35 @@ export const flootComponent = (
     '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
 
   const setStatus = (/** @type {string} */ s) => {
-    $status.textContent = s;
+    $statusText.textContent = s;
+  };
+
+  // ── Token usage readout ─────────────────────────────────────────────────────
+  const formatTokens = (/** @type {number} */ n) => {
+    if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+    if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`;
+    return `${n}`;
+  };
+  /** @param {{ inputTokens: number, outputTokens: number } | null} u */
+  const renderTokens = u => {
+    $tokens.textContent =
+      u && (u.inputTokens || u.outputTokens)
+        ? `↑${formatTokens(u.inputTokens)} ↓${formatTokens(u.outputTokens)}`
+        : '';
+  };
+  // Pull a session's cumulative usage from its guest and show it (cost survives
+  // restarts; a live turn updates it again via the 'usage' reply event).
+  const showSessionTokens = (
+    /** @type {FlootSession | undefined} */ session,
+  ) => {
+    renderTokens(null);
+    if (!session) return;
+    E(facetFor(session))
+      .getUsage()
+      .then((/** @type {any} */ u) => {
+        if (activeSessionId === session.id) renderTokens(u);
+      })
+      .catch(() => {});
   };
 
   // ── Rendering ───────────────────────────────────────────────────────────────
@@ -1056,7 +1101,11 @@ export const flootComponent = (
     // Opening a session starts at the latest message.
     stickToBottom = true;
     const session = getActiveSession();
-    if (!session) return;
+    if (!session) {
+      renderTokens(null);
+      return;
+    }
+    showSessionTokens(session);
     // If this session has a turn still running in the background (e.g. it was
     // left mid-reply and we've returned to the space), reattach to its live
     // stream. The busy guard keeps this from firing during another turn.
@@ -1251,6 +1300,7 @@ export const flootComponent = (
     renderHeader();
     renderMessages();
     setStatus(`${turn.phase || 'thinking'}…`);
+    if (turn.usage) renderTokens(turn.usage);
 
     return new Promise(resolve => {
       const detach = () => {
@@ -1295,6 +1345,8 @@ export const flootComponent = (
           scrollToBottom();
         } else if (ev.type === 'phase') {
           setStatus(`${turn.phase}…`);
+        } else if (ev.type === 'usage') {
+          renderTokens(turn.usage);
         } else if (ev.type === 'abort') {
           sessionStatus.set(turn.sessionId, 'error');
         } else if (ev.type === 'done') {

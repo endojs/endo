@@ -105,6 +105,7 @@ const makeBufferingWriter = () => {
     },
     toolCall: () => {},
     toolResult: () => {},
+    usage: () => {},
     end: () => settle({ ok: true, text }),
     /** @param {unknown} reason */
     abort: reason => settle({ ok: false, error: `${reason}` }),
@@ -378,6 +379,44 @@ export const makeStreamingAgent = async (
   const effectivePrompt = systemPrompt || defaultSystemPrompt;
   const tree = makeConversationTree(makeEndoPetstoreBackend(powers));
 
+  // Cumulative token usage for this session, persisted to the guest petstore so
+  // it survives a daemon restart. Loaded lazily; updated after each turn.
+  const USAGE_NAME = 'floot-usage';
+  /** @type {{ inputTokens: number, outputTokens: number, turns: number } | undefined} */
+  let usage;
+  const loadUsage = async () => {
+    if (usage) return usage;
+    if (await E(powers).has(USAGE_NAME)) {
+      const stored = /** @type {any} */ (await E(powers).lookup(USAGE_NAME));
+      usage = {
+        inputTokens: Number(stored?.inputTokens) || 0,
+        outputTokens: Number(stored?.outputTokens) || 0,
+        turns: Number(stored?.turns) || 0,
+      };
+    } else {
+      usage = { inputTokens: 0, outputTokens: 0, turns: 0 };
+    }
+    return usage;
+  };
+  // Serialize writes: storeValue can't overwrite, so each save removes then
+  // stores, and concurrent saves would interleave (see saveRegistry).
+  let usageWrite = Promise.resolve();
+  const saveUsage = () => {
+    const snapshot = harden({ ...usage });
+    usageWrite = usageWrite
+      .then(async () => {
+        if (await E(powers).has(USAGE_NAME)) await E(powers).remove(USAGE_NAME);
+        await E(powers).storeValue(snapshot, USAGE_NAME);
+      })
+      .catch(error => {
+        console.error(
+          '[floot] could not persist usage:',
+          error instanceof Error ? error.message : String(error),
+        );
+      });
+    return usageWrite;
+  };
+
   // Built-in tools bound to this agent's guest powers — the dynamic surface for
   // working with the daemon and petstore. `exec` is the most general (arbitrary
   // JS with `powers`); the rest are explicit petstore operations. Caplet tools
@@ -513,6 +552,10 @@ export const makeStreamingAgent = async (
     // Whether the model produced a plain (toolless) answer. If it never does
     // within MAX_TOOL_ROUNDS, we send a fallback instead of an empty reply.
     let answered = false;
+    // Token usage accumulates across this turn's rounds (each tool round is its
+    // own provider call).
+    let turnInput = 0;
+    let turnOutput = 0;
     writer.setPhase('thinking');
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
@@ -534,7 +577,7 @@ export const makeStreamingAgent = async (
       );
 
       let streamed = '';
-      const { message } = await provider.chatStream(
+      const { message, usage: roundUsage } = await provider.chatStream(
         conversationContext,
         schemas,
         delta => {
@@ -543,6 +586,10 @@ export const makeStreamingAgent = async (
         },
         signal,
       );
+      if (roundUsage) {
+        turnInput += roundUsage.inputTokens || 0;
+        turnOutput += roundUsage.outputTokens || 0;
+      }
 
       const rm = message || { role: 'assistant', content: streamed };
       const toolCalls = Array.isArray(rm.tool_calls) ? rm.tool_calls : [];
@@ -633,6 +680,14 @@ export const makeStreamingAgent = async (
     }
 
     cachedLeaf = leafId;
+    // Fold this turn's token usage into the session total, persist it, and emit
+    // it so the UI can surface per-session cost.
+    const totals = await loadUsage();
+    totals.inputTokens += turnInput;
+    totals.outputTokens += turnOutput;
+    totals.turns += 1;
+    saveUsage();
+    writer.usage(totals);
     writer.final(finalContent);
     writer.end();
   };
@@ -785,7 +840,9 @@ export const makeStreamingAgent = async (
     return harden(out);
   };
 
-  return harden({ converse, getHistory, startInbox });
+  const getUsage = async () => harden({ ...(await loadUsage()) });
+
+  return harden({ converse, getHistory, getUsage, startInbox });
 };
 harden(makeStreamingAgent);
 
@@ -1012,8 +1069,12 @@ export const make = (hostPowers, _context, { env } = {}) => {
           const agent = await getAgent(id);
           return agent.getHistory();
         },
+        async getUsage() {
+          const agent = await getAgent(id);
+          return agent.getUsage();
+        },
         help() {
-          return 'Floot session: converse(input) returns a streaming reply reader; getHistory() replays the conversation; getInfo() returns { id, title, createdAt }.';
+          return 'Floot session: converse(input) returns a streaming reply reader; getHistory() replays the conversation; getUsage() returns cumulative { inputTokens, outputTokens, turns }; getInfo() returns { id, title, createdAt }.';
         },
       });
       facets.set(id, facet);

@@ -23,6 +23,7 @@ import { makeBufferedReader } from './buffered-channel.js';
  *   | { type: 'final', text: string }
  *   | { type: 'tool_call', name: string, args: string }
  *   | { type: 'tool_result', name: string, result: string }
+ *   | { type: 'usage', inputTokens: number, outputTokens: number, turns: number }
  *   | { type: 'end' }
  *   | { type: 'abort', reason: string }
  * )} ReplyEvent
@@ -52,6 +53,14 @@ export const makeReplyChannel = (onClose = null) => {
     /** @param {{ name: string, result: string }} result */
     toolResult: ({ name, result }) =>
       push({ type: 'tool_result', name: `${name}`, result: `${result}` }),
+    /** @param {{ inputTokens: number, outputTokens: number, turns: number }} u */
+    usage: u =>
+      push({
+        type: 'usage',
+        inputTokens: Math.trunc(u.inputTokens) || 0,
+        outputTokens: Math.trunc(u.outputTokens) || 0,
+        turns: Math.trunc(u.turns) || 0,
+      }),
     end: () => push({ type: 'end' }),
     /** @param {unknown} reason */
     abort: reason => push({ type: 'abort', reason: `${reason}` }),

@@ -174,7 +174,7 @@ const rethrowAnthropic = error => {
  * @param {{ apiKey: string, model: string, maxTokens?: number }} options
  * @returns {{
  *   chat: (messages: CommonChatMessage[], tools: CommonTool[]) => Promise<{ message: CommonChatMessage }>,
- *   chatStream: (messages: CommonChatMessage[], tools: CommonTool[], onToken?: (delta: string) => void, signal?: AbortSignal) => Promise<{ message: CommonChatMessage }>,
+ *   chatStream: (messages: CommonChatMessage[], tools: CommonTool[], onToken?: (delta: string) => void, signal?: AbortSignal) => Promise<{ message: CommonChatMessage, usage?: { inputTokens: number, outputTokens: number } }>,
  * }}
  */
 export const makeStreamingAnthropicProvider = ({
@@ -236,7 +236,13 @@ export const makeStreamingAnthropicProvider = ({
           stream.on('text', delta => onToken(delta));
         }
         const response = await stream.finalMessage();
-        return { message: fromAnthropicMessage(response) };
+        const usage = response.usage
+          ? {
+              inputTokens: response.usage.input_tokens || 0,
+              outputTokens: response.usage.output_tokens || 0,
+            }
+          : undefined;
+        return { message: fromAnthropicMessage(response), usage };
       } catch (error) {
         // A consumer barge-in aborts the signal; that surfaces here as an abort
         // error, but it is an intentional stop, not a provider failure — rethrow
