@@ -1,3 +1,4 @@
+// @ts-check
 // The text-to-speech server object as a daemon-managed *unconfined* caplet.
 //
 // Symmetric to audio-server-caplet.js (STT), but the other direction: it takes
@@ -36,18 +37,9 @@ import { makeBufferedReader } from '../src/buffered-channel.js';
 
 // ── Minimal sentence chunker (plain JS port of sentence-chunker.ts) ──────────
 const MIN_CHUNK_LENGTH = 10;
-const ABBREVIATIONS = new Set([
-  'St',
-  'Dr',
-  'Mr',
-  'Mrs',
-  'Ms',
-  'Prof',
-  'vs',
-  'etc',
-  'Jr',
-  'Sr',
-]);
+const ABBREVIATIONS = harden(
+  new Set(['St', 'Dr', 'Mr', 'Mrs', 'Ms', 'Prof', 'vs', 'etc', 'Jr', 'Sr']),
+);
 
 // Strip the markdown that would otherwise be read aloud as punctuation noise.
 const stripMarkdown = text =>
@@ -175,6 +167,10 @@ const makePiper = ({ binary, modelPath, speed, sampleRate }) => {
         else resolve(buf);
       };
       child.on('error', err => done(err));
+      // stdin can emit EPIPE if piper exits/closes before consuming input (bad
+      // model, or killed mid-write by abort()); without a handler Node escalates
+      // it to an uncaught exception that tears down the whole worker.
+      child.stdin.on('error', err => done(err));
       child.stdout.on('data', c => chunks.push(c));
       child.on('close', code => {
         if (aborted) {
@@ -208,7 +204,6 @@ const makePiper = ({ binary, modelPath, speed, sampleRate }) => {
 const pump = async (piper, textReader, writer) => {
   const chunker = makeChunker();
   const queue = [];
-  let inputDone = false;
   let aborting = false;
 
   writer.setPhase('synthesizing');
@@ -247,10 +242,8 @@ const pump = async (piper, textReader, writer) => {
         return;
       }
     }
-    inputDone = true;
     for (const s of chunker.finish()) queue.push(s);
     await drain();
-    void inputDone;
     writer.end();
   } catch (err) {
     aborting = true;
@@ -265,10 +258,10 @@ const pump = async (piper, textReader, writer) => {
 //   FLOOT_TTS_SPEED   speech speed multiplier (default "1.0")
 /**
  * @param {object} _powers
- * @param {object} _context
+ * @param {any} context daemon caplet context (whenCancelled for teardown)
  * @param {{ env?: Record<string, string | undefined> }} [opts]
  */
-export const make = async (_powers, _context, { env = {} } = {}) => {
+export const make = async (_powers, context, { env = {} } = {}) => {
   const binary = env.FLOOT_TTS_BINARY || 'piper';
   const modelPath = env.FLOOT_TTS_MODEL;
   if (!modelPath) throw new Error('FLOOT_TTS_MODEL is required');
@@ -295,14 +288,32 @@ export const make = async (_powers, _context, { env = {} } = {}) => {
     );
   }
 
+  // Abort any in-flight piper subprocesses when the caplet is cancelled (the
+  // formula is removed or re-provisioned), so they don't leak.
+  const pipers = new Set();
+  if (context) {
+    E(context)
+      .whenCancelled()
+      .catch(() => {
+        for (const piper of pipers) piper.abort();
+        pipers.clear();
+      });
+  }
+
   return Far('TtsServer', {
     synthesize: textReader => {
       const piper = makePiper({ binary, modelPath, speed, sampleRate });
+      pipers.add(piper);
       // If the consumer stops pulling (replay interrupted), abort piper so it
       // doesn't keep synthesizing sentences no one will receive.
       const { writer, reader } = makeAudioChannel(() => piper.abort());
-      pump(piper, textReader, writer);
+      // pump settles the writer on every path; guard the floating promise and
+      // drop the piper from the live set once the turn ends.
+      pump(piper, textReader, writer).finally(() => pipers.delete(piper));
       return reader;
     },
+    help: () =>
+      'TtsServer: synthesize(textReader) -> audioReader; streams raw s16le PCM bytes (one event per sentence) as piper renders the reply.',
   });
 };
+harden(make);

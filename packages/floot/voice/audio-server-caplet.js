@@ -1,3 +1,4 @@
+// @ts-check
 // M2a: the audio server object as a daemon-managed *unconfined* caplet.
 //
 // makeUnconfined loads this module by filesystem path into a Node worker and
@@ -189,10 +190,15 @@ const makeTextChannel = () => {
 // is the full evolving transcript; forward it as-is so the UI can re-render
 // (and absorb moonshine's mid-stream revisions) instead of accreting deltas.
 const pump = async (moonshine, audioReader, writer, setOnClose) => {
-  const sink = moonshine.startUtterance(partial => writer.partial(partial));
-  setOnClose(() => sink.abort());
-  writer.setPhase('listening');
+  let sink = null;
   try {
+    // Respawn moonshine if a previous run crashed (ensure is idempotent), so a
+    // single daemon crash doesn't brick the caplet until it's re-provisioned.
+    await moonshine.warmup();
+    sink = moonshine.startUtterance(partial => writer.partial(partial));
+    const utterance = sink;
+    setOnClose(() => utterance.abort());
+    writer.setPhase('listening');
     for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const { value, done } = await E(audioReader).next();
@@ -209,7 +215,7 @@ const pump = async (moonshine, audioReader, writer, setOnClose) => {
     writer.final(await sink.finish());
     writer.end();
   } catch (err) {
-    sink.abort();
+    if (sink) sink.abort();
     writer.abort(err instanceof Error ? err.message : String(err));
   }
 };
@@ -221,10 +227,10 @@ const pump = async (moonshine, audioReader, writer, setOnClose) => {
 //   FLOOT_STT_LANG    language (default "en")
 /**
  * @param {object} _powers
- * @param {object} _context
+ * @param {any} context daemon caplet context (whenCancelled for teardown)
  * @param {{ env?: Record<string, string | undefined> }} [opts]
  */
-export const make = async (_powers, _context, { env = {} } = {}) => {
+export const make = async (_powers, context, { env = {} } = {}) => {
   const scriptPath = env.FLOOT_STT_SCRIPT;
   const cwd = env.FLOOT_PROJECT_DIR;
   if (!scriptPath) {
@@ -246,12 +252,25 @@ export const make = async (_powers, _context, { env = {} } = {}) => {
   });
   // Warm up at stand-up so the first utterance doesn't pay model-load latency.
   await moonshine.warmup();
+  // Tear the long-lived moonshine subprocess down when the caplet is cancelled
+  // (the formula is removed or re-provisioned), so the `uv` process doesn't leak
+  // across restarts. whenCancelled() rejects on cancellation.
+  if (context) {
+    E(context)
+      .whenCancelled()
+      .catch(() => moonshine.dispose());
+  }
 
   return Far('AudioServer', {
     transcribe: audioReader => {
       const { writer, reader, setOnClose } = makeTextChannel();
-      pump(moonshine, audioReader, writer, setOnClose);
+      // pump settles the writer on every path; guard the floating promise so a
+      // throw before its try can't surface as an unhandled rejection.
+      pump(moonshine, audioReader, writer, setOnClose).catch(() => {});
       return reader;
     },
+    help: () =>
+      'AudioServer (STT): transcribe(audioReader) -> textReader; streams replace-style transcript events (phase/partial/final/end/abort).',
   });
 };
+harden(make);
