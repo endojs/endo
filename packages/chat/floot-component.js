@@ -1419,6 +1419,12 @@ export const flootComponent = (
   // Serialize submissions so an auto-sent voice utterance can't overlap a typed
   // message over the shared streaming bubble: each turn waits for the previous.
   const submit = (/** @type {string} */ raw) => {
+    // An explicit send supersedes any buffered voice continuation.
+    if (resumeTimer) {
+      clearTimeout(resumeTimer);
+      resumeTimer = 0;
+    }
+    pendingUtterance = '';
     const text = (raw || '').trim();
     if (!text) return submitChain;
     $input.value = '';
@@ -1464,7 +1470,13 @@ export const flootComponent = (
   // only transcribe(); there is no TTS capability to interrupt.
   const VAD = {
     CALIBRATION_MS: 1000,
-    SILENCE_MS: 1500,
+    // Silence that ends an utterance. This is now a *tentative* end: the text is
+    // buffered, not sent, until RESUME_GRACE_MS more passes without speech.
+    SILENCE_MS: 1200,
+    // After a tentative end, wait this long for the user to resume a pause-heavy
+    // thought before sending. Resumed speech is appended, so an intra-thought
+    // pause no longer kicks off a reply mid-sentence and drops the rest.
+    RESUME_GRACE_MS: 800,
     MIN_SPEECH_MS: 400,
     PREROLL_FRAMES: 6, // ~0.5s of buffered audio prepended so onsets aren't clipped
     EMA_ALPHA: 0.01,
@@ -1487,6 +1499,11 @@ export const flootComponent = (
   let calibStart = 0;
   let speechStart = 0;
   let silenceStart = 0;
+  // Continuation buffering across short pauses (see RESUME_GRACE_MS): a finalized
+  // utterance accrues here and is only submitted once the grace elapses without
+  // the user resuming.
+  let pendingUtterance = '';
+  let resumeTimer = 0;
   let rafId = 0;
   /** @type {number[]} */
   let calibSamples = [];
@@ -1850,7 +1867,10 @@ export const flootComponent = (
         if (done || cancelled) break;
         if (value.type === 'partial' || value.type === 'final') {
           last = value.text;
-          $input.value = last;
+          // Show buffered continuation text ahead of the live partial.
+          $input.value = pendingUtterance
+            ? `${pendingUtterance} ${last}`
+            : last;
           autoGrow();
         } else if (value.type === 'end') {
           break;
@@ -1867,7 +1887,26 @@ export const flootComponent = (
     const text = filterTranscript(last);
     $input.value = '';
     autoGrow();
-    if (text) submit(text);
+    commitUtterance(text);
+  };
+
+  // Buffer a finalized utterance and hold briefly for a continuation before
+  // sending, so a mid-thought pause doesn't start a reply and drop the rest.
+  // beginUtterance() cancels this timer when the user resumes within the grace.
+  const commitUtterance = (/** @type {string} */ text) => {
+    if (text) {
+      pendingUtterance = pendingUtterance
+        ? `${pendingUtterance} ${text}`
+        : text;
+    }
+    if (resumeTimer) clearTimeout(resumeTimer);
+    if (!pendingUtterance) return;
+    resumeTimer = window.setTimeout(() => {
+      resumeTimer = 0;
+      const full = pendingUtterance.trim();
+      pendingUtterance = '';
+      if (full) submit(full);
+    }, VAD.RESUME_GRACE_MS);
   };
 
   const computeRms = () => {
@@ -1898,6 +1937,12 @@ export const flootComponent = (
   // the pre-roll so the word's onset isn't clipped.
   const beginUtterance = () => {
     if (speaking || !audioServer) return;
+    // If we're within the post-utterance grace, this is a continuation of the
+    // same thought: cancel the pending send and keep the buffered text.
+    if (resumeTimer) {
+      clearTimeout(resumeTimer);
+      resumeTimer = 0;
+    }
     speaking = true;
     // Never let a reply talk over a live recording: silence any TTS still
     // playing or scheduled ahead. (Barge-in's cancelTurn only covers the
@@ -1906,7 +1951,8 @@ export const flootComponent = (
     speechStart = Date.now();
     silenceStart = 0;
     $mic?.classList.add('recording');
-    $input.value = '';
+    // Preserve any buffered continuation text; a fresh utterance clears it.
+    $input.value = pendingUtterance;
     autoGrow();
     channel = makeAudioChannel();
     const ownChannel = channel;
@@ -2069,6 +2115,12 @@ export const flootComponent = (
     if (rafId) cancelAnimationFrame(rafId);
     rafId = 0;
     abortUtterance();
+    // Drop any buffered voice continuation that never got sent.
+    if (resumeTimer) {
+      clearTimeout(resumeTimer);
+      resumeTimer = 0;
+    }
+    pendingUtterance = '';
     $mic?.classList.remove('listening');
     $mic?.classList.remove('recording');
     $meter?.classList.remove('on');
