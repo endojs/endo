@@ -1911,7 +1911,6 @@ __metadata:
     "@anthropic-ai/sdk": "npm:^0.95.1"
     "@endo/cli": "workspace:^"
     "@endo/conversation-tree": "workspace:^"
-    "@endo/daemon": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
     "@endo/exo-stream": "workspace:^"
