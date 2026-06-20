@@ -17,9 +17,11 @@
 //! Protocol (mirrors the Unix-socket bridge):
 //!   1. Manager sends `[0, "listen-iroh", {node: <NodeNumber hex>}, nonce]`.
 //!   2. Supervisor binds the iroh endpoint and replies
-//!      `[0, "listening-iroh", {address: <iroh+captp0://…>}, nonce]`.
+//!      `[0, "listening-iroh", <iroh+captp0://… address as UTF-8>, nonce]`.
 //!   3. Remote peer dials in → supervisor assigns handle C, sends
-//!      `[C, "connect", {}, 0]` to the manager.
+//!      `[C, "iroh-connect", {}, 0]` to the manager (a distinct verb so the
+//!      manager bootstraps the session with the greeter, not the CLI's endo
+//!      bootstrap).
 //!   4. Peer CapTP traffic bridged, exactly as for a Unix client:
 //!      - peer → manager: read netstring frame, wrap in `[C, "deliver", …, 0]`
 //!      - manager → peer: `[C, "deliver", …, 0]` → netstring frame to peer
@@ -31,7 +33,6 @@ use endo_iroh::address::derive_iroh_secret_key;
 use endo_iroh::netstring::{read_netstring, write_netstring};
 use endo_iroh::transport::{IrohSession, IrohTransport};
 
-use crate::codec;
 use crate::mailbox::MailboxReceiver;
 use crate::supervisor::Supervisor;
 use crate::types::{Envelope, Handle, Message};
@@ -59,13 +60,22 @@ pub fn start_iroh_listener(
         }
     };
 
+    // Same-host / no-discovery mode: bind without relays or discovery and
+    // publish direct-address hints so a peer on the same host can dial. Used
+    // by the integration test and available to private-LAN deployments.
+    let local = std::env::var_os("ENDO_IROH_LOCAL").is_some();
     // Off by default: private/loopback direct addresses are useless to remote
-    // dialers. Enable for same-host integration tests, matching the Node.js
-    // transport's ENDO_IROH_PUBLISH_PRIVATE knob.
-    let publish_private = std::env::var_os("ENDO_IROH_PUBLISH_PRIVATE").is_some();
+    // dialers. Enable for same-host runs, matching the Node.js transport's
+    // ENDO_IROH_PUBLISH_PRIVATE knob; local mode implies it.
+    let publish_private = local || std::env::var_os("ENDO_IROH_PUBLISH_PRIVATE").is_some();
 
     tokio::spawn(async move {
-        let transport = match IrohTransport::bind(secret).await {
+        let bind_result = if local {
+            IrohTransport::bind_local(secret).await
+        } else {
+            IrohTransport::bind(secret).await
+        };
+        let transport = match bind_result {
             Ok(transport) => transport,
             Err(e) => {
                 deliver_error(&sup, reply_to, nonce, format!("listen-iroh bind: {e}"));
@@ -79,15 +89,15 @@ pub fn start_iroh_listener(
             transport.node_id(),
         );
 
-        // Acknowledge with the published address so the manager can advertise
-        // it as a dialable locator.
+        // Acknowledge with the published address (plain UTF-8) so the manager
+        // can advertise it as a dialable locator.
         sup.deliver(Message {
             from: 0,
             to: reply_to,
             envelope: Envelope {
                 handle: 0,
                 verb: "listening-iroh".to_string(),
-                payload: codec::encode_listening_iroh(&address),
+                payload: address.clone().into_bytes(),
                 nonce,
             },
             response_tx: None,
@@ -110,13 +120,17 @@ pub fn start_iroh_listener(
                     let conn_handle = sup.alloc_handle();
                     let inbox = sup.register(conn_handle, None);
 
-                    // Notify the manager of the new connection.
+                    // Notify the manager of the new peer connection. A
+                    // distinct verb (not the Unix bridge's `connect`) tells
+                    // the manager to bootstrap this session with the greeter
+                    // — peers speak the `hello` handshake, not the CLI's
+                    // direct endo bootstrap.
                     sup.deliver(Message {
                         from: conn_handle,
                         to: daemon_handle,
                         envelope: Envelope {
                             handle: conn_handle,
-                            verb: "connect".to_string(),
+                            verb: "iroh-connect".to_string(),
                             payload: Vec::new(),
                             nonce: 0,
                         },
@@ -203,7 +217,8 @@ fn wire_iroh_connection(
                     // Drain any queued messages.
                     for msg in inbox.drain() {
                         if msg.envelope.verb == "deliver" {
-                            if let Err(e) = write_netstring(&mut send, &msg.envelope.payload).await {
+                            if let Err(e) = write_netstring(&mut send, &msg.envelope.payload).await
+                            {
                                 eprintln!("endor: iroh peer {conn_handle} write error: {e}");
                                 return;
                             }

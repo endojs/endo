@@ -430,17 +430,6 @@ pub fn decode_listen_iroh_request(data: &[u8]) -> io::Result<String> {
     Ok(node)
 }
 
-/// Encode the `listening-iroh` acknowledgement (CBOR map: {"address": <text>}).
-/// The address is the published `iroh+captp0://` locator the manager should
-/// advertise so peers can dial this daemon.
-pub fn encode_listening_iroh(address: &str) -> Vec<u8> {
-    let mut buf = Vec::new();
-    cbor_append_head(&mut buf, CBOR_MAP, 1);
-    cbor_append_text(&mut buf, "address");
-    cbor_append_text(&mut buf, address);
-    buf
-}
-
 // ---------------------------------------------------------------------------
 // Suspend request decoding (CBOR map: {"handle": <i64>})
 // ---------------------------------------------------------------------------
