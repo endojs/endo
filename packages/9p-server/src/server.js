@@ -578,6 +578,10 @@ export const serveConnection = ({
       // (`makeBytesReaderFromBytes` yields the whole slice in one
       // chunk, so this is almost always single-frame).
       for await (const chunk of iterateBytesReader(reader, { buffer: 1 })) {
+        // Stop pulling from the FS if the connection was torn down
+        // mid-read (cancellation / disconnect) instead of draining a
+        // potentially large read against a dead socket.
+        if (closed) return undefined;
         chunks.push(chunk);
         total += chunk.length;
         if (total >= want) break;
@@ -616,13 +620,17 @@ export const serveConnection = ({
 
   const onGetattr = async (/** @type {number} */ tag, r) => {
     const fid = r.u32();
-    r.u64(); // request_mask (we always return basic stat)
+    const requestMask = /** @type {bigint} */ (r.u64());
     const f = fids.get(fid);
     if (!f) return sendError(tag, ERRNO.EBADF);
     try {
       const attrs = await E(f.cap).getAttrs();
       const w = makeWriter(160);
-      w.u64(GETATTR_BASIC);
+      // st_result_mask: report only the basic fields the client actually
+      // requested (we can fill the whole basic set; the kernel uses the
+      // intersection). Returning more than asked is tolerated, but
+      // honouring the mask is the conformant answer.
+      w.u64(GETATTR_BASIC & requestMask);
       writeQid(w, qidToWire(f.qid));
       const isDir = f.qid.type === 'directory';
       const mode = (isDir ? S.IFDIR : S.IFREG) | (isDir ? 0o755 : 0o644);
@@ -670,6 +678,8 @@ export const serveConnection = ({
     // rather than one-per-entry.
     const reader = await E(f.cursor).stream();
     for await (const entry of iterateReader(reader, { buffer: 64 })) {
+      // Abandon the drain if the connection was torn down mid-listing.
+      if (closed) return;
       f.dirBuffer.push(/** @type {{ name: string, qid: any }} */ (entry));
     }
     f.dirBufferDone = true;

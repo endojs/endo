@@ -261,10 +261,10 @@ const treaddir = async (c, fid, offset, count) => {
   return c.recv();
 };
 
-const tgetattr = async (c, fid) => {
+const tgetattr = async (c, fid, mask = 0x7ffn) => {
   const w = makeWriter();
   w.u32(fid);
-  w.u64(0x7ffn);
+  w.u64(mask);
   c.send(T.Tgetattr, 6, w.finish());
   return c.recv();
 };
@@ -435,6 +435,19 @@ test.serial('Tlopen advertises a nonzero iounit (msize - 24)', async t => {
   const r = makeReader(open.payload);
   readQid(r); // qid (13 bytes)
   t.is(r.u32(), msize - 24);
+});
+
+test.serial('Tgetattr st_result_mask honours the requested mask', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, ['greet.txt']);
+  // Request only P9_GETATTR_SIZE (0x200); the reply's valid mask should
+  // be the intersection with what we provide, not the full basic set.
+  const ga = await tgetattr(c, 2, 0x200n);
+  t.is(ga.type, T.Rgetattr);
+  t.is(makeReader(ga.payload).u64(), 0x200n);
 });
 
 test.serial('Tgetattr reports nlink >= 2 for a directory', async t => {
