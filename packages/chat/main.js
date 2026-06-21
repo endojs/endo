@@ -1,19 +1,18 @@
 // @ts-check
 
-// Chat sources its `harden` via `@endo/harden` rather than from SES, so
-// `lockdown()` is never called. Monaco editor and other dependencies rely
-// on mutable intrinsics, which SES lockdown would freeze.
-// However, importing `ses` (without calling `lockdown()`) is still
-// required to install `globalThis.assert`. The shim modules under
-// `@endo/eventual-send/shim.js` and other library code in the bundle
-// destructure `assert` at module-load (`const { Fail, quote } = assert;`),
-// which throws `ReferenceError: assert is not defined` if SES has not
-// at least installed its assert shim. The `assert-shim.js` side effect
-// of `import 'ses'` runs without freezing intrinsics, so Monaco still
-// works.
-import 'ses';
-// CapTP and E() require HandledPromise to be installed as a global.
-import '@endo/eventual-send/shim.js';
+// Lock down the realm before any application module evaluates. This is the
+// standard `@endo/init` preamble; `./pre-lockdown.js` runs first (it has no
+// imports, so its body executes during hoisted evaluation) to select
+// `overrideTaming: 'severe'`, the level `@endo/preact-container` requires for
+// mounting untrusted components. Monaco was historically assumed to need
+// mutable intrinsics, but is verified compatible (see test/monaco-lockdown).
+//
+// `@endo/init` installs `globalThis.assert` and `harden`, freezes the
+// primordials, and (via its `pre-remoting` shim) installs the HandledPromise
+// global that CapTP and `E()` require — so the previous explicit `ses` and
+// `@endo/eventual-send/shim.js` imports are no longer needed.
+import './pre-lockdown.js';
+import '@endo/init';
 
 import { connectToGateway } from './connection.js';
 import { make } from './chat.js';

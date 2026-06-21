@@ -27,6 +27,9 @@
       "path": "../harden/tsconfig.composite.json"
     },
     {
+      "path": "../init/tsconfig.composite.json"
+    },
+    {
       "path": "../markmdown/tsconfig.composite.json"
     },
     {

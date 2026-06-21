@@ -1416,6 +1416,7 @@ __metadata:
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/platform": "workspace:^"
+    "@endo/preact-container": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@endo/where": "workspace:^"
@@ -1428,6 +1429,7 @@ __metadata:
     happy-dom: "npm:^15.0.0"
     marked: "npm:^17.0.5"
     monaco-editor: "npm:^0.55.1"
+    preact: "npm:^10.29.2"
     react: "npm:^19.0.0"
     react-dom: "npm:^19.0.0"
     ses: "workspace:^"
@@ -2438,7 +2440,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/preact-container@workspace:packages/preact-container":
+"@endo/preact-container@workspace:^, @endo/preact-container@workspace:packages/preact-container":
   version: 0.0.0-use.local
   resolution: "@endo/preact-container@workspace:packages/preact-container"
   dependencies:
