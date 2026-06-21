@@ -351,7 +351,11 @@ const FormView = ({ controller }) => {
     return () => {
       if (controller.setState === setState) delete controller.setState;
     };
-  }, [controller]);
+    // Mount-only: `controller` is a stable bridge. A `[controller]` dep re-runs
+    // every render under confinement (the sanitizer reissues the prop identity)
+    // and re-applies `setState(pendingState)` — itself reissued — into a slow
+    // render/effect feedback loop that never settles on a slow runner.
+  }, []);
 
   // After each render, hand the host the live anchor nodes by field name so it
   // can re-parent controller host nodes into them.

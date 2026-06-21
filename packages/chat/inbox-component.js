@@ -9,8 +9,10 @@ import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import {
   Fragment,
+  createContext,
   h,
   renderConfined,
+  useContext,
   useEffect,
   useReducer,
   useRef,
@@ -126,6 +128,17 @@ const messagesReducer = (state, action) => {
 harden(messagesReducer);
 
 /**
+ * Clipboard capability, injected via context so the deep leaf copy controls
+ * (`TimestampLine`, `FormFieldRow`) never reach the ambient `navigator`.
+ * Defaults to the platform clipboard; a host can override it with a Provider.
+ *
+ * @type {import('preact').Context<(text: string) => Promise<void>>}
+ */
+const ClipboardContext = createContext(text =>
+  navigator.clipboard.writeText(text),
+);
+
+/**
  * The collapsible timestamp tooltip: message number, dismiss button, and the
  * copyable time lines. Class names match the original imperative markup so the
  * existing CSS continues to apply.
@@ -187,13 +200,14 @@ harden(Timestamp);
  * @param {string} props.line
  */
 const TimestampLine = ({ line }) => {
+  const copy = useContext(ClipboardContext);
   const [copied, setCopied] = useState(false);
   return h(
     'div',
     {
       class: 'timestamp-line',
       onClick: () => {
-        navigator.clipboard.writeText(line).then(() => {
+        copy(line).then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 1000);
         });
@@ -612,6 +626,7 @@ harden(DefinitionBody);
  * @param {(value: string) => void} props.onChange
  */
 const FormFieldRow = ({ field, value, onChange }) => {
+  const copy = useContext(ClipboardContext);
   const [shown, setShown] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -655,7 +670,9 @@ const FormFieldRow = ({ field, value, onChange }) => {
               type: 'button',
               class: 'form-field-copy',
               onClick: () => {
-                navigator.clipboard.writeText(value);
+                copy(value).catch(error =>
+                  console.error('Failed to copy:', error),
+                );
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               },
@@ -1106,19 +1123,26 @@ const InboxRoot = ({
         /** @type {Parameters<typeof iterateReader>[0]} */ (
           /** @type {unknown} */ (E(powers).followMessages())
         ),
+        // Prefetch a window of messages so the backlog streams without a
+        // round-trip acknowledgement per message.
+        { buffer: 64 },
       )) {
         if (disposed()) break;
 
-        // Decide whether to pin scroll to the bottom from the current DOM. A
-        // synchronous read (rather than awaiting a frame per message) avoids
-        // serializing the initial backlog at one message per animation frame.
-        // 80px tolerance (matching channel-component) so short messages don't
-        // cause the user to "lose" auto-scroll.
-        const scrollTop = /** @type {number} */ ($parent.scrollTop);
-        const endScrollTop = /** @type {number} */ (
-          $parent.scrollHeight - $parent.clientHeight
+        // Read DOM at animation frame to decide whether to pin scroll to the
+        // bottom. 80px tolerance (matching channel-component) so short messages
+        // don't cause the user to "lose" auto-scroll.
+        // eslint-disable-next-line no-await-in-loop
+        const wasAtEnd = await new Promise(resolve =>
+          requestAnimationFrame(() => {
+            const scrollTop = /** @type {number} */ ($parent.scrollTop);
+            const endScrollTop = /** @type {number} */ (
+              $parent.scrollHeight - $parent.clientHeight
+            );
+            resolve(endScrollTop - scrollTop < 80);
+          }),
         );
-        const wasAtEnd = endScrollTop - scrollTop < 80;
+        if (disposed()) break;
 
         // eslint-disable-next-line no-await-in-loop
         const inboxMessage = await toInboxMessage({

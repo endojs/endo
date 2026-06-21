@@ -282,6 +282,16 @@ export const sendFormComponent = ({
   let heatBar = null;
   /** Guard against double-init (polling + async race) */
   let heatEngineInitialized = false;
+  /**
+   * Set once `dispose()` runs. `initHeatEngine` is async (it awaits
+   * `getHopInfo`/`getHeatConfig`), so a component can be disposed while an
+   * init is still in flight. Without this guard the awaited continuation
+   * would create and `start()` a heat engine *after* dispose stopped the
+   * (still-null) engines, leaking a self-rescheduling requestAnimationFrame
+   * loop that keeps the process alive forever — which hangs the test worker
+   * (and CI) even though every test passed.
+   */
+  let disposed = false;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let pollTimeoutId = null;
 
@@ -396,6 +406,9 @@ export const sendFormComponent = ({
     try {
       // Try composite (multi-hop) engine first
       const hopInfo = await E(channelRef).getHopInfo();
+      // Bail if the component was disposed while we awaited; otherwise we'd
+      // start a heat engine whose rAF loop nothing will ever stop.
+      if (disposed) return;
       if (hopInfo && hopInfo.policies && hopInfo.policies.length !== 0) {
         heatBar = createHeatBar(
           /** @type {HTMLElement} */ ($input.parentElement),
@@ -433,6 +446,8 @@ export const sendFormComponent = ({
     // Fallback: single-hop heat engine
     try {
       const config = await E(channelRef).getHeatConfig();
+      // Bail if the component was disposed while we awaited (see above).
+      if (disposed) return;
       if (config && typeof config === 'object') {
         const heatConfig =
           /** @type {import('./heat-engine.js').HeatConfig} */ (config);
@@ -863,6 +878,9 @@ export const sendFormComponent = ({
       }
     },
     dispose: () => {
+      // Mark disposed first so any in-flight `initHeatEngine` continuation
+      // bails out instead of starting an engine after we've torn down.
+      disposed = true;
       if (pollTimeoutId !== null) {
         clearTimeout(pollTimeoutId);
         pollTimeoutId = null;

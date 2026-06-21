@@ -154,6 +154,34 @@ test.serial('clicking the backdrop closes the popup', async t => {
   t.deepEqual(assigned, [], 'no name assigned on backdrop close');
 });
 
+test.serial('Escape closes the popup', async t => {
+  const { $container, popup } = await setupPopup();
+  const { args, assigned } = makeShowArgs();
+
+  popup.show(args);
+  await tick(20);
+
+  // Escape is handled declaratively by a wrapper's onKeyDown (the keydown
+  // bubbles up from the autofocused input), not a document-level listener.
+  const $input = $container.querySelector('.profile-assign-name');
+  t.truthy($input, 'name input rendered');
+  $input.dispatchEvent(
+    new testDocument.defaultView.KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+    }),
+  );
+  await tick(20);
+
+  t.falsy(
+    $container.querySelector('.profile-popup'),
+    'popup closed via Escape',
+  );
+  t.deepEqual(assigned, [], 'no name assigned on Escape close');
+
+  t.teardown(() => popup.hide());
+});
+
 test.serial('close button closes the popup', async t => {
   const { $container, popup } = await setupPopup();
   const { args } = makeShowArgs();

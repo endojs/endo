@@ -10,6 +10,7 @@ import {
   Fragment,
   h,
   renderConfined,
+  unmount,
   useEffect,
   useState,
 } from './setup-preact-container.js';
@@ -169,7 +170,12 @@ const PathAutocompleteRoot = ({ controller }) => {
     return () => {
       if (controller.setState === setState) delete controller.setState;
     };
-  }, [controller]);
+    // Mount-only: `controller` is a stable per-instance bridge. Keying on it
+    // re-runs this effect every render under confinement (the sanitizer
+    // reissues the prop identity), and re-applying `setState(pendingState)`
+    // — itself reissued — defeats Preact's Object.is bail into a slow
+    // render/effect feedback loop that never settles on a slow runner.
+  }, []);
 
   if (!state) {
     return null;
@@ -209,6 +215,23 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
   // setter and the host writes the row callbacks onto it.
   /** @type {PathMenuController} */
   const controller = {};
+
+  // Track deferred timers so `dispose` can cancel any that are still pending.
+  // A timer that fires after teardown runs against a torn-down row, and the
+  // uncancelled timers accumulate across a test file until the runner stalls.
+  /** @type {Set<ReturnType<typeof setTimeout>>} */
+  const pendingTimers = new Set();
+  /**
+   * @param {() => void} fn
+   * @param {number} ms
+   */
+  const later = (fn, ms) => {
+    const id = setTimeout(() => {
+      pendingTimers.delete(id);
+      fn();
+    }, ms);
+    pendingTimers.add(id);
+  };
 
   /**
    * Parse the input value into path prefix and current partial name.
@@ -325,7 +348,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
     if (advanceFocus) {
       const nextElement = findNextFocusable();
       if (nextElement) {
-        setTimeout(() => nextElement.focus(), 0);
+        later(() => nextElement.focus(), 0);
       }
     }
   };
@@ -392,7 +415,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
 
   // Handle blur to hide menu (with delay for click handling)
   $input.addEventListener('blur', () => {
-    setTimeout(() => {
+    later(() => {
       hideMenu();
     }, 150);
   });
@@ -509,7 +532,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
           );
           if (exactMatch) {
             // Let the slash be typed, then refresh
-            setTimeout(() => updateSuggestions(), 0);
+            later(() => updateSuggestions(), 0);
           }
         }
         break;
@@ -532,6 +555,13 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
     isMenuVisible: () => isVisible,
     dispose: () => {
       hideMenu();
+      for (const id of pendingTimers) {
+        clearTimeout(id);
+      }
+      pendingTimers.clear();
+      // Tear down the confined dropdown tree mounted at the bottom of this
+      // factory. Without this every torn-down row leaks a live Preact root.
+      unmount($menu);
     },
   });
 };

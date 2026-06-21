@@ -695,7 +695,11 @@ export const microblogComponent = async (
 
   // Start following messages.
   const messagesRef = await E(channel).followMessages();
-  const messagesIterator = iterateReader(messagesRef);
+  const messagesIterator = iterateReader(messagesRef, {
+    // Prefetch a window of messages so the backlog streams without a
+    // round-trip acknowledgement per message.
+    buffer: 64,
+  });
 
   const consumeMessages = async () => {
     for await (const message of messagesIterator) {

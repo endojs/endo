@@ -112,6 +112,12 @@
   opacity: 1;
 }
 
+.channel-list-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
 .channel-list-menu {
   position: absolute;
   top: 0;

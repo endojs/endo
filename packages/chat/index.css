@@ -3667,6 +3667,11 @@ button.btn-spinner::after {
 }
 
 /* Drag-and-drop link/move menu */
+.inventory-drop-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
 .inventory-drop-menu {
   background: var(--bg-primary, #1e1e1e);
   border: 1px solid var(--border-primary, #444);

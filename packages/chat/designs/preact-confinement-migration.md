@@ -608,13 +608,48 @@ across ~42 component test files). This is preventive — those tests are not
 currently failing — and a blanket conversion is wide, risky churn, so it is held
 until a focused pass.
 
-When that pass happens, **wait on the actual settled condition by polling, not
-by a fixed-duration timeout.** Replace `await tick(ms)` with a predicate poll
-that resolves as soon as the DOM/render condition holds (e.g. the element
-exists, the input value changed). Do **not** introduce a timeout ceiling on the
-poll — let AVA's global per-test timeout be the only bound, so the wait is as
-short as the machine allows and a genuine hang still fails the test with a clear
-timeout rather than passing on a guessed delay.
+### `inline-eval.test.js` skipped on Node 24 and macOS (partly diagnosed)
+
+`inline-eval.test.js` is gated off on Node major >= 24 (ubuntu) and on the
+macOS runner (Node 22): the file times out with the endowment-row confined
+sub-mount renders never completing, so a `waitFor` poll never resolves and the
+remaining tests are left "pending". It passes on Node-22 ubuntu, which keeps
+full coverage.
+
+What has been diagnosed and **fixed** (on this branch):
+
+- **Render/effect feedback loop.** The confined controllers wired their setter
+  in `useEffect(..., [controller])`. Under `renderConfined` the sanitizer
+  reissues a prop's identity every render, so the effect re-ran every render
+  and re-applied `setState(controller.pendingState)` (whose identity is also
+  reissued), defeating Preact's `Object.is` bail. The loop is throttled by
+  Preact's rAF-backed scheduler so it never trips the in-render re-render cap —
+  it just never settles. Fixed by making those effects mount-only (`[]`):
+  inline-eval, inline-define, inline-command-form, petname-path-autocomplete,
+  petname-paths-autocomplete. Reproduced on Node 22 under CPU load (~50% of
+  runs → ~0 after the fix).
+- **Leaked confined Preact root.** `petNamePathAutocomplete` never unmounted
+  its dropdown tree (`$menu`) on `dispose`, so every torn-down endowment row
+  leaked a live root. Fixed by `unmount($menu)` in its `dispose`.
+
+What **remains** (still under investigation): on the slow macOS runner the
+worker's event loop stalls after ~600 sibling tests — timers stop firing, so
+the current confined render never flushes and the file times out. Because the
+stall freezes the very timers a poll ceiling relies on, **no in-process ceiling
+(poll-count or wall-clock) can catch it** — confirmed: with the ceiling in
+place the failure is AVA's global timeout with the tests "pending", never the
+ceiling's own error. This looks like residual resource accumulation across the
+file's ~40 tests on a contended runner, not a single missing cleanup. Next
+steps: bisect which test/resource accumulates (active-handle dump via
+`process._getActiveHandles()` / `why-is-node-running` at end-of-file), or split
+the file so per-worker accumulation stays under the threshold.
+
+The `waitFor` helper now bounds the poll with a generous wall-clock ceiling
+(`Date.now` survives this package's lockdown options), so the *non-stall*
+flavor of this hang — a render that never completes while timers still fire —
+fails fast with a pointed error instead of wedging CI until AVA's global
+timeout. The ceiling is generous (20s, ~100× a real flush) so it never
+false-fails a legitimate wait.
 
 ## Review follow-ups from the readiness pass (deferred)
 
@@ -624,12 +659,12 @@ this PR: the edit-space modal container collision, the cold-cache author names
 in the channel and forum bodies, the own-peer border, the dead DOM-era fields,
 and the two-tags-per-line JSDoc. The remainder are deferred and tracked here.
 
-- **UA #3 — buffered streaming of inventory/messages.** _Done._ The inventory
-  subscription now buffers the daemon's name backlog and flushes it as one
-  batched reducer action (one render and one round of per-item resolution
-  instead of one per name); the inbox message loop reads the scroll position
-  synchronously instead of awaiting an animation frame per message, so the
-  initial message backlog no longer serializes at one message per frame.
+- **UA #3 — buffered streaming of inventory/messages.** _Done._ The inventory,
+  channel-list, inbox, and channel/forum/microblog subscriptions pass
+  `{ buffer: 64 }` to `iterateReader`, raising the exo-stream prefetch window
+  above the default 0 (fully synchronized) so up to 64 values flow before
+  waiting on acknowledgements — the initial backlog streams in without a
+  round-trip ack per value.
 - **UA #4 — per-mailbox streaming.** _Blocked on the daemon._ `followMessages()`
   takes no filter argument (`interfaces.js`) and each agent exposes a single
   aggregate mailbox that is the complete conversation log (sent **and**
@@ -653,3 +688,144 @@ and the two-tags-per-line JSDoc. The remainder are deferred and tracked here.
   counted, keeping later chips aligned). Watcher churn (the inventory/space
   watchers re-subscribe more than necessary) remains deferred — correctness
   -adjacent polish, not a migration blocker.
+
+## Cross-package Preact-pattern review (deferred follow-ups)
+
+A read-only audit of every Preact-consuming package (`@endo/chat`,
+`@endo/space-file-explorer`, `@endo/space-peers`, `@endo/space-whylip`) for
+pattern violations and non-idiomatic imperative code.
+No HIGH-severity violations exist in the migrated confined views — no
+Rules-of-Hooks breakage, no hook-bearing function called as a plain function,
+no ref misuse (refs are stripped by `renderConfined`), no state mutated outside
+`setState`, and no capability leaks into leaf components.
+The findings cluster into recurring patterns plus two standouts; all are
+deferred and recorded here.
+
+### Recurring patterns (fix as a class)
+
+1. **Host node pushed into a hook-using component + imperative scroll.**
+   A confined component takes a host DOM node as a prop and drives scroll
+   geometry inside its own `useEffect`, instead of leaving that to the trusted
+   controller.
+   - `inbox-component.js:1070-1180` (`InboxRoot`) — takes `$parent`, and at
+     `:1119-1127` measures scroll stickiness **per message** with
+     `await requestAnimationFrame` instead of a `scroll`-listener flag.
+   - `debugger-panel.js:354-361` (`DebuggerRoot`) — takes `$container`, then
+     `querySelector('.debugger-console-output')` + writes `scrollTop` in an
+     effect.
+   - Fix: follow the `channel`/`forum`/`microblog` reference — keep `$parent`
+     and scroll in the imperative controller with one `scroll` listener
+     maintaining an `isNearBottom` flag; the confined component stays
+     authority-free. Reading the host node is forced (refs stripped); doing it
+     inside the component is the avoidable part.
+
+2. **Subscription `for await` loops that only flip a disposed flag, never
+   `.return()` the remote iterator.** _Done._ The loop noticed teardown on the
+   next emission only, so an idle stream leaked until something arrived.
+   - `space-whylip/src/hooks/useConversation.js` — **fixed, and was worse than a
+     leak.** The hand-rolled async-iterator wrapper called `E(reader).next()`,
+     but `followMessages()` returns an exo-stream PassableReader whose interface
+     exposes only `stream()`, not `next()` — so the live loop threw on its first
+     pull and was swallowed by the init try/catch: only the `listMessages()`
+     backlog rendered and no new agent responses streamed in. Now consumed via
+     `iterateReader`, with the iterator held and `return()`-ed on cleanup.
+   - `space-peers/src/peers.js` — fixed; the iterator is held and `return()`-ed
+     on cleanup (it already consumed via `iterateReader`).
+   - Reference: `channel-component.js` calls `activeIterator.return()` on
+     dispose. `iterateReader`'s `return()` is idempotent, so a loop break plus a
+     cleanup `return()` is safe.
+
+3. **Reaching outside the component's own subtree with document-wide DOM ops**
+   where local Preact state already exists.
+   - `inventory/inventory.js:78-86` (`clearAllDropTargets` sweeps
+     `document.querySelectorAll('.drop-target')` from an event handler; drop
+     state is already Preact state).
+   - `petname-path-autocomplete.js:291-302` (document-wide focusable scan to
+     advance focus).
+
+4. **Uncontrolled inputs read back via `document.querySelector`** instead of a
+   controlled `onInput -> setState` value.
+   - `space-file-explorer/src/preact/Dialog.js` — **done.** The text input and
+     radios are now controlled; the value/radio queries are gone (only the
+     forced focus query remains). This surfaced a confined-component gotcha
+     worth recording: **an object prop cannot be a `useEffect` dependency in a
+     confined component** — the sanitizing renderer reissues object props a
+     fresh identity on every render, so an effect keyed on one re-runs every
+     render. The reset-on-open is instead handled by keying the component on a
+     monotonic request id so it remounts per request (and `useState` re-seeds);
+     the focus effect is mount-only. Key confined-component effects on
+     primitives, never object references.
+
+5. **Timer/listener leaks (no cleanup).** `setTimeout` "wait for render" focus
+   hacks (unnecessary — `renderConfined` is synchronous) and `document` click
+   listeners never removed: `inline-command-form.js`, `endow-modal.js`,
+   `command-selector.js:381`, `token-autocomplete.js:1003`,
+   `space-peers/src/peers.js:126` (copy-flash timer).
+
+### Removing ambient DOM/host APIs from confined components
+
+A focused pass to get DOM/host-API calls out of the confined Preact
+_components_ themselves (the imperative controllers are out of scope — they are
+the sanctioned host-node bridge). Note these components are not sandboxed from
+ambient globals: `renderConfined` is a vnode/DOM trust boundary, not an
+execution sandbox, so host-authored components run in the app realm where
+`navigator`/`document`/`window` are reachable. This is a capability-discipline
+cleanup (authority-free leaves), not a sandbox fix. Two classes, both **done**:
+
+- **`navigator.clipboard` in leaf `CopyButton`s.** The capability is now
+  injected. `value-component` threads a `copy` callback from the trusted
+  controller (one hop). `peers` reaches its CopyButton through ~7 components, so
+  it uses a `ClipboardContext` (verified to propagate through `renderConfined`)
+  defaulting to the platform clipboard at module scope; the component consumes
+  it via `useContext`. The peers effect's `window.reportError` sinks became
+  `console.error`. (The inbox CopyButtons — `TimestampLine`/`FormFieldRow` —
+  remain, deferred with the inbox.)
+- **`document` click/keydown dismiss listeners.** Replaced with declarative,
+  in-tree dismissal: a full-screen backdrop element (`onClick` closes) for
+  outside-click, made focusable (`tabindex`/`autofocus`, both sanitizer
+  -permitted) with an `onKeyDown` for Escape; the profile popup uses a
+  `display: contents` wrapper carrying the Escape handler (the key bubbles from
+  its autofocused input). Covers `inventory` drop-menu, the two `channel-list`
+  menus, and `profile-popup`. No component touches `document` anymore.
+
+Useful facts established for future confined work: Preact **context propagates
+through `renderConfined`**; `tabindex`/`autofocus`/`onKeyDown` are permitted by
+the sanitizer; and (from the Dialog fix) **object props can't be effect deps**
+in a confined component.
+
+Still **forced-by-renderer** (need a `@endo/preact-container` "narrow ref"
+affordance, not a rewrite): scroll geometry in `inbox`/`debugger-panel`, the
+Dialog focus query, the `Viewer` splitter pointer-drag, and the inventory
+drag-highlight sweep.
+
+### Standouts
+
+- **`add-space-modal.js` (HIGH, but the unmigrated baseline).** It does NOT use
+  `renderConfined`; it renders via `$container.innerHTML = html` with
+  **unescaped interpolation of user-typed values** (e.g. `value="${handleName}"`
+  near line 707), an injection surface that bypasses the sanitizer, plus a
+  per-render keydown-listener leak. `icon-selector.js`'s legacy
+  `renderIconSelector` string path (8 call sites here) shares the unescaped
+  -interpolation issue and cannot be deleted until add-space-modal is migrated.
+  Both are frozen for the incoming imperative-Space PR; this is the clear next
+  migration target once that lands.
+- **`space-whylip/src/hooks/useConversation.js`** is the one store hook with
+  real lifecycle problems: the un-cancellable stream (above) plus a single
+  mega-effect doing `locate('@self')` + backlog replay + live subscription,
+  keyed on `[powers, refreshNodes]` so a `refreshNodes` identity change restarts
+  the whole thing. Split backfill from the live subscription and key init on
+  `[powers]` alone.
+
+### Severity roll-up
+
+| Package | HIGH | MED | LOW |
+| --- | --- | --- | --- |
+| chat | 1 (add-space-modal, unmigrated) | 6 | ~10 |
+| space-file-explorer | 0 | 3 | 4 |
+| space-peers | 0 | 2 | 3 |
+| space-whylip | 1 (stream cancel) | 3 | 4 |
+
+Suggested fix order when picked up: (1) the subscription-cancellation class
+across whylip/peers (correctness); (2) the inbox + debugger-panel
+scroll-into-controller refactor; (3) the Dialog controlled-input and inventory
+drop-target cleanups.

@@ -388,6 +388,9 @@ const Root = ({
   const [focusTarget, setFocusTarget] = useState(initialFocus);
 
   // Wire the controller so the host can push new state / focus targets.
+  // Mount-only: `controller` is a stable bridge; a `[controller]` dep re-runs
+  // this effect every render under confinement (the sanitizer reissues the prop
+  // identity), needless churn that elsewhere spins a render/effect feedback loop.
   useEffect(() => {
     controller.setState = setState;
     controller.setFocusTarget = setFocusTarget;
@@ -397,7 +400,7 @@ const Root = ({
         delete controller.setFocusTarget;
       }
     };
-  }, [controller]);
+  }, []);
 
   return h(DefineView, {
     state,

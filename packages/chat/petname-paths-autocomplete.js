@@ -10,6 +10,7 @@ import {
   Fragment,
   h,
   renderConfined,
+  unmount,
   useEffect,
   useState,
 } from './setup-preact-container.js';
@@ -185,7 +186,9 @@ const PathsAutocompleteRoot = ({ controller }) => {
     return () => {
       if (controller.setState === setState) delete controller.setState;
     };
-  }, [controller]);
+    // Mount-only: see petname-path-autocomplete — a `[controller]` dep spins a
+    // slow render/effect feedback loop under confinement on slow runners.
+  }, []);
 
   if (!state) {
     return null;
@@ -232,6 +235,23 @@ export const petNamePathsAutocomplete = (
   let suggestions = [];
   let selectedIndex = 0;
   let isVisible = false;
+
+  // Track deferred timers so `dispose` can cancel any that are still pending.
+  // A timer that fires after teardown runs against a torn-down row, and the
+  // uncancelled timers accumulate across a test file until the runner stalls.
+  /** @type {Set<ReturnType<typeof setTimeout>>} */
+  const pendingTimers = new Set();
+  /**
+   * @param {() => void} fn
+   * @param {number} ms
+   */
+  const later = (fn, ms) => {
+    const id = setTimeout(() => {
+      pendingTimers.delete(id);
+      fn();
+    }, ms);
+    pendingTimers.add(id);
+  };
 
   // Mutable bridge to the root component's state setter (populated by the
   // component's effect). Intentionally NOT hardened — the component writes its
@@ -437,7 +457,7 @@ export const petNamePathsAutocomplete = (
       hideMenu();
       // Show suggestions for the new/extended path (unless finalizeOnSelect)
       if (!finalizeOnSelect) {
-        setTimeout(() => updateSuggestions(), 0);
+        later(() => updateSuggestions(), 0);
       }
     } else if (mode === 'drilldown') {
       // Put full path in input with trailing slash for continued drilling
@@ -445,7 +465,7 @@ export const petNamePathsAutocomplete = (
       renderChips();
       notifyChange();
       // Fetch suggestions for the new prefix
-      setTimeout(() => updateSuggestions(), 0);
+      later(() => updateSuggestions(), 0);
     } else {
       // Just complete in the input
       $input.value = fullPath;
@@ -526,7 +546,7 @@ export const petNamePathsAutocomplete = (
 
   // Handle blur
   $input.addEventListener('blur', () => {
-    setTimeout(() => {
+    later(() => {
       hideMenu();
     }, 150);
   });
@@ -746,6 +766,13 @@ export const petNamePathsAutocomplete = (
     isMenuVisible: () => isVisible,
     dispose: () => {
       hideMenu();
+      for (const id of pendingTimers) {
+        clearTimeout(id);
+      }
+      pendingTimers.clear();
+      // Tear down the confined dropdown tree. Without this every torn-down
+      // row leaks a live Preact root (cf. petname-path-autocomplete.js).
+      unmount($menu);
     },
     // Expose input for focus management
     focus: () => $input.focus(),

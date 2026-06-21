@@ -153,18 +153,31 @@ export const tick = (ms = 10) => new Promise(r => setTimeout(r, ms));
  * races on a loaded CI runner. Polling the actual condition is robust and as
  * short as the machine allows.
  *
- * There is deliberately no per-poll timeout ceiling: a fixed ceiling is itself
- * a guessed delay that can be too short. AVA's global per-test timeout is the
- * only bound, so a genuine hang fails with a clear timeout rather than passing
- * (or failing) on a guess. Use this only to wait for a condition that the
- * following assertion checks.
+ * A generous ceiling bounds the poll so a render that never completes fails
+ * fast with a clear, pointed error instead of hanging the whole (serial) file
+ * until AVA's global timeout — which, when the worker also leaks a handle,
+ * wedges CI for hours. The bound is wall-clock (`Date.now`, which survives
+ * lockdown): a poll-count bound can't fire when the event loop is so starved
+ * that `tick` itself stalls and the counter never advances, whereas an elapsed
+ * deadline trips on the next resolved poll regardless of how dilated the polls
+ * became. The default 20s is far above any legitimate flush (tens of ms) yet
+ * well under AVA's per-test timeout, so it never false-fails a real wait but
+ * still fails a genuine hang fast. Use this only to wait for a condition that
+ * the following assertion checks.
  *
  * @param {() => unknown} predicate
  * @param {number} [step] - Poll interval in ms.
+ * @param {number} [timeoutMs] - Wall-clock ceiling before failing.
  * @returns {Promise<void>}
  */
-export const waitFor = async (predicate, step = 10) => {
+export const waitFor = async (predicate, step = 10, timeoutMs = 20_000) => {
+  const deadline = Date.now() + timeoutMs;
   while (!predicate()) {
+    if (Date.now() >= deadline) {
+      throw Error(
+        `waitFor: condition not met within ${timeoutMs}ms: ${predicate}`,
+      );
+    }
     // eslint-disable-next-line no-await-in-loop
     await tick(step);
   }

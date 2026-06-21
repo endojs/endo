@@ -122,7 +122,14 @@ export function FileExplorerApp({ powers, profilePath = [] }) {
       h(Viewer, { state, activeSource, actions }),
     ),
     h(StatusBar, { status: state.status, busy: state.busy }),
-    h(Dialog, { dialog: state.dialog, onSubmit: actions.submitDialog }),
+    // Key on the request id so each opened dialog remounts <Dialog>, re-seeding
+    // its controlled inputs (an object prop can't drive a confined component's
+    // effect deps — the sanitizing renderer gives it fresh identity per render).
+    h(Dialog, {
+      key: state.dialog ? state.dialog.id : 'none',
+      dialog: state.dialog,
+      onSubmit: actions.submitDialog,
+    }),
   );
 }
 harden(FileExplorerApp);

@@ -3,8 +3,8 @@
 import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
-import { h } from 'preact';
-import { useEffect, useReducer, useState } from 'preact/hooks';
+import { h, createContext } from 'preact';
+import { useContext, useEffect, useReducer, useState } from 'preact/hooks';
 
 /** @import { ERef } from '@endo/far' */
 
@@ -111,7 +111,19 @@ harden(AddressRow);
  * @param {string} props.value - The full text to copy.
  * @param {string} [props.copyTitle]
  */
+/**
+ * Clipboard capability, injected via context so the presentational CopyButton
+ * never reaches the ambient `navigator`. Defaults to the platform clipboard; a
+ * host can override it with `<ClipboardContext.Provider value={copy}>`.
+ *
+ * @type {import('preact').Context<(text: string) => Promise<void>>}
+ */
+const ClipboardContext = createContext(text =>
+  navigator.clipboard.writeText(text),
+);
+
 const CopyButton = ({ value, copyTitle = 'Copy address' }) => {
+  const copy = useContext(ClipboardContext);
   const [copied, setCopied] = useState(false);
   return h(
     'button',
@@ -119,13 +131,13 @@ const CopyButton = ({ value, copyTitle = 'Copy address' }) => {
       class: 'peer-copy-btn',
       title: copyTitle,
       onClick: () => {
-        navigator.clipboard
-          .writeText(value)
-          .then(() => {
+        copy(value).then(
+          () => {
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
-          })
-          .catch(window.reportError);
+          },
+          error => console.error('Failed to copy:', error),
+        );
       },
     },
     copied ? '✓' : '⧉',
@@ -335,6 +347,12 @@ export const PeersView = ({ powers, onProfileChange }) => {
     // re-load on each change, nor the subscription loop dispatches into a
     // detached tree after teardown.
     let disposed = false;
+    /**
+     * The peer-change stream iterator, held so cleanup can close the remote
+     * stream eagerly instead of waiting for the next change to notice teardown.
+     * @type {ReturnType<typeof iterateReader> | null}
+     */
+    let changesIter = null;
 
     const loadPeers = async () => {
       if (disposed) return;
@@ -362,15 +380,18 @@ export const PeersView = ({ powers, onProfileChange }) => {
     const watchPeers = async () => {
       await null;
       try {
-        // The change payload itself is unused; any change triggers a reload.
-        // eslint-disable-next-line no-unused-vars
-        for await (const change of iterateReader(
+        changesIter = iterateReader(
           /** @type {Parameters<typeof iterateReader>[0]} */ (
             /** @type {unknown} */ (E(host).followPeerChanges())
           ),
-        )) {
+        );
+        // The change payload itself is unused; any change triggers a reload.
+        // eslint-disable-next-line no-unused-vars
+        for await (const change of changesIter) {
           if (disposed) break;
-          loadPeers().catch(window.reportError);
+          loadPeers().catch(error =>
+            console.error('[peers] reload failed:', error),
+          );
         }
       } catch {
         // Watching not supported or failed — the initial load still works.
@@ -379,10 +400,16 @@ export const PeersView = ({ powers, onProfileChange }) => {
 
     loadPeers()
       .then(() => watchPeers())
-      .catch(window.reportError);
+      .catch(error => console.error('[peers] init failed:', error));
 
     return () => {
       disposed = true;
+      // Close the remote peer-change stream so the daemon subscription is
+      // released promptly instead of lingering until the next change.
+      if (changesIter) {
+        changesIter.return().catch(() => {});
+        changesIter = null;
+      }
     };
   }, [host, reloadToken]);
 

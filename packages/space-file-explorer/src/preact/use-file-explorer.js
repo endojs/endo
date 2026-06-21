@@ -229,6 +229,8 @@ export function useFileExplorer(powers, profilePath = []) {
   }, []);
 
   const sourceCounterRef = useRef(0);
+  // Monotonic id per opened dialog, so the view can key <Dialog> on it.
+  const dialogCounterRef = useRef(0);
   // Shared directory-capability promise cache for the active source. Promises
   // (not resolved caps) so chained lookups pipeline.
   /** @type {{ current: Map<string, Cap> }} */
@@ -432,7 +434,12 @@ export function useFileExplorer(powers, profilePath = []) {
     (/** @type {DialogOptions} */ options) =>
       /** @type {Promise<string | null>} */ (
         new Promise(resolve => {
-          update({ dialog: { options, resolve } });
+          // A monotonic id lets the view key the <Dialog> per request so it
+          // remounts (and re-seeds its controlled inputs) on each open.
+          dialogCounterRef.current += 1;
+          update({
+            dialog: { id: dialogCounterRef.current, options, resolve },
+          });
         })
       ),
     [update],

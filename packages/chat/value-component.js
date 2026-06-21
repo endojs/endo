@@ -102,8 +102,10 @@ harden(NameAction);
  *
  * @param {object} props
  * @param {unknown} props.value
+ * @param {(text: string) => Promise<void>} props.copy - Clipboard capability
+ *   provided by the controller; the button never touches `navigator` itself.
  */
-const CopyButton = ({ value }) => {
+const CopyButton = ({ value, copy }) => {
   const text = toClipboardText(value);
   const [copied, setCopied] = useState(false);
   if (text === undefined) return null;
@@ -115,7 +117,7 @@ const CopyButton = ({ value }) => {
         ? 'value-copy-button value-copy-feedback'
         : 'value-copy-button',
       onClick: () => {
-        navigator.clipboard.writeText(text).then(
+        copy(text).then(
           () => {
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
@@ -156,6 +158,7 @@ const ValueActions = ({
   getCurrentPetNamePath,
   powers,
   clearValue,
+  copy,
 }) => {
   let passStyle;
   try {
@@ -225,7 +228,7 @@ const ValueActions = ({
     'div',
     { class: 'value-actions-inner' },
     nameActionProps ? h(NameAction, nameActionProps) : null,
-    isPlainPassable ? h(CopyButton, { value }) : null,
+    isPlainPassable ? h(CopyButton, { value, copy }) : null,
   );
 };
 harden(ValueActions);
@@ -384,6 +387,12 @@ export const valueComponent = (
   const $enterProfile = /** @type {HTMLButtonElement} */ (
     $parent.querySelector('#value-enter-profile')
   );
+
+  // The clipboard capability lives in the trusted controller and is threaded
+  // into the confined tree as a prop, so the presentational CopyButton stays
+  // authority-free (it never reaches the ambient `navigator`).
+  /** @param {string} clipboardText */
+  const copy = clipboardText => navigator.clipboard.writeText(clipboardText);
 
   // Dedicated confined mounts for the value content and the context actions.
   // `renderConfined` reconciles against ALL children of its mount node, so each
@@ -565,6 +574,7 @@ export const valueComponent = (
         getCurrentPetNamePath: () => currentPetNamePath,
         powers,
         clearValue,
+        copy,
       }),
       $actionsMount,
     );

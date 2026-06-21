@@ -122,22 +122,6 @@ const ProfilePopup = ({ data, onClose }) => {
 
   const [nameValue, setNameValue] = useState(yourName || '');
 
-  // Close on Escape, mirroring the original document-level keydown listener.
-  useEffect(() => {
-    /** @param {{ key?: string }} e */
-    const onKey = e => {
-      if (e.key === 'Escape') onClose();
-    };
-    // Defer to avoid catching the event that opened the popup.
-    const timer = setTimeout(() => {
-      document.addEventListener('keydown', onKey);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
-
   const submitName = () => {
     const name = nameValue.trim();
     if (name) {
@@ -148,9 +132,19 @@ const ProfilePopup = ({ data, onClose }) => {
     }
   };
 
+  // A `display: contents` wrapper carries the Escape handler declaratively
+  // (the keydown bubbles up from the autofocused name input) instead of a
+  // `document`-level keydown listener; it generates no box, so layout and the
+  // backdrop/card positioning are unchanged.
   return h(
-    Fragment,
-    null,
+    'div',
+    {
+      style: 'display: contents',
+      /** @param {{ key?: string }} e */
+      onKeyDown: e => {
+        if (e.key === 'Escape') onClose();
+      },
+    },
     h('div', { class: 'profile-popup-backdrop', onClick: onClose }),
     h(
       'div',

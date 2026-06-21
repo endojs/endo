@@ -104,25 +104,6 @@ harden(orderChannels);
 const ChannelMenu = ({ viewMode, onViewModeChange }) => {
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const close = () => setOpen(false);
-    /** @param {{ key?: string }} e */
-    const onKey = e => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    // Defer the dismiss listener past the click that opened the menu.
-    const raf = requestAnimationFrame(() => {
-      document.addEventListener('click', close);
-      document.addEventListener('keydown', onKey);
-    });
-    return () => {
-      cancelAnimationFrame(raf);
-      document.removeEventListener('click', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
   return h(
     'span',
     { class: 'channel-list-menu-wrap' },
@@ -139,6 +120,21 @@ const ChannelMenu = ({ viewMode, onViewModeChange }) => {
       },
       '⋮',
     ),
+    // A focusable full-screen backdrop dismisses the menu on an outside click or
+    // Escape, declaratively, instead of `document`-level listeners. `autofocus`
+    // lets the keydown reach it even with nothing else focused.
+    open
+      ? h('div', {
+          class: 'channel-list-menu-backdrop',
+          tabindex: -1,
+          autofocus: true,
+          onClick: () => setOpen(false),
+          /** @param {{ key?: string }} e */
+          onKeyDown: e => {
+            if (e.key === 'Escape') setOpen(false);
+          },
+        })
+      : null,
     open
       ? h(
           'div',
@@ -187,24 +183,6 @@ const ChannelBookmarkRow = ({
     /** @type {{ x: number, y: number } | null} */ (null),
   );
 
-  useEffect(() => {
-    if (!menuPos) return undefined;
-    const close = () => setMenuPos(null);
-    /** @param {{ key?: string }} e */
-    const onKey = e => {
-      if (e.key === 'Escape') setMenuPos(null);
-    };
-    const raf = requestAnimationFrame(() => {
-      document.addEventListener('click', close);
-      document.addEventListener('keydown', onKey);
-    });
-    return () => {
-      cancelAnimationFrame(raf);
-      document.removeEventListener('click', close);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [menuPos]);
-
   return h(
     'div',
     {
@@ -222,6 +200,25 @@ const ChannelBookmarkRow = ({
         : undefined,
     },
     h('span', { class: 'channel-bookmark-label' }, `★ ${bookmark.label}`),
+    // Focusable backdrop dismisses the context menu on an outside click or
+    // Escape (no `document` listeners). stopPropagation keeps the dismissing
+    // click from also selecting the bookmark row.
+    menuPos && onRemoveBookmark
+      ? h('div', {
+          class: 'channel-list-menu-backdrop',
+          tabindex: -1,
+          autofocus: true,
+          /** @param {{ stopPropagation: () => void }} e */
+          onClick: e => {
+            e.stopPropagation();
+            setMenuPos(null);
+          },
+          /** @param {{ key?: string }} e */
+          onKeyDown: e => {
+            if (e.key === 'Escape') setMenuPos(null);
+          },
+        })
+      : null,
     menuPos && onRemoveBookmark
       ? h(
           'div',
@@ -417,6 +414,9 @@ const ChannelList = ({ powers, options, controller }) => {
         /** @type {Parameters<typeof iterateReader>[0]} */ (
           /** @type {unknown} */ (E(powers).followNameChanges())
         ),
+        // Prefetch a window of values so the channel-name backlog streams
+        // without a round-trip acknowledgement per name.
+        { buffer: 64 },
       );
       for await (const rawChange of nameChanges) {
         if (disposed) break;

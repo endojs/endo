@@ -176,7 +176,13 @@ const CodeNameInput = ({ controller }) => {
     return () => {
       if (controller.setState === setState) delete controller.setState;
     };
-  }, [controller]);
+    // Mount-only: `controller` is a stable per-row object. Keying on it makes
+    // the effect re-run every render under confinement (the sanitizer reissues
+    // the prop's identity each pass), and re-applying `setState(pendingState)`
+    // — whose identity is likewise reissued — defeats Preact's Object.is bail,
+    // spinning a slow render/effect feedback loop that never settles (the
+    // Node-slow-runner CI hang).
+  }, []);
 
   return h('input', {
     // Re-key on the focus nonce so a focus request re-applies autofocus.
@@ -222,7 +228,8 @@ const Root = ({ controller, initialState, onInput, onKeyDown }) => {
     return () => {
       if (controller.setState === setState) delete controller.setState;
     };
-  }, [controller]);
+    // Mount-only — see CodeNameInput above.
+  }, []);
 
   return h('input', {
     key: state.focusNonce ? `source-${state.focusNonce}` : undefined,

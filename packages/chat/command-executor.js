@@ -606,8 +606,10 @@ export const createCommandExecutor = ({
             `[Chat] Accepting invitation for "${guestName}" from ${String(locator).slice(0, 40)}...`,
           );
           const accepted = E(powers).accept(String(locator), String(guestName));
+          /** @type {ReturnType<typeof setTimeout>} */
+          let timeoutId;
           const timeout = new Promise((_, reject) => {
-            setTimeout(
+            timeoutId = setTimeout(
               () =>
                 reject(
                   new Error(
@@ -617,7 +619,15 @@ export const createCommandExecutor = ({
               60_000,
             );
           });
-          await Promise.race([accepted, timeout]);
+          try {
+            await Promise.race([accepted, timeout]);
+          } finally {
+            // Clear the timeout as soon as the race settles. Otherwise the
+            // pending 60s timer keeps the event loop alive long after accept
+            // resolves — which stalls AVA's worker exit and hangs CI even
+            // though every test has passed.
+            clearTimeout(timeoutId);
+          }
           console.log(`[Chat] Invitation accepted for "${guestName}"`);
           return {
             success: true,

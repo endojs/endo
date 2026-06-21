@@ -49,6 +49,11 @@ export {
   createElement,
 } from '@endo/preact-container/renderer';
 
+// `createContext` lets a controller inject a capability (e.g. a clipboard
+// writer) into deep confined leaves without prop-threading. Context propagates
+// normally through `renderConfined`.
+export { createContext } from 'preact';
+
 // Hooks for host-authored components. (Confined guest components receive these
 // as endowments instead; trusted host components import them here.) This is
 // the same hook set `@endo/preact-container/compartment` endows to guests.
@@ -56,6 +61,7 @@ export {
   useState,
   useEffect,
   useCallback,
+  useContext,
   useMemo,
   useRef,
   useReducer,

@@ -95,7 +95,16 @@ test.serial('input dialog submits the trimmed value on confirm', async t => {
 
   await waitFor(() => !!container.querySelector('.fx-dialog-input'));
   const $input = container.querySelector('.fx-dialog-input');
+  // The input is controlled, so drive it with an `input` event; a bare
+  // `.value =` assignment is never read back. Wait for the controlled
+  // re-render to reflect it before confirming.
   $input.value = '  renamed.txt  ';
+  $input.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
+  await waitFor(
+    () =>
+      container.querySelector('.fx-dialog-input').value.trim() ===
+      'renamed.txt',
+  );
 
   click(container.querySelector('.fx-dialog-confirm'));
   await waitFor(() => calls.length > 0);
@@ -180,8 +189,14 @@ test.serial('choices dialog submits a later checked value', async t => {
   );
 
   const radios = container.querySelectorAll('input[name="fx-dialog-choice"]');
-  radios[0].checked = false;
+  // Controlled radios: select the second by dispatching a `change` event so the
+  // component updates its state, then wait for the re-render.
   radios[1].checked = true;
+  radios[1].dispatchEvent(new globalThis.Event('change', { bubbles: true }));
+  await waitFor(
+    () =>
+      container.querySelectorAll('input[name="fx-dialog-choice"]')[1].checked,
+  );
 
   click(container.querySelector('.fx-dialog-confirm'));
   await waitFor(() => calls.length > 0);

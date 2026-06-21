@@ -311,3 +311,76 @@ test.serial(
     );
   },
 );
+
+// Regression: `initHeatEngine` awaits `getHopInfo`/`getHeatConfig`, so a
+// component can be disposed mid-init. If the awaited continuation then starts
+// a heat engine, its self-rescheduling requestAnimationFrame loop is never
+// stopped — under happy-dom (and the rAF shim above) that loop is a live
+// timer that keeps the process alive forever, so the test passes but the
+// worker (and CI) hangs. The component must bail out of init once disposed.
+//
+// This test forces the dispose-before-resolve ordering deterministically and
+// asserts that NO requestAnimationFrame is scheduled after dispose (i.e. the
+// engine never started). The post-dispose rAF is swallowed rather than run, so
+// a regression fails the assertion fast instead of hanging the suite.
+test.serial(
+  'dispose during heat-engine init does not start a leaking rAF loop',
+  async t => {
+    const { $input, $menu, $error, $sendButton, $chatBar } =
+      createElements(testDocument);
+    const { powers } = makeMockPowers({ names: [] });
+
+    // A channel whose heat config resolves only when we say so, letting us
+    // dispose while `initHeatEngine` is still awaiting it.
+    let resolveConfig;
+    const configReady = new Promise(resolve => {
+      resolveConfig = resolve;
+    });
+    const channelRef = Far('Channel', {
+      getHopInfo: async () => undefined,
+      getHeatConfig: async () => configReady,
+    });
+
+    const component = sendFormComponent({
+      $input,
+      $menu,
+      $error,
+      $sendButton,
+      $chatBar,
+      E,
+      iterateReader,
+      powers,
+      showValue: () => {},
+      onStateChange: () => {},
+      getChannelRef: () => channelRef,
+    });
+
+    // Dispose before the heat config resolves — the racy ordering.
+    component.dispose();
+
+    // From here on, any requestAnimationFrame call means the heat engine (or
+    // its heat bar) started AFTER dispose. Swallow it so a regression cannot
+    // spin a real loop and hang the worker.
+    const realRaf = globalThis.requestAnimationFrame;
+    let rafAfterDispose = 0;
+    globalThis.requestAnimationFrame = () => {
+      rafAfterDispose += 1;
+      return 0;
+    };
+    t.teardown(() => {
+      globalThis.requestAnimationFrame = realRaf;
+      component.dispose();
+    });
+
+    // Let the init continuation run to completion past its await.
+    resolveConfig({
+      burstLimit: 5,
+      sustainedRate: 10,
+      lockoutDurationMs: 5000,
+      postLockoutPct: 50,
+    });
+    await tick(50);
+
+    t.is(rafAfterDispose, 0, 'no heat engine / rAF loop started after dispose');
+  },
+);

@@ -151,6 +151,8 @@ export {};
  * renders this and reports the outcome through `actions.submitDialog`.
  *
  * @typedef {object} DialogRequest
+ * @property {number} id Monotonic id; the view keys `<Dialog>` on it so a new
+ *   request remounts the component and re-seeds its controlled inputs.
  * @property {DialogOptions} options
  * @property {(value: string | null) => void} resolve Settles the `openDialog` promise.
  */

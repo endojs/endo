@@ -2611,6 +2611,7 @@ __metadata:
   resolution: "@endo/space-whylip@workspace:packages/space-whylip"
   dependencies:
     "@endo/conversation-tree": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     eslint: "catalog:dev"
     preact: "npm:^10.29.2"

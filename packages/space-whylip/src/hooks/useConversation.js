@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { E } from '@endo/far';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import {
   makeConversationTree,
   makeMemoryBackend,
@@ -242,6 +243,13 @@ export const useConversation = powers => {
    */
   useEffect(() => {
     let cancelled = false;
+    /**
+     * The live message-stream iterator, held so cleanup can close the remote
+     * stream eagerly rather than leaving the daemon subscription open until the
+     * next message arrives.
+     * @type {ReturnType<typeof iterateReader> | null}
+     */
+    let messageIter = null;
 
     const init = async () => {
       try {
@@ -288,27 +296,19 @@ export const useConversation = powers => {
         }
 
         await refreshNodes();
+        if (cancelled) return;
 
-        // Stream new messages
-        const iterRef = E(/** @type {any} */ (powers)).followMessages();
-        const iter = {
-          [Symbol.asyncIterator]() {
-            return {
-              /** @returns {Promise<IteratorResult<any>>} */
-              async next() {
-                const result = await E(iterRef).next();
-                return {
-                  done: !!result.done,
-                  value: result.value,
-                };
-              },
-            };
-          },
-        };
+        // Stream new messages. `followMessages()` returns an exo-stream
+        // PassableReader (it exposes `stream()`, not `next()`), so it must be
+        // consumed through `iterateReader`, which drives the flow-control
+        // protocol and exposes a `return()` that closes the remote stream.
+        messageIter = iterateReader(
+          /** @type {any} */ (E(/** @type {any} */ (powers)).followMessages()),
+        );
 
         const MAX_FORMAT_RETRIES = 1;
 
-        for await (const msg of iter) {
+        for await (const msg of messageIter) {
           if (cancelled) break;
 
           const { messageId, replyTo, from: fromId, strings, type } = msg;
@@ -380,6 +380,12 @@ export const useConversation = powers => {
     init();
     return () => {
       cancelled = true;
+      // Close the remote message stream so the daemon subscription is released
+      // promptly instead of lingering until the next message lands.
+      if (messageIter) {
+        messageIter.return().catch(() => {});
+        messageIter = null;
+      }
     };
   }, [powers, refreshNodes]);
 

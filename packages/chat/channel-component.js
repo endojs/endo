@@ -1132,7 +1132,11 @@ export const channelComponent = async (
     }
     throw err;
   }
-  const messageIterator = iterateReader(messagesRef);
+  const messageIterator = iterateReader(messagesRef, {
+    // Prefetch a window of messages so the backlog streams without a
+    // round-trip acknowledgement per message.
+    buffer: 64,
+  });
   activeIterator = messageIterator;
 
   // Schedule a hard scroll-to-bottom shortly after messages start arriving.
