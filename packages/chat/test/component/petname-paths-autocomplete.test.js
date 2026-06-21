@@ -4,7 +4,7 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import { petNamePathsAutocomplete } from '../../petname-paths-autocomplete.js';
 
@@ -270,7 +270,13 @@ test('ArrowDown navigates suggestions', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(50);
+  // The suggestions load through an async `E(powers).list()` chain, so poll for
+  // the rendered selection rather than guessing a fixed delay (which races on a
+  // slow CI runner).
+  await waitFor(
+    () =>
+      $menu.querySelector('.token-menu-item.selected')?.textContent === 'alice',
+  );
 
   let selected = $menu.querySelector('.token-menu-item.selected');
   t.is(selected?.textContent, 'alice');
@@ -278,7 +284,10 @@ test('ArrowDown navigates suggestions', async t => {
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
   );
-  await tick(10);
+  await waitFor(
+    () =>
+      $menu.querySelector('.token-menu-item.selected')?.textContent === 'bob',
+  );
 
   selected = $menu.querySelector('.token-menu-item.selected');
   t.is(selected?.textContent, 'bob');

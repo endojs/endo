@@ -50,7 +50,7 @@
     "@vitest/browser": "^4.1.9",
     "@vitest/browser-playwright": "^4.1.9",
     "eslint": "catalog:dev",
-    "playwright": "1.56.1",
+    "playwright": "^1.60.0",
     "preact": "^10.29.2",
     "ses": "workspace:^",
     "vite": "^8.0.16",
