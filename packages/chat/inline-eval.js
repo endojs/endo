@@ -4,7 +4,47 @@
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
+import harden from '@endo/harden';
+
+import {
+  h,
+  renderConfined,
+  unmount,
+  useEffect,
+  useState,
+} from './setup-preact-container.js';
+
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
+
+// Inline eval input, migrated from imperative `innerHTML`/`createElement` DOM to
+// confined Preact rendered through `renderConfined`. The exported entry,
+// `createInlineEval({...})`, keeps its exact options object
+// (`$container`, `E`, `powers`, `onSubmit`, `onExpand`, `onCancel`,
+// `onValidityChange`) and the hardened control object (`getData`, `isValid`,
+// `setDisabled`, `clear`, `focus`, `setData`, `dispose`) so its only caller —
+// inline-command-form.js — needs no changes.
+//
+// COMPOSITION. Each endowment row's pet-name field is owned by
+// `petNamePathAutocomplete`, which is itself a host-node CONTROLLER: it reads
+// and writes the host `<input>`'s value, drives focus, dispatches `input`
+// events, and renders only its dropdown body confined into a host `$menu`. That
+// input therefore CANNOT be a Preact-controlled node. So an endowment row is a
+// host-node controller too (cf. send-form's heat bar / token autocomplete and
+// edit-space-modal's scheme picker): its pet-name input, sizer, menu, arrow, and
+// the code-name input are host nodes the row owns imperatively, and the
+// `petNamePathAutocomplete` controller is mounted imperatively into the row's
+// host `$menu`. The code-name input renders confined into a DEDICATED mount child
+// inside the row so its `value`/`disabled` stay declarative SafeEvent-driven
+// state. Host DOM nodes never enter a vnode tree, and there is no
+// dangerouslySetInnerHTML.
+//
+// The view's whole authoritative state (the source expression, the disabled
+// flag, and which field should hold focus) lives in the host closure, not in a
+// component, so `getData`/`isValid` always read a synchronously-fresh value
+// rather than racing Preact's deferred effect flush. A small `Root` mirrors the
+// source/disabled/focus state for display via a mutable controller, exactly as
+// inline-define.js does. The same `.inline-eval-*` CSS class names are reused so
+// the styling from index.css continues to apply.
 
 /**
  * @typedef {object} ParsedEval
@@ -25,11 +65,53 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  */
 
 /**
- * @typedef {object} EndowmentField
- * @property {HTMLElement} $container
- * @property {HTMLInputElement} $petName
- * @property {HTMLInputElement} $codeName
- * @property {() => void} dispose
+ * One endowment row: a host-node controller owning its pet-name input (with
+ * autocomplete), the arrow separator, and a confined code-name input.
+ *
+ * @typedef {object} EndowmentRow
+ * @property {HTMLElement} $row - The row's root host element.
+ * @property {() => string} getPetName - Current trimmed-on-read pet name.
+ * @property {() => string} getCodeName - Current code name.
+ * @property {(disabled: boolean) => void} setDisabled - Toggle row inputs.
+ * @property {() => void} focus - Focus the pet-name input.
+ * @property {() => boolean} isMenuVisible - Whether the autocomplete menu is up.
+ * @property {() => void} dispose - Tear down the row.
+ */
+
+/**
+ * Code-name view state pushed into a row's confined code-name input.
+ *
+ * @typedef {object} CodeNameState
+ * @property {string} value
+ * @property {boolean} disabled
+ * @property {number} focusNonce - Bumped to re-apply autofocus on a request.
+ */
+
+/**
+ * Mutable bridge between a row's host controller and its confined code-name
+ * input. The component writes its setter; the host writes the change/keydown
+ * callbacks. Not hardened — both sides assign onto it.
+ *
+ * @typedef {object} CodeNameController
+ * @property {(s: CodeNameState) => void} [setState]
+ * @property {CodeNameState} [pendingState] - Buffered so a render before the
+ *   effect wires `setState` is applied on mount rather than dropped.
+ * @property {(value: string) => void} [onInput]
+ * @property {(e: { key?: string, metaKey?: boolean, ctrlKey?: boolean, preventDefault: () => void }) => void} [onKeyDown]
+ */
+
+/**
+ * Source-input view state pushed into the confined `Root`.
+ *
+ * @typedef {object} SourceState
+ * @property {string} value
+ * @property {boolean} disabled
+ * @property {number} focusNonce - Bumped to re-apply autofocus on a request.
+ */
+
+/**
+ * @typedef {object} SourceController
+ * @property {(s: SourceState) => void} [setState]
  */
 
 /**
@@ -54,6 +136,109 @@ const toJsIdentifier = petName => {
 
   return name;
 };
+harden(toJsIdentifier);
+
+/**
+ * The `size` attribute for a content-sized input: the larger of the value and
+ * placeholder lengths, with a small floor so an empty field is still tappable.
+ * The original imperative code measured a hidden "sizer" span's `offsetWidth`;
+ * under confinement a node's width is unreadable, so the input sizes itself
+ * declaratively via the `size` attribute (character count) instead.
+ *
+ * @param {string} value
+ * @param {string} placeholder
+ * @returns {number}
+ */
+const fieldSize = (value, placeholder) =>
+  Math.max(value.length, placeholder.length, 3) + 1;
+harden(fieldSize);
+
+/**
+ * The confined code-name input. Controlled: its `value`/`disabled` are Preact
+ * state pushed by the host, and `onInput`/`onKeyDown` report the frozen
+ * SafeEvent's data back through the controller.
+ *
+ * @param {object} props
+ * @param {CodeNameController} props.controller
+ */
+const CodeNameInput = ({ controller }) => {
+  const [state, setState] = useState(
+    /** @type {CodeNameState} */ (
+      controller.pendingState || { value: '', disabled: false, focusNonce: 0 }
+    ),
+  );
+
+  useEffect(() => {
+    controller.setState = setState;
+    if (controller.pendingState !== undefined) {
+      setState(controller.pendingState);
+    }
+    return () => {
+      if (controller.setState === setState) delete controller.setState;
+    };
+  }, [controller]);
+
+  return h('input', {
+    // Re-key on the focus nonce so a focus request re-applies autofocus.
+    key: state.focusNonce ? `codeName-${state.focusNonce}` : undefined,
+    type: 'text',
+    class: 'inline-eval-codename',
+    placeholder: 'varName',
+    value: state.value,
+    disabled: state.disabled,
+    autocomplete: 'off',
+    autofocus: state.focusNonce > 0,
+    size: fieldSize(state.value, 'varName'),
+    'data-form-type': 'other',
+    'data-lpignore': 'true',
+    /** @param {{ target: { value: string } }} e */
+    onInput: e => {
+      if (controller.onInput) controller.onInput(e.target.value);
+    },
+    /** @param {{ key?: string, metaKey?: boolean, ctrlKey?: boolean, preventDefault: () => void }} e */
+    onKeyDown: e => {
+      if (controller.onKeyDown) controller.onKeyDown(e);
+    },
+  });
+};
+harden(CodeNameInput);
+
+/**
+ * Root component for the source expression input. Owns no authoritative state;
+ * it mirrors the source value/disabled/focus the host pushes through the
+ * controller, exactly as inline-define.js's Root does.
+ *
+ * @param {object} props
+ * @param {SourceController} props.controller
+ * @param {SourceState} props.initialState
+ * @param {(value: string) => void} props.onInput
+ * @param {(e: { key?: string, metaKey?: boolean, ctrlKey?: boolean, preventDefault: () => void }) => void} props.onKeyDown
+ */
+const Root = ({ controller, initialState, onInput, onKeyDown }) => {
+  const [state, setState] = useState(initialState);
+
+  useEffect(() => {
+    controller.setState = setState;
+    return () => {
+      if (controller.setState === setState) delete controller.setState;
+    };
+  }, [controller]);
+
+  return h('input', {
+    key: state.focusNonce ? `source-${state.focusNonce}` : undefined,
+    type: 'text',
+    class: 'inline-eval-input',
+    placeholder: 'expression...',
+    value: state.value,
+    disabled: state.disabled,
+    autofocus: state.focusNonce > 0,
+    /** @param {{ target: { value: string } }} e */
+    onInput: e => onInput(e.target.value),
+    /** @param {{ key?: string, metaKey?: boolean, ctrlKey?: boolean, preventDefault: () => void }} e */
+    onKeyDown: e => onKeyDown(e),
+  });
+};
+harden(Root);
 
 /**
  * Create an inline eval input component with structured endowment fields.
@@ -77,262 +262,75 @@ export const createInlineEval = ({
   onCancel,
   onValidityChange,
 }) => {
-  // Create structure with endowments container and source input
-  $container.innerHTML = `
-    <div class="inline-eval-wrapper">
-      <div class="inline-eval-endowments"></div>
-      <input type="text" class="inline-eval-input" placeholder="expression..." />
-    </div>
-  `;
+  // Structural host containers. These are plain layout nodes (not data-driven
+  // view), so they are built imperatively, mirroring the original markup. The
+  // endowment rows — host-node controllers owning the autocomplete inputs — are
+  // mounted into `$endowmentsContainer`; the confined source input renders into a
+  // dedicated mount child placed after them inside `$wrapper`.
+  const $wrapper = document.createElement('div');
+  $wrapper.className = 'inline-eval-wrapper';
 
-  const $endowmentsContainer = /** @type {HTMLElement} */ (
-    $container.querySelector('.inline-eval-endowments')
-  );
-  const $source = /** @type {HTMLInputElement} */ (
-    $container.querySelector('.inline-eval-input')
-  );
+  const $endowmentsContainer = document.createElement('div');
+  $endowmentsContainer.className = 'inline-eval-endowments';
 
-  /** @type {EndowmentField[]} */
-  const endowmentFields = [];
+  const $sourceMount = document.createElement('div');
+  $sourceMount.className = 'inline-eval-source-mount';
 
-  /**
-   * Create a new endowment field with both petName and codeName always visible.
-   * @param {string} [initialPetName] - Initial pet name value
-   * @param {string} [initialCodeName] - Initial code name value
-   * @returns {EndowmentField}
-   */
-  const createEndowmentField = (initialPetName = '', initialCodeName = '') => {
-    const $field = document.createElement('div');
-    $field.className = 'inline-eval-endowment-group';
+  $wrapper.appendChild($endowmentsContainer);
+  $wrapper.appendChild($sourceMount);
+  $container.appendChild($wrapper);
 
-    // Pet name chip (styled as token)
-    const $chip = document.createElement('div');
-    $chip.className = 'inline-eval-chip';
+  /** @type {EndowmentRow[]} */
+  const endowmentRows = [];
 
-    // Pet name input
-    const $petName = document.createElement('input');
-    $petName.type = 'text';
-    $petName.className = 'inline-eval-petname';
-    $petName.placeholder = 'petName';
-    $petName.value = initialPetName;
-    $petName.autocomplete = 'off';
-    $petName.dataset.formType = 'other';
-    $petName.dataset.lpignore = 'true';
+  let disabled = false;
 
-    // Sizer for petName
-    const $petNameSizer = document.createElement('span');
-    $petNameSizer.className = 'inline-eval-sizer inline-eval-sizer-petname';
-    $petNameSizer.textContent = initialPetName || 'petName';
+  // Authoritative source state lives here in the host closure so `getData`/
+  // `isValid` are read synchronously-fresh regardless of Preact's flush timing.
+  let sourceValue = '';
+  let sourceFocusNonce = 0;
 
-    const resizePetName = () => {
-      $petNameSizer.textContent = $petName.value || $petName.placeholder;
-      $petName.style.width = `${$petNameSizer.offsetWidth + 4}px`;
-    };
+  // Mutable bridge to the source Root's state setter (populated by its effect).
+  // Intentionally NOT hardened — the component writes onto it.
+  /** @type {SourceController} */
+  const sourceController = {};
 
-    // Pet name wrapper (for autocomplete menu positioning)
-    const $petNameWrapper = document.createElement('div');
-    $petNameWrapper.className = 'inline-eval-petname-wrapper';
-    $petNameWrapper.appendChild($petName);
-    $petNameWrapper.appendChild($petNameSizer);
-
-    // Autocomplete menu
-    const $petNameMenu = document.createElement('div');
-    $petNameMenu.className = 'inline-petname-menu';
-    $petNameWrapper.appendChild($petNameMenu);
-
-    // Add petname wrapper to chip
-    $chip.appendChild($petNameWrapper);
-
-    // Arrow separator (outside chip)
-    const $eq = document.createElement('span');
-    $eq.className = 'inline-eval-arrow';
-    $eq.textContent = '→';
-
-    // Code name input (outside chip)
-    const $codeName = document.createElement('input');
-    $codeName.type = 'text';
-    $codeName.className = 'inline-eval-codename';
-    $codeName.placeholder = 'varName';
-    $codeName.value = initialCodeName || toJsIdentifier(initialPetName);
-    $codeName.autocomplete = 'off';
-    $codeName.dataset.formType = 'other';
-    $codeName.dataset.lpignore = 'true';
-
-    // Sizer for codeName
-    const $codeNameSizer = document.createElement('span');
-    $codeNameSizer.className = 'inline-eval-sizer inline-eval-sizer-codename';
-
-    const resizeCodeName = () => {
-      $codeNameSizer.textContent = $codeName.value || $codeName.placeholder;
-      $codeName.style.width = `${$codeNameSizer.offsetWidth + 4}px`;
-    };
-
-    // Code name wrapper
-    const $codeNameWrapper = document.createElement('div');
-    $codeNameWrapper.className = 'inline-eval-codename-wrapper';
-    $codeNameWrapper.appendChild($codeName);
-    $codeNameWrapper.appendChild($codeNameSizer);
-
-    // Assemble the field: [chip] → codeName
-    $field.appendChild($chip);
-    $field.appendChild($eq);
-    $field.appendChild($codeNameWrapper);
-
-    // Initialize autocomplete for pet name
-    const autocomplete = petNamePathAutocomplete($petName, $petNameMenu, {
-      E,
-      powers,
-    });
-
-    // Auto-update codeName when petName changes
-    $petName.addEventListener('input', () => {
-      resizePetName();
-      // Update codeName with inferred identifier
-      $codeName.value = toJsIdentifier($petName.value);
-      resizeCodeName();
-      updateValidity(); // eslint-disable-line no-use-before-define
-    });
-
-    // Handle keydown in pet name field
-    $petName.addEventListener('keydown', e => {
-      // = advances to codeName field
-      if (e.key === '=') {
-        e.preventDefault();
-        $codeName.focus();
-        $codeName.select();
-        return;
-      }
-
-      // Let autocomplete handle keys when menu is visible
-      if (autocomplete.isMenuVisible()) {
-        return;
-      }
-
-      if (e.key === 'Tab' || e.key === ' ') {
-        // Skip past codeName to source
-        e.preventDefault();
-        $source.focus();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        onCancel();
-      } else if (e.key === 'Enter') {
-        if (e.metaKey || e.ctrlKey) {
-          e.preventDefault();
-          onExpand(getData(true)); // eslint-disable-line no-use-before-define
-        } else if (isValid()) {
-          // eslint-disable-line no-use-before-define
-          e.preventDefault();
-          onSubmit(getData()); // eslint-disable-line no-use-before-define
-        }
-      } else if (e.key === 'Backspace' && $petName.value === '') {
-        // Backspace on empty petName - remove this endowment
-        e.preventDefault();
-        removeEndowmentField(field); // eslint-disable-line no-use-before-define
-        const idx = endowmentFields.indexOf(field); // eslint-disable-line no-use-before-define
-        if (idx > 0) {
-          endowmentFields[idx - 1].$codeName.focus();
-        } else {
-          $source.focus();
-        }
-      }
-    });
-
-    // Handle keydown in code name field
-    $codeName.addEventListener('keydown', e => {
-      if (e.key === 'Tab' || e.key === ' ') {
-        e.preventDefault();
-        $source.focus();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        onCancel();
-      } else if (e.key === 'Enter') {
-        if (e.metaKey || e.ctrlKey) {
-          e.preventDefault();
-          onExpand(getData(true)); // eslint-disable-line no-use-before-define
-        } else if (isValid()) {
-          // eslint-disable-line no-use-before-define
-          e.preventDefault();
-          onSubmit(getData()); // eslint-disable-line no-use-before-define
-        }
-      } else if (e.key === 'Backspace' && $codeName.value === '') {
-        // Backspace on empty codeName - go back to petName
-        e.preventDefault();
-        $petName.focus();
-      }
-    });
-
-    $codeName.addEventListener('input', () => {
-      resizeCodeName();
-      updateValidity(); // eslint-disable-line no-use-before-define
-    });
-
-    // Initial sizing
-    setTimeout(() => {
-      resizePetName();
-      resizeCodeName();
-    }, 0);
-
-    const field = {
-      $container: $field,
-      $petName,
-      $codeName,
-      dispose: () => {
-        autocomplete.dispose();
-      },
-    };
-
-    return field;
-  };
-
-  /**
-   * Add a new endowment field.
-   * @param {string} [petName]
-   * @param {string} [codeName]
-   * @returns {EndowmentField}
-   */
-  const addEndowmentField = (petName = '', codeName = '') => {
-    const field = createEndowmentField(petName, codeName);
-    endowmentFields.push(field);
-    $endowmentsContainer.appendChild(field.$container);
-    return field;
-  };
-
-  /**
-   * Remove an endowment field.
-   * @param {EndowmentField} field
-   */
-  const removeEndowmentField = field => {
-    const idx = endowmentFields.indexOf(field);
-    if (idx >= 0) {
-      field.dispose();
-      field.$container.remove();
-      endowmentFields.splice(idx, 1);
-      updateValidity();
+  const pushSourceState = () => {
+    if (sourceController.setState) {
+      sourceController.setState(
+        harden({
+          value: sourceValue,
+          disabled,
+          focusNonce: sourceFocusNonce,
+        }),
+      );
     }
   };
 
   /**
-   * Get parsed data from all fields.
+   * Get parsed data from all rows.
    * @param {boolean} [includeCursor] - Include cursor position
    * @returns {ParsedEval}
    */
   const getData = (includeCursor = false) => {
-    const endowments = endowmentFields
-      .filter(f => f.$petName.value.trim())
-      .map(f => ({
-        petName: f.$petName.value.trim(),
+    const endowments = endowmentRows
+      .filter(row => row.getPetName().trim())
+      .map(row => ({
+        petName: row.getPetName().trim(),
         codeName:
-          f.$codeName.value.trim() || toJsIdentifier(f.$petName.value.trim()),
+          row.getCodeName().trim() || toJsIdentifier(row.getPetName().trim()),
       }));
 
     /** @type {ParsedEval} */
     const result = {
-      source: $source.value.trim(),
+      source: sourceValue.trim(),
       endowments,
     };
 
     if (includeCursor) {
-      result.cursorPosition = $source.selectionStart ?? 0;
+      // The original passed the source caret position; under confinement there
+      // is no caret to read, so the source length is the best available hint.
+      result.cursorPosition = sourceValue.length;
     }
 
     return result;
@@ -342,70 +340,301 @@ export const createInlineEval = ({
    * Check if valid (has at least some source code).
    * @returns {boolean}
    */
-  const isValid = () => {
-    const { source } = getData();
-    return source.length > 0;
-  };
+  const isValid = () => getData().source.length > 0;
 
   const updateValidity = () => {
     onValidityChange(isValid());
   };
 
-  // Handle @ at start of source to create endowment
-  $source.addEventListener('input', () => {
-    if ($source.value.startsWith('@')) {
-      // Remove the @ and create a new endowment field
-      $source.value = $source.value.slice(1);
-      const field = addEndowmentField();
-      field.$petName.focus();
-    }
-    updateValidity();
-  });
+  /** Focus the source input by bumping its focus nonce. */
+  const focusSource = () => {
+    sourceFocusNonce += 1;
+    pushSourceState();
+  };
 
-  $source.addEventListener('keydown', e => {
+  /**
+   * Remove an endowment row and dispose its controller.
+   * @param {EndowmentRow} row
+   */
+  const removeEndowmentRow = row => {
+    const idx = endowmentRows.indexOf(row);
+    if (idx >= 0) {
+      row.dispose();
+      row.$row.remove();
+      endowmentRows.splice(idx, 1);
+      updateValidity();
+    }
+  };
+
+  /**
+   * Create a new endowment row. The pet-name input and its autocomplete menu are
+   * host nodes owned by `petNamePathAutocomplete`; the code-name input renders
+   * confined into a dedicated mount child.
+   *
+   * @param {string} [initialPetName]
+   * @param {string} [initialCodeName]
+   * @returns {EndowmentRow}
+   */
+  const createEndowmentRow = (initialPetName = '', initialCodeName = '') => {
+    const $row = document.createElement('div');
+    $row.className = 'inline-eval-endowment-group';
+
+    // Pet name chip (host nodes owned by the autocomplete controller).
+    const $chip = document.createElement('div');
+    $chip.className = 'inline-eval-chip';
+
+    const $petNameWrapper = document.createElement('div');
+    $petNameWrapper.className = 'inline-eval-petname-wrapper';
+
+    const $petName = document.createElement('input');
+    $petName.type = 'text';
+    $petName.className = 'inline-eval-petname';
+    $petName.placeholder = 'petName';
+    $petName.value = initialPetName;
+    $petName.autocomplete = 'off';
+    $petName.dataset.formType = 'other';
+    $petName.dataset.lpignore = 'true';
+
+    const $petNameMenu = document.createElement('div');
+    $petNameMenu.className = 'inline-petname-menu';
+
+    $petNameWrapper.appendChild($petName);
+    $petNameWrapper.appendChild($petNameMenu);
+    $chip.appendChild($petNameWrapper);
+
+    const $arrow = document.createElement('span');
+    $arrow.className = 'inline-eval-arrow';
+    $arrow.textContent = '→';
+
+    // Dedicated mount for the confined code-name input.
+    const $codeNameMount = document.createElement('div');
+    $codeNameMount.className = 'inline-eval-codename-wrapper';
+
+    $row.appendChild($chip);
+    $row.appendChild($arrow);
+    $row.appendChild($codeNameMount);
+
+    // Mount the pet-name autocomplete controller imperatively into the row's
+    // host nodes (host-node embedding, NOT nested in any vnode tree).
+    const autocomplete = petNamePathAutocomplete($petName, $petNameMenu, {
+      E,
+      powers,
+    });
+
+    // Authoritative code-name state for this row.
+    let codeNameValue = initialCodeName || toJsIdentifier(initialPetName);
+    let codeNameFocusNonce = 0;
+
+    /** @type {CodeNameController} */
+    const codeNameController = {};
+
+    const pushCodeNameState = () => {
+      const state = harden({
+        value: codeNameValue,
+        disabled,
+        focusNonce: codeNameFocusNonce,
+      });
+      // Buffer so a render before the effect wires `setState` is not dropped.
+      codeNameController.pendingState = state;
+      if (codeNameController.setState) {
+        codeNameController.setState(state);
+      }
+    };
+
+    const focusCodeName = () => {
+      codeNameFocusNonce += 1;
+      pushCodeNameState();
+    };
+
+    // Resize the pet-name input declaratively as its value changes.
+    const resizePetName = () => {
+      $petName.size = fieldSize($petName.value, 'petName');
+    };
+
+    const row = {
+      $row,
+      getPetName: () => $petName.value,
+      getCodeName: () => codeNameValue,
+      setDisabled: nextDisabled => {
+        $petName.disabled = nextDisabled;
+        pushCodeNameState();
+      },
+      focus: () => {
+        $petName.focus();
+      },
+      isMenuVisible: () => autocomplete.isMenuVisible(),
+      dispose: () => {
+        autocomplete.dispose();
+        unmount($codeNameMount);
+      },
+    };
+
+    // Pet-name input drives the auto-inferred code name, mirroring the original.
+    $petName.addEventListener('input', () => {
+      resizePetName();
+      codeNameValue = toJsIdentifier($petName.value);
+      pushCodeNameState();
+      updateValidity();
+    });
+
+    $petName.addEventListener('keydown', e => {
+      // = advances to the code-name field.
+      if (e.key === '=') {
+        e.preventDefault();
+        focusCodeName();
+        return;
+      }
+
+      // Let the autocomplete handle keys while its menu is visible.
+      if (autocomplete.isMenuVisible()) {
+        return;
+      }
+
+      if (e.key === 'Tab' || e.key === ' ') {
+        e.preventDefault();
+        focusSource();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      } else if (e.key === 'Enter') {
+        if (e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          onExpand(getData(true));
+        } else if (isValid()) {
+          e.preventDefault();
+          onSubmit(getData());
+        }
+      } else if (e.key === 'Backspace' && $petName.value === '') {
+        // Backspace on empty pet name removes this endowment.
+        e.preventDefault();
+        const idx = endowmentRows.indexOf(row);
+        removeEndowmentRow(row);
+        if (idx > 0) {
+          endowmentRows[idx - 1].focus();
+        } else {
+          focusSource();
+        }
+      }
+    });
+
+    // Code-name controller callbacks invoked by the confined input.
+    codeNameController.onInput = value => {
+      codeNameValue = value;
+      updateValidity();
+    };
+    codeNameController.onKeyDown = e => {
+      if (e.key === 'Tab' || e.key === ' ') {
+        e.preventDefault();
+        focusSource();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      } else if (e.key === 'Enter') {
+        if (e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          onExpand(getData(true));
+        } else if (isValid()) {
+          e.preventDefault();
+          onSubmit(getData());
+        }
+      } else if (e.key === 'Backspace' && codeNameValue === '') {
+        // Backspace on empty code name goes back to the pet name.
+        e.preventDefault();
+        row.focus();
+      }
+    };
+
+    // Render the confined code-name input into its dedicated mount.
+    renderConfined(
+      h(CodeNameInput, { controller: codeNameController }),
+      $codeNameMount,
+    );
+
+    resizePetName();
+    pushCodeNameState();
+
+    return row;
+  };
+
+  /**
+   * Add a new endowment row.
+   * @param {string} [petName]
+   * @param {string} [codeName]
+   * @returns {EndowmentRow}
+   */
+  const addEndowmentRow = (petName = '', codeName = '') => {
+    const row = createEndowmentRow(petName, codeName);
+    endowmentRows.push(row);
+    $endowmentsContainer.appendChild(row.$row);
+    return row;
+  };
+
+  /** @param {string} value */
+  const onSourceInput = value => {
+    // Typing `@` at the start spawns a new endowment and focuses it.
+    if (value.startsWith('@')) {
+      sourceValue = value.slice(1);
+      pushSourceState();
+      const row = addEndowmentRow();
+      row.focus();
+      updateValidity();
+      return;
+    }
+    sourceValue = value;
+    updateValidity();
+  };
+
+  /** @param {{ key?: string, metaKey?: boolean, ctrlKey?: boolean, preventDefault: () => void }} e */
+  const onSourceKeyDown = e => {
     if (e.key === 'Enter') {
       if (e.metaKey || e.ctrlKey) {
         e.preventDefault();
         onExpand(getData(true));
-      } else if (!e.shiftKey && isValid()) {
+      } else if (isValid()) {
         e.preventDefault();
         onSubmit(getData());
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
       onCancel();
-    } else if (
-      e.key === 'Backspace' &&
-      $source.value === '' &&
-      $source.selectionStart === 0
-    ) {
-      // Backspace at start of empty source - delete last endowment or cancel
-      if (endowmentFields.length > 0) {
+    } else if (e.key === 'Backspace' && sourceValue === '') {
+      // Backspace at the start of an empty source deletes the last endowment or
+      // cancels command mode.
+      if (endowmentRows.length > 0) {
         e.preventDefault();
-        const last = endowmentFields[endowmentFields.length - 1];
-        removeEndowmentField(last);
-        // Focus previous endowment or stay in source
-        if (endowmentFields.length > 0) {
-          endowmentFields[endowmentFields.length - 1].$codeName.focus();
+        const last = endowmentRows[endowmentRows.length - 1];
+        removeEndowmentRow(last);
+        if (endowmentRows.length > 0) {
+          endowmentRows[endowmentRows.length - 1].focus();
         }
       } else {
-        // No endowments - cancel command mode
         e.preventDefault();
         onCancel();
       }
     }
-  });
+  };
+
+  renderConfined(
+    h(Root, {
+      controller: sourceController,
+      initialState: { value: sourceValue, disabled, focusNonce: 0 },
+      onInput: onSourceInput,
+      onKeyDown: onSourceKeyDown,
+    }),
+    $sourceMount,
+  );
 
   /**
    * Clear all fields.
    */
   const clear = () => {
-    for (const field of endowmentFields) {
-      field.dispose();
-      field.$container.remove();
+    for (const row of endowmentRows) {
+      row.dispose();
+      row.$row.remove();
     }
-    endowmentFields.length = 0;
-    $source.value = '';
+    endowmentRows.length = 0;
+    sourceValue = '';
+    pushSourceState();
     updateValidity();
   };
 
@@ -413,10 +642,10 @@ export const createInlineEval = ({
    * Focus the source input (or first endowment if present).
    */
   const focus = () => {
-    if (endowmentFields.length > 0) {
-      endowmentFields[0].$petName.focus();
+    if (endowmentRows.length > 0) {
+      endowmentRows[0].focus();
     } else {
-      $source.focus();
+      focusSource();
     }
   };
 
@@ -426,22 +655,23 @@ export const createInlineEval = ({
    */
   const setData = data => {
     clear();
-    for (const e of data.endowments) {
-      addEndowmentField(e.petName, e.codeName);
+    for (const endowment of data.endowments) {
+      addEndowmentRow(endowment.petName, endowment.codeName);
     }
-    $source.value = data.source;
+    sourceValue = data.source;
+    pushSourceState();
     updateValidity();
   };
 
   /**
    * Disable or enable all fields.
-   * @param {boolean} disabled
+   * @param {boolean} nextDisabled
    */
-  const setDisabled = disabled => {
-    $source.disabled = disabled;
-    for (const field of endowmentFields) {
-      field.$petName.disabled = disabled;
-      field.$codeName.disabled = disabled;
+  const setDisabled = nextDisabled => {
+    disabled = nextDisabled;
+    pushSourceState();
+    for (const row of endowmentRows) {
+      row.setDisabled(nextDisabled);
     }
   };
 
@@ -449,17 +679,18 @@ export const createInlineEval = ({
    * Clean up.
    */
   const dispose = () => {
-    for (const field of endowmentFields) {
-      field.dispose();
+    for (const row of endowmentRows) {
+      row.dispose();
     }
-    endowmentFields.length = 0;
+    endowmentRows.length = 0;
+    unmount($sourceMount);
     $container.innerHTML = '';
   };
 
-  // Initial validity
+  // Initial validity.
   updateValidity();
 
-  return {
+  return harden({
     getData,
     isValid,
     setDisabled,
@@ -467,5 +698,6 @@ export const createInlineEval = ({
     focus,
     setData,
     dispose,
-  };
+  });
 };
+harden(createInlineEval);

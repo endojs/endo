@@ -4,10 +4,44 @@
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
-// TODO: The autocomplete dropdown menu is not appearing visually despite
-// the component working correctly (suggestions are fetched and filtered).
-// Suspected z-index or overflow clipping issue within the eval form modal.
-// The menu element gets the 'visible' class but doesn't display.
+import harden from '@endo/harden';
+
+import {
+  Fragment,
+  h,
+  renderConfined,
+  useEffect,
+  useState,
+} from './setup-preact-container.js';
+
+// TODO: The autocomplete dropdown menu may not appear visually inside the eval
+// form modal despite the component working correctly (suggestions are fetched
+// and filtered). Suspected z-index or overflow clipping: the menu gets the
+// 'visible' class but does not display. This is a CSS concern unaffected by the
+// confinement migration below.
+//
+// Pet-name path autocomplete, migrated from imperative `innerHTML`/
+// `createElement` DOM to a confined Preact component rendered through a single
+// `renderConfined`.
+//
+// CONFINEMENT BOUNDARY. `petNamePathAutocomplete` is trusted host code that owns
+// the host `<input>` and the dropdown container `$menu` imperatively, OUTSIDE
+// the Preact tree. The input's value, focus advancement, and the `.visible`
+// class on `$menu` are host-DOM concerns (the input must keep focus; the caret
+// is the host's). Only the dropdown body — the suggestion list and the keyboard
+// hint — renders confined, into the host-provided `$menu`. The component
+// receives only plain data (the suggestions and the selected index) and reports
+// row hover/pick back through plain-data callbacks on a mutable controller.
+//
+// Keyboard navigation is driven off the host `<input>`'s own `keydown` (the menu
+// is not focusable and the caret stays in the input). `$menu`'s position is
+// CSS-driven, as in the original; the host only toggles its `.visible` class.
+//
+// The exported entry keeps its exact signature
+// (`petNamePathAutocomplete($input, $menu, { E, powers })`) and hardened control
+// object (`{ getValue, setValue, isMenuVisible, dispose }`) so callers
+// (eval-form, endow-modal, form-builder, counter-proposal-form, inline-eval,
+// inline-command-form) need no changes.
 
 /**
  * @typedef {object} PetNamePathAutocompleteAPI
@@ -16,6 +50,142 @@
  * @property {() => boolean} isMenuVisible - Check if autocomplete menu is visible
  * @property {() => void} dispose - Clean up event listeners
  */
+
+/**
+ * Plain-data view state pushed into the confined dropdown.
+ *
+ * @typedef {object} PathMenuState
+ * @property {string[]} suggestions - The filtered suggestion list.
+ * @property {number} selectedIndex - Index of the highlighted suggestion.
+ */
+
+/**
+ * Mutable bridge between the host controller and the root component. The
+ * component writes its state setter; the host writes the row callbacks. Not
+ * hardened — both sides assign onto it.
+ *
+ * @typedef {object} PathMenuController
+ * @property {(s: PathMenuState | null) => void} [setState]
+ * @property {PathMenuState | null} [pendingState] - Last state the host pushed,
+ *   buffered so a render that happens before the Root's effect has wired
+ *   `setState` is applied on mount instead of being silently dropped.
+ * @property {(index: number) => void} [onHover]
+ * @property {(index: number) => void} [onPick]
+ */
+
+/**
+ * One suggestion row. Highlighted rows get the `selected` class; hovering
+ * highlights it and clicking selects it (advancing focus). Event handlers
+ * receive a frozen SafeEvent (no DOM nodes).
+ *
+ * @param {object} props
+ * @param {string} props.name
+ * @param {number} props.index
+ * @param {boolean} props.selected
+ * @param {(index: number) => void} props.onHover
+ * @param {(index: number) => void} props.onPick
+ */
+const PathItem = ({ name, index, selected, onHover, onPick }) =>
+  h(
+    'div',
+    {
+      class: selected ? 'token-menu-item selected' : 'token-menu-item',
+      onMouseEnter: () => onHover(index),
+      /** @param {{ preventDefault: () => void, stopPropagation: () => void }} e */
+      onClick: e => {
+        e.preventDefault();
+        e.stopPropagation();
+        onPick(index);
+      },
+    },
+    h('span', null, name),
+  );
+harden(PathItem);
+
+/**
+ * The dropdown body: either the suggestion rows or a "No matches" empty state,
+ * followed by the keyboard-hint footer. Pure view over plain-data state.
+ *
+ * @param {object} props
+ * @param {PathMenuState} props.state
+ * @param {(index: number) => void} props.onHover
+ * @param {(index: number) => void} props.onPick
+ */
+const PathMenu = ({ state, onHover, onPick }) => {
+  const { suggestions, selectedIndex } = state;
+  return h(
+    Fragment,
+    null,
+    suggestions.length === 0
+      ? h('div', { class: 'token-menu-empty' }, 'No matches')
+      : suggestions.map((name, index) =>
+          h(PathItem, {
+            key: name,
+            name,
+            index,
+            selected: index === selectedIndex,
+            onHover,
+            onPick,
+          }),
+        ),
+    // The keyboard-hint footer, rendered as real <kbd> vnodes (the confined
+    // renderer strips dangerouslySetInnerHTML), reproducing the original markup.
+    h(
+      'div',
+      { class: 'token-menu-hint' },
+      h('kbd', null, '↑↓'),
+      ' navigate · ',
+      h('kbd', null, 'Tab'),
+      ' select · ',
+      h('kbd', null, '/'),
+      ' drill down · ',
+      h('kbd', null, 'Esc'),
+      ' cancel',
+    ),
+  );
+};
+harden(PathMenu);
+
+/**
+ * Root component: owns the dropdown's view state and exposes its setter to the
+ * host via a mutable controller. Renders nothing while hidden so the container
+ * is empty, matching the original `innerHTML = ''` teardown.
+ *
+ * @param {object} props
+ * @param {PathMenuController} props.controller
+ */
+const PathAutocompleteRoot = ({ controller }) => {
+  const [state, setState] = useState(
+    /** @type {PathMenuState | null} */ (null),
+  );
+
+  useEffect(() => {
+    controller.setState = setState;
+    // Apply any state the host pushed before this effect wired `setState`,
+    // so the first render is not silently dropped on slow flushes.
+    if (controller.pendingState !== undefined) {
+      setState(controller.pendingState);
+    }
+    return () => {
+      if (controller.setState === setState) delete controller.setState;
+    };
+  }, [controller]);
+
+  if (!state) {
+    return null;
+  }
+
+  return h(PathMenu, {
+    state,
+    onHover: index => {
+      if (controller.onHover) controller.onHover(index);
+    },
+    onPick: index => {
+      if (controller.onPick) controller.onPick(index);
+    },
+  });
+};
+harden(PathAutocompleteRoot);
 
 /**
  * Pet name path autocomplete component.
@@ -33,6 +203,12 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
   let suggestions = [];
   let selectedIndex = 0;
   let isVisible = false;
+
+  // Mutable bridge to the root component's state setter (populated by the
+  // component's effect). Intentionally NOT hardened — the component writes its
+  // setter and the host writes the row callbacks onto it.
+  /** @type {PathMenuController} */
+  const controller = {};
 
   /**
    * Parse the input value into path prefix and current partial name.
@@ -62,10 +238,11 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
           E(powers)
         ).lookup(...pathPrefix);
       }
-      const names =
-        await /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
+      const namesP =
+        /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
           E(target)
         ).list();
+      const names = await namesP;
       const result = [];
       for await (const name of names) {
         result.push(name);
@@ -86,48 +263,25 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
     $menu.classList.remove('visible');
     suggestions = [];
     selectedIndex = 0;
+    controller.pendingState = null;
+    if (controller.setState) {
+      controller.setState(null);
+    }
   };
 
+  /**
+   * Push the current suggestions/selection into the confined dropdown as plain
+   * data. The host owns the container; only plain data crosses into the Preact
+   * tree.
+   */
   const render = () => {
-    $menu.innerHTML = '';
-
-    if (suggestions.length === 0) {
-      const $empty = document.createElement('div');
-      $empty.className = 'token-menu-empty';
-      $empty.textContent = 'No matches';
-      $menu.appendChild($empty);
-    } else {
-      suggestions.forEach((name, index) => {
-        const $item = document.createElement('div');
-        $item.className = 'token-menu-item';
-        if (index === selectedIndex) {
-          $item.classList.add('selected');
-        }
-
-        const $name = document.createElement('span');
-        $name.textContent = name;
-        $item.appendChild($name);
-
-        $item.addEventListener('mouseenter', () => {
-          selectedIndex = index;
-          render();
-        });
-
-        $item.addEventListener('click', e => {
-          e.preventDefault();
-          e.stopPropagation();
-          selectSuggestion(index, true);
-        });
-
-        $menu.appendChild($item);
-      });
+    const state = harden({ suggestions: [...suggestions], selectedIndex });
+    // Buffer the state so the Root's effect can apply it if it has not yet
+    // wired `setState` (the effect flush is deferred through rAF).
+    controller.pendingState = state;
+    if (controller.setState) {
+      controller.setState(state);
     }
-
-    const $hint = document.createElement('div');
-    $hint.className = 'token-menu-hint';
-    $hint.innerHTML =
-      '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd> select · <kbd>/</kbd> drill down · <kbd>Esc</kbd> cancel';
-    $menu.appendChild($hint);
   };
 
   /**
@@ -215,6 +369,15 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
         hideMenu();
       }
     }
+  };
+
+  // Row callbacks the confined tree invokes with plain-data indices.
+  controller.onHover = index => {
+    selectedIndex = index;
+    render();
+  };
+  controller.onPick = index => {
+    selectSuggestion(index, true);
   };
 
   // Handle input changes
@@ -356,7 +519,12 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
     }
   });
 
-  return {
+  // Mount the confined dropdown into the host's container. The host owns the
+  // container's `.visible` class and lifecycle; the Preact tree renders only the
+  // dropdown body. Rendered once; the Root renders nothing while hidden.
+  renderConfined(h(PathAutocompleteRoot, { controller }), $menu);
+
+  return harden({
     getValue: () => $input.value,
     setValue: value => {
       $input.value = value;
@@ -365,5 +533,6 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
     dispose: () => {
       hideMenu();
     },
-  };
+  });
 };
+harden(petNamePathAutocomplete);

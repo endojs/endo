@@ -37,11 +37,28 @@ The single import surface for the confine/render helpers is
   with their own CSS ([`channel.css`](../channel.css)); creation lives in the New
   Space modal. This **supersedes** the original "channels are a `sidebar` of
   hooks on `inventory.js`" plan recorded in earlier revisions of this document.
+- **All six Tier 1 leaf views have landed** as confined Preact components:
+  `profile-popup`, `message-picker`, `command-selector`, `heat-bar`, and
+  `inline-define` (each rendered through `renderConfined` from
+  [`setup-preact-container.js`](../setup-preact-container.js)). Only
+  `icon-selector` is intentionally deferred — it is coupled to the still-DOM
+  add/edit-space modals and will land with them.
+- **The 1:1 inbox view is fully migrated.**
+  [`inbox-component.js`](../inbox-component.js) is one confined Preact tree
+  (entry signature unchanged, so `chat.js` was untouched), landed in three
+  stages: the message-list shell + all five message types (request, package,
+  definition, form, value); markdown bodies as vnodes with interactive
+  pet-name/token chips ([`markdown-vnodes.js`](../markdown-vnodes.js)); and
+  value bodies as vnodes ([`value-vnodes.js`](../value-vnodes.js)). The one
+  documented limitation is Monaco syntax-coloring of code fences, which stays
+  plain `<pre>` under confinement (`colorize` returns an HTML string the
+  sanitizing renderer strips; tokenization-to-vnodes is a follow-up). Dan's
+  multiuser `channelComponent` stays imperative DOM for now.
 
-What remains is the rest of the bottom-up plan: the Tier 1 leaf views, then the
-Tier 3 composites that compose them (see the tracker). The next recommended step
-is `profile-popup` (in the default channel view) and `icon-selector` (unblocks
-the space modals).
+What remains is the rest of the bottom-up plan: the Tier 2 leaves
+(`debugger-panel` and the keyboard-stateful autocompletes), `icon-selector` with
+the space modals, then the Tier 3 composites that compose all of these (see the
+tracker).
 
 ## Preconditions (done)
 
@@ -250,22 +267,22 @@ Status: ☐ not started · ◐ in progress · ☑ done
 
 | Component | Lines | Reached from | Status | Notes |
 | --- | --- | --- | --- | --- |
-| icon-selector | 81 | add/edit-space modals | ☐ | Smallest; pure `renderIconSelector` |
-| profile-popup | 153 | channel-component | ☐ | In default view; clean show/hide API |
-| message-picker | 154 | chat-bar | ☐ | `{ $messagesContainer, onSelect }` |
-| command-selector | 239 | chat-bar | ☐ | Only depends on command-registry (data) |
-| heat-bar | 250 | send-form | ☐ | Visual; heat-engine is logic only |
-| inline-define | 358 | inline-command-form | ☐ | No deps, no powers |
+| icon-selector | 81 | add/edit-space modals | ☐ | Deferred — lands with the still-DOM space modals |
+| profile-popup | 153 | channel-component | ☑ | Done — confined Preact component |
+| message-picker | 154 | chat-bar | ☑ | Done — confined Preact component |
+| command-selector | 239 | chat-bar | ☑ | Done — confined Preact component |
+| heat-bar | 250 | send-form | ☑ | Done — confined Preact component |
+| inline-define | 358 | inline-command-form | ☑ | Done — confined Preact component |
 
 ### Tier 2 — leaves, but large or input-stateful (defer)
 
 | Component | Lines | Status | Notes |
 | --- | --- | --- | --- |
-| debugger-panel | 688 | ☐ | On-demand panel |
+| debugger-panel | 688 | ☑ | Done — confined Preact, on-demand panel |
 | inventory-component | 1267 | ☑ | Done — `InventoryList` + `InventoryItem`; see below |
-| token-autocomplete | — | ☐ | Keyboard-stateful |
-| petname-path-autocomplete | — | ☐ | Keyboard-stateful |
-| petname-paths-autocomplete | — | ☐ | Keyboard-stateful |
+| token-autocomplete | — | ☑ | Done — confined dropdown |
+| petname-path-autocomplete | — | ☑ | Done — confined dropdown (pendingState bridge) |
+| petname-paths-autocomplete | — | ☑ | Done — confined dropdown (pendingState bridge) |
 
 ### Channel list (left the inventory)
 
@@ -275,20 +292,45 @@ Status: ☐ not started · ◐ in progress · ☑ done
 
 ### Tier 3 — composites (after their children)
 
-`channel-component`, `chat-bar-component`, `inbox-component`,
-`spaces-gutter`, `channel-header`, and the forms/modals migrate once their
-leaf dependencies are converted.
+| Component | Status | Notes |
+| --- | --- | --- |
+| inbox-component | ☑ | Done — the 1:1 recipient-filtered view; confined Preact in three stages (shell + 5 message types, markdown-vnodes + token chips, value-vnodes). Monaco colorize of code fences deferred. |
+| edit-space-modal | ☑ | Done — confined Preact + reusable `IconSelector` (Batch B stage 1); scheme picker still host-embedded |
+| send-form | ☑ | Done — reply-context bar confined; composes heat-bar ☑ + token-autocomplete ☑ as host-node controllers |
+| help-modal | ☑ | Done — confined Preact leaf modal |
+| share-modal | ☑ | Done — confined Preact leaf modal |
+| scheme-picker | ☑ | Done — confined; keeps the `#scheme-picker-slot` embedding contract |
+| inline-eval | ☑ | Done — confined; endowment rows compose autocomplete as host-node controllers |
+| endow-modal | ☑ | Done — confined; definition-slot autocompletes host-embedded |
+| form-builder | ☑ | Done — confined; recipient autocomplete host-embedded |
+| inline-command-form | ◐ | In progress — composite; all children now converted |
+| define-form | ◐ | In progress — first Monaco-embedding form (establishes the host-node editor pattern) |
+| add-space-modal | ☐ | Batch B stage 2 — ~2000 lines; switch to `IconSelector`, then drop string `renderIconSelector` |
+| chat-bar-component | ☐ | Blocked — still composes unconverted `eval-form`, `blob-viewer`, `command-executor` |
+| channel-component | ☐ | Dan's multiuser channel view; stays imperative DOM for now |
+| spaces-gutter / channel-header | ☐ | Larger composites, later |
+| other Monaco forms | ☐ | `eval-form`, `blob-viewer`, `counter-proposal-form` — follow `define-form`'s host-node editor embedding once it lands |
+
+### Whylip Space (separate `@endo/whylip` package)
+
+| Component | Status | Notes |
+| --- | --- | --- |
+| whylip package | ◐ | In progress — porting React 19 + JSX → Preact `h()` (no JSX). New architecture: the package emits pure components (`WhylipApp`, no rendering), and chat's `whylip-component.js` mounts it through the **confined** renderer, so `SceneCanvas`'s untrusted model HTML is sanitized by `renderConfined`. |
 
 ## Recommended next migration
 
-The inventory pet-name tree and the channel list have landed (see Status). The
-next bottom-up step is the Tier 1 leaves; the two highest-value, lowest-risk
-ones:
+The Tier 1 leaves, the 1:1 inbox view, the inventory tree, and the channel list
+have all landed (see Status). In progress: the Tier 2 leaves (`debugger-panel`
+and the three keyboard-stateful autocompletes). After those, the bottom-up
+order is:
 
-- `profile-popup`: in the default `channelComponent` subtree, pure DOM,
-  ~153 lines, no powers, no child components, with a tidy imperative
-  `show`/`hide` API and a single event handler (`onAssignName`). Converting it
-  also unblocks the `channel-component` composite later.
+- `icon-selector` together with the add/edit-space modals (it is the last
+  Tier 1 leaf, deferred only because it is mounted by those still-DOM modals).
+- the Tier 3 composites whose leaf dependencies are now converted —
+  `chat-bar-component` (message-picker + command-selector are done) and
+  `send-form` (heat-bar is done) are the lowest-risk.
+- a follow-up to render Monaco-colorized code fences as vnodes (tokenization
+  rather than the `colorize` HTML string) in the inbox and definition bodies.
 - `icon-selector`: the smallest leaf (~81 lines), pure
   `renderIconSelector`, shared by the add/edit-space modals — unblocks that
   modal family.

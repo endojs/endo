@@ -4,6 +4,44 @@
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
+import harden from '@endo/harden';
+
+import {
+  Fragment,
+  h,
+  renderConfined,
+  useEffect,
+  useState,
+} from './setup-preact-container.js';
+
+// Token autocomplete, migrated from imperative `innerHTML`/`createElement` DOM
+// to a confined Preact component rendered through a single `renderConfined`.
+//
+// CONFINEMENT BOUNDARY. `tokenAutocompleteComponent` is trusted host code that
+// owns the contenteditable host `$input` and the dropdown container `$menu`
+// imperatively, OUTSIDE the Preact tree. Contenteditable structured-message
+// editing (token insertion, edge-name entry, directory drilling, message
+// parsing) is irreducibly host-DOM work: it walks text nodes, manipulates the
+// live `Selection`/`Range`, and inserts `chat-token` elements into `$input`.
+// None of those nodes ever enter the vnode tree (refs are stripped there). Only
+// the dropdown body — the filtered pet-name list, the highlighted index, and
+// the keyboard hint — renders confined, into the host-provided `$menu`. The
+// component receives only plain data (the filtered names, the selected index,
+// the empty-state filter text) and reports row hover/click back through
+// plain-data callbacks on a mutable controller.
+//
+// The host keeps the `.visible` class on `$menu` (its position is CSS-driven,
+// as in the original) and drives keyboard navigation off the host `$input`'s
+// own `keydown`, since the menu is not focusable and the caret must stay in the
+// contenteditable. The selected row is scrolled into view imperatively against
+// `$menu` after each render — a trusted operation on the host's own container.
+//
+// The exported entry keeps its exact signature
+// (`tokenAutocompleteComponent($input, $menu, { E, iterateReader, powers,
+// externalPetNames })`) and hardened control object
+// (`{ getMessage, clear, isMenuVisible, insertTokenAtCursor }`) so callers
+// (send-form, outliner-component, inline-command-form) need no changes.
+
 /**
  * @typedef {object} ChatMessage
  * @property {string[]} strings - Text segments between tokens
@@ -18,6 +56,146 @@
  * @property {() => boolean} isMenuVisible - Check if autocomplete menu is visible
  * @property {(petName: string) => void} insertTokenAtCursor - Insert a token programmatically
  */
+
+/**
+ * Plain-data view state pushed into the confined dropdown.
+ *
+ * @typedef {object} TokenMenuState
+ * @property {string[]} names - The filtered pet-name list.
+ * @property {number} selectedIndex - Index of the highlighted name.
+ * @property {string} filterText - The active filter (for the empty-state label).
+ */
+
+/**
+ * Mutable bridge between the host controller and the root component. The
+ * component writes its state setter; the host writes the row callbacks. Not
+ * hardened — both sides assign onto it.
+ *
+ * @typedef {object} TokenMenuController
+ * @property {(s: TokenMenuState | null) => void} [setState]
+ * @property {(index: number) => void} [onHover]
+ * @property {(name: string) => void} [onPick]
+ */
+
+/**
+ * One pet-name row. `@`-prefixed special names render verbatim; ordinary names
+ * get a leading `@` from the `token-prefix` span, matching the original markup.
+ * Hovering highlights the row, clicking inserts the token. Event handlers
+ * receive a frozen SafeEvent (no DOM nodes).
+ *
+ * @param {object} props
+ * @param {string} props.name
+ * @param {number} props.index
+ * @param {boolean} props.selected
+ * @param {(index: number) => void} props.onHover
+ * @param {(name: string) => void} props.onPick
+ */
+const TokenItem = ({ name, index, selected, onHover, onPick }) =>
+  h(
+    'div',
+    {
+      class: selected ? 'token-menu-item selected' : 'token-menu-item',
+      onMouseEnter: () => onHover(index),
+      /** @param {{ preventDefault: () => void }} e */
+      onClick: e => {
+        e.preventDefault();
+        onPick(name);
+      },
+    },
+    name.startsWith('@')
+      ? name
+      : h(Fragment, null, h('span', { class: 'token-prefix' }, '@'), name),
+  );
+harden(TokenItem);
+
+/**
+ * The dropdown body: either the name rows or an empty-state message, followed
+ * by the keyboard-hint footer. Pure view over plain-data state.
+ *
+ * @param {object} props
+ * @param {TokenMenuState} props.state
+ * @param {(index: number) => void} props.onHover
+ * @param {(name: string) => void} props.onPick
+ */
+const TokenMenu = ({ state, onHover, onPick }) => {
+  const { names, selectedIndex, filterText } = state;
+  return h(
+    Fragment,
+    null,
+    names.length === 0
+      ? h(
+          'div',
+          { class: 'token-menu-empty' },
+          filterText ? 'No matches' : 'No pet names',
+        )
+      : names.map((name, index) =>
+          h(TokenItem, {
+            key: name,
+            name,
+            index,
+            selected: index === selectedIndex,
+            onHover,
+            onPick,
+          }),
+        ),
+    // The keyboard-hint footer, rendered as real <kbd> vnodes (the confined
+    // renderer strips dangerouslySetInnerHTML), reproducing the original
+    // markup.
+    h(
+      'div',
+      { class: 'token-menu-hint' },
+      h('kbd', null, '↑↓'),
+      ' navigate · ',
+      h('kbd', null, 'Tab'),
+      '/',
+      h('kbd', null, 'Enter'),
+      ' select · ',
+      h('kbd', null, '/'),
+      ' drill down · ',
+      h('kbd', null, ':'),
+      ' add label · ',
+      h('kbd', null, 'Esc'),
+      ' cancel',
+    ),
+  );
+};
+harden(TokenMenu);
+
+/**
+ * Root component: owns the dropdown's view state and exposes its setter to the
+ * host via a mutable controller. Renders nothing while hidden so the container
+ * is empty, matching the original `innerHTML = ''` teardown.
+ *
+ * @param {object} props
+ * @param {TokenMenuController} props.controller
+ */
+const TokenAutocompleteRoot = ({ controller }) => {
+  const [state, setState] = useState(
+    /** @type {TokenMenuState | null} */ (null),
+  );
+
+  useEffect(() => {
+    controller.setState = setState;
+    return () => {
+      if (controller.setState === setState) delete controller.setState;
+    };
+  }, [controller]);
+
+  if (!state) {
+    return null;
+  }
+
+  return h(TokenMenu, {
+    state,
+    onHover: index => {
+      if (controller.onHover) controller.onHover(index);
+    },
+    onPick: name => {
+      if (controller.onPick) controller.onPick(name);
+    },
+  });
+};
+harden(TokenAutocompleteRoot);
 
 /**
  * Token autocomplete and structured message component for contenteditable input.
@@ -62,6 +240,12 @@ export const tokenAutocompleteComponent = (
   /** @type {string[] | null} */
   let directoryNames = null;
 
+  // Mutable bridge to the root component's state setter (populated by the
+  // component's effect). Intentionally NOT hardened — the component writes its
+  // setter and the host writes the row callbacks onto it.
+  /** @type {TokenMenuController} */
+  const controller = {};
+
   // Subscribe to inventory changes (skip if external names are provided)
   if (!externalPetNames) {
     (async () => {
@@ -99,6 +283,9 @@ export const tokenAutocompleteComponent = (
     pendingToken = null;
     pathPrefix = [];
     directoryNames = null;
+    if (controller.setState) {
+      controller.setState(null);
+    }
   };
 
   /**
@@ -126,6 +313,30 @@ export const tokenAutocompleteComponent = (
     return slashIdx === -1 ? full : full.slice(slashIdx + 1);
   };
 
+  /**
+   * Push the current filter/selection state into the confined dropdown as plain
+   * data and, once Preact has flushed, scroll the highlighted row into view.
+   * The scroll-into-view query reads the host's own container — a trusted,
+   * imperative operation outside the vnode tree.
+   *
+   * @param {string} filterText
+   */
+  const render = filterText => {
+    if (controller.setState) {
+      controller.setState(
+        harden({
+          names: [...filteredNames],
+          selectedIndex,
+          filterText,
+        }),
+      );
+    }
+    const $selected = $menu.querySelector('.token-menu-item.selected');
+    if ($selected) {
+      $selected.scrollIntoView({ block: 'nearest' });
+    }
+  };
+
   const updateFilter = () => {
     const filterText = getPartialFilter();
     const names = directoryNames || petNames;
@@ -144,70 +355,19 @@ export const tokenAutocompleteComponent = (
       selectedIndex = Math.max(0, filteredNames.length - 1);
     }
 
-    renderMenu(filterText);
+    render(filterText);
   };
   doUpdateFilter = updateFilter;
 
-  /** @param {string} filterText */
-  const renderMenu = filterText => {
-    $menu.innerHTML = '';
-
-    if (filteredNames.length === 0) {
-      const $empty = document.createElement('div');
-      $empty.className = 'token-menu-empty';
-      $empty.textContent = filterText ? 'No matches' : 'No pet names';
-      $menu.appendChild($empty);
-    } else {
-      filteredNames.forEach((name, index) => {
-        const $item = document.createElement('div');
-        $item.className = 'token-menu-item';
-        if (index === selectedIndex) {
-          $item.classList.add('selected');
-        }
-
-        if (name.startsWith('@')) {
-          // Special names already include @ — display as-is
-          $item.appendChild(document.createTextNode(name));
-        } else {
-          const $prefix = document.createElement('span');
-          $prefix.className = 'token-prefix';
-          $prefix.textContent = '@';
-          $item.appendChild($prefix);
-          $item.appendChild(document.createTextNode(name));
-        }
-
-        $item.addEventListener('mouseenter', () => {
-          if (keyboardNav) return;
-          selectedIndex = index;
-          renderMenu(filterText);
-        });
-
-        $item.addEventListener('click', e => {
-          e.preventDefault();
-          insertToken(name, '');
-        });
-
-        $menu.appendChild($item);
-      });
-    }
-
-    const $hint = document.createElement('div');
-    $hint.className = 'token-menu-hint';
-    $hint.innerHTML =
-      '<kbd>↑↓</kbd> navigate · <kbd>Tab</kbd>/<kbd>Enter</kbd> select · <kbd>/</kbd> drill down · <kbd>:</kbd> add label · <kbd>Esc</kbd> cancel';
-    $menu.appendChild($hint);
-
-    // Scroll the selected item into view
-    const $selected = $menu.querySelector('.token-menu-item.selected');
-    if ($selected) {
-      $selected.scrollIntoView({ block: 'nearest' });
-    }
+  // Row callbacks the confined tree invokes with plain-data indices/names.
+  controller.onHover = index => {
+    if (keyboardNav) return;
+    selectedIndex = index;
+    render(getPartialFilter());
   };
-
-  // Clear keyboard navigation flag on actual mouse movement
-  $menu.addEventListener('mousemove', () => {
-    keyboardNav = false;
-  });
+  controller.onPick = name => {
+    insertToken(name, '');
+  };
 
   /**
    * Create a token element.
@@ -273,11 +433,17 @@ export const tokenAutocompleteComponent = (
 
     // Fetch sub-directory names
     try {
-      const target = E(powers).lookup(...pathPrefix);
-      const names = await E(target).list();
+      const target = /** @type {{ lookup: (...path: string[]) => unknown }} */ (
+        E(powers)
+      ).lookup(...pathPrefix);
+      const namesP =
+        /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
+          E(target)
+        ).list();
+      const names = await namesP;
       /** @type {string[]} */
       const result = [];
-      for await (const name of /** @type {AsyncIterable<string>} */ (names)) {
+      for await (const name of names) {
         result.push(name);
       }
       directoryNames = result.sort();
@@ -636,7 +802,7 @@ export const tokenAutocompleteComponent = (
             filteredNames = [...petNames];
             selectedIndex = 0;
             showMenu();
-            renderMenu('');
+            render('');
           }
         }
       }
@@ -827,6 +993,12 @@ export const tokenAutocompleteComponent = (
     }
   });
 
+  // Clear keyboard navigation flag on actual mouse movement. Reads the host's
+  // own container; never crosses into the confined tree.
+  $menu.addEventListener('mousemove', () => {
+    keyboardNav = false;
+  });
+
   // Close menu on outside click
   document.addEventListener('click', e => {
     if (
@@ -877,10 +1049,16 @@ export const tokenAutocompleteComponent = (
     sel.addRange(range);
   };
 
-  return {
+  // Mount the confined dropdown into the host's container. The host owns the
+  // container's `.visible` class and lifecycle; the Preact tree renders only the
+  // dropdown body. Rendered once; the Root renders nothing while hidden.
+  renderConfined(h(TokenAutocompleteRoot, { controller }), $menu);
+
+  return harden({
     getMessage,
     clear,
     isMenuVisible: () => isMenuVisible || enteringEdgeName,
     insertTokenAtCursor,
-  };
+  });
 };
+harden(tokenAutocompleteComponent);

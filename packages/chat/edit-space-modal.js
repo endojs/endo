@@ -6,7 +6,9 @@ import harden from '@endo/harden';
 /** @import { ColorScheme, SpaceConfig } from './spaces-gutter.js' */
 /** @import { SchemePickerAPI } from './scheme-picker.js' */
 
-import { ALL_ICONS, letterIcon, renderIconSelector } from './icon-selector.js';
+import { Fragment, h, renderConfined } from './setup-preact-container.js';
+
+import { ALL_ICONS, IconSelector } from './icon-selector.js';
 import { createSchemePicker } from './scheme-picker.js';
 
 /**
@@ -25,7 +27,235 @@ import { createSchemePicker } from './scheme-picker.js';
  */
 
 /**
- * Create the edit space modal component.
+ * @typedef {'chat' | 'forum' | 'outliner' | 'microblog'} ViewMode
+ */
+
+/**
+ * The view-mode options, preserving the original labels and descriptions.
+ *
+ * @type {ReadonlyArray<{ mode: ViewMode, label: string, desc: string }>}
+ */
+const VIEW_MODE_OPTIONS = harden([
+  {
+    mode: 'chat',
+    label: 'Traditional Chat',
+    desc: 'Chronological messages with thread drill-downs',
+  },
+  {
+    mode: 'forum',
+    label: 'Forum',
+    desc: 'Threaded tree view with active subtrees at bottom',
+  },
+  {
+    mode: 'outliner',
+    label: 'Outliner',
+    desc: 'Collaborative document with edit history',
+  },
+  {
+    mode: 'microblog',
+    label: 'Microblog',
+    desc: 'Reverse-chronological feed with profile header',
+  },
+]);
+
+/**
+ * @typedef {object} EditModalState
+ * @property {boolean} open - Whether the modal is shown.
+ * @property {SpaceConfig | null} space - The space being edited.
+ * @property {string} spaceName - The current name field value.
+ * @property {string} selectedIcon - The current icon (emoji or letters).
+ * @property {boolean} useLetterIcon - Whether the Letter tab is active.
+ * @property {ViewMode} viewMode - The selected channel view mode.
+ * @property {string | null} error - The current error message, if any.
+ * @property {boolean} isSubmitting - Whether a submit is in flight.
+ */
+
+/**
+ * The confined modal body — a pure function of `state` plus controller
+ * callbacks. Host DOM nodes never enter this tree; the scheme picker (still
+ * imperative DOM) lives on a persistent host node that the controller
+ * re-parents into the `data-scheme-picker-anchor` slot after each render.
+ *
+ * @param {object} props
+ * @param {EditModalState} props.state - The current modal state.
+ * @param {boolean} props.showName - Whether to render the name field.
+ * @param {(patch: Partial<EditModalState>) => void} props.onPatch - Merge a
+ *   partial state update (triggers a controlled re-render).
+ * @param {() => void} props.onCancel - Close requested via backdrop / close /
+ *   cancel.
+ * @param {() => void} props.onSubmit - Submit requested via the form.
+ * @returns {import('preact').VNode | null}
+ */
+const EditSpaceModalBody = ({
+  state,
+  showName,
+  onPatch,
+  onCancel,
+  onSubmit,
+}) => {
+  if (!state.open || !state.space) return null;
+  const { space } = state;
+
+  const personaField =
+    space.profilePath && space.profilePath.length > 0
+      ? h(
+          'div',
+          { class: 'add-space-field' },
+          h('label', null, 'Persona'),
+          h(
+            'div',
+            { class: 'edit-space-persona' },
+            space.profilePath.join(' › '),
+          ),
+        )
+      : null;
+
+  const nameField = showName
+    ? h(
+        'div',
+        { class: 'add-space-field' },
+        h('label', { for: 'edit-space-name' }, 'Name'),
+        h('input', {
+          type: 'text',
+          id: 'edit-space-name',
+          placeholder: 'e.g., clark, bruce, diana',
+          autocomplete: 'off',
+          value: state.spaceName,
+          /** @param {{ target: { value: string } }} e */
+          onInput: e => onPatch({ spaceName: e.target.value }),
+        }),
+      )
+    : null;
+
+  const iconField = h(
+    'div',
+    { class: 'add-space-field' },
+    h(IconSelector, {
+      selectedIcon: state.selectedIcon,
+      useLetterIcon: state.useLetterIcon,
+      /** @param {string} icon */
+      onSelectIcon: icon =>
+        onPatch({ selectedIcon: icon, useLetterIcon: false }),
+      /** @param {boolean} useLetterIcon */
+      onToggleLetterIcon: useLetterIcon => {
+        /** @type {Partial<EditModalState>} */
+        const patch = { useLetterIcon };
+        if (useLetterIcon && state.selectedIcon.length > 2) {
+          patch.selectedIcon = 'AB';
+        }
+        onPatch(patch);
+      },
+    }),
+  );
+
+  // Empty slot anchor; the controller re-parents the persistent scheme-picker
+  // host node into it after each render (the picker is imperative DOM, never
+  // part of the confined vnode tree).
+  const schemeField = h('div', {
+    class: 'add-space-field',
+    'data-scheme-picker-anchor': 'true',
+  });
+
+  const viewModeField =
+    space.mode === 'channel'
+      ? h(
+          'div',
+          { class: 'add-space-field' },
+          h('label', null, 'Channel View'),
+          h(
+            'div',
+            { class: 'view-mode-selector' },
+            VIEW_MODE_OPTIONS.map(({ mode, label, desc }) =>
+              h(
+                'button',
+                {
+                  key: mode,
+                  type: 'button',
+                  class: `view-mode-option ${
+                    state.viewMode === mode ? 'selected' : ''
+                  }`,
+                  'data-view-mode': mode,
+                  onClick: () => onPatch({ viewMode: mode }),
+                },
+                h('span', { class: 'view-mode-label' }, label),
+                h('span', { class: 'view-mode-desc' }, desc),
+              ),
+            ),
+          ),
+        )
+      : null;
+
+  const errorField = state.error
+    ? h('div', { class: 'add-space-error' }, state.error)
+    : null;
+
+  return h(
+    Fragment,
+    null,
+    h('div', { class: 'add-space-backdrop', onClick: onCancel }),
+    h(
+      'div',
+      { class: 'add-space-modal' },
+      h(
+        'div',
+        { class: 'add-space-header' },
+        h('h2', { class: 'add-space-title' }, 'Edit Space'),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'add-space-close',
+            title: 'Close (Esc)',
+            onClick: onCancel,
+          },
+          '×',
+        ),
+      ),
+      h(
+        'form',
+        {
+          class: 'add-space-form',
+          /** @param {{ preventDefault: () => void }} e */
+          onSubmit: e => {
+            e.preventDefault();
+            onSubmit();
+          },
+        },
+        personaField,
+        nameField,
+        iconField,
+        schemeField,
+        viewModeField,
+        errorField,
+        h(
+          'div',
+          { class: 'add-space-actions' },
+          h(
+            'button',
+            { type: 'button', class: 'add-space-cancel', onClick: onCancel },
+            'Cancel',
+          ),
+          h(
+            'button',
+            {
+              type: 'submit',
+              class: 'add-space-submit',
+              disabled: state.isSubmitting,
+            },
+            state.isSubmitting ? 'Saving...' : 'Save',
+          ),
+        ),
+      ),
+    ),
+  );
+};
+harden(EditSpaceModalBody);
+
+/**
+ * Create the edit space modal component. The body is one confined Preact tree
+ * rendered through a single `renderConfined` into a dedicated mount inside
+ * `$container`; `show(space)` updates the tree's state (open + prefill) and
+ * `hide()` closes it.
  *
  * @param {object} options
  * @param {HTMLElement} options.$container - Container element for the modal
@@ -40,122 +270,170 @@ export const createEditSpaceModal = ({
   onClose,
   showName = true,
 }) => {
-  let visible = false;
-  /** @type {SpaceConfig | null} */
-  let editingSpace = null;
-  let selectedIcon = '🐈‍⬛';
-  let useLetterIcon = false;
-  /** @type {string} */
-  let spaceName = '';
-  /** @type {'chat' | 'forum' | 'outliner'} */
-  let viewMode = 'chat';
-  /** @type {string | null} */
-  let error = null;
-  /** @type {boolean} */
-  let isSubmitting = false;
+  // Dedicated confined mount; siblings of `$container` are never reconciled.
+  // `display: contents` keeps the modal's own flex layout (on `$container`)
+  // applying to the mount's children.
+  const $mount = document.createElement('div');
+  $mount.style.display = 'contents';
+
+  // Persistent host node carrying the imperative scheme picker. Re-parented
+  // into the confined tree's anchor after each render, so its DOM and
+  // listeners survive confined re-renders.
+  const $schemePickerHost = document.createElement('div');
+  $schemePickerHost.id = 'scheme-picker-slot';
+  $schemePickerHost.className = 'add-space-field';
 
   /** @type {SchemePickerAPI | null} */
   let schemePicker = null;
 
-  /**
-   * Render the edit form.
-   * @returns {string}
-   */
-  const renderForm = () => `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <h2 class="add-space-title">Edit Space</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        ${
-          editingSpace &&
-          editingSpace.profilePath &&
-          editingSpace.profilePath.length > 0
-            ? `<div class="add-space-field">
-          <label>Persona</label>
-          <div class="edit-space-persona">${editingSpace.profilePath.join(' \u203A ')}</div>
-        </div>`
-            : ''
-        }
-        ${
-          showName
-            ? `<div class="add-space-field">
-          <label for="edit-space-name">Name</label>
-          <input type="text" id="edit-space-name" placeholder="e.g., clark, bruce, diana"
-                 value="${spaceName}" autocomplete="off" />
-        </div>`
-            : ''
-        }
+  /** @type {EditModalState} */
+  let state = harden({
+    open: false,
+    space: null,
+    spaceName: '',
+    selectedIcon: '\u{1f408}‍⬛',
+    useLetterIcon: false,
+    viewMode: 'chat',
+    error: null,
+    isSubmitting: false,
+  });
 
-        ${renderIconSelector({ selectedIcon, useLetterIcon })}
-
-        <div id="scheme-picker-slot" class="add-space-field"></div>
-
-        ${
-          editingSpace && editingSpace.mode === 'channel'
-            ? `<div class="add-space-field">
-          <label>Channel View</label>
-          <div class="view-mode-selector">
-            <button type="button" class="view-mode-option ${viewMode === 'chat' ? 'selected' : ''}" data-view-mode="chat">
-              <span class="view-mode-label">Traditional Chat</span>
-              <span class="view-mode-desc">Chronological messages with thread drill-downs</span>
-            </button>
-            <button type="button" class="view-mode-option ${viewMode === 'forum' ? 'selected' : ''}" data-view-mode="forum">
-              <span class="view-mode-label">Forum</span>
-              <span class="view-mode-desc">Threaded tree view with active subtrees at bottom</span>
-            </button>
-            <button type="button" class="view-mode-option ${viewMode === 'outliner' ? 'selected' : ''}" data-view-mode="outliner">
-              <span class="view-mode-label">Outliner</span>
-              <span class="view-mode-desc">Collaborative document with edit history</span>
-            </button>
-            <button type="button" class="view-mode-option ${viewMode === 'microblog' ? 'selected' : ''}" data-view-mode="microblog">
-              <span class="view-mode-label">Microblog</span>
-              <span class="view-mode-desc">Reverse-chronological feed with profile header</span>
-            </button>
-          </div>
-        </div>`
-            : ''
-        }
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
+  /** Whether the controller has been torn down (mount detached). */
+  const isLive = () => $mount.isConnected;
 
   /**
-   * Render the modal content.
+   * Re-parent the persistent scheme-picker host into the freshly rendered
+   * anchor. `renderConfined` is synchronous, so the anchor exists by the time
+   * this runs.
    */
-  const render = () => {
-    $container.innerHTML = renderForm();
-    attachEventListeners();
-
-    // Mount scheme picker
-    const $slot = /** @type {HTMLElement | null} */ (
-      $container.querySelector('#scheme-picker-slot')
+  const reattachSchemePicker = () => {
+    const $anchor = /** @type {HTMLElement | null} */ (
+      $mount.querySelector('[data-scheme-picker-anchor="true"]')
     );
-    if ($slot) {
-      const previousValue = schemePicker
-        ? schemePicker.getValue()
-        : (editingSpace && editingSpace.scheme) || 'auto';
-      schemePicker = createSchemePicker({
-        $container: $slot,
-        initialValue: previousValue,
-      });
+    if ($anchor && $schemePickerHost.parentElement !== $anchor) {
+      $anchor.appendChild($schemePickerHost);
+    }
+  };
+
+  /**
+   * Merge a partial state update and re-render the confined tree.
+   *
+   * @param {Partial<EditModalState>} patchValue
+   */
+  const patch = patchValue => {
+    state = harden({ ...state, ...patchValue });
+    rerender();
+  };
+
+  /**
+   * Handle form submission, preserving the original callback contract (the
+   * caller's `onSubmit` performs the eventual sends).
+   */
+  const handleSubmit = async () => {
+    if (!state.space) return;
+
+    const name = showName ? state.spaceName.trim() : state.space.name;
+    if (showName && !name) {
+      patch({ error: 'Please enter a name' });
+      return;
     }
 
-    // Focus name input when shown
+    patch({ isSubmitting: true, error: null });
+
+    try {
+      /** @type {EditSpaceFormData} */
+      const formData = {
+        name,
+        icon: state.selectedIcon,
+        scheme: schemePicker ? schemePicker.getValue() : 'auto',
+      };
+      if (state.space.mode === 'channel') {
+        formData.viewMode = state.viewMode;
+      }
+      await onSubmit(state.space.id, formData);
+
+      hide({ restoreScheme: false });
+      onClose();
+    } catch (err) {
+      patch({
+        error: `Failed to save: ${/** @type {Error} */ (err).message}`,
+        isSubmitting: false,
+      });
+    }
+  };
+
+  /**
+   * Render the confined modal body for the current `state`, then re-parent the
+   * scheme picker into its anchor.
+   */
+  const rerender = () => {
+    renderConfined(
+      h(EditSpaceModalBody, {
+        state,
+        showName,
+        onPatch: patch,
+        onCancel: () => {
+          hide();
+          onClose();
+        },
+        onSubmit: () => {
+          handleSubmit();
+        },
+      }),
+      $mount,
+    );
+    if (state.open) {
+      reattachSchemePicker();
+    }
+  };
+
+  /**
+   * Escape-key handler; only active while the modal is open.
+   *
+   * @param {KeyboardEvent} e
+   */
+  const handleEscape = e => {
+    if (e.key === 'Escape' && state.open && isLive()) {
+      hide();
+      onClose();
+    }
+  };
+
+  /**
+   * Show the modal for a given space.
+   *
+   * @param {SpaceConfig} space
+   */
+  const show = space => {
+    const useLetterIcon =
+      space.icon.length <= 2 && !ALL_ICONS.includes(space.icon);
+    state = harden({
+      open: true,
+      space,
+      spaceName: space.name,
+      selectedIcon: space.icon,
+      useLetterIcon,
+      viewMode: space.viewMode || 'chat',
+      error: null,
+      isSubmitting: false,
+    });
+
+    // Recreate the scheme picker on the persistent host so it reflects this
+    // space's scheme, then render and place it into the anchor.
+    schemePicker = createSchemePicker({
+      $container: $schemePickerHost,
+      initialValue: space.scheme || 'auto',
+    });
+
+    rerender();
+
+    $container.style.display = 'flex';
+    document.addEventListener('keydown', handleEscape);
+
+    // Focus the name input when shown.
     if (showName) {
       const $nameInput = /** @type {HTMLInputElement | null} */ (
-        $container.querySelector('#edit-space-name')
+        $mount.querySelector('#edit-space-name')
       );
       if ($nameInput) {
         $nameInput.focus();
@@ -168,209 +446,25 @@ export const createEditSpaceModal = ({
   };
 
   /**
-   * Attach event listeners.
-   */
-  const attachEventListeners = () => {
-    const $backdrop = $container.querySelector('.add-space-backdrop');
-    const $close = $container.querySelector('.add-space-close');
-    const $cancel = $container.querySelector('.add-space-cancel');
-    const $form = $container.querySelector('.add-space-form');
-    const $iconOptions = $container.querySelectorAll('.icon-option');
-    const $iconTabs = $container.querySelectorAll('.icon-tab');
-    const $letterInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#letter-icon')
-    );
-    const $nameInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#edit-space-name')
-    );
-
-    // Close handlers
-    if ($backdrop) {
-      $backdrop.addEventListener('click', () => {
-        hide();
-        onClose();
-      });
-    }
-    if ($close) {
-      $close.addEventListener('click', () => {
-        hide();
-        onClose();
-      });
-    }
-    if ($cancel) {
-      $cancel.addEventListener('click', () => {
-        hide();
-        onClose();
-      });
-    }
-
-    // Name input
-    if ($nameInput) {
-      $nameInput.addEventListener('input', () => {
-        spaceName = $nameInput.value;
-      });
-    }
-
-    // Icon selection
-    for (const $option of $iconOptions) {
-      $option.addEventListener('click', () => {
-        const icon = $option.getAttribute('data-icon');
-        if (icon) {
-          selectedIcon = icon;
-          useLetterIcon = false;
-          updateIconSelection();
-        }
-      });
-    }
-
-    // Icon tabs
-    for (const $tab of $iconTabs) {
-      $tab.addEventListener('click', () => {
-        const tab = $tab.getAttribute('data-tab');
-        useLetterIcon = tab === 'letter';
-        if (useLetterIcon && selectedIcon.length > 2) {
-          selectedIcon = 'AB';
-        }
-        render();
-      });
-    }
-
-    // Letter icon input
-    if ($letterInput) {
-      $letterInput.addEventListener('input', () => {
-        selectedIcon = letterIcon($letterInput.value || 'AB');
-        const $preview = $container.querySelector('.letter-icon-preview');
-        if ($preview) {
-          $preview.textContent = selectedIcon;
-        }
-      });
-    }
-
-    // View mode selector
-    const $viewModeOptions = $container.querySelectorAll('.view-mode-option');
-    for (const $option of $viewModeOptions) {
-      $option.addEventListener('click', () => {
-        const vm = $option.getAttribute('data-view-mode');
-        if (
-          vm === 'chat' ||
-          vm === 'forum' ||
-          vm === 'outliner' ||
-          vm === 'microblog'
-        ) {
-          viewMode = vm;
-          for (const $opt of $viewModeOptions) {
-            $opt.classList.toggle(
-              'selected',
-              $opt.getAttribute('data-view-mode') === vm,
-            );
-          }
-        }
-      });
-    }
-
-    // Form submission
-    if ($form) {
-      $form.addEventListener('submit', async e => {
-        e.preventDefault();
-        await handleSubmit();
-      });
-    }
-
-    // Escape key handler
-    const handleEscape = (/** @type {KeyboardEvent} */ e) => {
-      if (e.key === 'Escape' && visible) {
-        hide();
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', handleEscape);
-  };
-
-  /**
-   * Handle form submission.
-   */
-  const handleSubmit = async () => {
-    if (!editingSpace) return;
-
-    const name = showName ? spaceName.trim() : editingSpace.name;
-    if (showName && !name) {
-      error = 'Please enter a name';
-      render();
-      return;
-    }
-
-    isSubmitting = true;
-    error = null;
-    render();
-
-    try {
-      /** @type {EditSpaceFormData} */
-      const formData = {
-        name,
-        icon: selectedIcon,
-        scheme: schemePicker ? schemePicker.getValue() : 'auto',
-      };
-      if (editingSpace.mode === 'channel') {
-        formData.viewMode = viewMode;
-      }
-      await onSubmit(editingSpace.id, formData);
-
-      hide({ restoreScheme: false });
-      onClose();
-    } catch (err) {
-      error = `Failed to save: ${/** @type {Error} */ (err).message}`;
-      isSubmitting = false;
-      render();
-    }
-  };
-
-  /**
-   * Update icon selection without re-rendering.
-   */
-  const updateIconSelection = () => {
-    const $options = $container.querySelectorAll('.icon-option');
-    for (const $option of $options) {
-      const icon = $option.getAttribute('data-icon');
-      if (icon === selectedIcon) {
-        $option.classList.add('selected');
-      } else {
-        $option.classList.remove('selected');
-      }
-    }
-  };
-
-  /**
-   * Show the modal for a given space.
-   *
-   * @param {SpaceConfig} space
-   */
-  const show = space => {
-    visible = true;
-    editingSpace = space;
-    spaceName = space.name;
-    selectedIcon = space.icon;
-    useLetterIcon = space.icon.length <= 2 && !ALL_ICONS.includes(space.icon);
-    viewMode = space.viewMode || 'chat';
-    error = null;
-    isSubmitting = false;
-    schemePicker = null;
-
-    render();
-    $container.style.display = 'flex';
-  };
-
-  /**
-   * Hide the modal, optionally restoring the previous color scheme.
+   * Hide the modal, optionally restoring the previous color scheme. Teardown is
+   * detach-safe: the escape listener is removed and the scheme-picker host is
+   * detached so nothing leaks.
    *
    * @param {object} [options]
    * @param {boolean} [options.restoreScheme] - Whether to restore the
    *   color scheme that was active before the picker was opened.
    */
   const hide = ({ restoreScheme = true } = {}) => {
-    visible = false;
-    $container.style.display = 'none';
     if (restoreScheme && schemePicker) {
       schemePicker.restoreScheme();
+    }
+    document.removeEventListener('keydown', handleEscape);
+    state = harden({ ...state, open: false });
+    rerender();
+    $container.style.display = 'none';
+    // Detach the scheme-picker host so it does not leak into the closed modal.
+    if ($schemePickerHost.parentElement) {
+      $schemePickerHost.parentElement.removeChild($schemePickerHost);
     }
   };
 
@@ -379,11 +473,13 @@ export const createEditSpaceModal = ({
    *
    * @returns {boolean}
    */
-  const isVisible = () => visible;
+  const isVisible = () => state.open;
 
-  // Initial state
+  // Initial state: mounted but closed.
   $container.innerHTML = '';
+  $container.appendChild($mount);
   $container.style.display = 'none';
+  rerender();
 
   return harden({ show, hide, isVisible });
 };

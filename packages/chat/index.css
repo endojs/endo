@@ -2094,6 +2094,16 @@ body.resizing * {
   font-weight: 400;
 }
 
+/*
+ * The source input renders confined into a dedicated mount child rather than
+ * directly into `.inline-eval-wrapper`. `display: contents` makes that mount
+ * transparent to the wrapper's flex layout so the input below keeps acting as a
+ * direct flex child (preserving its `flex: 1` growth).
+ */
+.inline-eval-source-mount {
+  display: contents;
+}
+
 .inline-eval-input {
   flex: 1;
   min-width: 100px;

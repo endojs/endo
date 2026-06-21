@@ -116,7 +116,7 @@ const createInboxDOM = () => {
   return { $parent, $end };
 };
 
-test('form renders fields and Submit calls submit()', async t => {
+test.serial('form renders fields and Submit calls submit()', async t => {
   const { $parent, $end } = createInboxDOM();
 
   const dismissedKit = makePromiseKit();
@@ -170,9 +170,14 @@ test('form renders fields and Submit calls submit()', async t => {
   t.is(labels[0].textContent, 'Favorite color');
   t.is(labels[1].textContent, 'City');
 
-  // Fill in the form fields
+  // Fill in the form fields. The inputs are controlled (their value is held in
+  // component state), so drive them by dispatching `input` events the way a
+  // real keystroke would, rather than only assigning `.value`.
   inputs[0].value = 'green';
+  inputs[0].dispatchEvent(new globalThis.Event('input', { bubbles: true }));
   inputs[1].value = 'Portland';
+  inputs[1].dispatchEvent(new globalThis.Event('input', { bubbles: true }));
+  await tick(10);
 
   // Click Submit
   const $submit = $parent.querySelector('.form-request-submit');
@@ -188,56 +193,59 @@ test('form renders fields and Submit calls submit()', async t => {
   t.deepEqual(submitCall.args[1], { favoriteColor: 'green', city: 'Portland' });
 });
 
-test('form sender view shows input fields and submit button', async t => {
-  const { $parent, $end } = createInboxDOM();
+test.serial(
+  'form sender view shows input fields and submit button',
+  async t => {
+    const { $parent, $end } = createInboxDOM();
 
-  const dismissedKit = makePromiseKit();
+    const dismissedKit = makePromiseKit();
 
-  const message = {
-    type: 'form',
-    number: 10n,
-    date: new Date().toISOString(),
-    from: 'endo://localhost/?id=host-handle-id&type=handle',
-    to: 'endo://localhost/?id=guest-handle-id&type=handle',
-    messageId: '100',
-    dismissed: dismissedKit.promise,
-    description: 'Survey',
-    fields: [{ name: 'favoriteColor', label: 'Favorite color' }],
-  };
+    const message = {
+      type: 'form',
+      number: 10n,
+      date: new Date().toISOString(),
+      from: 'endo://localhost/?id=host-handle-id&type=handle',
+      to: 'endo://localhost/?id=guest-handle-id&type=handle',
+      messageId: '100',
+      dismissed: dismissedKit.promise,
+      description: 'Survey',
+      fields: [{ name: 'favoriteColor', label: 'Favorite color' }],
+    };
 
-  const { powers } = makeFormPowers({
-    selfId: 'host-handle-id',
-    message,
-  });
+    const { powers } = makeFormPowers({
+      selfId: 'host-handle-id',
+      message,
+    });
 
-  globalThis.requestAnimationFrame = fn => {
-    fn(0);
-    return 0;
-  };
+    globalThis.requestAnimationFrame = fn => {
+      fn(0);
+      return 0;
+    };
 
-  inboxComponent($parent, $end, powers, {
-    showValue: () => {},
-  });
+    inboxComponent($parent, $end, powers, {
+      showValue: () => {},
+    });
 
-  await tick(50);
+    await tick(50);
 
-  // Host sees the sent message (from === selfId, so isSent = true)
-  const hostMsgEl = $parent.querySelector('.message.sent');
-  t.truthy(hostMsgEl, 'host should see the form as a sent message');
+    // Host sees the sent message (from === selfId, so isSent = true)
+    const hostMsgEl = $parent.querySelector('.message.sent');
+    t.truthy(hostMsgEl, 'host should see the form as a sent message');
 
-  // Sender sees input fields and submit button (same as receiver)
-  const $submit = $parent.querySelector('.form-request-submit');
-  t.truthy($submit, 'submit button should exist on sender view');
+    // Sender sees input fields and submit button (same as receiver)
+    const $submit = $parent.querySelector('.form-request-submit');
+    t.truthy($submit, 'submit button should exist on sender view');
 
-  const inputs = $parent.querySelectorAll('.form-request-field-input');
-  t.is(inputs.length, 1, 'should render one field input');
+    const inputs = $parent.querySelectorAll('.form-request-field-input');
+    t.is(inputs.length, 1, 'should render one field input');
 
-  const labels = $parent.querySelectorAll('.form-request-field-label');
-  t.is(labels.length, 1);
-  t.is(labels[0].textContent, 'Favorite color');
-});
+    const labels = $parent.querySelectorAll('.form-request-field-label');
+    t.is(labels.length, 1);
+    t.is(labels[0].textContent, 'Favorite color');
+  },
+);
 
-test('value message renders with Show Value button', async t => {
+test.serial('value message renders with Show Value button', async t => {
   const { $parent, $end } = createInboxDOM();
 
   const dismissedKit = makePromiseKit();
