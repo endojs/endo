@@ -524,8 +524,11 @@ export const createShareModal = $container => {
       .slice(1)
       .map(seg => seg.petName)
       .filter(
-        /** @param {string | undefined} n @returns {n is string} */ n =>
-          n !== undefined,
+        /**
+         * @param {string | undefined} n
+         * @returns {n is string}
+         */
+        n => n !== undefined,
       );
     const fullPath = [...currentProfilePath, ...deeperNames];
     const { rootPowers } = state.opts;
@@ -746,8 +749,11 @@ export const createShareModal = $container => {
       .slice(1)
       .map(seg => seg.petName)
       .filter(
-        /** @param {string | undefined} n @returns {n is string} */ n =>
-          n !== undefined,
+        /**
+         * @param {string | undefined} n
+         * @returns {n is string}
+         */
+        n => n !== undefined,
       );
 
     /** @type {ShareTarget} */

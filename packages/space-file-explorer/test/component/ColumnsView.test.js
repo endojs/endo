@@ -44,6 +44,7 @@ const makeActions = () => {
     openDirInColumn: rec('openDirInColumn'),
     openFile: rec('openFile'),
     openGitEntry: rec('openGitEntry'),
+    openGitEntryInColumn: rec('openGitEntryInColumn'),
     renameEntryAction: rec('renameEntryAction'),
     deleteEntryAction: rec('deleteEntryAction'),
     moveEntry: rec('moveEntry'),
@@ -148,7 +149,9 @@ test.serial('directory click drills, file click opens, git opens', async t => {
 
   rows[2].click(); // git
   await tick(10);
-  t.deepEqual(calls.at(-1), ['openGitEntry', ['proj'], 'repo']);
+  // A git workspace child continues the columns from its own column index,
+  // rather than reopening at the top.
+  t.deepEqual(calls.at(-1), ['openGitEntryInColumn', 0, 'repo']);
 });
 
 test.serial('rename / delete map to the right actions', async t => {

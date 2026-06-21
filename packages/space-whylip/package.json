@@ -1,5 +1,5 @@
 {
-  "name": "@endo/whylip",
+  "name": "@endo/space-whylip",
   "version": "0.1.0",
   "private": true,
   "description": "Whylip — an interactive illustrated primer powered by Fae agents",
@@ -15,7 +15,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/whylip"
+    "directory": "packages/space-whylip"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

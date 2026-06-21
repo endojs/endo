@@ -146,3 +146,26 @@ export const createButton = (document, id) => {
  * @returns {Promise<void>}
  */
 export const tick = (ms = 10) => new Promise(r => setTimeout(r, ms));
+
+/**
+ * Poll until `predicate()` returns truthy, then resolve. The confined render
+ * flushes asynchronously (rAF + effect flushes), so a fixed `tick(ms)` delay
+ * races on a loaded CI runner. Polling the actual condition is robust and as
+ * short as the machine allows.
+ *
+ * There is deliberately no per-poll timeout ceiling: a fixed ceiling is itself
+ * a guessed delay that can be too short. AVA's global per-test timeout is the
+ * only bound, so a genuine hang fails with a clear timeout rather than passing
+ * (or failing) on a guess. Use this only to wait for a condition that the
+ * following assertion checks.
+ *
+ * @param {() => unknown} predicate
+ * @param {number} [step] - Poll interval in ms.
+ * @returns {Promise<void>}
+ */
+export const waitFor = async (predicate, step = 10) => {
+  while (!predicate()) {
+    // eslint-disable-next-line no-await-in-loop
+    await tick(step);
+  }
+};

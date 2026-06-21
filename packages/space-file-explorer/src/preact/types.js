@@ -196,7 +196,8 @@ export {};
  * @property {(parentPath: string[], name: string) => void} openFile Open/select a file in the viewer.
  * @property {(columnIndex: number, name: string) => void} openDirInColumn Drill into a dir (columns).
  * @property {(path: string[]) => void} toggleTreeDir Expand/collapse a tree dir.
- * @property {(parentPath: string[], name: string) => void} openGitEntry Open a git workspace child.
+ * @property {(parentPath: string[], name: string) => void} openGitEntry Open a git workspace child as a new source.
+ * @property {(columnIndex: number, name: string) => void} openGitEntryInColumn Continue columns into a git workspace child's worktree.
  * @property {() => void} refreshActive Manual refresh of the active source.
  * Mutations (all no-op when the active source is read-only)
  * @property {() => void} newFolder

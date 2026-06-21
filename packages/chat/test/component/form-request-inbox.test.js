@@ -7,7 +7,7 @@ import test from 'ava';
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { inboxComponent } from '../../inbox-component.js';
 
 const { document: testDocument } = createDOM();
@@ -153,7 +153,9 @@ test.serial('form renders fields and Submit calls submit()', async t => {
   });
 
   // Wait for the message to be rendered
-  await tick(50);
+  await waitFor(
+    () => $parent.querySelectorAll('.form-request-field-input').length === 2,
+  );
 
   // Verify the form description is rendered
   const descEl = $parent.querySelector('.form-request-description');
@@ -184,7 +186,7 @@ test.serial('form renders fields and Submit calls submit()', async t => {
   t.truthy($submit, 'submit button should exist');
   $submit.click();
 
-  await tick(20);
+  await waitFor(() => calls.find(c => c.method === 'submit'));
 
   // Verify submit was called with the correct values
   const submitCall = calls.find(c => c.method === 'submit');
@@ -226,7 +228,9 @@ test.serial(
       showValue: () => {},
     });
 
-    await tick(50);
+    await waitFor(
+      () => $parent.querySelectorAll('.form-request-field-input').length === 1,
+    );
 
     // Host sees the sent message (from === selfId, so isSent = true)
     const hostMsgEl = $parent.querySelector('.message.sent');
@@ -281,7 +285,11 @@ test.serial('value message renders with Show Value button', async t => {
     },
   });
 
-  await tick(50);
+  await waitFor(
+    () =>
+      $parent.querySelector('.form-request-description')?.textContent.trim() ===
+      '@alice responded to form',
+  );
 
   // Verify the value message description is rendered
   const descEl = $parent.querySelector('.form-request-description');
@@ -289,7 +297,10 @@ test.serial('value message renders with Show Value button', async t => {
   t.is(descEl.textContent.trim(), '@alice responded to form');
 
   // Verify the value is rendered inline (wait for async lookupById)
-  await tick(50);
+  await waitFor(() => {
+    const $value = $parent.querySelector('.form-request-inline-value');
+    return $value && $value.textContent.length > 0;
+  });
   const $inlineValue = $parent.querySelector('.form-request-inline-value');
   t.truthy($inlineValue, 'inline value container should exist');
   t.truthy(
@@ -302,10 +313,8 @@ test.serial('value message renders with Show Value button', async t => {
   t.truthy($showResult, 'Show Value button should exist');
   $showResult.click();
 
-  // E() adds multiple microtask hops; flush them.
-  await tick(10);
-  await tick(10);
-  await tick(10);
+  // E() adds multiple microtask hops; poll until the call lands.
+  await waitFor(() => showValueCalls.length === 1);
 
   // Verify showValue was called
   t.is(showValueCalls.length, 1, 'showValue should have been called');

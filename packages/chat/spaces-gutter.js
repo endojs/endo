@@ -608,9 +608,25 @@ export const createSpacesGutter = ({
     },
   });
 
+  // The add-space modal renders by assigning `innerHTML` on `$modalContainer`,
+  // which detaches anything else mounted there. The edit modals are confined
+  // Preact components that append a persistent mount, so sharing the container
+  // left the "edit space" button blank once the add-space modal had rendered.
+  // Give the edit modals their own overlay container, inserted as a sibling so
+  // the add-space modal's re-renders never touch it. Both edit modals are
+  // Preact (each renders nothing while closed) so they can share one container.
+  const $editModalContainer = document.createElement('div');
+  $editModalContainer.className = 'spaces-modal-overlay';
+  const $modalParent = $modalContainer.parentNode;
+  if ($modalParent) {
+    $modalParent.insertBefore($editModalContainer, $modalContainer.nextSibling);
+  } else {
+    $modalContainer.appendChild($editModalContainer);
+  }
+
   // Initialize the edit space modal (for regular spaces)
   const editSpaceModal = createEditSpaceModal({
-    $container: $modalContainer,
+    $container: $editModalContainer,
     onSubmit: async (id, data) => {
       /** @type {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>} */
       const updates = {
@@ -630,7 +646,7 @@ export const createSpacesGutter = ({
 
   // Initialize the home edit modal (no name field)
   const homeEditModal = createEditSpaceModal({
-    $container: $modalContainer,
+    $container: $editModalContainer,
     showName: false,
     onSubmit: async (_id, data) => {
       await updateSpace('home', {

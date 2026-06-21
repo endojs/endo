@@ -587,7 +587,10 @@ const DebuggerRoot = ({ $container, isLive, controller }) => {
   // entry's `open()` may run BEFORE this effect flushes; it then stashes the
   // request in `controller.pending`, which this effect drains on registration.
   useEffect(() => {
-    /** @param {unknown} ref @param {string} [label] */
+    /**
+     * @param {unknown} ref
+     * @param {string} [label]
+     */
     const apply = (ref, label) => {
       setDebuggerRef(/** @type {Debugger} */ (ref));
       setTitle(label ? `Debugger: ${label}` : 'Debugger');

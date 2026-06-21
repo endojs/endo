@@ -2,13 +2,13 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-import { PeersView } from '@endo/chat-network-view';
+import { PeersView } from '@endo/space-peers';
 
 import { h, renderConfined, unmount } from './setup-preact-container.js';
 
 /**
  * Mount the network peers UI, replacing the parent content. Resolves powers
- * from the profilePath and renders the `@endo/chat-network-view` package's
+ * from the profilePath and renders the `@endo/space-peers` package's
  * pure `PeersView` component through the project's CONFINED renderer, so the
  * whole tree is sanitized exactly like every other surface in the app.
  *

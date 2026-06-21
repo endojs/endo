@@ -99,7 +99,7 @@ The conversation tree is backed by `@endo/conversation-tree`:
 ## File Structure
 
 ```
-packages/whylip/
+packages/space-whylip/
 ├── index.js                     # Public entry: exports mountWhylip()
 ├── src/
 │   ├── mount.js                 # createRoot + render bridge
@@ -117,4 +117,4 @@ packages/whylip/
 └── README.md
 ```
 
-`packages/chat/whylip-component.js` imports `mountWhylip` from `@endo/whylip` and calls it when a Whylip-mode Space is selected.
+`packages/chat/whylip-component.js` imports `mountWhylip` from `@endo/space-whylip` and calls it when a Whylip-mode Space is selected.

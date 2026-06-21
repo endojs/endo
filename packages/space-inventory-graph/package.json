@@ -1,5 +1,5 @@
 {
-  "name": "@endo/inventory-graph",
+  "name": "@endo/space-inventory-graph",
   "version": "0.1.0",
   "private": true,
   "description": "Force-directed inventory graph visualizer for Endo formula dependencies",
@@ -15,7 +15,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/inventory-graph"
+    "directory": "packages/space-inventory-graph"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

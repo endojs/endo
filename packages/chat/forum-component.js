@@ -128,6 +128,7 @@ export const forumComponent = async (
     replyChildren,
     nameMap,
     getMemberInfo,
+    memberCache,
     profilePopup,
     saveNameMap,
     updateAuthorChips,
@@ -391,7 +392,7 @@ export const forumComponent = async (
       return h(
         'span',
         {
-          key: String(index),
+          key: `chip-${index}`,
           class: 'token',
           tabindex: 0,
           role: 'button',
@@ -448,8 +449,12 @@ export const forumComponent = async (
     const parentMsg = parentData.message;
     const parentPreview = parentMsg.strings.join('').substring(0, 60);
     // The author name uses the assigned nickname when present, falling back to
-    // the proposed name resolved asynchronously into nameMap by author chips.
-    const parentAuthor = nameMap.get(parentMsg.memberId) || parentMsg.memberId;
+    // the proposed name (warmed into memberCache by the message loop), then to
+    // the raw member id.
+    const parentCached = memberCache.get(parentMsg.memberId);
+    const parentAuthor =
+      nameMap.get(parentMsg.memberId) ||
+      (parentCached ? parentCached.proposedName : parentMsg.memberId);
     return h(
       'div',
       { class: 'reply-indicator' },
@@ -939,10 +944,7 @@ export const forumComponent = async (
 
     // Record the message in the index. The forum re-renders the full tree on
     // each update, so we just need the data in messageIndex.
-    messageIndex.set(msgKey, {
-      message: typedMessage,
-      $element: document.createElement('div'),
-    });
+    messageIndex.set(msgKey, { message: typedMessage });
 
     // Track reacts
     reactSystem.processReactMessage(typedMessage, msgKey);
@@ -985,6 +987,15 @@ export const forumComponent = async (
     } else {
       // Root message
       rootKeys.push(msgKey);
+    }
+
+    // Warm the member cache before rendering so the reply indicator's
+    // synchronous read resolves to the proposed name rather than the raw
+    // member id on first paint.
+    await getMemberInfo(typedMessage.memberId);
+    if (typedMessage.replyTo) {
+      const parentData = messageIndex.get(typedMessage.replyTo);
+      if (parentData) await getMemberInfo(parentData.message.memberId);
     }
 
     // During initial batch, debounce renders

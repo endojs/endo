@@ -17,18 +17,18 @@ import '@endo/init';
 import { connectToGateway } from './connection.js';
 import { make } from './chat.js';
 
-// Whylip ships its own stylesheet. The `@endo/whylip` package does no
+// Whylip ships its own stylesheet. The `@endo/space-whylip` package does no
 // rendering and deliberately avoids a JS CSS side-effect import (so it stays
 // loadable under plain Node / tsc / AVA); the host bundles the stylesheet here
 // instead. This import is Vite-only — no test loads `main.js`.
 // eslint-disable-next-line import/no-unresolved
-import '@endo/whylip/whylip.css';
+import '@endo/space-whylip/whylip.css';
 
-// The peers view (`@endo/chat-network-view`) likewise does no rendering and
+// The peers view (`@endo/space-peers`) likewise does no rendering and
 // ships its stylesheet via the `./peers.css` package export; the host bundles
 // it here. Vite-only — no test loads `main.js`.
 // eslint-disable-next-line import/no-unresolved
-import '@endo/chat-network-view/peers.css';
+import '@endo/space-peers/peers.css';
 
 const RECONNECT_INTERVAL_MS = 5000;
 

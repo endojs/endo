@@ -3,7 +3,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import { channelListComponent } from '../../channel-list.js';
 
@@ -95,7 +95,12 @@ test.serial('setActiveChannel updates the highlight live', async t => {
   });
 
   api.setActiveChannel('b');
-  await tick(5);
+  await waitFor(() => {
+    const active = [...$container.querySelectorAll('.channel-list-row')].filter(
+      r => r.classList.contains('active'),
+    );
+    return active.length === 1 && /b/.test(active[0].textContent);
+  });
 
   const rows = [...$container.querySelectorAll('.channel-list-row')];
   const active = rows.filter(r => r.classList.contains('active'));

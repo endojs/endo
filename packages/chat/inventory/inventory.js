@@ -87,10 +87,15 @@ harden(clearAllDropTargets);
 
 /**
  * Reducer over the set of pet names discovered from `followNameChanges`.
- * Discovery (insertion) order is preserved.
+ * Discovery (insertion) order is preserved. The `batch` action applies a
+ * coalesced burst of add/remove changes in a single transition, so the rapid
+ * initial backlog yields one render (and one round of per-item resolution)
+ * rather than one per name.
  *
  * @param {string[]} state
- * @param {{ type: 'add', name: string } | { type: 'remove', name: string }} action
+ * @param {{ type: 'add', name: string }
+ *   | { type: 'remove', name: string }
+ *   | { type: 'batch', changes: Array<{ add?: string, remove?: string }> }} action
  * @returns {string[]}
  */
 const namesReducer = (state, action) => {
@@ -101,6 +106,29 @@ const namesReducer = (state, action) => {
   if (action.type === 'remove') {
     if (!state.includes(action.name)) return state;
     return state.filter(n => n !== action.name);
+  }
+  if (action.type === 'batch') {
+    let next = state;
+    let mutated = false;
+    for (const change of action.changes) {
+      if (change.add !== undefined && !next.includes(change.add)) {
+        if (!mutated) {
+          next = [...next];
+          mutated = true;
+        }
+        next.push(change.add);
+      } else if (change.remove !== undefined) {
+        const i = next.indexOf(change.remove);
+        if (i !== -1) {
+          if (!mutated) {
+            next = [...next];
+            mutated = true;
+          }
+          next.splice(i, 1);
+        }
+      }
+    }
+    return mutated ? next : state;
   }
   return state;
 };
@@ -543,6 +571,22 @@ const InventoryList = ({ powers, options, path, rootPowers, rootPrefix }) => {
     // must not dispatch after teardown.
     let disposed = false;
 
+    // Buffer incoming name changes and flush them as one batched dispatch on
+    // the next macrotask. The daemon delivers the existing inventory as a rapid
+    // backlog; coalescing it avoids one render (and one round of per-item
+    // lookups) per name.
+    /** @type {Array<{ add?: string, remove?: string }>} */
+    let pending = [];
+    /** @type {ReturnType<typeof setTimeout> | 0} */
+    let flushTimer = 0;
+    const flush = () => {
+      flushTimer = 0;
+      if (disposed || pending.length === 0) return;
+      const changes = pending;
+      pending = [];
+      dispatch({ type: 'batch', changes });
+    };
+
     const run = async () => {
       // The daemon's name-change reader is loosely typed (Passable); narrow it
       // to the add/remove shape at the boundary, as the rest of the app does.
@@ -556,10 +600,9 @@ const InventoryList = ({ powers, options, path, rootPowers, rootPrefix }) => {
         const change = /** @type {{ add?: string, remove?: string }} */ (
           rawChange
         );
-        if (change.add !== undefined) {
-          dispatch({ type: 'add', name: change.add });
-        } else if (change.remove !== undefined) {
-          dispatch({ type: 'remove', name: change.remove });
+        pending.push(change);
+        if (flushTimer === 0) {
+          flushTimer = setTimeout(flush, 0);
         }
       }
     };
@@ -572,6 +615,10 @@ const InventoryList = ({ powers, options, path, rootPowers, rootPrefix }) => {
 
     return () => {
       disposed = true;
+      if (flushTimer !== 0) {
+        clearTimeout(flushTimer);
+        flushTimer = 0;
+      }
     };
   }, [powers]);
 

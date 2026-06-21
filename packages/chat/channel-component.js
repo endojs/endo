@@ -246,7 +246,7 @@ export const channelComponent = async (
   // --- Thread tracking ---
   /**
    * Index of rendered messages by their number (as string).
-   * @type {Map<string, { message: ChannelMessage, $element: HTMLElement }>}
+   * @type {Map<string, { message: ChannelMessage }>}
    */
   const messageIndex = new Map();
 
@@ -293,8 +293,8 @@ export const channelComponent = async (
     const continuePoints = [];
 
     /**
-     * @param {string} key @param {number} depth
-     * @param depth
+     * @param {string} key
+     * @param {number} depth
      */
     const walk = (key, depth) => {
       const data = messageIndex.get(key);
@@ -476,7 +476,10 @@ export const channelComponent = async (
       );
     }
     const parentMsg = parentData.message;
-    const parentAuthor = nameMap.get(parentMsg.memberId) || parentMsg.memberId;
+    const parentCached = memberCache.get(parentMsg.memberId);
+    const parentAuthor =
+      nameMap.get(parentMsg.memberId) ||
+      (parentCached ? parentCached.proposedName : parentMsg.memberId);
     const parentPreview = parentMsg.strings.join('').substring(0, 60);
     const isEdit = message.replyType === 'edit';
     const cls = isEdit
@@ -1152,10 +1155,7 @@ export const channelComponent = async (
       typedMessage.replyType === 'move' ||
       typedMessage.replyType === 'deletion'
     ) {
-      messageIndex.set(msgKey, {
-        message: typedMessage,
-        $element: document.createElement('div'),
-      });
+      messageIndex.set(msgKey, { message: typedMessage });
       continue; // eslint-disable-line no-continue
     }
 
@@ -1165,10 +1165,7 @@ export const channelComponent = async (
       typedMessage.replyType === 'redact-react'
     ) {
       // Index the react message so getRootMessageKey can follow its chain.
-      messageIndex.set(msgKey, {
-        message: typedMessage,
-        $element: document.createElement('div'),
-      });
+      messageIndex.set(msgKey, { message: typedMessage });
       const rootKey = reactSystem.processReactMessage(typedMessage, msgKey);
       if (rootKey) {
         // Re-bridge the target's pills (and the rest) from current state.
@@ -1178,10 +1175,7 @@ export const channelComponent = async (
     }
 
     // Register in the message index. The view re-renders from messageIndex.
-    messageIndex.set(msgKey, {
-      message: typedMessage,
-      $element: document.createElement('div'),
-    });
+    messageIndex.set(msgKey, { message: typedMessage });
 
     // Track reply relationships
     if (typedMessage.replyTo) {
@@ -1193,6 +1187,18 @@ export const channelComponent = async (
     }
 
     if (!isLive()) break;
+
+    // Warm the member cache before rendering so the synchronous reads in the
+    // reply indicator, reply button, and thread-open callback resolve to
+    // proposed names rather than raw member ids on first paint. The original
+    // imperative createMessageElement awaited getMemberInfo before appending
+    // the element; the confined render reads from the cache synchronously.
+    await getMemberInfo(typedMessage.memberId);
+    if (typedMessage.replyTo) {
+      const parentData = messageIndex.get(typedMessage.replyTo);
+      if (parentData) await getMemberInfo(parentData.message.memberId);
+    }
+
     rerender();
 
     // Live-update thread view if the new message belongs to the currently

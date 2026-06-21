@@ -1385,24 +1385,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/chat-network-view@workspace:^, @endo/chat-network-view@workspace:packages/chat-network-view":
-  version: 0.0.0-use.local
-  resolution: "@endo/chat-network-view@workspace:packages/chat-network-view"
-  dependencies:
-    "@endo/exo-stream": "workspace:^"
-    "@endo/far": "workspace:^"
-    "@endo/harden": "workspace:^"
-    eslint: "catalog:dev"
-    preact: "npm:^10.29.2"
-  languageName: unknown
-  linkType: soft
-
 "@endo/chat@workspace:packages/chat":
   version: 0.0.0-use.local
   resolution: "@endo/chat@workspace:packages/chat"
   dependencies:
     "@endo/captp": "workspace:^"
-    "@endo/chat-network-view": "workspace:^"
     "@endo/cli": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/eventual-send": "workspace:^"
@@ -1411,7 +1398,6 @@ __metadata:
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
-    "@endo/inventory-graph": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/markmdown": "workspace:^"
     "@endo/monaco-wrapper": "workspace:^"
@@ -1422,8 +1408,10 @@ __metadata:
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@endo/space-file-explorer": "workspace:^"
+    "@endo/space-inventory-graph": "workspace:^"
+    "@endo/space-peers": "workspace:^"
+    "@endo/space-whylip": "workspace:^"
     "@endo/where": "workspace:^"
-    "@endo/whylip": "workspace:^"
     "@playwright/test": "npm:^1.40.0"
     "@vitejs/plugin-react": "npm:^4.0.0"
     ava: "catalog:dev"
@@ -2088,16 +2076,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/inventory-graph@workspace:^, @endo/inventory-graph@workspace:packages/inventory-graph":
-  version: 0.0.0-use.local
-  resolution: "@endo/inventory-graph@workspace:packages/inventory-graph"
-  dependencies:
-    "@endo/far": "workspace:^"
-    "@endo/harden": "workspace:^"
-    eslint: "catalog:dev"
-  languageName: unknown
-  linkType: soft
-
 "@endo/jaine@workspace:packages/jaine":
   version: 0.0.0-use.local
   resolution: "@endo/jaine@workspace:packages/jaine"
@@ -2606,6 +2584,39 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/space-inventory-graph@workspace:^, @endo/space-inventory-graph@workspace:packages/space-inventory-graph":
+  version: 0.0.0-use.local
+  resolution: "@endo/space-inventory-graph@workspace:packages/space-inventory-graph"
+  dependencies:
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/space-peers@workspace:^, @endo/space-peers@workspace:packages/space-peers":
+  version: 0.0.0-use.local
+  resolution: "@endo/space-peers@workspace:packages/space-peers"
+  dependencies:
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    eslint: "catalog:dev"
+    preact: "npm:^10.29.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/space-whylip@workspace:^, @endo/space-whylip@workspace:packages/space-whylip":
+  version: 0.0.0-use.local
+  resolution: "@endo/space-whylip@workspace:packages/space-whylip"
+  dependencies:
+    "@endo/conversation-tree": "workspace:^"
+    "@endo/far": "workspace:^"
+    eslint: "catalog:dev"
+    preact: "npm:^10.29.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/stream-node@workspace:^, @endo/stream-node@workspace:packages/stream-node":
   version: 0.0.0-use.local
   resolution: "@endo/stream-node@workspace:packages/stream-node"
@@ -2716,17 +2727,6 @@ __metadata:
     c8: "catalog:dev"
     eslint: "catalog:dev"
     typescript: "catalog:dev"
-  languageName: unknown
-  linkType: soft
-
-"@endo/whylip@workspace:^, @endo/whylip@workspace:packages/whylip":
-  version: 0.0.0-use.local
-  resolution: "@endo/whylip@workspace:packages/whylip"
-  dependencies:
-    "@endo/conversation-tree": "workspace:^"
-    "@endo/far": "workspace:^"
-    eslint: "catalog:dev"
-    preact: "npm:^10.29.2"
   languageName: unknown
   linkType: soft
 

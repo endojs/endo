@@ -68,7 +68,7 @@ test.after(() => {
   cleanupDOM();
 });
 
-test('createInlineCommandForm creates API with expected methods', t => {
+test.serial('createInlineCommandForm creates API with expected methods', t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -93,7 +93,7 @@ test('createInlineCommandForm creates API with expected methods', t => {
   cleanup();
 });
 
-test('getCommand returns null initially', t => {
+test.serial('getCommand returns null initially', t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -112,7 +112,7 @@ test('getCommand returns null initially', t => {
   cleanup();
 });
 
-test('setCommand sets current command', t => {
+test.serial('setCommand sets current command', t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -132,41 +132,44 @@ test('setCommand sets current command', t => {
   cleanup();
 });
 
-test('form mounts with its child sub-mounts (host-node re-parent)', async t => {
-  const { $container, cleanup } = createElements();
-  const { powers } = makeMockPowers({ names: ['alice'] });
+test.serial(
+  'form mounts with its child sub-mounts (host-node re-parent)',
+  async t => {
+    const { $container, cleanup } = createElements();
+    const { powers } = makeMockPowers({ names: ['alice'] });
 
-  const form = createInlineCommandForm({
-    $container,
-    E,
-    powers,
-    onSubmit: () => {},
-    onCancel: () => {},
-    onValidityChange: () => {},
-  });
+    const form = createInlineCommandForm({
+      $container,
+      E,
+      powers,
+      onSubmit: () => {},
+      onCancel: () => {},
+      onValidityChange: () => {},
+    });
 
-  form.setCommand('show');
-  // The confined body renders the field, then the host re-parents the
-  // petNamePathAutocomplete host `<input>` into the field's anchor.
-  await waitFor(() => !!$container.querySelector('.petname-input'));
+    form.setCommand('show');
+    // The confined body renders the field, then the host re-parents the
+    // petNamePathAutocomplete host `<input>` into the field's anchor.
+    await waitFor(() => !!$container.querySelector('.petname-input'));
 
-  // The confined form shell rendered.
-  t.truthy($container.querySelector('.inline-command-form'));
-  const fields = $container.querySelectorAll('.inline-field');
-  t.is(fields.length, 1);
-  t.is($container.querySelector('.inline-field-label')?.textContent, 'Name');
+    // The confined form shell rendered.
+    t.truthy($container.querySelector('.inline-command-form'));
+    const fields = $container.querySelectorAll('.inline-field');
+    t.is(fields.length, 1);
+    t.is($container.querySelector('.inline-field-label')?.textContent, 'Name');
 
-  // The host-node child controller's input was re-parented into the field
-  // anchor (a real sub-mount, not a confined-rendered node).
-  const petInput = $container.querySelector('.petname-input');
-  t.truthy(petInput);
-  t.truthy(petInput.closest('.inline-field-input-wrapper'));
+    // The host-node child controller's input was re-parented into the field
+    // anchor (a real sub-mount, not a confined-rendered node).
+    const petInput = $container.querySelector('.petname-input');
+    t.truthy(petInput);
+    t.truthy(petInput.closest('.inline-field-input-wrapper'));
 
-  form.dispose();
-  cleanup();
-});
+    form.dispose();
+    cleanup();
+  },
+);
 
-test('setCommand renders form fields for adopt command', async t => {
+test.serial('setCommand renders form fields for adopt command', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -191,7 +194,7 @@ test('setCommand renders form fields for adopt command', async t => {
   cleanup();
 });
 
-test('isValid returns false when required fields empty', t => {
+test.serial('isValid returns false when required fields empty', t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -211,7 +214,7 @@ test('isValid returns false when required fields empty', t => {
   cleanup();
 });
 
-test('isValid returns true when required fields filled', async t => {
+test.serial('isValid returns true when required fields filled', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -240,7 +243,7 @@ test('isValid returns true when required fields filled', async t => {
   cleanup();
 });
 
-test('getData returns form field values', async t => {
+test.serial('getData returns form field values', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -269,7 +272,7 @@ test('getData returns form field values', async t => {
   cleanup();
 });
 
-test('clear resets command and container', async t => {
+test.serial('clear resets command and container', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -295,7 +298,7 @@ test('clear resets command and container', async t => {
   cleanup();
 });
 
-test('onValidityChange callback is called', async t => {
+test.serial('onValidityChange callback is called', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -332,51 +335,54 @@ test('onValidityChange callback is called', async t => {
   cleanup();
 });
 
-test('primary command submit invokes onSubmit on Enter when valid', async t => {
-  const { $container, cleanup } = createElements();
-  const { powers } = makeMockPowers({ names: ['alice'] });
+test.serial(
+  'primary command submit invokes onSubmit on Enter when valid',
+  async t => {
+    const { $container, cleanup } = createElements();
+    const { powers } = makeMockPowers({ names: ['alice'] });
 
-  let submittedData = null;
-  let submittedCommand = null;
+    let submittedData = null;
+    let submittedCommand = null;
 
-  const form = createInlineCommandForm({
-    $container,
-    E,
-    powers,
-    onSubmit: (cmd, data) => {
-      submittedCommand = cmd;
-      submittedData = data;
-    },
-    onCancel: () => {},
-    onValidityChange: () => {},
-  });
+    const form = createInlineCommandForm({
+      $container,
+      E,
+      powers,
+      onSubmit: (cmd, data) => {
+        submittedCommand = cmd;
+        submittedData = data;
+      },
+      onCancel: () => {},
+      onValidityChange: () => {},
+    });
 
-  // dismiss has a single confined messageNumber field; its Enter handler runs
-  // through the confined SafeEvent path into the form's submit.
-  form.setCommand('dismiss');
-  await waitFor(() => !!$container.querySelector('input[type="number"]'));
+    // dismiss has a single confined messageNumber field; its Enter handler runs
+    // through the confined SafeEvent path into the form's submit.
+    form.setCommand('dismiss');
+    await waitFor(() => !!$container.querySelector('input[type="number"]'));
 
-  const input = /** @type {HTMLInputElement} */ (
-    $container.querySelector('input[type="number"]')
-  );
-  input.value = '7';
-  input.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
-  await waitFor(() => form.isValid());
+    const input = /** @type {HTMLInputElement} */ (
+      $container.querySelector('input[type="number"]')
+    );
+    input.value = '7';
+    input.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+    await waitFor(() => form.isValid());
 
-  input.dispatchEvent(
-    new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-  );
-  await waitFor(() => submittedCommand !== null);
+    input.dispatchEvent(
+      new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    await waitFor(() => submittedCommand !== null);
 
-  t.is(submittedCommand, 'dismiss');
-  t.truthy(submittedData);
-  t.is(/** @type {any} */ (submittedData).messageNumber, 7);
+    t.is(submittedCommand, 'dismiss');
+    t.truthy(submittedData);
+    t.is(/** @type {any} */ (submittedData).messageNumber, 7);
 
-  form.dispose();
-  cleanup();
-});
+    form.dispose();
+    cleanup();
+  },
+);
 
-test('onCancel callback is called on Escape', async t => {
+test.serial('onCancel callback is called on Escape', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -410,7 +416,7 @@ test('onCancel callback is called on Escape', async t => {
   cleanup();
 });
 
-test('immediate commands render no fields', async t => {
+test.serial('immediate commands render no fields', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -433,7 +439,7 @@ test('immediate commands render no fields', async t => {
   cleanup();
 });
 
-test('renders messageNumber field as number input', async t => {
+test.serial('renders messageNumber field as number input', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -455,7 +461,7 @@ test('renders messageNumber field as number input', async t => {
   cleanup();
 });
 
-test('renders text field as text input', async t => {
+test.serial('renders text field as text input', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -477,7 +483,7 @@ test('renders text field as text input', async t => {
   cleanup();
 });
 
-test('petNamePaths field creates chip container sub-mount', async t => {
+test.serial('petNamePaths field creates chip container sub-mount', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -499,7 +505,7 @@ test('petNamePaths field creates chip container sub-mount', async t => {
   cleanup();
 });
 
-test('dispose tears everything down without leaking', async t => {
+test.serial('dispose tears everything down without leaking', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -530,7 +536,7 @@ test('dispose tears everything down without leaking', async t => {
   cleanup();
 });
 
-test('switching commands clears previous form', async t => {
+test.serial('switching commands clears previous form', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -559,7 +565,7 @@ test('switching commands clears previous form', async t => {
   cleanup();
 });
 
-test('getData returns messageNumber as number', async t => {
+test.serial('getData returns messageNumber as number', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 

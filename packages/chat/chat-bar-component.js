@@ -942,8 +942,8 @@ export const chatBarComponent = (
 
   /**
    * Exit command mode and return to send mode.
-   * @param root0
-   * @param root0.skipFocus
+   * @param {object} [options]
+   * @param {boolean} [options.skipFocus]
    */
   const exitCommandMode = ({ skipFocus = false } = {}) => {
     mode = 'send';

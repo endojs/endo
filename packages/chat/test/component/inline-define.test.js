@@ -3,7 +3,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { createInlineDefine } from '../../inline-define.js';
 
 const { document: testDocument } = createDOM();
@@ -70,7 +70,7 @@ test.serial('typing into the source updates getData and validity', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireInput($source, '1 + 1');
-  await tick(20);
+  await waitFor(() => api.isValid());
 
   t.deepEqual(
     api.getData(),
@@ -88,7 +88,10 @@ test.serial('typing @ at the start spawns a slot row', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireInput($source, '@');
-  await tick(20);
+  await waitFor(
+    () =>
+      $container.querySelectorAll('.inline-eval-endowment-group').length === 1,
+  );
 
   t.is(
     $container.querySelectorAll('.inline-eval-endowment-group').length,
@@ -119,7 +122,7 @@ test.serial('slot codeName and label feed getData', async t => {
   // Source still needs a value to be valid.
   const $source2 = $container.querySelector('.inline-eval-input');
   fireInput($source2, 'foo()');
-  await tick(20);
+  await waitFor(() => api.isValid());
 
   t.deepEqual(
     api.getData(),
@@ -138,7 +141,7 @@ test.serial('Enter on the source submits parsed data', async t => {
   fireInput($source, 'doThing()');
   await tick(20);
   fireKeyDown($source, 'Enter');
-  await tick(20);
+  await waitFor(() => events.submit.length === 1);
 
   t.is(events.submit.length, 1, 'onSubmit fired once');
   t.deepEqual(events.submit[0], { source: 'doThing()', slots: [] });
@@ -165,7 +168,7 @@ test.serial('Cmd-Enter expands with a cursor position', async t => {
   fireInput($source, 'expr');
   await tick(20);
   fireKeyDown($source, 'Enter', { metaKey: true });
-  await tick(20);
+  await waitFor(() => events.expand.length === 1);
 
   t.is(events.expand.length, 1, 'onExpand fired once');
   t.is(events.expand[0].source, 'expr');
@@ -183,7 +186,7 @@ test.serial('Escape on the source cancels', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireKeyDown($source, 'Escape');
-  await tick(20);
+  await waitFor(() => events.cancel === 1);
 
   t.is(events.cancel, 1, 'onCancel fired');
 
@@ -200,7 +203,10 @@ test.serial('setData populates source and slots', async t => {
       { codeName: 'b', label: 'second' },
     ],
   });
-  await tick(20);
+  await waitFor(
+    () =>
+      $container.querySelectorAll('.inline-eval-endowment-group').length === 2,
+  );
 
   t.is(
     $container.querySelectorAll('.inline-eval-endowment-group').length,
@@ -224,11 +230,17 @@ test.serial('clear empties source and slots', async t => {
   const { $container, api } = await setupDefine();
 
   api.setData({ source: 'x', slots: [{ codeName: 'a', label: 'first' }] });
-  await tick(20);
+  await waitFor(
+    () =>
+      $container.querySelectorAll('.inline-eval-endowment-group').length === 1,
+  );
   t.is($container.querySelectorAll('.inline-eval-endowment-group').length, 1);
 
   api.clear();
-  await tick(20);
+  await waitFor(
+    () =>
+      $container.querySelectorAll('.inline-eval-endowment-group').length === 0,
+  );
 
   t.is(
     $container.querySelectorAll('.inline-eval-endowment-group').length,
@@ -250,7 +262,9 @@ test.serial('setDisabled disables the source and slot inputs', async t => {
   await tick(20);
 
   api.setDisabled(true);
-  await tick(20);
+  await waitFor(
+    () => $container.querySelector('.inline-eval-input')?.disabled === true,
+  );
 
   const $source = $container.querySelector('.inline-eval-input');
   t.true($source.disabled, 'source disabled');
@@ -260,7 +274,9 @@ test.serial('setDisabled disables the source and slot inputs', async t => {
   t.true($label.disabled, 'slot label disabled');
 
   api.setDisabled(false);
-  await tick(20);
+  await waitFor(
+    () => $container.querySelector('.inline-eval-input')?.disabled === false,
+  );
   const $source2 = $container.querySelector('.inline-eval-input');
   t.false($source2.disabled, 're-enabled');
 
@@ -278,7 +294,7 @@ test.serial('label defaults to codeName when blank', async t => {
   await tick(20);
   const $source2 = $container.querySelector('.inline-eval-input');
   fireInput($source2, 'bar');
-  await tick(20);
+  await waitFor(() => api.getData().slots.length === 1);
 
   t.deepEqual(api.getData().slots, [{ codeName: 'bar', label: 'bar' }]);
 
@@ -293,7 +309,7 @@ test.serial('dispose unmounts the view', async t => {
   await tick(20);
 
   api.dispose();
-  await tick(20);
+  await waitFor(() => !$container.querySelector('.inline-eval-input'));
 
   t.falsy(
     $container.querySelector('.inline-eval-input'),

@@ -2,7 +2,7 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-import { WhylipApp } from '@endo/whylip';
+import { WhylipApp } from '@endo/space-whylip';
 
 import { h, renderConfined, unmount } from './setup-preact-container.js';
 

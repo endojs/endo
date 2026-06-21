@@ -2,12 +2,12 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-import { mountInventoryGraph } from '@endo/inventory-graph';
+import { mountInventoryGraph } from '@endo/space-inventory-graph';
 
 /**
  * Mount the inventory graph UI, replacing the parent content.
  * Resolves powers from the profilePath and delegates to the
- * @endo/inventory-graph package.
+ * @endo/space-inventory-graph package.
  *
  * @param {HTMLElement} $parent
  * @param {unknown} rootPowers

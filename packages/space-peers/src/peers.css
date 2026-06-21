@@ -96,10 +96,6 @@
   border-color: var(--border-color);
 }
 
-.peer-card-self {
-  border-left: 3px solid var(--accent-primary);
-}
-
 .peer-node-id {
   display: flex;
   align-items: center;

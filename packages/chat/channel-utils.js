@@ -32,7 +32,7 @@ import { createProfilePopup } from './profile-popup.js';
  * @property {Map<string, { proposedName: string, invitedAs: string, memberId: string, pedigree: string[], pedigreeMemberIds: string[] }>} memberCache
  * @property {(memberId: string) => Promise<{ proposedName: string, invitedAs: string, memberId: string, pedigree: string[], pedigreeMemberIds: string[] } | undefined>} getMemberInfo
  * @property {(memberId: string) => void} updateAuthorChips
- * @property {Map<string, { message: ChannelMessage, $element: HTMLElement }>} messageIndex
+ * @property {Map<string, { message: ChannelMessage, $element?: HTMLElement }>} messageIndex
  * @property {Map<string, string[]>} replyChildren
  * @property {(rootKey: string, maxDepth: number) => { entries: Array<{ key: string, message: ChannelMessage, depth: number }>, continuePoints: string[] }} buildThread
  * @property {(key: string) => number} countDescendants
@@ -239,7 +239,7 @@ export const createChannelState = async (channel, opts) => {
     }
   };
 
-  /** @type {Map<string, { message: ChannelMessage, $element: HTMLElement }>} */
+  /** @type {Map<string, { message: ChannelMessage, $element?: HTMLElement }>} */
   const messageIndex = new Map();
 
   /** @type {Map<string, string[]>} */

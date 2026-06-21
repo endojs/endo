@@ -3,7 +3,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { createHeatBar } from '../../heat-bar.js';
 
 const { document: testDocument } = createDOM();
@@ -61,7 +61,9 @@ test.serial('single-hop update drives fill width and color', async t => {
     lockEndTime: 0,
     lastUpdateTime: Date.now(),
   });
-  await tick(20);
+  await waitFor(
+    () => queryBar($container)?.getAttribute('aria-valuenow') === '50',
+  );
 
   const $bar = queryBar($container);
   const $fill = queryFill($container);
@@ -81,7 +83,9 @@ test.serial('low heat hides the bar via opacity', async t => {
   const { $container, bar } = await setupBar();
 
   bar.update({ heat: 0, locked: false, lockEndTime: 0, lastUpdateTime: 0 });
-  await tick(20);
+  await waitFor(() =>
+    /opacity:\s*0/.test(queryBar($container)?.getAttribute('style') || ''),
+  );
 
   t.regex(
     queryBar($container).getAttribute('style'),
@@ -101,7 +105,7 @@ test.serial('locked single-hop shows status and locks send button', async t => {
     lockEndTime: Date.now() + 5000,
     lastUpdateTime: Date.now(),
   });
-  await tick(20);
+  await waitFor(() => $sendButton.classList.contains('heat-locked'));
 
   t.regex(queryStatus($container).textContent, /Locked:/, 'locked status text');
   t.true(
@@ -121,12 +125,12 @@ test.serial('warm heat glows then jitters the send button', async t => {
 
   // LOCKOUT_THRESHOLD is 90: 0.5 * 90 = 45 (glow), 0.8 * 90 = 72 (jitter).
   bar.update({ heat: 50, locked: false, lockEndTime: 0, lastUpdateTime: 0 });
-  await tick(10);
+  await waitFor(() => $sendButton.classList.contains('heat-glow'));
   t.true($sendButton.classList.contains('heat-glow'), 'glow at moderate heat');
   t.false($sendButton.classList.contains('heat-jitter'), 'not jittering yet');
 
   bar.update({ heat: 80, locked: false, lockEndTime: 0, lastUpdateTime: 0 });
-  await tick(10);
+  await waitFor(() => $sendButton.classList.contains('heat-jitter'));
   t.true($sendButton.classList.contains('heat-jitter'), 'jitter at high heat');
   t.false($sendButton.classList.contains('heat-glow'), 'glow cleared');
 
@@ -163,7 +167,11 @@ test.serial('composite update renders one segment per hop', async t => {
       },
     ],
   });
-  await tick(20);
+  await waitFor(
+    () =>
+      querySegments($container)?.querySelectorAll('.heat-bar-segment')
+        .length === 2,
+  );
 
   const $segs = querySegments($container);
   t.regex($segs.getAttribute('style'), /display:\s*flex/, 'segments shown');
@@ -208,7 +216,7 @@ test.serial('composite locked shows bottleneck cooldown', async t => {
       },
     ],
   });
-  await tick(20);
+  await waitFor(() => $sendButton.classList.contains('heat-locked'));
 
   t.regex(
     queryStatus($container).textContent,
@@ -229,14 +237,14 @@ test.serial('dispose removes the bar and clears button classes', async t => {
     lockEndTime: Date.now() + 5000,
     lastUpdateTime: Date.now(),
   });
-  await tick(20);
+  await waitFor(() => $sendButton.classList.contains('heat-locked'));
   t.true(
     $sendButton.classList.contains('heat-locked'),
     'locked before dispose',
   );
 
   bar.dispose();
-  await tick(20);
+  await waitFor(() => !queryBar($container));
 
   t.falsy(queryBar($container), 'heat bar removed after dispose');
   t.is($sibling.textContent, 'survivor', 'sibling still intact after dispose');

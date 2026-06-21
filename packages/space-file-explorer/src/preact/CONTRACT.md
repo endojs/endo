@@ -16,7 +16,7 @@ tree split across files.
 
 - Components are **trusted host code**, bundled with the app. They
   `import { h } from 'preact'` and hooks from `preact/hooks` directly (the
-  `@endo/whylip` package is the precedent).
+  `@endo/space-whylip` package is the precedent).
 - `h` and the hooks confer **no authority** — they build inert vnode data. All
   DOM power lives in the host's **sanitizing** `renderConfined`, which is the
   trust boundary (strips refs, sanitizes tags/attrs, hands handlers a frozen

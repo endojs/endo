@@ -423,7 +423,7 @@ const PackageBody = ({ message, powers, showValue, setError }) => {
     const locator =
       idParts[index] !== undefined ? String(idParts[index]) : undefined;
     return h(TokenChip, {
-      key: String(index),
+      key: `chip-${index}`,
       edgeName,
       locator,
       number,
@@ -1109,20 +1109,16 @@ const InboxRoot = ({
       )) {
         if (disposed()) break;
 
-        // Read DOM at animation frame to decide whether to pin scroll to the
-        // bottom. 80px tolerance (matching channel-component) so short messages
-        // don't cause the user to "lose" auto-scroll.
-        // eslint-disable-next-line no-await-in-loop
-        const wasAtEnd = await new Promise(resolve =>
-          requestAnimationFrame(() => {
-            const scrollTop = /** @type {number} */ ($parent.scrollTop);
-            const endScrollTop = /** @type {number} */ (
-              $parent.scrollHeight - $parent.clientHeight
-            );
-            resolve(endScrollTop - scrollTop < 80);
-          }),
+        // Decide whether to pin scroll to the bottom from the current DOM. A
+        // synchronous read (rather than awaiting a frame per message) avoids
+        // serializing the initial backlog at one message per animation frame.
+        // 80px tolerance (matching channel-component) so short messages don't
+        // cause the user to "lose" auto-scroll.
+        const scrollTop = /** @type {number} */ ($parent.scrollTop);
+        const endScrollTop = /** @type {number} */ (
+          $parent.scrollHeight - $parent.clientHeight
         );
-        if (disposed()) break;
+        const wasAtEnd = endScrollTop - scrollTop < 80;
 
         // eslint-disable-next-line no-await-in-loop
         const inboxMessage = await toInboxMessage({

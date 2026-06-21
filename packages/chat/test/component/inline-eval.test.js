@@ -32,16 +32,15 @@ if (typeof globalThis.requestAnimationFrame !== 'function') {
 }
 
 /**
- * Poll until `predicate()` is true (or a timeout elapses, in which case the
- * caller's assertion reports the real difference). Copied from
- * inbox-shell.test.js: the confined render flushes asynchronously (rAF + effect
- * flushes), so a fixed delay races on slower CI runners; polling the actual
- * condition is robust.
+ * Poll until `predicate()` is true. The confined render flushes asynchronously
+ * (rAF + effect flushes), so a fixed delay races on slower CI runners; polling
+ * the actual condition is robust. There is deliberately no per-poll timeout
+ * ceiling — a fixed ceiling is itself a guessed delay that can be too short on a
+ * loaded runner. AVA's global per-test timeout is the only bound, so a genuine
+ * hang still fails with a clear timeout rather than passing on a guess.
  */
-const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
-  const start = Date.now();
+const waitFor = async (predicate, { step = 20 } = {}) => {
   while (!predicate()) {
-    if (Date.now() - start > timeout) return;
     // eslint-disable-next-line no-await-in-loop
     await tick(step);
   }
@@ -92,9 +91,7 @@ const setupEval = async (overrides = {}) => {
   });
 
   // Let the source Root's mount effect (which wires the controller) settle.
-  await waitFor(() => !!$container.querySelector('.inline-eval-input'), {
-    timeout: 200,
-  });
+  await waitFor(() => !!$container.querySelector('.inline-eval-input'));
   await tick(40);
   return { $container, api, events };
 };
@@ -130,7 +127,6 @@ test.serial(
       () =>
         $container.querySelectorAll('.inline-eval-endowment-group').length ===
         1,
-      { timeout: 500 },
     );
 
     t.is(
@@ -149,14 +145,17 @@ test.serial(
       'autocomplete menu host node present',
     );
     // The confined code-name input rendered into its dedicated sub-mount.
-    await waitFor(() => !!$container.querySelector('.inline-eval-codename'), {
-      timeout: 500,
-    });
+    await waitFor(() => !!$container.querySelector('.inline-eval-codename'));
     const $codeName = $container.querySelector(
       '.inline-eval-codename-wrapper .inline-eval-codename',
     );
     t.truthy($codeName, 'confined code-name input in sub-mount');
-    // The @ is stripped from the source.
+    // The @ is stripped from the source. The strip runs on a separate async
+    // tick from the code-name sub-mount, so wait for it rather than asserting
+    // synchronously (otherwise the assertion races the strip on slow CI).
+    await waitFor(
+      () => $container.querySelector('.inline-eval-input').value === '',
+    );
     t.is(
       $container.querySelector('.inline-eval-input').value,
       '',
@@ -185,7 +184,7 @@ test.serial(
     t.true(events.validity.includes(true), 'onValidityChange fired with true');
 
     fireKeyDown($source, 'Enter');
-    await waitFor(() => events.submit.length === 1, { timeout: 500 });
+    await waitFor(() => events.submit.length === 1);
 
     t.is(events.submit.length, 1, 'onSubmit fired once');
     t.deepEqual(events.submit[0], { source: '1 + 1', endowments: [] });
@@ -199,9 +198,7 @@ test.serial('an endowment feeds the submitted data', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireInput($source, '@');
-  await waitFor(() => !!$container.querySelector('.inline-eval-petname'), {
-    timeout: 500,
-  });
+  await waitFor(() => !!$container.querySelector('.inline-eval-petname'));
 
   const $petName = $container.querySelector('.inline-eval-petname');
   fireInput($petName, 'alice');
@@ -212,7 +209,7 @@ test.serial('an endowment feeds the submitted data', async t => {
   await tick(40);
 
   fireKeyDown($source2, 'Enter');
-  await waitFor(() => events.submit.length === 1, { timeout: 500 });
+  await waitFor(() => events.submit.length === 1);
 
   t.deepEqual(
     api.getData(),
@@ -234,7 +231,7 @@ test.serial('Cmd-Enter expands with a cursor position', async t => {
   fireInput($source, 'expr');
   await tick(40);
   fireKeyDown($source, 'Enter', { metaKey: true });
-  await waitFor(() => events.expand.length === 1, { timeout: 500 });
+  await waitFor(() => events.expand.length === 1);
 
   t.is(events.expand.length, 1, 'onExpand fired once');
   t.is(events.expand[0].source, 'expr');
@@ -252,7 +249,7 @@ test.serial('Escape on the source cancels', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireKeyDown($source, 'Escape');
-  await waitFor(() => events.cancel === 1, { timeout: 500 });
+  await waitFor(() => events.cancel === 1);
 
   t.is(events.cancel, 1, 'onCancel fired');
 
@@ -273,7 +270,6 @@ test.serial('setData populates source and endowments', async t => {
   await waitFor(
     () =>
       $container.querySelectorAll('.inline-eval-endowment-group').length === 2,
-    { timeout: 500 },
   );
 
   t.is(
@@ -284,7 +280,6 @@ test.serial('setData populates source and endowments', async t => {
   await waitFor(
     () =>
       $container.querySelector('.inline-eval-input').value === 'compose(a, b)',
-    { timeout: 500 },
   );
   t.is(
     $container.querySelector('.inline-eval-input').value,
@@ -309,14 +304,11 @@ test.serial('setDisabled disables the source and row inputs', async t => {
     source: 'x',
     endowments: [{ petName: 'alice', codeName: 'a' }],
   });
-  await waitFor(() => !!$container.querySelector('.inline-eval-petname'), {
-    timeout: 500,
-  });
+  await waitFor(() => !!$container.querySelector('.inline-eval-petname'));
 
   api.setDisabled(true);
   await waitFor(
     () => $container.querySelector('.inline-eval-input').disabled === true,
-    { timeout: 500 },
   );
 
   t.true(
@@ -329,7 +321,6 @@ test.serial('setDisabled disables the source and row inputs', async t => {
   );
   await waitFor(
     () => $container.querySelector('.inline-eval-codename').disabled === true,
-    { timeout: 500 },
   );
   t.true(
     $container.querySelector('.inline-eval-codename').disabled,
@@ -339,7 +330,6 @@ test.serial('setDisabled disables the source and row inputs', async t => {
   api.setDisabled(false);
   await waitFor(
     () => $container.querySelector('.inline-eval-input').disabled === false,
-    { timeout: 500 },
   );
   t.false(
     $container.querySelector('.inline-eval-input').disabled,
@@ -359,14 +349,12 @@ test.serial('clear empties source and endowments', async t => {
   await waitFor(
     () =>
       $container.querySelectorAll('.inline-eval-endowment-group').length === 1,
-    { timeout: 500 },
   );
 
   api.clear();
   await waitFor(
     () =>
       $container.querySelectorAll('.inline-eval-endowment-group').length === 0,
-    { timeout: 500 },
   );
 
   t.is(
@@ -376,9 +364,6 @@ test.serial('clear empties source and endowments', async t => {
   );
   await waitFor(
     () => $container.querySelector('.inline-eval-input').value === '',
-    {
-      timeout: 500,
-    },
   );
   t.is(
     $container.querySelector('.inline-eval-input').value,

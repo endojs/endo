@@ -183,9 +183,19 @@ const setupGutter = async (opts = {}) => {
   // Wait for refresh + watcher to settle
   await tick(50);
 
+  // The edit modals render into their own overlay container, inserted by the
+  // gutter immediately after $modalContainer, so the add-space modal's
+  // innerHTML re-renders can't detach their confined mounts. (Capture it as the
+  // sibling rather than a body-wide query: these serial tests share one body,
+  // so a global `.spaces-modal-overlay` query would return an earlier test's.)
+  const $editModalContainer = /** @type {HTMLElement} */ (
+    $modalContainer.nextElementSibling
+  );
+
   return {
     $container,
     $modalContainer,
+    $editModalContainer,
     gutter,
     calls,
     storedValues,
@@ -265,7 +275,7 @@ test.serial('right-click regular space shows both Edit and Delete', async t => {
 test.serial(
   'edit home modal omits Name field but has icon and scheme',
   async t => {
-    const { $container, $modalContainer } = await setupGutter();
+    const { $container, $editModalContainer } = await setupGutter();
 
     // Open context menu on home
     const $home = $container.querySelector('.space-item.home');
@@ -283,15 +293,17 @@ test.serial(
     await tick(20);
 
     // Name field should NOT exist
-    const $nameInput = $modalContainer.querySelector('#edit-space-name');
+    const $nameInput = $editModalContainer.querySelector('#edit-space-name');
     t.is($nameInput, null, 'name field is not rendered for home');
 
     // Icon selector should exist
-    const $iconSelector = $modalContainer.querySelector('.icon-selector');
+    const $iconSelector = $editModalContainer.querySelector('.icon-selector');
     t.truthy($iconSelector, 'icon selector exists');
 
     // Scheme picker slot should exist
-    const $schemeSlot = $modalContainer.querySelector('#scheme-picker-slot');
+    const $schemeSlot = $editModalContainer.querySelector(
+      '#scheme-picker-slot',
+    );
     t.truthy($schemeSlot, 'scheme picker slot exists');
   },
 );
@@ -301,7 +313,7 @@ test.serial(
 test.serial(
   'changing home icon/scheme stores at spaces.0 with enforced name/path',
   async t => {
-    const { $container, $modalContainer, calls } = await setupGutter();
+    const { $container, $editModalContainer, calls } = await setupGutter();
 
     // Open context menu on home
     const $home = $container.querySelector('.space-item.home');
@@ -318,14 +330,14 @@ test.serial(
     await tick(20);
 
     // Click a different emoji icon (e.g., the wizard 🧙)
-    const $icons = $modalContainer.querySelectorAll('.icon-option');
+    const $icons = $editModalContainer.querySelectorAll('.icon-option');
     t.true($icons.length > 0, 'icon options rendered');
     // Click the first icon option (🧙)
     $icons[0].click();
     await tick(10);
 
     // Submit the form
-    const $form = $modalContainer.querySelector('.add-space-form');
+    const $form = $editModalContainer.querySelector('.add-space-form');
     t.truthy($form, 'form exists');
     $form.dispatchEvent(new Event('submit', { bubbles: true }));
     await tick(50);
@@ -377,3 +389,54 @@ test.serial('home config loads stored icon/scheme from spaces.0', async t => {
     'home name is enforced',
   );
 });
+
+// ── Test 6: Edit modal survives the add-space modal's innerHTML render ──
+
+// Regression for the "edit space button broke" report: the add-space modal
+// renders by assigning `innerHTML` on $modalContainer, which detached the edit
+// modals' confined mounts when they shared that container, leaving a blank
+// modal. The edit modals now mount into their own sibling container.
+test.serial(
+  'edit modal still renders after the add-space modal clobbers its container',
+  async t => {
+    const { $container, $modalContainer, $editModalContainer } =
+      await setupGutter();
+
+    // The edit container must not live inside $modalContainer, or the add-space
+    // modal's innerHTML write would detach it.
+    t.false(
+      $modalContainer.contains($editModalContainer),
+      'edit container is not inside the add-space container',
+    );
+
+    // Simulate the add-space modal having rendered: it owns $modalContainer and
+    // replaces its entire contents via innerHTML.
+    $modalContainer.innerHTML = '<div class="add-space-modal">add space</div>';
+
+    // Open the edit modal for the home space (the proven-reliable edit path).
+    const $home = $container.querySelector('.space-item.home');
+    const ctxEvent = new Event('contextmenu', { bubbles: true });
+    // @ts-expect-error
+    ctxEvent.clientX = 50;
+    // @ts-expect-error
+    ctxEvent.clientY = 50;
+    $home.dispatchEvent(ctxEvent);
+
+    const $edit = $container.querySelector('[data-action="edit"]');
+    $edit.click();
+    await tick(20);
+
+    // The edit form renders in its own container, untouched by the add-space
+    // modal's innerHTML write.
+    const $form = $editModalContainer.querySelector('.add-space-form');
+    t.truthy(
+      $form,
+      'edit form rendered after add-space clobbered $modalContainer',
+    );
+    // And the mount survived the clobber: its host node is still connected.
+    t.true(
+      $editModalContainer.isConnected,
+      'edit container stayed attached to the document',
+    );
+  },
+);

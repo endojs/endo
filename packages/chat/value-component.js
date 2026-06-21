@@ -47,12 +47,13 @@ import { isMarkdown } from './markdown-preview.js';
 // so chat.js (the caller at chat.js:1755) needs no changes.
 
 /**
- * @param {string} label
- * @param {string} defaultValue
- * @param {string} buttonText
- * @param {(name: string) => Promise<void>} handler
+ * @param {object} props
+ * @param {string} props.label
+ * @param {string} props.defaultValue
+ * @param {string} props.buttonText
+ * @param {(name: string) => Promise<void>} props.handler
  */
-const NameAction = (label, defaultValue, buttonText, handler) => {
+const NameAction = ({ label, defaultValue, buttonText, handler }) => {
   const [value, setValue] = useState(defaultValue);
   const [error, setError] = useState(false);
 
@@ -167,14 +168,20 @@ const ValueActions = ({
     passStyle !== 'remotable' &&
     passStyle !== 'promise';
 
-  /** @type {VNode | null} */
-  let nameAction = null;
+  // Build the NameAction as props rendered via `h()` (NOT by calling the
+  // function), so its `useState` slots live in their OWN component instance.
+  // The `key` changes with the value identity, so Preact remounts NameAction
+  // (fresh input default, no carried-over hook count) when chat.js calls
+  // focusValue again without an intervening unmount.
+  /** @type {{ key: string, label: string, defaultValue: string, buttonText: string, handler: (name: string) => Promise<void> } | null} */
+  let nameActionProps = null;
   if (messageContext && !isAdopted) {
-    nameAction = NameAction(
-      'Adopt as:',
-      messageContext.edgeName,
-      'Adopt',
-      async name => {
+    nameActionProps = {
+      key: `adopt-${String(messageContext.number)}-${messageContext.edgeName}`,
+      label: 'Adopt as:',
+      defaultValue: messageContext.edgeName,
+      buttonText: 'Adopt',
+      handler: async name => {
         const targetPath = name.split('/');
         await E(powers).adopt(
           messageContext.number,
@@ -183,34 +190,41 @@ const ValueActions = ({
         );
         clearValue();
       },
-    );
+    };
   } else if (petNamePath) {
-    nameAction = NameAction(
-      'Rename to:',
-      petNamePath.join('/'),
-      'Rename',
-      async newName => {
+    nameActionProps = {
+      key: `rename-${petNamePath.join('/')}`,
+      label: 'Rename to:',
+      defaultValue: petNamePath.join('/'),
+      buttonText: 'Rename',
+      handler: async newName => {
         const fromPath = /** @type {string[]} */ (getCurrentPetNamePath());
         const toPath = newName.split('/');
         await E(powers).move(fromPath, toPath);
         clearValue();
       },
-    );
+    };
   } else if (!id && isPlainPassable) {
-    nameAction = NameAction('Save as:', '', 'Save', async name => {
-      const targetPath = name.split('/');
-      await E(powers).storeValue(
-        /** @type {import('@endo/pass-style').Passable} */ (value),
-        targetPath,
-      );
-      clearValue();
-    });
+    nameActionProps = {
+      key: 'save',
+      label: 'Save as:',
+      defaultValue: '',
+      buttonText: 'Save',
+      handler: async name => {
+        const targetPath = name.split('/');
+        await E(powers).storeValue(
+          /** @type {import('@endo/pass-style').Passable} */ (value),
+          targetPath,
+        );
+        clearValue();
+      },
+    };
   }
 
   return h(
     'div',
     { class: 'value-actions-inner' },
-    nameAction,
+    nameActionProps ? h(NameAction, nameActionProps) : null,
     isPlainPassable ? h(CopyButton, { value }) : null,
   );
 };

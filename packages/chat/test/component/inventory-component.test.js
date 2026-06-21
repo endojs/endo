@@ -5,7 +5,7 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import harden from '@endo/harden';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 
 const { document: testDocument } = createDOM();
@@ -119,7 +119,9 @@ test.serial('renders a type badge once the locate probe resolves', async t => {
     names: ['inbox'],
     locators: new Map([['inbox', 'endo://?type=directory&number=1']]),
   });
-  await tick(80);
+  await waitFor(
+    () => $list.querySelector('.pet-type-badge')?.textContent === 'directory',
+  );
 
   const $badge = $list.querySelector('.pet-type-badge');
   t.truthy($badge, 'type badge rendered');
@@ -138,7 +140,6 @@ test.serial('disclosure is hidden for non-expandable types', async t => {
       ['note', 'endo://?type=readable-blob&number=2'],
     ]),
   });
-  await tick(80);
 
   const disclosureFor = name => {
     const $wrapper = [
@@ -146,8 +147,12 @@ test.serial('disclosure is hidden for non-expandable types', async t => {
         $list.querySelectorAll('.pet-item-wrapper')
       ),
     ].find(w => w.querySelector('.pet-name')?.textContent === name);
-    return $wrapper.querySelector('.pet-disclosure');
+    return $wrapper?.querySelector('.pet-disclosure');
   };
+
+  await waitFor(
+    () => disclosureFor('note')?.classList.contains('hidden') === true,
+  );
 
   t.true(
     disclosureFor('note').classList.contains('hidden'),
@@ -203,7 +208,7 @@ test.serial('hub-typed rows accept drop; leaf-typed rows do not', async t => {
   // touch the row node directly), so allow the re-render to settle before
   // asserting on the rendered class.
   $inboxRow.dispatchEvent(makeDragoverEvent());
-  await tick(10);
+  await waitFor(() => $inboxRow.classList.contains('drop-target'));
   t.true(
     $inboxRow.classList.contains('drop-target'),
     'directory row accepts drop (highlighted)',
@@ -235,14 +240,16 @@ test.serial(
     // lives in a Preact component (ItemActions), so allow its re-render to
     // settle before asserting on the rendered class.
     $cancel.click();
-    await tick(10);
+    await waitFor(() => $cancel.classList.contains('confirming'));
     t.true($cancel.classList.contains('confirming'), 'confirm state entered');
     const beforeCalls = mock.calls.filter(c => c.method === 'cancel');
     t.is(beforeCalls.length, 0, 'no cancel call on first click');
 
     // Second click: send the cancel.
     $cancel.click();
-    await tick(10);
+    await waitFor(
+      () => mock.calls.filter(c => c.method === 'cancel').length === 1,
+    );
 
     const cancelCalls = mock.calls.filter(c => c.method === 'cancel');
     t.is(cancelCalls.length, 1, 'one cancel call recorded');
@@ -333,7 +340,7 @@ test.serial(
 
     $row.dispatchEvent(dropEvent);
     // The menu is now rendered from Preact state, so let the re-render settle.
-    await tick(10);
+    await waitFor(() => testDocument.querySelector('.inventory-drop-menu'));
 
     // The drop-menu opens (rendered in-tree) and the open path clears the
     // lingering ancestor classes as a side-effect.
@@ -400,7 +407,10 @@ test.serial(
     Object.defineProperty(dropEvent, 'clientY', { value: 100 });
     $destRow.dispatchEvent(dropEvent);
     // The menu renders from Preact state; let the re-render settle.
-    await tick(10);
+    await waitFor(
+      () =>
+        testDocument.querySelectorAll('.inventory-drop-menu-item').length === 2,
+    );
 
     // Click "Link here".
     const $items = /** @type {NodeListOf<HTMLButtonElement>} */ (
@@ -410,7 +420,9 @@ test.serial(
     const $link = [...$items].find(el => el.textContent === 'Link here');
     t.truthy($link, 'Link here item exists');
     $link.click();
-    await tick(10);
+    await waitFor(
+      () => mock.calls.filter(c => c.method === 'copy').length === 1,
+    );
 
     const copyCalls = mock.calls.filter(c => c.method === 'copy');
     t.is(copyCalls.length, 1, 'one copy call recorded');
@@ -452,7 +464,13 @@ test.serial(
     Object.defineProperty(dropEvent, 'clientY', { value: 100 });
     $destRow.dispatchEvent(dropEvent);
     // The menu renders from Preact state; let the re-render settle.
-    await tick(10);
+    await waitFor(() =>
+      [
+        .../** @type {NodeListOf<HTMLButtonElement>} */ (
+          testDocument.querySelectorAll('.inventory-drop-menu-item')
+        ),
+      ].some(el => el.textContent === 'Move here'),
+    );
 
     const $items = /** @type {NodeListOf<HTMLButtonElement>} */ (
       testDocument.querySelectorAll('.inventory-drop-menu-item')
@@ -460,7 +478,9 @@ test.serial(
     const $move = [...$items].find(el => el.textContent === 'Move here');
     t.truthy($move, 'Move here item exists');
     $move.click();
-    await tick(10);
+    await waitFor(
+      () => mock.calls.filter(c => c.method === 'move').length === 1,
+    );
 
     const moveCalls = mock.calls.filter(c => c.method === 'move');
     t.is(moveCalls.length, 1, 'one move call recorded');

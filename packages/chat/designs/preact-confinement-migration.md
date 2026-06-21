@@ -61,7 +61,7 @@ The single import surface for the confine/render helpers is
   `blob-viewer` also moved its markdown preview to `markdownToVnodes`), and
   `icon-selector` (the reusable `IconSelector`, no longer deferred).
 - **The Whylip Space is fully ported** to confined Preact in the separate
-  `@endo/whylip` package (`WhylipApp` + children authored in `h()`), mounted
+  `@endo/space-whylip` package (`WhylipApp` + children authored in `h()`), mounted
   through the confined renderer by `whylip-component.js`.
 - **The File Explorer Space is fully migrated** to confined Preact in its own
   `@endo/space-file-explorer` package (`FileExplorerApp` + store hook + view
@@ -86,7 +86,7 @@ been converted to confined Preact:
 | outliner-component | 3003 | `outliner` viewMode body — held for the decompose-into-contract approach |
 | spaces-gutter | 971 | left space gutter — **⊘ deferred** (the floot imperative-Space PR edits it, +41/-5) |
 | heat-simulation | 225 | heat animation; still imperative but host-node-bridged by the converted `channel-header` (not a primary target) |
-| inventory-graph (pkg) | ~ | `@endo/inventory-graph/src/graph.js` SVG view — needs the renderer's `allowedTags`/`allowedAttrs` SVG extension first |
+| inventory-graph (pkg) | ~ | `@endo/space-inventory-graph/src/graph.js` SVG view — needs the renderer's `allowedTags`/`allowedAttrs` SVG extension first |
 
 Newly **done** (confined Preact, verified + tests, mount signatures unchanged so
 `chat.js` was untouched): **forum**, **value-component**, **channel-component**
@@ -95,7 +95,7 @@ bridges the imperative heat-simulation), and **chat-bar-component** (its two
 `.innerHTML` view regions — the modeline and command popover — are confined;
 the rest is irreducible imperative orchestration over the shared `#messages`
 DOM).
-| inventory-graph (pkg) | ~ | `@endo/inventory-graph/src/graph.js` SVG view (see below) |
+| inventory-graph (pkg) | ~ | `@endo/space-inventory-graph/src/graph.js` SVG view (see below) |
 
 ### Deferred — frozen for an incoming imperative-Space PR
 
@@ -117,9 +117,9 @@ conflicting with that PR. Resume `chat.js` / `add-space-modal` after it lands.
 Two of the special-space views live in separate packages reached through a thin
 chat wrapper; they are **in scope**, just tracked in their own package:
 
-- `peers-component` → `@endo/chat-network-view/src/peers.js` — **done** (already
+- `peers-component` → `@endo/space-peers/src/peers.js` — **done** (already
   confined Preact); the chat wrapper is a thin confined mount.
-- `inventory-graph-component` → `@endo/inventory-graph/src/graph.js` —
+- `inventory-graph-component` → `@endo/space-inventory-graph/src/graph.js` —
   **still DOM** (~28 `createElement`/SVG calls); a remaining migration target in
   that package. The chat wrapper just resolves powers and delegates.
 
@@ -332,7 +332,7 @@ instead), `value-render`, `time-formatters`, `language-detect`,
 DOM), `command-executor` (command orchestration, no DOM), and `monaco-wrapper`
 (the external-editor seam).
 `peers-component` and `inventory-graph-component` are thin chat wrappers that
-delegate to the separate `@endo/chat-network-view` and `@endo/inventory-graph`
+delegate to the separate `@endo/space-peers` and `@endo/space-inventory-graph`
 packages; the real views live there and are **in scope** (tracked in those
 packages). `chat-network-view`'s `peers.js` is already confined Preact (done);
 `inventory-graph`'s `graph.js` is still on the DOM API (remaining).
@@ -396,7 +396,7 @@ for the incoming imperative-Space PR — see "Deferred" above)
 | add-space-modal | ⊘ | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-type registration); resume after it lands |
 | chat.js (root orchestrator) | ⊘ | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-mode dispatch); stays the trusted root that calls `renderConfined` |
 
-### Whylip Space (separate `@endo/whylip` package)
+### Whylip Space (separate `@endo/space-whylip` package)
 
 | Component | Status | Notes |
 | --- | --- | --- |
@@ -428,7 +428,7 @@ Continuing bottom-up, lowest-risk first:
   `spaces-gutter` (~971).
 - `chat-bar-component` (~1735) — fully unblocked: every form/picker child it
   composes is converted, so its own chrome can convert in place.
-- `@endo/inventory-graph`'s `graph.js` (~28 SVG `createElement`s) — pending a
+- `@endo/space-inventory-graph`'s `graph.js` (~28 SVG `createElement`s) — pending a
   check that the confined renderer admits SVG tags/attributes.
 - `outliner` (~3003) — the largest body; decompose into a contract + parallel
   agents (the file-explorer approach), not a one-shot.
@@ -585,3 +585,71 @@ inventory migration. Rather than a later `channel-sidebar.js` migration, channel
 were lifted out of the inventory entirely into the standalone
 [`channel-list.js`](../channel-list.js) Preact component, and the New/Join forms
 moved to the New Space modal. See the Status section.
+
+## Test stability — fixed-tick follow-ups (deferred)
+
+The component tests under [`test/component`](../test/component) wait for
+confined renders to settle with `await tick(ms)`, where
+[`tick`](../test/helpers/dom-setup.js) is a fixed `setTimeout`. A fixed delay
+races the render on a loaded CI runner: the macOS job has intermittently failed
+because the assertion ran before the async render/strip it depended on
+completed.
+
+Fixed so far (the flakes actually observed in CI):
+
+- `inline-eval.test.js` — the leading-`@` strip is asserted only after polling
+  for the stripped value, not on the tick that mounts the code-name sub-mount.
+- `inline-command-form.test.js` — the 19 tests were serialized; they shared
+  `document.body` with a global `afterEach` wipe, so parallel runs let one
+  test's teardown clear another's DOM mid-assertion.
+
+Deferred: a sweep of the remaining fixed-tick waits (~277 `await tick(ms)` calls
+across ~42 component test files). This is preventive — those tests are not
+currently failing — and a blanket conversion is wide, risky churn, so it is held
+until a focused pass.
+
+When that pass happens, **wait on the actual settled condition by polling, not
+by a fixed-duration timeout.** Replace `await tick(ms)` with a predicate poll
+that resolves as soon as the DOM/render condition holds (e.g. the element
+exists, the input value changed). Do **not** introduce a timeout ceiling on the
+poll — let AVA's global per-test timeout be the only bound, so the wait is as
+short as the machine allows and a genuine hang still fails the test with a clear
+timeout rather than passing on a guessed delay.
+
+## Review follow-ups from the readiness pass (deferred)
+
+The PR readiness review (kumavis UA comment plus the subagent/kriscendobot
+panel) surfaced items beyond the confinement migration itself. The ones fixed in
+this PR: the edit-space modal container collision, the cold-cache author names
+in the channel and forum bodies, the own-peer border, the dead DOM-era fields,
+and the two-tags-per-line JSDoc. The remainder are deferred and tracked here.
+
+- **UA #3 — buffered streaming of inventory/messages.** _Done._ The inventory
+  subscription now buffers the daemon's name backlog and flushes it as one
+  batched reducer action (one render and one round of per-item resolution
+  instead of one per name); the inbox message loop reads the scroll position
+  synchronously instead of awaiting an animation frame per message, so the
+  initial message backlog no longer serializes at one message per frame.
+- **UA #4 — per-mailbox streaming.** _Blocked on the daemon._ `followMessages()`
+  takes no filter argument (`interfaces.js`) and each agent exposes a single
+  aggregate mailbox that is the complete conversation log (sent **and**
+  received). There is no server-side per-conversation/per-sender stream to
+  subscribe to. Following the conversation party's own agent mailbox instead
+  would only carry one direction of the conversation, so it cannot replace the
+  client-side filter without losing messages. Server-side per-mailbox streaming
+  needs a new daemon API (a filtered `followMessages({ from })` or a
+  per-conversation mailbox cap); deferred until that exists.
+- **UA #5 — file-explorer git-tree column continuation.** _Done._ Selecting a
+  git workspace child in columns mode now mounts its worktree and continues the
+  Miller columns from where the entry sits, rather than reopening it as a new
+  source at the top. A per-source git-mount registry redirects path resolution
+  (listing, the dir-cap cache, file reads) under the mount point through the
+  worktree; see `openGitEntryInColumn` in `@endo/space-file-explorer`.
+- **UA #6 — always-present Spaces bar + removing the back buttons.** A layout
+  change to `chat.js`/`spaces-gutter`, both frozen for the incoming imperative
+  -Space PR. Resume after that PR lands (see "Deferred — frozen" above).
+- **Review MEDIUMs.** Code-fence placeholder counting in the markdown-to-vnodes
+  path is now fixed (chip placeholders inside fenced code are substituted and
+  counted, keeping later chips aligned). Watcher churn (the inventory/space
+  watchers re-subscribe more than necessary) remains deferred — correctness
+  -adjacent polish, not a migration blocker.

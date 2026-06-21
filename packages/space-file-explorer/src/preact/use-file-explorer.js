@@ -233,12 +233,32 @@ export function useFileExplorer(powers, profilePath = []) {
   // (not resolved caps) so chained lookups pipeline.
   /** @type {{ current: Map<string, Cap> }} */
   const dirCapCacheRef = useRef(new Map());
+  // Git worktree mount points recorded for the active source's column path.
+  // When a git workspace child is opened in columns mode, its worktree is
+  // mounted and recorded here keyed by the workspace's column-path; paths at or
+  // under that point resolve through the worktree instead of the base source,
+  // so the Miller columns continue into the worktree rather than reopening it
+  // as a fresh source. Reset with the dir-cap cache whenever the source changes.
+  /** @type {{ current: Map<string, { mountPoint: string[], mount: Cap, filesystem: Cap }> }} */
+  const gitMountsRef = useRef(new Map());
   const busyCountRef = useRef(0);
-  // Editor buffer pushed by the Viewer; falls back to the selected file's text.
-  /** @type {{ current: string | null }} */
-  const editorBufferRef = useRef(null);
 
   // ---- small helpers ----------------------------------------------------
+
+  /**
+   * Drop the directory-capability cache, then re-seed the root of every active
+   * git worktree mount so paths nested inside a git workspace keep resolving
+   * after a refresh or live reload. Used at every cache-invalidation point
+   * except a source switch, where the mounts themselves are cleared first.
+   */
+  const resetDirCache = useCallback(() => {
+    /** @type {Map<string, Cap>} */
+    const cache = new Map();
+    for (const entry of gitMountsRef.current.values()) {
+      cache.set(pathKey(entry.mountPoint), getRoot(entry.filesystem));
+    }
+    dirCapCacheRef.current = cache;
+  }, []);
 
   const activeSourceFor = useCallback(
     /**
@@ -340,22 +360,62 @@ export function useFileExplorer(powers, profilePath = []) {
   );
 
   /**
+   * Find the deepest recorded git worktree mount point that contains `path`.
+   * Paths at or under a mounted git workspace resolve through its worktree.
+   *
+   * @param {string[]} path
+   * @returns {{ mountPoint: string[], mount: Cap, filesystem: Cap } | undefined}
+   */
+  const gitMountFor = useCallback((/** @type {string[]} */ path) => {
+    const mounts = gitMountsRef.current;
+    if (mounts.size === 0) return undefined;
+    /** @type {{ mountPoint: string[], mount: Cap, filesystem: Cap } | undefined} */
+    let best;
+    for (const entry of mounts.values()) {
+      const mp = entry.mountPoint;
+      if (mp.length > path.length) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      let match = true;
+      for (let i = 0; i < mp.length; i += 1) {
+        if (mp[i] !== path[i]) {
+          match = false;
+          break;
+        }
+      }
+      if (match && (!best || mp.length > best.mountPoint.length)) {
+        best = entry;
+      }
+    }
+    return best;
+  }, []);
+
+  /**
    * List a directory for the browser. Mount-backed sources enumerate the raw
    * Mount so non-fs children surface as `'unknown'` entries; every other source
-   * reads through the wrapped Filesystem.
+   * reads through the wrapped Filesystem. Paths inside a git worktree mount are
+   * enumerated through that worktree.
    *
    * @param {string[]} path
    * @returns {Promise<DirEntry[]>}
    */
   const listEntries = useCallback(
     path => {
+      const gitMount = gitMountFor(path);
+      if (gitMount) {
+        return listMountDirectory(
+          gitMount.mount,
+          path.slice(gitMount.mountPoint.length),
+        );
+      }
       const source = activeSourceFor(stateRef.current);
       if (source && source.mount) {
         return listMountDirectory(source.mount, path);
       }
       return listDirectory(resolveDir(path));
     },
-    [activeSourceFor, resolveDir],
+    [activeSourceFor, gitMountFor, resolveDir],
   );
 
   // ---- dialog -----------------------------------------------------------
@@ -544,9 +604,9 @@ export function useFileExplorer(powers, profilePath = []) {
    * @returns {Promise<void>}
    */
   const refreshActive = useCallback(async () => {
-    dirCapCacheRef.current = new Map();
+    resetDirCache();
     await reloadBrowser(false);
-  }, [reloadBrowser]);
+  }, [reloadBrowser, resetDirCache]);
 
   // ---- source selection -------------------------------------------------
 
@@ -556,8 +616,9 @@ export function useFileExplorer(powers, profilePath = []) {
    */
   const selectSource = useCallback(
     async id => {
+      // A different source: discard the git worktree mounts before the cache.
+      gitMountsRef.current = new Map();
       dirCapCacheRef.current = new Map();
-      editorBufferRef.current = null;
       update({
         activeSourceId: id,
         activePath: [],
@@ -684,7 +745,6 @@ export function useFileExplorer(powers, profilePath = []) {
    */
   const openFile = useCallback(
     async (parentPath, name) => {
-      editorBufferRef.current = null;
       /** @type {Partial<FileExplorerState>} */
       const open = {
         viewerCollapsed: false,
@@ -756,6 +816,78 @@ export function useFileExplorer(powers, profilePath = []) {
       reconcileWatchersRef.current();
     },
     [beginBusy, endBusy, listEntries, update],
+  );
+
+  /**
+   * Open a git workspace child in columns mode by continuing the Miller
+   * columns into its worktree, rather than reopening it as a fresh source at
+   * the top. The worktree is mounted and recorded as a git mount point so the
+   * new column (and any deeper navigation or file reads) resolve through it.
+   *
+   * @param {number} columnIndex
+   * @param {string} name
+   * @returns {Promise<void>}
+   */
+  const openGitEntryInColumn = useCallback(
+    async (columnIndex, name) => {
+      const parentPath = stateRef.current.columns[columnIndex].path;
+      const path = parentPath.concat(name);
+      const key = pathKey(path);
+      beginBusy();
+      try {
+        // Resolve the git cap, honoring a parent git mount when already nested
+        // inside one.
+        const parentGitMount = gitMountFor(parentPath);
+        let gitCapPromise;
+        if (parentGitMount) {
+          gitCapPromise = E(parentGitMount.mount).lookup(
+            path.slice(parentGitMount.mountPoint.length),
+          );
+        } else {
+          const source = activeSourceFor(stateRef.current);
+          if (!source || !source.mount) return;
+          gitCapPromise = E(source.mount).lookup(path);
+        }
+        const worktreeMount = await gitWorktreeMount(await gitCapPromise);
+        const filesystem = await toFilesystem(worktreeMount, 'mount');
+        gitMountsRef.current.set(key, {
+          mountPoint: path,
+          mount: worktreeMount,
+          filesystem,
+        });
+        // Seed the dir-cap cache so file reads under the worktree resolve from
+        // its root rather than the base source.
+        dirCapCacheRef.current.set(key, getRoot(filesystem));
+        // Continue the columns from where the git entry sits.
+        /** @type {BrowserColumn} */
+        const column = { path, entries: [], loading: true, error: '' };
+        const columns = stateRef.current.columns
+          .slice(0, columnIndex + 1)
+          .concat(column);
+        update({ activePath: path, selectedFile: null, columns });
+        try {
+          column.entries = await listEntries(path);
+        } catch (error) {
+          column.error = errorMessage(error);
+        }
+        column.loading = false;
+        update({ columns: [...stateRef.current.columns] });
+        reconcileWatchersRef.current();
+      } catch (error) {
+        reportError(error);
+      } finally {
+        endBusy();
+      }
+    },
+    [
+      activeSourceFor,
+      beginBusy,
+      endBusy,
+      gitMountFor,
+      listEntries,
+      reportError,
+      update,
+    ],
   );
 
   /**
@@ -1299,7 +1431,7 @@ export function useFileExplorer(powers, profilePath = []) {
     if (!source) return;
     source.useCache = !source.useCache;
     source.viewFsCache = undefined;
-    dirCapCacheRef.current = new Map();
+    resetDirCache();
     setStatus(
       source.useCache
         ? `Enabled CAS read-cache on "${source.label}"`
@@ -1307,7 +1439,7 @@ export function useFileExplorer(powers, profilePath = []) {
     );
     update({ sources: [...stateRef.current.sources] });
     await reloadBrowser(false);
-  }, [activeSourceFor, reloadBrowser, setStatus, update]);
+  }, [activeSourceFor, reloadBrowser, resetDirCache, setStatus, update]);
 
   /**
    * Prompt for a pet name and ask the daemon to formulate a read-only
@@ -1533,7 +1665,7 @@ export function useFileExplorer(powers, profilePath = []) {
     beginBusy();
     try {
       await E(source.layer).revert();
-      dirCapCacheRef.current = new Map();
+      resetDirCache();
       /** @type {Partial<FileExplorerState>} */
       const patch = { selectedFile: null, editing: false };
       if (stateRef.current.viewerMode === 'layer-diff') {
@@ -1555,6 +1687,7 @@ export function useFileExplorer(powers, profilePath = []) {
     openDialog,
     reloadBrowser,
     reportError,
+    resetDirCache,
     setStatus,
     update,
   ]);
@@ -1706,16 +1839,10 @@ export function useFileExplorer(powers, profilePath = []) {
     async text => {
       const file = stateRef.current.selectedFile;
       if (!file) return;
-      const buffer =
-        text !== undefined
-          ? text
-          : editorBufferRef.current !== null
-            ? editorBufferRef.current
-            : file.text;
+      const buffer = text !== undefined ? text : file.text;
       beginBusy();
       try {
         await writeFileText(file.cap, buffer);
-        editorBufferRef.current = null;
         update({
           selectedFile: {
             ...file,
@@ -1748,7 +1875,6 @@ export function useFileExplorer(powers, profilePath = []) {
   /** @param {boolean} editingNext */
   const setEditing = useCallback(
     editingNext => {
-      if (!editingNext) editorBufferRef.current = null;
       update({ editing: editingNext });
     },
     [update],
@@ -1783,10 +1909,10 @@ export function useFileExplorer(powers, profilePath = []) {
     liveTimerRef.current = setTimeout(() => {
       liveTimerRef.current = null;
       // Live refresh: drop caps, reload without the loading flicker.
-      dirCapCacheRef.current = new Map();
+      resetDirCache();
       reloadBrowserRef.current(true).catch(reportError);
     }, LIVE_REFRESH_DELAY);
-  }, [reportError]);
+  }, [reportError, resetDirCache]);
 
   /** @returns {Map<string, string[]>} */
   const visibleDirectories = useCallback(() => {
@@ -1823,14 +1949,23 @@ export function useFileExplorer(powers, profilePath = []) {
       }
     }
     for (const [key, path] of visible) {
-      if (!watchers.has(key)) {
+      // Paths nested inside a git worktree are not change-watched: the worktree
+      // Mount need not support subscriptions, and the base behavior (a separate
+      // source) was unwatched too.
+      if (!watchers.has(key) && !gitMountFor(path)) {
         watchers.set(
           key,
           subscribeChanges(resolveDir(path), () => scheduleLiveRefresh()),
         );
       }
     }
-  }, [activeSourceFor, resolveDir, scheduleLiveRefresh, visibleDirectories]);
+  }, [
+    activeSourceFor,
+    gitMountFor,
+    resolveDir,
+    scheduleLiveRefresh,
+    visibleDirectories,
+  ]);
   reconcileWatchersRef.current = reconcileWatchers;
 
   // Re-reconcile whenever the active source, the view mode, or the set of
@@ -2028,6 +2163,9 @@ export function useFileExplorer(powers, profilePath = []) {
       openGitEntry: (parentPath, name) => {
         openGitEntry(parentPath, name).catch(reportError);
       },
+      openGitEntryInColumn: (columnIndex, name) => {
+        openGitEntryInColumn(columnIndex, name).catch(reportError);
+      },
       refreshActive: () => {
         refreshActive().catch(reportError);
       },
@@ -2095,6 +2233,7 @@ export function useFileExplorer(powers, profilePath = []) {
       openFile,
       openFsCap,
       openGitEntry,
+      openGitEntryInColumn,
       refreshActive,
       renameEntryAction,
       reportError,

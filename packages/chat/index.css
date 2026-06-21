@@ -4849,7 +4849,8 @@ button.btn-spinner::after {
 }
 
 /* Add Space Modal */
-#add-space-modal-container {
+#add-space-modal-container,
+.spaces-modal-overlay {
   display: none;
   position: fixed;
   inset: 0;

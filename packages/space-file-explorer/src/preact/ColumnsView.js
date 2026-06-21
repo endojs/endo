@@ -58,7 +58,7 @@ function Column({
         readOnly,
         onOpen: /** @param {DirEntry} e */ e => {
           if (e.type === 'git') {
-            actions.openGitEntry(column.path, e.name);
+            actions.openGitEntryInColumn(columnIndex, e.name);
           } else if (e.type === 'directory') {
             actions.openDirInColumn(columnIndex, e.name);
           } else {

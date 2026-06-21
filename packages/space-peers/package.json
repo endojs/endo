@@ -1,5 +1,5 @@
 {
-  "name": "@endo/chat-network-view",
+  "name": "@endo/space-peers",
   "version": "0.1.0",
   "private": true,
   "description": "Network peers viewer for Endo Chat — lists known remote peers and connection hints",
@@ -14,7 +14,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/chat-network-view"
+    "directory": "packages/space-peers"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

@@ -136,6 +136,33 @@ test('markdownToVnodes: placeholders invoke renderToken with monotonic indices',
   t.deepEqual(seen, [0, 1]);
 });
 
+test('markdownToVnodes: placeholder inside a code fence advances the shared counter', t => {
+  // One placeholder inside a fenced code block, then another in the paragraph
+  // after it. The in-fence placeholder must be substituted and counted, so the
+  // after-fence chip keeps index 1 (regression: the fence used to emit raw text
+  // without advancing the counter, shifting every later chip by one).
+  const text = prepareTextWithPlaceholders([
+    '```js\nconst x = ',
+    ';\n```\n\nthen ',
+    ' done',
+  ]);
+  /** @type {number[]} */
+  const seen = [];
+  const { nodes, placeholderCount } = markdownToVnodes(text, {
+    renderToken: index => {
+      seen.push(index);
+      return null;
+    },
+  });
+  // Both placeholders counted; indices monotonic across the fence boundary.
+  t.is(placeholderCount, 2);
+  t.deepEqual(seen, [0, 1]);
+  // The fence is still a real pre.md-code-fence.
+  const fence = nodes.find(node => node && node.type === 'pre');
+  t.truthy(fence, 'code fence present');
+  t.is(fence.props.class, 'md-code-fence');
+});
+
 test.serial(
   'package message renders markdown as real elements (not escaped, not innerHTML)',
   async t => {

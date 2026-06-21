@@ -102,6 +102,36 @@ const renderTextContent = (content, renderToken, counter) => {
 };
 
 /**
+ * Render code-fence content into vnodes, splitting on the placeholder
+ * character and substituting `renderToken(index)` at each split. Unlike
+ * `renderTextContent`, newlines stay literal (the surrounding `<pre>`
+ * preserves whitespace), matching the imperative renderer, which walks the
+ * fence's text node and only splits on placeholders. Sharing the counter keeps
+ * placeholder indices aligned with chips outside the fence.
+ *
+ * @param {string} content
+ * @param {RenderToken | undefined} renderToken
+ * @param {{ next: number }} counter
+ * @returns {Array<VNode | string | null>}
+ */
+const renderCodeContent = (content, renderToken, counter) => {
+  /** @type {Array<VNode | string | null>} */
+  const out = [];
+  const segments = content.split(PLACEHOLDER);
+  for (let i = 0; i < segments.length; i += 1) {
+    if (i > 0) {
+      const index = counter.next;
+      counter.next += 1;
+      out.push(renderToken ? renderToken(index) : null);
+    }
+    if (segments[i]) {
+      out.push(segments[i]);
+    }
+  }
+  return out;
+};
+
+/**
  * Render inline tokens to an array of vnodes, mirroring markmdown's
  * `renderInlineTokens` element/class choices.
  *
@@ -228,7 +258,10 @@ const renderBlockList = (blocks, renderToken, counter) => {
         const content = typeof block.content === 'string' ? block.content : '';
         // TODO(inbox stage 3): Monaco `colorize` the fence source instead of
         // emitting it as plain text. Until then the raw source is the code
-        // element's text content (no dangerouslySetInnerHTML).
+        // element's text content (no dangerouslySetInnerHTML). Chip
+        // placeholders inside the fence are substituted (and the shared counter
+        // advanced) so chips after the fence keep the correct index, matching
+        // the imperative renderer.
         out.push(
           h(
             'pre',
@@ -239,7 +272,7 @@ const renderBlockList = (blocks, renderToken, counter) => {
             h(
               'code',
               block.language ? { class: `language-${block.language}` } : null,
-              content,
+              ...renderCodeContent(content, renderToken, counter),
             ),
           ),
         );

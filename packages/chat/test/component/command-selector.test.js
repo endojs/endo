@@ -3,7 +3,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { commandSelectorComponent } from '../../command-selector.js';
 
 const { document: testDocument } = createDOM();
@@ -43,7 +43,7 @@ test.serial('show renders the command list and the hint footer', async t => {
   const { $menu, selector } = await setupSelector();
 
   selector.show();
-  await tick(20);
+  await waitFor(() => $menu.classList.contains('visible'));
 
   t.true(selector.isVisible(), 'selector reports visible');
   t.true($menu.classList.contains('visible'), 'container has visible class');
@@ -76,7 +76,10 @@ test.serial('filter narrows the command list', async t => {
   const totalCount = $menu.querySelectorAll('.token-menu-item').length;
 
   selector.filter('mk');
-  await tick(20);
+  await waitFor(() => {
+    const count = $menu.querySelectorAll('.token-menu-item').length;
+    return count > 0 && count < totalCount;
+  });
 
   const $items = $menu.querySelectorAll('.token-menu-item');
   t.true($items.length > 0, 'filtered rows present');
@@ -104,7 +107,7 @@ test.serial('filter with no matches shows the empty state', async t => {
   await tick(20);
 
   selector.filter('zzzznotacommand');
-  await tick(20);
+  await waitFor(() => $menu.querySelector('.token-menu-empty'));
 
   t.is($menu.querySelectorAll('.token-menu-item').length, 0, 'no command rows');
   const $empty = $menu.querySelector('.token-menu-empty');
@@ -160,7 +163,11 @@ test.serial(
       );
 
     dispatchKey('ArrowDown');
-    await tick(20);
+    await waitFor(() =>
+      $menu
+        .querySelectorAll('.token-menu-item')[1]
+        ?.classList.contains('selected'),
+    );
     const secondName = selector.getSelected();
     t.not(secondName, firstName, 'ArrowDown advanced the selection');
 
@@ -176,7 +183,7 @@ test.serial(
     );
 
     dispatchKey('ArrowUp');
-    await tick(20);
+    await waitFor(() => selector.getSelected() === firstName);
     t.is(selector.getSelected(), firstName, 'ArrowUp returned to first');
 
     t.teardown(() => selector.hide());
@@ -192,12 +199,12 @@ test.serial(
     await tick(20);
 
     selector.selectNext();
-    await tick(20);
+    await waitFor(() => selector.getSelected());
     const expected = selector.getSelected();
     t.truthy(expected, 'a command is highlighted');
 
     selector.confirmSelection();
-    await tick(20);
+    await waitFor(() => !selector.isVisible());
 
     t.deepEqual(
       selected,
@@ -225,12 +232,12 @@ test.serial('selectFirst and selectLast jump to the ends', async t => {
   const firstName = selector.getSelected();
 
   selector.selectLast();
-  await tick(20);
+  await waitFor(() => selector.getSelected() !== firstName);
   const lastName = selector.getSelected();
   t.not(lastName, firstName, 'selectLast moved off the first item');
 
   selector.selectFirst();
-  await tick(20);
+  await waitFor(() => selector.getSelected() === firstName);
   t.is(selector.getSelected(), firstName, 'selectFirst returned to the top');
 
   t.teardown(() => selector.hide());
@@ -247,7 +254,7 @@ test.serial('clicking a row selects that command and closes', async t => {
   const targetName = $target.querySelector('span:nth-child(2)').textContent;
 
   $target.click();
-  await tick(20);
+  await waitFor(() => !selector.isVisible());
 
   t.deepEqual(selected, [targetName], 'onSelect fired with the clicked name');
   t.false(selector.isVisible(), 'selector hidden after click');
@@ -259,14 +266,14 @@ test.serial('hide closes the menu and empties the dropdown', async t => {
   const { $menu, selector } = await setupSelector();
 
   selector.show();
-  await tick(20);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length > 0);
   t.true(
     $menu.querySelectorAll('.token-menu-item').length > 0,
     'rows present while shown',
   );
 
   selector.hide();
-  await tick(20);
+  await waitFor(() => !selector.isVisible());
 
   t.false(selector.isVisible(), 'not visible after hide');
   t.false($menu.classList.contains('visible'), 'visible class removed');
@@ -287,7 +294,11 @@ test.serial(
     });
 
     selector.show();
-    await tick(20);
+    await waitFor(() =>
+      [...$menu.querySelectorAll('.token-menu-item')].some(
+        $item => $item.querySelector('span:nth-child(2)').textContent === 'dm',
+      ),
+    );
 
     const names = [...$menu.querySelectorAll('.token-menu-item')].map(
       $item => $item.querySelector('span:nth-child(2)').textContent,
