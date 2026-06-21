@@ -1393,6 +1393,7 @@ __metadata:
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     eslint: "catalog:dev"
+    preact: "npm:^10.29.2"
   languageName: unknown
   linkType: soft
 
@@ -1413,12 +1414,14 @@ __metadata:
     "@endo/inventory-graph": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/markmdown": "workspace:^"
+    "@endo/monaco-wrapper": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/platform": "workspace:^"
     "@endo/preact-container": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
+    "@endo/space-file-explorer": "workspace:^"
     "@endo/where": "workspace:^"
     "@endo/whylip": "workspace:^"
     "@playwright/test": "npm:^1.40.0"
@@ -2245,6 +2248,16 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/monaco-wrapper@workspace:^, @endo/monaco-wrapper@workspace:packages/monaco-wrapper":
+  version: 0.0.0-use.local
+  resolution: "@endo/monaco-wrapper@workspace:packages/monaco-wrapper"
+  dependencies:
+    "@endo/harden": "workspace:^"
+    eslint: "catalog:dev"
+    monaco-editor: "npm:^0.55.1"
+  languageName: unknown
+  linkType: soft
+
 "@endo/nat@workspace:^, @endo/nat@workspace:packages/nat":
   version: 0.0.0-use.local
   resolution: "@endo/nat@workspace:packages/nat"
@@ -2572,6 +2585,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/space-file-explorer@workspace:^, @endo/space-file-explorer@workspace:packages/space-file-explorer":
+  version: 0.0.0-use.local
+  resolution: "@endo/space-file-explorer@workspace:packages/space-file-explorer"
+  dependencies:
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/monaco-wrapper": "workspace:^"
+    "@endo/platform": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/stream-node@workspace:^, @endo/stream-node@workspace:packages/stream-node":
   version: 0.0.0-use.local
   resolution: "@endo/stream-node@workspace:packages/stream-node"
@@ -2692,8 +2723,7 @@ __metadata:
     "@endo/conversation-tree": "workspace:^"
     "@endo/far": "workspace:^"
     eslint: "catalog:dev"
-    react: "npm:^19.0.0"
-    react-dom: "npm:^19.0.0"
+    preact: "npm:^10.29.2"
   languageName: unknown
   linkType: soft
 

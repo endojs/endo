@@ -15,7 +15,7 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
-import { colorize } from './monaco-wrapper.js';
+import { colorize } from '@endo/monaco-wrapper';
 import { buildUnifiedDiffSection } from './layer-diff.js';
 import {
   applyLayer,
@@ -25,7 +25,9 @@ import {
   createFile,
   decodeText,
   getRoot,
+  gitWorktreeMount,
   listDirectory,
+  listMountDirectory,
   lookupChild,
   makeCachedFilesystem,
   readFile,
@@ -60,6 +62,20 @@ import {
  *   whenever `useCache` flips so the next browse remints it
  * @property {Cap} [layer] - layer cap when `kind === 'layer'`, so
  *   the Apply/Changes/Revert actions can operate on it
+ * @property {Cap} [mount] - raw Mount cap when `kind === 'mount'`.
+ *   Directory listings enumerate this directly (not the wrapped,
+ *   tree-only Filesystem) so non-fs children surface as `'unknown'`
+ *   entries instead of being dropped.
+ * @property {Cap} [git] - the `@endo/exo-git` cap a git-backed source
+ *   was opened from, kept so the revision picker can call
+ *   `branches()` / `log()` / `filesystemAt(ref)` on it.
+ * @property {string} [gitRef] - the revision currently browsed:
+ *   `GIT_WORKTREE` for the live writable worktree, otherwise a branch
+ *   name or commit oid viewed read-only via `filesystemAt`.
+ * @property {{ branches: { name: string }[], commits: { oid: string, summary: string }[], current?: string }} [gitRefs] -
+ *   memoised branch/commit lists for the picker
+ * @property {boolean} [gitRefsLoaded] - whether `gitRefs` has been
+ *   fetched yet (so the picker only loads once per source)
  * @property {string} [backingSourceId]
  */
 
@@ -92,6 +108,11 @@ const ENDO_FS_LAYER_MODULE_URL =
 const KEY_SEP = '\u0000';
 const NAME_PATTERN = /^[^/\0]+$/;
 const LIVE_REFRESH_DELAY = 200;
+// Sentinel `gitRef` for "browse the live writable worktree" (vs. a
+// branch name or commit oid, which open read-only via filesystemAt).
+const GIT_WORKTREE = ' worktree'; // leading space: never a valid git ref
+// Cap on commits listed in the revision picker.
+const GIT_LOG_LIMIT = 20;
 
 /**
  * @param {string} text
@@ -353,9 +374,32 @@ export const mountFileExplorer = (
     renderStatus();
   };
 
+  /**
+   * Extract a human-readable message from a thrown value. CapTP/cross-peer
+   * rejections can arrive as error-like objects that are NOT `instanceof Error`
+   * in this realm; `String()` on those yields a useless "[object Object]", so
+   * prefer a `.message` field and fall back to a JSON dump before `String()`.
+   *
+   * @param {unknown} error
+   * @returns {string}
+   */
+  const errorMessage = error => {
+    if (error instanceof Error) return error.message;
+    if (error && typeof error === 'object') {
+      const { message } = /** @type {{ message?: unknown }} */ (error);
+      if (typeof message === 'string' && message !== '') return message;
+      try {
+        return JSON.stringify(error);
+      } catch {
+        // Not JSON-serializable (e.g. a presence); fall through to String().
+      }
+    }
+    return String(error);
+  };
+
   /** @param {unknown} error */
   const reportError = error => {
-    setStatus(error instanceof Error ? error.message : String(error), 'error');
+    setStatus(errorMessage(error), 'error');
   };
 
   const beginBusy = () => {
@@ -414,6 +458,24 @@ export const mountFileExplorer = (
       dirCapCache.set(pathKey(path.slice(0, i + 1)), promise);
     }
     return promise;
+  };
+
+  /**
+   * List a directory for the browser. Mount-backed sources enumerate
+   * the raw Mount so non-fs children (e.g. a git workspace) surface
+   * as greyed-out `'unknown'` entries instead of being dropped by the
+   * tree-only Filesystem surface; every other source reads through
+   * the wrapped Filesystem as before.
+   *
+   * @param {string[]} path
+   * @returns {Promise<import('./file-explorer-fs.js').DirEntry[]>}
+   */
+  const listEntries = path => {
+    const source = activeSource();
+    if (source && source.mount) {
+      return listMountDirectory(source.mount, path);
+    }
+    return listDirectory(resolveDir(path));
   };
 
   // ---- live-view watchers -----------------------------------------
@@ -636,6 +698,85 @@ export const mountFileExplorer = (
     await reloadBrowser(false);
   };
 
+  /**
+   * Lazily fetch the branch + commit lists for a git-backed source so
+   * the revision picker can offer them. Each call is guarded: a fresh
+   * or empty repo throws on `log()` / `branches()`, which must surface
+   * as an empty list (just the worktree option) rather than an error.
+   *
+   * @param {Source} source
+   * @returns {Promise<void>}
+   */
+  const loadGitRefs = async source => {
+    await null;
+    if (!source.git || source.gitRefsLoaded) return;
+    source.gitRefsLoaded = true;
+    let branches = [];
+    let commits = [];
+    let current;
+    try {
+      const refs = await E(source.git).branches();
+      branches = refs.map(ref => ({ name: ref.name }));
+    } catch {
+      branches = [];
+    }
+    try {
+      const entries = await E(source.git).log({ limit: GIT_LOG_LIMIT });
+      commits = entries.map(entry => ({
+        oid: entry.oid,
+        summary: entry.summary,
+      }));
+    } catch {
+      commits = [];
+    }
+    try {
+      const head = await E(source.git).currentBranch();
+      if (head) current = head.name;
+    } catch {
+      current = undefined;
+    }
+    source.gitRefs = { branches, commits, current };
+    // Only the active source's toolbar reflects the picker; re-render
+    // if these refs just landed for it.
+    if (source.id === activeSourceId) renderToolbar();
+  };
+
+  /**
+   * Switch the browsed revision of a git-backed source. The worktree
+   * sentinel restores the live writable Mount; any other ref opens a
+   * read-only `filesystemAt(ref)` view (mutations auto-disable via
+   * `readOnly`). Resets browse state through `selectSource` so the
+   * column view reloads against the new filesystem.
+   *
+   * @param {string} ref - `GIT_WORKTREE` or a branch name / commit oid
+   * @returns {Promise<void>}
+   */
+  const selectGitRevision = async ref => {
+    const source = activeSource();
+    if (!source || !source.git || ref === source.gitRef) return;
+    await null;
+    beginBusy();
+    try {
+      if (ref === GIT_WORKTREE) {
+        const mountCap = await gitWorktreeMount(source.git);
+        source.mount = mountCap;
+        source.filesystem = await toFilesystem(mountCap, 'mount');
+        source.readOnly = false;
+      } else {
+        source.filesystem = await E(source.git).filesystemAt(ref);
+        source.mount = undefined;
+        source.readOnly = true;
+      }
+      source.gitRef = ref;
+      source.viewFsCache = undefined;
+      await selectSource(source.id);
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
+    }
+  };
+
   // ---- browser data loading ---------------------------------------
 
   /**
@@ -663,9 +804,9 @@ export const mountFileExplorer = (
     await Promise.all(
       next.map(async column => {
         try {
-          column.entries = await listDirectory(resolveDir(column.path));
+          column.entries = await listEntries(column.path);
         } catch (error) {
-          column.error = error instanceof Error ? error.message : String(error);
+          column.error = errorMessage(error);
         }
         column.loading = false;
         if (columns === next) renderBrowser();
@@ -693,7 +834,7 @@ export const mountFileExplorer = (
           renderBrowser();
         }
         try {
-          treeChildren.set(key, await listDirectory(resolveDir(path)));
+          treeChildren.set(key, await listEntries(path));
         } catch {
           // Leave any previous listing in place.
         }
@@ -806,9 +947,9 @@ export const mountFileExplorer = (
     renderToolbar();
     beginBusy();
     try {
-      column.entries = await listDirectory(resolveDir(path));
+      column.entries = await listEntries(path);
     } catch (error) {
-      column.error = error instanceof Error ? error.message : String(error);
+      column.error = errorMessage(error);
     } finally {
       endBusy();
     }
@@ -837,7 +978,7 @@ export const mountFileExplorer = (
       renderBrowser();
       beginBusy();
       try {
-        treeChildren.set(key, await listDirectory(resolveDir(path)));
+        treeChildren.set(key, await listEntries(path));
       } catch (error) {
         reportError(error);
       } finally {
@@ -1172,21 +1313,30 @@ export const mountFileExplorer = (
    *
    * @param {string} label
    * @param {Cap} cap
-   * @param {'filesystem' | 'layer' | 'mount'} kind
+   * @param {'filesystem' | 'layer' | 'mount' | 'git'} kind
    * @param {string} [petName]  inventory pet name (or
    *   slash/dot-separated path) for this cap, when known. Lets
    *   downstream "Save read-only view" / "Save layer" actions
    *   address the cap on the daemon side.
    */
   const openFsCap = async (label, cap, kind, petName) => {
+    // A git cap is browsed through its writable worktree Mount; from
+    // here on it behaves exactly like a mount source (so its raw
+    // children, including nested non-fs caps, are surfaced too).
+    let mountCap = cap;
+    let effectiveKind = kind;
+    if (kind === 'git') {
+      mountCap = await gitWorktreeMount(cap);
+      effectiveKind = 'mount';
+    }
     // `toFilesystem` may return a Promise (layer case) — await
     // uniformly so the caller always gets a concrete Filesystem
     // cap to hand to the source list.
-    const filesystem = await toFilesystem(cap, kind);
+    const filesystem = await toFilesystem(mountCap, effectiveKind);
     /** @type {Source['kind']} */
     let sourceKind;
-    if (kind === 'mount') sourceKind = 'mount';
-    else if (kind === 'layer') sourceKind = 'layer';
+    if (effectiveKind === 'mount') sourceKind = 'mount';
+    else if (effectiveKind === 'layer') sourceKind = 'layer';
     else sourceKind = 'lookup';
     /** @type {Omit<Source, 'id' | 'useCache'> & { useCache?: boolean }} */
     const spec = {
@@ -1196,15 +1346,25 @@ export const mountFileExplorer = (
       readOnly: false,
     };
     if (petName) spec.petName = petName;
-    if (kind === 'layer') {
+    if (effectiveKind === 'mount') spec.mount = mountCap;
+    if (effectiveKind === 'layer') {
       // Remember the Layer cap on the source so the layer-specific
       // actions (Apply, Changes, Revert) light up — opening from
       // the inventory should restore them just like creating the
       // layer in this session would.
       spec.layer = cap;
     }
+    if (kind === 'git') {
+      // Retain the Git cap so the revision picker can switch the
+      // browsed view between the writable worktree and any
+      // branch/commit via `filesystemAt(ref)`.
+      spec.git = cap;
+      spec.gitRef = GIT_WORKTREE;
+    }
     const source = addSource(spec);
-    if (kind === 'mount') {
+    if (kind === 'git') {
+      setStatus(`Opened git worktree "${source.label}"`);
+    } else if (kind === 'mount') {
       setStatus(`Opened Mount "${source.label}" via endo-fs from-mount`);
     } else if (kind === 'layer') {
       setStatus(`Opened layer "${source.label}" (composed view)`);
@@ -1212,6 +1372,32 @@ export const mountFileExplorer = (
       setStatus(`Opened filesystem "${source.label}"`);
     }
     await selectSource(source.id);
+  };
+
+  /**
+   * Open a git workspace child (surfaced by raw-Mount enumeration)
+   * as its own explorer source, browsing its writable worktree.
+   *
+   * @param {string[]} parentPath
+   * @param {string} name
+   * @returns {Promise<void>}
+   */
+  const openGitEntry = async (parentPath, name) => {
+    const source = activeSource();
+    if (!source || !source.mount) return;
+    const segments = [...parentPath, name];
+    beginBusy();
+    try {
+      const gitCap = await E(source.mount).lookup(segments);
+      const petName = source.petName
+        ? `${source.petName}.${segments.join('.')}`
+        : undefined;
+      await openFsCap(name, gitCap, 'git', petName);
+    } catch (error) {
+      reportError(error);
+    } finally {
+      endBusy();
+    }
   };
 
   const openByPetName = async () => {
@@ -1779,6 +1965,37 @@ export const mountFileExplorer = (
           }>${esc(item.label)}</option>`,
       )
       .join('');
+    // Revision picker, only for git-backed sources. Kick off the
+    // one-shot branch/commit fetch (re-renders the toolbar when it
+    // lands); until then just the worktree option shows.
+    const isGit = !!source && !!source.git;
+    if (isGit && source && !source.gitRefsLoaded) {
+      loadGitRefs(source).catch(reportError);
+    }
+    const gitRefs = (source && source.gitRefs) || {
+      branches: [],
+      commits: [],
+    };
+    const gitOption = (value, text, label) =>
+      `<option value="${esc(value)}" ${
+        source && source.gitRef === value ? 'selected' : ''
+      }>${esc(label === undefined ? text : label)}</option>`;
+    const branchOpts = gitRefs.branches
+      .map(b => gitOption(b.name, b.name))
+      .join('');
+    const commitOpts = gitRefs.commits
+      .map(c => gitOption(c.oid, c.oid, `${c.oid.slice(0, 7)}  ${c.summary}`))
+      .join('');
+    const gitPickerHtml = isGit
+      ? `<div class="fx-toolbar-group fx-group-git">
+           <span class="fx-group-label">Revision</span>
+           <select class="fx-git-ref">
+             ${gitOption(GIT_WORKTREE, 'Working tree')}
+             ${branchOpts ? `<optgroup label="Branches">${branchOpts}</optgroup>` : ''}
+             ${commitOpts ? `<optgroup label="Commits">${commitOpts}</optgroup>` : ''}
+           </select>
+         </div>`
+      : '';
     // Three categories surfaced as labelled clusters: view options
     // (what the explorer shows), new-fs options (what the user
     // mints into the inventory), and file actions (mutations on
@@ -1807,6 +2024,7 @@ export const mountFileExplorer = (
         </label>
         ${button('↻ Refresh', 'fx-act-refresh', !source)}
       </div>
+      ${gitPickerHtml}
       <div class="fx-toolbar-group fx-group-new">
         <span class="fx-group-label">New filesystem</span>
         ${button(
@@ -1856,6 +2074,14 @@ export const mountFileExplorer = (
     if ($select) {
       $select.addEventListener('change', () => {
         selectSource($select.value).catch(reportError);
+      });
+    }
+    const $gitRef = /** @type {HTMLSelectElement | null} */ (
+      $toolbar.querySelector('.fx-git-ref')
+    );
+    if ($gitRef) {
+      $gitRef.addEventListener('change', () => {
+        selectGitRevision($gitRef.value).catch(reportError);
       });
     }
     /**
@@ -1927,24 +2153,40 @@ export const mountFileExplorer = (
    * @returns {string}
    */
   const entryRowHtml = (entry, parentPath, flags) => {
-    const icon = entry.type === 'directory' ? '\u{1F4C1}' : '\u{1F4C4}';
+    const unsupported = entry.type === 'unknown';
+    const isGit = entry.type === 'git';
+    // Cap entries (git workspaces, unsupported caps) aren't plain fs
+    // nodes: no rename/delete/drag, even though git ones are clickable.
+    const capEntry = unsupported || isGit;
+    let icon;
+    if (isGit) icon = '\u{1F33F}';
+    else if (unsupported) icon = '\u{2754}';
+    else if (entry.type === 'directory') icon = '\u{1F4C1}';
+    else icon = '\u{1F4C4}';
     const indent =
       flags.depth !== undefined
         ? ` style="padding-left:${8 + flags.depth * 16}px"`
         : '';
-    const actions = flags.readOnly
-      ? ''
-      : `<span class="fx-entry-actions">
+    const actions =
+      flags.readOnly || capEntry
+        ? ''
+        : `<span class="fx-entry-actions">
            <button type="button" class="fx-mini fx-entry-rename"
              title="Rename" draggable="false">✎</button>
            <button type="button" class="fx-mini fx-entry-delete"
              title="Delete" draggable="false">✕</button>
          </span>`;
+    let titleAttr = '';
+    if (unsupported) {
+      titleAttr = ' title="Not an endo-fs Filesystem, Layer, or Mount"';
+    } else if (isGit) {
+      titleAttr = ' title="Git repository — click to open its worktree"';
+    }
     return `
       <div class="fx-entry ${entry.type} ${
         flags.selected ? 'fx-selected' : ''
-      }"${indent}
-        draggable="${flags.readOnly ? 'false' : 'true'}"
+      }"${indent}${titleAttr}
+        draggable="${flags.readOnly || capEntry ? 'false' : 'true'}"
         data-name="${esc(entry.name)}"
         data-type="${entry.type}"
         data-parent="${esc(JSON.stringify(parentPath))}">
@@ -2017,7 +2259,7 @@ export const mountFileExplorer = (
    */
   const renderTreeNode = (path, entry, depth, readOnly) => {
     const selfPath = [...path, entry.name];
-    if (entry.type === 'file') {
+    if (entry.type !== 'directory') {
       const selected =
         !!selectedFile &&
         pathKey(selectedFile.parentPath) === pathKey(path) &&
@@ -2086,13 +2328,23 @@ export const mountFileExplorer = (
     for (const $entry of $browser.querySelectorAll('.fx-entry')) {
       const el = /** @type {HTMLElement} */ ($entry);
       const name = el.dataset.name || '';
-      const type = el.dataset.type === 'directory' ? 'directory' : 'file';
+      const rawType = el.dataset.type || 'file';
+      const type = rawType === 'directory' ? 'directory' : 'file';
+      const unsupported = rawType === 'unknown';
+      const isGit = rawType === 'git';
       /** @type {string[]} */
       const parentPath = JSON.parse(el.dataset.parent || '[]');
 
       el.addEventListener('click', event => {
         const target = /** @type {HTMLElement} */ (event.target);
         if (target.closest('.fx-entry-actions')) return;
+        // Unsupported (non-fs) entries are display-only.
+        if (unsupported) return;
+        // A git workspace opens as its own source (its worktree).
+        if (isGit) {
+          openGitEntry(parentPath, name).catch(reportError);
+          return;
+        }
         if (viewMode === 'columns') {
           const $column = el.closest('.fx-column');
           const columnIndex = $column
@@ -2489,6 +2741,8 @@ export const mountFileExplorer = (
         $row.classList.remove('fx-inv-disabled');
         if (kind === 'mount') {
           $row.title = `Open Mount "${name}"`;
+        } else if (kind === 'git') {
+          $row.title = `Open git worktree "${name}"`;
         } else if (kind === 'layer') {
           $row.title = `Open layer "${name}" (composed view + layer actions)`;
         } else {

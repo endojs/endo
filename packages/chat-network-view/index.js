@@ -1,3 +1,3 @@
 // @ts-check
 
-export { mountNetworkView } from './src/mount.js';
+export { PeersView } from './src/peers.js';

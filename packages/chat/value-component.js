@@ -5,10 +5,10 @@
 
 import { E } from '@endo/far';
 import { passStyleOf } from '@endo/pass-style';
+import { colorize } from '@endo/monaco-wrapper';
 import { render, inferType, toClipboardText } from './value-render.js';
 import { inferLanguage } from './language-detect.js';
 import { isMarkdown, renderMarkdownToHtml } from './markdown-preview.js';
-import { colorize } from './monaco-wrapper.js';
 
 /**
  * @param {HTMLElement} $container

@@ -6,6 +6,7 @@
 
 import { E } from '@endo/far';
 import harden from '@endo/harden';
+import { fileExplorerComponent } from '@endo/space-file-explorer';
 import { channelComponent } from './channel-component.js';
 import { forumComponent } from './forum-component.js';
 import { outlinerComponent } from './outliner-component.js';
@@ -19,7 +20,6 @@ import { createSpacesGutter } from './spaces-gutter.js';
 import { inventoryGraphComponent } from './inventory-graph-component.js';
 import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
-import { fileExplorerComponent } from './file-explorer-component.js';
 import { createShareModal } from './share-modal.js';
 import { microblogComponent } from './microblog-component.js';
 import { idFromLocator } from './locator.js';

@@ -37,7 +37,12 @@ import { withCachedReads } from '@endo/platform/fs/extended/cached-fs.js';
 /**
  * @typedef {object} DirEntry
  * @property {string} name
- * @property {'directory' | 'file'} type
+ * @property {'directory' | 'file' | 'unknown' | 'git'} type -
+ *   `'git'` marks an `@endo/exo-git` cap (browsable via its
+ *   worktree); `'unknown'` marks a child that is neither a
+ *   sub-directory, a file, nor a recognized openable cap. The base
+ *   endo-fs filesystem surface drops both (it is tree-only), so the
+ *   explorer only sees them via raw-Mount enumeration.
  */
 
 // Read/write in bounded chunks so a single `@endo/exo-stream`
@@ -63,7 +68,7 @@ const CAS_CAPACITY = 512;
  * makes it useful to re-open from the inventory.
  *
  * @param {Cap} cap
- * @returns {Promise<'filesystem' | 'layer' | 'mount' | 'unknown'>}
+ * @returns {Promise<'filesystem' | 'layer' | 'mount' | 'git' | 'unknown'>}
  */
 export const classifyCapability = async cap => {
   await null;
@@ -81,6 +86,10 @@ export const classifyCapability = async cap => {
     names.has('backing')
   ) {
     return 'layer';
+  }
+  // An `@endo/exo-git` cap — browsable through its writable worktree.
+  if (names.has('worktree') && names.has('status') && names.has('commit')) {
+    return 'git';
   }
   if (names.has('root') && names.has('statfs')) {
     return 'filesystem';
@@ -106,16 +115,32 @@ harden(classifyCapability);
  *   layer case (the projection is a CapTP round trip); callers
  *   that need a synchronous result should await.
  *
+ * - `'git'` is projected through its writable `worktree()` Mount, so
+ *   the explorer browses the live working tree (including uncommitted
+ *   files).
+ *
  * @param {Cap} cap
- * @param {'filesystem' | 'layer' | 'mount'} kind
+ * @param {'filesystem' | 'layer' | 'mount' | 'git'} kind
  * @returns {Cap | Promise<Cap>}
  */
 export const toFilesystem = (cap, kind) => {
   if (kind === 'mount') return mountAsFilesystem(cap);
+  if (kind === 'git') return mountAsFilesystem(E(cap).worktree());
   if (kind === 'layer') return E(cap).asFilesystem();
   return cap;
 };
 harden(toFilesystem);
+
+/**
+ * Resolve a git cap's writable worktree Mount, so callers can both
+ * browse it (via {@link mountAsFilesystem}) and enumerate its raw
+ * children (surfacing nested non-fs caps). Pipelines onto `cap`.
+ *
+ * @param {Cap} cap
+ * @returns {Cap}
+ */
+export const gitWorktreeMount = cap => E(cap).worktree();
+harden(gitWorktreeMount);
 
 /**
  * Create a fresh, empty in-memory `Filesystem`.
@@ -239,6 +264,75 @@ export const listDirectory = async directory => {
   return harden(entries);
 };
 harden(listDirectory);
+
+/**
+ * Classify a child cap of a Mount the same way `@endo/endo-fs`'s
+ * from-mount backend does: a `lookup` method means a sub-directory
+ * (sub-Mount), `text`/`streamBase64` means a file. Anything else is
+ * a non-fs cap (e.g. a git workspace) which the tree-only filesystem
+ * surface would silently drop — we surface it as `'unknown'` so the
+ * explorer can show it greyed-out instead of hiding it.
+ *
+ * A git cap (browsable via its worktree) is reported as `'git'` so
+ * the explorer can offer to open it; any other non-fs cap is
+ * `'unknown'`.
+ *
+ * @param {Cap} cap
+ * @returns {Promise<'directory' | 'file' | 'unknown' | 'git'>}
+ */
+const probeMountChildType = async cap => {
+  await null;
+  try {
+    const methods = await E(cap).__getMethodNames__();
+    const names = new Set(methods);
+    if (names.has('lookup')) return 'directory';
+    if (names.has('text') || names.has('streamBase64')) return 'file';
+    if (names.has('worktree') && names.has('status') && names.has('commit')) {
+      return 'git';
+    }
+  } catch {
+    // A child whose introspection rejects is treated as unsupported
+    // rather than crashing the whole listing.
+  }
+  return 'unknown';
+};
+
+/**
+ * List a Mount's children by enumerating the raw Mount directly
+ * (rather than the wrapped, tree-only `Filesystem` surface), so that
+ * non-fs children surface as `'unknown'` entries instead of being
+ * dropped. Ordering mirrors {@link listDirectory}: directories
+ * first, then files, then unsupported entries, each group sorted by
+ * name.
+ *
+ * `mountRoot` is the Mount cap; `pathSegments` is the directory path
+ * relative to it (`[]` for the root). Nested lookups pipeline onto
+ * the root in a single round trip.
+ *
+ * @param {Cap} mountRoot
+ * @param {string[]} pathSegments
+ * @returns {Promise<DirEntry[]>}
+ */
+export const listMountDirectory = async (mountRoot, pathSegments) => {
+  await null;
+  const dir =
+    pathSegments.length === 0 ? mountRoot : E(mountRoot).lookup(pathSegments);
+  const names = /** @type {string[]} */ (await E(dir).list());
+  /** @type {DirEntry[]} */
+  const entries = await Promise.all(
+    names.map(async name => {
+      const type = await probeMountChildType(E(dir).lookup(name));
+      return { name: String(name), type };
+    }),
+  );
+  const rank = { directory: 0, git: 1, file: 2, unknown: 3 };
+  entries.sort((a, b) => {
+    if (a.type !== b.type) return rank[a.type] - rank[b.type];
+    return a.name.localeCompare(b.name);
+  });
+  return harden(entries);
+};
+harden(listMountDirectory);
 
 /**
  * Read a file's bytes, capped at the preview limit. `getAttrs`

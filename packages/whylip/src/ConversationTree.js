@@ -1,14 +1,17 @@
 // @ts-check
-import React from 'react';
+import { h } from 'preact';
+
+/** @import { ComponentChildren } from 'preact' */
+/** @import { TreeNode } from './hooks/useConversation.js' */
 
 /**
  * @param {object} props
- * @param {import('./hooks/useConversation.js').TreeNode[]} props.nodes
+ * @param {TreeNode[]} props.nodes
  * @param {string | null} props.activeNodeId
  * @param {(id: string) => void} props.onNavigate
  */
 export function ConversationTree({ nodes, activeNodeId, onNavigate }) {
-  /** @type {Map<string | null, import('./hooks/useConversation.js').TreeNode[]>} */
+  /** @type {Map<string | null, TreeNode[]>} */
   const childrenMap = new Map();
   for (const node of nodes) {
     const parentKey = node.parentId;
@@ -21,7 +24,7 @@ export function ConversationTree({ nodes, activeNodeId, onNavigate }) {
   /**
    * @param {string | null} parentId
    * @param {number} depth
-   * @returns {React.ReactNode}
+   * @returns {ComponentChildren}
    */
   const renderLevel = (parentId, depth) => {
     const children = childrenMap.get(parentId);
@@ -40,33 +43,36 @@ export function ConversationTree({ nodes, activeNodeId, onNavigate }) {
           : node.content;
       const preview = displayText.slice(0, 40).replace(/\n/g, ' ');
 
-      return (
-        <div key={node.id} className="tree-branch">
-          <button
-            className={`tree-node ${isActive ? 'active' : ''} tree-role-${node.role}`}
-            style={{ paddingLeft: `${12 + depth * 16}px` }}
-            onClick={() => onNavigate(node.id)}
-            title={displayText.slice(0, 120)}
-          >
-            <span className="tree-icon">{roleIcon}</span>
-            <span className="tree-preview">{preview || `(${node.role})`}</span>
-          </button>
-          {hasChildren && renderLevel(node.id, depth + 1)}
-        </div>
+      return h(
+        'div',
+        { key: node.id, class: 'tree-branch' },
+        h(
+          'button',
+          {
+            class: `tree-node ${isActive ? 'active' : ''} tree-role-${node.role}`,
+            style: { paddingLeft: `${12 + depth * 16}px` },
+            onClick: () => onNavigate(node.id),
+            title: displayText.slice(0, 120),
+          },
+          h('span', { class: 'tree-icon' }, roleIcon),
+          h('span', { class: 'tree-preview' }, preview || `(${node.role})`),
+        ),
+        hasChildren ? renderLevel(node.id, depth + 1) : null,
       );
     });
   };
 
-  return (
-    <div className="whylip-tree">
-      <div className="tree-header">Conversation</div>
-      <div className="tree-list">
-        {nodes.length === 0 ? (
-          <div className="tree-empty">Send a message to begin.</div>
-        ) : (
-          renderLevel(null, 0)
-        )}
-      </div>
-    </div>
+  return h(
+    'div',
+    { class: 'whylip-tree' },
+    h('div', { class: 'tree-header' }, 'Conversation'),
+    h(
+      'div',
+      { class: 'tree-list' },
+      nodes.length === 0
+        ? h('div', { class: 'tree-empty' }, 'Send a message to begin.')
+        : renderLevel(null, 0),
+    ),
   );
 }
+harden(ConversationTree);

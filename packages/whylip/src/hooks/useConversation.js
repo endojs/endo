@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'preact/hooks';
 import { E } from '@endo/far';
 import {
   makeConversationTree,
@@ -170,22 +170,21 @@ const parseResponse = text => {
  */
 
 /**
- * React hook that manages the Whylip conversation state.
+ * Preact hook that manages the Whylip conversation state.
  * Syncs from the endo mailbox and maintains a local conversation tree.
  *
  * @param {unknown} powers - Resolved endo powers (the fae agent's profile)
  */
 export const useConversation = powers => {
   const [tree] = useState(() => makeConversationTree(makeMemoryBackend()));
-  /** @type {[TreeNode[], (n: TreeNode[]) => void]} */
-  const [nodes, setNodes] = useState([]);
-  /** @type {[string | null, (id: string | null) => void]} */
-  const [activeNodeId, setActiveNodeId] = useState(null);
-  /** @type {[ParsedResponse | null, (p: ParsedResponse | null) => void]} */
-  const [activeScene, setActiveScene] = useState(null);
-  /** @type {[string, (n: string) => void]} */
+  const [nodes, setNodes] = useState(/** @type {TreeNode[]} */ ([]));
+  const [activeNodeId, setActiveNodeId] = useState(
+    /** @type {string | null} */ (null),
+  );
+  const [activeScene, setActiveScene] = useState(
+    /** @type {{ title: string, html: string } | null} */ (null),
+  );
   const [activeNarrative, setActiveNarrative] = useState('');
-  /** @type {[boolean, (b: boolean) => void]} */
   const [sending, setSending] = useState(false);
 
   const treeRef = useRef(tree);
@@ -442,3 +441,4 @@ export const useConversation = powers => {
     navigateTo,
   };
 };
+harden(useConversation);

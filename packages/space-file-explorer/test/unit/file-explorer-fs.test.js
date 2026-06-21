@@ -23,7 +23,7 @@ import {
   readFile,
   subscribeChanges,
   writeFileText,
-} from '../../file-explorer-fs.js';
+} from '../../src/file-explorer-fs.js';
 
 const utf8 = (/** @type {string} */ s) => new TextEncoder().encode(s);
 

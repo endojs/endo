@@ -254,10 +254,17 @@ Each entry lists the other UI/render modules a module imports.
 
 These are graph leaves but are utilities, state logic, or external seams —
 not views to re-author in Preact:
-`markdown-render`, `value-render`, `time-formatters`, `language-detect`,
+`markdown-render`, `markdown-preview` (both return HTML strings; consumed via
+`.innerHTML` by view modules — migrate those callers to `markdownToVnodes`
+instead), `value-render`, `time-formatters`, `language-detect`,
 `message-parse`, `chime`, `heat-engine`, `command-registry`,
-`channel-utils`, `react-utils`, and `monaco-wrapper` (the external-editor
-seam).
+`channel-utils`, `react-utils`, `layer-diff` (pure string-diff helpers),
+`browser-tree` (a filesystem tree data structure + `checkoutToDirectory`, no
+DOM), `command-executor` (command orchestration, no DOM), and `monaco-wrapper`
+(the external-editor seam).
+`peers-component` is a thin wrapper that delegates to the separate
+`@endo/chat-network-view` package — the real peers view lives there, out of this
+migration's scope.
 
 ## Migration tracker
 
@@ -303,13 +310,14 @@ Status: ☐ not started · ◐ in progress · ☑ done
 | inline-eval | ☑ | Done — confined; endowment rows compose autocomplete as host-node controllers |
 | endow-modal | ☑ | Done — confined; definition-slot autocompletes host-embedded |
 | form-builder | ☑ | Done — confined; recipient autocomplete host-embedded |
-| inline-command-form | ◐ | In progress — composite; all children now converted |
-| define-form | ◐ | In progress — first Monaco-embedding form (establishes the host-node editor pattern) |
+| inline-command-form | ☑ | Done — composite; confines its chrome, composes its converted children as host-node controllers |
+| define-form | ☑ | Done — first Monaco-embedding form; established the host-node editor pattern + the Monaco test stub |
+| eval-form / blob-viewer / counter-proposal-form | ◐ | In progress — Monaco forms copying define-form's host-node editor pattern; blob-viewer also moves its markdown preview to `markdownToVnodes` |
 | add-space-modal | ☐ | Batch B stage 2 — ~2000 lines; switch to `IconSelector`, then drop string `renderIconSelector` |
-| chat-bar-component | ☐ | Blocked — still composes unconverted `eval-form`, `blob-viewer`, `command-executor` |
+| chat-bar-component | ☐ | Unblocks once eval-form + blob-viewer land (its other "children" — `command-executor`, `browser-tree` — are non-view utils, not migration targets) |
 | channel-component | ☐ | Dan's multiuser channel view; stays imperative DOM for now |
 | spaces-gutter / channel-header | ☐ | Larger composites, later |
-| other Monaco forms | ☐ | `eval-form`, `blob-viewer`, `counter-proposal-form` — follow `define-form`'s host-node editor embedding once it lands |
+| forum / microblog / outliner | ☐ | Large peer-content views (617 / 773 / 3003 lines) — stage carefully later |
 
 ### Whylip Space (separate `@endo/whylip` package)
 

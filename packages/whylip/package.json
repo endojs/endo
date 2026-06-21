@@ -23,19 +23,19 @@
   "type": "module",
   "exports": {
     ".": "./index.js",
+    "./whylip.css": "./src/whylip.css",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
-    "lint:eslint": "eslint '**/*.{js,jsx}'"
+    "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
     "@endo/conversation-tree": "workspace:^",
     "@endo/far": "workspace:^",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "preact": "^10.29.2"
   },
   "devDependencies": {
     "eslint": "catalog:dev"

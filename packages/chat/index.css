@@ -9233,7 +9233,8 @@ button.btn-spinner::after {
   color: #fff;
 }
 
-.fx-source-select {
+.fx-source-select,
+.fx-git-ref {
   font: inherit;
   font-size: 12px;
   padding: 5px 8px;
@@ -9451,6 +9452,19 @@ button.btn-spinner::after {
 .fx-entry.fx-selected {
   background: var(--accent-primary);
   color: #fff;
+}
+
+/* Non-fs children (e.g. a git workspace) surfaced by raw-Mount
+   enumeration: shown for awareness but not browsable, mirroring the
+   inventory's disabled rows. */
+.fx-entry.unknown {
+  cursor: default;
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
+.fx-entry.unknown:hover {
+  background: none;
 }
 
 .fx-entry.fx-drop-target {

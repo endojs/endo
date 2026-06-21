@@ -2,11 +2,11 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
+import { colorize } from '@endo/monaco-wrapper';
 import {
   prepareTextWithPlaceholders,
   renderMarkdown,
 } from './markdown-render.js';
-import { colorize } from './monaco-wrapper.js';
 import { timeFormatter, relativeTime } from './time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
 

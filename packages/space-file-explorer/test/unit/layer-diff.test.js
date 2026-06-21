@@ -4,7 +4,7 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 
-import { diffLines, buildUnifiedDiffSection } from '../../layer-diff.js';
+import { diffLines, buildUnifiedDiffSection } from '../../src/layer-diff.js';
 
 test('diffLines: two empty bodies → no ops', t => {
   t.deepEqual(diffLines('', ''), []);

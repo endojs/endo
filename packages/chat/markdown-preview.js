@@ -2,7 +2,7 @@
 
 import harden from '@endo/harden';
 import { marked, Renderer } from 'marked';
-import { colorize } from './monaco-wrapper.js';
+import { colorize } from '@endo/monaco-wrapper';
 
 /**
  * Map common code-fence language tags to Monaco language identifiers.
