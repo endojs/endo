@@ -1,11 +1,9 @@
 // @ts-check
-/* eslint-disable no-continue */
-
-import harden from '@endo/harden';
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
+import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { isSpecialName } from '@endo/daemon/pet-name.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
@@ -16,170 +14,452 @@ import {
   NON_EXPANDABLE_TYPES,
   makeStaticTreePowers,
 } from './tree-source.js';
-import { makeItemDragDrop } from './dnd.js';
+import { DropMenu } from './drop-menu.js';
 import { ItemActions } from './item-actions.js';
 import { ItemDisclosure } from './item-disclosure.js';
 import { ItemLabel } from './item-label.js';
-import { h, renderConfined, unmount } from '../setup-preact-container.js';
+import {
+  h,
+  renderConfined,
+  useEffect,
+  useReducer,
+  useState,
+} from '../setup-preact-container.js';
+
+// MIME used to carry the dragged item's absolute pet-name path (JSON).
+const ENDO_PETNAME_MIME = 'application/x-endo-petname';
 
 /**
- * A `sidebar` plugs alternate rendering into the otherwise pet-name-tree
- * inventory: the channel sidebar (channel-sidebar.js) supplies one. All of its
- * hooks are optional.
+ * Compute the absolute destination path for a drop, or undefined when the drop
+ * is a no-op or would move an item into itself or its own descendant. Mirrors
+ * the helper in dnd.js (not re-exported there), inlined here so the pure-Preact
+ * tree depends only on string-level path arithmetic.
  *
- * @typedef {object} InventorySidebar
- * @property {boolean} [prepend] - Insert new items at the top of the list.
- * @property {boolean} [itemInitiallyHidden] - Hide items until `decorateItem`
- *   chooses to show them.
- * @property {($parent: HTMLElement) => void} [setupHeader] - Decorate the
- *   header once, at the top level.
- * @property {(ctx: import('./channel-sidebar.js').ItemContext) => void} [decorateItem]
- *   - Decorate each item after its type is probed (replaces the default
- *   conversation decoration).
- * @property {($list: HTMLElement) => void} [setupList] - Wire list-level
- *   behavior (replaces the default link/move drop zone).
+ * @param {string[]} sourceAbsPath - Absolute path of the dragged item.
+ * @param {string[]} targetDirAbs - Absolute path of the destination directory.
+ * @returns {string[] | undefined}
  */
+const dropTargetPath = (sourceAbsPath, targetDirAbs) => {
+  // Reject dropping an item into itself or any of its own descendants: the
+  // case where the source path is a prefix of the target dir.
+  const intoSelf =
+    sourceAbsPath.length <= targetDirAbs.length &&
+    sourceAbsPath.every((seg, i) => seg === targetDirAbs[i]);
+  if (intoSelf) return undefined;
+  const sourceLeaf = sourceAbsPath[sourceAbsPath.length - 1];
+  const targetAbsPath = [...targetDirAbs, sourceLeaf];
+  // No-op when the item already lives at exactly this location.
+  if (
+    targetAbsPath.length === sourceAbsPath.length &&
+    targetAbsPath.every((seg, i) => seg === sourceAbsPath[i])
+  ) {
+    return undefined;
+  }
+  return targetAbsPath;
+};
+harden(dropTargetPath);
 
 /**
  * @typedef {object} InventoryOptions
  * @property {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} showValue
  * @property {((petName: string | string[], formulaId: string) => void)} [onSelectConversation]
  * @property {string | null} [activeConversationPetName]
- * @property {InventorySidebar} [sidebar] - Alternate rendering (e.g. channels).
  */
 
 /**
- * @param {HTMLElement} $parent
- * @param {HTMLElement | null} _end
- * @param {ERef<EndoHost>} powers
- * @param {InventoryOptions} options
- * @param {string[]} [path] - Current path for nested inventories
- * @param {ERef<EndoHost>} [rootPowers] - Top-level powers for the whole tree,
- *   against which drag-and-drop link/move operate. Defaults to `powers` so the
- *   outermost level is its own root.
- * @param {string[]} [rootPrefix] - Absolute pet-name path from `rootPowers` to
- *   this level. Drag-and-drop addresses items by `[...rootPrefix, name]` so that
- *   items can be moved both up and down the tree in one coordinate space.
+ * Clear any lingering drop-zone highlight from every row and list under the
+ * inventory. Mirrors dnd.js's helper: visual drop state is Preact state now,
+ * but the host component still sweeps the app's own DOM so an ancestor
+ * highlight the browser's per-element dragleave model left behind (or a class
+ * a caller set imperatively) retracts when the drop menu opens. This operates
+ * on the host's own DOM, never on confined-guest output, so direct DOM access
+ * is acceptable here.
  */
-export const inventoryComponent = async (
-  $parent,
-  _end,
+const clearAllDropTargets = () => {
+  for (const $el of document.querySelectorAll('.drop-target')) {
+    $el.classList.remove('drop-target');
+  }
+  for (const $el of document.querySelectorAll('.drop-target-list')) {
+    $el.classList.remove('drop-target-list');
+  }
+};
+harden(clearAllDropTargets);
+
+/**
+ * Reducer over the set of pet names discovered from `followNameChanges`.
+ * Discovery (insertion) order is preserved.
+ *
+ * @param {string[]} state
+ * @param {{ type: 'add', name: string } | { type: 'remove', name: string }} action
+ * @returns {string[]}
+ */
+const namesReducer = (state, action) => {
+  if (action.type === 'add') {
+    if (state.includes(action.name)) return state;
+    return [...state, action.name];
+  }
+  if (action.type === 'remove') {
+    if (!state.includes(action.name)) return state;
+    return state.filter(n => n !== action.name);
+  }
+  return state;
+};
+harden(namesReducer);
+
+/**
+ * One inventory item: its disclosure triangle, label (name + type badge),
+ * action buttons, drag source / drop target behavior, and — when expanded —
+ * a nested {@link InventoryList} mounted into its children. All visual state
+ * (drop-target highlight, dragging, disclosure expand) is Preact state, since
+ * confined event handlers receive a frozen SafeEvent with no DOM nodes.
+ *
+ * @param {object} props
+ * @param {string} props.name
+ * @param {ERef<EndoHost>} props.powers
+ * @param {InventoryOptions} props.options
+ * @param {string[]} props.path - Current path for this level.
+ * @param {ERef<EndoHost>} props.rootPowers - Top-level powers for the whole
+ *   tree, against which drag-and-drop link/move operate.
+ * @param {string[]} props.rootPrefix - Absolute pet-name path from `rootPowers`
+ *   to this level.
+ * @param {(x: number, y: number, from: string[], to: string[]) => void} props.openDropMenu
+ *   - Ask the enclosing list to open the link/move menu.
+ */
+const InventoryItem = ({
+  name,
   powers,
-  { showValue, onSelectConversation, activeConversationPetName, sidebar },
-  path = [],
-  rootPowers = powers,
-  rootPrefix = [],
-) => {
-  const $list = /** @type {HTMLElement} */ (
-    $parent.querySelector('.pet-list') || $parent
+  options,
+  path,
+  rootPowers,
+  rootPrefix,
+  openDropMenu,
+}) => {
+  const { showValue, onSelectConversation, activeConversationPetName } =
+    options;
+
+  const itemPath = [...path, name];
+  // Absolute path from the tree root, used for cross-level drag-and-drop.
+  const absPath = [...rootPrefix, name];
+  const special = isSpecialName(name);
+
+  // Type/decoration state, resolved asynchronously by the locate probe below.
+  const [type, setType] = useState(/** @type {string | null} */ (null));
+  // null = not yet probed; false = no locator (immutable); true = has locator.
+  const [hasLocator, setHasLocator] = useState(
+    /** @type {boolean | null} */ (null),
+  );
+  const [locator, setLocator] = useState(/** @type {string | null} */ (null));
+
+  // Disclosure (expand/collapse) state.
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  /** @type {[ERef<EndoHost> | null, (p: ERef<EndoHost> | null) => void]} */
+  const [nestedPowers, setNestedPowers] = useState(
+    /** @type {ERef<EndoHost> | null} */ (null),
   );
 
-  // Let a sidebar (e.g. channels) decorate the header once at the top level.
-  if (sidebar?.setupHeader && path.length === 0) {
-    sidebar.setupHeader($parent);
-  }
+  // Drop-target highlight for this (hub) row.
+  const [dropTarget, setDropTarget] = useState(false);
+  // Dragging-source highlight for this row.
+  const [dragging, setDragging] = useState(false);
 
-  /** @type {Map<string, { $wrapper: HTMLElement, cleanup?: () => void }>} */
-  const $names = new Map();
-
-  // Item-move drag-and-drop (link/move within the tree). Operates in absolute
-  // coordinates against `rootPowers`. See inventory-dnd.js.
-  const itemDnd = makeItemDragDrop({ rootPowers });
-
-  /**
-   * Create an inventory item with disclosure triangle.
-   * @param {string} name
-   */
-  const createItem = name => {
-    const itemPath = [...path, name];
-    // Absolute path from the tree root, used for cross-level drag-and-drop.
-    const absPath = [...rootPrefix, name];
-    // Whether this item is a name hub that can accept a dropped item. Set once
-    // the formula type is probed below; until then it rejects row drops, which
-    // then fall through to the containing directory's list-level drop zone.
-    let acceptsDrop = false;
-
-    const $wrapper = document.createElement('div');
-    $wrapper.className = 'pet-item-wrapper';
-    if (isSpecialName(name)) {
-      $wrapper.classList.add('special');
-    }
-    // A sidebar may hide items until its decorateItem chooses to show them
-    // (channel mode hides everything until confirmed channels).
-    if (sidebar?.itemInitiallyHidden) {
-      $wrapper.style.display = 'none';
-    }
-
-    const $row = document.createElement('div');
-    $row.className = 'pet-item-row';
-
-    // Make non-special items draggable (carry the absolute path so the item
-    // can be dropped at any level, up or down the tree).
-    if (!isSpecialName(name)) {
-      itemDnd.attachDragSource($row, absPath);
-    }
-
-    // Disclosure triangle — rendered (below, once its toggle handler exists)
-    // as a Preact component into this `display: contents` host, kept first in
-    // the row.
-    const $disclosureMount = document.createElement('span');
-    $disclosureMount.style.display = 'contents';
-    $row.appendChild($disclosureMount);
-
-    // Inspect: resolve the item's id + value and hand them to the host viewer.
-    const inspectItem = () => {
-      const idP = E(powers).identify(
-        .../** @type {[string, ...string[]]} */ (itemPath),
-      );
-      const valueP = E(powers).lookup(itemPath);
-      Promise.all([idP, valueP]).then(
-        ([id, value]) => showValue(value, id, itemPath, undefined),
-        window.reportError,
-      );
+  // Probe the formula type once the item mounts. Items without a locator are
+  // immutable (cannot be removed or dragged); items with a locator expose a
+  // `type` query parameter used for the badge, hub-gating, and conversation
+  // decoration. A disposed flag guards the async continuation.
+  useEffect(() => {
+    let disposed = false;
+    E(powers)
+      .locate(.../** @type {[string, ...string[]]} */ (itemPath))
+      .then(probed => {
+        if (disposed) return;
+        if (!probed) {
+          setHasLocator(false);
+          return;
+        }
+        setHasLocator(true);
+        setLocator(/** @type {string} */ (probed));
+        const probedType = new URL(
+          /** @type {string} */ (probed),
+        ).searchParams.get('type');
+        setType(probedType);
+      })
+      .catch(() => {
+        // Item may have been removed before its locator resolved.
+      });
+    return () => {
+      disposed = true;
     };
+  }, [powers, name]);
 
-    // Label (pet name + type badge). Mounts into a `display: contents` host so
-    // the name and badge stay flex children of the row. Click behavior and the
-    // badge resolve after the locate probe below, so `setLabel` re-renders.
-    const $labelMount = document.createElement('span');
-    $labelMount.style.display = 'contents';
-    $row.appendChild($labelMount);
-    /** @type {{ title: string, selectable: boolean, type: string | null, onClick: (() => void) | undefined }} */
-    const labelState = {
+  // Inspect: resolve the item's id + value and hand them to the host viewer.
+  const inspectItem = () => {
+    const idP = E(powers).identify(
+      .../** @type {[string, ...string[]]} */ (itemPath),
+    );
+    const valueP = E(powers).lookup(itemPath);
+    Promise.all([idP, valueP]).then(
+      ([id, value]) => showValue(value, id, itemPath, undefined),
+      window.reportError,
+    );
+  };
+
+  // Whether a probed (non-immutable) item is a hub that can accept a drop.
+  const acceptsDrop = type !== null && HUB_TYPES.includes(type);
+  // Whether this is a conversable item that opens a conversation on click.
+  const conversable =
+    !!onSelectConversation && type !== null && CONVERSABLE_TYPES.includes(type);
+  const activeConversation =
+    conversable &&
+    !!activeConversationPetName &&
+    path.length === 0 &&
+    name === activeConversationPetName;
+
+  // Disclosure visibility: hidden for known non-expandable types, hidden once
+  // an expand attempt finds no children, otherwise shown.
+  const [disclosureHidden, setDisclosureHidden] = useState(false);
+  useEffect(() => {
+    if (type !== null && NON_EXPANDABLE_TYPES.includes(type)) {
+      setDisclosureHidden(true);
+    }
+  }, [type]);
+
+  const onToggle = async () => {
+    if (expanded) {
+      // Collapse — drop the nested powers; the nested list unmounts with it.
+      setExpanded(false);
+      setNestedPowers(null);
+      return;
+    }
+    // Expand — try to load children.
+    setLoading(true);
+    try {
+      const target =
+        /** @type {ERef<{ __getMethodNames__: () => string[], list?: () => string[], followNameChanges?: () => AsyncIterator<{ add?: string, remove?: string }> }>} */ (
+          await E(powers).lookup(itemPath)
+        );
+      // Detect capabilities via __getMethodNames__ to avoid CapTP noise.
+      // eslint-disable-next-line no-underscore-dangle
+      const methods = await E(target).__getMethodNames__();
+
+      /** @type {ERef<EndoHost> | undefined} */
+      let nested;
+
+      if (methods.includes('followNameChanges')) {
+        // NameHub (directory, host, guest): use a live subscription. Delegate
+        // each capability with the `itemPath` prefix so the nested list reads
+        // and writes through this level's powers.
+        const changesIterator = E(
+          /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (target)),
+        ).followNameChanges();
+
+        nested = /** @type {ERef<EndoHost>} */ (
+          /** @type {unknown} */ ({
+            /** @param {string | string[]} subPathOrName */
+            lookup: subPathOrName => {
+              const subPath =
+                typeof subPathOrName === 'string'
+                  ? [subPathOrName]
+                  : subPathOrName;
+              return E(powers).lookup([...itemPath, ...subPath]);
+            },
+            /** @param {string[]} subPath */
+            remove: (...subPath) => {
+              const fullPath = [...itemPath, ...subPath];
+              return E(powers).remove(
+                .../** @type {[string, ...string[]]} */ (fullPath),
+              );
+            },
+            /** @param {string[]} subPath */
+            identify: (...subPath) => {
+              const fullPath = [...itemPath, ...subPath];
+              return E(powers).identify(
+                .../** @type {[string, ...string[]]} */ (fullPath),
+              );
+            },
+            /** @param {string[]} subPath */
+            locate: (...subPath) => {
+              const fullPath = [...itemPath, ...subPath];
+              return E(powers).locate(
+                .../** @type {[string, ...string[]]} */ (fullPath),
+              );
+            },
+            followNameChanges: () => changesIterator,
+          })
+        );
+      } else if (methods.includes('list')) {
+        // Static tree (ReadableTree, etc.): populate from list().
+        const names = await E(target).list();
+        nested = makeStaticTreePowers(target, names);
+      }
+
+      if (nested) {
+        setLoading(false);
+        setNestedPowers(nested);
+        setExpanded(true);
+      } else {
+        // Not expandable (no list or followNameChanges).
+        setLoading(false);
+        setDisclosureHidden(true);
+      }
+    } catch {
+      // Lookup or introspection failed.
+      setLoading(false);
+      setDisclosureHidden(true);
+    }
+  };
+
+  // Drag source: non-special, non-immutable rows carry their absolute path.
+  const draggable = !special && hasLocator !== false;
+  /** @param {{ dataTransfer?: { setData: (t: string, v: string) => void, effectAllowed: string } }} e */
+  const onDragStart = e => {
+    if (e.dataTransfer) {
+      e.dataTransfer.setData('text/plain', absPath.join('/'));
+      e.dataTransfer.setData(ENDO_PETNAME_MIME, JSON.stringify(absPath));
+      e.dataTransfer.effectAllowed = 'copyMove';
+    }
+    setDragging(true);
+  };
+  const onDragEnd = () => {
+    setDragging(false);
+    clearAllDropTargets();
+  };
+
+  // Drop target: only hub rows accept a drop; leaf rows let the event bubble
+  // to the containing list's drop zone.
+  /** @param {{ preventDefault: () => void, stopPropagation: () => void, dataTransfer?: { types: string[] | readonly string[], dropEffect: string } }} e */
+  const onDragOver = e => {
+    if (!acceptsDrop) return;
+    if (!e.dataTransfer) return;
+    if (!e.dataTransfer.types.includes(ENDO_PETNAME_MIME)) return;
+    e.preventDefault();
+    // Don't also light up the enclosing list-level drop zone.
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    setDropTarget(true);
+  };
+  const onDragLeave = () => {
+    if (!acceptsDrop) return;
+    setDropTarget(false);
+  };
+  /** @param {{ preventDefault: () => void, stopPropagation: () => void, clientX: number, clientY: number, dataTransfer?: { types: string[] | readonly string[], getData: (t: string) => string } }} e */
+  const onDrop = e => {
+    if (!acceptsDrop) return;
+    setDropTarget(false);
+    if (!e.dataTransfer) return;
+    if (!e.dataTransfer.types.includes(ENDO_PETNAME_MIME)) return;
+    e.preventDefault();
+    // Handle here so the enclosing list-level drop zone does not also fire.
+    e.stopPropagation();
+    const raw = e.dataTransfer.getData(ENDO_PETNAME_MIME);
+    // Narrow the try to JSON.parse alone; a broad try would mask errors from
+    // dropTargetPath or openDropMenu.
+    let sourceAbsPath;
+    try {
+      sourceAbsPath = JSON.parse(raw);
+    } catch (err) {
+      console.error(
+        `[inventory] Cannot parse drag payload from ${ENDO_PETNAME_MIME} onto row ${absPath.join('/')}: ${
+          /** @type {Error} */ (err).message
+        }`,
+      );
+      return;
+    }
+    const targetAbsPath = dropTargetPath(sourceAbsPath, absPath);
+    if (!targetAbsPath) return;
+    openDropMenu(e.clientX, e.clientY, sourceAbsPath, targetAbsPath);
+  };
+
+  // Label decoration: a conversable item opens a conversation on click; an
+  // immutable or non-conversable item makes its name selectable to inspect.
+  /** @type {{ title: string, selectable: boolean, type: string | null, onClick: (() => void) | undefined }} */
+  let labelState;
+  if (conversable) {
+    labelState = {
+      title: 'Open conversation',
+      selectable: false,
+      type,
+      onClick: () => {
+        if (onSelectConversation) {
+          onSelectConversation(name, /** @type {string} */ (locator));
+        }
+      },
+    };
+  } else if (hasLocator === false) {
+    // Immutable: not draggable, but its name can be clicked to inspect.
+    labelState = {
+      title: 'Click to view',
+      selectable: true,
+      type: null,
+      onClick: inspectItem,
+    };
+  } else if (onSelectConversation && type !== null) {
+    // Non-conversable with conversation mode on: clicking inspects.
+    labelState = {
+      title: 'Click to view',
+      selectable: true,
+      type,
+      onClick: inspectItem,
+    };
+  } else {
+    labelState = {
       title: 'Click to view',
       selectable: false,
-      type: null,
+      type,
       onClick: undefined,
     };
-    /** @param {Partial<typeof labelState>} [partial] */
-    const setLabel = partial => {
-      if (partial) Object.assign(labelState, partial);
-      renderConfined(h(ItemLabel, { name, ...labelState }), $labelMount);
-    };
-    setLabel();
+  }
 
-    // Action buttons (info / cancel / remove). `.pet-buttons` is an absolutely
-    // positioned flex row; ItemActions mounts into a `display: contents`
-    // sub-host so Preact owns the three buttons while the channel-mode menu
-    // button (still imperative, inserted below) remains a flex sibling and the
-    // layout is unchanged. The remove button's disabled state resolves
-    // asynchronously (special names up front, immutable items after the locate
-    // probe below), so we re-render on change.
-    const $actions = document.createElement('span');
-    $actions.className = 'pet-buttons';
-    $row.appendChild($actions);
-    const $actionsMount = document.createElement('span');
-    $actionsMount.style.display = 'contents';
-    $actions.appendChild($actionsMount);
-
-    let removeDisabled = isSpecialName(name);
-    let removeTitle = isSpecialName(name)
-      ? 'Cannot remove system name'
+  const removeDisabled = special || hasLocator === false;
+  const removeTitle = special
+    ? 'Cannot remove system name'
+    : hasLocator === false
+      ? 'Cannot remove (immutable)'
       : 'Remove';
-    const renderActions = () => {
-      renderConfined(
+
+  const wrapperClass = [
+    'pet-item-wrapper',
+    special && 'special',
+    conversable && 'conversable',
+    activeConversation && 'active-conversation',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const rowClass = [
+    'pet-item-row',
+    dragging && 'dragging',
+    dropTarget && 'drop-target',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return h(
+    'div',
+    { class: wrapperClass },
+    h(
+      'div',
+      {
+        class: rowClass,
+        draggable,
+        onDragStart: draggable ? onDragStart : undefined,
+        onDragEnd: draggable ? onDragEnd : undefined,
+        onDragOver,
+        onDragLeave,
+        onDrop,
+      },
+      h(ItemDisclosure, {
+        hidden: disclosureHidden,
+        loading,
+        expanded,
+        onToggle,
+      }),
+      h(ItemLabel, { name, ...labelState }),
+      h(
+        'span',
+        { class: 'pet-buttons' },
         h(ItemActions, {
-          cancelDisabled: isSpecialName(name),
+          cancelDisabled: special,
           removeDisabled,
           removeTitle,
           onInspect: inspectItem,
@@ -190,279 +470,266 @@ export const inventoryComponent = async (
               .remove(.../** @type {[string, ...string[]]} */ (itemPath))
               .catch(window.reportError),
         }),
-        $actionsMount,
-      );
-    };
-    renderActions();
-
-    $wrapper.appendChild($row);
-
-    // Children container (initially hidden)
-    const $children = document.createElement('div');
-    $children.className = 'pet-children';
-    $wrapper.appendChild($children);
-
-    /** @type {(() => void) | undefined} */
-    let childCleanup;
-
-    // Disclosure: the triangle view plus expand/collapse behavior (async lookup
-    // of the target's children, then a recursive inventory mount).
-    const disclosureState = { hidden: false, loading: false, expanded: false };
-    const renderDisclosure = () => {
-      renderConfined(
-        // eslint-disable-next-line no-use-before-define
-        h(ItemDisclosure, { ...disclosureState, onToggle }),
-        $disclosureMount,
-      );
-    };
-    /** @param {Partial<typeof disclosureState>} [partial] */
-    const setDisclosure = partial => {
-      if (partial) Object.assign(disclosureState, partial);
-      renderDisclosure();
-    };
-    const onToggle = async () => {
-      if (disclosureState.expanded) {
-        // Collapse
-        setDisclosure({ expanded: false });
-        $children.classList.remove('expanded');
-        if (childCleanup) {
-          childCleanup();
-          childCleanup = undefined;
-        }
-        $children.innerHTML = '';
-        return;
-      }
-      // Expand — try to load children
-      setDisclosure({ loading: true });
-      try {
-        const target =
-          /** @type {ERef<{ __getMethodNames__: () => string[], list?: () => string[], followNameChanges?: () => AsyncIterator<{ add?: string, remove?: string }> }>} */ (
-            await E(powers).lookup(itemPath)
-          );
-        // Use __getMethodNames__ to detect the target's capabilities
-        // without probing methods that may not exist (avoids CapTP noise).
-        // eslint-disable-next-line no-underscore-dangle
-        const methods = await E(target).__getMethodNames__();
-
-        /** @type {ERef<EndoHost> | undefined} */
-        let nestedPowers;
-
-        if (methods.includes('followNameChanges')) {
-          // NameHub (directory, host, guest): use live subscription
-          const changesIterator = E(
-            /** @type {import('@endo/far').ERef<EndoHost>} */ (
-              /** @type {unknown} */ (target)
-            ),
-          ).followNameChanges();
-
-          nestedPowers = /** @type {ERef<EndoHost>} */ (
-            /** @type {unknown} */ ({
-              /** @param {string | string[]} subPathOrName */
-              lookup: subPathOrName => {
-                const subPath =
-                  typeof subPathOrName === 'string'
-                    ? [subPathOrName]
-                    : subPathOrName;
-                return E(powers).lookup([...itemPath, ...subPath]);
-              },
-              /** @param {string[]} subPath */
-              remove: (...subPath) => {
-                const fullPath = [...itemPath, ...subPath];
-                return E(powers).remove(
-                  .../** @type {[string, ...string[]]} */ (fullPath),
-                );
-              },
-              /** @param {string[]} subPath */
-              identify: (...subPath) => {
-                const fullPath = [...itemPath, ...subPath];
-                return E(powers).identify(
-                  .../** @type {[string, ...string[]]} */ (fullPath),
-                );
-              },
-              /** @param {string[]} subPath */
-              locate: (...subPath) => {
-                const fullPath = [...itemPath, ...subPath];
-                return E(powers).locate(
-                  .../** @type {[string, ...string[]]} */ (fullPath),
-                );
-              },
-              followNameChanges: () => changesIterator,
-            })
-          );
-        } else if (methods.includes('list')) {
-          // Static tree (ReadableTree, etc.): populate from list()
-          const names = await E(target).list();
-          nestedPowers = makeStaticTreePowers(target, names);
-        }
-
-        if (nestedPowers) {
-          setDisclosure({ loading: false, expanded: true });
-          $children.classList.add('expanded');
-
-          const wrappedOnSelectConversation = onSelectConversation
-            ? (
-                /** @type {string | string[]} */ leafName,
-                /** @type {string} */ locator,
-              ) => {
-                const leafPath =
-                  typeof leafName === 'string' ? [leafName] : leafName;
-                onSelectConversation([...itemPath, ...leafPath], locator);
-              }
-            : undefined;
-
-          inventoryComponent(
-            $children,
-            null,
-            nestedPowers,
-            {
+      ),
+    ),
+    h(
+      'div',
+      {
+        class: ['pet-children', expanded && 'expanded']
+          .filter(Boolean)
+          .join(' '),
+      },
+      expanded && nestedPowers
+        ? h(InventoryList, {
+            powers: nestedPowers,
+            // nestedPowers handles the prefix, so reset the local path.
+            options: {
               showValue,
-              onSelectConversation: wrappedOnSelectConversation,
+              onSelectConversation: onSelectConversation
+                ? (
+                    /** @type {string | string[]} */ leafName,
+                    /** @type {string} */ leafLocator,
+                  ) => {
+                    const leafPath =
+                      typeof leafName === 'string' ? [leafName] : leafName;
+                    onSelectConversation(
+                      [...itemPath, ...leafPath],
+                      leafLocator,
+                    );
+                  }
+                : undefined,
               activeConversationPetName,
-              sidebar,
             },
-            [], // Reset path since nestedPowers handles the prefix
-            // Drag-and-drop stays in the root's absolute coordinate space so
-            // items can move up out of this directory as well as down into it.
+            path: [],
             rootPowers,
-            absPath,
-          ).catch(() => {
-            // Silently handle errors (e.g., if the item is removed)
-          });
-        } else {
-          // Not expandable (no list or followNameChanges)
-          setDisclosure({ loading: false, hidden: true });
+            // DnD stays in the root's coordinate space so items can move up.
+            rootPrefix: absPath,
+          })
+        : null,
+    ),
+  );
+};
+harden(InventoryItem);
+
+/**
+ * A level of the inventory tree: owns the `followNameChanges` subscription for
+ * its `powers`, the list-level drop zone, and the link/move drop menu. Renders
+ * an {@link InventoryItem} per discovered name. Nested levels are rendered by
+ * an expanded item, never by an imperative recursive call.
+ *
+ * @param {object} props
+ * @param {ERef<EndoHost>} props.powers
+ * @param {InventoryOptions} props.options
+ * @param {string[]} props.path
+ * @param {ERef<EndoHost>} props.rootPowers
+ * @param {string[]} props.rootPrefix
+ */
+const InventoryList = ({ powers, options, path, rootPowers, rootPrefix }) => {
+  const [names, dispatch] = useReducer(
+    namesReducer,
+    /** @type {string[]} */ ([]),
+  );
+  // List-level drop-zone highlight.
+  const [dropTargetList, setDropTargetList] = useState(false);
+  // The open link/move menu, positioned at {x, y} with whole from/to paths.
+  const [menu, setMenu] = useState(
+    /** @type {{ x: number, y: number, from: string[], to: string[] } | null} */ (
+      null
+    ),
+  );
+
+  useEffect(() => {
+    // A disposed flag guards every async continuation: the subscription loop
+    // must not dispatch after teardown.
+    let disposed = false;
+
+    const run = async () => {
+      // The daemon's name-change reader is loosely typed (Passable); narrow it
+      // to the add/remove shape at the boundary, as the rest of the app does.
+      const nameChanges = iterateReader(
+        /** @type {Parameters<typeof iterateReader>[0]} */ (
+          /** @type {unknown} */ (E(powers).followNameChanges())
+        ),
+      );
+      for await (const rawChange of nameChanges) {
+        if (disposed) break;
+        const change = /** @type {{ add?: string, remove?: string }} */ (
+          rawChange
+        );
+        if (change.add !== undefined) {
+          dispatch({ type: 'add', name: change.add });
+        } else if (change.remove !== undefined) {
+          dispatch({ type: 'remove', name: change.remove });
         }
-      } catch {
-        // Lookup or introspection failed
-        setDisclosure({ loading: false, hidden: true });
       }
     };
-    setDisclosure();
 
-    // Drop target: dropping onto a hub row offers to link or move the dragged
-    // item into that hub. Non-hub (leaf) rows are not drop targets — the event
-    // bubbles to the containing directory's list-level drop zone instead.
-    // `acceptsDrop` is probed asynchronously below, so it is read at event time.
-    itemDnd.attachRowDropTarget($row, {
-      absPath,
-      acceptsDrop: () => acceptsDrop,
+    run().catch(err => {
+      if (!disposed) {
+        console.error('[inventory] subscription failed:', err);
+      }
     });
 
-    if (sidebar?.prepend) {
-      // Newest items at top (channels are reordered after type detection)
-      $list.prepend($wrapper);
-    } else {
-      $list.appendChild($wrapper);
-    }
-
-    // Probe the formula type to detect conversable items and non-expandable types.
-    // Items without a locator (e.g. children of an immutable ReadableTree) get
-    // their remove button disabled since they cannot be individually removed.
-    E(powers)
-      .locate(.../** @type {[string, ...string[]]} */ (itemPath))
-      .then(locator => {
-        if (!locator) {
-          // Immutable items cannot be individually removed; disable the button.
-          removeDisabled = true;
-          removeTitle = 'Cannot remove (immutable)';
-          renderActions();
-          // Immutable items cannot be relinked or relocated.
-          $row.draggable = false;
-          // Still allow clicking the name to inspect the value
-          setLabel({ selectable: true, onClick: inspectItem });
-          return;
-        }
-        const url = new URL(/** @type {string} */ (locator));
-        const type = url.searchParams.get('type');
-
-        // Show the type badge.
-        setLabel({ type });
-
-        // Hide disclosure triangle for known non-expandable types
-        if (type && NON_EXPANDABLE_TYPES.includes(type)) {
-          setDisclosure({ hidden: true });
-        }
-
-        // Only name hubs can accept a dropped item.
-        if (type && HUB_TYPES.includes(type)) {
-          acceptsDrop = true;
-        }
-
-        // A sidebar (e.g. channels) decorates the item; otherwise apply the
-        // default conversation decoration.
-        if (sidebar?.decorateItem) {
-          sidebar.decorateItem({
-            name,
-            type: type ?? null,
-            path,
-            $list,
-            $wrapper,
-            $row,
-            setLabel,
-            setDisclosure,
-            $children,
-            $actions,
-          });
-        } else if (onSelectConversation) {
-          if (type && CONVERSABLE_TYPES.includes(type)) {
-            $wrapper.classList.add('conversable');
-            setLabel({
-              title: 'Open conversation',
-              onClick: () => {
-                onSelectConversation(name, /** @type {string} */ (locator));
-              },
-            });
-            if (
-              activeConversationPetName &&
-              path.length === 0 &&
-              name === activeConversationPetName
-            ) {
-              $wrapper.classList.add('active-conversation');
-            }
-          } else {
-            // Non-conversable: clicking the name opens the Show Value modal
-            setLabel({ selectable: true, onClick: inspectItem });
-          }
-        }
-      })
-      .catch(() => {
-        // Item may have been removed
-      });
-
-    return {
-      $wrapper,
-      cleanup: () => {
-        unmount($labelMount);
-        unmount($actionsMount);
-        childCleanup?.();
-      },
+    return () => {
+      disposed = true;
     };
+  }, [powers]);
+
+  // Dismiss the drop menu on outside click while it is open.
+  useEffect(() => {
+    if (!menu) return undefined;
+    const close = () => setMenu(null);
+    const raf = requestAnimationFrame(() => {
+      document.addEventListener('click', close);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('click', close);
+    };
+  }, [menu]);
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @param {string[]} from
+   * @param {string[]} to
+   */
+  const openDropMenu = (x, y, from, to) => {
+    // Sweep any lingering ancestor drop-zone highlight the browser's
+    // per-element dragleave model left behind, and reset our own list-level
+    // highlight. Per-row highlight is each item's own state and is cleared by
+    // that row's drop handler before it asks us to open the menu.
+    clearAllDropTargets();
+    setDropTargetList(false);
+    setMenu({ x, y, from, to });
   };
 
-  // List-level behavior: a sidebar wires its own (channels use reordering);
-  // otherwise the default link/move drop zone. Dropping onto the background of
-  // a directory's list links or moves the dragged item into that directory
-  // (`rootPrefix`); at the outermost level `rootPrefix` is empty, so this is
-  // how an item is moved *up* to the root.
-  if (sidebar?.setupList) {
-    sidebar.setupList($list);
-  } else {
-    itemDnd.attachListDropZone($list, rootPrefix);
-  }
-
-  for await (const change of iterateReader(E(powers).followNameChanges())) {
-    if ('add' in change) {
-      const name = change.add;
-      const item = createItem(name);
-      $names.set(name, item);
-    } else if ('remove' in change) {
-      const item = $names.get(change.remove);
-      if (item !== undefined) {
-        item.cleanup?.();
-        item.$wrapper.remove();
-        $names.delete(change.remove);
-      }
+  // List-level drop zone: dropping onto the background of this directory links
+  // or moves the dragged item into `rootPrefix`.
+  /** @param {{ preventDefault: () => void, dataTransfer?: { types: string[] | readonly string[], dropEffect: string } }} e */
+  const onDragOver = e => {
+    if (!e.dataTransfer) return;
+    if (!e.dataTransfer.types.includes(ENDO_PETNAME_MIME)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDropTargetList(true);
+  };
+  const onDragLeave = () => {
+    // Under confinement a handler cannot compare DOM nodes to ignore a
+    // dragleave bubbling up from a descendant row (the SafeEvent exposes only
+    // frozen target snapshots, never the node). Clear unconditionally; the
+    // next dragover re-sets the highlight, so a transient flicker is the only
+    // cost and a hub row's own drop handler stops propagation anyway.
+    setDropTargetList(false);
+  };
+  /** @param {{ preventDefault: () => void, stopPropagation: () => void, clientX: number, clientY: number, dataTransfer?: { getData: (t: string) => string } }} e */
+  const onDrop = e => {
+    setDropTargetList(false);
+    if (!e.dataTransfer) return;
+    const raw = e.dataTransfer.getData(ENDO_PETNAME_MIME);
+    if (!raw) return;
+    e.preventDefault();
+    // A row handler already ran if the drop landed on an item.
+    e.stopPropagation();
+    let sourceAbsPath;
+    try {
+      sourceAbsPath = JSON.parse(raw);
+    } catch (err) {
+      const at = rootPrefix.length === 0 ? '<root>' : rootPrefix.join('/');
+      console.error(
+        `[inventory] Cannot parse drag payload from ${ENDO_PETNAME_MIME} onto list at ${at}: ${
+          /** @type {Error} */ (err).message
+        }`,
+      );
+      return;
     }
-  }
+    const targetAbsPath = dropTargetPath(sourceAbsPath, rootPrefix);
+    if (!targetAbsPath) return;
+    openDropMenu(e.clientX, e.clientY, sourceAbsPath, targetAbsPath);
+  };
+
+  const listClass = ['pet-list-zone', dropTargetList && 'drop-target-list']
+    .filter(Boolean)
+    .join(' ');
+
+  return h(
+    'div',
+    {
+      class: listClass,
+      onDragOver,
+      onDragLeave,
+      onDrop,
+    },
+    names.map(name =>
+      h(InventoryItem, {
+        key: name,
+        name,
+        powers,
+        options,
+        path,
+        rootPowers,
+        rootPrefix,
+        openDropMenu,
+      }),
+    ),
+    menu
+      ? h(DropMenu, {
+          x: menu.x,
+          y: menu.y,
+          onLink: () => {
+            const { from, to } = menu;
+            setMenu(null);
+            E(rootPowers)
+              .copy(from, to)
+              .catch(err => console.error('[inventory] Link failed:', err));
+          },
+          onMove: () => {
+            const { from, to } = menu;
+            setMenu(null);
+            E(rootPowers)
+              .move(from, to)
+              .catch(err => console.error('[inventory] Move failed:', err));
+          },
+        })
+      : null,
+  );
+};
+harden(InventoryList);
+
+/**
+ * Mount the inventory tree into the `.pet-list` inside `$parent` (or `$parent`
+ * itself). A single `renderConfined(h(InventoryList, …))` owns the whole tree;
+ * recursion is a nested `<InventoryList>` inside an expanded item, not a
+ * recursive imperative call. Returns a Promise that resolves once mounted, so
+ * existing callers may keep doing `inventoryComponent(...).catch(fn)`.
+ *
+ * @param {HTMLElement} $parent
+ * @param {HTMLElement | null} _end - Reserved (was an imperative end marker).
+ * @param {ERef<EndoHost>} powers
+ * @param {InventoryOptions} options
+ * @param {string[]} [path] - Current path for nested inventories.
+ * @param {ERef<EndoHost>} [rootPowers] - Top-level powers for the whole tree,
+ *   against which drag-and-drop link/move operate. Defaults to `powers`.
+ * @param {string[]} [rootPrefix] - Absolute pet-name path from `rootPowers` to
+ *   this level.
+ * @returns {Promise<void>}
+ */
+export const inventoryComponent = async (
+  $parent,
+  _end,
+  powers,
+  options,
+  path = [],
+  rootPowers = powers,
+  rootPrefix = [],
+) => {
+  const $list = /** @type {HTMLElement} */ (
+    $parent.querySelector('.pet-list') || $parent
+  );
+
+  renderConfined(
+    h(InventoryList, { powers, options, path, rootPowers, rootPrefix }),
+    $list,
+  );
 };
 harden(inventoryComponent);

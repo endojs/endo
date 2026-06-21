@@ -9,9 +9,7 @@ import { E } from '@endo/far';
 // Substrate-agnostic data layer for the inventory bar: the formula-type
 // classification rules and the adapter that lets a static `ReadableTree`
 // snapshot drive the same component that normally consumes a live
-// `followNameChanges()` stream. Extracted from inventory-component.js
-// (Phase 1 of the Preact migration — see designs/preact-confinement-migration.md);
-// this survives the eventual Preact conversion unchanged.
+// `followNameChanges()` stream.
 
 /**
  * Formula types that can be selected as chat conversations.

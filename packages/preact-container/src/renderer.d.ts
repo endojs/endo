@@ -41,6 +41,27 @@ export interface SafeEventTarget {
 }
 
 /**
+ * A sanitized, string-only facade over a drag event's `DataTransfer`.
+ *
+ * The real `DataTransfer` is a powerful capability — `.files` yields real
+ * `File` objects and `.items[i].webkitGetAsEntry()` yields traversable
+ * `FileSystemEntry` objects, i.e. read access to whatever the user dropped,
+ * plus `setDragImage` as a real-DOM-node sink. None of that is exposed here:
+ * only the WHATWG drag-DATA operations are, so confined drag-and-drop works
+ * without ever handing component code a `File`, a `FileSystemEntry`, or a DOM
+ * node. The underlying `DataTransfer` is never reachable.
+ */
+export interface SafeDataTransfer {
+  getData(format: string): string;
+  setData(format: string, data: string): void;
+  clearData(format?: string): void;
+  /** A fresh, frozen array of MIME-type strings (never the live list). */
+  readonly types: readonly string[];
+  dropEffect: string;
+  effectAllowed: string;
+}
+
+/**
  * A sanitized facade over a DOM `Event`. Component code only ever receives
  * objects of this shape; the underlying DOM event is never reachable.
  */
@@ -86,11 +107,24 @@ export interface SafeEvent {
   readonly pointerId?: number;
   readonly pointerType?: string;
   readonly isPrimary?: boolean;
+  readonly width?: number;
+  readonly height?: number;
+  readonly pressure?: number;
+  readonly tangentialPressure?: number;
+  readonly tiltX?: number;
+  readonly tiltY?: number;
+  readonly twist?: number;
 
   readonly deltaX?: number;
   readonly deltaY?: number;
   readonly deltaZ?: number;
   readonly deltaMode?: number;
+
+  /**
+   * Present only on drag events (`dragstart`/`dragover`/`drop`/…). A
+   * string-only facade — never the real `DataTransfer`. See `SafeDataTransfer`.
+   */
+  readonly dataTransfer?: SafeDataTransfer;
 
   preventDefault(): void;
   stopPropagation(): void;

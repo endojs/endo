@@ -5,9 +5,8 @@ import harden from '@endo/harden';
 import { Fragment, h } from '../setup-preact-container.js';
 
 // Inventory item label: the pet name plus an optional formula-type badge.
-// Returns a Fragment so it mounts directly into a `display: contents` host and
-// the name + badge stay flex children of the row (identical DOM to the
-// original imperative markup). See designs/preact-confinement-migration.md.
+// Returns a Fragment so the name and badge render directly as flex children of
+// the item row.
 
 /**
  * @param {object} props

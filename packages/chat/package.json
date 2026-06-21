@@ -40,11 +40,11 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:e2e": "playwright test",
     "test:monaco-lockdown": "node test/monaco-lockdown/run.mjs",
-    "test:inventory-dnd": "node test/inventory-dnd/run.mjs",
     "test:xs": "exit 0",
     "setup-lal": "endo run --UNCONFINED setup-lal.js --powers @agent",
     "setup-llm-provider": "endo run --UNCONFINED setup-llm-provider.js --powers @agent",
-    "test:item-actions": "node test/inventory-item-actions/run.mjs"
+    "test:item-actions": "node test/inventory-item-actions/run.mjs",
+    "test:safe-datatransfer": "node test/safe-datatransfer/run.mjs"
   },
   "dependencies": {
     "@endo/captp": "workspace:^",

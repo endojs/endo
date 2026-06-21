@@ -132,6 +132,32 @@ prop bag with a null prototype), dangerous element types (replaced with
 `Fragment`), URL-scheme injection (`javascript:` etc. dropped), and
 inline event-handler strings.
 
+### `SafeEvent` — what a handler receives
+
+Every `on*` handler in a confined tree is invoked with a frozen `SafeEvent`,
+never the real DOM `Event`. It carries a fixed allowlist of **primitive**
+fields (event `type`, key/modifier/mouse/coordinate/pointer/wheel properties)
+plus the `preventDefault` / `stopPropagation` / `stopImmediatePropagation`
+methods. `target` and `currentTarget` are flat `SafeEventTarget` snapshots
+(`tagName`, `id`, `value`, …) — there is no path back to the live element, and
+no `relatedTarget`, `view`, `srcElement`, or `composedPath()`.
+
+#### Drag-and-drop: `SafeDataTransfer`
+
+A real `DataTransfer` is a **capability, not just string data** — `.files`
+yields real `File` objects and `.items[i].webkitGetAsEntry()` yields
+traversable `FileSystemEntry` objects (read access to whatever the user
+dropped), and `setDragImage` is a sink for real DOM nodes. So drag events
+(`dragstart` / `dragover` / `drop` / …) expose a frozen, string-only
+`SafeDataTransfer` facade instead: `getData` / `setData` / `clearData`, a
+frozen `types` array, and the `dropEffect` / `effectAllowed` enums — and
+nothing that can reach a `File`, a `FileSystemEntry`, the real `DataTransfer`,
+or a DOM node. (`clipboardData` is deliberately **not** mirrored.)
+
+This means drag-and-drop works under confinement through the ordinary
+sanitizing `renderConfined` path; there is no need to reach for
+`HostPassthrough` (which would hand over the raw event) to make it work.
+
 ### `unmount(parentDom)`
 
 Tear down the tree rooted at `parentDom`.

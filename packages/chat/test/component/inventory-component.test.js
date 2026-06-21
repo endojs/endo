@@ -10,6 +10,43 @@ import { makeMockPowers } from '../helpers/mock-powers.js';
 
 const { document: testDocument } = createDOM();
 
+// The drop menu defers its dismiss-on-outside-click listener with
+// requestAnimationFrame (so the interaction that opened it does not also close
+// it), matching channel-list.js's menu idiom. dom-setup stubs setTimeout but
+// not rAF; provide a setTimeout-backed shim, as a real browser would supply it.
+if (typeof globalThis.requestAnimationFrame !== 'function') {
+  globalThis.requestAnimationFrame = fn =>
+    globalThis.setTimeout(() => fn(0), 0);
+  globalThis.cancelAnimationFrame = id => globalThis.clearTimeout(id);
+}
+
+// happy-dom omits the reflected `on*` drag/drop IDL properties that real
+// browsers expose on HTMLElement. Preact (inside renderConfined) decides an
+// event handler's lowercase listener name with `('on' + Name).toLowerCase() in
+// dom`; when the property is absent it falls back to the prop's original
+// casing, registering a capitalized listener (`DragOver`, `Drop`, …) that a
+// lowercase `dispatchEvent('dragover')` never reaches. Real browsers have the
+// properties, so the production component's `onDragOver`/`onDrop` handlers fire
+// normally; defining them here makes the test DOM behave like a browser for the
+// pure-Preact drag-and-drop handlers under test. (Click already works because
+// happy-dom does expose `onclick`.)
+const $htmlElementProto = testDocument.defaultView.HTMLElement.prototype;
+for (const reflected of [
+  'ondragstart',
+  'ondragover',
+  'ondragleave',
+  'ondragend',
+  'ondrop',
+]) {
+  if (!(reflected in $htmlElementProto)) {
+    Object.defineProperty($htmlElementProto, reflected, {
+      value: null,
+      writable: true,
+      configurable: true,
+    });
+  }
+}
+
 /**
  * Set up an inventory container and import the component lazily. Returns the
  * mounted component plus the mock powers' call log so tests can assert on
@@ -49,7 +86,7 @@ const setupInventory = async (opts = {}) => {
   );
 
   // Let the followNameChanges + locate probes settle.
-  await tick(30);
+  await tick(80);
 
   return { $parent, $list, mock };
 };
@@ -82,13 +119,12 @@ test.serial('renders a type badge once the locate probe resolves', async t => {
     names: ['inbox'],
     locators: new Map([['inbox', 'endo://?type=directory&number=1']]),
   });
-  await tick(30);
+  await tick(80);
 
   const $badge = $list.querySelector('.pet-type-badge');
   t.truthy($badge, 'type badge rendered');
   t.is($badge.textContent, 'directory', 'badge shows the formula type');
-  // The badge is a sibling of the name in the row (display:contents host is
-  // invisible to layout).
+  // The badge renders as a sibling of the name directly in the row.
   const $row = $list.querySelector('.pet-item-row');
   t.truthy($row.querySelector('.pet-name'), 'name still present');
   t.truthy($row.querySelector('.pet-type-badge'), 'badge in the same row');
@@ -102,7 +138,7 @@ test.serial('disclosure is hidden for non-expandable types', async t => {
       ['note', 'endo://?type=readable-blob&number=2'],
     ]),
   });
-  await tick(30);
+  await tick(80);
 
   const disclosureFor = name => {
     const $wrapper = [
@@ -135,7 +171,7 @@ test.serial('hub-typed rows accept drop; leaf-typed rows do not', async t => {
 
   // locate() runs asynchronously after each item is added; give it a beat
   // beyond the initial render tick to settle.
-  await tick(30);
+  await tick(80);
 
   const $inboxRow = /** @type {HTMLElement} */ (
     $list.querySelector('.pet-item-wrapper:nth-child(1) .pet-item-row')
@@ -163,13 +199,18 @@ test.serial('hub-typed rows accept drop; leaf-typed rows do not', async t => {
     return e;
   };
 
+  // The drop-target highlight is now Preact state (a confined handler cannot
+  // touch the row node directly), so allow the re-render to settle before
+  // asserting on the rendered class.
   $inboxRow.dispatchEvent(makeDragoverEvent());
+  await tick(10);
   t.true(
     $inboxRow.classList.contains('drop-target'),
     'directory row accepts drop (highlighted)',
   );
 
   $noteRow.dispatchEvent(makeDragoverEvent());
+  await tick(10);
   t.false(
     $noteRow.classList.contains('drop-target'),
     'readable-blob row does not accept drop',
@@ -255,7 +296,7 @@ test.serial(
       names: ['inbox'],
       locators: new Map([['inbox', 'endo://?type=directory&number=1']]),
     });
-    await tick(30);
+    await tick(80);
 
     const $row = /** @type {HTMLElement} */ (
       $list.querySelector('.pet-item-row')
@@ -291,8 +332,10 @@ test.serial(
     });
 
     $row.dispatchEvent(dropEvent);
+    // The menu is now rendered from Preact state, so let the re-render settle.
+    await tick(10);
 
-    // The drop-menu opens (document level) and showDropMenu clears the
+    // The drop-menu opens (rendered in-tree) and the open path clears the
     // lingering ancestor classes as a side-effect.
     const $menu = testDocument.querySelector('.inventory-drop-menu');
     t.truthy($menu, 'drop menu appeared');
@@ -335,7 +378,7 @@ test.serial(
         ['dest', 'endo://?type=directory&number=2'],
       ]),
     });
-    await tick(30);
+    await tick(80);
 
     const $destRow = /** @type {HTMLElement} */ (
       $list.querySelector('.pet-item-wrapper:nth-child(2) .pet-item-row')
@@ -356,6 +399,8 @@ test.serial(
     Object.defineProperty(dropEvent, 'clientX', { value: 100 });
     Object.defineProperty(dropEvent, 'clientY', { value: 100 });
     $destRow.dispatchEvent(dropEvent);
+    // The menu renders from Preact state; let the re-render settle.
+    await tick(10);
 
     // Click "Link here".
     const $items = /** @type {NodeListOf<HTMLButtonElement>} */ (
@@ -388,7 +433,7 @@ test.serial(
         ['dest', 'endo://?type=directory&number=2'],
       ]),
     });
-    await tick(30);
+    await tick(80);
 
     const $destRow = /** @type {HTMLElement} */ (
       $list.querySelector('.pet-item-wrapper:nth-child(2) .pet-item-row')
@@ -406,6 +451,8 @@ test.serial(
     Object.defineProperty(dropEvent, 'clientX', { value: 100 });
     Object.defineProperty(dropEvent, 'clientY', { value: 100 });
     $destRow.dispatchEvent(dropEvent);
+    // The menu renders from Preact state; let the re-render settle.
+    await tick(10);
 
     const $items = /** @type {NodeListOf<HTMLButtonElement>} */ (
       testDocument.querySelectorAll('.inventory-drop-menu-item')
@@ -435,7 +482,7 @@ test.serial(
       names: ['inbox'],
       locators: new Map([['inbox', 'endo://?type=directory&number=1']]),
     });
-    await tick(30);
+    await tick(80);
 
     const $row = /** @type {HTMLElement} */ (
       $list.querySelector('.pet-item-row')

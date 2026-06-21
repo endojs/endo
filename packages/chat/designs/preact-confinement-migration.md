@@ -18,6 +18,31 @@ We are migrating it onto Preact, rendered through
 The single import surface for the confine/render helpers is
 [`setup-preact-container.js`](../setup-preact-container.js).
 
+## Status — what has landed
+
+- **Confined event security.** Drag events in a confined tree expose a
+  string-only `SafeDataTransfer` facade (never the real `DataTransfer` with its
+  `.files` / `webkitGetAsEntry` filesystem capability). Adversarially audited
+  and documented in
+  [`@endo/preact-container`](../../preact-container/README.md).
+- **The inventory pet-name tree is fully migrated.** `inventory.js` is one
+  confined Preact tree — `InventoryList` (container) + `InventoryItem`
+  (recursive node), composing `ItemDisclosure`, `ItemLabel`, `ItemActions`, and
+  `DropMenu`. Link/move drag-and-drop is Preact event handlers over
+  `SafeDataTransfer`. The imperative `inventory/dnd.js` factories and the
+  `test/inventory-dnd` browser probe are deleted; no `display: contents` mount
+  hosts remain.
+- **Channels left the inventory entirely** (see the revised section below). They
+  are now a standalone Preact component, [`channel-list.js`](../channel-list.js),
+  with their own CSS ([`channel.css`](../channel.css)); creation lives in the New
+  Space modal. This **supersedes** the original "channels are a `sidebar` of
+  hooks on `inventory.js`" plan recorded in earlier revisions of this document.
+
+What remains is the rest of the bottom-up plan: the Tier 1 leaf views, then the
+Tier 3 composites that compose them (see the tracker). The next recommended step
+is `profile-popup` (in the default channel view) and `icon-selector` (unblocks
+the space modals).
+
 ## Preconditions (done)
 
 - `@endo/preact-container` + `preact` are dependencies of `@endo/chat`.
@@ -49,27 +74,33 @@ seam where a confined guest component could be substituted).
   Every component imports from here, never from `preact` directly.
 - `components/` — reusable, app-wide Preact components. A piece moves here
   once a second caller wants it. See `components/README.md` for the format.
-- `inventory/` — the inventory feature: its specific Preact components
-  (`drop-menu.js`, `item-actions.js`, …), behavior factories (`dnd.js`,
-  `tree-source.js`), the migrating module (`inventory.js`; becomes
-  `InventoryList`), and `channel-sidebar.js` (see below).
+- `inventory/` — the inventory feature: its Preact components
+  (`inventory.js` = `InventoryList` + `InventoryItem`, plus `drop-menu.js`,
+  `item-disclosure.js`, `item-label.js`, `item-actions.js`) and the
+  `tree-source.js` data adapter. The channel list is **not** here — it is the
+  top-level [`channel-list.js`](../channel-list.js) (see below).
 
-### `inventory.js` is the pet-name tree; channels are a separate sidebar
+### `inventory.js` is the pet-name tree; channels are their own space
 
 `inventory.js` was overloaded: a `channelMode` flag switched it between the
 pet-name tree and the channels sidebar (New/Join forms, per-channel menu,
 bookmarks, reordering). Those channel concerns are **not** inventory and have
-been split into `inventory/channel-sidebar.js`: `inventory.js` is now a
-mode-agnostic tree renderer that takes an optional `sidebar` of hooks
-(`setupHeader`, `decorateItem`, `setupList`, `prepend`, `itemInitiallyHidden`),
-and `makeChannelSidebar` supplies them. `chat.js` builds the sidebar in channel
-mode.
+been removed from it **entirely**.
 
-So **"the whole inventory as Preact" scopes to the pet-name tree**
-(`ItemLabel`, `ItemActions` ✓, `DropMenu` ✓, `ItemDisclosure`, `PetItem`,
-`InventoryList`). The channel sidebar is still imperative; its own Preact
-migration is a separate, later effort (and would yield reusable pieces like a
-`PopupMenu` shared with `DropMenu`, plus the New/Join forms).
+An interim revision split them into an `inventory/channel-sidebar.js` that
+decorated the inventory's rows through a `sidebar` of hooks
+(`decorateItem`, `setupHeader`, …). That seam is now gone too: channels are a
+**standalone Preact component**, [`channel-list.js`](../channel-list.js), with
+their own markup and CSS ([`channel.css`](../channel.css)). It probes pet names
+itself, keeps only `type === 'channel'`, and renders them independently of the
+inventory (no `.pet-item-*` reuse). Channel creation is a New Space option in
+`add-space-modal.js` — a channel is a first-class space. `inventory.js` now
+knows nothing about channels.
+
+So **the pet-name tree migration is complete**: `ItemLabel`, `ItemActions`,
+`DropMenu`, `ItemDisclosure`, `InventoryItem` (the recursive node), and
+`InventoryList` (the container) are all Preact, rendered through one
+`renderConfined`.
 
 Feature-specific components live with their feature; only genuinely reusable
 ones go in `components/`. Both follow the one common component format
@@ -123,7 +154,7 @@ chat.js make()                      root orchestrator (plain DOM)
 │   ├─ add-space-modal*             → icon-selector, scheme-picker,
 │   │                                 petname-paths-autocomplete
 │   └─ edit-space-modal*            → icon-selector, scheme-picker
-├─ inventoryComponent               LEAF (graph) — heavy (~1267 lines)
+├─ inventoryComponent               pet-name tree — Preact ☑ (InventoryList)
 ├─ createChannelHeader
 │   └─ heat-simulation → heat-engine   (heat-engine = logic, not a view)
 ├─ channelComponent                 main message list — the default body
@@ -231,10 +262,16 @@ Status: ☐ not started · ◐ in progress · ☑ done
 | Component | Lines | Status | Notes |
 | --- | --- | --- | --- |
 | debugger-panel | 688 | ☐ | On-demand panel |
-| inventory-component | 1267 | ☐ | Monolith — factor first (see below) |
+| inventory-component | 1267 | ☑ | Done — `InventoryList` + `InventoryItem`; see below |
 | token-autocomplete | — | ☐ | Keyboard-stateful |
 | petname-path-autocomplete | — | ☐ | Keyboard-stateful |
 | petname-paths-autocomplete | — | ☐ | Keyboard-stateful |
+
+### Channel list (left the inventory)
+
+| Component | Status | Notes |
+| --- | --- | --- |
+| channel-list | ☑ | Done — standalone Preact component (`channel-list.js`), own CSS (`channel.css`); reorder over `SafeDataTransfer`. Creation moved to the New Space modal. |
 
 ### Tier 3 — composites (after their children)
 
@@ -242,15 +279,35 @@ Status: ☐ not started · ◐ in progress · ☑ done
 `spaces-gutter`, `channel-header`, and the forms/modals migrate once their
 leaf dependencies are converted.
 
-## Recommended first migration
+## Recommended next migration
 
-`profile-popup`: in the default `channelComponent` subtree, pure DOM,
-~153 lines, no powers, no child components, with a tidy imperative
-`show`/`hide` API and a single event handler (`onAssignName`).
-It exercises the full path — mount, props, event handler, teardown — on a
+The inventory pet-name tree and the channel list have landed (see Status). The
+next bottom-up step is the Tier 1 leaves; the two highest-value, lowest-risk
+ones:
+
+- `profile-popup`: in the default `channelComponent` subtree, pure DOM,
+  ~153 lines, no powers, no child components, with a tidy imperative
+  `show`/`hide` API and a single event handler (`onAssignName`). Converting it
+  also unblocks the `channel-component` composite later.
+- `icon-selector`: the smallest leaf (~81 lines), pure
+  `renderIconSelector`, shared by the add/edit-space modals — unblocks that
+  modal family.
+
+Either exercises the full path — mount, props, event handler, teardown — on a
 low-risk surface.
 
 ## Inventory bar (`inventory-component.js`) decomposition
+
+> **Historical record.** This section captured the decomposition plan for the
+> then-1267-line `inventoryComponent` monolith. The migration has since landed
+> (see Status); the actual result and final step statuses are in "Migration
+> order for the inventory bar" below. The plan named the recursive node
+> `PetItem` (shipped as `InventoryItem`) and proposed `make*` drag-and-drop
+> factories in `inventory/dnd.js` as a refactor step; the final `InventoryList`
+> instead reimplemented drag-and-drop as Preact handlers over `SafeDataTransfer`,
+> so `dnd.js` was removed. The channel pieces were lifted out of the inventory
+> entirely (`channel-list.js`), not migrated as a sidebar. Line numbers are
+> anchors from the original monolith, not current contracts.
 
 The inventory bar is recorded above as a single graph leaf, but
 `inventoryComponent` is a ~1267-line monolith that conflates a list
@@ -357,30 +414,32 @@ Steps 1 are Phase-1 refactors (no Preact); steps 2–5 convert markup in place.
    2. `makeItemDragDrop` (row drag source + drop target + `acceptsDrop`). ☑ done
    3. `makeChannelReorder` (list reorder + drop indicator). ☑ done
 
-   Both dnd factories are behavior-tested in a real browser by
-   `test/inventory-dnd` (`yarn test:inventory-dnd`).
+   These dnd factories were behavior-tested in a real browser by
+   `test/inventory-dnd` at the time. They have since been **removed**: when
+   `InventoryList` was converted (step 5) the drag-and-drop was reimplemented as
+   Preact event handlers over `SafeDataTransfer`, so `inventory/dnd.js` and the
+   `test/inventory-dnd` probe were deleted.
 2. Migrate the leaf views to `h()` components rendered through
    `renderConfined`:
    - `DropMenu` (inventory/drop-menu.js). ☑ done — the first Preact `h()`
-     component; rendered by inventory/dnd.js's `showDropMenu`, covered by
-     `test/inventory-dnd` under severe lockdown.
+     component. It is now rendered in-tree by `InventoryList`.
    - `ItemActions` (inventory/item-actions.js). ☑ done — info/cancel/remove
-     buttons; owns the cancel two-click confirm state via hooks; mounts into a
-     `display: contents` sub-host so the imperative channel menu button stays a
-     `.pet-buttons` flex sibling. Covered by `test/inventory-item-actions`
-     (`yarn test:item-actions`) under severe lockdown. The `setup-preact-container.js`
-     barrel now also re-exports the Preact hooks for host components.
-   - `ItemLabel` (inventory/item-label.js). ☑ done — pet name + type badge,
-     mounted into a `display: contents` host; all label mutations
-     (conversation, immutable, channel) route through `setLabel`, which
-     re-renders.
+     buttons; owns the cancel two-click confirm state via hooks. Covered by
+     `test/inventory-item-actions` (`yarn test:item-actions`) under severe
+     lockdown. The `setup-preact-container.js` barrel also re-exports the Preact
+     hooks for host components. (It originally mounted into a `display: contents`
+     sub-host; that host is gone now that the whole row is one Preact tree.)
+   - `ItemLabel` (inventory/item-label.js). ☑ done — pet name + type badge.
 3. Migrate `ItemDisclosure` (inventory/item-disclosure.js). ☑ done — the
    triangle view; the expand/collapse behavior (async lookup + recursive
-   mount) stays host-side and drives it through `setDisclosure`.
-4. Compose `PetItem`. ☐
-5. Convert `InventoryList` last, once its children are Preact. ☐
+   mount) lives in `InventoryItem`.
+4. Compose `InventoryItem` (the recursive node, was "PetItem"). ☑ done.
+5. Convert `InventoryList`. ☑ done — one `renderConfined` owns the whole tree;
+   link/move drag-and-drop is Preact handlers over `SafeDataTransfer`.
 
-The channel-sidebar pieces (`NewChannelForm` / `JoinChannelForm`, `BookmarkItem`
-/ `BookmarkList`, `ChannelItemMenu`, channel reorder) are **out of scope** for
-the inventory migration — they were split into `inventory/channel-sidebar.js`
-(still imperative) and migrate separately later.
+The channel pieces (`NewChannelForm` / `JoinChannelForm`, `BookmarkItem` /
+`BookmarkList`, `ChannelItemMenu`, channel reorder) were **out of scope** for the
+inventory migration. Rather than a later `channel-sidebar.js` migration, channels
+were lifted out of the inventory entirely into the standalone
+[`channel-list.js`](../channel-list.js) Preact component, and the New/Join forms
+moved to the New Space modal. See the Status section.

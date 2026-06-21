@@ -503,6 +503,15 @@ const POINTER_PROPS = [
 ];
 const WHEEL_PROPS = ['deltaX', 'deltaY', 'deltaZ', 'deltaMode'];
 
+// Copy a fixed allowlist of properties from a real event onto the SafeEvent.
+// SECURITY: this copies values WITHOUT type-checking them, so every name in
+// the `*_PROPS` arrays below MUST be a property whose value is spec-guaranteed
+// to be a primitive (string/number/boolean). NEVER add a property whose value
+// can be an object, function, or DOM node — e.g. `relatedTarget`, `view`,
+// `target`, `dataTransfer`, `touches`/`targetTouches`, `sourceCapabilities` —
+// it would leak a live capability straight to confined code. Object-valued
+// event data is exposed (if at all) only through a dedicated sanitizing facade
+// (see `safeTargetSnapshot`, `makeSafeDataTransfer`), never through here.
 function copyKnown(src, names, dest) {
   for (let i = 0; i < names.length; i++) {
     const k = names[i];
@@ -536,6 +545,53 @@ function safeTargetSnapshot(node) {
   return deepFreeze(snapshot);
 }
 
+// A real `DataTransfer` is a powerful capability, NOT just string data:
+//   - `dataTransfer.files` yields real `File` objects
+//   - `dataTransfer.items[i].webkitGetAsEntry()` yields `FileSystemEntry`
+//     objects that can be traversed and read
+// i.e. read access to whatever the user dropped from their filesystem, plus
+// (via `setDragImage`) a sink for real DOM nodes. A confined component must
+// NEVER receive that object. Instead, drag events carry this narrow,
+// string-only facade exposing exactly the WHATWG drag-data operations — and
+// nothing that can reach a `File`, a `FileSystemEntry`, or a real DOM node.
+// The real `DataTransfer` is held only in closure scope, so `deepFreeze`
+// (harden) does not reach it and the live setters keep working.
+function makeSafeDataTransfer(dt) {
+  const facade = {
+    getData(format) {
+      return dt.getData(String(format));
+    },
+    setData(format, data) {
+      dt.setData(String(format), String(data));
+    },
+    clearData(format) {
+      if (format === undefined) dt.clearData();
+      else dt.clearData(String(format));
+    },
+    // Frozen snapshot of MIME-type strings, never the live `DOMStringList`.
+    get types() {
+      const out = [];
+      const t = dt.types;
+      if (t) for (let i = 0; i < t.length; i++) out.push(String(t[i]));
+      return deepFreeze(out);
+    },
+    get dropEffect() {
+      return dt.dropEffect;
+    },
+    // Invalid enum values are silently ignored by the platform, per spec.
+    set dropEffect(v) {
+      dt.dropEffect = String(v);
+    },
+    get effectAllowed() {
+      return dt.effectAllowed;
+    },
+    set effectAllowed(v) {
+      dt.effectAllowed = String(v);
+    },
+  };
+  return deepFreeze(facade);
+}
+
 function makeSafeEvent(e) {
   const safe = {
     type: e.type,
@@ -562,6 +618,13 @@ function makeSafeEvent(e) {
   copyKnown(e, COORD_PROPS, safe);
   copyKnown(e, POINTER_PROPS, safe);
   copyKnown(e, WHEEL_PROPS, safe);
+
+  // Drag events: expose only the string-only drag-data facade, never the
+  // real `DataTransfer` (which would leak `File`/`FileSystemEntry` capabilities
+  // — see makeSafeDataTransfer). `clipboardData` is deliberately NOT mirrored.
+  if (e.dataTransfer) {
+    safe.dataTransfer = makeSafeDataTransfer(e.dataTransfer);
+  }
 
   // `defaultPrevented` is live — handlers further along the bubble chain
   // will see the up-to-date value after a preventDefault() call.

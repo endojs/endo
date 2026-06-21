@@ -12,7 +12,7 @@ import { outlinerComponent } from './outliner-component.js';
 import { createChannelHeader } from './channel-header.js';
 import { inboxComponent } from './inbox-component.js';
 import { inventoryComponent } from './inventory/inventory.js';
-import { makeChannelSidebar } from './inventory/channel-sidebar.js';
+import { channelListComponent } from './channel-list.js';
 import { chatBarComponent } from './chat-bar-component.js';
 import { valueComponent } from './value-component.js';
 import { createSpacesGutter } from './spaces-gutter.js';
@@ -794,6 +794,11 @@ const bodyComponent = (
        * rebuilding the entire page.
        * @param {string} channelPetName
        */
+      // Handle to the standalone channel list (set when it mounts, below), used
+      // to update the active highlight when the user switches channels.
+      /** @type {{ setActiveChannel: (name: string | null) => void } | null} */
+      let channelListAPI = null;
+
       const switchChannel = channelPetName => {
         if (!activeSpaceInfo || activeSpaceInfo.mode !== 'channel') {
           return;
@@ -1055,10 +1060,9 @@ const bodyComponent = (
             window.reportError(err);
           });
 
-        // Update active highlight in inventory
-        const $activeItems = $pets.querySelectorAll('.active-channel');
-        for (const $item of $activeItems) {
-          $item.classList.remove('active-channel');
+        // Update the channel list's active highlight live.
+        if (channelListAPI) {
+          channelListAPI.setActiveChannel(channelPetName);
         }
       };
 
@@ -1084,11 +1088,16 @@ const bodyComponent = (
         });
       }
 
-      // In channel mode, the channels sidebar supplies the alternate rendering
-      // (header New/Join, per-channel decoration, bookmarks, reordering).
-      const channelSidebar = isChannelMode
-        ? makeChannelSidebar({
-            powers: /** @type {ERef<EndoHost>} */ (resolvedPowers),
+      if (isChannelMode) {
+        // Channels render as their own standalone component (channel-list.js),
+        // entirely separate from the inventory. Channel creation lives in the
+        // New Space modal. Retitle the panel to "Channels".
+        const $title = $pets.querySelector('.inventory-title');
+        if ($title) $title.textContent = 'Channels';
+        channelListAPI = channelListComponent(
+          $petList,
+          /** @type {ERef<EndoHost>} */ (resolvedPowers),
+          {
             onSelectChannel: switchChannel,
             activeChannelPetName: activeSpaceInfo.channelPetName || null,
             channelOrder: activeSpaceInfo.channelOrder,
@@ -1149,26 +1158,24 @@ const bodyComponent = (
               // Re-render with new view mode
               switchChannel(activeSpaceInfo.channelPetName || '');
             },
-          })
-        : undefined;
-
-      inventoryComponent(
-        $pets,
-        $profileBar,
-        /** @type {ERef<EndoHost>} */ (resolvedPowers),
-        {
-          showValue,
-          onSelectConversation: isChannelMode
-            ? undefined
-            : (petName, formulaId) => {
-                onConversationChange({ petName, id: formulaId });
-              },
-          activeConversationPetName: activeConversation
-            ? activeConversation.petName
-            : null,
-          sidebar: channelSidebar,
-        },
-      ).catch(window.reportError);
+          },
+        );
+      } else {
+        inventoryComponent(
+          $pets,
+          $profileBar,
+          /** @type {ERef<EndoHost>} */ (resolvedPowers),
+          {
+            showValue,
+            onSelectConversation: (petName, formulaId) => {
+              onConversationChange({ petName, id: formulaId });
+            },
+            activeConversationPetName: activeConversation
+              ? activeConversation.petName
+              : null,
+          },
+        ).catch(window.reportError);
+      }
 
       // Add collapsible inbox section to sidebar when in channel mode
       if (isChannelMode) {

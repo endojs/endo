@@ -10,11 +10,9 @@ import {
   useState,
 } from '../setup-preact-container.js';
 
-// Inventory item action buttons (info / cancel / remove), converted in place
-// to a Preact `h()` component (no JSX). Returns a Fragment of the three
-// buttons so it mounts directly into the host's `.pet-buttons` span — the DOM
-// is identical to the original imperative markup. See
-// designs/preact-confinement-migration.md.
+// Inventory item action buttons (info / cancel / remove). A Preact `h()`
+// component (no JSX) returning a Fragment of the three buttons, rendered inside
+// the row's `.pet-buttons` span.
 
 /**
  * @typedef {'idle' | 'confirming' | 'cancelling' | 'cancelled'} CancelPhase

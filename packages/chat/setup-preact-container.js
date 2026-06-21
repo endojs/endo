@@ -1,31 +1,40 @@
 // @ts-check
 
-// Chat's local entry point for `@endo/preact-container` — a single import
-// surface for the confine/render helpers.
+// Chat's local entry point for `@endo/preact-container` — the single,
+// controlled rendering surface for the whole app.
 //
-// `@endo/preact-container` mounts *untrusted* Preact component code (e.g. a
-// guest-supplied widget the host evaluated in a SES `Compartment`) inside an
-// ordinary Preact tree without handing it the live DOM. It has a hard
-// precondition: the realm must be locked down with `overrideTaming: 'severe'`
-// before any untrusted component source is evaluated. Two reasons (see the
-// package README for detail):
+// ┌─────────────────────────────────────────────────────────────────────────┐
+// │ SECURITY BARRIER — read before adding a render function here.            │
+// │                                                                          │
+// │ ALL rendering in the chat app goes through `renderConfined`, the         │
+// │ SANITIZING renderer. It treats its vnode tree as potentially untrusted:  │
+// │ refs are stripped, dangerous tags/attrs removed, and event handlers      │
+// │ receive a frozen `SafeEvent` facade (no real DOM nodes, no real          │
+// │ `DataTransfer`). `confineComponent` guests nested anywhere inside stay   │
+// │ sanitized by identity. This is the ONLY renderer this module exposes.    │
+// │                                                                          │
+// │ Do NOT re-export, wrap, or reach for:                                    │
+// │   • Preact's own `render` — it has no SecureBoundary, so a confined      │
+// │     component spliced inside it would NOT be sanitized (a silent hole),  │
+// │     and `confineComponent` itself throws without the boundary.           │
+// │   • `HostPassthrough` / any "trusted exit" wrapper — it hands host       │
+// │     components the RAW DOM event, including the real `DataTransfer`       │
+// │     whose `.files` / `.items[i].webkitGetAsEntry()` are a filesystem-    │
+// │     read capability. Even though confined guests below it re-enter       │
+// │     sanitization, surfacing a passthrough in app code is a confinement   │
+// │     footgun: it is too easy to feed it untrusted vnodes by mistake.      │
+// │                                                                          │
+// │ Drag-and-drop works under confinement WITHOUT any passthrough: the       │
+// │ sanitizing path gives drag handlers a narrow, string-only                │
+// │ `SafeDataTransfer` (getData/setData/types/dropEffect/effectAllowed),     │
+// │ which is all the app's DnD needs — and never a `File` or DOM node.       │
+// └─────────────────────────────────────────────────────────────────────────┘
 //
-//   1. Containment integrity. Without `lockdown()`, every endowment handed to
-//      confined code reaches the host realm's `Function` via `.constructor`
-//      (`endowments.h.constructor('return globalThis')()`). `lockdown()` tames
-//      the `Function` constructor and that escape ceases to exist.
-//
-//   2. `overrideTaming: 'severe'` is *required for Preact to run at all*.
-//      Preact instantiates function components by assigning
-//      `component.constructor = type`, which hits the SES "override mistake"
-//      under 'min'/'moderate' taming. `'severe'` enables `'%ObjectPrototype%':
-//      '*'`, making `constructor` overridable so the assignment succeeds.
-//
-// This module does NOT call `lockdown()` itself: the chat entry (main.js, via
-// pre-lockdown.js + `@endo/init`) locks the realm down with severe taming at
-// startup, and `lockdown()` may only be called once. A different host
-// embedding these helpers is responsible for establishing the same taming
-// before importing this module.
+// `@endo/preact-container` requires the realm to be locked down with
+// `overrideTaming: 'severe'` before any untrusted component source is
+// evaluated. This module does NOT call `lockdown()` itself: the chat entry
+// (main.js, via pre-lockdown.js + `@endo/init`) does so at startup, and
+// `lockdown()` may only be called once.
 
 export {
   confineComponent,
@@ -35,7 +44,6 @@ export {
 export {
   renderConfined,
   unmount,
-  HostPassthrough,
   h,
   Fragment,
   createElement,

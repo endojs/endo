@@ -4,9 +4,8 @@ import harden from '@endo/harden';
 
 import { h } from '../setup-preact-container.js';
 
-// First inventory leaf view converted to a Preact `h()` component (no JSX),
-// rendered through `renderConfined` by inventory-dnd.js. See
-// designs/preact-confinement-migration.md.
+// The inventory link/move context menu: a Preact `h()` component (no JSX)
+// rendered in-tree by the inventory (inventory.js) at a drop location.
 
 /**
  * The link/move context menu shown at a drop location. The host owns the

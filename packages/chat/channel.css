@@ -1,0 +1,204 @@
+/*
+ * Channel styles — the standalone channel list (channel-list.js), independent
+ * of the inventory. Channels are their own space; channel-list.js renders them
+ * as its own Preact component using these `.channel-list-*` / `.channel-bookmark*`
+ * classes (NOT the inventory’s `.pet-item-*`). Loaded by index.html after
+ * index.css.
+ */
+
+.channel-list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.channel-list-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: grab;
+  transition: background var(--transition-fast);
+}
+
+.channel-list-row:hover {
+  background: var(--bg-hover);
+}
+
+.channel-list-row:active {
+  cursor: grabbing;
+}
+
+.channel-list-row.dragging {
+  opacity: 0.3;
+}
+
+.channel-list-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.channel-list-name:hover {
+  background: var(--bg-active);
+}
+
+.channel-list-row.active {
+  background: var(--accent-light);
+}
+
+.channel-list-row.active .channel-list-name {
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+/* Drop indicator shown in the gap above the row being dragged onto. */
+.channel-list-drop-indicator {
+  position: relative;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  margin: -1px 4px;
+  background: var(--accent-primary);
+  pointer-events: none;
+  z-index: 10;
+  border-radius: 1px;
+}
+
+.channel-list-drop-indicator::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+}
+
+/* Per-channel view-mode menu (⋮). */
+.channel-list-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.channel-list-menu-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1em;
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.channel-list-row:hover .channel-list-menu-btn {
+  opacity: 0.6;
+}
+
+.channel-list-menu-btn:hover {
+  opacity: 1;
+}
+
+.channel-list-menu {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  margin-left: 4px;
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-primary, #444);
+  border-radius: var(--radius-md, 6px);
+  padding: 4px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 100px;
+}
+
+.channel-list-menu-item {
+  display: block;
+  width: 100%;
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.85em;
+}
+
+.channel-list-menu-item:hover {
+  background: var(--bg-tertiary, rgba(128, 128, 128, 0.15));
+}
+
+.channel-list-menu-item.active {
+  font-weight: 600;
+  color: var(--accent-primary, #4a9eff);
+}
+
+/* Bookmarked threads nested under a channel row. */
+.channel-bookmark-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.channel-bookmark {
+  position: relative;
+  padding: 2px 8px 2px 24px;
+  font-size: 0.85em;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+}
+
+.channel-bookmark:hover {
+  opacity: 1;
+  background: var(--bg-tertiary, rgba(128, 128, 128, 0.1));
+}
+
+.channel-bookmark-label {
+  pointer-events: none;
+}
+
+.channel-bookmark-menu {
+  position: fixed;
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-primary, #444);
+  border-radius: var(--radius-md, 6px);
+  padding: 4px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.channel-bookmark-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.85em;
+}
+
+.channel-bookmark-menu-item:hover {
+  background: var(--bg-tertiary, rgba(128, 128, 128, 0.15));
+}

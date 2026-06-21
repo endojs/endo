@@ -488,4 +488,49 @@ describe('preact/secure: common event handlers', () => {
     expect(inputCalls).to.deep.equal(['h', 'hi']);
     expect(changeCalls).to.deep.equal(['hi']);
   });
+
+  it('drag events expose a string-only SafeDataTransfer, never the real one', () => {
+    let sdt;
+    let readBack;
+    function DropZone() {
+      return h('div', {
+        onDragOver: e => {
+          e.dataTransfer.dropEffect = 'copy';
+          sdt = e.dataTransfer;
+          readBack = e.dataTransfer.getData('text/plain');
+        },
+      });
+    }
+    renderConfined(h(DropZone, null), scratch);
+    const dt = new DataTransfer();
+    dt.setData('text/plain', 'hello');
+    dt.setData('application/x-endo-petname', '["a","b"]');
+    scratch.querySelector('div').dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: dt,
+      }),
+    );
+
+    // String operations the app relies on work.
+    expect(readBack).to.equal('hello');
+    expect(Array.isArray(sdt.types)).to.equal(true);
+    expect(sdt.types.includes('application/x-endo-petname')).to.equal(true);
+    sdt.setData('text/x-test', 'v');
+    expect(dt.getData('text/x-test')).to.equal('v');
+
+    // Capabilities that must never leak to a confined handler:
+    // `.files` / `.items[].webkitGetAsEntry()` are filesystem-read, and
+    // `setDragImage` is a real-DOM-node sink.
+    expect(sdt.files).to.equal(undefined);
+    expect(sdt.items).to.equal(undefined);
+    expect(sdt.webkitGetAsEntry).to.equal(undefined);
+    expect(sdt.setDragImage).to.equal(undefined);
+
+    // It is a frozen facade, not the live DataTransfer.
+    expect(sdt instanceof DataTransfer).to.equal(false);
+    expect(sdt).to.not.equal(dt);
+    expect(Object.isFrozen(sdt)).to.equal(true);
+  });
 });
