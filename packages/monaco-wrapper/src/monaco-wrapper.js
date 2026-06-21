@@ -26,8 +26,15 @@ const loadMonaco = async () => {
     getWorker: () => null,
   };
 
-  // Disable diagnostics to avoid worker issues
-  monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+  // Disable diagnostics to avoid worker issues.
+  // monaco-editor 0.55's published types tombstone `languages.typescript`
+  // as `{ deprecated: true }`, but the full runtime package still exposes
+  // the namespace. Cast at the boundary to the one member we use.
+  const { javascriptDefaults } =
+    /** @type {{ javascriptDefaults: { setDiagnosticsOptions: (options: object) => void } }} */ (
+      /** @type {unknown} */ (monaco.languages.typescript)
+    );
+  javascriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: true,
     noSyntaxValidation: true,
   });

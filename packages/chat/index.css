@@ -632,7 +632,7 @@ body.resizing * {
   right: 0;
   bottom: 60px;
   padding: 20px 24px;
-  padding-top: calc(100vh - 160px);
+  padding-top: calc(100dvh - 160px);
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--bg-primary);
@@ -900,7 +900,7 @@ body.resizing * {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 800px;
-  max-height: 90vh;
+  max-height: 90dvh;
   z-index: 1000;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
@@ -939,7 +939,7 @@ body.resizing * {
 .eval-form {
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: 90dvh;
 }
 
 .eval-header {
@@ -1211,7 +1211,7 @@ body.resizing * {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 80ex;
-  height: 90vh;
+  height: 90dvh;
   z-index: 1000;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
@@ -2809,7 +2809,7 @@ button.btn-spinner::after {
   padding: 24px;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  max-height: calc(100vh - 80px);
+  max-height: calc(100dvh - 80px);
   max-width: calc(100vw - 80px);
   min-width: 400px;
   overflow: auto;
@@ -2892,7 +2892,7 @@ button.btn-spinner::after {
 
 /* Blob content visualization in Show Value modal */
 .value-blob-content {
-  max-height: 60vh;
+  max-height: 60dvh;
   overflow: auto;
 }
 
@@ -3077,7 +3077,7 @@ button.btn-spinner::after {
   box-shadow: var(--shadow-lg);
   max-width: 700px;
   width: 90%;
-  max-height: 85vh;
+  max-height: 85dvh;
   display: flex;
   flex-direction: column;
 }
@@ -3918,7 +3918,7 @@ button.btn-spinner::after {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 520px;
-  max-height: 90vh;
+  max-height: 90dvh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -3929,7 +3929,7 @@ button.btn-spinner::after {
 .form-builder {
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: 90dvh;
 }
 
 .form-builder-header {
@@ -4148,7 +4148,7 @@ button.btn-spinner::after {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 560px;
-  max-height: 90vh;
+  max-height: 90dvh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -4159,7 +4159,7 @@ button.btn-spinner::after {
 .endow-modal {
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: 90dvh;
 }
 
 .endow-modal-header {
@@ -4515,7 +4515,7 @@ button.btn-spinner::after {
   position: relative;
   width: 90%;
   max-width: 420px;
-  max-height: 80vh;
+  max-height: 80dvh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -4869,7 +4869,7 @@ button.btn-spinner::after {
   position: relative;
   width: 90%;
   max-width: 480px;
-  max-height: 90vh;
+  max-height: 90dvh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -8678,7 +8678,7 @@ button.btn-spinner::after {
   transform: translate(-50%, -50%);
   width: 95%;
   max-width: 1100px;
-  height: 85vh;
+  height: 85dvh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);

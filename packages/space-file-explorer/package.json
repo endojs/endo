@@ -37,7 +37,9 @@
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/monaco-wrapper": "workspace:^",
-    "@endo/platform": "workspace:^"
+    "@endo/platform": "workspace:^",
+    "@endo/preact-container": "workspace:^",
+    "preact": "^10.29.2"
   },
   "devDependencies": {
     "@endo/init": "workspace:^",
@@ -45,7 +47,8 @@
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
-    "eslint": "catalog:dev"
+    "eslint": "catalog:dev",
+    "happy-dom": "^15.0.0"
   },
   "eslintConfig": {
     "extends": [

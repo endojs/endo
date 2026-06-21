@@ -2,116 +2,313 @@
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
+/** @import { VNode } from 'preact' */
 
+import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { passStyleOf } from '@endo/pass-style';
-import { colorize } from '@endo/monaco-wrapper';
-import { render, inferType, toClipboardText } from './value-render.js';
+
+import {
+  h,
+  renderConfined,
+  unmount,
+  useState,
+} from './setup-preact-container.js';
+
+import { inferType, toClipboardText } from './value-render.js';
+import { valueToVnodes } from './value-vnodes.js';
+import { MarkdownFragment } from './markdown-vnodes.js';
 import { inferLanguage } from './language-detect.js';
-import { isMarkdown, renderMarkdownToHtml } from './markdown-preview.js';
+import { isMarkdown } from './markdown-preview.js';
+
+// Standalone value viewer, migrated from imperative DOM (composing the
+// string/DOM `value-render` via `.innerHTML`) to a confined Preact component
+// rendered through a single `renderConfined`.
+//
+// THE HOST-NODE BOUNDARY. The value modal chrome (`#value-frame`, `#value-title`,
+// `#value-type`, `#value-close`, `#value-enter-profile`, `#value-actions-container`)
+// is host DOM owned by chat.js's template. `renderConfined` strips refs and real
+// nodes, so those host nodes never enter the confined tree. Instead the confined
+// Preact tree owns ONLY the value-content surface (`#value-value`): the rendered
+// passable value plus, for blob-like remotables, the inline blob preview. It is
+// rendered into a DEDICATED `$mount` child appended inside `#value-value`, so the
+// host chrome is untouched.
+//
+// The title chips, the type `<select>`, the enter-profile button visibility, the
+// close/frame/escape handlers, and the context-aware actions (rename / adopt /
+// save / copy) stay imperative against their host nodes — they were never part of
+// `value-render`'s `.innerHTML` sink, so they are not a view-migration target
+// here. Only the value rendering itself moves to vnodes (`valueToVnodes`), and
+// the blob preview moves from `renderMarkdownToHtml`/`colorize` + `.innerHTML` to
+// `MarkdownFragment` vnodes + a plain line-numbered `<pre>` (Monaco colorize of
+// the source is the same deferred limitation the inbox / blob-viewer document).
+//
+// Entry signature and the returned `{ focusValue, blurValue }` API are unchanged,
+// so chat.js (the caller at chat.js:1755) needs no changes.
 
 /**
- * @param {HTMLElement} $container
  * @param {string} label
  * @param {string} defaultValue
  * @param {string} buttonText
  * @param {(name: string) => Promise<void>} handler
  */
-const buildNameAction = (
-  $container,
-  label,
-  defaultValue,
-  buttonText,
-  handler,
-) => {
-  const $form = document.createElement('div');
-  $form.className = 'value-name-form';
+const NameAction = (label, defaultValue, buttonText, handler) => {
+  const [value, setValue] = useState(defaultValue);
+  const [error, setError] = useState(false);
 
-  const $label = document.createElement('label');
-  $label.textContent = label;
-  $form.appendChild($label);
-
-  const $input = document.createElement('input');
-  $input.type = 'text';
-  $input.className = 'value-name-input';
-  $input.placeholder = 'pet/name/path';
-  $input.value = defaultValue;
-  $form.appendChild($input);
-
-  const $button = document.createElement('button');
-  $button.textContent = buttonText;
-  $form.appendChild($button);
-
-  const submit = async () => {
-    const name = $input.value.trim();
+  const submit = () => {
+    const name = value.trim();
     if (!name) return;
-    try {
-      await handler(name);
-    } catch (error) {
-      $input.style.borderColor = '#e53e3e';
-      setTimeout(() => {
-        $input.style.borderColor = '';
-      }, 2000);
-      console.error(`Failed to ${buttonText.toLowerCase()} value:`, error);
-    }
+    Promise.resolve(handler(name)).catch(err => {
+      setError(true);
+      setTimeout(() => setError(false), 2000);
+      console.error(`Failed to ${buttonText.toLowerCase()} value:`, err);
+    });
   };
 
-  $button.addEventListener('click', submit);
-  $input.addEventListener('keydown', event => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      submit();
-    }
-  });
-
-  $container.appendChild($form);
-  return $input;
+  return h(
+    'div',
+    { class: 'value-name-form' },
+    h('label', null, label),
+    h('input', {
+      type: 'text',
+      class: 'value-name-input',
+      placeholder: 'pet/name/path',
+      value,
+      // The confined renderer strips `ref`, so focus is requested declaratively
+      // via the `autofocus` attribute; the controller queries the mounted host
+      // node post-render to also `.select()` (matching the original behavior).
+      autofocus: true,
+      style: error ? 'border-color: #e53e3e' : undefined,
+      /** @param {{ target: { value: string } }} event */
+      onInput: event => setValue(event.target.value),
+      /** @param {{ key: string, shiftKey: boolean, preventDefault: () => void }} event */
+      onKeyDown: event => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          submit();
+        }
+      },
+    }),
+    h('button', { onClick: submit }, buttonText),
+  );
 };
+harden(NameAction);
 
 /**
- * @param {HTMLElement} $container
- * @param {unknown} value
- */
-const buildCopyButton = ($container, value) => {
-  const text = toClipboardText(value);
-  if (text === undefined) return;
-
-  const $button = document.createElement('button');
-  $button.className = 'value-copy-button';
-  $button.textContent = 'Copy';
-
-  $button.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      $button.textContent = 'Copied!';
-      $button.classList.add('value-copy-feedback');
-      setTimeout(() => {
-        $button.textContent = 'Copy';
-        $button.classList.remove('value-copy-feedback');
-      }, 1500);
-    } catch (error) {
-      console.error('Failed to copy:', error);
-    }
-  });
-
-  $container.appendChild($button);
-};
-
-/**
- * Derive a filename from a pet name path for language inference.
- * Uses the last segment of the path.
+ * A "Copy" button that copies the value's clipboard text and shows transient
+ * feedback. Renders nothing for non-copyable values.
  *
- * @param {string[] | undefined} petNamePath
- * @returns {string | undefined}
+ * @param {object} props
+ * @param {unknown} props.value
  */
-const filenameFromPath = petNamePath => {
-  if (!petNamePath || petNamePath.length === 0) return undefined;
-  return petNamePath[petNamePath.length - 1];
+const CopyButton = ({ value }) => {
+  const text = toClipboardText(value);
+  const [copied, setCopied] = useState(false);
+  if (text === undefined) return null;
+
+  return h(
+    'button',
+    {
+      class: copied
+        ? 'value-copy-button value-copy-feedback'
+        : 'value-copy-button',
+      onClick: () => {
+        navigator.clipboard.writeText(text).then(
+          () => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          },
+          error => {
+            console.error('Failed to copy:', error);
+          },
+        );
+      },
+    },
+    copied ? 'Copied!' : 'Copy',
+  );
 };
+harden(CopyButton);
 
 /**
- * Check if a remotable value has a `text` method, indicating it is
- * a ReadableBlob, SnapshotBlob, EndoBlob, or similar.
+ * Render the context-aware actions (rename / adopt / save plus copy) as a
+ * confined Preact tree. Mirrors the original imperative action layout and class
+ * names; the name input requests focus declaratively via `autofocus`, and the
+ * controller queries the mounted node post-render to also select its contents.
+ *
+ * @param {object} props
+ * @param {unknown} props.value
+ * @param {string | undefined} props.id
+ * @param {string[] | undefined} props.petNamePath
+ * @param {{ number: bigint, edgeName: string }} [props.messageContext]
+ * @param {boolean} props.isAdopted
+ * @param {() => string[] | undefined} props.getCurrentPetNamePath
+ * @param {ERef<EndoHost>} props.powers
+ * @param {() => void} props.clearValue
+ */
+const ValueActions = ({
+  value,
+  id,
+  petNamePath,
+  messageContext,
+  isAdopted,
+  getCurrentPetNamePath,
+  powers,
+  clearValue,
+}) => {
+  let passStyle;
+  try {
+    passStyle = passStyleOf(value);
+  } catch {
+    passStyle = undefined;
+  }
+  const isPlainPassable =
+    passStyle !== undefined &&
+    passStyle !== 'remotable' &&
+    passStyle !== 'promise';
+
+  /** @type {VNode | null} */
+  let nameAction = null;
+  if (messageContext && !isAdopted) {
+    nameAction = NameAction(
+      'Adopt as:',
+      messageContext.edgeName,
+      'Adopt',
+      async name => {
+        const targetPath = name.split('/');
+        await E(powers).adopt(
+          messageContext.number,
+          messageContext.edgeName,
+          targetPath,
+        );
+        clearValue();
+      },
+    );
+  } else if (petNamePath) {
+    nameAction = NameAction(
+      'Rename to:',
+      petNamePath.join('/'),
+      'Rename',
+      async newName => {
+        const fromPath = /** @type {string[]} */ (getCurrentPetNamePath());
+        const toPath = newName.split('/');
+        await E(powers).move(fromPath, toPath);
+        clearValue();
+      },
+    );
+  } else if (!id && isPlainPassable) {
+    nameAction = NameAction('Save as:', '', 'Save', async name => {
+      const targetPath = name.split('/');
+      await E(powers).storeValue(
+        /** @type {import('@endo/pass-style').Passable} */ (value),
+        targetPath,
+      );
+      clearValue();
+    });
+  }
+
+  return h(
+    'div',
+    { class: 'value-actions-inner' },
+    nameAction,
+    isPlainPassable ? h(CopyButton, { value }) : null,
+  );
+};
+harden(ValueActions);
+
+/**
+ * Render blob text content with appropriate visualization based on the file
+ * language. Markdown gets a rendered preview with a source toggle; other text
+ * gets line-numbered preformatted source. Mirrors the original imperative
+ * `renderBlobContent`, but emits vnodes (no `.innerHTML`).
+ *
+ * @param {object} props
+ * @param {string} props.text
+ * @param {string} props.language - Monaco language identifier
+ */
+const BlobContent = ({ text, language }) => {
+  const [showSource, setShowSource] = useState(false);
+  const lines = text.split('\n');
+
+  const sourcePre = h(
+    'pre',
+    { class: 'value-blob-source' },
+    h(
+      'code',
+      null,
+      ...lines.map((line, i) =>
+        h(
+          'span',
+          { class: 'value-blob-line', key: String(i) },
+          h('span', { class: 'value-blob-linenum' }, String(i + 1)),
+          h('span', { class: 'value-blob-linetext' }, line),
+        ),
+      ),
+    ),
+  );
+
+  if (isMarkdown(language)) {
+    return h(
+      'div',
+      { class: 'value-blob-content' },
+      h(
+        'div',
+        { class: 'value-blob-toolbar' },
+        h(
+          'button',
+          {
+            class: showSource
+              ? 'value-blob-toggle'
+              : 'value-blob-toggle active',
+            onClick: () => setShowSource(false),
+          },
+          'Preview',
+        ),
+        h(
+          'button',
+          {
+            class: showSource
+              ? 'value-blob-toggle active'
+              : 'value-blob-toggle',
+            onClick: () => setShowSource(true),
+          },
+          'Source',
+        ),
+      ),
+      showSource
+        ? sourcePre
+        : h(
+            'div',
+            { class: 'value-blob-md-preview' },
+            MarkdownFragment(text, {}),
+          ),
+    );
+  }
+
+  return h('div', { class: 'value-blob-content' }, sourcePre);
+};
+harden(BlobContent);
+
+/**
+ * The confined value-content surface: the rendered passable value, optionally
+ * replaced by the inline blob preview once a blob-like remotable's text resolves.
+ *
+ * @param {object} props
+ * @param {unknown} props.value
+ * @param {string | undefined} props.blobText - Resolved blob text, or undefined.
+ * @param {string} props.language - Inferred Monaco language for blob content.
+ */
+const ValueContent = ({ value, blobText, language }) => {
+  if (blobText !== undefined) {
+    return h(BlobContent, { text: blobText, language });
+  }
+  return valueToVnodes(value);
+};
+harden(ValueContent);
+
+/**
+ * Check if a remotable value has a `text` method, indicating it is a
+ * ReadableBlob, SnapshotBlob, EndoBlob, or similar.
  *
  * @param {unknown} value
  * @returns {Promise<boolean>}
@@ -125,123 +322,20 @@ const isBlobLike = async value => {
     return false;
   }
 };
+harden(isBlobLike);
 
 /**
- * Render blob text content into a container with appropriate
- * visualization based on the file extension.
+ * Derive a filename from a pet name path for language inference. Uses the last
+ * segment of the path.
  *
- * - Markdown files get a rendered preview with source toggle.
- * - All other text files get syntax-highlighted preformatted text
- *   with line numbers.
- *
- * @param {HTMLElement} $container
- * @param {string} text
- * @param {string} language - Monaco language identifier
+ * @param {string[] | undefined} petNamePath
+ * @returns {string | undefined}
  */
-const renderBlobContent = async ($container, text, language) => {
-  $container.innerHTML = '';
-
-  if (isMarkdown(language)) {
-    // Markdown: rendered preview with toggle to source
-    const $toolbar = document.createElement('div');
-    $toolbar.className = 'value-blob-toolbar';
-
-    const $previewBtn = document.createElement('button');
-    $previewBtn.className = 'value-blob-toggle active';
-    $previewBtn.textContent = 'Preview';
-
-    const $sourceBtn = document.createElement('button');
-    $sourceBtn.className = 'value-blob-toggle';
-    $sourceBtn.textContent = 'Source';
-
-    $toolbar.appendChild($previewBtn);
-    $toolbar.appendChild($sourceBtn);
-    $container.appendChild($toolbar);
-
-    const $preview = document.createElement('div');
-    $preview.className = 'value-blob-md-preview';
-    $preview.innerHTML = await renderMarkdownToHtml(text);
-
-    const $source = document.createElement('pre');
-    $source.className = 'value-blob-source';
-    $source.style.display = 'none';
-    const $code = document.createElement('code');
-    $source.appendChild($code);
-
-    // Build line-numbered source
-    const lines = text.split('\n');
-    for (let i = 0; i < lines.length; i += 1) {
-      const $line = document.createElement('span');
-      $line.className = 'value-blob-line';
-      const $num = document.createElement('span');
-      $num.className = 'value-blob-linenum';
-      $num.textContent = String(i + 1);
-      const $text = document.createElement('span');
-      $text.textContent = lines[i];
-      $line.appendChild($num);
-      $line.appendChild($text);
-      $code.appendChild($line);
-    }
-
-    $container.appendChild($preview);
-    $container.appendChild($source);
-
-    $previewBtn.addEventListener('click', () => {
-      $preview.style.display = '';
-      $source.style.display = 'none';
-      $previewBtn.classList.add('active');
-      $sourceBtn.classList.remove('active');
-    });
-
-    $sourceBtn.addEventListener('click', () => {
-      $preview.style.display = 'none';
-      $source.style.display = '';
-      $sourceBtn.classList.add('active');
-      $previewBtn.classList.remove('active');
-    });
-  } else {
-    // Text/code: syntax-highlighted with line numbers
-    const $pre = document.createElement('pre');
-    $pre.className = 'value-blob-source';
-    const $code = document.createElement('code');
-
-    const lines = text.split('\n');
-    for (let i = 0; i < lines.length; i += 1) {
-      const $line = document.createElement('span');
-      $line.className = 'value-blob-line';
-      const $num = document.createElement('span');
-      $num.className = 'value-blob-linenum';
-      $num.textContent = String(i + 1);
-      const $text = document.createElement('span');
-      $text.className = 'value-blob-linetext';
-      $text.textContent = lines[i];
-      $line.appendChild($num);
-      $line.appendChild($text);
-      $code.appendChild($line);
-    }
-
-    $pre.appendChild($code);
-    $container.appendChild($pre);
-
-    // Apply syntax highlighting if not plaintext
-    if (language !== 'plaintext') {
-      try {
-        const html = await colorize(text, language);
-        // Replace only the line text spans with highlighted content
-        // by re-rendering with highlighted lines
-        const highlightedLines = html.replace(/<br\/?>/g, '\n').split('\n');
-        const $lineTexts = $code.querySelectorAll('.value-blob-linetext');
-        for (let i = 0; i < $lineTexts.length; i += 1) {
-          if (highlightedLines[i] !== undefined) {
-            $lineTexts[i].innerHTML = highlightedLines[i];
-          }
-        }
-      } catch {
-        // Keep plain text on colorize failure
-      }
-    }
-  }
+const filenameFromPath = petNamePath => {
+  if (!petNamePath || petNamePath.length === 0) return undefined;
+  return petNamePath[petNamePath.length - 1];
 };
+harden(filenameFromPath);
 
 /**
  * @param {HTMLElement} $parent
@@ -277,6 +371,14 @@ export const valueComponent = (
     $parent.querySelector('#value-enter-profile')
   );
 
+  // Dedicated confined mounts for the value content and the context actions.
+  // `renderConfined` reconciles against ALL children of its mount node, so each
+  // confined surface gets its own child of the host node it renders into.
+  const $valueMount = document.createElement('div');
+  $value.appendChild($valueMount);
+  const $actionsMount = document.createElement('div');
+  $actionsContainer.appendChild($actionsMount);
+
   /** @type {unknown} */
   let currentValue;
   /** @type {string[] | undefined} */
@@ -296,8 +398,8 @@ export const valueComponent = (
   };
 
   const clearValue = () => {
-    $value.innerHTML = '';
-    $actionsContainer.innerHTML = '';
+    unmount($valueMount);
+    unmount($actionsMount);
     $title.textContent = 'Value';
     $type.value = 'unknown';
     currentValue = undefined;
@@ -338,6 +440,18 @@ export const valueComponent = (
   };
 
   /**
+   * Render the value content confined into `$valueMount`. Called once on focus
+   * and again once a blob-like remotable's text resolves.
+   *
+   * @param {unknown} value
+   * @param {string | undefined} blobText
+   * @param {string} language
+   */
+  const renderValueContent = (value, blobText, language) => {
+    renderConfined(h(ValueContent, { value, blobText, language }), $valueMount);
+  };
+
+  /**
    * @param {unknown} value
    * @param {string} [id]
    * @param {string[]} [petNamePath]
@@ -348,38 +462,32 @@ export const valueComponent = (
     currentPetNamePath = petNamePath;
     window.addEventListener('keyup', handleKey);
 
-    $value.innerHTML = '';
-    $value.appendChild(render(value));
+    renderValueContent(value, undefined, 'plaintext');
 
     const inferredType = inferType(value);
     $type.value = inferredType;
 
     updateEnterProfileVisibility();
 
-    // For blob-like remotables, try to render the content inline.
-    // This runs asynchronously — the default remotable view shows
-    // while the text is fetched.
+    // For blob-like remotables, try to render the content inline. This runs
+    // asynchronously — the default value view shows while the text is fetched.
     if (inferredType === 'readable' || inferredType === 'remotable') {
       const filename = filenameFromPath(petNamePath);
       if (filename) {
         const language = inferLanguage(filename);
         isBlobLike(value).then(isBlob => {
           if (!isBlob) return;
-          // Value confirmed as blob — fetch text and render
+          // Value confirmed as blob — fetch text and render.
           E(value)
             .text()
             .then(
               text => {
-                // Only update if we're still showing the same value
+                // Only update if we're still showing the same value.
                 if (currentValue !== value) return;
-                const $blobContent = document.createElement('div');
-                $blobContent.className = 'value-blob-content';
-                $value.innerHTML = '';
-                $value.appendChild($blobContent);
-                renderBlobContent($blobContent, text, language);
+                renderValueContent(value, String(text), language);
               },
               () => {
-                // text() failed — keep the default remotable view
+                // text() failed — keep the default value view.
               },
             );
         });
@@ -430,74 +538,29 @@ export const valueComponent = (
 
     updateEnterProfileVisibility();
 
-    // Build context-aware actions
-    $actionsContainer.innerHTML = '';
-
-    let passStyle;
-    try {
-      passStyle = passStyleOf(value);
-    } catch {
-      passStyle = undefined;
-    }
-    const isPlainPassable =
-      passStyle !== undefined &&
-      passStyle !== 'remotable' &&
-      passStyle !== 'promise';
+    // Build context-aware actions as a confined Preact tree.
     const isAdopted = uniquePetNames.length > 0;
 
-    /** @type {HTMLInputElement | undefined} */
-    let $focusTarget;
+    renderConfined(
+      h(ValueActions, {
+        value,
+        id,
+        petNamePath,
+        messageContext,
+        isAdopted,
+        getCurrentPetNamePath: () => currentPetNamePath,
+        powers,
+        clearValue,
+      }),
+      $actionsMount,
+    );
 
-    if (messageContext && !isAdopted) {
-      $focusTarget = buildNameAction(
-        $actionsContainer,
-        'Adopt as:',
-        messageContext.edgeName,
-        'Adopt',
-        async name => {
-          const targetPath = name.split('/');
-          await E(powers).adopt(
-            messageContext.number,
-            messageContext.edgeName,
-            targetPath,
-          );
-          clearValue();
-        },
-      );
-    } else if (petNamePath) {
-      $focusTarget = buildNameAction(
-        $actionsContainer,
-        'Rename to:',
-        petNamePath.join('/'),
-        'Rename',
-        async newName => {
-          const fromPath = /** @type {string[]} */ (currentPetNamePath);
-          const toPath = newName.split('/');
-          await E(powers).move(fromPath, toPath);
-          clearValue();
-        },
-      );
-    } else if (!id && isPlainPassable) {
-      $focusTarget = buildNameAction(
-        $actionsContainer,
-        'Save as:',
-        '',
-        'Save',
-        async name => {
-          const targetPath = name.split('/');
-          await E(powers).storeValue(
-            /** @type {import('@endo/pass-style').Passable} */ (currentValue),
-            targetPath,
-          );
-          clearValue();
-        },
-      );
-    }
-
-    if (isPlainPassable) {
-      buildCopyButton($actionsContainer, value);
-    }
-
+    // `renderConfined` is synchronous, so the input (if any) exists now. The
+    // `autofocus` attribute requests focus; additionally select its contents,
+    // matching the original imperative `$focusTarget.focus()/select()`.
+    const $focusTarget = /** @type {HTMLInputElement | null} */ (
+      $actionsMount.querySelector('.value-name-input')
+    );
     if ($focusTarget) {
       $focusTarget.focus();
       $focusTarget.select();
@@ -508,5 +571,6 @@ export const valueComponent = (
     window.removeEventListener('keyup', handleKey);
   };
 
-  return { focusValue, blurValue };
+  return harden({ focusValue, blurValue });
 };
+harden(valueComponent);

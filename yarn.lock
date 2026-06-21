@@ -2596,10 +2596,13 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     "@endo/monaco-wrapper": "workspace:^"
     "@endo/platform": "workspace:^"
+    "@endo/preact-container": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
+    happy-dom: "npm:^15.0.0"
+    preact: "npm:^10.29.2"
   languageName: unknown
   linkType: soft
 

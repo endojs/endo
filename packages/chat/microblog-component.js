@@ -4,16 +4,46 @@
 import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+
+import {
+  Fragment,
+  h,
+  renderConfined,
+  unmount,
+} from './setup-preact-container.js';
+
 import { createChannelState } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
 import { isVisibleReplyType, computeNodeContent } from './edit-queue.js';
 import { relativeTime, dateFormatter } from './time-formatters.js';
-import {
-  prepareTextWithPlaceholders,
-  renderMarkdown,
-} from './markdown-render.js';
+import { prepareTextWithPlaceholders } from './markdown-render.js';
+import { markdownToVnodes } from './markdown-vnodes.js';
 
-/** @import { ChannelMessage, ChannelState } from './channel-utils.js' */
+/** @import { ChannelMessage } from './channel-utils.js' */
+
+// Microblog view — a reverse-chronological feed, migrated from imperative DOM to
+// a confined Preact component rendered through a single `renderConfined`.
+//
+// THE HOST-NODE BRIDGE PATTERN. The feed structure (header, posts, comments,
+// bodies, action bars) renders confined as `h()` vnodes. Three pieces remain
+// imperative DOM produced by reused helpers that are NOT view-migration targets:
+//   - author chips (`channel-utils` profile popup — positions a portal, mutates
+//     `nameMap`, re-renders sibling chips by DOM query),
+//   - react buttons and react pills (`react-utils` — a `document.body` react
+//     picker portal, nested sub-reacts, contextmenu handlers).
+// Live DOM (with listeners) cannot enter a confined vnode tree — `renderConfined`
+// strips refs and real nodes. So the chrome renders empty ANCHOR slots
+// (`data-author-anchor` / `data-react-btn-anchor` / `data-react-pills-anchor`)
+// and, after each confined render, the controller re-parents the imperative
+// nodes into their anchors. This is the same host-node embedding define-form
+// uses for the Monaco editor.
+//
+// Message bodies use the vnode path (`markdownToVnodes`) instead of the
+// string-returning `renderMarkdown`/`.innerHTML`, mirroring the inbox migration.
+//
+// Teardown: chat.js has no dispose hook — it rebuilds `$messages` on
+// space/conversation switch, which detaches `$mount`. The message-consumer loop
+// stops dispatching once `isLive()` reports the mount detached.
 
 /**
  * Render the microblog view — a reverse-chronological feed.
@@ -45,8 +75,11 @@ export const microblogComponent = async (
     personaId,
     ownMemberId,
     onReply,
+    // eslint-disable-next-line no-unused-vars
     onThreadOpen,
+    // eslint-disable-next-line no-unused-vars
     onThreadClose,
+    // eslint-disable-next-line no-unused-vars
     chatBarAPI,
     onFork,
     onShare,
@@ -81,101 +114,26 @@ export const microblogComponent = async (
   /** @type {Set<string>} */
   const blockedMemberIds = new Set();
 
-  // Container for the feed — insert before anchor so switchChannel can clear it
-  const $feed = document.createElement('div');
-  $feed.className = 'microblog-feed';
-  if ($end) {
-    $parent.insertBefore($feed, $end);
-  } else {
-    $parent.appendChild($feed);
-  }
-
-  // Profile header (populated once first root arrives)
-  const $header = document.createElement('div');
-  $header.className = 'microblog-header';
-  $feed.appendChild($header);
-
-  // Posts container (newest-first)
-  const $posts = document.createElement('div');
-  $posts.className = 'microblog-posts';
-  $feed.appendChild($posts);
-
-  /** @type {string | null} */
-  let headerKey = null;
-
-  /** @type {Map<string, HTMLElement>} */
-  const postElements = new Map();
-
   /** @type {Set<string>} */
   const expandedPosts = new Set();
 
-  /** @type {Set<string>} */
-  const renderedPostKeys = new Set();
+  // Dedicated confined mount, inserted before the scroll anchor so
+  // switchChannel's cleanup (which clears `$parent`) still works and siblings
+  // (the `$end` anchor) are never reconciled away.
+  const $mount = document.createElement('div');
+  $mount.className = 'microblog-feed';
+  if ($end) {
+    $parent.insertBefore($mount, $end);
+  } else {
+    $parent.appendChild($mount);
+  }
+  const isLive = () => $mount.isConnected;
 
-  // ---- Helpers ----
-
-  /**
-   * Get display name for a member.
-   * @param {string} memberId
-   * @returns {Promise<string>}
-   */
-  // eslint-disable-next-line no-unused-vars
-  const getDisplayName = async memberId => {
-    const assigned = nameMap.get(memberId);
-    if (assigned) return assigned;
-    const info = await getMemberInfo(memberId);
-    return info ? `\u201C${info.proposedName}\u201D` : memberId;
-  };
+  // ---- Imperative host-node helpers (bridged into anchors after each render) ----
 
   /**
-   * Render message body text with token placeholders.
-   * @param {ChannelMessage} message
-   * @returns {HTMLElement}
-   */
-  const renderBody = message => {
-    const $body = document.createElement('div');
-    $body.className = 'microblog-body';
-
-    const messageNames =
-      /** @type {any} */ (message).names ||
-      /** @type {any} */ (message).edgeNames ||
-      [];
-
-    if (message.strings && message.strings.length > 0) {
-      const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
-      const { fragment, insertionPoints } =
-        renderMarkdown(textWithPlaceholders);
-      $body.appendChild(fragment);
-
-      for (
-        let index = 0;
-        index < Math.min(insertionPoints.length, messageNames.length);
-        index += 1
-      ) {
-        const edgeName = messageNames[index];
-        const $slot = insertionPoints[index];
-
-        const $token = document.createElement('span');
-        $token.className = 'token';
-        $token.tabIndex = 0;
-        $token.setAttribute('role', 'button');
-        $token.title = 'Open value';
-        $token.textContent = `@${edgeName}`;
-        $token.addEventListener('click', () => {
-          if (message.ids && message.ids[index]) {
-            showValue(undefined, message.ids[index], [edgeName]);
-          }
-        });
-
-        $slot.replaceWith($token);
-      }
-    }
-
-    return $body;
-  };
-
-  /**
-   * Create a clickable author element with profile popup support.
+   * Create a clickable author element (imperative DOM) with profile popup.
+   * Identical to the original `createAuthorEl`.
    * @param {string} memberId
    * @returns {HTMLElement}
    */
@@ -197,7 +155,7 @@ export const microblogComponent = async (
         if (!info) return;
         const current = nameMap.get(memberId);
         if (!current) {
-          $author.textContent = `\u201C${info.proposedName}\u201D`;
+          $author.textContent = `“${info.proposedName}”`;
         }
         $author.dataset.proposedName = info.proposedName;
         $author.addEventListener('click', e => {
@@ -222,6 +180,8 @@ export const microblogComponent = async (
     return $author;
   };
 
+  // ---- Pure helpers ----
+
   /**
    * Get heritage chain for a message key.
    * @param {string} key
@@ -240,158 +200,6 @@ export const microblogComponent = async (
     return chain;
   };
 
-  // ---- Rendering ----
-
-  /**
-   * Render the profile header from the first root message.
-   * @param {string} key
-   * @param {ChannelMessage} message
-   */
-  const renderHeader = async (key, message) => {
-    $header.innerHTML = '';
-
-    const effective = computeNodeContent(
-      key,
-      messageIndex,
-      replyChildren,
-      blockedMemberIds,
-    );
-    const effectiveMsg = effective
-      ? {
-          ...message,
-          strings: effective.strings,
-          names: effective.names,
-          ids: effective.ids,
-        }
-      : message;
-
-    // Author display name (large)
-    const $authorRow = document.createElement('div');
-    $authorRow.className = 'microblog-header-author';
-    $authorRow.appendChild(createAuthorEl(message.memberId));
-    $header.appendChild($authorRow);
-
-    // Bio text (the message content)
-    const $bio = renderBody(/** @type {ChannelMessage} */ (effectiveMsg));
-    $bio.classList.add('microblog-header-bio');
-    $header.appendChild($bio);
-  };
-
-  /**
-   * Create the interaction bar (reply/comment, share, fork) for a message.
-   * Used on both top-level posts and nested comments.
-   *
-   * @param {string} key - Message key
-   * @param {ChannelMessage} message - The message
-   * @param {string} rootPostKey - Top-level post key (for re-render on toggle)
-   * @returns {HTMLElement}
-   */
-  const createActionBar = (key, message, rootPostKey) => {
-    const $actions = document.createElement('div');
-    $actions.className = 'microblog-actions';
-
-    // Reply button — sets reply context in chat bar
-    if (onReply) {
-      const $replyBtn = document.createElement('button');
-      $replyBtn.className = 'microblog-action-btn';
-      $replyBtn.type = 'button';
-      $replyBtn.title = 'Reply';
-      const $replyIcon = document.createElement('span');
-      $replyIcon.className = 'microblog-action-icon';
-      $replyIcon.textContent = '\u21A9'; // ↩
-      $replyBtn.appendChild($replyIcon);
-      $replyBtn.addEventListener('click', () => {
-        const preview = message.strings.join('').substring(0, 60);
-        getMemberInfo(message.memberId)
-          .then(info => {
-            const authorName = info ? info.proposedName : message.memberId;
-            onReply({
-              number: message.number,
-              memberId: message.memberId,
-              authorName,
-              preview,
-            });
-          })
-          .catch(() => {});
-      });
-      $actions.appendChild($replyBtn);
-    }
-
-    // React button
-    $actions.appendChild(reactSystem.createReactButton(key));
-
-    // Comments toggle — expands/collapses replies
-    const replyCount = countDescendants(key);
-    const $commentsBtn = document.createElement('button');
-    $commentsBtn.className = 'microblog-action-btn';
-    $commentsBtn.type = 'button';
-    $commentsBtn.title = replyCount > 0 ? 'Show replies' : 'No replies';
-    const $commentsIcon = document.createElement('span');
-    $commentsIcon.className = 'microblog-action-icon';
-    $commentsIcon.textContent = '\uD83D\uDCAC'; // 💬
-    $commentsBtn.appendChild($commentsIcon);
-    if (replyCount > 0) {
-      const $count = document.createElement('span');
-      $count.className = 'microblog-action-count';
-      $count.textContent = String(replyCount);
-      $commentsBtn.appendChild($count);
-    }
-    if (replyCount > 0) {
-      $commentsBtn.addEventListener('click', () => {
-        if (expandedPosts.has(key)) {
-          expandedPosts.delete(key);
-        } else {
-          expandedPosts.add(key);
-        }
-        const rootData = messageIndex.get(rootPostKey);
-        if (rootData) {
-          rerenderPost(rootPostKey, rootData.message);
-        }
-      });
-    }
-    $actions.appendChild($commentsBtn);
-
-    // Share action
-    if (onShare) {
-      const $shareBtn = document.createElement('button');
-      $shareBtn.className = 'microblog-action-btn';
-      $shareBtn.type = 'button';
-      $shareBtn.title = 'Share';
-      const $shareIcon = document.createElement('span');
-      $shareIcon.className = 'microblog-action-icon';
-      $shareIcon.textContent = '\u21D7'; // ⇗
-      $shareBtn.appendChild($shareIcon);
-      $shareBtn.addEventListener('click', () => {
-        const chain = getHeritageChain(key);
-        const preview =
-          message.strings.join('').substring(0, 60) || 'Shared post';
-        onShare(chain, preview);
-      });
-      $actions.appendChild($shareBtn);
-    }
-
-    // Fork action
-    if (onFork) {
-      const $forkBtn = document.createElement('button');
-      $forkBtn.className = 'microblog-action-btn';
-      $forkBtn.type = 'button';
-      $forkBtn.title = 'Fork to channel';
-      const $forkIcon = document.createElement('span');
-      $forkIcon.className = 'microblog-action-icon';
-      $forkIcon.textContent = '\u2442'; // ⑂
-      $forkBtn.appendChild($forkIcon);
-      $forkBtn.addEventListener('click', () => {
-        const chain = getHeritageChain(key);
-        const preview =
-          message.strings.join('').substring(0, 40) || 'Forked post';
-        onFork(chain, preview).catch(window.reportError);
-      });
-      $actions.appendChild($forkBtn);
-    }
-
-    return $actions;
-  };
-
   /**
    * Sort child keys chronologically.
    * @param {string[]} keys
@@ -406,186 +214,6 @@ export const microblogComponent = async (
       if (ma.message.number > mb.message.number) return 1;
       return 0;
     });
-
-  /**
-   * Render a single comment with optional nested replies.
-   * @param {string} childKey
-   * @param {string} rootPostKey - The top-level post key (for re-render on expand)
-   * @returns {HTMLElement | null}
-   */
-  const renderComment = (childKey, rootPostKey) => {
-    const childData = messageIndex.get(childKey);
-    if (!childData) return null;
-    if (!isVisibleReplyType(childData.message.replyType)) return null;
-    const childEffective = computeNodeContent(
-      childKey,
-      messageIndex,
-      replyChildren,
-      blockedMemberIds,
-    );
-    if (childEffective && childEffective.deleted) return null;
-
-    const childMsg = childEffective
-      ? {
-          ...childData.message,
-          strings: childEffective.strings,
-          names: childEffective.names,
-          ids: childEffective.ids,
-        }
-      : childData.message;
-
-    const $comment = document.createElement('div');
-    $comment.className = 'microblog-comment';
-
-    const $commentHead = document.createElement('div');
-    $commentHead.className = 'microblog-comment-head';
-    $commentHead.appendChild(createAuthorEl(childData.message.memberId));
-
-    const $cSep = document.createElement('span');
-    $cSep.className = 'microblog-post-sep';
-    $cSep.textContent = '\u00B7';
-    $commentHead.appendChild($cSep);
-
-    const cDate = new Date(childData.message.date);
-    const $cTime = document.createElement('time');
-    $cTime.className = 'microblog-post-time';
-    const cRel = relativeTime(cDate);
-    $cTime.textContent = cRel || dateFormatter.format(cDate);
-    $cTime.title = dateFormatter.format(cDate);
-    $commentHead.appendChild($cTime);
-
-    $comment.appendChild($commentHead);
-    $comment.appendChild(renderBody(/** @type {ChannelMessage} */ (childMsg)));
-
-    // Interaction bar (same as top-level posts)
-    $comment.appendChild(
-      createActionBar(childKey, childData.message, rootPostKey),
-    );
-
-    // React pills
-    {
-      const $pills = reactSystem.buildReactsContainer(childKey);
-      if ($pills) $comment.appendChild($pills);
-    }
-
-    // Expanded nested replies
-    if (expandedPosts.has(childKey) && countDescendants(childKey) > 0) {
-      $comment.appendChild(renderCommentList(childKey, rootPostKey));
-    }
-
-    return $comment;
-  };
-
-  /**
-   * Render the list of comments for a parent key.
-   * @param {string} parentKey
-   * @param {string} [rootPostKey] - Top-level post key; defaults to parentKey
-   * @returns {HTMLElement}
-   */
-  const renderCommentList = (parentKey, rootPostKey) => {
-    const root = rootPostKey || parentKey;
-    const $comments = document.createElement('div');
-    $comments.className = 'microblog-comments-section';
-
-    const childKeys = replyChildren.get(parentKey) || [];
-    const sorted = sortChronologically(childKeys);
-
-    for (const childKey of sorted) {
-      const $el = renderComment(childKey, root);
-      if ($el) $comments.appendChild($el);
-    }
-
-    return $comments;
-  };
-
-  /**
-   * Render a single post.
-   * @param {string} key
-   * @param {ChannelMessage} message
-   * @returns {Promise<HTMLElement>}
-   */
-  const renderPost = async (key, message) => {
-    const $post = document.createElement('div');
-    $post.className = 'microblog-post';
-    $post.dataset.key = key;
-
-    const effective = computeNodeContent(
-      key,
-      messageIndex,
-      replyChildren,
-      blockedMemberIds,
-    );
-    const effectiveMsg = effective
-      ? {
-          ...message,
-          strings: effective.strings,
-          names: effective.names,
-          ids: effective.ids,
-        }
-      : message;
-
-    // Post header: author + timestamp
-    const $postHead = document.createElement('div');
-    $postHead.className = 'microblog-post-head';
-
-    $postHead.appendChild(createAuthorEl(message.memberId));
-
-    const $sep = document.createElement('span');
-    $sep.className = 'microblog-post-sep';
-    $sep.textContent = '\u00B7';
-    $postHead.appendChild($sep);
-
-    const date = new Date(message.date);
-    const $time = document.createElement('time');
-    $time.className = 'microblog-post-time';
-    const rel = relativeTime(date);
-    $time.textContent = rel || dateFormatter.format(date);
-    $time.title = dateFormatter.format(date);
-    $time.dateTime = message.date;
-    $postHead.appendChild($time);
-
-    $post.appendChild($postHead);
-
-    // Post body
-    const $body = renderBody(/** @type {ChannelMessage} */ (effectiveMsg));
-    $post.appendChild($body);
-
-    // Interaction bar
-    $post.appendChild(createActionBar(key, message, key));
-
-    // React pills
-    {
-      const $pills = reactSystem.buildReactsContainer(key);
-      if ($pills) $post.appendChild($pills);
-    }
-
-    // Comments section (if expanded)
-    if (expandedPosts.has(key) && countDescendants(key) > 0) {
-      const $comments = renderCommentList(key);
-      $post.appendChild($comments);
-    }
-
-    return $post;
-  };
-
-  /**
-   * Re-render a single post in place (e.g., after expanding comments).
-   * @param {string} key
-   * @param {ChannelMessage} message
-   */
-  const rerenderPost = (key, message) => {
-    renderPost(key, message)
-      .then($newPost => {
-        const $existing = postElements.get(key);
-        if ($existing && $existing.parentNode) {
-          $existing.parentNode.replaceChild($newPost, $existing);
-        }
-        postElements.set(key, $newPost);
-      })
-      .catch(window.reportError);
-  };
-
-  // ---- Root key management ----
 
   /**
    * Collect root keys in chronological order.
@@ -618,132 +246,450 @@ export const microblogComponent = async (
     return roots;
   };
 
-  // ---- Feed rendering ----
+  /**
+   * Apply effective (edit/delete-resolved) content over a message's fields.
+   * @param {string} key
+   * @param {ChannelMessage} message
+   * @returns {ChannelMessage}
+   */
+  const effectiveMessage = (key, message) => {
+    const effective = computeNodeContent(
+      key,
+      messageIndex,
+      replyChildren,
+      blockedMemberIds,
+    );
+    return effective
+      ? /** @type {ChannelMessage} */ ({
+          ...message,
+          strings: effective.strings,
+          names: effective.names,
+          ids: effective.ids,
+        })
+      : message;
+  };
+
+  // ---- View (confined Preact vnodes) ----
 
   /**
-   * Full render of the feed.
+   * Render a message body as vnodes with interactive token chips. Mirrors the
+   * original `renderBody`, but emits vnodes (no `.innerHTML`).
+   * @param {ChannelMessage} message
+   * @param {string} [extraClass] - Appended to the `microblog-body` class.
+   * @returns {import('preact').VNode}
    */
-  const renderFeed = async () => {
+  const Body = (message, extraClass) => {
+    const cls = extraClass ? `microblog-body ${extraClass}` : 'microblog-body';
+    const messageNames =
+      /** @type {any} */ (message).names ||
+      /** @type {any} */ (message).edgeNames ||
+      [];
+
+    if (!message.strings || message.strings.length === 0) {
+      return h('div', { class: cls });
+    }
+
+    const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
+
+    /** @type {import('./markdown-vnodes.js').RenderToken} */
+    const renderToken = index => {
+      const edgeName = messageNames[index];
+      if (edgeName === undefined) return null;
+      return h(
+        'span',
+        {
+          key: String(index),
+          class: 'token',
+          tabindex: 0,
+          role: 'button',
+          title: 'Open value',
+          onClick: () => {
+            if (message.ids && message.ids[index]) {
+              showValue(undefined, message.ids[index], [edgeName]);
+            }
+          },
+        },
+        `@${edgeName}`,
+      );
+    };
+
+    const { nodes } = markdownToVnodes(textWithPlaceholders, { renderToken });
+    return h('div', { class: cls }, ...nodes);
+  };
+
+  /**
+   * An author chip anchor — the imperative `createAuthorEl` node is re-parented
+   * here after render.
+   * @param {object} props
+   * @param {string} props.memberId
+   * @param {string} [props.class]
+   */
+  const AuthorAnchor = ({ memberId, class: className }) =>
+    h('span', {
+      class: className,
+      'data-author-anchor': memberId,
+    });
+
+  /**
+   * The interaction bar (reply / react / comments / share / fork).
+   * @param {object} props
+   * @param {string} props.messageKey
+   * @param {ChannelMessage} props.message
+   * @param {string} props.rootPostKey
+   */
+  const ActionBar = ({ messageKey, message, rootPostKey }) => {
+    const replyCount = countDescendants(messageKey);
+    return h(
+      'div',
+      { class: 'microblog-actions' },
+      // Reply button
+      onReply
+        ? h(
+            'button',
+            {
+              class: 'microblog-action-btn',
+              type: 'button',
+              title: 'Reply',
+              onClick: () => {
+                const preview = message.strings.join('').substring(0, 60);
+                getMemberInfo(message.memberId)
+                  .then(info => {
+                    const authorName = info
+                      ? info.proposedName
+                      : message.memberId;
+                    onReply({
+                      number: message.number,
+                      memberId: message.memberId,
+                      authorName,
+                      preview,
+                    });
+                  })
+                  .catch(() => {});
+              },
+            },
+            h('span', { class: 'microblog-action-icon' }, '↩'),
+          )
+        : null,
+      // React button (imperative host node, bridged via anchor)
+      h('span', { 'data-react-btn-anchor': messageKey }),
+      // Comments toggle
+      h(
+        'button',
+        {
+          class: 'microblog-action-btn',
+          type: 'button',
+          title: replyCount > 0 ? 'Show replies' : 'No replies',
+          onClick:
+            replyCount > 0
+              ? () => {
+                  if (expandedPosts.has(messageKey)) {
+                    expandedPosts.delete(messageKey);
+                  } else {
+                    expandedPosts.add(messageKey);
+                  }
+                  rerender();
+                }
+              : undefined,
+        },
+        h('span', { class: 'microblog-action-icon' }, '💬'),
+        replyCount > 0
+          ? h('span', { class: 'microblog-action-count' }, String(replyCount))
+          : null,
+      ),
+      // Share action
+      onShare
+        ? h(
+            'button',
+            {
+              class: 'microblog-action-btn',
+              type: 'button',
+              title: 'Share',
+              onClick: () => {
+                const chain = getHeritageChain(messageKey);
+                const preview =
+                  message.strings.join('').substring(0, 60) || 'Shared post';
+                onShare(chain, preview);
+              },
+            },
+            h('span', { class: 'microblog-action-icon' }, '⇗'),
+          )
+        : null,
+      // Fork action
+      onFork
+        ? h(
+            'button',
+            {
+              class: 'microblog-action-btn',
+              type: 'button',
+              title: 'Fork to channel',
+              onClick: () => {
+                const chain = getHeritageChain(messageKey);
+                const preview =
+                  message.strings.join('').substring(0, 40) || 'Forked post';
+                onFork(chain, preview).catch(window.reportError);
+              },
+            },
+            h('span', { class: 'microblog-action-icon' }, '⑂'),
+          )
+        : null,
+    );
+  };
+
+  /**
+   * Render a single comment (optionally with nested replies).
+   * @param {object} props
+   * @param {string} props.childKey
+   * @param {string} props.rootPostKey
+   */
+  const Comment = ({ childKey, rootPostKey }) => {
+    const childData = messageIndex.get(childKey);
+    if (!childData) return null;
+    if (!isVisibleReplyType(childData.message.replyType)) return null;
+    const childEffective = computeNodeContent(
+      childKey,
+      messageIndex,
+      replyChildren,
+      blockedMemberIds,
+    );
+    if (childEffective && childEffective.deleted) return null;
+
+    const childMsg = effectiveMessage(childKey, childData.message);
+    const cDate = new Date(childData.message.date);
+    const cRel = relativeTime(cDate);
+
+    return h(
+      'div',
+      { class: 'microblog-comment' },
+      h(
+        'div',
+        { class: 'microblog-comment-head' },
+        h(AuthorAnchor, { memberId: childData.message.memberId }),
+        h('span', { class: 'microblog-post-sep' }, '·'),
+        h(
+          'time',
+          {
+            class: 'microblog-post-time',
+            title: dateFormatter.format(cDate),
+          },
+          cRel || dateFormatter.format(cDate),
+        ),
+      ),
+      Body(childMsg),
+      h(ActionBar, {
+        messageKey: childKey,
+        message: childData.message,
+        rootPostKey,
+      }),
+      // React pills (imperative host node, bridged via anchor)
+      h('span', { 'data-react-pills-anchor': childKey }),
+      expandedPosts.has(childKey) && countDescendants(childKey) > 0
+        ? h(CommentList, { parentKey: childKey, rootPostKey })
+        : null,
+    );
+  };
+
+  /**
+   * Render the comments list for a parent key.
+   * @param {object} props
+   * @param {string} props.parentKey
+   * @param {string} [props.rootPostKey]
+   */
+  const CommentList = ({ parentKey, rootPostKey }) => {
+    const root = rootPostKey || parentKey;
+    const childKeys = replyChildren.get(parentKey) || [];
+    const sorted = sortChronologically(childKeys);
+    return h(
+      'div',
+      { class: 'microblog-comments-section' },
+      sorted.map(childKey =>
+        h(Comment, { key: childKey, childKey, rootPostKey: root }),
+      ),
+    );
+  };
+
+  /**
+   * Render a single top-level post.
+   * @param {object} props
+   * @param {string} props.postKey
+   */
+  const Post = ({ postKey }) => {
+    const data = messageIndex.get(postKey);
+    if (!data) return null;
+    const { message } = data;
+    const effectiveMsg = effectiveMessage(postKey, message);
+    const date = new Date(message.date);
+    const rel = relativeTime(date);
+
+    return h(
+      'div',
+      { class: 'microblog-post', 'data-key': postKey },
+      h(
+        'div',
+        { class: 'microblog-post-head' },
+        h(AuthorAnchor, { memberId: message.memberId }),
+        h('span', { class: 'microblog-post-sep' }, '·'),
+        h(
+          'time',
+          {
+            class: 'microblog-post-time',
+            title: dateFormatter.format(date),
+            datetime: message.date,
+          },
+          rel || dateFormatter.format(date),
+        ),
+      ),
+      Body(effectiveMsg),
+      h(ActionBar, { messageKey: postKey, message, rootPostKey: postKey }),
+      // React pills (imperative host node, bridged via anchor)
+      h('span', { 'data-react-pills-anchor': postKey }),
+      expandedPosts.has(postKey) && countDescendants(postKey) > 0
+        ? h(CommentList, { parentKey: postKey })
+        : null,
+    );
+  };
+
+  /**
+   * The whole feed: profile header + newest-first posts.
+   */
+  const Feed = () => {
     const roots = getRootKeys();
 
-    // First root is the profile header
+    // First root is the profile header / bio.
+    let header = null;
     if (roots.length > 0) {
       const firstKey = roots[0];
       const firstData = messageIndex.get(firstKey);
-      if (firstData && firstKey !== headerKey) {
-        headerKey = firstKey;
-        await renderHeader(firstKey, firstData.message);
+      if (firstData) {
+        const bioMsg = effectiveMessage(firstKey, firstData.message);
+        header = h(
+          'div',
+          { class: 'microblog-header' },
+          h(
+            'div',
+            { class: 'microblog-header-author' },
+            h(AuthorAnchor, { memberId: firstData.message.memberId }),
+          ),
+          Body(bioMsg, 'microblog-header-bio'),
+        );
       }
     } else {
-      $header.innerHTML = '';
-      headerKey = null;
+      header = h('div', { class: 'microblog-header' });
     }
 
-    // Remaining roots are posts, displayed newest-first
+    // Remaining roots are posts, newest-first.
     const postRoots = roots.slice(1).reverse();
 
-    // Check for new posts to prepend or if we need a full rebuild
-    const currentPostKeysSet = new Set(postRoots);
-    let needsFullRebuild = false;
+    const posts =
+      postRoots.length === 0 && roots.length <= 1
+        ? h('div', { class: 'microblog-empty' }, 'No posts yet')
+        : postRoots.map(key => h(Post, { key, postKey: key }));
 
-    // Check if any existing posts were removed or reordered
-    for (const key of renderedPostKeys) {
-      if (!currentPostKeysSet.has(key)) {
-        needsFullRebuild = true;
-        break;
-      }
+    return h(
+      Fragment,
+      null,
+      header,
+      h('div', { class: 'microblog-posts' }, posts),
+    );
+  };
+
+  // ---- Host-node bridging ----
+
+  // Cache imperative react-button nodes (one stable node per message key) so
+  // they survive confined re-renders rather than re-binding listeners each time.
+  /** @type {Map<string, HTMLElement>} */
+  const reactButtonNodes = new Map();
+
+  /**
+   * After each confined render, re-parent the imperative host nodes into their
+   * freshly rendered anchors.
+   */
+  const bridgeHostNodes = () => {
+    // Author chips — keyed by memberId (a member may appear in several anchors;
+    // re-create per anchor so each post/comment has its own chip element, as the
+    // original did).
+    const authorAnchors = $mount.querySelectorAll('[data-author-anchor]');
+    for (const $anchor of authorAnchors) {
+      const el = /** @type {HTMLElement} */ (/** @type {unknown} */ ($anchor));
+      if (el.firstChild) continue;
+      const memberId = el.getAttribute('data-author-anchor') || '';
+      el.appendChild(createAuthorEl(memberId));
     }
 
-    if (needsFullRebuild || renderedPostKeys.size === 0) {
-      // Full rebuild
-      $posts.innerHTML = '';
-      postElements.clear();
-      renderedPostKeys.clear();
-
-      if (postRoots.length === 0 && roots.length <= 1) {
-        const $empty = document.createElement('div');
-        $empty.className = 'microblog-empty';
-        $empty.textContent = 'No posts yet';
-        $posts.appendChild($empty);
-        return;
+    // React buttons — one per message key (stable, reusable node).
+    const reactBtnAnchors = $mount.querySelectorAll('[data-react-btn-anchor]');
+    for (const $anchor of reactBtnAnchors) {
+      const el = /** @type {HTMLElement} */ (/** @type {unknown} */ ($anchor));
+      if (el.firstChild) continue;
+      const key = el.getAttribute('data-react-btn-anchor') || '';
+      let $btn = reactButtonNodes.get(key);
+      if (!$btn) {
+        $btn = reactSystem.createReactButton(key);
+        reactButtonNodes.set(key, $btn);
+      } else if ($btn.parentElement) {
+        $btn.parentElement.removeChild($btn);
       }
+      el.appendChild($btn);
+    }
 
-      for (const key of postRoots) {
-        const data = messageIndex.get(key);
-        if (!data) continue;
-        // eslint-disable-next-line no-await-in-loop
-        const $post = await renderPost(key, data.message);
-        postElements.set(key, $post);
-        renderedPostKeys.add(key);
-        $posts.appendChild($post);
-      }
-    } else {
-      // Incremental: prepend new posts
-      // Remove "no posts" placeholder if present
-      const $empty = $posts.querySelector('.microblog-empty');
-      if ($empty) $empty.remove();
-
-      for (const key of postRoots) {
-        if (renderedPostKeys.has(key)) continue;
-        const data = messageIndex.get(key);
-        if (!data) continue;
-        // eslint-disable-next-line no-await-in-loop
-        const $post = await renderPost(key, data.message);
-        postElements.set(key, $post);
-        renderedPostKeys.add(key);
-        // Prepend (newest first)
-        $posts.insertBefore($post, $posts.firstChild);
-      }
-
-      // Update comment counts on existing posts that got new replies
-      for (const key of renderedPostKeys) {
-        const $existing = postElements.get(key);
-        if (!$existing) continue;
-        const data = messageIndex.get(key);
-        if (!data) continue;
-        const currentCount = countDescendants(key);
-        const $countEl = $existing.querySelector('.microblog-action-count');
-        const displayedCount = $countEl ? $countEl.textContent : '0';
-        if (String(currentCount) !== displayedCount && currentCount > 0) {
-          rerenderPost(key, data.message);
-        }
-      }
+    // React pills — rebuilt each render from current react state (cheap, and the
+    // react picker portal lives on document.body, so the pills carry no
+    // long-lived listeners that must survive).
+    const pillAnchors = $mount.querySelectorAll('[data-react-pills-anchor]');
+    for (const $anchor of pillAnchors) {
+      const el = /** @type {HTMLElement} */ (/** @type {unknown} */ ($anchor));
+      const key = el.getAttribute('data-react-pills-anchor') || '';
+      const $pills = reactSystem.buildReactsContainer(key);
+      if (el.firstChild) el.textContent = '';
+      if ($pills) el.appendChild($pills);
     }
   };
+
+  /**
+   * Render the confined feed, then bridge the imperative host nodes.
+   * `renderConfined` is synchronous, so anchors exist when bridging runs.
+   */
+  const rerender = () => {
+    renderConfined(h(Feed, null), $mount);
+    bridgeHostNodes();
+  };
+
+  // ---- Controller ----
 
   // Scroll to top (Twitter-style: newest content at top)
   $parent.scrollTo(0, 0);
 
   let initialLoadComplete = false;
 
-  // Batch incoming messages and re-render
-  /** @type {number} */
+  // Batch incoming messages and re-render.
+  /** @type {ReturnType<typeof setTimeout> | 0} */
   let renderTimer = 0;
   const scheduleRender = () => {
     if (renderTimer) return;
     renderTimer = setTimeout(() => {
       renderTimer = 0;
-      renderFeed()
-        .then(() => {
-          if (!initialLoadComplete) {
-            initialLoadComplete = true;
-            $parent.scrollTo(0, 0);
-          }
-        })
-        .catch(window.reportError);
+      if (!isLive()) return;
+      try {
+        rerender();
+        if (!initialLoadComplete) {
+          initialLoadComplete = true;
+          $parent.scrollTo(0, 0);
+        }
+      } catch (err) {
+        window.reportError(/** @type {Error} */ (err));
+      }
     }, 150);
   };
 
-  // Start following messages
+  // Initial render so the empty feed structure exists immediately.
+  rerender();
+
+  // Start following messages.
   const messagesRef = await E(channel).followMessages();
   const messagesIterator = iterateReader(messagesRef);
 
-  /** @type {boolean} */
-  const disposed = false;
-
   const consumeMessages = async () => {
     for await (const message of messagesIterator) {
-      if (disposed) break;
+      if (!isLive()) break;
 
       const msg = /** @type {ChannelMessage} */ (message);
       const key = String(msg.number);
@@ -769,5 +715,17 @@ export const microblogComponent = async (
   };
 
   consumeMessages().catch(window.reportError);
+
+  return harden({
+    /** Tear down the confined tree and detach host nodes. */
+    dispose: () => {
+      if (renderTimer) {
+        clearTimeout(renderTimer);
+        renderTimer = 0;
+      }
+      unmount($mount);
+      $mount.remove();
+    },
+  });
 };
 harden(microblogComponent);

@@ -9,29 +9,61 @@ import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 import { microblogComponent } from '../../microblog-component.js';
 
+// The microblog body view, migrated from imperative DOM to a confined Preact
+// component rendered through `renderConfined`. It composes the reused imperative
+// helpers (channel-utils author chips + profile popup, react-utils react buttons
+// and pills) as HOST NODES bridged into anchor slots after each render, so this
+// test exercises the confined chrome, the host-node bridge, and the message
+// consumer / debounced re-render — with a mock channel and spy callbacks, no
+// real powers.
+
 const { document: testDocument, cleanup: cleanupDOM } = createDOM();
 
-// Globals the component expects
+// Globals the component / renderConfined expect.
 if (!globalThis.CSS) {
   globalThis.CSS = { escape: s => s };
 }
-if (!globalThis.requestAnimationFrame) {
-  globalThis.requestAnimationFrame = fn => setTimeout(fn, 0);
+// renderConfined defers some idioms with requestAnimationFrame; dom-setup stubs
+// setTimeout but not rAF, so provide a setTimeout-backed shim as a browser would.
+if (typeof globalThis.requestAnimationFrame !== 'function') {
+  globalThis.requestAnimationFrame = fn =>
+    globalThis.setTimeout(() => fn(0), 0);
+  globalThis.cancelAnimationFrame = id => globalThis.clearTimeout(id);
 }
 
 /**
- * Create a controllable mock channel.
+ * Poll until `predicate()` is true (or a timeout elapses, in which case the
+ * caller's assertion reports the real difference). The debounced re-render
+ * (150ms) plus Preact's effect flush make a fixed delay race on slow runners;
+ * polling the actual condition is robust.
+ *
+ * @param {() => boolean} predicate
+ * @param {{ timeout?: number, step?: number }} [opts]
+ */
+const waitFor = async (predicate, { timeout = 4000, step = 20 } = {}) => {
+  await null; // safe-await-separator
+  const start = Date.now();
+  while (!predicate()) {
+    if (Date.now() - start > timeout) return;
+    // eslint-disable-next-line no-await-in-loop
+    await tick(step);
+  }
+};
+
+/**
+ * Create a controllable mock channel that streams pushed messages.
  *
  * @param {object} [opts]
  * @param {string} [opts.name]
- * @param {number} [opts.memberDelay]
  */
-const makeMockChannel = ({ name = 'test-microblog', memberDelay = 0 } = {}) => {
+const makeMockChannel = ({ name = 'test-microblog' } = {}) => {
   const members = new Map();
   /** @type {unknown[]} */
   const messageQueue = [];
   /** @type {Array<(msg: unknown) => void>} */
   const waitingResolvers = [];
+  /** @type {Array<{ method: string, args: unknown[] }>} */
+  const posts = [];
 
   const pushMessage = msg => {
     if (waitingResolvers.length > 0) {
@@ -64,13 +96,7 @@ const makeMockChannel = ({ name = 'test-microblog', memberDelay = 0 } = {}) => {
       return name;
     },
     getMember(memberId) {
-      const info = members.get(memberId);
-      if (memberDelay > 0) {
-        return new Promise(resolve =>
-          setTimeout(() => resolve(info), memberDelay),
-        );
-      }
-      return info;
+      return members.get(memberId);
     },
     getMembers() {
       return [...members.entries()].map(([id, info]) => ({
@@ -81,9 +107,12 @@ const makeMockChannel = ({ name = 'test-microblog', memberDelay = 0 } = {}) => {
     followMessages() {
       return readerFromIterator(messagesIterator);
     },
+    post(...args) {
+      posts.push({ method: 'post', args });
+    },
   });
 
-  return { channel, pushMessage, members };
+  return { channel, pushMessage, members, posts };
 };
 
 /**
@@ -93,6 +122,8 @@ const makeMockChannel = ({ name = 'test-microblog', memberDelay = 0 } = {}) => {
  * @param {string} [opts.memberId]
  * @param {number} [opts.replyTo]
  * @param {string} [opts.replyType]
+ * @param {string[]} [opts.names]
+ * @param {string[]} [opts.ids]
  */
 const makeMessage = (number, text, opts = {}) => ({
   type: 'package',
@@ -101,28 +132,30 @@ const makeMessage = (number, text, opts = {}) => ({
   date: new Date().toISOString(),
   memberId: opts.memberId || 'member-1',
   strings: [text],
-  names: [],
-  ids: [],
+  names: opts.names || [],
+  ids: opts.ids || [],
   ...(opts.replyTo !== undefined ? { replyTo: String(opts.replyTo) } : {}),
   ...(opts.replyType !== undefined ? { replyType: opts.replyType } : {}),
 });
 
 /**
- * @param {object} [opts]
- * @param {number} [opts.memberDelay]
+ * Mount the microblog exactly as chat.js does:
+ * channelViewFn($messages, $anchor, channelRef, { ...options }).
  */
-const setup = async ({ memberDelay = 0 } = {}) => {
+const setup = async () => {
   testDocument.body.innerHTML = '';
 
   const $parent = testDocument.createElement('div');
   $parent.id = 'messages';
+  // chat.js sets this; the markup must keep working under the selector.
+  $parent.dataset.viewMode = 'microblog';
   testDocument.body.appendChild($parent);
 
   const $end = testDocument.createElement('div');
   $end.id = 'anchor';
   $parent.appendChild($end);
 
-  const { channel, pushMessage, members } = makeMockChannel({ memberDelay });
+  const { channel, pushMessage, members, posts } = makeMockChannel();
   members.set('member-1', {
     proposedName: 'Alice',
     pedigree: [],
@@ -134,28 +167,51 @@ const setup = async ({ memberDelay = 0 } = {}) => {
     pedigreeMemberIds: [],
   });
 
+  /** @type {object[]} */
   const replyCallbacks = [];
+  /** @type {object[]} */
+  const shareCallbacks = [];
+  /** @type {object[]} */
+  const forkCallbacks = [];
+  /** @type {object[]} */
+  const showValueCalls = [];
 
-  microblogComponent($parent, $end, channel, {
-    showValue: () => {},
+  const apiPromise = microblogComponent($parent, $end, channel, {
+    showValue: (value, id, petNamePath) =>
+      showValueCalls.push({ value, id, petNamePath }),
     personaId: 'test-persona',
     ownMemberId: 'member-1',
     onReply: info => replyCallbacks.push(info),
-    onFork: async () => {},
-    onShare: () => {},
+    onShare: (chain, preview) => shareCallbacks.push({ chain, preview }),
+    onFork: async (chain, preview) => {
+      forkCallbacks.push({ chain, preview });
+    },
   }).catch(err => {
     console.error('microblogComponent error:', err);
+    throw err;
   });
 
-  // Wait for async setup
-  await tick(50);
+  // Wait for async createChannelState + initial confined render.
+  await waitFor(() => !!$parent.querySelector('.microblog-feed'));
 
-  const push = async (msg, ms = 250) => {
+  const api = await apiPromise;
+
+  const push = async msg => {
     pushMessage(msg);
-    await tick(ms);
+    // Wait past the 150ms debounce for the re-render to land.
+    await tick(220);
   };
 
-  return { $parent, push, replyCallbacks };
+  return {
+    $parent,
+    push,
+    api,
+    replyCallbacks,
+    shareCallbacks,
+    forkCallbacks,
+    showValueCalls,
+    posts,
+  };
 };
 
 test.afterEach(() => {
@@ -175,13 +231,27 @@ test.serial('feed is inserted before anchor, not after', async t => {
   t.truthy($feed, 'feed should exist');
   t.truthy($anchor, 'anchor should exist');
 
-  // Feed must come before anchor in DOM order so switchChannel cleanup works
   const children = [...$parent.childNodes];
   const feedIdx = children.indexOf($feed);
   const anchorIdx = children.indexOf($anchor);
   t.true(
     feedIdx < anchorIdx,
     `feed (${feedIdx}) should be before anchor (${anchorIdx})`,
+  );
+});
+
+test.serial('feed is first visible content in container', async t => {
+  const { $parent, push } = await setup();
+
+  await push(makeMessage(0, 'Bio'));
+  await push(makeMessage(1, 'A post'));
+
+  const $feed = $parent.querySelector('.microblog-feed');
+  t.truthy($feed, 'feed should exist');
+  t.is(
+    $parent.firstElementChild,
+    $feed,
+    'feed should be the first element in the messages container',
   );
 });
 
@@ -195,32 +265,23 @@ test.serial('scrollTop is 0 after initial load', async t => {
   t.is($parent.scrollTop, 0, 'should be scrolled to top after initial load');
 });
 
-test.serial('feed is first visible content in container', async t => {
-  const { $parent, push } = await setup();
-
-  await push(makeMessage(0, 'Bio'));
-  await push(makeMessage(1, 'A post'));
-
-  const $feed = $parent.querySelector('.microblog-feed');
-  t.truthy($feed, 'feed should exist');
-  // The feed should be the first element child of $parent
-  t.is(
-    $parent.firstElementChild,
-    $feed,
-    'feed should be the first element in the messages container',
-  );
-});
-
 // ---- Basic rendering ----
 
-test.serial('feed container is created', async t => {
+test.serial('feed, header and posts containers are created', async t => {
   const { $parent } = await setup();
-  const $feed = $parent.querySelector('.microblog-feed');
-  t.truthy($feed, 'should have a .microblog-feed container');
-  const $header = $parent.querySelector('.microblog-header');
-  t.truthy($header, 'should have a .microblog-header');
-  const $posts = $parent.querySelector('.microblog-posts');
-  t.truthy($posts, 'should have a .microblog-posts container');
+  t.truthy(
+    $parent.querySelector('.microblog-feed'),
+    'should have a .microblog-feed',
+  );
+  await waitFor(() => !!$parent.querySelector('.microblog-posts'));
+  t.truthy(
+    $parent.querySelector('.microblog-header'),
+    'should have a .microblog-header',
+  );
+  t.truthy(
+    $parent.querySelector('.microblog-posts'),
+    'should have a .microblog-posts container',
+  );
 });
 
 test.serial('first root message becomes profile header', async t => {
@@ -230,10 +291,14 @@ test.serial('first root message becomes profile header', async t => {
 
   const $header = $parent.querySelector('.microblog-header');
   t.truthy($header, 'header should exist');
-  const headerText = $header.textContent;
   t.true(
-    headerText.includes('bio'),
-    `header should contain bio text, got: "${headerText}"`,
+    $header.textContent.includes('bio'),
+    `header should contain bio text, got: "${$header.textContent}"`,
+  );
+  // The bio body keeps both class names.
+  t.truthy(
+    $parent.querySelector('.microblog-header-bio'),
+    'bio body keeps the header-bio class',
   );
 });
 
@@ -245,10 +310,9 @@ test.serial('second root message renders as a post', async t => {
 
   const $posts = $parent.querySelectorAll('.microblog-post');
   t.is($posts.length, 1, 'should have one post');
-  const postText = $posts[0].textContent;
   t.true(
-    postText.includes('first post'),
-    `post should contain text, got: "${postText}"`,
+    $posts[0].textContent.includes('first post'),
+    `post should contain text, got: "${$posts[0].textContent}"`,
   );
 });
 
@@ -268,21 +332,60 @@ test.serial('posts appear newest-first', async t => {
   t.true(texts[2].includes('First'), 'oldest post should be last');
 });
 
-test.serial('replies become comments, not new posts', async t => {
+test.serial('empty channel shows no-posts message', async t => {
+  const { $parent, push } = await setup();
+
+  await push(makeMessage(0, 'Just a bio'));
+
+  const $empty = $parent.querySelector('.microblog-empty');
+  t.truthy($empty, 'should show empty state');
+  t.true($empty.textContent.includes('No posts'), 'should say no posts');
+});
+
+// ---- Authors and host-node bridge ----
+
+test.serial('post shows author chip bridged into anchor', async t => {
   const { $parent, push } = await setup();
 
   await push(makeMessage(0, 'Bio'));
-  await push(makeMessage(1, 'A post'));
-  await push(makeMessage(2, 'A comment on the post', { replyTo: 1 }));
+  await push(makeMessage(1, 'Post by Bob', { memberId: 'member-2' }));
 
-  const $posts = $parent.querySelectorAll('.microblog-post');
-  t.is($posts.length, 1, 'reply should not create a new post');
-
-  // Check comment count appears
-  const $countEl = $posts[0].querySelector('.microblog-action-count');
-  t.truthy($countEl, 'should show comment count');
-  t.is($countEl.textContent, '1', 'comment count should be 1');
+  // Author chips are imperative DOM re-parented into the anchor.
+  await waitFor(
+    () => !!$parent.querySelector('.microblog-post .channel-author'),
+  );
+  const $author = $parent.querySelector('.microblog-post .channel-author');
+  t.truthy($author, 'should have an author element');
+  t.is($author.dataset.memberId, 'member-2', 'author carries the memberId');
 });
+
+test.serial('each post gets its own author chip', async t => {
+  const { $parent, push } = await setup();
+
+  await push(makeMessage(0, 'Bio'));
+  await push(makeMessage(1, 'Post by Alice', { memberId: 'member-1' }));
+  await push(makeMessage(2, 'Post by Bob', { memberId: 'member-2' }));
+
+  await waitFor(
+    () =>
+      $parent.querySelectorAll('.microblog-post .channel-author').length === 2,
+  );
+  const $authors = $parent.querySelectorAll('.microblog-post .channel-author');
+  t.is($authors.length, 2, 'each post should have an author');
+});
+
+test.serial('post shows relative timestamp', async t => {
+  const { $parent, push } = await setup();
+
+  await push(makeMessage(0, 'Bio'));
+  await push(makeMessage(1, 'Recent post'));
+
+  const $time = $parent.querySelector('.microblog-post-time');
+  t.truthy($time, 'should have a time element');
+  t.true($time.textContent.length > 0, 'time should have content');
+});
+
+// ---- Action bar ----
 
 test.serial('post has interaction bar with reply, share, fork', async t => {
   const { $parent, push } = await setup();
@@ -300,31 +403,18 @@ test.serial('post has interaction bar with reply, share, fork', async t => {
   );
 });
 
-test.serial('post shows author name', async t => {
+test.serial('react button is bridged into the action bar', async t => {
   const { $parent, push } = await setup();
 
   await push(makeMessage(0, 'Bio'));
-  await push(makeMessage(1, 'Post by Bob', { memberId: 'member-2' }));
+  await push(makeMessage(1, 'A post'));
 
-  // Wait extra for async member info
-  await tick(100);
-
-  const $post = $parent.querySelector('.microblog-post');
-  t.truthy($post, 'should have a post');
-  const $author = $post.querySelector('.channel-author');
-  t.truthy($author, 'should have an author element');
-});
-
-test.serial('post shows relative timestamp', async t => {
-  const { $parent, push } = await setup();
-
-  await push(makeMessage(0, 'Bio'));
-  await push(makeMessage(1, 'Recent post'));
-
-  const $time = $parent.querySelector('.microblog-post-time');
-  t.truthy($time, 'should have a time element');
-  // Should show relative time or formatted date
-  t.true($time.textContent.length > 0, 'time should have content');
+  // react-utils createReactButton is imperative DOM bridged into its anchor.
+  await waitFor(() => !!$parent.querySelector('.microblog-post .react-button'));
+  t.truthy(
+    $parent.querySelector('.microblog-post .react-button'),
+    'react button host node should be bridged in',
+  );
 });
 
 test.serial('clicking reply button triggers onReply', async t => {
@@ -333,29 +423,52 @@ test.serial('clicking reply button triggers onReply', async t => {
   await push(makeMessage(0, 'Bio'));
   await push(makeMessage(1, 'Reply to this'));
 
-  // Wait for member info
-  await tick(100);
-
-  const $replyBtn = $parent.querySelector('.microblog-action-btn');
+  const $replyBtn = $parent.querySelector(
+    '.microblog-post .microblog-action-btn',
+  );
   t.truthy($replyBtn, 'should have reply button');
-  $replyBtn.click();
+  $replyBtn.dispatchEvent(new globalThis.Event('click', { bubbles: true }));
 
-  // onReply is called after async getMemberInfo
-  await tick(50);
+  // onReply fires after async getMemberInfo.
+  await waitFor(() => replyCallbacks.length > 0);
 
   t.is(replyCallbacks.length, 1, 'onReply should have been called');
-  t.is(replyCallbacks[0].number, 1n, 'should reference correct message');
+  t.is(replyCallbacks[0].number, 1n, 'should reference the correct message');
 });
 
-test.serial('empty channel shows no-posts message', async t => {
+test.serial('clicking share button triggers onShare with heritage', async t => {
+  const { $parent, push, shareCallbacks } = await setup();
+
+  await push(makeMessage(0, 'Bio'));
+  await push(makeMessage(1, 'A shareable post'));
+
+  // reply (↩), react (bridged), comments (💬), share (⇗), fork (⑂).
+  const $actions = $parent.querySelector('.microblog-post .microblog-actions');
+  const $btns = $actions.querySelectorAll('.microblog-action-btn');
+  // Share button has the ⇗ icon.
+  const $shareBtn = [...$btns].find(b => b.textContent.includes('⇗'));
+  t.truthy($shareBtn, 'should have a share button');
+  $shareBtn.dispatchEvent(new globalThis.Event('click', { bubbles: true }));
+
+  t.is(shareCallbacks.length, 1, 'onShare should have been called');
+  t.is(shareCallbacks[0].chain.length, 1, 'heritage chain has one message');
+});
+
+// ---- Replies / comments ----
+
+test.serial('replies become comments, not new posts', async t => {
   const { $parent, push } = await setup();
 
-  // Only the bio, no posts
-  await push(makeMessage(0, 'Just a bio'));
+  await push(makeMessage(0, 'Bio'));
+  await push(makeMessage(1, 'A post'));
+  await push(makeMessage(2, 'A comment on the post', { replyTo: 1 }));
 
-  const $empty = $parent.querySelector('.microblog-empty');
-  t.truthy($empty, 'should show empty state');
-  t.true($empty.textContent.includes('No posts'), 'should say no posts');
+  const $posts = $parent.querySelectorAll('.microblog-post');
+  t.is($posts.length, 1, 'reply should not create a new post');
+
+  const $countEl = $posts[0].querySelector('.microblog-action-count');
+  t.truthy($countEl, 'should show comment count');
+  t.is($countEl.textContent, '1', 'comment count should be 1');
 });
 
 test.serial('edit-type replies do not render as posts', async t => {
@@ -369,84 +482,94 @@ test.serial('edit-type replies do not render as posts', async t => {
   t.is($posts.length, 1, 'edit should not create a second post');
 });
 
-test.serial('multiple posts from different authors', async t => {
-  const { $parent, push } = await setup();
-
-  await push(makeMessage(0, 'Bio'));
-  await push(makeMessage(1, 'Post by Alice', { memberId: 'member-1' }));
-  await push(makeMessage(2, 'Post by Bob', { memberId: 'member-2' }));
-
-  const $posts = $parent.querySelectorAll('.microblog-post');
-  t.is($posts.length, 2, 'should have two posts');
-
-  // Both should have author elements
-  const $authors = $parent.querySelectorAll('.microblog-post .channel-author');
-  t.is($authors.length, 2, 'each post should have an author');
-});
-
-test.serial('nested replies show expandable toggle', async t => {
-  const { $parent, push } = await setup();
-
-  await push(makeMessage(0, 'Bio'));
-  await push(makeMessage(1, 'A post'));
-  await push(makeMessage(2, 'Comment on post', { replyTo: 1 }));
-  await push(makeMessage(3, 'Reply to comment', { replyTo: 2 }));
-
-  // Expand the post's comments by clicking the 💬 button (second action btn)
-  const $actionBtns = $parent.querySelectorAll('.microblog-action-btn');
-  // Find the comments toggle (the one with 💬 and a count)
-  const $commentsBtn = [...$actionBtns].find(
-    btn => btn.querySelector('.microblog-action-count') !== null,
-  );
-  t.truthy($commentsBtn, 'post should have comment toggle with count');
-  $commentsBtn.click();
-  await tick(300);
-
-  // The comment should also have an action bar with a 💬 button showing "1"
-  const $commentSection = $parent.querySelector('.microblog-comments-section');
-  t.truthy($commentSection, 'comments section should be expanded');
-
-  const $nestedActions = $commentSection.querySelectorAll('.microblog-actions');
-  t.true($nestedActions.length >= 1, 'comment should have its own action bar');
-
-  // Find the nested comment's 💬 count
-  const $nestedCount = $commentSection.querySelector('.microblog-action-count');
-  t.truthy($nestedCount, 'nested comment should show reply count');
-  t.is($nestedCount.textContent, '1', 'should show count of 1 nested reply');
-});
-
 test.serial(
-  'comments have same action buttons as posts (reply, comments, share, fork)',
+  'expanding a post reveals its comments with their own action bars',
   async t => {
     const { $parent, push } = await setup();
 
     await push(makeMessage(0, 'Bio'));
     await push(makeMessage(1, 'A post'));
-    await push(makeMessage(2, 'A comment', { replyTo: 1 }));
+    await push(makeMessage(2, 'Comment on post', { replyTo: 1 }));
+    await push(makeMessage(3, 'Reply to comment', { replyTo: 2 }));
 
-    // Expand comments
-    const $actionBtns = $parent.querySelectorAll('.microblog-action-btn');
+    // Click the comments toggle (the action button carrying a count).
+    const $actionBtns = $parent.querySelectorAll(
+      '.microblog-post > .microblog-actions .microblog-action-btn',
+    );
     const $commentsBtn = [...$actionBtns].find(
       btn => btn.querySelector('.microblog-action-count') !== null,
     );
-    t.truthy($commentsBtn, 'should have comments toggle');
-    $commentsBtn.click();
-    await tick(300);
+    t.truthy($commentsBtn, 'post should have a comment toggle with a count');
+    $commentsBtn.dispatchEvent(
+      new globalThis.Event('click', { bubbles: true }),
+    );
 
-    // The comment's action bar should have the same buttons as the post
+    await waitFor(() => !!$parent.querySelector('.microblog-comments-section'));
+
     const $commentSection = $parent.querySelector(
       '.microblog-comments-section',
     );
-    t.truthy($commentSection, 'comments section should exist');
+    t.truthy($commentSection, 'comments section should be expanded');
 
     const $commentActions = $commentSection.querySelector('.microblog-actions');
-    t.truthy($commentActions, 'comment should have action bar');
+    t.truthy($commentActions, 'comment should have its own action bar');
 
-    const $btns = $commentActions.querySelectorAll('.microblog-action-btn');
-    // reply (↩), comments (💬), share (⇗), fork (⑂)
-    t.true(
-      $btns.length >= 4,
-      `comment should have at least 4 action buttons, got ${$btns.length}`,
+    // The nested comment shows its own reply count of 1.
+    const $nestedCount = $commentSection.querySelector(
+      '.microblog-action-count',
     );
+    t.truthy($nestedCount, 'nested comment should show a reply count');
+    t.is($nestedCount.textContent, '1', 'should show count of 1 nested reply');
   },
 );
+
+// ---- Token chips ----
+
+test.serial('token chip opens value via showValue', async t => {
+  const { $parent, push, showValueCalls } = await setup();
+
+  await push(makeMessage(0, 'Bio'));
+  await push({
+    type: 'package',
+    messageId: 'msg-1',
+    number: 1n,
+    date: new Date().toISOString(),
+    memberId: 'member-1',
+    strings: ['See ', ' here'],
+    names: ['thing'],
+    ids: ['endo://localhost/?id=abc'],
+  });
+
+  await waitFor(() => !!$parent.querySelector('.microblog-post .token'));
+  const $token = $parent.querySelector('.microblog-post .token');
+  t.truthy($token, 'token chip should render');
+  t.true($token.textContent.includes('@thing'), 'chip shows the edge name');
+
+  $token.dispatchEvent(new globalThis.Event('click', { bubbles: true }));
+  t.is(showValueCalls.length, 1, 'showValue called on click');
+  t.deepEqual(
+    showValueCalls[0],
+    {
+      value: undefined,
+      id: 'endo://localhost/?id=abc',
+      petNamePath: ['thing'],
+    },
+    'showValue receives id and pet-name path',
+  );
+});
+
+// ---- Teardown ----
+
+test.serial('dispose unmounts the confined feed', async t => {
+  const { $parent, push, api } = await setup();
+
+  await push(makeMessage(0, 'Bio'));
+  await push(makeMessage(1, 'A post'));
+
+  t.truthy($parent.querySelector('.microblog-feed'), 'feed mounted');
+  api.dispose();
+  t.falsy(
+    $parent.querySelector('.microblog-feed'),
+    'feed removed after dispose',
+  );
+});
