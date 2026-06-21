@@ -6,9 +6,13 @@
   "include": [
     "*.js",
     "*.ts",
+    "components",
+    "inventory",
     "test"
   ],
   "exclude": [
-    "test/monaco-lockdown"
+    "test/monaco-lockdown",
+    "test/inventory-dnd",
+    "test/inventory-item-actions"
   ]
 }

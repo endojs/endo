@@ -40,3 +40,15 @@ export {
   Fragment,
   createElement,
 } from '@endo/preact-container/renderer';
+
+// Hooks for host-authored components. (Confined guest components receive these
+// as endowments instead; trusted host components import them here.) This is
+// the same hook set `@endo/preact-container/compartment` endows to guests.
+export {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  useReducer,
+} from 'preact/hooks';

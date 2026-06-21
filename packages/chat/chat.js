@@ -11,7 +11,8 @@ import { forumComponent } from './forum-component.js';
 import { outlinerComponent } from './outliner-component.js';
 import { createChannelHeader } from './channel-header.js';
 import { inboxComponent } from './inbox-component.js';
-import { inventoryComponent } from './inventory-component.js';
+import { inventoryComponent } from './inventory/inventory.js';
+import { makeChannelSidebar } from './inventory/channel-sidebar.js';
 import { chatBarComponent } from './chat-bar-component.js';
 import { valueComponent } from './value-component.js';
 import { createSpacesGutter } from './spaces-gutter.js';
@@ -1083,6 +1084,74 @@ const bodyComponent = (
         });
       }
 
+      // In channel mode, the channels sidebar supplies the alternate rendering
+      // (header New/Join, per-channel decoration, bookmarks, reordering).
+      const channelSidebar = isChannelMode
+        ? makeChannelSidebar({
+            powers: /** @type {ERef<EndoHost>} */ (resolvedPowers),
+            onSelectChannel: switchChannel,
+            activeChannelPetName: activeSpaceInfo.channelPetName || null,
+            channelOrder: activeSpaceInfo.channelOrder,
+            onChannelReorder: order => {
+              const spaceId = spacesGutterAPI.getActiveSpaceId();
+              if (spaceId && spaceId !== 'home') {
+                spacesGutterAPI
+                  .updateSpace(spaceId, { channelOrder: order })
+                  .catch(
+                    /** @param {Error} err */ err => {
+                      console.warn('Failed to persist channel order:', err);
+                    },
+                  );
+              }
+            },
+            bookmarks: activeSpaceInfo.bookmarks,
+            onSelectBookmark: (channelPetName, threadKey) => {
+              switchChannel(channelPetName);
+              // Focus on the thread after channel loads. The
+              // channelAPI.focusOnNode is set after the view renders.
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  const api = /** @type {any} */ ($messages).channelAPI;
+                  if (api && api.focusOnNode) {
+                    api.focusOnNode(threadKey);
+                  }
+                }, 500);
+              });
+            },
+            onRemoveBookmark: bm => {
+              const spaceId = spacesGutterAPI.getActiveSpaceId();
+              if (!spaceId || spaceId === 'home') return;
+              const existing = activeSpaceInfo.bookmarks || [];
+              const updated = existing.filter(
+                b =>
+                  !(b.key === bm.key && b.channelPetName === bm.channelPetName),
+              );
+              activeSpaceInfo.bookmarks = updated;
+              spacesGutterAPI
+                .updateSpace(spaceId, { bookmarks: updated })
+                .catch(
+                  /** @param {Error} err */ err => {
+                    console.warn('Failed to remove bookmark:', err);
+                  },
+                );
+            },
+            viewMode: activeSpaceInfo.viewMode || 'chat',
+            onViewModeChange: mode => {
+              activeSpaceInfo.viewMode = mode;
+              const spaceId = spacesGutterAPI.getActiveSpaceId();
+              if (spaceId && spaceId !== 'home') {
+                spacesGutterAPI.updateSpace(spaceId, { viewMode: mode }).catch(
+                  /** @param {Error} err */ err => {
+                    console.warn('Failed to persist view mode:', err);
+                  },
+                );
+              }
+              // Re-render with new view mode
+              switchChannel(activeSpaceInfo.channelPetName || '');
+            },
+          })
+        : undefined;
+
       inventoryComponent(
         $pets,
         $profileBar,
@@ -1097,85 +1166,7 @@ const bodyComponent = (
           activeConversationPetName: activeConversation
             ? activeConversation.petName
             : null,
-          channelMode: isChannelMode || false,
-          onSelectChannel: isChannelMode ? switchChannel : undefined,
-          activeChannelPetName: isChannelMode
-            ? activeSpaceInfo.channelPetName || null
-            : null,
-          channelOrder: isChannelMode
-            ? activeSpaceInfo.channelOrder
-            : undefined,
-          onChannelReorder: isChannelMode
-            ? order => {
-                const spaceId = spacesGutterAPI.getActiveSpaceId();
-                if (spaceId && spaceId !== 'home') {
-                  spacesGutterAPI
-                    .updateSpace(spaceId, { channelOrder: order })
-                    .catch(
-                      /** @param {Error} err */ err => {
-                        console.warn('Failed to persist channel order:', err);
-                      },
-                    );
-                }
-              }
-            : undefined,
-          bookmarks: isChannelMode ? activeSpaceInfo.bookmarks : undefined,
-          onSelectBookmark: isChannelMode
-            ? (channelPetName, threadKey) => {
-                switchChannel(channelPetName);
-                // Focus on the thread after channel loads
-                // The channelAPI.focusOnNode is set after the view renders
-                requestAnimationFrame(() => {
-                  setTimeout(() => {
-                    const api = /** @type {any} */ ($messages).channelAPI;
-                    if (api && api.focusOnNode) {
-                      api.focusOnNode(threadKey);
-                    }
-                  }, 500);
-                });
-              }
-            : undefined,
-          onRemoveBookmark: isChannelMode
-            ? bm => {
-                const spaceId = spacesGutterAPI.getActiveSpaceId();
-                if (!spaceId || spaceId === 'home') return;
-                const existing = activeSpaceInfo.bookmarks || [];
-                const updated = existing.filter(
-                  b =>
-                    !(
-                      b.key === bm.key && b.channelPetName === bm.channelPetName
-                    ),
-                );
-                activeSpaceInfo.bookmarks = updated;
-                spacesGutterAPI
-                  .updateSpace(spaceId, { bookmarks: updated })
-                  .catch(
-                    /** @param {Error} err */ err => {
-                      console.warn('Failed to remove bookmark:', err);
-                    },
-                  );
-              }
-            : undefined,
-          viewMode: isChannelMode
-            ? activeSpaceInfo.viewMode || 'chat'
-            : undefined,
-          onViewModeChange: isChannelMode
-            ? mode => {
-                activeSpaceInfo.viewMode = mode;
-                const spaceId = spacesGutterAPI.getActiveSpaceId();
-                if (spaceId && spaceId !== 'home') {
-                  spacesGutterAPI
-                    .updateSpace(spaceId, { viewMode: mode })
-                    .catch(
-                      /** @param {Error} err */ err => {
-                        console.warn('Failed to persist view mode:', err);
-                      },
-                    );
-                }
-                // Re-render with new view mode
-                switchChannel(activeSpaceInfo.channelPetName || '');
-              }
-            : undefined,
+          sidebar: channelSidebar,
         },
       ).catch(window.reportError);
 

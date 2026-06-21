@@ -39,6 +39,75 @@ Each migration replaces a component's imperative DOM construction with a
 Preact component rendered through `renderConfined` (and eventually exposes a
 seam where a confined guest component could be substituted).
 
+## Authoring conventions
+
+### File layout
+
+- `setup-preact-container.js` — the app barrel: re-exports
+  `@endo/preact-container` (`h`, `Fragment`, `renderConfined`, `unmount`,
+  `confineComponent`) plus the Preact hooks, under the app's severe lockdown.
+  Every component imports from here, never from `preact` directly.
+- `components/` — reusable, app-wide Preact components. A piece moves here
+  once a second caller wants it. See `components/README.md` for the format.
+- `inventory/` — the inventory feature: its specific Preact components
+  (`drop-menu.js`, `item-actions.js`, …), behavior factories (`dnd.js`,
+  `tree-source.js`), the migrating module (`inventory.js`; becomes
+  `InventoryList`), and `channel-sidebar.js` (see below).
+
+### `inventory.js` is the pet-name tree; channels are a separate sidebar
+
+`inventory.js` was overloaded: a `channelMode` flag switched it between the
+pet-name tree and the channels sidebar (New/Join forms, per-channel menu,
+bookmarks, reordering). Those channel concerns are **not** inventory and have
+been split into `inventory/channel-sidebar.js`: `inventory.js` is now a
+mode-agnostic tree renderer that takes an optional `sidebar` of hooks
+(`setupHeader`, `decorateItem`, `setupList`, `prepend`, `itemInitiallyHidden`),
+and `makeChannelSidebar` supplies them. `chat.js` builds the sidebar in channel
+mode.
+
+So **"the whole inventory as Preact" scopes to the pet-name tree**
+(`ItemLabel`, `ItemActions` ✓, `DropMenu` ✓, `ItemDisclosure`, `PetItem`,
+`InventoryList`). The channel sidebar is still imperative; its own Preact
+migration is a separate, later effort (and would yield reusable pieces like a
+`PopupMenu` shared with `DropMenu`, plus the New/Join forms).
+
+Feature-specific components live with their feature; only genuinely reusable
+ones go in `components/`. Both follow the one common component format
+documented in `components/README.md`.
+
+### No JSX — `h()` only
+
+Components are plain `.js` authored with the `h` (and `Fragment`) helper
+imported from [`setup-preact-container.js`](../setup-preact-container.js),
+rendered via `renderConfined`.
+We do not use JSX.
+
+Rationale:
+
+- Avoids a JSX build/transform step and the `@vitejs/plugin-react` pragma
+  juggling; the source runs as-is.
+- Keeps the confined-render path explicit — `h` and `renderConfined` come
+  from the same controlled surface that confined guest code will use.
+- Matches `@endo/preact-container`'s own suite, which dropped JSX in favour
+  of `h()` + plain `.js`.
+
+### Two-phase rule: refactor-then-convert vs convert-in-place
+
+Split each migration by what survives the Preact conversion:
+
+- **Phase 1 — refactor in the current style (do first).** Extract the
+  substrate-agnostic parts — data adapters, drag-and-drop and other
+  behavior, type rules, and the controller↔child prop/callback boundaries —
+  as pure, behavior-preserving refactors with no Preact yet.
+  These are reused unchanged by the Preact version, and a regression here is
+  attributable to the extraction, not the rendering change.
+- **Convert-in-place — rewrite markup directly in `h()`.** Do **not**
+  pre-factor the visual DOM construction into imperative sub-functions
+  (`$container`-passing, manual event wiring, `cleanup()` returns) only to
+  delete that plumbing on conversion.
+  Child composition is exactly what Preact makes cheap, so leaf views go
+  straight from monolith markup to `h()` components.
+
 ## Default Chat view component graph
 
 The default view renders when a space's `viewMode` falls through to
@@ -208,43 +277,110 @@ Line numbers below are anchors at time of writing, not contracts.
 Visual pieces become Preact components; cross-cutting drag-and-drop and the
 data adapter become hooks/utilities rather than views.
 
+The channel-mode pieces have since been split out of the inventory entirely
+(into `inventory/channel-sidebar.js`); they are listed separately below and
+are not part of the inventory migration.
+
+**Pet-name tree (this migration):**
+
 - **InventoryList** (container/controller) — owns the `followNameChanges()`
   subscription, the `$names` map, and recursion; renders one `PetItem` per
   name.
   This is the orchestrator that survives as the top-level component.
 - **PetItem** (recursive node) — the `createItem` shell; composes:
-  - **ItemDisclosure** — the triangle, expand/collapse state, and the
+  - **ItemDisclosure** ☑ — the triangle, expand/collapse state, and the
     recursive child-list mount (the recursion seam back into
     `InventoryList`).
-  - **ItemLabel** — name (574) + type badge (749).
-  - **ItemActions** — info/inspect (583, 710), cancel-pending (590, 603),
-    and remove (638) buttons.
-  - **ChannelItemMenu** — the per-channel context menu (786–828), only in
-    `channelMode`.
-  - **BookmarkList** / **BookmarkItem** — bookmarked threads rendered under
-    a channel (879–950), plus the remove context menu.
-- **ChannelActions** — the channel-mode header, wrapping **NewChannelForm**
-  (220) and **JoinChannelForm** (297).
-- **DropMenu** — the link/move context menu (461), the one visual piece of
-  the tree drag-and-drop.
+  - **ItemLabel** ☑ — the pet name + type badge (`inventory/item-label.js`).
+  - **ItemActions** ☑ — info/inspect, cancel-pending, and remove buttons
+    (`inventory/item-actions.js`).
+- **DropMenu** ☑ — the link/move context menu, the one visual piece of the
+  tree drag-and-drop (`inventory/drop-menu.js`).
 
-### Extract as hooks/utilities (behavior, not views)
+**Channel sidebar (`inventory/channel-sidebar.js`; separate later migration):**
+
+- **NewChannelForm** / **JoinChannelForm** — the channel-mode header forms.
+- **ChannelItemMenu** — the per-channel `⋮` context menu (view-mode switch).
+- **BookmarkList** / **BookmarkItem** — bookmarked threads under a channel,
+  plus the remove context menu.
+- Channel reordering already lives in `inventory/dnd.js` (`makeChannelReorder`).
+- A shared **PopupMenu** in `components/` should fall out of `ChannelItemMenu`
+  + `DropMenu`.
+
+### Extract as framework-agnostic factories (behavior, not views)
+
+These are **not** Preact hooks.
+A `use*` hook only runs inside a component render, so it could not be called
+from the current imperative `inventoryComponent` — naming them `use*` would
+break the phase-1 premise (refactor with no Preact).
+Each is a `make*` factory (repo idiom) that takes the DOM node(s) plus
+callbacks, wires the listeners imperatively, and returns a `dispose()`.
+That is callable from the current imperative code now, and during
+convert-in-place it is invoked from
+`useEffect(() => makeX(node, opts).dispose, deps)`.
+A thin `useItemDragDrop` wrapper hook may be added at that point, but the
+reusable core is always the agnostic factory.
+Where practical, also split out the genuinely pure decision logic (e.g.
+drop-target path, insertion-index hit-test, `acceptsDrop` type rule) as pure
+functions the factory and any future hook both call.
 
 - **inventory-tree-source** — `makeStaticNameIterator` +
   `makeStaticTreePowers`; the static-snapshot-vs-live-stream adapter.
-- **useItemDragDrop** — row-level drag source + drop target (544–676) and
+- **makeItemDragDrop** — row-level drag source + drop target (544–676) and
   the `acceptsDrop` type probe; pairs with `dropTargetPath` /
   `clearAllDropTargets`.
-- **useChannelReorder** — list-level reorder + drop indicator (1099–1250).
+- **makeChannelReorder** — list-level reorder + drop indicator (1099–1250).
+
+### Phase 1 (refactor now) vs convert-in-place
+
+Applying the two-phase rule to the pieces above:
+
+| Piece | Treatment |
+| --- | --- |
+| `inventory-tree-source` (static/live adapter + type rules) | Phase 1 — extract now |
+| `makeItemDragDrop` (row drag source/target, `acceptsDrop`, drop-target paths) | Phase 1 — extract now |
+| `makeChannelReorder` (list reorder + indicator) | Phase 1 — extract now |
+| controller↔row prop/callback boundary | Phase 1 — define now |
+| `ItemLabel`, `ItemActions`, `DropMenu` | Convert-in-place |
+| `ItemDisclosure` | Convert-in-place |
+| `PetItem`, `InventoryList` shell | Convert-in-place |
+| channel sidebar (`NewChannelForm` / `JoinChannelForm`, `BookmarkItem` / `BookmarkList`, `ChannelItemMenu`, reorder) | Split to `channel-sidebar.js`; separate later migration |
 
 ### Migration order for the inventory bar
 
-Bottom-up, mirroring the overall strategy:
+Bottom-up, mirroring the overall strategy.
+Steps 1 are Phase-1 refactors (no Preact); steps 2–5 convert markup in place.
 
-1. Extract the non-visual seams first (`inventory-tree-source`,
-   `useItemDragDrop`, `useChannelReorder`) — pure refactors, no Preact yet.
-2. Migrate the leaf views: `ItemLabel`, `ItemActions`, `DropMenu`,
-   `BookmarkItem`, `NewChannelForm` / `JoinChannelForm`.
-3. Migrate `ItemDisclosure` + `BookmarkList` + `ChannelItemMenu`.
-4. Compose `PetItem`, then `ChannelActions`.
-5. Convert `InventoryList` last, once its children are Preact.
+1. Extract the non-visual seams first — pure refactors, no Preact yet:
+   1. `inventory-tree-source` (`makeStaticNameIterator`,
+      `makeStaticTreePowers`, type-classification constants). ☑ done
+   2. `makeItemDragDrop` (row drag source + drop target + `acceptsDrop`). ☑ done
+   3. `makeChannelReorder` (list reorder + drop indicator). ☑ done
+
+   Both dnd factories are behavior-tested in a real browser by
+   `test/inventory-dnd` (`yarn test:inventory-dnd`).
+2. Migrate the leaf views to `h()` components rendered through
+   `renderConfined`:
+   - `DropMenu` (inventory/drop-menu.js). ☑ done — the first Preact `h()`
+     component; rendered by inventory/dnd.js's `showDropMenu`, covered by
+     `test/inventory-dnd` under severe lockdown.
+   - `ItemActions` (inventory/item-actions.js). ☑ done — info/cancel/remove
+     buttons; owns the cancel two-click confirm state via hooks; mounts into a
+     `display: contents` sub-host so the imperative channel menu button stays a
+     `.pet-buttons` flex sibling. Covered by `test/inventory-item-actions`
+     (`yarn test:item-actions`) under severe lockdown. The `setup-preact-container.js`
+     barrel now also re-exports the Preact hooks for host components.
+   - `ItemLabel` (inventory/item-label.js). ☑ done — pet name + type badge,
+     mounted into a `display: contents` host; all label mutations
+     (conversation, immutable, channel) route through `setLabel`, which
+     re-renders.
+3. Migrate `ItemDisclosure` (inventory/item-disclosure.js). ☑ done — the
+   triangle view; the expand/collapse behavior (async lookup + recursive
+   mount) stays host-side and drives it through `setDisclosure`.
+4. Compose `PetItem`. ☐
+5. Convert `InventoryList` last, once its children are Preact. ☐
+
+The channel-sidebar pieces (`NewChannelForm` / `JoinChannelForm`, `BookmarkItem`
+/ `BookmarkList`, `ChannelItemMenu`, channel reorder) are **out of scope** for
+the inventory migration — they were split into `inventory/channel-sidebar.js`
+(still imperative) and migrate separately later.

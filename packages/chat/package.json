@@ -40,9 +40,11 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:e2e": "playwright test",
     "test:monaco-lockdown": "node test/monaco-lockdown/run.mjs",
+    "test:inventory-dnd": "node test/inventory-dnd/run.mjs",
     "test:xs": "exit 0",
     "setup-lal": "endo run --UNCONFINED setup-lal.js --powers @agent",
-    "setup-llm-provider": "endo run --UNCONFINED setup-llm-provider.js --powers @agent"
+    "setup-llm-provider": "endo run --UNCONFINED setup-llm-provider.js --powers @agent",
+    "test:item-actions": "node test/inventory-item-actions/run.mjs"
   },
   "dependencies": {
     "@endo/captp": "workspace:^",
@@ -109,6 +111,9 @@
     "files": [
       "test/**/*.test.*"
     ],
-    "timeout": "2m"
+    "timeout": "2m",
+    "environmentVariables": {
+      "LOCKDOWN_OPTIONS": "{\"errorTaming\":\"unsafe\",\"overrideTaming\":\"severe\",\"domainTaming\":\"unsafe\"}"
+    }
   }
 }

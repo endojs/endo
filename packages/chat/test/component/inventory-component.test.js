@@ -33,7 +33,7 @@ const setupInventory = async (opts = {}) => {
 
   const mock = makeMockPowers(opts);
 
-  const { inventoryComponent } = await import('../../inventory-component.js');
+  const { inventoryComponent } = await import('../../inventory/inventory.js');
 
   // Fire-and-forget: inventoryComponent runs an infinite `for await` loop on
   // followNameChanges and only returns when the iterator does. The tests
@@ -57,7 +57,7 @@ const setupInventory = async (opts = {}) => {
 // ── harden ────────────────────────────────────────────────────────────
 
 test.serial('inventoryComponent export is hardened', async t => {
-  const { inventoryComponent } = await import('../../inventory-component.js');
+  const { inventoryComponent } = await import('../../inventory/inventory.js');
   t.true(Object.isFrozen(inventoryComponent), 'inventoryComponent is frozen');
 });
 
@@ -75,6 +75,52 @@ test.serial('renders rows for each name from followNameChanges', async t => {
     ),
   ].map(el => el.textContent);
   t.deepEqual(labels.sort(), ['alice', 'bob']);
+});
+
+test.serial('renders a type badge once the locate probe resolves', async t => {
+  const { $list } = await setupInventory({
+    names: ['inbox'],
+    locators: new Map([['inbox', 'endo://?type=directory&number=1']]),
+  });
+  await tick(30);
+
+  const $badge = $list.querySelector('.pet-type-badge');
+  t.truthy($badge, 'type badge rendered');
+  t.is($badge.textContent, 'directory', 'badge shows the formula type');
+  // The badge is a sibling of the name in the row (display:contents host is
+  // invisible to layout).
+  const $row = $list.querySelector('.pet-item-row');
+  t.truthy($row.querySelector('.pet-name'), 'name still present');
+  t.truthy($row.querySelector('.pet-type-badge'), 'badge in the same row');
+});
+
+test.serial('disclosure is hidden for non-expandable types', async t => {
+  const { $list } = await setupInventory({
+    names: ['inbox', 'note'],
+    locators: new Map([
+      ['inbox', 'endo://?type=directory&number=1'],
+      ['note', 'endo://?type=readable-blob&number=2'],
+    ]),
+  });
+  await tick(30);
+
+  const disclosureFor = name => {
+    const $wrapper = [
+      .../** @type {NodeListOf<HTMLElement>} */ (
+        $list.querySelectorAll('.pet-item-wrapper')
+      ),
+    ].find(w => w.querySelector('.pet-name')?.textContent === name);
+    return $wrapper.querySelector('.pet-disclosure');
+  };
+
+  t.true(
+    disclosureFor('note').classList.contains('hidden'),
+    'readable-blob disclosure is hidden (not expandable)',
+  );
+  t.false(
+    disclosureFor('inbox').classList.contains('hidden'),
+    'directory disclosure stays visible (expandable)',
+  );
 });
 
 test.serial('hub-typed rows accept drop; leaf-typed rows do not', async t => {
@@ -144,8 +190,11 @@ test.serial(
     );
     t.truthy($cancel, 'cancel button rendered');
 
-    // First click: enter confirming state, do not send.
+    // First click: enter confirming state, do not send. The confirm state now
+    // lives in a Preact component (ItemActions), so allow its re-render to
+    // settle before asserting on the rendered class.
     $cancel.click();
+    await tick(10);
     t.true($cancel.classList.contains('confirming'), 'confirm state entered');
     const beforeCalls = mock.calls.filter(c => c.method === 'cancel');
     t.is(beforeCalls.length, 0, 'no cancel call on first click');
@@ -176,7 +225,7 @@ test.serial(
   async t => {
     const { readFile } = await import('node:fs/promises');
     const source = await readFile(
-      new URL('../../inventory-component.js', import.meta.url),
+      new URL('../../inventory/inventory.js', import.meta.url),
       'utf8',
     );
     // The spread form `.cancel(...` would forward path[1] as the optional
