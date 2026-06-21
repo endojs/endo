@@ -280,10 +280,11 @@ export const microblogComponent = async (
    */
   const Body = (message, extraClass) => {
     const cls = extraClass ? `microblog-body ${extraClass}` : 'microblog-body';
-    const messageNames =
+    const messageNames = /** @type {string[]} */ (
       /** @type {any} */ (message).names ||
-      /** @type {any} */ (message).edgeNames ||
-      [];
+        /** @type {any} */ (message).edgeNames ||
+        []
+    );
 
     if (!message.strings || message.strings.length === 0) {
       return h('div', { class: cls });
@@ -313,8 +314,17 @@ export const microblogComponent = async (
       );
     };
 
-    const { nodes } = markdownToVnodes(textWithPlaceholders, { renderToken });
-    return h('div', { class: cls }, ...nodes);
+    const { nodes, placeholderCount } = markdownToVnodes(textWithPlaceholders, {
+      renderToken,
+    });
+    // Attachments without an inline placeholder slot (e.g. one text string and
+    // one attached value) are appended at the end rather than dropped.
+    const extraChips = [];
+    for (let i = placeholderCount; i < messageNames.length; i += 1) {
+      const chip = renderToken(i);
+      if (chip) extraChips.push(' ', chip);
+    }
+    return h('div', { class: cls }, ...nodes, ...extraChips);
   };
 
   /**

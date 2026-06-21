@@ -5,15 +5,52 @@
 import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
-import { colorize } from '@endo/monaco-wrapper';
+
 import {
-  prepareTextWithPlaceholders,
-  renderMarkdown,
-} from './markdown-render.js';
+  Fragment,
+  h,
+  renderConfined,
+  unmount,
+} from './setup-preact-container.js';
+
 import { timeFormatter, relativeTime } from './time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
 import { createMessageMenu } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
+import { prepareTextWithPlaceholders } from './markdown-render.js';
+import { markdownToVnodes } from './markdown-vnodes.js';
+
+// Default multiuser channel body view (Dan's), migrated from imperative DOM to
+// a confined Preact component rendered through a single `renderConfined`.
+//
+// THE HOST-NODE BRIDGE PATTERN (mirrors microblog-component.js and
+// forum-component.js). The chronological message list and the thread drill-down
+// view (message wrappers, reply indicators, timestamps, message bodies, action
+// bars, reply-count badges, thread header/breadcrumb/continue handles) render
+// confined as `h()` vnodes. Four pieces remain imperative DOM produced by reused
+// helpers that are NOT view-migration targets:
+//   - author chips (`profile-popup` — positions a portal, mutates `nameMap`,
+//     re-renders sibling chips by DOM query),
+//   - react buttons and react pills (`react-utils` — a `document.body` react
+//     picker portal, nested sub-reacts, contextmenu handlers),
+//   - the three-dot message menu (`channel-utils` `createMessageMenu` — a
+//     dropdown with outside-click teardown registered on `document`).
+// Live DOM (with listeners) cannot enter a confined vnode tree —
+// `renderConfined` strips refs and real nodes. So the chrome renders empty
+// ANCHOR slots (`data-author-anchor` / `data-react-btn-anchor` /
+// `data-react-pills-anchor` / `data-menu-anchor`) and, after each confined
+// render, the controller re-parents the imperative nodes into their anchors.
+//
+// Message bodies use the vnode path (`markdownToVnodes`) instead of the
+// string-returning `renderMarkdown`/`.innerHTML`, mirroring the inbox, microblog
+// and forum migrations. Attachments without an inline placeholder slot are
+// appended at the end of the body as trailing chips rather than dropped.
+//
+// The substrate-agnostic logic (the followMessages/iterateReader subscription
+// loop, threading — `buildThread`/`isInThread`/`findThreadRoot`/the thread
+// stack, the per-persona localStorage name map, scroll stickiness, the move /
+// deletion / react message handling) is reused VERBATIM from the imperative
+// version; only view construction became Preact.
 
 /**
  * @typedef {object} ChannelMessage
@@ -159,7 +196,7 @@ export const channelComponent = async (
         chip.textContent = assignedName;
         chip.classList.add('named');
       } else {
-        chip.textContent = `\u201C${proposedName}\u201D`;
+        chip.textContent = `“${proposedName}”`;
         chip.classList.remove('named');
       }
     }
@@ -226,22 +263,8 @@ export const channelComponent = async (
   /** @type {string[]} */
   const threadStack = [];
 
-  /** Currently rendered thread view element. */
-  /** @type {HTMLElement | null} */
-  let $currentThreadView = null;
-
-  /** Guard against concurrent thread renders. */
-  let threadViewRendering = false;
-
-  /**
-   * Generation counter — incremented by showThreadView and hideThreadView
-   * so that an in-flight render can detect it was superseded.
-   */
-  let threadRenderGeneration = 0;
-
-  /** Queued re-render key when showThreadView is called while already rendering. */
-  /** @type {string | null} */
-  let pendingThreadRender = null;
+  /** Whether the thread drill-down view is currently active. */
+  let threadActive = false;
 
   /**
    * Count all descendants of a message recursively.
@@ -335,466 +358,657 @@ export const channelComponent = async (
   };
 
   /**
-   * Update or create the reply-count badge on a parent message element.
-   * Clicking the badge opens the thread drill-down view.
-   * @param {string} parentKey - String(parentMessage.number)
+   * Get the root-to-message heritage chain for a message key.
+   * @param {string} key
+   * @returns {ChannelMessage[]}
    */
-  const updateReplyCount = parentKey => {
-    const parentData = messageIndex.get(parentKey);
-    if (!parentData) return;
-    const children = replyChildren.get(parentKey);
-    if (!children || children.length === 0) return;
-
-    let $badge = parentData.$element.querySelector('.reply-count');
-    if (!$badge) {
-      $badge = document.createElement('div');
-      $badge.className = 'reply-count';
-      $badge.addEventListener('click', e => {
-        e.stopPropagation();
-        threadStack.length = 0;
-        threadStack.push(parentKey);
-        showThreadView(parentKey); // eslint-disable-line no-use-before-define
-      });
-      parentData.$element.appendChild($badge);
+  const getHeritageChain = key => {
+    /** @type {ChannelMessage[]} */
+    const chain = [];
+    let current = key;
+    while (current) {
+      const entry = messageIndex.get(current);
+      if (!entry) break;
+      chain.unshift(entry.message);
+      current = entry.message.replyTo;
     }
-    const count = children.length;
-    $badge.textContent = `${count} ${count === 1 ? 'reply' : 'replies'}`;
+    return chain;
+  };
+
+  // ---- Dedicated confined mount ----
+
+  // The message-list container, created once and inserted before the scroll
+  // anchor so switchChannel's cleanup (which clears `$parent`) still works and
+  // siblings (the `$end` anchor) are never reconciled away.
+  const $mount = document.createElement('div');
+  $mount.className = 'channel-message-list';
+  if ($end) {
+    $parent.insertBefore($mount, $end);
+  } else {
+    $parent.appendChild($mount);
+  }
+  const isLive = () => $mount.isConnected;
+
+  // ---- View (confined Preact vnodes) ----
+
+  /**
+   * Render a message body as vnodes with interactive token chips. Mirrors the
+   * imperative body construction in `createMessageElement`, but emits vnodes
+   * (no `.innerHTML`). Monaco colorize of code fences is deferred (the markdown
+   * vnode path emits plain `<pre>`), matching the inbox migration.
+   * @param {ChannelMessage} message
+   * @returns {import('preact').VNode}
+   */
+  const Body = message => {
+    const messageNames = /** @type {string[]} */ (
+      /** @type {any} */ (message).names ||
+        /** @type {any} */ (message).edgeNames ||
+        []
+    );
+
+    if (!message.strings || message.strings.length === 0) {
+      return h('span', { class: 'message-body' });
+    }
+
+    const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
+
+    /** @type {import('./markdown-vnodes.js').RenderToken} */
+    const renderToken = index => {
+      const edgeName = messageNames[index];
+      if (edgeName === undefined) return null;
+      return h(
+        'span',
+        {
+          key: String(index),
+          class: 'token',
+          tabindex: 0,
+          role: 'button',
+          title: 'Open value',
+          onClick: () => {
+            if (message.ids && message.ids[index]) {
+              showValue(undefined, message.ids[index], [edgeName]);
+            }
+          },
+        },
+        `@${edgeName}`,
+      );
+    };
+
+    const { nodes, placeholderCount } = markdownToVnodes(textWithPlaceholders, {
+      renderToken,
+    });
+    // Attachments without an inline placeholder slot (e.g. one text string and
+    // one attached value) are appended at the end rather than dropped.
+    const extraChips = [];
+    for (let i = placeholderCount; i < messageNames.length; i += 1) {
+      const chip = renderToken(i);
+      if (chip) extraChips.push(' ', chip);
+    }
+    return h('span', { class: 'message-body' }, ...nodes, ...extraChips);
   };
 
   /**
-   * Create a message element for a channel message.
-   * @param {ChannelMessage} message
-   * @returns {Promise<HTMLElement>}
+   * An author chip anchor — the imperative author node is re-parented here
+   * after render.
+   * @param {object} props
+   * @param {string} props.memberId
    */
-  const createMessageElement = async message => {
-    // Wrapper holds the optional reply indicator above the message bubble.
-    const $wrapper = document.createElement('div');
-    $wrapper.className = 'message-wrapper';
+  const AuthorAnchor = ({ memberId }) =>
+    h('span', { 'data-author-anchor': memberId });
 
-    // Reply indicator (rendered above the bubble, outside the flex row)
-    if (message.replyTo) {
-      const $replyBar = document.createElement('div');
-      $replyBar.className = 'reply-indicator';
-
-      const parentData = messageIndex.get(message.replyTo);
-      if (parentData) {
-        const parentMsg = parentData.message;
-        const parentInfo = await getMemberInfo(parentMsg.memberId);
-        const parentAuthor = parentInfo
-          ? parentInfo.proposedName
-          : parentMsg.memberId;
-        const parentPreview = parentMsg.strings.join('').substring(0, 60);
-
-        const isEdit = message.replyType === 'edit';
-
-        const $icon = document.createElement('span');
-        $icon.className = 'reply-indicator-icon';
-        $icon.textContent = isEdit ? '\u270E' : '\u21A9';
-        $replyBar.appendChild($icon);
-
-        const $author = document.createElement('span');
-        $author.className = 'reply-indicator-author';
-        $author.textContent = nameMap.get(parentMsg.memberId) || parentAuthor;
-        $replyBar.appendChild($author);
-
-        const $preview = document.createElement('span');
-        $preview.className = 'reply-indicator-preview';
-        $preview.textContent = parentPreview;
-        $replyBar.appendChild($preview);
-
-        if (isEdit) {
-          $replyBar.classList.add('reply-indicator-edit');
-        }
-
-        $replyBar.addEventListener('click', () => {
-          const rootKey = findThreadRoot(message.replyTo);
+  /**
+   * The reply indicator shown above a message whose parent is referenced via
+   * `replyTo`. Mirrors `createMessageElement`'s reply indicator (icon, author,
+   * preview), including the edit variant. Clicking it opens the thread rooted at
+   * the message's ancestor.
+   * @param {object} props
+   * @param {ChannelMessage} props.message
+   */
+  const ReplyIndicator = ({ message }) => {
+    const parentData = message.replyTo
+      ? messageIndex.get(message.replyTo)
+      : undefined;
+    if (!parentData) {
+      return h(
+        'div',
+        { class: 'reply-indicator' },
+        `↩ Message #${message.replyTo}`,
+      );
+    }
+    const parentMsg = parentData.message;
+    const parentAuthor = nameMap.get(parentMsg.memberId) || parentMsg.memberId;
+    const parentPreview = parentMsg.strings.join('').substring(0, 60);
+    const isEdit = message.replyType === 'edit';
+    const cls = isEdit
+      ? 'reply-indicator reply-indicator-edit'
+      : 'reply-indicator';
+    return h(
+      'div',
+      {
+        class: cls,
+        onClick: () => {
+          const rootKey = findThreadRoot(
+            /** @type {string} */ (message.replyTo),
+          );
           threadStack.length = 0;
           threadStack.push(rootKey);
           showThreadView(rootKey); // eslint-disable-line no-use-before-define
-        });
-      } else {
-        $replyBar.textContent = `\u21A9 Message #${message.replyTo}`;
-      }
-      $wrapper.appendChild($replyBar);
-    }
-
-    const $msg = document.createElement('div');
-    const isOwn = ownMemberId !== undefined && message.memberId === ownMemberId;
-    $msg.className = isOwn
-      ? 'message received own-message'
-      : 'message received';
-    $msg.dataset.messageId = String(message.number);
-
-    // Timestamp + message number
-    const $controls = document.createElement('div');
-    $controls.className = 'timestamp-controls';
-
-    const $msgNum = document.createElement('span');
-    $msgNum.className = 'timestamp-num';
-    $msgNum.textContent = `#${message.number}`;
-    $controls.appendChild($msgNum);
-
-    const $time = document.createElement('time');
-    $time.className = 'message-time';
-    const date = new Date(message.date);
-    $time.textContent = timeFormatter.format(date);
-    $time.title = relativeTime(date);
-    $controls.appendChild($time);
-
-    $msg.appendChild($controls);
-
-    // Look up member info for author display
-    const memberInfo = await getMemberInfo(message.memberId);
-    const authorProposedName = memberInfo
-      ? memberInfo.proposedName
-      : message.memberId;
-    const pedigree = memberInfo ? memberInfo.pedigree : [];
-    const pedigreeMemberIds = memberInfo ? memberInfo.pedigreeMemberIds : [];
-
-    // Author chip — keyed on memberId for per-viewer name resolution
-    const $author = document.createElement('span');
-    $author.className = 'channel-author';
-    $author.dataset.proposedName = authorProposedName;
-    $author.dataset.memberId = message.memberId;
-
-    const memberKey = message.memberId;
-    const assignedName = nameMap.get(memberKey);
-    if (assignedName) {
-      $author.textContent = assignedName;
-      $author.classList.add('named');
-    } else {
-      $author.textContent = `\u201C${authorProposedName}\u201D`;
-    }
-
-    $author.title =
-      pedigree.length !== 0
-        ? `Invited by: ${pedigree
-            .map((name, i) => {
-              const mid = pedigreeMemberIds[i];
-              const assigned = mid && nameMap.get(mid);
-              return assigned || `\u201C${name}\u201D`;
-            })
-            .join(' \u2192 ')}`
-        : 'Channel creator';
-    $author.addEventListener('click', e => {
-      e.stopPropagation();
-      profilePopup.show({
-        proposedName: authorProposedName,
-        pedigree,
-        pedigreeMemberIds,
-        nameMap,
-        yourName: nameMap.get(memberKey),
-        onAssignName: name => {
-          nameMap.set(memberKey, name);
-          saveNameMap();
-          updateAuthorChips(memberKey);
         },
-        anchorElement: $author,
-      });
-    });
-    $msg.appendChild($author);
-
-    $msg.appendChild(document.createTextNode(' '));
-
-    // Message body — use 'names' (new format) with fallback to 'edgeNames' (old format)
-    const messageNames =
-      /** @type {any} */ (message).names ||
-      /** @type {any} */ (message).edgeNames ||
-      [];
-    const $body = document.createElement('span');
-    $body.className = 'message-body';
-
-    if (message.strings && message.strings.length > 0) {
-      const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
-      const { fragment, insertionPoints, highlight } = renderMarkdown(
-        textWithPlaceholders,
-        { colorize },
-      );
-      $body.appendChild(fragment);
-
-      // Asynchronously apply Monaco syntax highlighting to code fences
-      highlight();
-
-      // Create token chips for names
-      for (
-        let index = 0;
-        index < Math.min(insertionPoints.length, messageNames.length);
-        index += 1
-      ) {
-        const edgeName = messageNames[index];
-        const $slot = insertionPoints[index];
-
-        const $token = document.createElement('span');
-        $token.className = 'token';
-        $token.tabIndex = 0;
-        $token.setAttribute('role', 'button');
-        $token.title = 'Open value';
-        $token.textContent = `@${edgeName}`;
-        $token.addEventListener('click', () => {
-          if (message.ids && message.ids[index]) {
-            showValue(undefined, message.ids[index], [edgeName]);
-          }
-        });
-
-        $slot.replaceWith($token);
-      }
-    }
-
-    $msg.appendChild($body);
-
-    // Hover action buttons
-    {
-      const $actions = document.createElement('div');
-      $actions.className = 'message-actions';
-
-      if (onReply) {
-        const $replyBtn = document.createElement('button');
-        $replyBtn.className = 'message-action-btn';
-        $replyBtn.title = 'Reply';
-        $replyBtn.textContent = '\u21A9';
-        $replyBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          const preview = message.strings.join('').substring(0, 60);
-          onReply({
-            number: message.number,
-            memberId: message.memberId,
-            authorName: authorProposedName,
-            preview,
-          });
-        });
-        $actions.appendChild($replyBtn);
-      }
-
-      // Three-dot menu
-      /** @type {Array<{label: string, icon: string, handler: () => void}>} */
-      const menuItems = [];
-      if (onFork) {
-        const key = String(message.number);
-        menuItems.push({
-          label: 'Fork to Channel',
-          icon: '\u2442',
-          handler: () => {
-            const chain = [];
-            let current = key;
-            while (current) {
-              const entry = messageIndex.get(current);
-              if (!entry) break;
-              chain.unshift(entry.message);
-              current = entry.message.replyTo;
-            }
-            const preview =
-              message.strings.join('').substring(0, 40) || 'Forked note';
-            onFork(chain, preview).catch(window.reportError);
-          },
-        });
-      }
-      if (onShare) {
-        const shareKey = String(message.number);
-        menuItems.push({
-          label: 'Share\u2026',
-          icon: '\u21D7',
-          handler: () => {
-            const chain = [];
-            let cur = shareKey;
-            while (cur) {
-              const ent = messageIndex.get(cur);
-              if (!ent) break;
-              chain.unshift(ent.message);
-              cur = ent.message.replyTo;
-            }
-            const preview =
-              message.strings.join('').substring(0, 60) || 'Shared message';
-            onShare(chain, preview);
-          },
-        });
-      }
-      // Delete: post a deletion reply to this message
-      {
-        const delKey = String(message.number);
-        menuItems.push({
-          label: 'Delete',
-          icon: '\u2717',
-          handler: () => {
-            E(channel)
-              .post([''], [], [], delKey, [], 'deletion')
-              .catch(window.reportError);
-          },
-        });
-      }
-      // React button
-      $actions.appendChild(
-        reactSystem.createReactButton(String(message.number)),
-      );
-
-      if (menuItems.length > 0) {
-        $actions.appendChild(createMessageMenu(menuItems));
-      }
-
-      if ($actions.childNodes.length > 0) {
-        $msg.appendChild($actions);
-      }
-    }
-
-    // Mark edit-type messages with a visual label
-    if (message.replyType === 'edit') {
-      $wrapper.classList.add('message-edit');
-      const $editBadge = document.createElement('span');
-      $editBadge.className = 'message-edit-badge';
-      $editBadge.textContent = 'Edit';
-      $msg.insertBefore($editBadge, $body);
-    }
-
-    $wrapper.appendChild($msg);
-    return $wrapper;
+      },
+      h('span', { class: 'reply-indicator-icon' }, isEdit ? '✎' : '↩'),
+      h('span', { class: 'reply-indicator-author' }, parentAuthor),
+      h('span', { class: 'reply-indicator-preview' }, parentPreview),
+    );
   };
 
-  // --- Thread drill-down view ---
+  /**
+   * The hover action bar: reply button, react anchor, and the three-dot menu
+   * anchor (fork / share / delete). Mirrors `createMessageElement`'s actions.
+   * @param {object} props
+   * @param {string} props.messageKey
+   * @param {ChannelMessage} props.message
+   */
+  const ActionBar = ({ messageKey, message }) => {
+    return h(
+      'div',
+      { class: 'message-actions' },
+      // Reply button
+      onReply
+        ? h(
+            'button',
+            {
+              class: 'message-action-btn',
+              title: 'Reply',
+              onClick: () => {
+                // Synchronous, matching the original: the member info is
+                // already cached (the message loop resolves it before render),
+                // so onReply fires immediately rather than after an await.
+                const preview = message.strings.join('').substring(0, 60);
+                const cached = memberCache.get(message.memberId);
+                const authorName = cached
+                  ? cached.proposedName
+                  : message.memberId;
+                onReply({
+                  number: message.number,
+                  memberId: message.memberId,
+                  authorName,
+                  preview,
+                });
+              },
+            },
+            '↩',
+          )
+        : null,
+      // React button (imperative host node, bridged via anchor)
+      h('span', { 'data-react-btn-anchor': messageKey }),
+      // Three-dot menu (imperative host node, bridged via anchor)
+      h('span', { 'data-menu-anchor': messageKey }),
+    );
+  };
 
   /**
-   * Render the thread drill-down view for a root message.
-   * Hides the chronological message list and shows the threaded view.
-   * @param {string} rootKey - message number (as string)
+   * The reply-count badge shown on a parent message; clicking it opens the
+   * thread drill-down view. Mirrors `updateReplyCount`.
+   * @param {object} props
+   * @param {string} props.messageKey
    */
-  const showThreadView = async rootKey => {
-    if (threadViewRendering) {
-      pendingThreadRender = rootKey;
+  const ReplyCount = ({ messageKey }) => {
+    const children = replyChildren.get(messageKey);
+    if (!children || children.length === 0) return null;
+    const count = children.length;
+    return h(
+      'div',
+      {
+        class: 'reply-count',
+        onClick: () => {
+          threadStack.length = 0;
+          threadStack.push(messageKey);
+          showThreadView(messageKey); // eslint-disable-line no-use-before-define
+        },
+      },
+      `${count} ${count === 1 ? 'reply' : 'replies'}`,
+    );
+  };
+
+  /**
+   * A single message wrapper: optional reply indicator above the bubble, then
+   * the message bubble (timestamp controls, edit badge, author anchor, body,
+   * action bar), then react pills and an optional reply-count badge. Mirrors
+   * `createMessageElement`.
+   * @param {object} props
+   * @param {string} props.messageKey
+   * @param {ChannelMessage} props.message
+   * @param {string} [props.extraClass] - Extra classes for the wrapper (thread depth).
+   */
+  const MessageWrapper = ({ messageKey, message, extraClass }) => {
+    const isOwn = ownMemberId !== undefined && message.memberId === ownMemberId;
+    const date = new Date(message.date);
+    const isEdit = message.replyType === 'edit';
+
+    const wrapperClasses = ['message-wrapper'];
+    if (isEdit) wrapperClasses.push('message-edit');
+    if (extraClass) wrapperClasses.push(extraClass);
+
+    const $bubble = h(
+      'div',
+      {
+        class: isOwn ? 'message received own-message' : 'message received',
+        'data-message-id': String(message.number),
+      },
+      h(
+        'div',
+        { class: 'timestamp-controls' },
+        h('span', { class: 'timestamp-num' }, `#${message.number}`),
+        h(
+          'time',
+          { class: 'message-time', title: relativeTime(date) },
+          timeFormatter.format(date),
+        ),
+      ),
+      // Edit badge, inserted before the body in the imperative version.
+      isEdit ? h('span', { class: 'message-edit-badge' }, 'Edit') : null,
+      h(AuthorAnchor, { memberId: message.memberId }),
+      ' ',
+      Body(message),
+      h(ActionBar, { messageKey, message }),
+      h(ReplyCount, { messageKey }),
+    );
+
+    return h(
+      'div',
+      { class: wrapperClasses.join(' '), 'data-wrapper-key': messageKey },
+      message.replyTo ? h(ReplyIndicator, { message }) : null,
+      $bubble,
+      // React pills (imperative host node, bridged via anchor)
+      h('span', { 'data-react-pills-anchor': messageKey }),
+    );
+  };
+
+  /**
+   * The chronological message list — every visible message in receive order.
+   */
+  const MessageList = () => {
+    /** @type {import('preact').VNode[]} */
+    const items = [];
+    for (const [key, data] of messageIndex) {
+      const { message } = data;
+      // Operational / react messages are tracked but never rendered.
+      if (
+        message.replyType === 'move' ||
+        message.replyType === 'deletion' ||
+        message.replyType === 'react' ||
+        message.replyType === 'redact-react'
+      ) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      items.push(h(MessageWrapper, { key, messageKey: key, message }));
+    }
+    return h(Fragment, null, ...items);
+  };
+
+  /**
+   * The thread drill-down view: back button + breadcrumb header, then the
+   * thread messages (depth-indented) with "Continue thread" handles. Mirrors
+   * the imperative `showThreadView`.
+   * @param {object} props
+   * @param {string} props.rootKey
+   */
+  const ThreadView = ({ rootKey }) => {
+    const { entries, continuePoints } = buildThread(rootKey, MAX_INDENT_DEPTH);
+
+    // Header: back button + breadcrumb
+    const crumbs = [
+      h(
+        'span',
+        {
+          key: 'channel',
+          class: 'thread-crumb',
+          onClick: () => hideThreadView(), // eslint-disable-line no-use-before-define
+        },
+        'Channel',
+      ),
+    ];
+    for (let i = 0; i < threadStack.length; i += 1) {
+      crumbs.push(
+        h('span', { key: `sep-${i}`, class: 'thread-crumb-sep' }, '›'),
+      );
+      const isCurrent = i === threadStack.length - 1;
+      const targetDepth = i;
+      crumbs.push(
+        h(
+          'span',
+          {
+            key: `crumb-${i}`,
+            class: isCurrent ? 'thread-crumb current' : 'thread-crumb',
+            onClick: isCurrent
+              ? undefined
+              : () => {
+                  threadStack.length = targetDepth + 1;
+                  showThreadView(threadStack[targetDepth]); // eslint-disable-line no-use-before-define
+                },
+          },
+          `Thread #${threadStack[i]}`,
+        ),
+      );
+    }
+
+    const $header = h(
+      'div',
+      { class: 'thread-header' },
+      h(
+        'button',
+        {
+          class: 'thread-back',
+          onClick: () => {
+            if (threadStack.length > 1) {
+              threadStack.pop();
+              showThreadView(threadStack[threadStack.length - 1]); // eslint-disable-line no-use-before-define
+            } else {
+              hideThreadView(); // eslint-disable-line no-use-before-define
+            }
+          },
+        },
+        '← Back',
+      ),
+      h('div', { class: 'thread-breadcrumb' }, ...crumbs),
+    );
+
+    /** @type {import('preact').VNode[]} */
+    const messageNodes = [];
+    for (const { key, message, depth } of entries) {
+      messageNodes.push(
+        h(MessageWrapper, {
+          key,
+          messageKey: key,
+          message,
+          extraClass: `thread-message depth-${Math.min(depth, MAX_INDENT_DEPTH)}`,
+        }),
+      );
+      if (continuePoints.includes(key)) {
+        const descendants = countDescendants(key);
+        const continueKey = key;
+        messageNodes.push(
+          h(
+            'div',
+            {
+              key: `continue-${key}`,
+              class: 'thread-continue',
+              onClick: () => {
+                threadStack.push(continueKey);
+                showThreadView(continueKey); // eslint-disable-line no-use-before-define
+              },
+            },
+            `Continue thread (${descendants} ${descendants === 1 ? 'reply' : 'replies'}) →`,
+          ),
+        );
+      }
+    }
+
+    return h(
+      'div',
+      { class: 'thread-view' },
+      $header,
+      h('div', { class: 'thread-messages' }, ...messageNodes),
+    );
+  };
+
+  /** The root view: thread drill-down if active, else the chronological list. */
+  const View = () =>
+    threadActive && threadStack.length > 0
+      ? h(ThreadView, { rootKey: threadStack[threadStack.length - 1] })
+      : h(MessageList, null);
+
+  // ---- Imperative host-node helpers (bridged into anchors after each render) ----
+
+  /**
+   * Create a clickable author element (imperative DOM) with profile popup.
+   * Mirrors the author chip built inline by the imperative
+   * `createMessageElement`.
+   * @param {string} memberId
+   * @returns {HTMLElement}
+   */
+  const createAuthorEl = memberId => {
+    const $author = document.createElement('span');
+    $author.className = 'channel-author';
+    $author.dataset.memberId = memberId;
+
+    const assigned = nameMap.get(memberId);
+    if (assigned) {
+      $author.textContent = assigned;
+      $author.classList.add('named');
+    } else {
+      $author.textContent = memberId;
+    }
+
+    getMemberInfo(memberId)
+      .then(info => {
+        const authorProposedName = info ? info.proposedName : memberId;
+        const pedigree = info ? info.pedigree || [] : [];
+        const pedigreeMemberIds = info ? info.pedigreeMemberIds || [] : [];
+        $author.dataset.proposedName = authorProposedName;
+        const current = nameMap.get(memberId);
+        if (!current) {
+          $author.textContent = `“${authorProposedName}”`;
+        }
+        $author.title =
+          pedigree.length !== 0
+            ? `Invited by: ${pedigree
+                .map((name, i) => {
+                  const mid = pedigreeMemberIds[i];
+                  const namedMid = mid && nameMap.get(mid);
+                  return namedMid || `“${name}”`;
+                })
+                .join(' → ')}`
+            : 'Channel creator';
+        $author.addEventListener('click', e => {
+          e.stopPropagation();
+          profilePopup.show({
+            proposedName: authorProposedName,
+            pedigree,
+            pedigreeMemberIds,
+            nameMap,
+            yourName: nameMap.get(memberId),
+            onAssignName: name => {
+              nameMap.set(memberId, name);
+              saveNameMap();
+              updateAuthorChips(memberId);
+            },
+            anchorElement: $author,
+          });
+        });
+      })
+      .catch(() => {});
+
+    return $author;
+  };
+
+  /**
+   * Build the three-dot message menu (imperative DOM) for a message key, with
+   * fork / share / delete items. Mirrors `createMessageElement`'s menu.
+   * @param {string} messageKey
+   * @returns {HTMLElement | null}
+   */
+  const createMenuEl = messageKey => {
+    const data = messageIndex.get(messageKey);
+    if (!data) return null;
+    const { message } = data;
+    /** @type {Array<{label: string, icon: string, handler: () => void}>} */
+    const menuItems = [];
+    if (onFork) {
+      menuItems.push({
+        label: 'Fork to Channel',
+        icon: '⑂',
+        handler: () => {
+          const chain = getHeritageChain(messageKey);
+          const preview =
+            message.strings.join('').substring(0, 40) || 'Forked note';
+          onFork(chain, preview).catch(window.reportError);
+        },
+      });
+    }
+    if (onShare) {
+      menuItems.push({
+        label: 'Share…',
+        icon: '⇗',
+        handler: () => {
+          const chain = getHeritageChain(messageKey);
+          const preview =
+            message.strings.join('').substring(0, 60) || 'Shared message';
+          onShare(chain, preview);
+        },
+      });
+    }
+    // Delete: post a deletion reply to this message
+    menuItems.push({
+      label: 'Delete',
+      icon: '✗',
+      handler: () => {
+        E(channel)
+          .post([''], [], [], messageKey, [], 'deletion')
+          .catch(window.reportError);
+      },
+    });
+    if (menuItems.length === 0) return null;
+    return createMessageMenu(menuItems);
+  };
+
+  // ---- Host-node bridging ----
+
+  // Cache imperative react-button and menu nodes (one stable node per message
+  // key) so they survive confined re-renders rather than re-binding listeners.
+  /** @type {Map<string, HTMLElement>} */
+  const reactButtonNodes = new Map();
+  /** @type {Map<string, HTMLElement>} */
+  const menuNodes = new Map();
+
+  /**
+   * After each confined render, re-parent the imperative host nodes into their
+   * freshly rendered anchors.
+   */
+  const bridgeHostNodes = () => {
+    // Author chips — re-create per anchor so each node has its own chip element,
+    // as the original did.
+    const authorAnchors = $mount.querySelectorAll('[data-author-anchor]');
+    for (const $anchor of authorAnchors) {
+      const el = /** @type {HTMLElement} */ (/** @type {unknown} */ ($anchor));
+      if (el.firstChild) continue; // eslint-disable-line no-continue
+      const memberId = el.getAttribute('data-author-anchor') || '';
+      el.appendChild(createAuthorEl(memberId));
+    }
+
+    // React buttons — one per message key (stable, reusable node).
+    const reactBtnAnchors = $mount.querySelectorAll('[data-react-btn-anchor]');
+    for (const $anchor of reactBtnAnchors) {
+      const el = /** @type {HTMLElement} */ (/** @type {unknown} */ ($anchor));
+      if (el.firstChild) continue; // eslint-disable-line no-continue
+      const key = el.getAttribute('data-react-btn-anchor') || '';
+      let $btn = reactButtonNodes.get(key);
+      if (!$btn) {
+        $btn = reactSystem.createReactButton(key);
+        reactButtonNodes.set(key, $btn);
+      } else if ($btn.parentElement) {
+        $btn.parentElement.removeChild($btn);
+      }
+      el.appendChild($btn);
+    }
+
+    // Three-dot menus — one per message key (stable, reusable node so the
+    // dropdown's open/outside-click state survives re-renders).
+    const menuAnchors = $mount.querySelectorAll('[data-menu-anchor]');
+    for (const $anchor of menuAnchors) {
+      const el = /** @type {HTMLElement} */ (/** @type {unknown} */ ($anchor));
+      if (el.firstChild) continue; // eslint-disable-line no-continue
+      const key = el.getAttribute('data-menu-anchor') || '';
+      let $menu = menuNodes.get(key);
+      if (!$menu) {
+        const built = createMenuEl(key);
+        if (!built) continue; // eslint-disable-line no-continue
+        $menu = built;
+        menuNodes.set(key, $menu);
+      } else if ($menu.parentElement) {
+        $menu.parentElement.removeChild($menu);
+      }
+      el.appendChild($menu);
+    }
+
+    // React pills — rebuilt each render from current react state (cheap, and the
+    // react picker portal lives on document.body, so the pills carry no
+    // long-lived listeners that must survive).
+    const pillAnchors = $mount.querySelectorAll('[data-react-pills-anchor]');
+    for (const $anchor of pillAnchors) {
+      const el = /** @type {HTMLElement} */ (/** @type {unknown} */ ($anchor));
+      const key = el.getAttribute('data-react-pills-anchor') || '';
+      const $pills = reactSystem.buildReactsContainer(key);
+      if (el.firstChild) el.textContent = '';
+      if ($pills) el.appendChild($pills);
+    }
+  };
+
+  // ---- Render orchestration ----
+
+  /** Guard against concurrent renders. */
+  let rendering = false;
+  /** @type {boolean} */
+  let pendingRender = false;
+
+  /**
+   * Render the confined view, then bridge the imperative host nodes.
+   * `renderConfined` is synchronous, so anchors exist when bridging runs.
+   * A re-entrancy guard coalesces a render requested while one is running.
+   */
+  const rerender = () => {
+    if (rendering) {
+      pendingRender = true;
       return;
     }
-    threadViewRendering = true;
-    threadRenderGeneration += 1;
-    const myGeneration = threadRenderGeneration;
+    rendering = true;
     try {
-      if ($currentThreadView) {
-        $currentThreadView.remove();
-      }
-      $parent.classList.add('thread-active');
-
-      const $threadView = document.createElement('div');
-      $threadView.className = 'thread-view';
-      $currentThreadView = $threadView;
-
-      // Header: back button + breadcrumb
-      const $header = document.createElement('div');
-      $header.className = 'thread-header';
-
-      const $back = document.createElement('button');
-      $back.className = 'thread-back';
-      $back.textContent = '\u2190 Back';
-      $back.addEventListener('click', () => {
-        if (threadStack.length > 1) {
-          threadStack.pop();
-          showThreadView(threadStack[threadStack.length - 1]);
-        } else {
-          hideThreadView(); // eslint-disable-line no-use-before-define
-        }
-      });
-      $header.appendChild($back);
-
-      const $breadcrumb = document.createElement('div');
-      $breadcrumb.className = 'thread-breadcrumb';
-
-      const $channelCrumb = document.createElement('span');
-      $channelCrumb.className = 'thread-crumb';
-      $channelCrumb.textContent = 'Channel';
-      $channelCrumb.addEventListener('click', () => {
-        hideThreadView(); // eslint-disable-line no-use-before-define
-      });
-      $breadcrumb.appendChild($channelCrumb);
-
-      for (let i = 0; i < threadStack.length; i += 1) {
-        const $sep = document.createElement('span');
-        $sep.className = 'thread-crumb-sep';
-        $sep.textContent = '\u203A';
-        $breadcrumb.appendChild($sep);
-
-        const isCurrent = i === threadStack.length - 1;
-        const $crumb = document.createElement('span');
-        $crumb.className = isCurrent ? 'thread-crumb current' : 'thread-crumb';
-        $crumb.textContent = `Thread #${threadStack[i]}`;
-        if (!isCurrent) {
-          const targetDepth = i;
-          $crumb.addEventListener('click', () => {
-            threadStack.length = targetDepth + 1;
-            showThreadView(threadStack[targetDepth]);
-          });
-        }
-        $breadcrumb.appendChild($crumb);
-      }
-
-      $header.appendChild($breadcrumb);
-      $threadView.appendChild($header);
-
-      // Build and render thread
-      const { entries, continuePoints } = buildThread(
-        rootKey,
-        MAX_INDENT_DEPTH,
-      );
-
-      const $threadMessages = document.createElement('div');
-      $threadMessages.className = 'thread-messages';
-
-      // Build all message elements in parallel to avoid await-in-loop
-      const messageElements = await Promise.all(
-        entries.map(({ message }) => createMessageElement(message)),
-      );
-
-      // If a newer render or hideThreadView superseded us, bail out.
-      if (myGeneration !== threadRenderGeneration) return;
-
-      for (let i = 0; i < entries.length; i += 1) {
-        const { key, depth } = entries[i];
-        const $wrapper = messageElements[i];
-        $wrapper.classList.add(
-          'thread-message',
-          `depth-${Math.min(depth, MAX_INDENT_DEPTH)}`,
-        );
-        $threadMessages.appendChild($wrapper);
-
-        if (continuePoints.includes(key)) {
-          const descendants = countDescendants(key);
-          const $continue = document.createElement('div');
-          $continue.className = 'thread-continue';
-          $continue.textContent = `Continue thread (${descendants} ${descendants === 1 ? 'reply' : 'replies'}) \u2192`;
-          const continueKey = key;
-          $continue.addEventListener('click', () => {
-            threadStack.push(continueKey);
-            showThreadView(continueKey);
-          });
-          $threadMessages.appendChild($continue);
-        }
-      }
-
-      $threadView.appendChild($threadMessages);
-
-      if ($end) {
-        $parent.insertBefore($threadView, $end);
-      } else {
-        $parent.appendChild($threadView);
-      }
-
-      // Notify that a thread is open so the send form can auto-set replyTo.
-      // Use cached member info (synchronous) to avoid another async gap.
-      if (onThreadOpen) {
-        const rootData = messageIndex.get(rootKey);
-        if (rootData) {
-          const cachedInfo = memberCache.get(rootData.message.memberId);
-          const rootAuthor = cachedInfo
-            ? cachedInfo.proposedName
-            : rootData.message.memberId;
-          onThreadOpen({
-            number: rootKey,
-            authorName: nameMap.get(rootData.message.memberId) || rootAuthor,
-            preview: rootData.message.strings.join('').substring(0, 60),
-          });
-        }
-      }
+      renderConfined(h(View, null), $mount);
+      bridgeHostNodes();
     } finally {
-      threadViewRendering = false;
-      // Process any re-render that was queued while we were rendering.
-      if (pendingThreadRender !== null) {
-        const rerenderKey = pendingThreadRender;
-        pendingThreadRender = null;
-        showThreadView(rerenderKey);
+      rendering = false;
+      if (pendingRender) {
+        pendingRender = false;
+        rerender();
+      }
+    }
+  };
+
+  // ---- Thread navigation ----
+
+  /**
+   * Open the thread drill-down view for a root message. The chronological list
+   * is replaced by the threaded view (confined render), and `onThreadOpen` fires
+   * so the send form can auto-set replyTo.
+   * @param {string} rootKey - message number (as string)
+   */
+  const showThreadView = rootKey => {
+    threadActive = true;
+    $parent.classList.add('thread-active');
+    rerender();
+
+    // Scroll thread messages to show the latest message.
+    requestAnimationFrame(() => {
+      const $tm = $mount.querySelector('.thread-messages');
+      if ($tm) {
+        $tm.scrollTop = $tm.scrollHeight;
+      }
+    });
+
+    // Notify that a thread is open so the send form can auto-set replyTo.
+    if (onThreadOpen) {
+      const rootData = messageIndex.get(rootKey);
+      if (rootData) {
+        const cachedInfo = memberCache.get(rootData.message.memberId);
+        const rootAuthor = cachedInfo
+          ? cachedInfo.proposedName
+          : rootData.message.memberId;
+        onThreadOpen({
+          number: rootKey,
+          authorName: nameMap.get(rootData.message.memberId) || rootAuthor,
+          preview: rootData.message.strings.join('').substring(0, 60),
+        });
       }
     }
   };
@@ -803,26 +1017,56 @@ export const channelComponent = async (
    * Close the thread view and return to the chronological channel view.
    */
   const hideThreadView = () => {
-    threadRenderGeneration += 1;
-    pendingThreadRender = null;
     threadStack.length = 0;
-    if ($currentThreadView) {
-      $currentThreadView.remove();
-      $currentThreadView = null;
-    }
+    threadActive = false;
     $parent.classList.remove('thread-active');
+    rerender();
     $parent.scrollTo(0, $parent.scrollHeight);
     if (onThreadClose) {
       onThreadClose();
     }
   };
 
-  // Expose a control API on the parent element so chat.js can
-  // programmatically close the thread (e.g. from #conversation-back).
+  /**
+   * Focus on a thread node (used for bookmark navigation). Opens the thread
+   * drill-down rooted at the node's ancestor and scrolls the node into view.
+   * @param {string} threadKey - message number (as string)
+   */
+  const focusOnNode = threadKey => {
+    if (!messageIndex.has(threadKey)) return;
+    const rootKey = findThreadRoot(threadKey);
+    threadStack.length = 0;
+    threadStack.push(rootKey);
+    showThreadView(rootKey);
+    // After the thread renders, scroll the focused node into view.
+    requestAnimationFrame(() => {
+      const $node = $mount.querySelector(
+        `.thread-messages [data-message-id="${CSS.escape(threadKey)}"]`,
+      );
+      if ($node && $node.scrollIntoView) {
+        $node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  };
+
+  // Initial render so the (empty) message-list structure exists immediately.
+  rerender();
+
+  // Expose a control API on the parent element so chat.js can programmatically
+  // close the thread, focus a node, or dispose the view — hung off the parent
+  // exactly where the imperative version put it.
   let disposed = false;
   /** @type {AsyncIterableIterator<unknown> | null} */
   let activeIterator = null;
-  /** @type {{ closeThread: () => boolean, dispose: () => void }} */
+  /** @type {ReturnType<typeof setTimeout> | 0} */
+  let initialScrollTimer = 0;
+  /**
+   * @type {{
+   *   closeThread: () => boolean,
+   *   focusOnNode: (threadKey: string) => void,
+   *   dispose: () => void,
+   * }}
+   */
   const channelAPI = harden({
     closeThread: () => {
       if ($parent.classList.contains('thread-active')) {
@@ -831,11 +1075,20 @@ export const channelComponent = async (
       }
       return false;
     },
+    focusOnNode: threadKey => {
+      focusOnNode(threadKey);
+    },
     dispose: () => {
       disposed = true;
+      if (initialScrollTimer) {
+        clearTimeout(initialScrollTimer);
+        initialScrollTimer = 0;
+      }
       if (activeIterator) {
         activeIterator.return();
       }
+      unmount($mount);
+      $mount.remove();
     },
   });
   /** @type {any} */ ($parent).channelAPI = channelAPI;
@@ -883,7 +1136,7 @@ export const channelComponent = async (
   // The existing message backlog arrives rapidly via the iterator; this
   // timer fires once the initial batch has been rendered, ensuring the
   // user lands at the latest message when switching to a channel.
-  let initialScrollTimer = setTimeout(() => {
+  initialScrollTimer = setTimeout(() => {
     $parent.scrollTo(0, $parent.scrollHeight);
     initialScrollTimer = 0;
   }, 150);
@@ -899,10 +1152,9 @@ export const channelComponent = async (
       typedMessage.replyType === 'move' ||
       typedMessage.replyType === 'deletion'
     ) {
-      const $placeholder = document.createElement('div');
       messageIndex.set(msgKey, {
         message: typedMessage,
-        $element: $placeholder,
+        $element: document.createElement('div'),
       });
       continue; // eslint-disable-line no-continue
     }
@@ -912,29 +1164,24 @@ export const channelComponent = async (
       typedMessage.replyType === 'react' ||
       typedMessage.replyType === 'redact-react'
     ) {
+      // Index the react message so getRootMessageKey can follow its chain.
+      messageIndex.set(msgKey, {
+        message: typedMessage,
+        $element: document.createElement('div'),
+      });
       const rootKey = reactSystem.processReactMessage(typedMessage, msgKey);
       if (rootKey) {
-        const targetEntry = messageIndex.get(rootKey);
-        if (targetEntry) {
-          reactSystem.renderReactsOnElement(rootKey, targetEntry.$element);
-        }
+        // Re-bridge the target's pills (and the rest) from current state.
+        rerender();
       }
       continue; // eslint-disable-line no-continue
     }
 
-    // eslint-disable-next-line no-await-in-loop
-    const $msg = await createMessageElement(typedMessage);
-    if ($end) {
-      $parent.insertBefore($msg, $end);
-    } else {
-      $parent.appendChild($msg);
-    }
-
-    // Register in thread index (store the inner .message element, not the wrapper)
-    const $innerMsg = /** @type {HTMLElement} */ (
-      $msg.querySelector('.message') || $msg
-    );
-    messageIndex.set(msgKey, { message: typedMessage, $element: $innerMsg });
+    // Register in the message index. The view re-renders from messageIndex.
+    messageIndex.set(msgKey, {
+      message: typedMessage,
+      $element: document.createElement('div'),
+    });
 
     // Track reply relationships
     if (typedMessage.replyTo) {
@@ -943,25 +1190,22 @@ export const channelComponent = async (
         replyChildren.set(parentKey, []);
       }
       /** @type {string[]} */ (replyChildren.get(parentKey)).push(msgKey);
-      updateReplyCount(parentKey);
     }
 
-    // Live-update thread view if the new message belongs to the currently viewed thread
-    if ($currentThreadView && threadStack.length > 0) {
+    if (!isLive()) break;
+    rerender();
+
+    // Live-update thread view if the new message belongs to the currently
+    // viewed thread — scroll the thread messages to show the new message.
+    if (threadActive && threadStack.length > 0) {
       const currentRoot = threadStack[threadStack.length - 1];
       if (isInThread(msgKey, currentRoot)) {
-        try {
-          await showThreadView(currentRoot);
-          // Scroll thread messages to show the new message
-          const $tm =
-            $currentThreadView &&
-            $currentThreadView.querySelector('.thread-messages');
+        requestAnimationFrame(() => {
+          const $tm = $mount.querySelector('.thread-messages');
           if ($tm) {
             $tm.scrollTop = $tm.scrollHeight;
           }
-        } catch {
-          // Don't let a thread render failure kill message processing
-        }
+        });
       }
     }
 

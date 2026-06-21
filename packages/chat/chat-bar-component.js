@@ -3,8 +3,19 @@
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
+import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+
+import {
+  Fragment,
+  h,
+  renderConfined,
+  unmount,
+  useEffect,
+  useState,
+} from './setup-preact-container.js';
+
 import { sendFormComponent } from './send-form.js';
 import { commandSelectorComponent } from './command-selector.js';
 import { createEvalForm } from './eval-form.js';
@@ -22,7 +33,161 @@ import {
 } from './command-registry.js';
 import { createMessagePicker } from './message-picker.js';
 import { createHelpModal } from './help-modal.js';
-import { kbd, modKey } from './platform-keys.js';
+import { isMac, modKey } from './platform-keys.js';
+
+// Command / compose bar, migrated from imperative DOM to confined Preact for the
+// two pieces that are genuinely views built from string `.innerHTML`:
+//
+//   1. THE MODELINE (`#chat-modeline`) — the per-mode keyboard-hint strip. Every
+//      `updateModeline` / `updateSendModeline` / `updateSelectingModeline` /
+//      `updateFocusModeline` previously assembled an HTML string of
+//      `<span class="modeline-hint">…<kbd>…</kbd></span>`. It now renders confined
+//      from a flat plain-data hint list pushed through a controller bridge (the
+//      same setter-bridge send-form uses for its reply bar), into a DEDICATED
+//      mount child of `#chat-modeline`.
+//   2. THE COMMAND POPOVER (`#chat-command-popover`) — the hamburger menu's
+//      category-grouped command list. It renders confined from the registry data
+//      plus an `onSelect` callback, into a DEDICATED mount child of the popover.
+//
+// Both keep the original class names verbatim so the existing CSS applies, and
+// neither uses `dangerouslySetInnerHTML` (the sanitizing renderer strips it).
+//
+// EVERYTHING ELSE is irreducible trusted host work and stays imperative, exactly
+// as send-form keeps its contenteditable editing imperative: the `$chatBar`
+// class toggling, `$error` / `$commandError` `textContent`, the command-mode
+// chrome (`$commandLabel`, `$commandSubmitButton`), the focus-mode CSS-class
+// indentation applied to SHARED `#messages` envelopes (host DOM this component
+// does not own), the keyboard handlers, and the `MutationObserver`.
+//
+// CHILD COMPOSITION is unchanged: send-form, command-selector, message-picker,
+// help-modal, inline-command-form, and the eval / define / endow / form-builder /
+// blob-viewer / debugger modals are each constructed through their existing
+// entry/contract and bound to the host nodes chat.js's template provides. The
+// non-view utilities (command-executor, command-registry) are used as-is.
+
+/**
+ * One keyboard hint in the modeline. `keys` renders as a sequence of `<kbd>`
+ * chips (mac-adjacent / win-`+`-joined, matching the old `kbd()` helper); `text`
+ * is the trailing/leading label. A hint is `{ keys, text }` where either side
+ * may be empty.
+ *
+ * @typedef {object} ModelineHint
+ * @property {string[]} keys - Key chips to render as `<kbd>`; empty for none.
+ * @property {string} text - Label text; empty for none.
+ * @property {'before' | 'after'} [textPosition] - Where the text sits relative
+ *   to the key chips (default `after`).
+ */
+
+/**
+ * A mutable bridge between the imperative controller and the confined Modeline
+ * component. The component's mount effect writes `setHints` here; the controller
+ * pushes hint lists through it. Intentionally NOT hardened — the component
+ * mutates it.
+ *
+ * @typedef {object} ModelineController
+ * @property {(hints: ModelineHint[] | null) => void} [setHints]
+ * @property {() => ModelineHint[] | null} [getHints]
+ */
+
+/**
+ * Render one hint as a `<span class="modeline-hint">`. Key chips become `<kbd>`
+ * elements joined by `+` on non-mac platforms (mirroring the old `kbd()`).
+ *
+ * @param {object} props
+ * @param {ModelineHint} props.hint
+ */
+const ModelineHintSpan = ({ hint }) => {
+  const { keys, text, textPosition = 'after' } = hint;
+  /** @type {Array<import('preact').ComponentChild>} */
+  const children = [];
+  if (text && textPosition === 'before') {
+    children.push(text, ' ');
+  }
+  for (let i = 0; i < keys.length; i += 1) {
+    if (i > 0 && !isMac) children.push('+');
+    children.push(h('kbd', null, keys[i]));
+  }
+  if (text && textPosition === 'after') {
+    if (keys.length > 0) children.push(' ');
+    children.push(text);
+  }
+  return h('span', { class: 'modeline-hint' }, ...children);
+};
+harden(ModelineHintSpan);
+
+/**
+ * The confined modeline view. Holds its current hint list in a setter exposed
+ * through `controller.setHints`; `null` hides the strip (renders nothing).
+ *
+ * @param {object} props
+ * @param {ModelineController} props.controller
+ */
+const Modeline = ({ controller }) => {
+  const [hints, setHints] = useState(
+    /** @type {ModelineHint[] | null} */ (controller.getHints?.() ?? null),
+  );
+
+  useEffect(() => {
+    controller.setHints = next => setHints(next);
+    // A hint list pushed before this effect wired up is not lost: pull it now.
+    const pending = controller.getHints?.();
+    if (pending !== undefined) setHints(pending);
+    return () => {
+      if (controller.setHints) delete controller.setHints;
+    };
+  }, [controller]);
+
+  if (!hints) return null;
+  return h(
+    Fragment,
+    null,
+    ...hints.map((hint, i) => h(ModelineHintSpan, { key: String(i), hint })),
+  );
+};
+harden(Modeline);
+
+/**
+ * The confined command popover view: a header, category-grouped command rows,
+ * and a footer. Clicking a row invokes `onSelect(commandName)`.
+ *
+ * @param {object} props
+ * @param {Array<{ category: string, label: string, commands: Array<{ name: string, description: string }> }>} props.sections
+ * @param {(commandName: string) => void} props.onSelect
+ */
+const CommandPopover = ({ sections, onSelect }) =>
+  h(
+    Fragment,
+    null,
+    h('div', { class: 'command-popover-header' }, 'Commands'),
+    ...sections.map(section =>
+      h(
+        'div',
+        { class: 'command-popover-section', key: section.category },
+        h('div', { class: 'command-popover-category' }, section.label),
+        ...section.commands.map(cmd =>
+          h(
+            'div',
+            {
+              class: 'command-popover-item',
+              'data-command': cmd.name,
+              key: cmd.name,
+              onClick: () => onSelect(cmd.name),
+            },
+            h('span', { class: 'command-popover-item-name' }, `/${cmd.name}`),
+            h('span', { class: 'command-popover-item-desc' }, cmd.description),
+          ),
+        ),
+      ),
+    ),
+    h(
+      'div',
+      { class: 'command-popover-footer' },
+      'Type ',
+      h('kbd', null, '/'),
+      ' in input for quick access',
+    ),
+  );
+harden(CommandPopover);
 
 /**
  * @param {HTMLElement} $parent
@@ -141,44 +306,88 @@ export const chatBarComponent = (
     $parent.querySelector('#chat-modeline')
   );
 
+  // ---- Confined modeline mount ----
+  //
+  // The modeline strip renders confined into a dedicated child of the host
+  // `#chat-modeline`; `renderConfined` reconciles only against this mount's
+  // children, so it never disturbs sibling chat-bar content. The component's
+  // mount effect wires its `setHints` setter onto the controller; the host
+  // pushes hint lists through it (the same setter-bridge send-form uses).
+  /** @type {ModelineController} */
+  const modelineController = {};
+  /** @type {ModelineHint[] | null} */
+  let currentModelineHints = null;
+  modelineController.getHints = () => currentModelineHints;
+
+  const $modelineMount = document.createElement('div');
+  $modeline.appendChild($modelineMount);
+  renderConfined(
+    h(Modeline, { controller: modelineController }),
+    $modelineMount,
+  );
+
+  /**
+   * Push a hint list (or `null` to hide) into the confined modeline and toggle
+   * the host `has-modeline` class exactly as the imperative version did.
+   * @param {ModelineHint[] | null} hints
+   */
+  const setModeline = hints => {
+    currentModelineHints = hints;
+    if (modelineController.setHints) {
+      modelineController.setHints(hints);
+    }
+    if (hints && hints.length > 0) {
+      $chatBar.classList.add('has-modeline');
+    } else {
+      $chatBar.classList.remove('has-modeline');
+    }
+  };
+
+  /**
+   * Build a `[mod, 'Enter'] expand-to-editor` hint, matching the old
+   * `kbd(modKey, 'Enter')` chip pair.
+   * @param {string} label
+   * @returns {ModelineHint}
+   */
+  const modEnterHint = label => ({ keys: [modKey, 'Enter'], text: label });
+
   /**
    * Update the modeline content based on the current mode.
    * @param {string | null} commandName
    */
   const updateModeline = commandName => {
     if (!commandName) {
-      $chatBar.classList.remove('has-modeline');
-      $modeline.innerHTML = '';
+      setModeline(null);
       return;
     }
 
     // Resolve alias to get the actual command
     const command = getCommand(commandName);
-    let hints = '';
+    /** @type {ModelineHint[]} */
+    let hints;
     if (command && command.name === 'js') {
-      hints = `
-        <span class="modeline-hint"><kbd>@</kbd> add endowment</span>
-        <span class="modeline-hint"><kbd>Enter</kbd> evaluate</span>
-        <span class="modeline-hint">${kbd(modKey, 'Enter')} expand to editor</span>
-        <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
-      `;
+      hints = [
+        { keys: ['@'], text: 'add endowment' },
+        { keys: ['Enter'], text: 'evaluate' },
+        modEnterHint('expand to editor'),
+        { keys: ['Esc'], text: 'cancel' },
+      ];
     } else if (command && command.name === 'define') {
-      hints = `
-        <span class="modeline-hint"><kbd>@</kbd> add slot</span>
-        <span class="modeline-hint"><kbd>Enter</kbd> define</span>
-        <span class="modeline-hint">${kbd(modKey, 'Enter')} expand to editor</span>
-        <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
-      `;
+      hints = [
+        { keys: ['@'], text: 'add slot' },
+        { keys: ['Enter'], text: 'define' },
+        modEnterHint('expand to editor'),
+        { keys: ['Esc'], text: 'cancel' },
+      ];
     } else {
-      hints = `
-        <span class="modeline-hint"><kbd>Enter</kbd> submit</span>
-        <span class="modeline-hint"><kbd>Tab</kbd> next field</span>
-        <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
-      `;
+      hints = [
+        { keys: ['Enter'], text: 'submit' },
+        { keys: ['Tab'], text: 'next field' },
+        { keys: ['Esc'], text: 'cancel' },
+      ];
     }
 
-    $modeline.innerHTML = hints;
-    $chatBar.classList.add('has-modeline');
+    setModeline(hints);
   };
 
   /** @type {'send' | 'selecting' | 'inline' | 'js' | 'form' | 'focus'} */
@@ -235,7 +444,7 @@ export const chatBarComponent = (
     showValue,
     showMessage: message => {
       // For now, just log messages - could add a toast system later
-      console.log(message);
+      console.error(message);
     },
     getChannelRef,
     openBlobViewer: async (petNamePath, readOnly) => {
@@ -341,95 +550,90 @@ export const chatBarComponent = (
 
     if (inConversation) {
       if (menuVisible) {
-        $modeline.innerHTML = `
-          <span class="modeline-hint">select reference</span>
-          <span class="modeline-hint"><kbd>Space</kbd> embed</span>
-          <span class="modeline-hint"><kbd>↑↓</kbd> navigate</span>
-          <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
-        `;
+        setModeline([
+          { keys: [], text: 'select reference' },
+          { keys: ['Space'], text: 'embed' },
+          { keys: ['↑↓'], text: 'navigate' },
+          { keys: ['Esc'], text: 'cancel' },
+        ]);
       } else if (hasToken || hasText) {
-        $modeline.innerHTML = `
-          <span class="modeline-hint"><kbd>Enter</kbd> send</span>
-          <span class="modeline-hint"><kbd>@</kbd> embed reference</span>
-          <span class="modeline-hint"><kbd>/</kbd> commands</span>
-        `;
+        setModeline([
+          { keys: ['Enter'], text: 'send' },
+          { keys: ['@'], text: 'embed reference' },
+          { keys: ['/'], text: 'commands' },
+        ]);
       } else {
-        $modeline.innerHTML = `
-          <span class="modeline-hint"><kbd>@</kbd> embed reference</span>
-          <span class="modeline-hint"><kbd>/</kbd> commands</span>
-          <span class="modeline-hint"><kbd>Esc</kbd> back to inbox</span>
-        `;
+        setModeline([
+          { keys: ['@'], text: 'embed reference' },
+          { keys: ['/'], text: 'commands' },
+          { keys: ['Esc'], text: 'back to inbox' },
+        ]);
       }
-      $chatBar.classList.add('has-modeline');
       return;
     }
 
     // Determine modeline content based on state
     if (menuVisible) {
       // Token menu is showing (typing @name)
-      $modeline.innerHTML = `
-        <span class="modeline-hint">select reference</span>
-        <span class="modeline-hint"><kbd>Space</kbd> chat</span>
-        <span class="modeline-hint"><kbd>Enter</kbd> inspect</span>
-        <span class="modeline-hint"><kbd>↑↓</kbd> navigate</span>
-        <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
-      `;
+      setModeline([
+        { keys: [], text: 'select reference' },
+        { keys: ['Space'], text: 'chat' },
+        { keys: ['Enter'], text: 'inspect' },
+        { keys: ['↑↓'], text: 'navigate' },
+        { keys: ['Esc'], text: 'cancel' },
+      ]);
     } else if (hasToken && hasText) {
       // Has token and message text - ready to send
-      $modeline.innerHTML = `
-        <span class="modeline-hint"><kbd>Enter</kbd> send</span>
-        <span class="modeline-hint"><kbd>@</kbd> embed reference</span>
-        <span class="modeline-hint"><kbd>⌫</kbd> delete chip</span>
-      `;
+      setModeline([
+        { keys: ['Enter'], text: 'send' },
+        { keys: ['@'], text: 'embed reference' },
+        { keys: ['⌫'], text: 'delete chip' },
+      ]);
     } else if (hasToken && !hasText) {
       // Just a token, no message - can inspect or start typing
-      $modeline.innerHTML = `
-        <span class="modeline-hint"><kbd>Enter</kbd> inspect or write message</span>
-        <span class="modeline-hint"><kbd>⌫</kbd> delete chip</span>
-      `;
+      setModeline([
+        { keys: ['Enter'], text: 'inspect or write message' },
+        { keys: ['⌫'], text: 'delete chip' },
+      ]);
     } else if (isEmpty) {
       // Empty input - show default hints
       const lastRecipient = sendForm.getLastRecipient();
       if (lastRecipient) {
-        $modeline.innerHTML = `
-          <span class="modeline-hint">sending to @${lastRecipient}</span>
-          <span class="modeline-hint"><kbd>@</kbd> inspect or message</span>
-          <span class="modeline-hint"><kbd>/</kbd> commands</span>
-        `;
+        setModeline([
+          { keys: [], text: `sending to @${lastRecipient}` },
+          { keys: ['@'], text: 'inspect or message' },
+          { keys: ['/'], text: 'commands' },
+        ]);
       } else {
-        $modeline.innerHTML = `
-          <span class="modeline-hint"><kbd>@</kbd> inspect or message</span>
-          <span class="modeline-hint"><kbd>/</kbd> commands</span>
-        `;
+        setModeline([
+          { keys: ['@'], text: 'inspect or message' },
+          { keys: ['/'], text: 'commands' },
+        ]);
       }
     } else {
       // Text only without token
       const lastRecipient = sendForm.getLastRecipient();
       if (lastRecipient) {
-        $modeline.innerHTML = `
-          <span class="modeline-hint"><kbd>Enter</kbd> send to @${lastRecipient}</span>
-          <span class="modeline-hint"><kbd>@</kbd> embed reference</span>
-        `;
+        setModeline([
+          { keys: ['Enter'], text: `send to @${lastRecipient}` },
+          { keys: ['@'], text: 'embed reference' },
+        ]);
       } else {
-        $modeline.innerHTML = `
-          <span class="modeline-hint"><kbd>@</kbd> add recipient to send</span>
-        `;
+        setModeline([{ keys: ['@'], text: 'add recipient to send' }]);
       }
     }
-    $chatBar.classList.add('has-modeline');
   };
 
   /**
    * Update modeline for command selection mode.
    */
   const updateSelectingModeline = () => {
-    $modeline.innerHTML = `
-      <span class="modeline-hint">type command name</span>
-      <span class="modeline-hint"><kbd>↑↓</kbd> navigate</span>
-      <span class="modeline-hint"><kbd>Enter</kbd> select</span>
-      <span class="modeline-hint"><kbd>Esc</kbd> cancel</span>
-    `;
-    $chatBar.classList.add('has-modeline');
+    setModeline([
+      { keys: [], text: 'type command name' },
+      { keys: ['↑↓'], text: 'navigate' },
+      { keys: ['Enter'], text: 'select' },
+      { keys: ['Esc'], text: 'cancel' },
+    ]);
   };
 
   /**
@@ -443,50 +647,48 @@ export const chatBarComponent = (
     }
   };
 
+  // ---- Confined command popover mount ----
+  //
+  // The popover renders confined into a dedicated child of the host
+  // `#chat-command-popover`; the host keeps the `.visible` toggle on the popover
+  // container itself, matching the original.
+  const $commandPopoverMount = document.createElement('div');
+  $commandPopover.appendChild($commandPopoverMount);
+
   /**
-   * Render the command popover content.
+   * Render the command popover content (confined).
    */
   const renderCommandPopover = () => {
     const categories = getCategories();
     const context = getCommandContext(); // eslint-disable-line no-use-before-define
-    let html = '<div class="command-popover-header">Commands</div>';
+    /** @type {Array<{ category: string, label: string, commands: Array<{ name: string, description: string }> }>} */
+    const sections = [];
 
     for (const category of categories) {
       const commands = getCommandsByCategory(category, context);
       if (commands.length !== 0) {
         const label = CATEGORY_LABELS[category] || category;
-
-        html += '<div class="command-popover-section">';
-        html += `<div class="command-popover-category">${label}</div>`;
-
-        for (const cmd of commands) {
-          html += `
-            <div class="command-popover-item" data-command="${cmd.name}">
-              <span class="command-popover-item-name">/${cmd.name}</span>
-              <span class="command-popover-item-desc">${cmd.description}</span>
-            </div>
-          `;
-        }
-
-        html += '</div>';
+        sections.push({
+          category,
+          label,
+          commands: commands.map(cmd => ({
+            name: cmd.name,
+            description: cmd.description,
+          })),
+        });
       }
     }
 
-    html +=
-      '<div class="command-popover-footer">Type <kbd>/</kbd> in input for quick access</div>';
-    $commandPopover.innerHTML = html;
-
-    // Attach click handlers
-    const $items = $commandPopover.querySelectorAll('.command-popover-item');
-    for (const $item of $items) {
-      $item.addEventListener('click', () => {
-        const cmdName = /** @type {HTMLElement} */ ($item).dataset.command;
-        if (cmdName) {
+    renderConfined(
+      h(CommandPopover, {
+        sections,
+        onSelect: cmdName => {
           hideCommandPopover(); // eslint-disable-line no-use-before-define
           handleCommandSelect(cmdName); // eslint-disable-line no-use-before-define
-        }
-      });
-    }
+        },
+      }),
+      $commandPopoverMount,
+    );
   };
 
   const showCommandPopover = () => {
@@ -1139,15 +1341,14 @@ export const chatBarComponent = (
    * Update the modeline for focus mode.
    */
   const updateFocusModeline = () => {
-    $modeline.innerHTML = `
-      <span class="modeline-hint"><kbd>r</kbd> reply</span>
-      <span class="modeline-hint"><kbd>d</kbd> dismiss</span>
-      <span class="modeline-hint"><kbd>a</kbd> adopt</span>
-      <span class="modeline-hint"><kbd>g</kbd> grant</span>
-      <span class="modeline-hint"><kbd>s</kbd> submit</span>
-      <span class="modeline-hint"><kbd>Esc</kbd> back</span>
-    `;
-    $chatBar.classList.add('has-modeline');
+    setModeline([
+      { keys: ['r'], text: 'reply' },
+      { keys: ['d'], text: 'dismiss' },
+      { keys: ['a'], text: 'adopt' },
+      { keys: ['g'], text: 'grant' },
+      { keys: ['s'], text: 'submit' },
+      { keys: ['Esc'], text: 'back' },
+    ]);
   };
 
   // Click on a message enters focus mode (or changes focus if already in it)
@@ -1721,7 +1922,7 @@ export const chatBarComponent = (
   // Apply passive focus on initial load.
   updatePassiveFocus();
 
-  return {
+  return harden({
     setReplyTo: sendForm.setReplyTo,
     clearReplyTo: sendForm.clearReplyTo,
     setDefaultReplyTo: sendForm.setDefaultReplyTo,
@@ -1730,6 +1931,12 @@ export const chatBarComponent = (
     getReplyType: sendForm.getReplyType,
     setText: sendForm.setText,
     focus: sendForm.focus,
-    dispose: sendForm.dispose,
-  };
+    dispose: () => {
+      messageObserver.disconnect();
+      unmount($modelineMount);
+      unmount($commandPopoverMount);
+      sendForm.dispose();
+    },
+  });
 };
+harden(chatBarComponent);

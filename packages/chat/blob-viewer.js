@@ -259,7 +259,7 @@ export const createBlobViewer = ({
 }) => {
   let visible = false;
   let dirty = false;
-  /** @type {import('./monaco-wrapper.js').MonacoEditorAPI | null} */
+  /** @type {import('@endo/monaco-wrapper').MonacoEditorAPI | null} */
   let editor = null;
   /** @type {string[]} */
   let currentPath = [];

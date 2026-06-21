@@ -1,7 +1,5 @@
 {
-  "entryPoints": [
-    "packages/*"
-  ],
+  "entryPoints": ["packages/*"],
   "projectDocuments": [
     "README.md",
     "docs/get-started.md",
@@ -13,12 +11,7 @@
     "docs/errors.md",
     "docs/bugs.md"
   ],
-  "categoryOrder": [
-    "Guides",
-    "Reference",
-    "*",
-    "Annex"
-  ],
+  "categoryOrder": ["Guides", "Reference", "*", "Annex"],
   "exclude": [
     "**/tmp/**",
     "**/dist/**",
@@ -58,11 +51,11 @@
     "packages/test262-runner/",
     "packages/where",
     "packages/whylip",
+    "packages/monaco-wrapper",
+    "packages/space-file-explorer",
     "api-docs/"
   ],
-  "plugin": [
-    "typedoc-plugin-mermaid"
-  ],
+  "plugin": ["typedoc-plugin-mermaid"],
   "name": "Endo",
   "titleLink": "https://endojs.org",
   "entryPointStrategy": "packages",

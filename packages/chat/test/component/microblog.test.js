@@ -316,6 +316,26 @@ test.serial('second root message renders as a post', async t => {
   );
 });
 
+test.serial(
+  'an attachment with no inline slot is appended as a trailing chip',
+  async t => {
+    const { $parent, push } = await setup();
+
+    await push(makeMessage(0, 'Bio'));
+    // One text string + one attached value => zero placeholder slots in the
+    // rendered text. The chip must still render (appended at the end) rather
+    // than being silently dropped (equivalent to upstream 37ceb27c4).
+    await push(
+      makeMessage(1, 'See this', { names: ['gift'], ids: ['id-gift'] }),
+    );
+
+    await waitFor(() => !!$parent.querySelector('.microblog-post .token'));
+    const $token = $parent.querySelector('.microblog-post .token');
+    t.truthy($token, 'trailing attachment chip rendered, not dropped');
+    t.true($token.textContent.includes('@gift'), 'chip shows the edge name');
+  },
+);
+
 test.serial('posts appear newest-first', async t => {
   const { $parent, push } = await setup();
 

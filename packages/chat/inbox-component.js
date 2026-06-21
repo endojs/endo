@@ -433,9 +433,10 @@ const PackageBody = ({ message, powers, showValue, setError }) => {
     });
   };
 
-  const { nodes, firstBlockKind } = markdownToVnodes(textWithPlaceholders, {
-    renderToken,
-  });
+  const { nodes, placeholderCount, firstBlockKind } = markdownToVnodes(
+    textWithPlaceholders,
+    { renderToken },
+  );
 
   // Inject the sender chip into the first paragraph / heading; otherwise (code
   // fence or list first) prepend a dedicated paragraph for it.
@@ -470,6 +471,13 @@ const PackageBody = ({ message, powers, showValue, setError }) => {
       );
       body = [$chipPara, ...nodes];
     }
+  }
+
+  // Attachments without an inline placeholder slot (e.g. one text string and one
+  // attached value) are appended at the end of the body rather than dropped.
+  for (let index = placeholderCount; index < nameParts.length; index += 1) {
+    const chip = renderToken(index);
+    if (chip) body = [...body, ' ', chip];
   }
 
   return h(Fragment, null, ...body);

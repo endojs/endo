@@ -372,10 +372,11 @@ export const forumComponent = async (
    * @returns {import('preact').VNode}
    */
   const Body = message => {
-    const messageNames =
+    const messageNames = /** @type {string[]} */ (
       /** @type {any} */ (message).names ||
-      /** @type {any} */ (message).edgeNames ||
-      [];
+        /** @type {any} */ (message).edgeNames ||
+        []
+    );
 
     if (!message.strings || message.strings.length === 0) {
       return h('span', { class: 'message-body' });
@@ -405,8 +406,17 @@ export const forumComponent = async (
       );
     };
 
-    const { nodes } = markdownToVnodes(textWithPlaceholders, { renderToken });
-    return h('span', { class: 'message-body' }, ...nodes);
+    const { nodes, placeholderCount } = markdownToVnodes(textWithPlaceholders, {
+      renderToken,
+    });
+    // Attachments without an inline placeholder slot (e.g. one text string and
+    // one attached value) are appended at the end rather than dropped.
+    const extraChips = [];
+    for (let i = placeholderCount; i < messageNames.length; i += 1) {
+      const chip = renderToken(i);
+      if (chip) extraChips.push(' ', chip);
+    }
+    return h('span', { class: 'message-body' }, ...nodes, ...extraChips);
   };
 
   /**

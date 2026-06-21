@@ -83,14 +83,18 @@ been converted to confined Preact:
 
 | Module | Lines | Role |
 | --- | --- | --- |
-| outliner-component | 3003 | `outliner` viewMode body |
-| chat-bar-component | 1735 | command bar composite (now unblocked: all its form children landed) |
-| channel-component | 981 | default multiuser channel body (Dan's) |
-| spaces-gutter | 971 | left space gutter |
-| channel-header | 694 | channel header chrome |
-| forum-component | 617 | `forum` viewMode body (a first conversion attempt was reverted; not yet done) |
-| value-component | 512 | standalone value viewer (composes the DOM `value-render`) |
-| heat-simulation | 225 | heat animation under the channel header |
+| outliner-component | 3003 | `outliner` viewMode body — held for the decompose-into-contract approach |
+| spaces-gutter | 971 | left space gutter — **⊘ deferred** (the floot imperative-Space PR edits it, +41/-5) |
+| heat-simulation | 225 | heat animation; still imperative but host-node-bridged by the converted `channel-header` (not a primary target) |
+| inventory-graph (pkg) | ~ | `@endo/inventory-graph/src/graph.js` SVG view — needs the renderer's `allowedTags`/`allowedAttrs` SVG extension first |
+
+Newly **done** (confined Preact, verified + tests, mount signatures unchanged so
+`chat.js` was untouched): **forum**, **value-component**, **channel-component**
+(+ a follow-up so reply fires synchronously), **channel-header** (host-node-
+bridges the imperative heat-simulation), and **chat-bar-component** (its two
+`.innerHTML` view regions — the modeline and command popover — are confined;
+the rest is irreducible imperative orchestration over the shared `#messages`
+DOM).
 | inventory-graph (pkg) | ~ | `@endo/inventory-graph/src/graph.js` SVG view (see below) |
 
 ### Deferred — frozen for an incoming imperative-Space PR
@@ -382,11 +386,12 @@ for the incoming imperative-Space PR — see "Deferred" above)
 | define-form | ☑ | Done — first Monaco-embedding form; established the host-node editor pattern + the Monaco test stub |
 | eval-form / blob-viewer / counter-proposal-form | ☑ | Done — Monaco forms on define-form's host-node editor pattern; blob-viewer moved its markdown preview to `markdownToVnodes` |
 | microblog | ☑ | Done — `microblog` viewMode body; confined Preact via `renderConfined`, `markdownToVnodes` bodies, host-node-bridged author/react chips |
-| value-component | ☐ | ~512 lines — standalone value viewer; composes the DOM `value-render` (migrate to `value-vnodes`) |
-| chat-bar-component | ☐ | ~1735 lines — now unblocked (all its form children landed); its other "children" `command-executor` / `browser-tree` are non-view utils |
-| channel-component | ☐ | ~981 lines — Dan's multiuser channel view; host-node-controller pattern for `react-utils`/`channel-utils` |
-| spaces-gutter / channel-header | ☐ | ~971 / ~694 lines — larger composites (channel-header also drives `heat-simulation`), later |
-| forum | ☐ | ~617 lines — `forum` viewMode body; a first conversion attempt was reverted (only a test landed, never the component), still to do |
+| value-component | ☑ | Done — value content via `valueToVnodes`, blob preview as a confined `BlobContent`; modal chrome stays host DOM |
+| chat-bar-component | ☑ | Done (view regions) — modeline + command popover confined; the rest is irreducible imperative orchestration over shared `#messages` DOM |
+| channel-component | ☑ | Done — Dan's body; host-node-controller pattern for `react-utils`/`channel-utils`/`profile-popup`; +sync-reply follow-up |
+| channel-header | ☑ | Done — menu/invite/members/attenuator confined; host-node-bridges the imperative `heat-simulation` |
+| forum | ☑ | Done — `forum` viewMode body; same pattern as microblog (a first attempt that only landed a test was reverted, then redone for real) |
+| spaces-gutter | ⊘ | **Deferred** — the floot imperative-Space PR edits it (+41/-5); frozen imperative alongside chat.js + add-space-modal until that PR lands |
 | outliner | ☐ | ~3003 lines — largest body; needs the file-explorer-style decompose-into-contract approach, not a one-shot |
 | add-space-modal | ⊘ | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-type registration); resume after it lands |
 | chat.js (root orchestrator) | ⊘ | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-mode dispatch); stays the trusted root that calls `renderConfined` |
