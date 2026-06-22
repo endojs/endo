@@ -21,6 +21,12 @@
       "path": "packages/captp/tsconfig.composite.json"
     },
     {
+      "path": "packages/chacha12/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/chacha12-fast-check-test/tsconfig.composite.json"
+    },
+    {
       "path": "packages/check-bundle/tsconfig.composite.json"
     },
     {
@@ -115,6 +121,9 @@
     },
     {
       "path": "packages/promise-kit/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/random/tsconfig.composite.json"
     },
     {
       "path": "packages/ses-ava/tsconfig.composite.json"

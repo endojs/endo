@@ -1,5 +1,19 @@
 # @endo/pass-style
 
+## 1.8.1
+
+### Patch Changes
+
+- [#3292](https://github.com/endojs/endo/pull/3292) [`dd0face`](https://github.com/endojs/endo/commit/dd0face7073b2f6b517d31f9d390a2b2157fa472) Thanks [@turadg](https://github.com/turadg)! - Update the `tools/arb-passable` arbitrary for the fast-check 4 API:
+  `fullUnicodeString()` was removed, so it now uses the documented
+  equivalent `string({ unit: 'binary' })`. Consumers using this arbitrary
+  should depend on fast-check 4.
+
+  Also pass `noNullPrototype: true` to the record/dictionary arbitraries:
+  fast-check 4 generates `{__proto__:null}` objects by default, which are
+  not valid copyRecords (they must inherit from `Object.prototype`), so
+  without this the arbitrary produced invalid passables.
+
 ## 1.8.0
 
 ### Minor Changes

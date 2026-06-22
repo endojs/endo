@@ -7,8 +7,8 @@
     "test": "node node_modules/playwright/cli.js test"
   },
   "devDependencies": {
-    "@playwright/test": "1.59.1",
-    "@types/node": "20.11.16"
+    "@playwright/test": "1.60.0",
+    "@types/node": "^20.11.16"
   },
   "eslintConfig": {
     "extends": [

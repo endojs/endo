@@ -327,7 +327,7 @@ test('passable nested - float64 in containers', t => {
   // Test floats in arrays and records
   const codec = PassableCodec;
   const value = harden({
-    numbers: [1.0, 2.5, 3.14159],
+    numbers: [1.0, 2.5, 3.141_59],
     point: { x: 2.0, y: 3.5 },
   });
   const writer = makeSyrupWriter();
@@ -337,7 +337,7 @@ test('passable nested - float64 in containers', t => {
   const reader = makeSyrupReader(syrupBytes, { name: 'float64 nested' });
   const result = codec.read(reader);
   t.deepEqual(result, {
-    numbers: [1.0, 2.5, 3.14159],
+    numbers: [1.0, 2.5, 3.141_59],
     point: { x: 2.0, y: 3.5 },
   });
 });

@@ -278,3 +278,26 @@ test('bundleTestExports should accept a genuine module exports namespace', t => 
   bundleTestExports(namespace);
   t.pass();
 });
+
+test('importBundle supports exiting to importHook', async t => {
+  const bundle = await bundleSource(
+    url.fileURLToPath(
+      new URL(
+        '../../compartment-mapper/test/fixtures-conditional-host-exports/node_modules/app/index.js',
+        import.meta.url,
+      ),
+    ),
+    {
+      format: 'endoZipBase64',
+      conditions: ['endo:lib'],
+    },
+  );
+
+  const ns = await importBundle(bundle, {
+    async importHook(specifier) {
+      t.is(specifier, 'endo:lib');
+      return { namespace: { feature: 'host' } };
+    },
+  });
+  t.is(ns.feature, 'host');
+});

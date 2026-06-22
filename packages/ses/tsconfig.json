@@ -7,5 +7,14 @@
     "src",
     "src-xs",
     "test"
+  ],
+  // These fixtures load the published package by name (`require('ses')` /
+  // `import 'ses'`), which resolves through package.json "exports" to the
+  // built ./dist/types.d.cts. When a local ./dist exists, type-checking it
+  // alongside the source ./types.d.ts reports a duplicate `Compartment`
+  // declaration. They are runtime smoke tests (typeCoverage.atLeast: 0), not
+  // type-check targets, so exclude them from the program.
+  "exclude": [
+    "test/_package"
   ]
 }

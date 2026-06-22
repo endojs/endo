@@ -24,9 +24,17 @@
   "exports": {
     ".": {
       "xs": "./src-xs/index.js",
+      "types": "./index.d.ts",
       "default": "./index.js"
     },
-    "./shim.js": "./shim.js",
+    "./shim.js": {
+      "types": "./src/shim.types.d.ts",
+      "default": "./shim.js"
+    },
+    "./analyzer.js": {
+      "types": "./analyzer.d.ts",
+      "default": "./analyzer.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -49,8 +57,10 @@
   },
   "devDependencies": {
     "@endo/ses-ava": "workspace:^",
+    "@types/babel__generator": "~7.27.0",
+    "@types/babel__traverse": "~7.28.0",
+    "@types/node": "^20.19.41",
     "ava": "catalog:dev",
-    "babel-eslint": "^10.1.0",
     "benchmark": "^2.1.4",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
@@ -83,8 +93,25 @@
             "^@endo/module-source(?:/.*)?$"
           ]
         }
+      ],
+      "jsdoc/check-tag-names": [
+        "error",
+        {
+          "definedTags": [
+            "privateRemarks"
+          ]
+        }
       ]
     },
+    "overrides": [
+      {
+        "files": "**/*.ts",
+        "rules": {
+          "vars-on-top": "off",
+          "no-var": "off"
+        }
+      }
+    ],
     "ignorePatterns": [
       "test/fixtures/"
     ]

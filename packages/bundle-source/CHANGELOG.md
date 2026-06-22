@@ -1,5 +1,15 @@
 # @endo/bundle-source
 
+## 4.3.2
+
+### Patch Changes
+
+- [#3186](https://github.com/endojs/endo/pull/3186) [`d5e2498`](https://github.com/endojs/endo/commit/d5e2498260b4cd899b1929b5273aaa65929cea36) Thanks [@boneskull](https://github.com/boneskull)! - Fixes poorly-defined support for asynchronous parsers.
+
+- Updated dependencies [[`d5e2498`](https://github.com/endojs/endo/commit/d5e2498260b4cd899b1929b5273aaa65929cea36), [`fe6be07`](https://github.com/endojs/endo/commit/fe6be074317c8afedc28139683e148a952377062), [`c4337e5`](https://github.com/endojs/endo/commit/c4337e588b0e1a4226b7204e6d7f88fa584154d0)]:
+  - @endo/compartment-mapper@2.3.0
+  - @endo/evasive-transform@2.3.0
+
 ## 4.3.1
 
 ### Patch Changes

@@ -45,11 +45,11 @@ test('PositiveIntegerCodec - valid positive integers', t => {
   testCodecBidirectionally(t, PositiveIntegerCodec, 2n);
   testCodecBidirectionally(t, PositiveIntegerCodec, 42n);
   testCodecBidirectionally(t, PositiveIntegerCodec, 100n);
-  testCodecBidirectionally(t, PositiveIntegerCodec, 1000000n);
+  testCodecBidirectionally(t, PositiveIntegerCodec, 1_000_000n);
   testCodecBidirectionally(
     t,
     PositiveIntegerCodec,
-    123456789012345678901234567890n,
+    123_456_789_012_345_678_901_234_567_890n,
   );
 });
 
@@ -135,11 +135,11 @@ test('NonNegativeIntegerCodec - valid non-negative integers including zero', t =
   testCodecBidirectionally(t, NonNegativeIntegerCodec, 2n);
   testCodecBidirectionally(t, NonNegativeIntegerCodec, 42n);
   testCodecBidirectionally(t, NonNegativeIntegerCodec, 100n);
-  testCodecBidirectionally(t, NonNegativeIntegerCodec, 1000000n);
+  testCodecBidirectionally(t, NonNegativeIntegerCodec, 1_000_000n);
   testCodecBidirectionally(
     t,
     NonNegativeIntegerCodec,
-    123456789012345678901234567890n,
+    123_456_789_012_345_678_901_234_567_890n,
   );
 });
 

@@ -1,6 +1,6 @@
 {
   "name": "@endo/ocapn",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A tentative implementation of the OCapN (Object Capability Network) protocol for Hardened JavaScript.",
   "keywords": [],
   "author": "Endo contributors",
@@ -52,7 +52,9 @@
     "ws": "^8.20.0"
   },
   "devDependencies": {
+    "@endo/chacha12": "workspace:^",
     "@endo/lockdown": "workspace:^",
+    "@endo/random": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@types/ws": "^8",
     "ava": "catalog:dev",

@@ -96,10 +96,10 @@ const DENSITY = LOGO_LINES.map((line, y) => {
  * @returns {number}
  */
 const cellHash = (x, y) => {
-  let n = (x * 374761393 + y * 668265263) | 0;
-  n = (n ^ (n >>> 13)) * 1274126177;
+  let n = (x * 374_761_393 + y * 668_265_263) | 0;
+  n = (n ^ (n >>> 13)) * 1_274_126_177;
   n = (n ^ (n >>> 16)) >>> 0;
-  return n / 0x100000000;
+  return n / 0x1_0000_0000;
 };
 
 /**

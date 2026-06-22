@@ -1,1 +1,1 @@
-import './src/immutable-arraybuffer-shim.js';
+import './src/shim.js';
