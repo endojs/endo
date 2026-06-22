@@ -602,6 +602,20 @@ Fixed so far (the flakes actually observed in CI):
 - `inline-command-form.test.js` — the 19 tests were serialized; they shared
   `document.body` with a global `afterEach` wipe, so parallel runs let one
   test's teardown clear another's DOM mid-assertion.
+- `forum.test.js` — not a fixed-tick race (the assertions already poll with
+  `waitFor`) but a teardown leak. The flake surfaced two ways across identical
+  runs: the `a root message renders as a forum node` / dispose assertions
+  failing, and the run reporting "N uncaught exceptions". Both traced to the
+  test's detached `.catch` **re-throwing** the consumer-loop rejection — an
+  unhandled rejection AVA then attributes to whichever test is running — and to
+  the mounted component never being disposed, so its parked `for await` loop,
+  its reader prefetch, and the initial-batch `setTimeout` leaked across tests
+  and could fire against a torn-down DOM. Fixed by (a) dropping the re-throw
+  (the `.catch` only logs; tests assert on observable DOM/spy state), (b)
+  disposing every mounted component in `afterEach` before the shared DOM is
+  cleared, and (c) hardening `forumComponent`'s `dispose()` to cancel the
+  pending batch timer, with a `disposed` guard in the batch-render callbacks so
+  an already-queued timer cannot render post-dispose.
 
 Deferred: a sweep of the remaining fixed-tick waits (~277 `await tick(ms)` calls
 across ~42 component test files). This is preventive — those tests are not

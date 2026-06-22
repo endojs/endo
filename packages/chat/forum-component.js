@@ -895,11 +895,21 @@ export const forumComponent = async (
   let disposed = false;
   /** @type {AsyncIterableIterator<unknown> | null} */
   let activeIterator = null;
+  /**
+   * Batch incoming messages during initial load. Declared here so `dispose`
+   * can cancel a pending initial render that would otherwise fire (and scroll)
+   * against a torn-down container.
+   */
+  let batchTimer = 0;
   /** @type {{ closeThread: () => boolean, dispose: () => void }} */
   const channelAPI = harden({
     closeThread: () => false,
     dispose: () => {
       disposed = true;
+      if (batchTimer) {
+        clearTimeout(batchTimer);
+        batchTimer = 0;
+      }
       if (activeIterator) {
         activeIterator.return();
       }
@@ -931,14 +941,12 @@ export const forumComponent = async (
   });
   activeIterator = messageIterator;
 
-  /** Batch incoming messages during initial load. */
-  let batchTimer = 0;
-
   // Schedule an initial render after the first batch arrives.
   batchTimer = setTimeout(() => {
+    batchTimer = 0;
+    if (disposed) return;
     rerender();
     $parent.scrollTo(0, $parent.scrollHeight);
-    batchTimer = 0;
   }, 200);
 
   for await (const message of messageIterator) {
@@ -1006,9 +1014,10 @@ export const forumComponent = async (
     if (batchTimer) {
       clearTimeout(batchTimer);
       batchTimer = setTimeout(() => {
+        batchTimer = 0;
+        if (disposed) return;
         rerender();
         $parent.scrollTo(0, $parent.scrollHeight);
-        batchTimer = 0;
       }, 50);
     } else if (isLive()) {
       // After initial load, render incrementally

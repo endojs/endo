@@ -139,6 +139,14 @@ const makeMessage = (number, text, opts = {}) => ({
 });
 
 /**
+ * Disposers for components mounted by `setup`, drained in `afterEach` so each
+ * test's consumer loop and timers stop before the shared DOM is torn down.
+ *
+ * @type {Array<() => void>}
+ */
+const mountedDisposals = [];
+
+/**
  * Mount the forum exactly as chat.js does:
  * channelViewFn($messages, $anchor, channelRef, { ...options }).
  */
@@ -190,8 +198,21 @@ const setup = async () => {
       forkCallbacks.push({ chain, preview });
     },
   }).catch(err => {
+    // Surface the failure as a diagnostic, but never re-throw it. Re-throwing
+    // inside this detached `.catch` turns a (possibly post-teardown) consumer
+    // rejection into an *unhandled* rejection that AVA attributes to whichever
+    // test happens to be running — the original cross-test CI flake that showed
+    // up as "N uncaught exceptions". Tests assert on observable DOM/spy state,
+    // not on this promise.
     console.error('forumComponent error:', err);
-    throw err;
+  });
+
+  // Ensure the component is disposed at end of test even if the body returns
+  // early: a parked `for await` loop, its prefetch, and the initial-batch timer
+  // otherwise leak across tests and fire against a torn-down DOM.
+  mountedDisposals.push(() => {
+    const api = /** @type {any} */ ($parent).channelAPI;
+    if (api) api.dispose();
   });
 
   // Wait for async createChannelState + mount insertion.
@@ -215,7 +236,17 @@ const setup = async () => {
   };
 };
 
-test.afterEach(() => {
+test.afterEach(async () => {
+  // Dispose every component mounted this test so its `for await` consumer loop,
+  // its reader prefetch, and any pending batch timer stop before the DOM is
+  // detached. Disposing first, then letting the iterator's `return()` and any
+  // in-flight microtasks settle, prevents a stray post-teardown render or
+  // rejection from leaking into a later test.
+  while (mountedDisposals.length > 0) {
+    const dispose = /** @type {() => void} */ (mountedDisposals.pop());
+    dispose();
+  }
+  await tick(0);
   testDocument.body.innerHTML = '';
 });
 
