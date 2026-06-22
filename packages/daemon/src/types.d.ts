@@ -1518,7 +1518,7 @@ export interface EndoHost extends EndoAgent {
   ): Promise<unknown>;
   makeArchive(
     workerPetName: string | string[] | undefined,
-    archiveName: string,
+    archiveName: string | string[],
     options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeFromTree(

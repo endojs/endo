@@ -345,7 +345,7 @@ export const HostInterface = M.interface('EndoHost', {
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a caplet from a source-only ZIP archive
-  makeArchive: M.call(M.or(NameOrPathShape, M.undefined()), NameShape)
+  makeArchive: M.call(M.or(NameOrPathShape, M.undefined()), NameOrPathShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a caplet from a ReadableTree or Mount laid out as a

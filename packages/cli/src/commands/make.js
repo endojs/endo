@@ -73,11 +73,16 @@ export const makeCommand = async ({
     archiveReaderRef = bytesReaderFromIterator([archiveBytes]);
   }
 
+  // A slash-delimited archive name references (or stores) the source
+  // archive nested in a directory; the parent directory must already
+  // exist (as with `mkdir`, `store`, and `mv`).
+  const archivePath = parseOptionalPetNamePath(archiveName);
+
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     await null;
     // Prepare an archive, with the given name.
     if (archiveReaderRef !== undefined) {
-      await E(agent).storeBlob(archiveReaderRef, archiveName);
+      await E(agent).storeBlob(archiveReaderRef, archivePath);
     }
 
     // A slash-delimited worker name references a worker nested in a
@@ -96,7 +101,7 @@ export const makeCommand = async ({
         { powersName: powersPath, resultName: resultPath, env },
       );
     } else {
-      resultP = E(agent).makeArchive(workerPath, archiveName, {
+      resultP = E(agent).makeArchive(workerPath, archivePath, {
         powersName: powersPath,
         resultName: resultPath,
         env,

@@ -2545,6 +2545,41 @@ testNeedsNodeWorker(
   },
 );
 
+testNeedsNodeWorker(
+  'makeArchive accepts a source archive at a directory path',
+  async t => {
+    const { host } = await prepareHost(t);
+    await E(host).provideWorker(['w1']);
+    await E(host).makeDirectory('archives');
+
+    // Store the source archive blob at a directory path.
+    const servicePath = path.join(
+      dirname,
+      'test',
+      'fixtures',
+      'archive-service',
+    );
+    const moduleLocation = url.pathToFileURL(servicePath).href;
+    const archiveBytes = await makeCompartmentArchive(
+      archiveReadPowers,
+      moduleLocation,
+      { parserForLanguage: sourceParserForLanguage },
+    );
+    const archiveReaderRef = bytesReaderFromIterator([archiveBytes]);
+    await E(host).storeBlob(archiveReaderRef, ['archives', 'svc']);
+    t.true(await E(host).has('archives', 'svc'));
+
+    // makeArchive resolves the source by path and stores its result by
+    // path too.
+    const service = await E(host).makeArchive('w1', ['archives', 'svc'], {
+      powersName: '@none',
+      resultName: ['archives', 's1'],
+    });
+    t.truthy(service);
+    t.true(await E(host).has('archives', 's1'));
+  },
+);
+
 testNeedsNodeWorker('cancel because of requested capability', async t => {
   const { host } = await prepareHost(t);
 

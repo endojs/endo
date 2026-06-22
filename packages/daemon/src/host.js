@@ -840,9 +840,13 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['makeArchive']} */
     const makeArchive = async (workerName, archiveName, options) => {
-      const archiveId = petStore.identifyLocal(
-        /** @type {Name} */ (archiveName),
-      );
+      // A single segment resolves against the agent's own pet store; a
+      // path resolves the source archive through the directory.
+      const archiveNamePath = namePathFrom(archiveName);
+      const archiveId =
+        archiveNamePath.length === 1
+          ? petStore.identifyLocal(/** @type {Name} */ (archiveNamePath[0]))
+          : await E(directory).identify(...archiveNamePath);
       if (archiveId === undefined) {
         throw new TypeError(`Unknown pet name for archive: ${q(archiveName)}`);
       }
