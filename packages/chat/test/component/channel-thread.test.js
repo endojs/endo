@@ -451,7 +451,9 @@ test.serial(
     // Poll for the initial render + queued re-render to finish rather than
     // racing a fixed delay: on a loaded CI runner the queued re-render can land
     // well after any fixed timeout, which is the original flake.
-    await waitFor(() => $parent.querySelectorAll('.thread-message').length >= 3);
+    await waitFor(
+      () => $parent.querySelectorAll('.thread-message').length >= 3,
+    );
 
     const threadMsgs = $parent.querySelectorAll('.thread-message');
     t.is(

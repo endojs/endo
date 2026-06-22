@@ -285,9 +285,7 @@ const setup = async () => {
       pushMessage(msg);
     }
     await waitFor(() =>
-      msgs.every(
-        msg => !!$parent.querySelector(`[data-key="${msg.number}"]`),
-      ),
+      msgs.every(msg => !!$parent.querySelector(`[data-key="${msg.number}"]`)),
     );
   };
 
@@ -415,7 +413,9 @@ test.serial(
     await waitFor(() => {
       const $m1 = $parent.querySelector('[data-key="1"]');
       const $children = $m1 && directChild($m1, 'outliner-children');
-      return !!$children && directChildren($children, 'outliner-draft').length === 1;
+      return (
+        !!$children && directChildren($children, 'outliner-draft').length === 1
+      );
     });
 
     restoreSelection();

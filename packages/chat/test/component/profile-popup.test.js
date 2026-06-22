@@ -3,7 +3,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { createProfilePopup } from '../../profile-popup.js';
 
 const { document: testDocument } = createDOM();
@@ -19,7 +19,9 @@ const setupPopup = async () => {
   const popup = createProfilePopup($container);
 
   // Let the root component's mount effect (which wires the controller setter)
-  // settle. Generous because the first test pays SES/Preact warmup.
+  // settle. Generous because the first test pays SES/Preact warmup. Kept as a
+  // fixed tick: show() silently no-ops until the mount effect wires the setter,
+  // and there is no observable readiness signal to poll before the first show().
   await tick(80);
   return { $container, popup };
 };
@@ -45,7 +47,7 @@ test.serial('show renders the popup with the proposed name', async t => {
   const { args } = makeShowArgs();
 
   popup.show(args);
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.profile-popup'));
 
   const $popup = $container.querySelector('.profile-popup');
   t.truthy($popup, 'popup card rendered');
@@ -65,7 +67,7 @@ test.serial('pedigree renders assigned and proposed names', async t => {
   const { args } = makeShowArgs();
 
   popup.show(args);
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.pedigree-chain'));
 
   const $chain = $container.querySelector('.pedigree-chain');
   t.truthy($chain, 'invitation chain rendered');
@@ -85,7 +87,7 @@ test.serial('empty pedigree renders the channel-creator marker', async t => {
   const { args } = makeShowArgs({ pedigree: [], pedigreeMemberIds: [] });
 
   popup.show(args);
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.pedigree-creator'));
 
   const $creator = $container.querySelector('.pedigree-creator');
   t.truthy($creator, 'creator marker rendered');
@@ -99,11 +101,11 @@ test.serial('hide removes the popup and hides the container', async t => {
   const { args } = makeShowArgs();
 
   popup.show(args);
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.profile-popup'));
   t.truthy($container.querySelector('.profile-popup'), 'popup shown');
 
   popup.hide();
-  await tick(20);
+  await waitFor(() => !$container.querySelector('.profile-popup'));
   t.falsy(
     $container.querySelector('.profile-popup'),
     'popup removed after hide',
@@ -116,17 +118,20 @@ test.serial('Save button fires onAssignName with the typed name', async t => {
   const { args, assigned } = makeShowArgs();
 
   popup.show(args);
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.profile-assign-name'));
 
   const $input = $container.querySelector('.profile-assign-name');
   t.truthy($input, 'assign-name input rendered');
   $input.value = 'Ally';
   $input.dispatchEvent(new testDocument.defaultView.Event('input'));
+  // Let the input's onInput handler propagate the typed value into component
+  // state before the save reads it; this microtask flush has no observable DOM
+  // signal of its own.
   await tick(10);
 
   const $save = $container.querySelector('.profile-save-btn');
   $save.click();
-  await tick(20);
+  await waitFor(() => assigned.length >= 1);
 
   t.deepEqual(assigned, ['Ally'], 'onAssignName called with trimmed name');
   t.falsy(
@@ -140,12 +145,12 @@ test.serial('clicking the backdrop closes the popup', async t => {
   const { args, assigned } = makeShowArgs();
 
   popup.show(args);
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.profile-popup-backdrop'));
 
   const $backdrop = $container.querySelector('.profile-popup-backdrop');
   t.truthy($backdrop, 'backdrop rendered');
   $backdrop.click();
-  await tick(20);
+  await waitFor(() => !$container.querySelector('.profile-popup'));
 
   t.falsy(
     $container.querySelector('.profile-popup'),
@@ -159,7 +164,7 @@ test.serial('Escape closes the popup', async t => {
   const { args, assigned } = makeShowArgs();
 
   popup.show(args);
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.profile-assign-name'));
 
   // Escape is handled declaratively by a wrapper's onKeyDown (the keydown
   // bubbles up from the autofocused input), not a document-level listener.
@@ -171,7 +176,7 @@ test.serial('Escape closes the popup', async t => {
       bubbles: true,
     }),
   );
-  await tick(20);
+  await waitFor(() => !$container.querySelector('.profile-popup'));
 
   t.falsy(
     $container.querySelector('.profile-popup'),
@@ -187,12 +192,12 @@ test.serial('close button closes the popup', async t => {
   const { args } = makeShowArgs();
 
   popup.show(args);
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.profile-popup-close'));
 
   const $close = $container.querySelector('.profile-popup-close');
   t.truthy($close, 'close button rendered');
   $close.click();
-  await tick(20);
+  await waitFor(() => !$container.querySelector('.profile-popup'));
 
   t.falsy(
     $container.querySelector('.profile-popup'),

@@ -81,12 +81,12 @@ Audited against the current tree. These view modules still build their UI with
 `document.createElement` / `.innerHTML` / `addEventListener` and have **not**
 been converted to confined Preact:
 
-| Module | Lines | Role |
-| --- | --- | --- |
-| outliner-component | 3003 | `outliner` viewMode body — held for the decompose-into-contract approach |
-| spaces-gutter | 971 | left space gutter — **⊘ deferred** (the floot imperative-Space PR edits it, +41/-5) |
-| heat-simulation | 225 | heat animation; still imperative but host-node-bridged by the converted `channel-header` (not a primary target) |
-| inventory-graph (pkg) | ~ | `@endo/space-inventory-graph/src/graph.js` SVG view — needs the renderer's `allowedTags`/`allowedAttrs` SVG extension first |
+| Module                | Lines | Role                                                                                                                        |
+| --------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------- |
+| outliner-component    | 3003  | `outliner` viewMode body — held for the decompose-into-contract approach                                                    |
+| spaces-gutter         | 971   | left space gutter — **⊘ deferred** (the floot imperative-Space PR edits it, +41/-5)                                         |
+| heat-simulation       | 225   | heat animation; still imperative but host-node-bridged by the converted `channel-header` (not a primary target)             |
+| inventory-graph (pkg) | ~     | `@endo/space-inventory-graph/src/graph.js` SVG view — needs the renderer's `allowedTags`/`allowedAttrs` SVG extension first |
 
 Newly **done** (confined Preact, verified + tests, mount signatures unchanged so
 `chat.js` was untouched): **forum**, **value-component**, **channel-component**
@@ -105,10 +105,10 @@ forced to convert to Preact during the rebase, two files are **deliberately left
 imperative** until that PR lands — they are the only conflict surface for an
 "add an imperative Space" change:
 
-| Module | Lines | Why frozen |
-| --- | --- | --- |
-| chat.js | 1846 | the space-mode dispatch (`if (mode === 'x') return xComponent(...)`); stays the imperative trusted root that calls `renderConfined` on the Preact bodies |
-| add-space-modal | 1979 | the creatable-space-type registration (scheme-picker entry) |
+| Module          | Lines | Why frozen                                                                                                                                               |
+| --------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| chat.js         | 1846  | the space-mode dispatch (`if (mode === 'x') return xComponent(...)`); stays the imperative trusted root that calls `renderConfined` on the Preact bodies |
+| add-space-modal | 1979  | the creatable-space-type registration (scheme-picker entry)                                                                                              |
 
 Converting a body/chrome view **in place** never edits these (same mount
 signature in, same API out), so all other conversions can proceed without
@@ -124,7 +124,7 @@ chat wrapper; they are **in scope**, just tracked in their own package:
   that package. The chat wrapper just resolves powers and delegates.
 
 Also still DOM but **not** view-migration targets (render helpers consumed via
-`.innerHTML`; the plan migrates their *callers* to vnodes, not these): the
+`.innerHTML`; the plan migrates their _callers_ to vnodes, not these): the
 string-returning `value-render` / `markdown-render` / `markdown-preview`, and the
 `channel-utils` / `react-utils` state logic. Preact-vnode replacements already
 exist for the inbox path (`markdown-vnodes`, `value-vnodes`).
@@ -271,53 +271,53 @@ chat.js make()                      root orchestrator (plain DOM)
 Each entry lists the other UI/render modules a module imports.
 `(none)` means it is a graph leaf.
 
-| Module | Composes |
-| --- | --- |
-| spaces-gutter | add-space-modal, edit-space-modal |
-| add-space-modal | icon-selector, scheme-picker, petname-paths-autocomplete, spaces-gutter |
-| edit-space-modal | icon-selector, scheme-picker, spaces-gutter |
-| inventory-component | (none) |
-| channel-header | heat-engine, heat-simulation |
-| channel-component | channel-utils, markdown-render, monaco-wrapper, profile-popup, react-utils, time-formatters |
-| channel-utils | markdown-render, monaco-wrapper, profile-popup, time-formatters |
-| chat-bar-component | blob-viewer, command-executor, command-registry, command-selector, debugger-panel, define-form, endow-modal, eval-form, form-builder, help-modal, inline-command-form, message-picker, send-form |
-| inbox-component | chime, markdown-render, monaco-wrapper, time-formatters, value-render |
-| command-executor | browser-tree |
-| command-selector | command-registry |
-| define-form | monaco-wrapper |
-| endow-modal | petname-path-autocomplete |
-| eval-form | monaco-wrapper, petname-path-autocomplete |
-| form-builder | petname-path-autocomplete |
-| help-modal | command-registry |
-| inline-command-form | command-registry, inline-define, inline-eval, petname-path-autocomplete, petname-paths-autocomplete, token-autocomplete |
-| send-form | composite-heat-engine, heat-bar, heat-engine, token-autocomplete |
-| blob-viewer | language-detect, markdown-preview, monaco-wrapper |
-| heat-simulation | heat-engine |
-| heat-bar | heat-engine |
-| value-component | language-detect, markdown-preview, monaco-wrapper, value-render |
-| value-render | time-formatters |
-| scheme-picker | spaces-gutter |
-| share-modal | channel-utils |
-| counter-proposal-form | monaco-wrapper, petname-path-autocomplete |
-| inline-eval | petname-path-autocomplete |
-| markdown-preview | monaco-wrapper |
-| profile-popup | (none) |
-| message-picker | (none) |
-| icon-selector | (none) |
-| inline-define | (none) |
-| debugger-panel | (none) |
-| command-registry | (none) |
-| react-utils | (none) |
-| heat-engine | (none) |
-| markdown-render | (none) |
-| monaco-wrapper | (none) |
-| time-formatters | (none) |
-| chime | (none) |
-| token-autocomplete | (none) |
-| petname-path-autocomplete | (none) |
-| petname-paths-autocomplete | (none) |
-| language-detect | (none) |
-| message-parse | (none) |
+| Module                     | Composes                                                                                                                                                                                         |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| spaces-gutter              | add-space-modal, edit-space-modal                                                                                                                                                                |
+| add-space-modal            | icon-selector, scheme-picker, petname-paths-autocomplete, spaces-gutter                                                                                                                          |
+| edit-space-modal           | icon-selector, scheme-picker, spaces-gutter                                                                                                                                                      |
+| inventory-component        | (none)                                                                                                                                                                                           |
+| channel-header             | heat-engine, heat-simulation                                                                                                                                                                     |
+| channel-component          | channel-utils, markdown-render, monaco-wrapper, profile-popup, react-utils, time-formatters                                                                                                      |
+| channel-utils              | markdown-render, monaco-wrapper, profile-popup, time-formatters                                                                                                                                  |
+| chat-bar-component         | blob-viewer, command-executor, command-registry, command-selector, debugger-panel, define-form, endow-modal, eval-form, form-builder, help-modal, inline-command-form, message-picker, send-form |
+| inbox-component            | chime, markdown-render, monaco-wrapper, time-formatters, value-render                                                                                                                            |
+| command-executor           | browser-tree                                                                                                                                                                                     |
+| command-selector           | command-registry                                                                                                                                                                                 |
+| define-form                | monaco-wrapper                                                                                                                                                                                   |
+| endow-modal                | petname-path-autocomplete                                                                                                                                                                        |
+| eval-form                  | monaco-wrapper, petname-path-autocomplete                                                                                                                                                        |
+| form-builder               | petname-path-autocomplete                                                                                                                                                                        |
+| help-modal                 | command-registry                                                                                                                                                                                 |
+| inline-command-form        | command-registry, inline-define, inline-eval, petname-path-autocomplete, petname-paths-autocomplete, token-autocomplete                                                                          |
+| send-form                  | composite-heat-engine, heat-bar, heat-engine, token-autocomplete                                                                                                                                 |
+| blob-viewer                | language-detect, markdown-preview, monaco-wrapper                                                                                                                                                |
+| heat-simulation            | heat-engine                                                                                                                                                                                      |
+| heat-bar                   | heat-engine                                                                                                                                                                                      |
+| value-component            | language-detect, markdown-preview, monaco-wrapper, value-render                                                                                                                                  |
+| value-render               | time-formatters                                                                                                                                                                                  |
+| scheme-picker              | spaces-gutter                                                                                                                                                                                    |
+| share-modal                | channel-utils                                                                                                                                                                                    |
+| counter-proposal-form      | monaco-wrapper, petname-path-autocomplete                                                                                                                                                        |
+| inline-eval                | petname-path-autocomplete                                                                                                                                                                        |
+| markdown-preview           | monaco-wrapper                                                                                                                                                                                   |
+| profile-popup              | (none)                                                                                                                                                                                           |
+| message-picker             | (none)                                                                                                                                                                                           |
+| icon-selector              | (none)                                                                                                                                                                                           |
+| inline-define              | (none)                                                                                                                                                                                           |
+| debugger-panel             | (none)                                                                                                                                                                                           |
+| command-registry           | (none)                                                                                                                                                                                           |
+| react-utils                | (none)                                                                                                                                                                                           |
+| heat-engine                | (none)                                                                                                                                                                                           |
+| markdown-render            | (none)                                                                                                                                                                                           |
+| monaco-wrapper             | (none)                                                                                                                                                                                           |
+| time-formatters            | (none)                                                                                                                                                                                           |
+| chime                      | (none)                                                                                                                                                                                           |
+| token-autocomplete         | (none)                                                                                                                                                                                           |
+| petname-path-autocomplete  | (none)                                                                                                                                                                                           |
+| petname-paths-autocomplete | (none)                                                                                                                                                                                           |
+| language-detect            | (none)                                                                                                                                                                                           |
+| message-parse              | (none)                                                                                                                                                                                           |
 
 ## Not migration targets
 
@@ -344,69 +344,69 @@ for the incoming imperative-Space PR — see "Deferred" above)
 
 ### Tier 1 — leaf views, pure DOM, no `E()`/powers (do first)
 
-| Component | Lines | Reached from | Status | Notes |
-| --- | --- | --- | --- | --- |
-| icon-selector | 81 | add/edit-space modals | ☑ | Done — reusable `IconSelector` confined Preact component |
-| profile-popup | 153 | channel-component | ☑ | Done — confined Preact component |
-| message-picker | 154 | chat-bar | ☑ | Done — confined Preact component |
-| command-selector | 239 | chat-bar | ☑ | Done — confined Preact component |
-| heat-bar | 250 | send-form | ☑ | Done — confined Preact component |
-| inline-define | 358 | inline-command-form | ☑ | Done — confined Preact component |
+| Component        | Lines | Reached from          | Status | Notes                                                    |
+| ---------------- | ----- | --------------------- | ------ | -------------------------------------------------------- |
+| icon-selector    | 81    | add/edit-space modals | ☑      | Done — reusable `IconSelector` confined Preact component |
+| profile-popup    | 153   | channel-component     | ☑      | Done — confined Preact component                         |
+| message-picker   | 154   | chat-bar              | ☑      | Done — confined Preact component                         |
+| command-selector | 239   | chat-bar              | ☑      | Done — confined Preact component                         |
+| heat-bar         | 250   | send-form             | ☑      | Done — confined Preact component                         |
+| inline-define    | 358   | inline-command-form   | ☑      | Done — confined Preact component                         |
 
 ### Tier 2 — leaves, but large or input-stateful (defer)
 
-| Component | Lines | Status | Notes |
-| --- | --- | --- | --- |
-| debugger-panel | 688 | ☑ | Done — confined Preact, on-demand panel |
-| inventory-component | 1267 | ☑ | Done — `InventoryList` + `InventoryItem`; see below |
-| token-autocomplete | — | ☑ | Done — confined dropdown |
-| petname-path-autocomplete | — | ☑ | Done — confined dropdown (pendingState bridge) |
-| petname-paths-autocomplete | — | ☑ | Done — confined dropdown (pendingState bridge) |
+| Component                  | Lines | Status | Notes                                               |
+| -------------------------- | ----- | ------ | --------------------------------------------------- |
+| debugger-panel             | 688   | ☑      | Done — confined Preact, on-demand panel             |
+| inventory-component        | 1267  | ☑      | Done — `InventoryList` + `InventoryItem`; see below |
+| token-autocomplete         | —     | ☑      | Done — confined dropdown                            |
+| petname-path-autocomplete  | —     | ☑      | Done — confined dropdown (pendingState bridge)      |
+| petname-paths-autocomplete | —     | ☑      | Done — confined dropdown (pendingState bridge)      |
 
 ### Channel list (left the inventory)
 
-| Component | Status | Notes |
-| --- | --- | --- |
-| channel-list | ☑ | Done — standalone Preact component (`channel-list.js`), own CSS (`channel.css`); reorder over `SafeDataTransfer`. Creation moved to the New Space modal. |
+| Component    | Status | Notes                                                                                                                                                    |
+| ------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| channel-list | ☑      | Done — standalone Preact component (`channel-list.js`), own CSS (`channel.css`); reorder over `SafeDataTransfer`. Creation moved to the New Space modal. |
 
 ### Tier 3 — composites (after their children)
 
-| Component | Status | Notes |
-| --- | --- | --- |
-| inbox-component | ☑ | Done — the 1:1 recipient-filtered view; confined Preact in three stages (shell + 5 message types, markdown-vnodes + token chips, value-vnodes). Monaco colorize of code fences deferred. |
-| edit-space-modal | ☑ | Done — confined Preact + reusable `IconSelector` (Batch B stage 1); scheme picker still host-embedded |
-| send-form | ☑ | Done — reply-context bar confined; composes heat-bar ☑ + token-autocomplete ☑ as host-node controllers |
-| help-modal | ☑ | Done — confined Preact leaf modal |
-| share-modal | ☑ | Done — confined Preact leaf modal |
-| scheme-picker | ☑ | Done — confined; keeps the `#scheme-picker-slot` embedding contract |
-| inline-eval | ☑ | Done — confined; endowment rows compose autocomplete as host-node controllers |
-| endow-modal | ☑ | Done — confined; definition-slot autocompletes host-embedded |
-| form-builder | ☑ | Done — confined; recipient autocomplete host-embedded |
-| inline-command-form | ☑ | Done — composite; confines its chrome, composes its converted children as host-node controllers |
-| define-form | ☑ | Done — first Monaco-embedding form; established the host-node editor pattern + the Monaco test stub |
-| eval-form / blob-viewer / counter-proposal-form | ☑ | Done — Monaco forms on define-form's host-node editor pattern; blob-viewer moved its markdown preview to `markdownToVnodes` |
-| microblog | ☑ | Done — `microblog` viewMode body; confined Preact via `renderConfined`, `markdownToVnodes` bodies, host-node-bridged author/react chips |
-| value-component | ☑ | Done — value content via `valueToVnodes`, blob preview as a confined `BlobContent`; modal chrome stays host DOM |
-| chat-bar-component | ☑ | Done (view regions) — modeline + command popover confined; the rest is irreducible imperative orchestration over shared `#messages` DOM |
-| channel-component | ☑ | Done — Dan's body; host-node-controller pattern for `react-utils`/`channel-utils`/`profile-popup`; +sync-reply follow-up |
-| channel-header | ☑ | Done — menu/invite/members/attenuator confined; host-node-bridges the imperative `heat-simulation` |
-| forum | ☑ | Done — `forum` viewMode body; same pattern as microblog (a first attempt that only landed a test was reverted, then redone for real) |
-| spaces-gutter | ⊘ | **Deferred** — the floot imperative-Space PR edits it (+41/-5); frozen imperative alongside chat.js + add-space-modal until that PR lands |
-| outliner | ☐ | ~3003 lines — largest body; needs the file-explorer-style decompose-into-contract approach, not a one-shot |
-| add-space-modal | ⊘ | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-type registration); resume after it lands |
-| chat.js (root orchestrator) | ⊘ | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-mode dispatch); stays the trusted root that calls `renderConfined` |
+| Component                                       | Status | Notes                                                                                                                                                                                    |
+| ----------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| inbox-component                                 | ☑      | Done — the 1:1 recipient-filtered view; confined Preact in three stages (shell + 5 message types, markdown-vnodes + token chips, value-vnodes). Monaco colorize of code fences deferred. |
+| edit-space-modal                                | ☑      | Done — confined Preact + reusable `IconSelector` (Batch B stage 1); scheme picker still host-embedded                                                                                    |
+| send-form                                       | ☑      | Done — reply-context bar confined; composes heat-bar ☑ + token-autocomplete ☑ as host-node controllers                                                                                   |
+| help-modal                                      | ☑      | Done — confined Preact leaf modal                                                                                                                                                        |
+| share-modal                                     | ☑      | Done — confined Preact leaf modal                                                                                                                                                        |
+| scheme-picker                                   | ☑      | Done — confined; keeps the `#scheme-picker-slot` embedding contract                                                                                                                      |
+| inline-eval                                     | ☑      | Done — confined; endowment rows compose autocomplete as host-node controllers                                                                                                            |
+| endow-modal                                     | ☑      | Done — confined; definition-slot autocompletes host-embedded                                                                                                                             |
+| form-builder                                    | ☑      | Done — confined; recipient autocomplete host-embedded                                                                                                                                    |
+| inline-command-form                             | ☑      | Done — composite; confines its chrome, composes its converted children as host-node controllers                                                                                          |
+| define-form                                     | ☑      | Done — first Monaco-embedding form; established the host-node editor pattern + the Monaco test stub                                                                                      |
+| eval-form / blob-viewer / counter-proposal-form | ☑      | Done — Monaco forms on define-form's host-node editor pattern; blob-viewer moved its markdown preview to `markdownToVnodes`                                                              |
+| microblog                                       | ☑      | Done — `microblog` viewMode body; confined Preact via `renderConfined`, `markdownToVnodes` bodies, host-node-bridged author/react chips                                                  |
+| value-component                                 | ☑      | Done — value content via `valueToVnodes`, blob preview as a confined `BlobContent`; modal chrome stays host DOM                                                                          |
+| chat-bar-component                              | ☑      | Done (view regions) — modeline + command popover confined; the rest is irreducible imperative orchestration over shared `#messages` DOM                                                  |
+| channel-component                               | ☑      | Done — Dan's body; host-node-controller pattern for `react-utils`/`channel-utils`/`profile-popup`; +sync-reply follow-up                                                                 |
+| channel-header                                  | ☑      | Done — menu/invite/members/attenuator confined; host-node-bridges the imperative `heat-simulation`                                                                                       |
+| forum                                           | ☑      | Done — `forum` viewMode body; same pattern as microblog (a first attempt that only landed a test was reverted, then redone for real)                                                     |
+| spaces-gutter                                   | ⊘      | **Deferred** — the floot imperative-Space PR edits it (+41/-5); frozen imperative alongside chat.js + add-space-modal until that PR lands                                                |
+| outliner                                        | ☐      | ~3003 lines — largest body; needs the file-explorer-style decompose-into-contract approach, not a one-shot                                                                               |
+| add-space-modal                                 | ⊘      | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-type registration); resume after it lands                                                                   |
+| chat.js (root orchestrator)                     | ⊘      | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-mode dispatch); stays the trusted root that calls `renderConfined`                                          |
 
 ### Whylip Space (separate `@endo/space-whylip` package)
 
-| Component | Status | Notes |
-| --- | --- | --- |
-| whylip package | ☑ | Done — ported React 19 + JSX → Preact `h()` (no JSX). The package emits pure components (`WhylipApp`, no rendering), and chat's `whylip-component.js` mounts it through the **confined** renderer, so `SceneCanvas`'s untrusted model HTML is sanitized by `renderConfined`. |
+| Component      | Status | Notes                                                                                                                                                                                                                                                                        |
+| -------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| whylip package | ☑      | Done — ported React 19 + JSX → Preact `h()` (no JSX). The package emits pure components (`WhylipApp`, no rendering), and chat's `whylip-component.js` mounts it through the **confined** renderer, so `SceneCanvas`'s untrusted model HTML is sanitized by `renderConfined`. |
 
 ### File Explorer Space (separate `@endo/space-file-explorer` package)
 
-| Component | Status | Notes |
-| --- | --- | --- |
-| space-file-explorer | ☑ | Done — confined Preact: `FileExplorerApp` + the `useFileExplorer` store hook + view components (Toolbar, Columns/Tree/EntryRow, Viewer, Status, Dialog, Inventory). `file-explorer-component.js` mounts it through `renderConfined`; the imperative `file-explorer.js` (~2827 lines) was removed. Same mount signature, so `chat.js` is untouched. |
+| Component           | Status | Notes                                                                                                                                                                                                                                                                                                                                              |
+| ------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| space-file-explorer | ☑      | Done — confined Preact: `FileExplorerApp` + the `useFileExplorer` store hook + view components (Toolbar, Columns/Tree/EntryRow, Viewer, Status, Dialog, Inventory). `file-explorer-component.js` mounts it through `renderConfined`; the imperative `file-explorer.js` (~2827 lines) was removed. Same mount signature, so `chat.js` is untouched. |
 
 ## Recommended next migration
 
@@ -461,15 +461,15 @@ Line numbers below are anchors at time of writing, not contracts.
 
 ### Current responsibilities (one function does all of this)
 
-| Region | Lines | Responsibility |
-| --- | --- | --- |
-| `makeStaticNameIterator`, `makeStaticTreePowers` | 66, 103 | Adapt a static `ReadableTree.list()` snapshot to the live `followNameChanges()` streaming interface |
-| `CONVERSABLE_TYPES` / `NON_EXPANDABLE_TYPES` / `HUB_TYPES` | 38–60 | Formula-type classification (selectable, expandable, drop-accepting) |
-| `inventoryComponent` shell + `for await` consumer | 142–178, 1252–1266 | Subscribe to name changes, maintain the `$names` map, mount/cleanup rows, recurse into subtrees |
-| Channel-mode header + `showNewForm` / `showJoinForm` | 178–410 | "Channels" title, New-channel and Join-channel inline forms |
-| `dropTargetPath` / `clearAllDropTargets` / `showDropMenu` | 412–518 | Tree drag-and-drop: link/move an item between directories; the "Link here / Move here" menu |
-| `createItem` | 519–1097 | The recursive pet-name **row** — wrapper, disclosure, name, type badge, action buttons, children, row-level drag-and-drop, channel menu, bookmarks |
-| Channel-list reordering | 1099–1250 | List-level drag reorder with a drop indicator; persists via `onChannelReorder` |
+| Region                                                     | Lines              | Responsibility                                                                                                                                     |
+| ---------------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `makeStaticNameIterator`, `makeStaticTreePowers`           | 66, 103            | Adapt a static `ReadableTree.list()` snapshot to the live `followNameChanges()` streaming interface                                                |
+| `CONVERSABLE_TYPES` / `NON_EXPANDABLE_TYPES` / `HUB_TYPES` | 38–60              | Formula-type classification (selectable, expandable, drop-accepting)                                                                               |
+| `inventoryComponent` shell + `for await` consumer          | 142–178, 1252–1266 | Subscribe to name changes, maintain the `$names` map, mount/cleanup rows, recurse into subtrees                                                    |
+| Channel-mode header + `showNewForm` / `showJoinForm`       | 178–410            | "Channels" title, New-channel and Join-channel inline forms                                                                                        |
+| `dropTargetPath` / `clearAllDropTargets` / `showDropMenu`  | 412–518            | Tree drag-and-drop: link/move an item between directories; the "Link here / Move here" menu                                                        |
+| `createItem`                                               | 519–1097           | The recursive pet-name **row** — wrapper, disclosure, name, type badge, action buttons, children, row-level drag-and-drop, channel menu, bookmarks |
+| Channel-list reordering                                    | 1099–1250          | List-level drag reorder with a drop indicator; persists via `onChannelReorder`                                                                     |
 
 ### Proposed subcomponents
 
@@ -504,7 +504,7 @@ are not part of the inventory migration.
   plus the remove context menu.
 - Channel reordering already lives in `inventory/dnd.js` (`makeChannelReorder`).
 - A shared **PopupMenu** in `components/` should fall out of `ChannelItemMenu`
-  + `DropMenu`.
+  - `DropMenu`.
 
 ### Extract as framework-agnostic factories (behavior, not views)
 
@@ -534,15 +534,15 @@ functions the factory and any future hook both call.
 
 Applying the two-phase rule to the pieces above:
 
-| Piece | Treatment |
-| --- | --- |
-| `inventory-tree-source` (static/live adapter + type rules) | Phase 1 — extract now |
-| `makeItemDragDrop` (row drag source/target, `acceptsDrop`, drop-target paths) | Phase 1 — extract now |
-| `makeChannelReorder` (list reorder + indicator) | Phase 1 — extract now |
-| controller↔row prop/callback boundary | Phase 1 — define now |
-| `ItemLabel`, `ItemActions`, `DropMenu` | Convert-in-place |
-| `ItemDisclosure` | Convert-in-place |
-| `PetItem`, `InventoryList` shell | Convert-in-place |
+| Piece                                                                                                               | Treatment                                               |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `inventory-tree-source` (static/live adapter + type rules)                                                          | Phase 1 — extract now                                   |
+| `makeItemDragDrop` (row drag source/target, `acceptsDrop`, drop-target paths)                                       | Phase 1 — extract now                                   |
+| `makeChannelReorder` (list reorder + indicator)                                                                     | Phase 1 — extract now                                   |
+| controller↔row prop/callback boundary                                                                               | Phase 1 — define now                                    |
+| `ItemLabel`, `ItemActions`, `DropMenu`                                                                              | Convert-in-place                                        |
+| `ItemDisclosure`                                                                                                    | Convert-in-place                                        |
+| `PetItem`, `InventoryList` shell                                                                                    | Convert-in-place                                        |
 | channel sidebar (`NewChannelForm` / `JoinChannelForm`, `BookmarkItem` / `BookmarkList`, `ChannelItemMenu`, reorder) | Split to `channel-sidebar.js`; separate later migration |
 
 ### Migration order for the inventory bar
@@ -561,6 +561,7 @@ Steps 1 are Phase-1 refactors (no Preact); steps 2–5 convert markup in place.
    `InventoryList` was converted (step 5) the drag-and-drop was reimplemented as
    Preact event handlers over `SafeDataTransfer`, so `inventory/dnd.js` and the
    `test/inventory-dnd` probe were deleted.
+
 2. Migrate the leaf views to `h()` components rendered through
    `renderConfined`:
    - `DropMenu` (inventory/drop-menu.js). ☑ done — the first Preact `h()`
@@ -617,10 +618,33 @@ Fixed so far (the flakes actually observed in CI):
   pending batch timer, with a `disposed` guard in the batch-render callbacks so
   an already-queued timer cannot render post-dispose.
 
-Deferred: a sweep of the remaining fixed-tick waits (~277 `await tick(ms)` calls
-across ~42 component test files). This is preventive — those tests are not
-currently failing — and a blanket conversion is wide, risky churn, so it is held
-until a focused pass.
+**Done — the full sweep landed.** Every component test under
+[`test/component`](../test/component) that used a fixed `await tick(ms)` to wait
+for a render/async update before an assertion now polls the asserted condition
+with `waitFor(predicate)` instead. The conversion is condition-driven: each
+former settle-wait now polls exactly what the following assertion checks (the
+rendered node/class, the spy-call count, the controller flag), so the assertion
+can never run before the state it depends on exists.
+
+A small set of `tick` calls is intentionally KEPT, each with a comment, because
+they are deliberate timing devices rather than settle-waits:
+
+- race / async-latency simulations that intentionally interleave work (e.g.
+  `channel-thread.test.js`'s generation-counter and queued-re-render tests),
+- microtask flushes (`await tick(0)` / `await null`) used to let an iterator's
+  `return()` settle before teardown,
+- settle delays that precede a NEGATIVE assertion (asserting something did
+  _not_ render / stays absent), where there is no positive condition to poll,
+- the short `tick(80)` setup warmups in a few files whose confined controller
+  setter is wired by an unobservable mount effect (`heat-bar`, `command-selector`,
+  `inline-define`, `inventory-component`, …): there is no DOM signal proving the
+  setter is wired, and the subsequent per-assertion `waitFor` already absorbs the
+  render race. Where a re-arm was possible (`message-picker.test.js`) the warmup
+  was removed by re-issuing `enable()` inside the poll instead.
+
+While sweeping, `channel-thread.test.js` and `outliner-enter-key.test.js` also
+gained component disposal in `afterEach` (the same teardown-leak class as
+`forum.test.js` above).
 
 ### `inline-eval.test.js` skipped on Node 24 and macOS (partly diagnosed)
 
@@ -659,7 +683,7 @@ steps: bisect which test/resource accumulates (active-handle dump via
 the file so per-worker accumulation stays under the threshold.
 
 The `waitFor` helper now bounds the poll with a generous wall-clock ceiling
-(`Date.now` survives this package's lockdown options), so the *non-stall*
+(`Date.now` survives this package's lockdown options), so the _non-stall_
 flavor of this hang — a render that never completes while timers still fire —
 fails fast with a pointed error instead of wedging CI until AVA's global
 timeout. The ceiling is generous (20s, ~100× a real flush) so it never
@@ -832,12 +856,12 @@ drag-highlight sweep.
 
 ### Severity roll-up
 
-| Package | HIGH | MED | LOW |
-| --- | --- | --- | --- |
-| chat | 1 (add-space-modal, unmigrated) | 6 | ~10 |
-| space-file-explorer | 0 | 3 | 4 |
-| space-peers | 0 | 2 | 3 |
-| space-whylip | 1 (stream cancel) | 3 | 4 |
+| Package             | HIGH                            | MED | LOW |
+| ------------------- | ------------------------------- | --- | --- |
+| chat                | 1 (add-space-modal, unmigrated) | 6   | ~10 |
+| space-file-explorer | 0                               | 3   | 4   |
+| space-peers         | 0                               | 2   | 3   |
+| space-whylip        | 1 (stream cancel)               | 3   | 4   |
 
 Suggested fix order when picked up: (1) the subscription-cancellation class
 across whylip/peers (correctness); (2) the inbox + debugger-panel

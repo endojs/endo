@@ -7,7 +7,7 @@ import harden from '@endo/harden';
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 
 const { document: testDocument } = createDOM();
 
@@ -169,6 +169,23 @@ const setupGutter = async (opts = {}) => {
 
   const { powers, calls, storedValues } = makeSpacesPowers(opts);
 
+  // Identify the spaces the watcher will surface from pre-stored config so the
+  // wait below covers them, not just the always-present home item: a regular
+  // space (id != '0') renders its own item; a stored 'spaces/0' overrides the
+  // home icon.
+  const regularSpaceIds = [];
+  let homeIconOverride;
+  for (const [key, value] of storedValues.entries()) {
+    if (key.startsWith('spaces/')) {
+      const id = key.slice('spaces/'.length);
+      if (id === '0') {
+        homeIconOverride = /** @type {{ icon?: string }} */ (value)?.icon;
+      } else {
+        regularSpaceIds.push(id);
+      }
+    }
+  }
+
   const navigated = [];
   const { createSpacesGutter } = await import('../../spaces-gutter.js');
 
@@ -180,8 +197,26 @@ const setupGutter = async (opts = {}) => {
     onNavigate: path => navigated.push([...path]),
   });
 
-  // Wait for refresh + watcher to settle
-  await tick(50);
+  // Wait for refresh + watcher to settle: poll for the observable results of the
+  // initial refresh (home item, each stored regular space, and any stored home
+  // icon override) rather than guessing a fixed delay.
+  await waitFor(() => {
+    if (!$container.querySelector('.space-item.home')) return false;
+    for (const id of regularSpaceIds) {
+      if (!$container.querySelector(`.space-item[data-space-id="${id}"]`)) {
+        return false;
+      }
+    }
+    if (homeIconOverride !== undefined) {
+      const $homeIcon = $container.querySelector(
+        '.space-item.home .space-icon',
+      );
+      if (!$homeIcon || $homeIcon.textContent !== homeIconOverride) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   // The edit modals render into their own overlay container, inserted by the
   // gutter immediately after $modalContainer, so the add-space modal's
@@ -290,7 +325,7 @@ test.serial(
     const $edit = $container.querySelector('[data-action="edit"]');
     $edit.click();
 
-    await tick(20);
+    await waitFor(() => !!$editModalContainer.querySelector('.icon-selector'));
 
     // Name field should NOT exist
     const $nameInput = $editModalContainer.querySelector('#edit-space-name');
@@ -327,20 +362,31 @@ test.serial(
     // Click Edit
     const $edit = $container.querySelector('[data-action="edit"]');
     $edit.click();
-    await tick(20);
+    await waitFor(
+      () => $editModalContainer.querySelectorAll('.icon-option').length > 0,
+    );
 
     // Click a different emoji icon (e.g., the wizard 🧙)
     const $icons = $editModalContainer.querySelectorAll('.icon-option');
     t.true($icons.length > 0, 'icon options rendered');
     // Click the first icon option (🧙)
     $icons[0].click();
+    // Let the icon-selection state update flush before submitting; the selected
+    // icon is reflected in the store call we assert on below.
     await tick(10);
 
     // Submit the form
     const $form = $editModalContainer.querySelector('.add-space-form');
     t.truthy($form, 'form exists');
     $form.dispatchEvent(new Event('submit', { bubbles: true }));
-    await tick(50);
+    await waitFor(() =>
+      calls.some(
+        c =>
+          c.method === 'storeValue' &&
+          c.args[1][0] === 'spaces' &&
+          c.args[1][1] === '0',
+      ),
+    );
 
     // Check that storeValue was called with ['spaces', '1']
     const storeCalls = calls.filter(c => c.method === 'storeValue');
@@ -424,7 +470,7 @@ test.serial(
 
     const $edit = $container.querySelector('[data-action="edit"]');
     $edit.click();
-    await tick(20);
+    await waitFor(() => !!$editModalContainer.querySelector('.add-space-form'));
 
     // The edit form renders in its own container, untouched by the add-space
     // modal's innerHTML write.
