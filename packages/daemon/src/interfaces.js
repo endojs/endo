@@ -44,7 +44,7 @@ const EnvShape = M.recordOf(M.string(), M.string());
 const MakeCapletOptionsShape = M.splitRecord(
   {},
   {
-    powersName: NameShape,
+    powersName: NameOrPathShape,
     resultName: NameOrPathShape,
     env: EnvShape,
     workerTrustedShims: M.arrayOf(M.string()),
@@ -329,9 +329,13 @@ export const HostInterface = M.interface('EndoHost', {
   // able to recover host paths for daemon-minted top-level mounts.
   provideHostPath: M.call(M.any()).returns(M.promise()),
   // Provide a guest
-  provideGuest: M.call().optional(NameShape, M.record()).returns(M.promise()),
+  provideGuest: M.call()
+    .optional(NameOrPathShape, M.record())
+    .returns(M.promise()),
   // Provide a host
-  provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
+  provideHost: M.call()
+    .optional(NameOrPathShape, M.record())
+    .returns(M.promise()),
   // Provide a worker
   provideWorker: M.call(NameOrPathShape).returns(M.promise()),
   // Evaluate code directly in a worker

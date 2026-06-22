@@ -1284,12 +1284,12 @@ export interface EndoMount {
 export interface EndoWorker {}
 
 export type MakeHostOrGuestOptions = {
-  agentName?: string;
+  agentName?: string | string[];
   introducedNames?: Record<string, string>;
 };
 
 export type MakeCapletOptions = {
-  powersName?: string;
+  powersName?: string | string[];
   resultName?: string | string[];
   env?: Record<string, string>;
   workerTrustedShims?: string[];
@@ -1495,11 +1495,11 @@ export interface EndoHost extends EndoAgent {
    */
   provideHostPath(cap: unknown): Promise<string>;
   provideGuest(
-    petName?: string,
+    petName?: string | string[],
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoGuest>;
   provideHost(
-    petName?: string,
+    petName?: string | string[],
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoHost>;
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;

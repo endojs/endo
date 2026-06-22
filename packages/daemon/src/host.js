@@ -50,12 +50,27 @@ const assertPowersName = name => {
 };
 
 /**
+ * Validate a powers name or directory path.  A single segment must be a
+ * special powers name (`@none` / `@agent` / `@endo`) or a pet name; a
+ * multi-segment path is validated as a name path by {@link namePathFrom},
+ * letting a caller reference powers that live inside a directory rather
+ * than at the agent's top level.
+ * @param {string | string[]} nameOrPath
+ */
+const assertPowersNameOrPath = nameOrPath => {
+  const namePath = namePathFrom(nameOrPath);
+  if (namePath.length === 1) {
+    assertPowersName(namePath[0]);
+  }
+};
+
+/**
  * Normalizes host or guest options, providing default values.
  * @param {MakeHostOrGuestOptions | undefined} opts
- * @returns {{ introducedNames: Record<Name, PetName>, agentName?: PetName }}
+ * @returns {{ introducedNames: Record<Name, PetName>, agentName?: NameOrPath }}
  */
 const normalizeHostOrGuestOptions = opts => {
-  const agentName = /** @type {PetName | undefined} */ (opts?.agentName);
+  const agentName = /** @type {NameOrPath | undefined} */ (opts?.agentName);
   return {
     introducedNames: /** @type {Record<Name, PetName>} */ (
       opts?.introducedNames ?? Object.create(null)
@@ -710,7 +725,7 @@ export const makeHostMaker = ({
      * @param {Name | undefined} workerName
      * @param {MakeCapletOptions} [options]
      */
-    const prepareMakeCaplet = (workerName, options = {}) => {
+    const prepareMakeCaplet = async (workerName, options = {}) => {
       const {
         powersName = '@none',
         resultName,
@@ -720,7 +735,8 @@ export const makeHostMaker = ({
       if (workerName !== undefined) {
         assertName(workerName);
       }
-      assertPowersName(powersName);
+      assertPowersNameOrPath(powersName);
+      const powersNamePath = namePathFrom(powersName);
 
       /** @type {DeferredTasks<MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
@@ -730,15 +746,24 @@ export const makeHostMaker = ({
         tasks.push,
       );
 
+      // A single segment resolves against the agent's own pet store
+      // (preserving special-name powers like `@agent`); a path resolves
+      // through the directory so powers can live inside a subdirectory.
       const powersId = /** @type {FormulaIdentifier | undefined} */ (
-        petStore.identifyLocal(/** @type {Name} */ (powersName))
+        powersNamePath.length === 1
+          ? petStore.identifyLocal(/** @type {Name} */ (powersNamePath[0]))
+          : await E(directory).identify(...powersNamePath)
       );
       if (powersId === undefined) {
-        assertPetName(powersName);
-        const powersPetName = powersName;
-        tasks.push(identifiers => {
-          return petStore.storeIdentifier(powersPetName, identifiers.powersId);
-        });
+        const { petName: powersPetName } = assertPetNamePath(powersNamePath);
+        tasks.push(identifiers =>
+          powersNamePath.length === 1
+            ? petStore.storeIdentifier(powersPetName, identifiers.powersId)
+            : E(directory).storeIdentifier(
+                powersNamePath,
+                identifiers.powersId,
+              ),
+        );
       }
 
       if (resultName !== undefined) {
@@ -780,7 +805,7 @@ export const makeHostMaker = ({
         powersId,
         env,
         workerTrustedShims,
-      } = prepareMakeCaplet(
+      } = await prepareMakeCaplet(
         /** @type {Name | undefined} */ (effectiveWorkerName),
         options,
       );
@@ -822,7 +847,7 @@ export const makeHostMaker = ({
         powersId,
         env,
         workerTrustedShims,
-      } = prepareMakeCaplet(
+      } = await prepareMakeCaplet(
         /** @type {Name | undefined} */ (workerName),
         options,
       );
@@ -1006,7 +1031,7 @@ export const makeHostMaker = ({
         powersId,
         env,
         workerTrustedShims,
-      } = prepareMakeCaplet(
+      } = await prepareMakeCaplet(
         /** @type {Name | undefined} */ (workerName),
         options,
       );
@@ -1055,12 +1080,20 @@ export const makeHostMaker = ({
 
     /**
      * @template {'host' | 'guest' | 'agent'} T
-     * @param {Name} [petName] - The agent's potential pet name.
+     * @param {NameOrPath} [nameOrPath] - The agent's potential pet name or
+     * directory path.
      * @param {T} [type]
      */
-    const getNamedAgent = (petName, type) => {
-      if (petName !== undefined) {
-        const id = petStore.identifyLocal(petName);
+    const getNamedAgent = async (nameOrPath, type) => {
+      if (nameOrPath !== undefined) {
+        const namePath = namePathFrom(nameOrPath);
+        // A single segment resolves against the agent's own pet store; a
+        // path resolves through the directory so an agent can be named
+        // (and found again, idempotently) inside a subdirectory.
+        const id =
+          namePath.length === 1
+            ? petStore.identifyLocal(namePath[0])
+            : await E(directory).identify(...namePath);
         if (id !== undefined) {
           const formulaId = /** @type {FormulaIdentifier} */ (id);
           return {
@@ -1073,31 +1106,37 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {PetName} [handleName] - The pet name of the handle.
-     * @param {PetName} [agentName] - The pet name of the agent.
+     * @param {NameOrPath} [handleName] - The pet name or directory path of
+     * the handle.
+     * @param {NameOrPath} [agentName] - The pet name or directory path of
+     * the agent.
      */
     const getDeferredTasksForAgent = (handleName, agentName) => {
       /** @type {DeferredTasks<AgentDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       if (handleName !== undefined) {
-        assertPetName(handleName);
-        const handlePetName = handleName;
-        tasks.push(identifiers => {
-          return petStore.storeIdentifier(handlePetName, identifiers.handleId);
-        });
+        const { namePath: handlePath, petName: handlePetName } =
+          assertPetNamePath(namePathFrom(handleName));
+        tasks.push(identifiers =>
+          handlePath.length === 1
+            ? petStore.storeIdentifier(handlePetName, identifiers.handleId)
+            : E(directory).storeIdentifier(handlePath, identifiers.handleId),
+        );
       }
       if (agentName !== undefined) {
-        assertPetName(agentName);
-        const agentPetName = agentName;
-        tasks.push(identifiers => {
-          return petStore.storeIdentifier(agentPetName, identifiers.agentId);
-        });
+        const { namePath: agentPath, petName: agentPetName } =
+          assertPetNamePath(namePathFrom(agentName));
+        tasks.push(identifiers =>
+          agentPath.length === 1
+            ? petStore.storeIdentifier(agentPetName, identifiers.agentId)
+            : E(directory).storeIdentifier(agentPath, identifiers.agentId),
+        );
       }
       return tasks;
     };
 
     /**
-     * @param {PetName} [petName]
+     * @param {NameOrPath} [petName]
      * @param {MakeHostOrGuestOptions} [opts]
      * @returns {Promise<{id: FormulaIdentifier, value: Promise<EndoHost>}>}
      */
@@ -1105,8 +1144,7 @@ export const makeHostMaker = ({
       petName,
       { introducedNames = Object.create(null), agentName = undefined } = {},
     ) => {
-      let host = getNamedAgent(petName, 'host');
-      await null;
+      let host = await getNamedAgent(petName, 'host');
       if (host === undefined) {
         const hostLabel = agentName
           ? `host:${agentName}`
@@ -1121,7 +1159,7 @@ export const makeHostMaker = ({
             pinsDirectoryId,
             getDeferredTasksForAgent(
               petName,
-              /** @type {PetName | undefined} */ (agentName),
+              /** @type {NameOrPath | undefined} */ (agentName),
             ),
             undefined,
             handleId,
@@ -1144,18 +1182,18 @@ export const makeHostMaker = ({
     /** @type {EndoHost['provideHost']} */
     const provideHost = async (petName, opts) => {
       if (petName !== undefined) {
-        assertName(petName);
+        assertNamePath(namePathFrom(petName));
       }
       const normalizedOpts = normalizeHostOrGuestOptions(opts);
       const { value } = await makeChildHost(
-        /** @type {PetName | undefined} */ (petName),
+        /** @type {NameOrPath | undefined} */ (petName),
         normalizedOpts,
       );
       return value;
     };
 
     /**
-     * @param {PetName} [handleName]
+     * @param {NameOrPath} [handleName]
      * @param {MakeHostOrGuestOptions} [opts]
      * @returns {Promise<{id: FormulaIdentifier, value: Promise<EndoGuest>}>}
      */
@@ -1163,8 +1201,7 @@ export const makeHostMaker = ({
       handleName,
       { introducedNames = Object.create(null), agentName = undefined } = {},
     ) => {
-      let guest = getNamedAgent(handleName, 'guest');
-      await null;
+      let guest = await getNamedAgent(handleName, 'guest');
       if (guest === undefined) {
         const guestLabel = agentName
           ? `guest:${agentName}`
@@ -1178,7 +1215,7 @@ export const makeHostMaker = ({
             handleId,
             getDeferredTasksForAgent(
               handleName,
-              /** @type {PetName | undefined} */ (agentName),
+              /** @type {NameOrPath | undefined} */ (agentName),
             ),
             guestLabel,
           );
@@ -1199,11 +1236,11 @@ export const makeHostMaker = ({
     /** @type {EndoHost['provideGuest']} */
     const provideGuest = async (petName, opts) => {
       if (petName !== undefined) {
-        assertName(petName);
+        assertNamePath(namePathFrom(petName));
       }
       const normalizedOpts = normalizeHostOrGuestOptions(opts);
       const { value } = await makeGuest(
-        /** @type {PetName | undefined} */ (petName),
+        /** @type {NameOrPath | undefined} */ (petName),
         normalizedOpts,
       );
       return value;

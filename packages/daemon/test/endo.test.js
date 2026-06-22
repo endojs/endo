@@ -2378,6 +2378,79 @@ testNeedsNodeWorker('indirect cancellation via caplet', async t => {
   );
 });
 
+testNeedsNodeWorker(
+  'provideGuest and powersName accept directory paths (no move dance)',
+  async t => {
+    const { host } = await prepareHost(t);
+
+    // The factory's controller directory.
+    await E(host).makeDirectory('factory');
+
+    // The guest handle and its agent are born *inside* the directory —
+    // no top-level pet names, no relocate-after-makeUnconfined dance.
+    await E(host).provideGuest(['factory', 'handle'], {
+      agentName: ['factory', 'agent'],
+    });
+
+    // They are reachable by path and absent at the top level.
+    t.true(await E(host).has('factory', 'handle'));
+    t.true(await E(host).has('factory', 'agent'));
+    t.false(await E(host).has('handle'));
+    t.false(await E(host).has('agent'));
+
+    // A value the host will grant when the caplet asks its powers.
+    await E(host).provideWorker(['worker']);
+    await E(host).evaluate(
+      'worker',
+      `
+      makeExo('Answer', M.interface('Answer', {}, { defaultGuards: 'passable' }), {
+        value: () => 42,
+      })
+      `,
+      [],
+      [],
+      ['grant'],
+    );
+
+    // The caplet's powers are supplied *by directory path*, and its
+    // result is stored at a directory path too.
+    const servicePath = path.join(dirname, 'test', 'service.js');
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    await E(host).makeUnconfined('worker', serviceLocation, {
+      powersName: ['factory', 'agent'],
+      resultName: ['factory', 'service'],
+    });
+
+    // Asking the service routes a request to the host from the
+    // in-directory handle, proving the powers wired to the path-named
+    // agent.  The endowment is supplied by path as well.
+    const iterator = iterateReader(E(host).followMessages());
+    const answer = E(host).evaluate(
+      'worker',
+      'E(service).ask()',
+      ['service'],
+      [['factory', 'service']],
+      ['answer'],
+    );
+    const { value: message } = await iterator.next();
+    const { number, from: fromId } = E.get(message);
+    // `from` is a locator; compare against the in-directory handle's
+    // locator to prove the request came from the path-named handle.
+    t.is(await fromId, await E(host).locate('factory', 'handle'));
+    await E(host).resolve(await number, 'grant');
+    t.is(await E(await answer).value(), 42);
+
+    // Native path idempotency: re-providing the same guest at the same
+    // path resolves to the same agent id — no controller-path keying
+    // workaround required.
+    const agentId = await E(host).identify('factory', 'agent');
+    await E(host).provideGuest(['factory', 'handle'], {
+      agentName: ['factory', 'agent'],
+    });
+    t.is(await E(host).identify('factory', 'agent'), agentId);
+  },
+);
+
 testNeedsNodeWorker('cancel because of requested capability', async t => {
   const { host } = await prepareHost(t);
 
