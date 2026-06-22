@@ -32,8 +32,6 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
-    "@endo/exo-stream": "workspace:^",
-    "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "preact": "^10.29.2"
   },
