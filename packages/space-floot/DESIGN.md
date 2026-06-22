@@ -260,9 +260,26 @@ wrapper) and remove now-dead helpers.
    signature and `() => cleanup` return. Verified by `node --check`, the chat
    `vite build`, and `tsc`/eslint clean on the wrapper (apart from two
    pre-existing patterns shared with the original file).
-4. **`floot/` provisioning + auto-detect** — setup scripts + picker.
-5. **Remove the standalone Voice space.**
-6. **`makeExo` backend fix.**
+4. **`floot/` provisioning + auto-detect** — done (`e0aa258a`):
+   `floot-factory-setup.js` / `voice-setup.js` provision every object under a
+   `floot/` directory (factory at the well-known `floot/controller`, pinned;
+   `floot/llm-provider`, `floot/stt`, `floot/tts`) via the daemon's path-array
+   APIs. The add-space picker's `detectFlootObjects()` prefers
+   `floot/controller` (else probes entries via `__getMethodNames__()` for
+   `createSession`/`listSessions`) and pre-fills the controller path + STT/TTS
+   fields; manual entry still works.
+5. **Remove the standalone Voice space** — done (`49965722`): deleted
+   `voice-component.js`, its dispatch/import, and every `'voice'` mode reference
+   in `chat.js` / `spaces-gutter.js` / `add-space-modal.js`. Transcription lives
+   only in Floot's settings panel.
+6. **`makeExo` backend fix** — done (`56f93aa4`): the FlootSession facet and the
+   STT/TTS caplets are `makeExo` + `M.interface()` (guards +
+   `__getMethodNames__()`); internal channel returns hardened and the
+   `setOnClose` call-order documented.
+
+All six stages are landed. The daemon-side stages (4 setup scripts, 6 caplets)
+are verified by `node --check`, `tsc`, and eslint only — they are not
+runtime-tested in this environment and need a live `endo run` smoke test.
 
 ### Sticky-bottom scrolling (host responsibility)
 
