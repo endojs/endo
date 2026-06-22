@@ -208,14 +208,17 @@ const setup = async () => {
 
   const api = $parent.channelAPI;
 
+  // Track pushed messages so `push` can poll for the message to render into the
+  // chronological list (one `.message-wrapper` per message) rather than racing a
+  // fixed inter-push delay.
+  let expectedWrappers = 0;
   const push = async msg => {
+    expectedWrappers += 1;
     pushMessage(msg);
-    // Kept as a deliberate inter-push settle: this shared helper can't know
-    // which message a given test pushed, so there is no single positive
-    // condition to poll here. Each test does its own `waitFor` on the concrete
-    // rendered result after pushing, which is the race-robust wait; this small
-    // gap only orders sequential pushes so the stream applies them in turn.
-    await tick(60);
+    await waitFor(
+      () =>
+        $parent.querySelectorAll('.message-wrapper').length >= expectedWrappers,
+    );
   };
 
   return {

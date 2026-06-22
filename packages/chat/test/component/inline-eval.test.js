@@ -113,6 +113,9 @@ const setupEval = async (overrides = {}) => {
   });
 
   // Let the source Root's mount effect (which wires the controller) settle.
+  // Kept as a deliberate warmup: although the Root buffers pendingState, the
+  // endowment-row confined sub-mounts have delicate first-flush timing (see the
+  // design doc) and removing this settle makes the file time out.
   await waitFor(() => !!$container.querySelector('.inline-eval-input'));
   await tick(40);
   return { $container, api, events };

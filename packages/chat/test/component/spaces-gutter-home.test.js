@@ -371,9 +371,13 @@ test.serial(
     t.true($icons.length > 0, 'icon options rendered');
     // Click the first icon option (🧙)
     $icons[0].click();
-    // Let the icon-selection state update flush before submitting; the selected
-    // icon is reflected in the store call we assert on below.
-    await tick(10);
+    // Poll for the click to commit the selection (the chosen wizard icon gains
+    // the `selected` class) before submitting, rather than a fixed delay.
+    await waitFor(() =>
+      $editModalContainer
+        .querySelector('.icon-option.selected')
+        ?.textContent.includes('🧙'),
+    );
 
     // Submit the form
     const $form = $editModalContainer.querySelector('.add-space-form');

@@ -220,12 +220,6 @@ const setup = async () => {
 
   const push = async msg => {
     pushMessage(msg);
-    // Deliberate wait past the 50ms feed debounce: this generic helper can't
-    // poll a per-message node because modifier messages (edits/deletions) fold
-    // into an existing node instead of rendering their own, so there is no
-    // single positive selector valid for every caller. Each test does its own
-    // `waitFor` on the concrete rendered result afterward.
-    await tick(120);
   };
 
   return {
@@ -337,7 +331,10 @@ test.serial('edit-type replies do not render as nodes', async t => {
   await push(makeMessage(0, 'Original'));
   await push(makeMessage(1, 'Edited text', { replyTo: 0, replyType: 'edit' }));
 
-  await waitFor(() => !!$parent.querySelector('.forum-node'));
+  // Gate on the edit actually being applied (it adds an "edited by" marker to
+  // the target node) so the count assertion can't run before the edit is
+  // processed — the edit must fold into node 0, not spawn a second node.
+  await waitFor(() => !!$parent.querySelector('.forum-edited-by'));
   const $nodes = $parent.querySelectorAll('.forum-node');
   t.is($nodes.length, 1, 'edit should not create a second tree node');
 });

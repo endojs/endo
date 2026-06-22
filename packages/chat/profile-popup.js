@@ -230,7 +230,10 @@ harden(ProfilePopup);
  * the container is empty, matching the original `innerHTML = ''` teardown.
  *
  * @param {object} props
- * @param {{ setState?: (s: { data: ProfilePopupData | null }) => void }} props.controller
+ * @param {{
+ *   setState?: (s: { data: ProfilePopupData | null }) => void,
+ *   pendingState?: { data: ProfilePopupData | null },
+ * }} props.controller
  */
 const ProfilePopupRoot = ({ controller }) => {
   const [state, setState] = useState(
@@ -239,10 +242,17 @@ const ProfilePopupRoot = ({ controller }) => {
 
   useEffect(() => {
     controller.setState = setState;
+    // Apply any state the host pushed before this effect wired `setState`, so a
+    // show()/hide() that lands before mount is not silently dropped.
+    if (controller.pendingState !== undefined) {
+      setState(controller.pendingState);
+    }
     return () => {
       if (controller.setState === setState) delete controller.setState;
     };
-  }, [controller]);
+    // Mount-only: keying on `controller` re-runs this effect every render under
+    // confinement (the sanitizer reissues the prop identity).
+  }, []);
 
   if (!state.data) {
     return null;
@@ -265,7 +275,12 @@ export const createProfilePopup = $container => {
   // Mutable bridge to the root component's state setter (populated by the
   // component's effect). Intentionally NOT hardened — the component writes its
   // setter onto it.
-  /** @type {{ setState?: (s: { data: ProfilePopupData | null }) => void }} */
+  /**
+   * @type {{
+   *   setState?: (s: { data: ProfilePopupData | null }) => void,
+   *   pendingState?: { data: ProfilePopupData | null },
+   * }}
+   */
   const controller = {};
 
   // The popup is fixed-position and styled via the existing `.profile-popup-*`
@@ -276,6 +291,7 @@ export const createProfilePopup = $container => {
 
   const hide = () => {
     $container.style.display = 'none';
+    controller.pendingState = { data: null };
     if (controller.setState) {
       controller.setState({ data: null });
     }
@@ -302,17 +318,19 @@ export const createProfilePopup = $container => {
   }) => {
     void anchorElement; // reserved for future anchor-relative positioning
     $container.style.display = 'flex';
+    const next = {
+      data: {
+        proposedName,
+        pedigree,
+        pedigreeMemberIds,
+        nameMap,
+        yourName,
+        onAssignName,
+      },
+    };
+    controller.pendingState = next;
     if (controller.setState) {
-      controller.setState({
-        data: {
-          proposedName,
-          pedigree,
-          pedigreeMemberIds,
-          nameMap,
-          yourName,
-          onAssignName,
-        },
-      });
+      controller.setState(next);
     }
   };
 

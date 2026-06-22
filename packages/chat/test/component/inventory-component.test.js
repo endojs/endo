@@ -215,9 +215,10 @@ test.serial('hub-typed rows accept drop; leaf-typed rows do not', async t => {
   );
 
   $noteRow.dispatchEvent(makeDragoverEvent());
-  // Settle delay before a negative assertion (the leaf row must NOT highlight);
-  // there is no positive condition to poll for.
-  await tick(10);
+  // The readable-blob leaf's onDragOver early-returns (acceptsDrop is false), so
+  // dispatching dragover changes no leaf state and schedules no re-render —
+  // assert synchronously. A poll for the class's absence would pass vacuously on
+  // the first tick without proving the leaf was actually left unhighlighted.
   t.false(
     $noteRow.classList.contains('drop-target'),
     'readable-blob row does not accept drop',

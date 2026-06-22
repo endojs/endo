@@ -18,11 +18,9 @@ const setupPopup = async () => {
 
   const popup = createProfilePopup($container);
 
-  // Let the root component's mount effect (which wires the controller setter)
-  // settle. Generous because the first test pays SES/Preact warmup. Kept as a
-  // fixed tick: show() silently no-ops until the mount effect wires the setter,
-  // and there is no observable readiness signal to poll before the first show().
-  await tick(80);
+  // No warmup needed: the Root buffers show()/hide() pushed before its mount
+  // effect wires the setter (controller.pendingState, flushed on mount), so the
+  // first show() is never dropped. Each test polls for the popup with waitFor.
   return { $container, popup };
 };
 
