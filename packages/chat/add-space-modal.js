@@ -51,7 +51,7 @@ The scene runs in a sandboxed iframe with no network access.`;
  * @property {string} name - Display name for the space
  * @property {string} icon - Emoji or letter icon
  * @property {string[]} profilePath - Pet name path to the profile
- * @property {'mailbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'voice' | 'floot'} layout - Layout type
+ * @property {'mailbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot'} layout - Layout type
  * @property {ColorScheme} [scheme] - Color scheme preference
  * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
  * @property {string} [proposedName] - Display name for the channel creator
@@ -98,7 +98,7 @@ export const createAddSpaceModal = ({
   };
 
   let visible = false;
-  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'voice' | 'floot'} */
+  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot'} */
   let mode = 'choose';
   /** @type {string} */
   let whylipName = '';
@@ -201,11 +201,6 @@ export const createAddSpaceModal = ({
           <span class="space-type-icon">📂</span>
           <span class="space-type-title">File Explorer</span>
           <span class="space-type-desc">Browse and edit endo-fs filesystem objects, mounts, and layers</span>
-        </button>
-        <button type="button" class="space-type-card" data-mode="voice">
-          <span class="space-type-icon">🎙️</span>
-          <span class="space-type-title">Transcription</span>
-          <span class="space-type-desc">Talk to an audio object and watch it stream back a transcript</span>
         </button>
         <button type="button" class="space-type-card" data-mode="floot">
           <span class="space-type-icon">💬</span>
@@ -624,44 +619,6 @@ export const createAddSpaceModal = ({
   `;
 
   /**
-   * Render the voice form.
-   * @returns {string}
-   */
-  const renderVoiceForm = () => `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <button type="button" class="add-space-back" title="Back">←</button>
-        <h2 class="add-space-title">Transcription</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        ${renderIconSelector({ selectedIcon, useLetterIcon })}
-
-        <div class="add-space-field">
-          <label>Audio Object Path</label>
-          <div class="petname-path-selector">
-            <div id="profile-path-input" class="profile-path-input-container"></div>
-            <div id="profile-path-menu" class="token-menu"></div>
-          </div>
-          <div class="field-hint">Pet-name path to the audio server object in your inventory</div>
-        </div>
-
-        <div id="scheme-picker-slot" class="add-space-field"></div>
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Creating...' : 'Create Transcription'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-
-  /**
    * Render the floot chat form.
    * @returns {string}
    */
@@ -806,9 +763,6 @@ export const createAddSpaceModal = ({
       case 'files':
         html = renderFilesForm();
         break;
-      case 'voice':
-        html = renderVoiceForm();
-        break;
       case 'floot':
         html = renderFlootForm();
         break;
@@ -827,7 +781,6 @@ export const createAddSpaceModal = ({
       mode === 'graph' ||
       mode === 'peers' ||
       mode === 'files' ||
-      mode === 'voice' ||
       mode === 'floot'
     ) {
       const $slot = /** @type {HTMLElement | null} */ (
@@ -842,12 +795,7 @@ export const createAddSpaceModal = ({
       }
     }
 
-    if (
-      mode === 'existing' ||
-      mode === 'graph' ||
-      mode === 'voice' ||
-      mode === 'floot'
-    ) {
+    if (mode === 'existing' || mode === 'graph' || mode === 'floot') {
       initPathAutocomplete();
     }
     if (mode === 'new-channel' && channelPersonaMode === 'existing') {
@@ -1074,12 +1022,6 @@ export const createAddSpaceModal = ({
         } else if (selectedMode === 'files') {
           mode = 'files';
           selectedIcon = '📂';
-          useLetterIcon = false;
-          error = null;
-          render();
-        } else if (selectedMode === 'voice') {
-          mode = 'voice';
-          selectedIcon = '🎙️';
           useLetterIcon = false;
           error = null;
           render();
@@ -1323,8 +1265,6 @@ export const createAddSpaceModal = ({
           await handlePeersSubmit();
         } else if (mode === 'files') {
           await handleFilesSubmit();
-        } else if (mode === 'voice') {
-          await handleVoiceSubmit();
         } else if (mode === 'floot') {
           await handleFlootSubmit();
         }
@@ -1949,51 +1889,6 @@ export const createAddSpaceModal = ({
       onClose();
     } catch (err) {
       error = `Failed to create graph space: ${/** @type {Error} */ (err).message}`;
-      isSubmitting = false;
-      render();
-    }
-  };
-
-  /**
-   * Handle voice form submission.
-   */
-  const handleVoiceSubmit = async () => {
-    if (!pathAutocomplete) return;
-
-    const paths = pathAutocomplete.getValue();
-    if (paths.length === 0) {
-      error = 'Please select the audio object path';
-      render();
-      return;
-    }
-
-    const pathString = paths[0];
-    const profilePath = pathString.split('/').filter(Boolean);
-
-    if (profilePath.length === 0) {
-      error = 'Please select a valid audio object path';
-      render();
-      return;
-    }
-
-    const name = `${profilePath[profilePath.length - 1]}-transcription`;
-
-    isSubmitting = true;
-    error = null;
-    render();
-
-    try {
-      await onSubmit({
-        name,
-        icon: selectedIcon,
-        profilePath,
-        layout: 'voice',
-        scheme: schemePicker ? schemePicker.getValue() : 'auto',
-      });
-      hide({ restoreScheme: false });
-      onClose();
-    } catch (err) {
-      error = `Failed to create voice space: ${/** @type {Error} */ (err).message}`;
       isSubmitting = false;
       render();
     }
