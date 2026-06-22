@@ -6,9 +6,7 @@ import { q } from '@endo/errors';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePetSitter } from './pet-sitter.js';
 import {
-  assertName,
   assertNamePath,
-  assertPetName,
   assertPetNamePath,
   namePathFrom,
 } from './pet-name.js';
@@ -177,22 +175,28 @@ export const makeGuestMaker = ({
     } = mailbox;
 
     /**
-     * @param {Name | undefined} workerName
+     * @param {NameOrPath | undefined} workerName
      * @param {DeferredTasks<WorkerDeferredTaskParams>['push']} deferTask
      */
-    const prepareWorkerFormulation = (workerName, deferTask) => {
+    const prepareWorkerFormulation = async (workerName, deferTask) => {
       if (workerName === undefined) {
         return undefined;
       }
+      const workerNamePath = namePathFrom(workerName);
+      // A single segment resolves against the guest's own pet store; a
+      // path resolves through the directory.
       const workerId = /** @type {FormulaIdentifier | undefined} */ (
-        specialStore.identifyLocal(workerName)
+        workerNamePath.length === 1
+          ? specialStore.identifyLocal(workerNamePath[0])
+          : await E(directory).identify(...workerNamePath)
       );
       if (workerId === undefined) {
-        assertPetName(workerName);
-        const petName = workerName;
-        deferTask(identifiers => {
-          return specialStore.storeIdentifier(petName, identifiers.workerId);
-        });
+        const { namePath, petName } = assertPetNamePath(workerNamePath);
+        deferTask(identifiers =>
+          namePath.length === 1
+            ? specialStore.storeIdentifier(petName, identifiers.workerId)
+            : E(directory).storeIdentifier(namePath, identifiers.workerId),
+        );
         return undefined;
       }
       return workerId;
@@ -201,7 +205,7 @@ export const makeGuestMaker = ({
     /**
      * Evaluate code directly in a worker, constrained only by reachable
      * capabilities in the guest's namespace.
-     * @param {Name | undefined} workerName
+     * @param {NameOrPath | undefined} workerName
      * @param {string} source
      * @param {Array<string>} codeNames
      * @param {NamesOrPaths} petNamesOrPaths
@@ -216,7 +220,7 @@ export const makeGuestMaker = ({
       resultName,
     ) => {
       if (workerName !== undefined) {
-        assertName(workerName);
+        assertNamePath(namePathFrom(workerName));
       }
       if (!Array.isArray(codeNames)) {
         throw new Error('Evaluator requires an array of code names');
@@ -237,7 +241,7 @@ export const makeGuestMaker = ({
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const workerId = prepareWorkerFormulation(workerName, tasks.push);
+      const workerId = await prepareWorkerFormulation(workerName, tasks.push);
 
       /** @type {(FormulaIdentifier | NamePath)[]} */
       const endowmentFormulaIdsOrPaths = petNamesOrPaths.map(petNameOrPath => {

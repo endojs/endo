@@ -54,7 +54,7 @@ const MakeCapletOptionsShape = M.splitRecord(
 // Shared method guard for evaluate (used by both Host and Guest)
 // Both execute directly in a worker, differing only in namespace
 const EvaluateMethodGuard = M.call(
-  M.or(NameShape, M.undefined()),
+  M.or(NameOrPathShape, M.undefined()),
   M.string(),
   M.arrayOf(M.string()),
   NamesOrPathsShape,
@@ -341,17 +341,17 @@ export const HostInterface = M.interface('EndoHost', {
   // Evaluate code directly in a worker
   evaluate: EvaluateMethodGuard,
   // Make an unconfined caplet
-  makeUnconfined: M.call(M.or(NameShape, M.undefined()), M.string())
+  makeUnconfined: M.call(M.or(NameOrPathShape, M.undefined()), M.string())
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a caplet from a source-only ZIP archive
-  makeArchive: M.call(M.or(NameShape, M.undefined()), NameShape)
+  makeArchive: M.call(M.or(NameOrPathShape, M.undefined()), NameShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a caplet from a ReadableTree or Mount laid out as a
   // compartment-mapper archive (compartment-map.json at root plus
   // modules at their referenced paths).
-  makeFromTree: M.call(M.or(NameShape, M.undefined()), NameOrPathShape)
+  makeFromTree: M.call(M.or(NameOrPathShape, M.undefined()), NameOrPathShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Materialise a readable tree into a new scratch mount.
@@ -359,7 +359,7 @@ export const HostInterface = M.interface('EndoHost', {
   // Stage a readable tree and run its entry module as an unconfined
   // Node caplet.
   makeUnconfinedFromTree: M.call(
-    M.or(NameShape, M.undefined()),
+    M.or(NameOrPathShape, M.undefined()),
     NameOrPathShape,
   )
     .optional(MakeCapletOptionsShape)
@@ -418,7 +418,7 @@ export const HostInterface = M.interface('EndoHost', {
     M.record(), // bindings
   )
     .optional(
-      M.or(NameShape, M.undefined()), // workerName
+      M.or(NameOrPathShape, M.undefined()), // workerName
       NameOrPathShape, // resultName
     )
     .returns(M.promise()),

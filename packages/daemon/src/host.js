@@ -17,7 +17,6 @@ import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import {
   assertPetName,
   assertPetNamePath,
-  assertName,
   assertNamePath,
   namePathFrom,
 } from './pet-name.js';
@@ -608,31 +607,41 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {Name | undefined} workerName
+     * @param {NameOrPath | undefined} workerName
      * @param {DeferredTasks<WorkerDeferredTaskParams>['push']} deferTask
-     * @returns {{ workerId: FormulaIdentifier | undefined, workerLabel: string | undefined }}
+     * @returns {Promise<{ workerId: FormulaIdentifier | undefined, workerLabel: string | undefined }>}
      */
-    const prepareWorkerFormulation = (workerName, deferTask) => {
+    const prepareWorkerFormulation = async (workerName, deferTask) => {
       if (workerName === undefined) {
         return { workerId: undefined, workerLabel: undefined };
       }
+      const workerNamePath = namePathFrom(workerName);
+      // A single segment resolves against the agent's own pet store
+      // (including special workers like `@main` / `@node`); a path
+      // resolves through the directory, matching provideWorker.
       const workerId = /** @type {FormulaIdentifier | undefined} */ (
-        petStore.identifyLocal(workerName)
+        workerNamePath.length === 1
+          ? petStore.identifyLocal(workerNamePath[0])
+          : await E(directory).identify(...workerNamePath)
       );
       if (workerId === undefined) {
-        assertPetName(workerName);
-        const petName = workerName;
-        deferTask(identifiers => {
-          return petStore.storeIdentifier(petName, identifiers.workerId);
-        });
+        const { namePath, petName } = assertPetNamePath(workerNamePath);
+        deferTask(identifiers =>
+          namePath.length === 1
+            ? petStore.storeIdentifier(petName, identifiers.workerId)
+            : E(directory).storeIdentifier(namePath, identifiers.workerId),
+        );
         return { workerId: undefined, workerLabel: petName };
       }
-      return { workerId, workerLabel: /** @type {string} */ (workerName) };
+      return {
+        workerId,
+        workerLabel: workerNamePath[workerNamePath.length - 1],
+      };
     };
 
     /**
      * Evaluate code directly in a worker.
-     * @param {Name | undefined} workerName
+     * @param {NameOrPath | undefined} workerName
      * @param {string} source
      * @param {Array<string>} codeNames
      * @param {(string | string[])[]} petNamePaths
@@ -646,7 +655,7 @@ export const makeHostMaker = ({
       resultName,
     ) => {
       if (workerName !== undefined) {
-        assertName(workerName);
+        assertNamePath(namePathFrom(workerName));
       }
       if (!Array.isArray(codeNames)) {
         throw new Error('Evaluator requires an array of code names');
@@ -667,10 +676,8 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const { workerId, workerLabel: explicitLabel } = prepareWorkerFormulation(
-        workerName,
-        tasks.push,
-      );
+      const { workerId, workerLabel: explicitLabel } =
+        await prepareWorkerFormulation(workerName, tasks.push);
       const workerLabel =
         explicitLabel ??
         (resultName !== undefined ? `eval:${resultName}` : 'eval');
@@ -722,7 +729,7 @@ export const makeHostMaker = ({
 
     /**
      * Helper function for makeUnconfined and makeArchive.
-     * @param {Name | undefined} workerName
+     * @param {NameOrPath | undefined} workerName
      * @param {MakeCapletOptions} [options]
      */
     const prepareMakeCaplet = async (workerName, options = {}) => {
@@ -733,7 +740,7 @@ export const makeHostMaker = ({
         workerTrustedShims,
       } = options;
       if (workerName !== undefined) {
-        assertName(workerName);
+        assertNamePath(namePathFrom(workerName));
       }
       assertPowersNameOrPath(powersName);
       const powersNamePath = namePathFrom(powersName);
@@ -741,7 +748,7 @@ export const makeHostMaker = ({
       /** @type {DeferredTasks<MakeCapletDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
-      const { workerId, workerLabel } = prepareWorkerFormulation(
+      const { workerId, workerLabel } = await prepareWorkerFormulation(
         workerName,
         tasks.push,
       );
@@ -806,7 +813,7 @@ export const makeHostMaker = ({
         env,
         workerTrustedShims,
       } = await prepareMakeCaplet(
-        /** @type {Name | undefined} */ (effectiveWorkerName),
+        /** @type {NameOrPath | undefined} */ (effectiveWorkerName),
         options,
       );
       const workerLabel =
@@ -848,7 +855,7 @@ export const makeHostMaker = ({
         env,
         workerTrustedShims,
       } = await prepareMakeCaplet(
-        /** @type {Name | undefined} */ (workerName),
+        /** @type {NameOrPath | undefined} */ (workerName),
         options,
       );
       const workerLabel =
@@ -1032,7 +1039,7 @@ export const makeHostMaker = ({
         env,
         workerTrustedShims,
       } = await prepareMakeCaplet(
-        /** @type {Name | undefined} */ (workerName),
+        /** @type {NameOrPath | undefined} */ (workerName),
         options,
       );
       const workerLabel =
@@ -1578,7 +1585,7 @@ export const makeHostMaker = ({
     /** @type {EndoHost['endow']} */
     const endow = async (messageNumber, bindings, workerName, resultName) => {
       if (workerName !== undefined) {
-        assertName(workerName);
+        assertNamePath(namePathFrom(workerName));
       }
       const { source, slots, guestHandleId } =
         mailbox.getDefineRequest(messageNumber);
@@ -1612,7 +1619,10 @@ export const makeHostMaker = ({
 
       /** @type {DeferredTasks<EvalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
-      const { workerId } = prepareWorkerFormulation(workerName, tasks.push);
+      const { workerId } = await prepareWorkerFormulation(
+        /** @type {NameOrPath | undefined} */ (workerName),
+        tasks.push,
+      );
 
       if (resultName !== undefined) {
         const resultNamePath = namePathFrom(resultName);

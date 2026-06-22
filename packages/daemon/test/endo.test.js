@@ -2485,6 +2485,45 @@ testNeedsNodeWorker(
   },
 );
 
+testNeedsNodeWorker(
+  'evaluate and makeUnconfined accept a worker at a directory path',
+  async t => {
+    const { host } = await prepareHost(t);
+    await E(host).makeDirectory('workers');
+
+    // provideWorker already accepts a path; reference that same worker
+    // by path from evaluate and makeUnconfined.
+    await E(host).provideWorker(['workers', 'w']);
+    const workerId = await E(host).identify('workers', 'w');
+    t.true(await E(host).has('workers', 'w'));
+
+    t.is(
+      42,
+      await E(host).evaluate(['workers', 'w'], '6 * 7', [], [], ['answer']),
+    );
+    // The worker was reused, not recreated.
+    t.is(await E(host).identify('workers', 'w'), workerId);
+
+    const servicePath = path.join(dirname, 'test', 'service.js');
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    const service = await E(host).makeUnconfined(
+      ['workers', 'w'],
+      serviceLocation,
+      { powersName: '@none', resultName: ['workers', 'svc'] },
+    );
+    t.truthy(service);
+    t.is(await E(host).identify('workers', 'w'), workerId);
+
+    // A worker named at a path that does not yet exist is created and
+    // stored there (the parent directory must already exist).
+    t.is(
+      3,
+      await E(host).evaluate(['workers', 'w2'], '1 + 2', [], [], ['three']),
+    );
+    t.true(await E(host).has('workers', 'w2'));
+  },
+);
+
 testNeedsNodeWorker('cancel because of requested capability', async t => {
   const { host } = await prepareHost(t);
 

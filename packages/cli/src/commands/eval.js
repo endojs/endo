@@ -31,7 +31,10 @@ export const evalCommand = async ({
     const petNames = pairs.map(pair => parsePetNamePath(pair[1]));
 
     const result = await E(agent).evaluate(
-      workerName,
+      // A slash-delimited worker name references a worker nested in a
+      // directory; the parent directory must already exist (as with
+      // `mkdir`, `store`, and `mv`).
+      parseOptionalPetNamePath(workerName),
       source,
       codeNames,
       petNames,

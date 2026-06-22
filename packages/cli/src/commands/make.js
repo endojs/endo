@@ -80,18 +80,23 @@ export const makeCommand = async ({
       await E(agent).storeBlob(archiveReaderRef, archiveName);
     }
 
+    // A slash-delimited worker name references a worker nested in a
+    // directory; the parent directory must already exist (as with
+    // `mkdir`, `store`, and `mv`).
+    const workerPath = parseOptionalPetNamePath(workerName);
+
     let resultP;
     if (importPath !== undefined) {
       // makeUnconfined is unconditionally Node-scoped; default to
       // the host's @node worker when no other worker is named.
-      const unconfinedWorkerName = workerName ?? '@node';
+      const unconfinedWorkerName = workerPath ?? '@node';
       resultP = E(agent).makeUnconfined(
         unconfinedWorkerName,
         url.pathToFileURL(path.resolve(importPath)).href,
         { powersName: powersPath, resultName: resultPath, env },
       );
     } else {
-      resultP = E(agent).makeArchive(workerName, archiveName, {
+      resultP = E(agent).makeArchive(workerPath, archiveName, {
         powersName: powersPath,
         resultName: resultPath,
         env,

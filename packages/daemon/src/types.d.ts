@@ -1368,7 +1368,7 @@ export interface EndoAgent extends EndoDirectory {
 export interface EndoGuest extends EndoAgent {
   /** Evaluate code directly in a worker, constrained by reachable capabilities. */
   evaluate(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     source: string,
     codeNames: Array<string>,
     petNamesOrPaths: Array<string | string[]>,
@@ -1505,24 +1505,24 @@ export interface EndoHost extends EndoAgent {
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
   provideWorker(petNamePath: string | string[]): Promise<EndoWorker>;
   evaluate(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     source: string,
     codeNames: Array<string>,
     petNamesOrPaths: Array<string | string[]>,
     resultName?: string | string[],
   ): Promise<unknown>;
   makeUnconfined(
-    workerName: string | undefined,
+    workerName: string | string[] | undefined,
     specifier: string,
     options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeArchive(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     archiveName: string,
     options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeFromTree(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     treeName: string | string[],
     options?: MakeCapletOptions,
   ): Promise<unknown>;
@@ -1543,7 +1543,7 @@ export interface EndoHost extends EndoAgent {
    * Supports native Node modules (unlike {@link makeFromTree}).
    */
   makeUnconfinedFromTree(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     treeName: string | string[],
     options?: MakeCapletOptions & { entry?: string },
   ): Promise<unknown>;
@@ -1573,7 +1573,7 @@ export interface EndoHost extends EndoAgent {
   endow(
     messageNumber: bigint,
     bindings: Record<string, string | string[]>,
-    workerName?: string,
+    workerName?: string | string[],
     resultName?: string | string[],
   ): Promise<void>;
   submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
