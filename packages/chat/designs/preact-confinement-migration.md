@@ -639,8 +639,16 @@ they are deliberate timing devices rather than settle-waits:
   setter is wired by an unobservable mount effect (`heat-bar`, `command-selector`,
   `inline-define`, `inventory-component`, …): there is no DOM signal proving the
   setter is wired, and the subsequent per-assertion `waitFor` already absorbs the
-  render race. Where a re-arm was possible (`message-picker.test.js`) the warmup
-  was removed by re-issuing `enable()` inside the poll instead.
+  render race. Where the component instead **buffers** host-pushed state until
+  its mount effect flushes it (`controller.pendingState`), the warmup is
+  unnecessary and was removed outright — the two `petname-*-autocomplete-confined`
+  tests now rely on that buffer plus each test's own `waitFor`. Where a re-arm
+  was possible (`message-picker.test.js`) the warmup was removed by re-issuing
+  `enable()` inside the poll instead. `token-autocomplete-confined.test.js` keeps
+  a deliberate settle because its name list loads from an async `followNameChanges`
+  stream that is not re-filtered when names arrive (no buffer, no observable).
+  The misleading `await waitFor(() => true, { timeout })` no-ops that fronted
+  these warmups were deleted.
 
 While sweeping, `channel-thread.test.js` and `outliner-enter-key.test.js` also
 gained component disposal in `afterEach` (the same teardown-leak class as

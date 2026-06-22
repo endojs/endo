@@ -62,12 +62,10 @@ const setup = async names => {
 
   const { powers } = makeMockPowers({ names });
   const api = petNamePathsAutocomplete($container, $menu, { E, powers });
-  // Let the confined Root's effect wire the controller's state setter before
-  // the test drives input (the effect flush is deferred through rAF, so this
-  // matches the sibling autocomplete tests' setup of waiting past the first
-  // flush).
-  await waitFor(() => true, { timeout: 50 });
-  await tick(60);
+  // No warmup needed: the confined Root buffers any state the host pushes
+  // before its mount effect wires the setter (controller.pendingState, flushed
+  // on mount), so the first input a test dispatches is never dropped. Each test
+  // then polls for the rendered suggestions with waitFor.
 
   const $input = /** @type {HTMLInputElement} */ (
     $container.querySelector('input.chip-input')
@@ -112,12 +110,10 @@ test.serial('keyboard Down then Space selects the suggestion', async t => {
 
   $input.dispatchEvent(new globalThis.Event('focus', { bubbles: true }));
   await waitFor(() => $menu.querySelectorAll('.token-menu-item').length >= 2);
-  // Let any pending async updateSuggestions settle so it doesn't reset the
-  // highlight after the keypress below.
-  await tick(30);
 
-  // Suggestions render in sorted order: ['alice', 'bob']. The first row is
-  // highlighted initially (selectedIndex 0).
+  // Suggestions render in sorted order: ['alice', 'bob']. Poll for the initial
+  // highlight to land on the first row, which also confirms the async
+  // updateSuggestions has settled before we drive the keyboard below.
   await waitFor(() => {
     const sel = $menu.querySelector('.token-menu-item.selected');
     return sel && sel.textContent === 'alice';

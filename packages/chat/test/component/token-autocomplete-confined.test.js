@@ -124,8 +124,10 @@ const setup = async (names = ['alice', 'bob', 'charlie']) => {
     powers,
   });
 
-  // Let followNameChanges populate the pet-name list.
-  await waitFor(() => true, { timeout: 50 });
+  // Deliberate settle (not a poll): wait for the async followNameChanges stream
+  // to populate the pet-name list before typing. There is no DOM-observable
+  // signal for it, and the component does not re-filter an already-typed query
+  // when names arrive later, so a typed-then-poll approach would race.
   await tick(50);
 
   $input.focus();
