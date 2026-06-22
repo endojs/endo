@@ -468,6 +468,89 @@ Use send() only for initiating brand new conversations.`,
     },
   },
 
+  {
+    type: 'function',
+    function: {
+      name: 'editMessage',
+      description: `\
+Replace the interior of a message you previously sent.
+
+Use to correct a prior reply, settle a "Thinking..." placeholder into a
+final answer, or amend a settled message. Only the original sender may
+edit. The message keeps its number and reply-linkage; the prior revision
+is preserved in messageHistory.
+
+Pairs with the daemon editMessage capability.
+Pass done: false to mark a partial submission (recipient should show a
+progress indicator); pass done: true (or omit) once the message has
+settled.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'string',
+            description:
+              'The outbound message number (BigInt) to edit. Use SmallCaps format: "+5" for message 5.',
+          },
+          strings: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'New text fragments. Length should be edgeNames.length + 1.',
+          },
+          edgeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Labels for the values being sent.',
+          },
+          petNames: {
+            type: 'array',
+            items: {
+              oneOf: [
+                { type: 'string' },
+                { type: 'array', items: { type: 'string' } },
+              ],
+            },
+            description:
+              'Pet names of values to include (same length as edgeNames).',
+          },
+          done: {
+            type: 'boolean',
+            description:
+              'Defaults to true. Pass false to mark this revision as a partial submission.',
+          },
+        },
+        required: ['messageNumber', 'strings', 'edgeNames', 'petNames'],
+      },
+    },
+  },
+
+  {
+    type: 'function',
+    function: {
+      name: 'messageHistory',
+      description: `\
+Return the ordered revision history of a message in your inbox or
+outbox.  Useful when an inbound message was edited after you began
+work and you need to know what the earlier text said.  Returns an
+array of revisions, oldest first; the last entry is the current
+message.
+
+Pairs with the daemon messageHistory capability.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'string',
+            description:
+              'The message number (BigInt) to inspect. Use SmallCaps format: "+5" for message 5.',
+          },
+        },
+        required: ['messageNumber'],
+      },
+    },
+  },
+
   // --- Identity ---
   {
     type: 'function',
@@ -1169,6 +1252,34 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
           petNames,
         );
       }
+      case 'editMessage': {
+        const { messageNumber, strings, edgeNames, petNames, done } = args;
+        if (
+          messageNumber === undefined ||
+          !strings ||
+          !edgeNames ||
+          !petNames
+        ) {
+          throw new Error(
+            'messageNumber, strings, edgeNames, and petNames are required',
+          );
+        }
+        const options = done === undefined ? undefined : harden({ done });
+        return E(powers).editMessage(
+          messageNumber,
+          strings,
+          edgeNames,
+          petNames,
+          options,
+        );
+      }
+      case 'messageHistory': {
+        const { messageNumber } = args;
+        if (messageNumber === undefined) {
+          throw new Error('messageNumber is required');
+        }
+        return E(powers).messageHistory(messageNumber);
+      }
 
       // Identity
       case 'locate': {
@@ -1467,7 +1578,17 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         )
       : null;
 
-    // Follow messages and route each to the correct transcript chain
+    // Follow messages and route each to the correct transcript chain.
+    //
+    // Re-emission of an already-processed inbound number indicates the
+    // sender called daemon `editMessage`: a partial submission that has
+    // settled, or an amendment of an already-settled message.  We do
+    // not start a fresh transcript turn for such re-emissions; the
+    // agent can call `messageHistory(n)` to retrieve the prior text
+    // if it needs to reason about the change.
+    /** @type {Set<bigint>} */
+    const seenInboundNumbers = new Set();
+
     const messageIterator = iterateReader(E(powers).followMessages());
     while (true) {
       const nextMessage = messageIterator.next();
@@ -1490,7 +1611,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         break;
       }
       const inboxMessage =
-        /** @type {InboxMessage & {type?: string, messageId?: string, replyTo?: string}} */ (
+        /** @type {InboxMessage & {type?: string, messageId?: string, replyTo?: string, done?: boolean}} */ (
           message
         );
       const {
@@ -1499,6 +1620,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
         type,
         messageId,
         replyTo,
+        done: messageDone = true,
       } = inboxMessage;
 
       // Own outbound messages: index them for future reply lookups
@@ -1506,6 +1628,24 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
       if (fromLocator === selfLocator) {
         await handleOwnMessage(inboxMessage);
       } else {
+        // Skip partial (in-flight) submissions: wait until the sender
+        // marks the message done before spinning up an LLM turn.
+        if (messageDone === false) {
+          console.log(
+            `[mail] Message #${number} is not yet done; deferring until settled`,
+          );
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        if (seenInboundNumbers.has(number)) {
+          console.log(
+            `[mail] Message #${number} was edited after settlement; ` +
+              `not rerunning. Use messageHistory(${number}) for the prior text.`,
+          );
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        seenInboundNumbers.add(number);
         console.log(
           `[mail] New message #${number} (type: ${type || 'package'})`,
         );
