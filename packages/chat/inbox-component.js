@@ -84,6 +84,8 @@ harden(locatorsMatch);
  * @property {string} [replyTo]
  * @property {Promise<unknown>} dismissed
  * @property {boolean} isSent
+ * @property {boolean} isPending - True when the message's `done` field is
+ *   explicitly `false` (a partial / streaming submission still in progress).
  * @property {string | null} senderChip - `@name` (resolved async) or null.
  * @property {Record<string, unknown>} raw - The original message fields.
  */
@@ -143,18 +145,41 @@ const ClipboardContext = createContext(text =>
  * copyable time lines. Class names match the original imperative markup so the
  * existing CSS continues to apply.
  *
+ * When the message is the local agent's own package message, also renders:
+ * - A history button (⏱) — visible only after at least one revision.
+ * - An edit button (✎) — hidden while the message is pending (done: false).
+ *
  * @param {object} props
  * @param {InboxMessage} props.message
  * @param {ERef<EndoHost>} props.powers
  * @param {(text: string) => void} props.setError
+ * @param {boolean} [props.isEdited] - True when at least one revision exists.
+ * @param {(open: boolean) => void} [props.onEditToggle] - Called when the edit
+ *   button is clicked; parent owns the open/close state.
+ * @param {(open: boolean) => void} [props.onHistoryToggle] - Called when the
+ *   history button is clicked; parent owns the panel open/close state.
+ * @param {boolean} [props.editOpen] - Whether the edit panel is currently open.
+ * @param {boolean} [props.historyOpen] - Whether the history panel is open.
  */
-const Timestamp = ({ message, powers, setError }) => {
-  const { number, date } = message;
+const Timestamp = ({
+  message,
+  powers,
+  setError,
+  isEdited,
+  onEditToggle,
+  onHistoryToggle,
+  editOpen,
+  historyOpen,
+}) => {
+  const { number, date, isSent, type: msgType, isPending } = message;
   const parsedDate = new Date(date);
   const relative = relativeTime(parsedDate);
   const timeLines = [date, dateFormatter.format(parsedDate), relative].filter(
     Boolean,
   );
+
+  // Edit and history controls only appear on the local agent's own package msgs.
+  const showEditControls = isSent && msgType === 'package';
 
   return h(
     'span',
@@ -182,6 +207,32 @@ const Timestamp = ({ message, powers, setError }) => {
           },
           '×',
         ),
+        showEditControls
+          ? h(
+              'button',
+              {
+                class: 'history-button',
+                type: 'button',
+                title: 'View edit history',
+                style: isEdited ? '' : 'display:none',
+                onClick: () => onHistoryToggle && onHistoryToggle(!historyOpen),
+              },
+              '⏱',
+            )
+          : null,
+        showEditControls
+          ? h(
+              'button',
+              {
+                class: 'edit-button',
+                type: 'button',
+                title: 'Edit message',
+                style: isPending ? 'display:none' : '',
+                onClick: () => onEditToggle && onEditToggle(!editOpen),
+              },
+              editOpen ? '×' : '✎',
+            )
+          : null,
       ),
       h(
         'span',
@@ -915,6 +966,166 @@ const MessageContent = ({
 harden(MessageContent);
 
 /**
+ * Inline editor for a sent package message. Pre-fills with the current text
+ * (the concatenation of `raw.strings`). On Save, calls `editMessage` with
+ * pet-name-resolved token bindings; on Cancel, calls `onClose`.
+ *
+ * @param {object} props
+ * @param {InboxMessage} props.message
+ * @param {ERef<EndoHost>} props.powers
+ * @param {(text: string) => void} props.setError
+ * @param {() => void} props.onClose
+ */
+const EditPanel = ({ message, powers, setError, onClose }) => {
+  const { number } = message;
+  const { strings, names, ids } = /** @type {any} */ (message.raw);
+  const stringParts = Array.isArray(strings) ? strings : [];
+  const nameParts = /** @type {string[]} */ (Array.isArray(names) ? names : []);
+  const idParts = /** @type {string[]} */ (Array.isArray(ids) ? ids : []);
+
+  const [text, setText] = useState(() => stringParts.join(''));
+
+  const doSave = () => {
+    // Preserve token bindings for @edgeNames still present in the new text.
+    // Resolve each kept locator to a pet name via reverseLocate; drop bindings
+    // whose locator has no pet name mapping.
+    const candidateNames = nameParts.filter(name => text.includes(`@${name}`));
+    Promise.all(
+      candidateNames.map(async name => {
+        const index = nameParts.indexOf(name);
+        const locator = idParts[index];
+        if (!locator) return undefined;
+        try {
+          const petNames = await E(powers).reverseLocate(locator);
+          if (Array.isArray(petNames) && petNames.length > 0) {
+            return { name, petName: /** @type {string} */ (petNames[0]) };
+          }
+        } catch {
+          // Drop binding if lookup fails.
+        }
+        return undefined;
+      }),
+    )
+      .then(resolved => {
+        const kept = /** @type {Array<{ name: string, petName: string }>} */ (
+          resolved.filter(entry => entry !== undefined)
+        );
+        return E(powers).editMessage(
+          number,
+          [text],
+          kept.map(e => e.name),
+          kept.map(e => e.petName),
+        );
+      })
+      .then(
+        () => {
+          onClose();
+        },
+        (/** @type {Error} */ err) => {
+          setError(` ${err.message}`);
+        },
+      );
+  };
+
+  return h(
+    'div',
+    { class: 'edit-editor' },
+    h('textarea', {
+      class: 'edit-input',
+      value: text,
+      /** @param {{ target: { value: string } }} e */
+      onInput: e => setText(e.target.value),
+    }),
+    h(
+      'div',
+      { class: 'edit-actions' },
+      h(
+        'button',
+        { type: 'button', class: 'edit-submit', onClick: doSave },
+        'Save',
+      ),
+      h(
+        'button',
+        { type: 'button', class: 'edit-cancel', onClick: onClose },
+        'Cancel',
+      ),
+    ),
+  );
+};
+harden(EditPanel);
+
+/**
+ * History panel: fetches `messageHistory(number)` and renders the revision
+ * list with timestamps and a "(partial)" tag on not-done revisions.
+ *
+ * @param {object} props
+ * @param {bigint} props.number
+ * @param {ERef<EndoHost>} props.powers
+ */
+const HistoryPanel = ({ number, powers }) => {
+  const [state, setState] = useState(
+    /** @type {{ loading: boolean, revisions: Array<{envelope?: {strings?: string[]}, done?: boolean, date?: string}>, error: string | null }} */
+    ({ loading: true, revisions: [], error: null }),
+  );
+
+  useEffect(() => {
+    let disposed = false;
+    E(powers)
+      .messageHistory(number)
+      .then(
+        revisions => {
+          if (!disposed) {
+            setState({
+              loading: false,
+              revisions: /** @type {any[]} */ (
+                Array.isArray(revisions) ? revisions : []
+              ),
+              error: null,
+            });
+          }
+        },
+        (/** @type {Error} */ err) => {
+          if (!disposed) {
+            setState({ loading: false, revisions: [], error: err.message });
+          }
+        },
+      );
+    return () => {
+      disposed = true;
+    };
+  }, [number, powers]);
+
+  if (state.loading) {
+    return h('div', { class: 'history-panel' }, 'Loading history…');
+  }
+  if (state.error !== null) {
+    return h('div', { class: 'history-panel' }, `Error: ${state.error}`);
+  }
+
+  return h(
+    'div',
+    { class: 'history-panel' },
+    h(
+      'ol',
+      { class: 'history-list' },
+      state.revisions.map((revision, i) => {
+        const strings = Array.isArray(revision.envelope?.strings)
+          ? revision.envelope.strings.join('')
+          : '';
+        const stamp = revision.date ? `[${revision.date}] ` : '';
+        const doneTag = revision.done === false ? ' (partial)' : '';
+        return h(
+          'li',
+          { class: 'history-item', key: i },
+          `${stamp}${strings}${doneTag}`,
+        );
+      }),
+    ),
+  );
+};
+harden(HistoryPanel);
+
+/**
  * A single message envelope, preserving the original class names and dataset
  * attributes so existing CSS and tests continue to match.
  *
@@ -923,23 +1134,46 @@ harden(MessageContent);
  * @param {ERef<EndoHost>} props.powers
  * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} props.showValue
  * @param {Map<string, string>} props.formDescriptions
+ * @param {boolean} [props.isEdited] - True when at least one revision exists.
  */
-const MessageEnvelope = ({ message, powers, showValue, formDescriptions }) => {
-  const { number, isSent } = message;
+const MessageEnvelope = ({
+  message,
+  powers,
+  showValue,
+  formDescriptions,
+  isEdited,
+}) => {
+  const { number, isSent, isPending } = message;
   const [error, setError] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   /** @type {Record<string, string>} */
   const dataset = { 'data-number': String(number) };
   if (message.messageId) dataset['data-message-id'] = String(message.messageId);
   if (message.replyTo) dataset['data-reply-to'] = String(message.replyTo);
 
+  // Build the envelope class: base + optional pending/edited modifiers.
+  let envelopeClass = 'message-envelope';
+  if (isPending) envelopeClass += ' message-envelope-pending';
+  if (isEdited) envelopeClass += ' message-envelope-edited';
+
   return h(
     'div',
-    { class: 'message-envelope', ...dataset },
+    { class: envelopeClass, ...dataset },
     h(
       'div',
       { class: isSent ? 'message sent' : 'message' },
-      h(Timestamp, { message, powers, setError }),
+      h(Timestamp, {
+        message,
+        powers,
+        setError,
+        isEdited,
+        editOpen,
+        historyOpen,
+        onEditToggle: setEditOpen,
+        onHistoryToggle: setHistoryOpen,
+      }),
       h(
         'div',
         { class: 'message-body' },
@@ -952,6 +1186,15 @@ const MessageEnvelope = ({ message, powers, showValue, formDescriptions }) => {
           setError,
         }),
       ),
+      editOpen
+        ? h(EditPanel, {
+            message,
+            powers,
+            setError,
+            onClose: () => setEditOpen(false),
+          })
+        : null,
+      historyOpen ? h(HistoryPanel, { number, powers }) : null,
     ),
   );
 };
@@ -1043,6 +1286,12 @@ const toInboxMessage = async ({
     );
   }
 
+  // `done` defaults to true on legacy emissions; only emissions explicitly
+  // marked `done: false` are partial submissions.
+  const isPending =
+    'done' in message &&
+    /** @type {{ done?: boolean }} */ (message).done === false;
+
   return harden({
     number,
     type: String(message.type),
@@ -1057,6 +1306,7 @@ const toInboxMessage = async ({
         : undefined,
     dismissed,
     isSent,
+    isPending,
     senderChip,
     raw: /** @type {Record<string, unknown>} */ (message),
   });
@@ -1096,6 +1346,14 @@ const InboxRoot = ({
   const [messages, dispatch] = useReducer(
     messagesReducer,
     /** @type {InboxMessage[]} */ ([]),
+  );
+
+  // Track which message numbers have been revised (editedNumbers). When the
+  // daemon re-emits a number the reducer replaces the envelope in place; we
+  // additionally set the number in `editedNumbers` so the history-button
+  // affordance can appear for the first time on that revision.
+  const [editedNumbers, setEditedNumbers] = useState(
+    /** @type {Set<string>} */ (new Set()),
   );
 
   // Keep a live ref to the current list so the (single-run) subscription effect
@@ -1160,19 +1418,47 @@ const InboxRoot = ({
           continue;
         }
 
+        // Check before dispatch: if the number is already in the list, this
+        // is a revision. The reducer's 'add' branch replaces in place; we
+        // separately record the number in editedNumbers so the history-button
+        // becomes visible.
+        const numberKey = String(inboxMessage.number);
+        const isRevision = messagesRef.current.some(
+          m => String(m.number) === numberKey,
+        );
+
         dispatch({ type: 'add', message: inboxMessage });
+
+        if (isRevision) {
+          setEditedNumbers(prev => {
+            const next = new Set(prev);
+            next.add(numberKey);
+            return next;
+          });
+        }
 
         const { number, date, isSent, dismissed } = inboxMessage;
 
         // Remove the envelope when the message is dismissed.
         Promise.resolve(dismissed).then(
           () => {
-            if (!disposed()) dispatch({ type: 'remove', number });
+            if (!disposed()) {
+              dispatch({ type: 'remove', number });
+              setEditedNumbers(prev => {
+                const next = new Set(prev);
+                next.delete(String(number));
+                return next;
+              });
+            }
           },
           () => {},
         );
 
-        if (!isSent && Date.now() - new Date(date).getTime() < 2000) {
+        if (
+          !isSent &&
+          !isRevision &&
+          Date.now() - new Date(date).getTime() < 2000
+        ) {
           playChime();
         }
 
@@ -1206,6 +1492,7 @@ const InboxRoot = ({
         powers,
         showValue,
         formDescriptions,
+        isEdited: editedNumbers.has(String(message.number)),
       }),
     ),
   );
