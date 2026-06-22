@@ -6,7 +6,6 @@ import { q } from '@endo/errors';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePetSitter } from './pet-sitter.js';
 import {
-  assertNamePath,
   assertPetNamePath,
   namePathFrom,
   petNamePathFrom,
@@ -220,9 +219,6 @@ export const makeGuestMaker = ({
       petNamesOrPaths,
       resultName,
     ) => {
-      if (workerName !== undefined) {
-        assertNamePath(namePathFrom(workerName));
-      }
       if (!Array.isArray(codeNames)) {
         throw new Error('Evaluator requires an array of code names');
       }
@@ -230,10 +226,6 @@ export const makeGuestMaker = ({
         if (typeof codeName !== 'string') {
           throw new Error(`Invalid endowment name: ${q(codeName)}`);
         }
-      }
-      if (resultName !== undefined) {
-        const resultNamePath = namePathFrom(resultName);
-        assertNamePath(resultNamePath);
       }
       if (petNamesOrPaths.length !== codeNames.length) {
         throw new Error('Evaluator requires one pet name for each code name');
@@ -259,7 +251,7 @@ export const makeGuestMaker = ({
       });
 
       if (resultName !== undefined) {
-        const resultNamePath = namePathFrom(resultName);
+        const { namePath: resultNamePath } = petNamePathFrom(resultName);
         tasks.push(identifiers =>
           E(directory).storeIdentifier(resultNamePath, identifiers.evalId),
         );
@@ -318,8 +310,7 @@ export const makeGuestMaker = ({
 
     /** @type {EndoGuest['storeValue']} */
     const storeValue = async (value, petName) => {
-      const namePath = namePathFrom(petName);
-      assertNamePath(namePath);
+      const { namePath } = petNamePathFrom(petName);
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>

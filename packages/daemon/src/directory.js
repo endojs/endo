@@ -352,7 +352,6 @@ export const makeDirectoryMaker = ({
     /** @type {EndoDirectory['readText']} */
     const readText = async petNameOrPath => {
       const namePath = namePathFrom(petNameOrPath);
-      assertNamePath(namePath);
       if (namePath.length < 2) {
         const blob = await lookup(namePath);
         return E(/** @type {any} */ (blob)).text();
@@ -364,7 +363,6 @@ export const makeDirectoryMaker = ({
     /** @type {EndoDirectory['maybeReadText']} */
     const maybeReadText = async petNameOrPath => {
       const namePath = namePathFrom(petNameOrPath);
-      assertNamePath(namePath);
       if (namePath.length < 2) {
         const blob = await maybeLookup(namePath);
         if (blob === undefined || blob === null) {
@@ -378,8 +376,7 @@ export const makeDirectoryMaker = ({
 
     /** @type {EndoDirectory['writeText']} */
     const writeText = async (petNameOrPath, content) => {
-      const namePath = namePathFrom(petNameOrPath);
-      assertNamePath(namePath);
+      const { namePath } = petNamePathFrom(petNameOrPath);
       if (namePath.length < 2) {
         const bytes = bytesFromText(content);
         const readerRef = bytesReaderFromIterator([bytes]);

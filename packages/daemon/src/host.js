@@ -17,7 +17,6 @@ import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import {
   assertPetName,
   assertPetNamePath,
-  assertNamePath,
   namePathFrom,
   petNamePathFrom,
 } from './pet-name.js';
@@ -572,8 +571,7 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['storeValue']} */
     const storeValue = async (value, petName) => {
-      const namePath = namePathFrom(petName);
-      assertNamePath(namePath);
+      const { namePath } = petNamePathFrom(petName);
       /** @type {DeferredTasks<MarshalDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
 
@@ -590,7 +588,6 @@ export const makeHostMaker = ({
      */
     const provideWorker = async workerNamePath => {
       const namePath = namePathFrom(workerNamePath);
-      assertNamePath(namePath);
       const workerId = await E(directory).identify(...namePath);
 
       if (workerId !== undefined) {
@@ -655,9 +652,6 @@ export const makeHostMaker = ({
       petNamePaths,
       resultName,
     ) => {
-      if (workerName !== undefined) {
-        assertNamePath(namePathFrom(workerName));
-      }
       if (!Array.isArray(codeNames)) {
         throw new Error('Evaluator requires an array of code names');
       }
@@ -665,10 +659,6 @@ export const makeHostMaker = ({
         if (typeof codeName !== 'string') {
           throw new Error(`Invalid endowment name: ${q(codeName)}`);
         }
-      }
-      if (resultName !== undefined) {
-        const resultNamePath = namePathFrom(resultName);
-        assertNamePath(resultNamePath);
       }
       if (petNamePaths.length !== codeNames.length) {
         throw new Error('Evaluator requires one pet name for each code name');
@@ -698,7 +688,7 @@ export const makeHostMaker = ({
       });
 
       if (resultName !== undefined) {
-        const resultNamePath = namePathFrom(resultName);
+        const { namePath: resultNamePath } = petNamePathFrom(resultName);
         tasks.push(identifiers =>
           E(directory).storeIdentifier(resultNamePath, identifiers.evalId),
         );
@@ -740,9 +730,6 @@ export const makeHostMaker = ({
         env = {},
         workerTrustedShims,
       } = options;
-      if (workerName !== undefined) {
-        assertNamePath(namePathFrom(workerName));
-      }
       assertPowersNameOrPath(powersName);
       const powersNamePath = namePathFrom(powersName);
 
@@ -948,7 +935,6 @@ export const makeHostMaker = ({
       // through the directory, so a path nests the scratch mount.
       const scratchNamePath = namePathFrom(scratchPetName);
       const treeNamePath = namePathFrom(/** @type {NameOrPath} */ (treeName));
-      assertNamePath(treeNamePath);
       // Use identify + provide instead of a lookup chain to keep the
       // source invariant (so Mount sub-node wrapping doesn't confuse
       // the materialise walk).
@@ -1035,7 +1021,6 @@ export const makeHostMaker = ({
     /** @type {EndoHost['makeFromTree']} */
     const makeFromTree = async (workerName, treeName, options) => {
       const namePath = namePathFrom(treeName);
-      assertNamePath(namePath);
       const treeId = await E(directory).identify(...namePath);
       if (treeId === undefined) {
         throw new TypeError(`Unknown pet name for tree: ${q(treeName)}`);
@@ -1199,7 +1184,7 @@ export const makeHostMaker = ({
     /** @type {EndoHost['provideHost']} */
     const provideHost = async (petName, opts) => {
       if (petName !== undefined) {
-        assertNamePath(namePathFrom(petName));
+        petNamePathFrom(petName);
       }
       const normalizedOpts = normalizeHostOrGuestOptions(opts);
       const { value } = await makeChildHost(
@@ -1253,7 +1238,7 @@ export const makeHostMaker = ({
     /** @type {EndoHost['provideGuest']} */
     const provideGuest = async (petName, opts) => {
       if (petName !== undefined) {
-        assertNamePath(namePathFrom(petName));
+        petNamePathFrom(petName);
       }
       const normalizedOpts = normalizeHostOrGuestOptions(opts);
       const { value } = await makeGuest(
@@ -1513,8 +1498,7 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['adoptFromLocator']} */
     const adoptFromLocator = async (locator, petNameOrPath) => {
-      const namePath = namePathFrom(petNameOrPath);
-      assertNamePath(namePath);
+      const { namePath } = petNamePathFrom(petNameOrPath);
       const url = new URL(locator);
       const nodeNumber = url.hostname;
       assertNodeNumber(nodeNumber);
@@ -1607,9 +1591,6 @@ export const makeHostMaker = ({
 
     /** @type {EndoHost['endow']} */
     const endow = async (messageNumber, bindings, workerName, resultName) => {
-      if (workerName !== undefined) {
-        assertNamePath(namePathFrom(workerName));
-      }
       const { source, slots, guestHandleId } =
         mailbox.getDefineRequest(messageNumber);
 
@@ -1648,7 +1629,7 @@ export const makeHostMaker = ({
       );
 
       if (resultName !== undefined) {
-        const resultNamePath = namePathFrom(resultName);
+        const { namePath: resultNamePath } = petNamePathFrom(resultName);
         tasks.push(identifiers =>
           E(directory).storeIdentifier(resultNamePath, identifiers.evalId),
         );
