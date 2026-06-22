@@ -1534,7 +1534,7 @@ export interface EndoHost extends EndoAgent {
    */
   stageTree(
     treeName: string | string[],
-    scratchPetName: string,
+    scratchPetName: string | string[],
   ): Promise<unknown>;
   /**
    * Stage a readable tree (ReadableTree or Mount) into an internal
@@ -1555,9 +1555,12 @@ export interface EndoHost extends EndoAgent {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   listKnownPeers(): Promise<PeerInfo[]>;
   followPeerChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
-  makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
+  makeChannel(
+    petName: string | string[],
+    proposedName: string,
+  ): Promise<EndoChannel>;
   makeTimer(
-    petName: string,
+    petName: string | string[],
     intervalMs: number,
     label?: string,
   ): Promise<unknown>;

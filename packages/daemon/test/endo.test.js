@@ -2485,6 +2485,18 @@ testNeedsNodeWorker(
   },
 );
 
+test('makeTimer and makeChannel accept directory paths', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeDirectory('infra');
+
+  await E(host).makeTimer(['infra', 'tick'], 1000);
+  t.true(await E(host).has('infra', 'tick'));
+  t.false(await E(host).has('tick'));
+
+  await E(host).makeChannel(['infra', 'chan'], 'me');
+  t.true(await E(host).has('infra', 'chan'));
+});
+
 testNeedsNodeWorker(
   'evaluate and makeUnconfined accept a worker at a directory path',
   async t => {

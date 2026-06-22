@@ -936,10 +936,12 @@ export const makeHostMaker = ({
      * surface exposes only the mount capability.
      *
      * @param {string | string[]} treeName
-     * @param {string} scratchPetName
+     * @param {NameOrPath} scratchPetName
      */
     const stageTreeInternal = async (treeName, scratchPetName) => {
-      assertPetName(scratchPetName);
+      // provideScratchMount validates the scratch name/path and stores it
+      // through the directory, so a path nests the scratch mount.
+      const scratchNamePath = namePathFrom(scratchPetName);
       const treeNamePath = namePathFrom(/** @type {NameOrPath} */ (treeName));
       assertNamePath(treeNamePath);
       // Use identify + provide instead of a lookup chain to keep the
@@ -966,11 +968,11 @@ export const makeHostMaker = ({
         const msg = String((err && /** @type {any} */ (err).message) || err);
         if (!msg.includes('not yet implemented')) throw err;
       }
-      const scratchMount = await provideScratchMount(scratchPetName);
+      const scratchMount = await provideScratchMount(scratchNamePath);
       await materializeTree(sourceForWalk, scratchMount, []);
       // Resolve the scratch mount's identifier after it's been stored
       // by the deferred pet-store task inside provideScratchMount.
-      const scratchId = await E(directory).identify(scratchPetName);
+      const scratchId = await E(directory).identify(...scratchNamePath);
       if (scratchId === undefined) {
         throw new TypeError(
           `Internal error: scratch mount ${q(scratchPetName)} was not stored`,
@@ -984,7 +986,7 @@ export const makeHostMaker = ({
     const stageTree = async (treeName, scratchPetName) => {
       const { scratchMount } = await stageTreeInternal(
         treeName,
-        scratchPetName,
+        /** @type {NameOrPath} */ (scratchPetName),
       );
       return scratchMount;
     };
@@ -1003,7 +1005,10 @@ export const makeHostMaker = ({
       // Scratch mount carries a derived pet name so the caller can
       // observe / cancel it explicitly if desired.
       const scratchPetName = `scratch-${resultLabel}`;
-      const { scratchId } = await stageTreeInternal(treeName, scratchPetName);
+      const { scratchId } = await stageTreeInternal(
+        treeName,
+        /** @type {NameOrPath} */ (scratchPetName),
+      );
       const scratchPath = getScratchMountPath(scratchId);
       const entryPath = `${scratchPath}/${entry}`;
       // Reuse the existing makeUnconfined flow (which already defaults
@@ -1256,20 +1261,24 @@ export const makeHostMaker = ({
     /**
      * Create a timer that fires at a specified interval.
      *
-     * @param {PetName} petName - Pet name to store the timer under
+     * @param {NameOrPath} petName - Pet name or path to store the timer under
      * @param {number} intervalMs - Interval in milliseconds
      * @param {string} [label] - Optional label for the timer
      */
     const makeTimerCmd = async (petName, intervalMs, label) => {
-      assertPetName(petName);
+      const { namePath, petName: timerPetName } = assertPetNamePath(
+        namePathFrom(petName),
+      );
       /** @type {DeferredTasks<{ timerId: import('./types.js').FormulaIdentifier }>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        petStore.storeIdentifier(petName, identifiers.timerId),
+        namePath.length === 1
+          ? petStore.storeIdentifier(timerPetName, identifiers.timerId)
+          : E(directory).storeIdentifier(namePath, identifiers.timerId),
       );
       const { value } = await formulateTimer(
         Number(intervalMs),
-        label || petName,
+        label || timerPetName,
         tasks,
       );
       return value;
@@ -1277,15 +1286,19 @@ export const makeHostMaker = ({
 
     /**
      * Create a new channel and store it under the given pet name.
-     * @param {PetName} petName - Pet name to store the channel under.
+     * @param {NameOrPath} petName - Pet name or path to store the channel under.
      * @param {string} channelProposedName - Display name for the channel creator.
      */
     const makeChannelCmd = async (petName, channelProposedName) => {
-      assertPetName(petName);
+      const { namePath, petName: channelPetName } = assertPetNamePath(
+        namePathFrom(petName),
+      );
       /** @type {DeferredTasks<ChannelDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        petStore.storeIdentifier(petName, identifiers.channelId),
+        namePath.length === 1
+          ? petStore.storeIdentifier(channelPetName, identifiers.channelId)
+          : E(directory).storeIdentifier(namePath, identifiers.channelId),
       );
       const { value } = await formulateChannel(
         hostId,

@@ -355,7 +355,7 @@ export const HostInterface = M.interface('EndoHost', {
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Materialise a readable tree into a new scratch mount.
-  stageTree: M.call(NameOrPathShape, NameShape).returns(M.promise()),
+  stageTree: M.call(NameOrPathShape, NameOrPathShape).returns(M.promise()),
   // Stage a readable tree and run its entry module as an unconfined
   // Node caplet.
   makeUnconfinedFromTree: M.call(
@@ -365,9 +365,9 @@ export const HostInterface = M.interface('EndoHost', {
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Create a channel
-  makeChannel: M.call(NameShape, M.string()).returns(M.promise()),
+  makeChannel: M.call(NameOrPathShape, M.string()).returns(M.promise()),
   // Create a timer
-  makeTimer: M.call(NameShape, M.number())
+  makeTimer: M.call(NameOrPathShape, M.number())
     .optional(M.string())
     .returns(M.promise()),
   // Cancel a value
