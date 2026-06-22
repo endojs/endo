@@ -30,6 +30,13 @@ import '@endo/space-whylip/whylip.css';
 // eslint-disable-next-line import/no-unresolved
 import '@endo/space-peers/peers.css';
 
+// The Floot view (`@endo/space-floot`) is a pure confined component and ships
+// its stylesheet via the `./floot.css` package export; the host bundles it
+// here (the old imperative floot-component carried inline <style>). Vite-only —
+// no test loads `main.js`.
+// eslint-disable-next-line import/no-unresolved
+import '@endo/space-floot/floot.css';
+
 const RECONNECT_INTERVAL_MS = 5000;
 
 // Detect whether we are running inside the Familiar Electron shell.

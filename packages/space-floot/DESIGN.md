@@ -245,15 +245,41 @@ wrapper) and remove now-dead helpers.
 
 1. **Scaffold `@endo/space-floot`** — done (`63bcd511`): package, `floot.css`,
    `FlootApp` scaffold.
-2. **Host controller + contract** — extract the audio engine + turn registry into
-   the wrapper; implement `controller` (snapshot/subscribe/callbacks); keep the
-   old UI rendering until stage 3 swaps it.
-3. **Full `FlootApp`** — sidebar, message list, compose bar, settings/transcription
-   panel; swap the chat dispatch to the confined view; delete the old imperative
-   UI.
+2a. **Confined view layer** — done (`8ed55669`): the pure `FlootApp` +
+   sub-components (`SessionSidebar`, `MessageList`, `ComposeBar`,
+   `SettingsPanel`, `types.js`), authored against the controller contract.
+2b/3. **Host controller + swap** — done: `packages/chat/floot-component.js` is
+   now a thin host wrapper that owns the CapTP resolution, the module-level
+   background-turn registry, the mic/VAD engine, and TTS playback, and exposes
+   them to the view as a single `controller` (pure-data `getState()` snapshots
+   plus callbacks). The whole imperative DOM body (sidebar/message/compose/modal
+   rendering, inline `<style>`) is gone; `floot.css` is bundled host-side in
+   `main.js` like `peers.css`. The chat dispatch (`chat.js` `mode === 'floot'`)
+   is unchanged — the wrapper keeps the same
+   `flootComponent($parent, rootPowers, profilePath, onProfileChange, audioPath, ttsPath)`
+   signature and `() => cleanup` return. Verified by `node --check`, the chat
+   `vite build`, and `tsc`/eslint clean on the wrapper (apart from two
+   pre-existing patterns shared with the original file).
 4. **`floot/` provisioning + auto-detect** — setup scripts + picker.
 5. **Remove the standalone Voice space.**
 6. **`makeExo` backend fix.**
+
+### Sticky-bottom scrolling (host responsibility)
+
+The confined view cannot touch DOM scroll positions — `renderConfined` strips
+every `ref`. The old component read `$messages.scrollTop` directly; the wrapper
+now keeps the transcript pinned to the bottom from the **host** side, over the
+mount node it already owns: a capture-phase `scroll` listener on `$mount` tracks
+a "near the bottom" flag (scroll does not bubble, but the capture phase still
+reaches ancestors), and a `MutationObserver` nudges `.floot-messages` to the
+bottom after each render while that flag holds. This is a host
+DOM-housekeeping concern, not a rendered-UI overlay, so it stays clear of the
+view contract (none of the contingency options were needed).
+
+One minor regression: the compose `<textarea>` no longer JS-auto-grows (the old
+host code resized it imperatively). It is a confined controlled input with a CSS
+`max-height` and internal scroll; revisit with `field-sizing: content` or a host
+overlay if multi-line composing feels cramped.
 
 ## Verification and gaps
 
