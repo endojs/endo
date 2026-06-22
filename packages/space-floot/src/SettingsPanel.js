@@ -11,7 +11,7 @@ import { h } from 'preact';
 // live transcript, mic/VAD state, the wired STT/TTS/controller objects, and
 // per-session token totals.
 
-const Row = (/** @type {string} */ label, /** @type {any} */ value) =>
+const Row = (/** @type {string} */ label, /** @type {string} */ value) =>
   h(
     'div',
     { class: 'floot-settings-row' },

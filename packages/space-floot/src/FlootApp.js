@@ -10,7 +10,7 @@ import { ComposeBar } from './ComposeBar.js';
 import { SettingsPanel } from './SettingsPanel.js';
 
 /** @import { VNode } from 'preact' */
-/** @import { FlootController } from './types.js' */
+/** @import { FlootController, FlootPreset, FlootSafeEvent } from './types.js' */
 
 // Floot voice-assistant space as a PURE confined Preact component. The host
 // (packages/chat/floot-component.js) owns the imperative engine — mic capture,
@@ -35,7 +35,7 @@ const formatTokens = (/** @type {number} */ n) => {
 };
 
 /**
- * @param {{ presets: any[], onPick: (id: string) => void, onClose: () => void }} props
+ * @param {{ presets: FlootPreset[], onPick: (id: string) => void, onClose: () => void }} props
  * @returns {VNode}
  */
 const PresetModal = ({ presets, onPick, onClose }) =>
@@ -47,13 +47,13 @@ const PresetModal = ({ presets, onPick, onClose }) =>
       // Clicks on the card surface must not reach the dismiss-on-backdrop click.
       {
         class: 'floot-modal',
-        onClick: (/** @type {any} */ e) => e.stopPropagation(),
+        onClick: (/** @type {FlootSafeEvent} */ e) => e.stopPropagation(),
       },
       h('div', { class: 'floot-modal-title' }, 'Start a new session'),
       h(
         'div',
         { class: 'floot-preset-list' },
-        presets.map((/** @type {any} */ p) =>
+        presets.map(p =>
           h(
             'button',
             {
@@ -83,9 +83,7 @@ export const FlootApp = ({ controller }) => {
   const [titleDraft, setTitleDraft] = useState('');
 
   const { sessions, activeSessionId, presets, usage, status } = state;
-  const active = sessions.find(
-    (/** @type {any} */ s) => s.id === activeSessionId,
-  );
+  const active = sessions.find(s => s.id === activeSessionId);
 
   const onNew = () => {
     if (presets.length <= 1) {
@@ -130,8 +128,9 @@ export const FlootApp = ({ controller }) => {
           class: 'floot-header-title-input',
           value: titleDraft,
           autofocus: true,
-          onInput: (/** @type {any} */ e) => setTitleDraft(e.target.value),
-          onKeyDown: (/** @type {any} */ e) => {
+          onInput: (/** @type {FlootSafeEvent} */ e) =>
+            setTitleDraft(e.target.value),
+          onKeyDown: (/** @type {FlootSafeEvent} */ e) => {
             if (e.key === 'Enter') commitTitle();
             else if (e.key === 'Escape') setTitleEditing(false);
           },

@@ -5,7 +5,7 @@ import { h } from 'preact';
 import { useState } from 'preact/hooks';
 
 /** @import { VNode } from 'preact' */
-/** @import { FlootState, FlootController } from './types.js' */
+/** @import { FlootState, FlootController, FlootSessionMeta, FlootSafeEvent } from './types.js' */
 
 // Short noun shown on the per-session pill: the preset title reads as an action
 // ("New project"); the pill wants the capability noun.
@@ -41,11 +41,11 @@ export const SessionSidebar = ({
 
   const pillLabel = (/** @type {string} */ id) => {
     if (PILL_LABELS[id]) return PILL_LABELS[id];
-    const preset = presets.find((/** @type {any} */ p) => p.id === id);
+    const preset = presets.find(p => p.id === id);
     return preset ? preset.title : id;
   };
 
-  const beginRename = (/** @type {any} */ session) => {
+  const beginRename = (/** @type {FlootSessionMeta} */ session) => {
     setEditingId(session.id);
     setDraft(session.title);
   };
@@ -62,7 +62,7 @@ export const SessionSidebar = ({
   };
 
   const items = sessions.length
-    ? sessions.map((/** @type {any} */ session) => {
+    ? sessions.map(session => {
         const status = session.status || 'idle';
         const editing = editingId === session.id;
         return h(
@@ -83,9 +83,11 @@ export const SessionSidebar = ({
                   class: 'floot-session-title-input',
                   value: draft,
                   autofocus: true,
-                  onClick: (/** @type {any} */ e) => e.stopPropagation(),
-                  onInput: (/** @type {any} */ e) => setDraft(e.target.value),
-                  onKeyDown: (/** @type {any} */ e) => {
+                  onClick: (/** @type {FlootSafeEvent} */ e) =>
+                    e.stopPropagation(),
+                  onInput: (/** @type {FlootSafeEvent} */ e) =>
+                    setDraft(e.target.value),
+                  onKeyDown: (/** @type {FlootSafeEvent} */ e) => {
                     if (e.key === 'Enter') commitRename(session.id);
                     else if (e.key === 'Escape') setEditingId(null);
                   },
@@ -95,7 +97,7 @@ export const SessionSidebar = ({
                   'div',
                   {
                     class: 'floot-session-name',
-                    onDblClick: (/** @type {any} */ e) => {
+                    onDblClick: (/** @type {FlootSafeEvent} */ e) => {
                       e.stopPropagation();
                       beginRename(session);
                     },
@@ -125,7 +127,7 @@ export const SessionSidebar = ({
               type: 'button',
               class: 'floot-row-btn',
               'aria-label': 'Rename',
-              onClick: (/** @type {any} */ e) => {
+              onClick: (/** @type {FlootSafeEvent} */ e) => {
                 e.stopPropagation();
                 beginRename(session);
               },
@@ -138,7 +140,7 @@ export const SessionSidebar = ({
               type: 'button',
               class: 'floot-row-btn',
               'aria-label': 'Delete',
-              onClick: (/** @type {any} */ e) => {
+              onClick: (/** @type {FlootSafeEvent} */ e) => {
                 e.stopPropagation();
                 controller.deleteSession(session.id);
               },

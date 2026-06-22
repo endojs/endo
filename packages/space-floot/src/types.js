@@ -36,6 +36,20 @@ export {};
  */
 
 /**
+ * The sanitized event facade the confined renderer (`@endo/preact-container`)
+ * hands to event handlers — never a real DOM node or `Event`. Only the fields
+ * the view actually reads are modelled here; `target.value` is always a string
+ * for the inputs this view registers.
+ * @typedef {{
+ *   target: { value: string },
+ *   key?: string,
+ *   shiftKey?: boolean,
+ *   preventDefault: () => void,
+ *   stopPropagation: () => void,
+ * }} FlootSafeEvent
+ */
+
+/**
  * @typedef {{
  *   hasMic: boolean,
  *   hasTts: boolean,
