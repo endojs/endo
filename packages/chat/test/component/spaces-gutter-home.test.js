@@ -7,7 +7,7 @@ import harden from '@endo/harden';
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
-import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
+import { createDOM, waitFor } from '../helpers/dom-setup.js';
 
 const { document: testDocument } = createDOM();
 
