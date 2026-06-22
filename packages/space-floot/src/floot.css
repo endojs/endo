@@ -488,6 +488,10 @@
   border: 1px solid var(--fl-border);
   background: var(--fl-surface2);
   color: var(--fl-text);
+  /* Grow with content up to max-height. The old imperative component resized
+     the textarea in JS on every input; a confined view cannot touch the DOM,
+     so this reproduces auto-grow in pure CSS. */
+  field-sizing: content;
   max-height: 120px;
   outline: none;
 }
