@@ -2615,8 +2615,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/space-floot@workspace:packages/space-floot"
   dependencies:
-    "@endo/exo-stream": "workspace:^"
-    "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     eslint: "catalog:dev"
     preact: "npm:^10.29.2"
