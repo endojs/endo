@@ -1,14 +1,13 @@
 // @ts-check
 /* global process */
 // endo run --UNCONFINED voice-setup.js --powers @agent \
-//   -E FLOOT_TTS_MODEL=/abs/path/to/voice.onnx \
-//   -E STT_PETNAME=floot-stt -E TTS_PETNAME=floot-tts
+//   -E FLOOT_TTS_MODEL=/abs/path/to/voice.onnx   (optionally -E FLOOT_DIR=floot)
 //
-// Provisions the two voice halves as separate unconfined caplets in the daemon
-// inventory: the STT object ("floot-stt", moonshine via uv) and the TTS object
-// ("floot-tts", piper). They stay distinct daemon objects (each its own
-// formula) so either can be swapped for an alternative implementation. A Floot
-// Chat Space looks them up by pet-name to stream transcription / synthesis.
+// Provisions the two voice halves as separate unconfined caplets under the
+// `floot/` inventory directory: the STT object ("floot/stt", moonshine via uv)
+// and the TTS object ("floot/tts", piper). They stay distinct daemon objects
+// (each its own formula) so either can be swapped for an alternative
+// implementation. A Floot Chat Space auto-detects them at floot/stt, floot/tts.
 //
 // Requires on this machine: `uv` (for the self-contained moonshine STT script)
 // and a `piper` binary plus a voice model (FLOOT_TTS_MODEL points at the .onnx;
@@ -34,8 +33,9 @@ const voiceDir = new URL('voice/', import.meta.url).pathname;
  * @param {import('@endo/eventual-send').ERef<object>} agent
  */
 export const main = async agent => {
-  const sttPetname = process.env.STT_PETNAME || 'floot-stt';
-  const ttsPetname = process.env.TTS_PETNAME || 'floot-tts';
+  const dir = process.env.FLOOT_DIR || 'floot';
+  const sttPath = [dir, 'stt'];
+  const ttsPath = [dir, 'tts'];
 
   const ttsModel = process.env.FLOOT_TTS_MODEL || '';
   if (!ttsModel) {
@@ -44,13 +44,17 @@ export const main = async agent => {
     );
   }
 
-  const hasStt = await E(agent).has(sttPetname);
-  if (hasStt) {
-    await E(agent).remove(sttPetname);
+  // Ensure the floot/ directory exists (idempotent; shared with the factory).
+  if (!(await E(agent).has(dir))) {
+    await E(agent).makeDirectory(dir);
   }
-  console.log(`Standing up STT caplet as "${sttPetname}" (loads moonshine)...`);
+
+  if (await E(agent).has(dir, 'stt')) {
+    await E(agent).remove(dir, 'stt');
+  }
+  console.log(`Standing up STT caplet as "${dir}/stt" (loads moonshine)...`);
   await E(agent).makeUnconfined(undefined, audioCapletSpecifier, {
-    resultName: sttPetname,
+    resultName: sttPath,
     env: harden({
       FLOOT_STT_SCRIPT: moonshineScript,
       FLOOT_PROJECT_DIR: voiceDir,
@@ -58,13 +62,12 @@ export const main = async agent => {
     }),
   });
 
-  const hasTts = await E(agent).has(ttsPetname);
-  if (hasTts) {
-    await E(agent).remove(ttsPetname);
+  if (await E(agent).has(dir, 'tts')) {
+    await E(agent).remove(dir, 'tts');
   }
-  console.log(`Standing up TTS caplet as "${ttsPetname}" (piper)...`);
+  console.log(`Standing up TTS caplet as "${dir}/tts" (piper)...`);
   await E(agent).makeUnconfined(undefined, ttsCapletSpecifier, {
-    resultName: ttsPetname,
+    resultName: ttsPath,
     env: harden({
       FLOOT_TTS_BINARY: process.env.FLOOT_TTS_BINARY || 'piper',
       FLOOT_TTS_MODEL: ttsModel,
@@ -73,8 +76,8 @@ export const main = async agent => {
   });
 
   console.log(
-    `Done. "${sttPetname}" and "${ttsPetname}" are in your inventory. In a ` +
-      `Floot Chat Space set STT path "${sttPetname}", TTS path "${ttsPetname}".`,
+    `Done. "${dir}/stt" and "${dir}/tts" are in your inventory; a Floot Chat ` +
+      `Space auto-detects them.`,
   );
 };
 harden(main);

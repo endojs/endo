@@ -108,6 +108,11 @@ export const createAddSpaceModal = ({
   let flootAudioPath = '';
   /** @type {string} */
   let flootTtsPath = '';
+  // Auto-detected default for the Floot controller path picker (the well-known
+  // `floot/controller`, or a probed entry under `floot/`). Null until detection
+  // runs / finds nothing, in which case the picker falls back to `['@agent']`.
+  /** @type {string[] | null} */
+  let flootControllerPath = null;
   let selectedIcon = '🐈‍⬛';
   let useLetterIcon = false;
   /** @type {string} */
@@ -639,21 +644,21 @@ export const createAddSpaceModal = ({
             <div id="profile-path-input" class="profile-path-input-container"></div>
             <div id="profile-path-menu" class="token-menu"></div>
           </div>
-          <div class="field-hint">Pet-name path to the Floot factory (e.g. floot-factory) in your inventory</div>
+          <div class="field-hint">Pet-name path to the Floot factory. Auto-detected as floot/controller when present; otherwise pick it from your inventory.</div>
         </div>
 
         <div class="add-space-field">
           <label>STT Object Path (optional)</label>
           <input type="text" id="floot-audio-path" class="add-space-input"
-            placeholder="floot-stt" value="${flootAudioPath}" />
-          <div class="field-hint">Enable the mic by pointing at a speech-to-text object (slash-separated path). Leave blank for text only.</div>
+            placeholder="floot/stt" value="${flootAudioPath}" />
+          <div class="field-hint">Enable the mic by pointing at a speech-to-text object (slash-separated path). Auto-filled from floot/stt when present; leave blank for text only.</div>
         </div>
 
         <div class="add-space-field">
           <label>TTS Object Path (optional)</label>
           <input type="text" id="floot-tts-path" class="add-space-input"
-            placeholder="floot-tts" value="${flootTtsPath}" />
-          <div class="field-hint">Enable spoken replies by pointing at a text-to-speech object (slash-separated path). Leave blank for silent.</div>
+            placeholder="floot/tts" value="${flootTtsPath}" />
+          <div class="field-hint">Enable spoken replies by pointing at a text-to-speech object (slash-separated path). Auto-filled from floot/tts when present; leave blank for silent.</div>
         </div>
 
         <div id="scheme-picker-slot" class="add-space-field"></div>
@@ -842,6 +847,55 @@ export const createAddSpaceModal = ({
   };
 
   /**
+   * Auto-detect the Floot objects under the `floot/` inventory directory:
+   * the controller (prefer the well-known `floot/controller`, else probe each
+   * entry via `__getMethodNames__()` for `createSession`/`listSessions`) and the
+   * optional `floot/stt` / `floot/tts` voice caplets. Best-effort: any failure
+   * leaves a field undetected and the form falls back to manual entry.
+   *
+   * @returns {Promise<{ controller: string[] | null, stt: string[] | null, tts: string[] | null }>}
+   */
+  const detectFlootObjects = async () => {
+    const result = {
+      /** @type {string[] | null} */ controller: null,
+      /** @type {string[] | null} */ stt: null,
+      /** @type {string[] | null} */ tts: null,
+    };
+    const host = /** @type {ERef<EndoHost>} */ (powers);
+    try {
+      if (!(await E(host).has('floot'))) return result;
+      if (await E(host).has('floot', 'controller')) {
+        result.controller = ['floot', 'controller'];
+      } else {
+        // No well-known name — probe the directory for a factory-shaped object.
+        const names = await E(host).list('floot');
+        for (const name of names) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const obj = await E(host).lookup(['floot', name]);
+            // eslint-disable-next-line no-await-in-loop, no-underscore-dangle
+            const methods = await E(obj).__getMethodNames__();
+            if (
+              methods.includes('createSession') &&
+              methods.includes('listSessions')
+            ) {
+              result.controller = ['floot', name];
+              break;
+            }
+          } catch {
+            // not a factory (or not introspectable) — skip
+          }
+        }
+      }
+      if (await E(host).has('floot', 'stt')) result.stt = ['floot', 'stt'];
+      if (await E(host).has('floot', 'tts')) result.tts = ['floot', 'tts'];
+    } catch {
+      // no floot/ directory or powers unavailable — fall back to manual entry
+    }
+    return result;
+  };
+
+  /**
    * Initialize the path autocomplete component.
    */
   const initPathAutocomplete = () => {
@@ -874,8 +928,13 @@ export const createAddSpaceModal = ({
       },
     );
 
-    // Set default path and focus
-    pathAutocomplete.setValue(['@agent']);
+    // Set default path and focus. In Floot mode, prefer the auto-detected
+    // controller (`floot/controller`) so the user rarely types a path.
+    pathAutocomplete.setValue(
+      mode === 'floot' && flootControllerPath
+        ? flootControllerPath
+        : ['@agent'],
+    );
     pathAutocomplete.focus();
   };
 
@@ -1030,7 +1089,30 @@ export const createAddSpaceModal = ({
           selectedIcon = '💬';
           useLetterIcon = false;
           error = null;
+          flootControllerPath = null;
           render();
+          // Auto-detect the floot/ objects and re-render with the picker
+          // defaulted to the controller and the STT/TTS fields pre-filled. Any
+          // values the user has already typed are preserved.
+          detectFlootObjects()
+            .then(detected => {
+              if (mode !== 'floot') return;
+              let changed = false;
+              if (detected.controller) {
+                flootControllerPath = detected.controller;
+                changed = true;
+              }
+              if (detected.stt && !flootAudioPath) {
+                flootAudioPath = detected.stt.join('/');
+                changed = true;
+              }
+              if (detected.tts && !flootTtsPath) {
+                flootTtsPath = detected.tts.join('/');
+                changed = true;
+              }
+              if (changed) render();
+            })
+            .catch(() => {});
         }
       });
     }

@@ -1,9 +1,10 @@
 // @ts-check
 /* global process */
 // endo run --UNCONFINED floot-factory-setup.js --powers @agent \
-//   -E FACTORY_NAME=floot-factory -E ANTHROPIC_API_KEY=sk-...
+//   -E ANTHROPIC_API_KEY=sk-...   (optionally -E FLOOT_DIR=floot)
 //
-// Provisions the Floot factory — a single pinned caplet that owns every chat
+// Provisions the Floot factory under a `floot/` inventory directory as the
+// well-known `floot/controller` — a single pinned caplet that owns every chat
 // session (each session is its own guest, hidden behind the factory). The LLM
 // is configured programmatically (Anthropic API endpoint by default) and handed
 // to the factory behind an `llm-provider` capability handle, so no secret lives
@@ -20,8 +21,14 @@ const flootFactorySpecifier = new URL('agent.js', import.meta.url).href;
  * @param {import('@endo/eventual-send').ERef<object>} agent
  */
 export const main = async agent => {
-  const factoryName = process.env.FACTORY_NAME || 'floot-factory';
-  const guestName = `${factoryName}-handle`;
+  // Everything lives under a single `floot/` inventory directory rather than
+  // polluting the top level. The factory is the well-known `floot/controller`,
+  // which the chat space's picker auto-detects.
+  const dir = process.env.FLOOT_DIR || 'floot';
+  const controllerPath = [dir, 'controller'];
+  // `provideHost` takes a single pet-name (not a path), so the factory host and
+  // its profile are created top-level and `move`d under `floot/` afterward.
+  const guestName = `${dir}-controller-handle`;
   const agentName = `profile-for-${guestName}`;
 
   const provider = process.env.FLOOT_PROVIDER || 'anthropic';
@@ -36,6 +43,11 @@ export const main = async agent => {
     );
   }
 
+  // 0. Ensure the floot/ directory exists (idempotent on re-provision).
+  if (!(await E(agent).has(dir))) {
+    await E(agent).makeDirectory(dir);
+  }
+
   // 1. The factory is its own child host. It needs host authority because only
   // a host can `provideGuest`, and the factory provisions one guest per session.
   // (It must be a host, not a guest: a guest can only reach the host as a
@@ -46,32 +58,38 @@ export const main = async agent => {
     agentName,
   });
 
-  // 2. Store the provider config (incl. the API key) as a value and hand the
-  // factory a capability reference to it under `llm-provider` — the fae pattern.
-  const providerConfigName = `llm-provider-for-${factoryName}`;
-  if (await E(agent).has(providerConfigName)) {
-    await E(agent).remove(providerConfigName);
+  // 2. Store the provider config (incl. the API key) as a value under
+  // `floot/llm-provider` and hand the factory a capability reference to it under
+  // `llm-provider` — the fae pattern.
+  if (await E(agent).has(dir, 'llm-provider')) {
+    await E(agent).remove(dir, 'llm-provider');
   }
-  await E(agent).storeValue(
-    harden({ provider, model, authToken }),
-    providerConfigName,
-  );
-  const providerLocator = await E(agent).locate(providerConfigName);
+  await E(agent).storeValue(harden({ provider, model, authToken }), [
+    dir,
+    'llm-provider',
+  ]);
+  const providerLocator = await E(agent).locate(dir, 'llm-provider');
   await E(factoryHost).storeLocator('llm-provider', providerLocator);
 
-  // 3. Launch the factory caplet.
+  // 3. Launch the factory caplet straight into floot/controller.
   await E(agent).makeUnconfined('@main', flootFactorySpecifier, {
     powersName: agentName,
-    resultName: factoryName,
+    resultName: controllerPath,
     env: harden({ FLOOT_SYSTEM_PROMPT: systemPrompt }),
   });
 
-  // 4. Single pin: the factory revives all its sessions on daemon restart.
-  await E(agent).copy([factoryName], ['@pins', factoryName]);
-  console.log(`Floot factory "${factoryName}" created and pinned.`);
+  // 4. Tuck the factory host + its profile under floot/ so the top level stays
+  // clean. (The factory already resolved its powers in step 3; renaming the
+  // pet-names afterward is cosmetic — formulas reference by identity.)
+  await E(agent).move([guestName], [dir, 'controller-handle']);
+  await E(agent).move([agentName], [dir, 'controller-profile']);
 
-  // 5. Seed a default session if this is a fresh factory.
-  const factory = await E(agent).lookup(factoryName);
+  // 5. Single pin: the factory revives all its sessions on daemon restart.
+  await E(agent).copy(controllerPath, ['@pins', `${dir}-controller`]);
+  console.log(`Floot factory created at "${dir}/controller" and pinned.`);
+
+  // 6. Seed a default session if this is a fresh factory.
+  const factory = await E(agent).lookup(controllerPath);
   const sessions = await E(factory).listSessions();
   if (sessions.length === 0) {
     await E(factory).createSession('New chat');
@@ -80,7 +98,7 @@ export const main = async agent => {
   console.log(
     `Ready (provider: ${provider}${
       model ? `, model: ${model}` : ''
-    }). Look up "${factoryName}" and call createSession()/listSessions().`,
+    }). Look up "${dir}/controller" and call createSession()/listSessions().`,
   );
 };
 harden(main);
