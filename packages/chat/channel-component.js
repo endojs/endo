@@ -1148,6 +1148,12 @@ export const channelComponent = async (
     initialScrollTimer = 0;
   }, 150);
 
+  // TODO: the daemon `editMessage` capability re-emits the same message
+  // number when its envelope is edited.  This loop, like the inbox loop,
+  // currently treats each emission as a fresh node.  The channel layer
+  // also has its own edit/deletion model expressed as typed reply messages
+  // (see edit-queue.js); reconciling the two models (envelope-level edits
+  // vs. reply-typed edits) is an open UI design question.
   for await (const message of messageIterator) {
     if (disposed) break;
     const typedMessage = /** @type {ChannelMessage} */ (message);

@@ -758,6 +758,153 @@ export const makeReplyTool = powers => {
 harden(makeReplyTool);
 
 /**
+ * Tool: replace the interior of a message you previously sent.
+ *
+ * Pairs with the daemon `editMessage` capability.  Use this to correct
+ * a prior reply, progressively reveal a long answer, or settle a
+ * `done: false` placeholder ("Thinking...") into a final response.
+ * Only the original sender may edit a message.
+ *
+ * @param {import('@endo/eventual-send').ERef<object>} powers
+ * @returns {FaeTool}
+ */
+export const makeEditMessageTool = powers => {
+  /** @type {ToolSchema} */
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'editMessage',
+      description:
+        'Replace the interior of a message you previously sent. ' +
+        'Use to correct a prior reply, settle a "Thinking..." placeholder ' +
+        'into a final answer, or amend a settled message. Only the original ' +
+        'sender may edit. The message keeps its number and reply linkage; ' +
+        'the prior revision is preserved in messageHistory.',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'integer',
+            description: 'The outbound message number to edit.',
+          },
+          strings: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'New text parts of the message.',
+          },
+          edgeNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Labels for attached capabilities (as seen by the recipient).',
+          },
+          petNames: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Your local petnames for the capabilities to attach.',
+          },
+          done: {
+            type: 'boolean',
+            description:
+              'Defaults to true. Pass false to mark this revision as ' +
+              'a partial submission (recipient should show a progress ' +
+              'indicator); pass true once the message has settled.',
+          },
+        },
+        required: ['messageNumber', 'strings'],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(args) {
+      const {
+        messageNumber,
+        strings = [],
+        edgeNames = [],
+        petNames = [],
+        done,
+      } = /** @type {{ messageNumber: number, strings?: string[], edgeNames?: string[], petNames?: string[], done?: boolean }} */ (
+        args
+      );
+      if (messageNumber === undefined) {
+        throw new Error('messageNumber is required');
+      }
+      const options = done === undefined ? undefined : harden({ done });
+      await E(powers).editMessage(
+        BigInt(messageNumber),
+        strings,
+        edgeNames,
+        petNames,
+        options,
+      );
+      return `Edited message #${messageNumber}${done === false ? ' (partial)' : ''}`;
+    },
+    help() {
+      return 'Replace the interior of a message you previously sent.';
+    },
+  });
+};
+harden(makeEditMessageTool);
+
+/**
+ * Tool: return the ordered revision history of a message in your inbox
+ * or outbox.  Pairs with the daemon `messageHistory` capability.  Use
+ * to inspect how an inbound message evolved (helpful for "the human
+ * changed their mind" reasoning) or to audit your own outbound
+ * revisions.
+ *
+ * @param {import('@endo/eventual-send').ERef<object>} powers
+ * @returns {FaeTool}
+ */
+export const makeMessageHistoryTool = powers => {
+  /** @type {ToolSchema} */
+  const toolSchema = harden({
+    type: 'function',
+    function: {
+      name: 'messageHistory',
+      description:
+        'Return the ordered revision history of a message in your inbox ' +
+        'or outbox. Useful when you need to know what an earlier version ' +
+        'of a message said (for example, when the sender amended their ' +
+        'request after you began work). Returns an array of revisions, ' +
+        'oldest first; the last entry is the current message.',
+      parameters: {
+        type: 'object',
+        properties: {
+          messageNumber: {
+            type: 'integer',
+            description: 'The message number to inspect.',
+          },
+        },
+        required: ['messageNumber'],
+      },
+    },
+  });
+
+  return harden({
+    schema() {
+      return toolSchema;
+    },
+    async execute(args) {
+      const { messageNumber } = /** @type {{ messageNumber: number }} */ (args);
+      if (messageNumber === undefined) {
+        throw new Error('messageNumber is required');
+      }
+      const revisions = await E(powers).messageHistory(BigInt(messageNumber));
+      return revisions;
+    },
+    help() {
+      return 'Return the ordered revision history of a message.';
+    },
+  });
+};
+harden(makeMessageHistoryTool);
+
+/**
  * @param {import('@endo/eventual-send').ERef<object>} powers
  * @returns {FaeTool}
  */

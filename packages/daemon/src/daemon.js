@@ -3325,6 +3325,8 @@ const makeDaemonCore = async (
             submit: disallowedFn,
             sendValue: disallowedFn,
             deliver: disallowedSyncFn,
+            editMessage: disallowedFn,
+            messageHistory: disallowedFn,
           })
         )
       );
