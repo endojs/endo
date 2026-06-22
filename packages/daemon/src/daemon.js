@@ -3391,7 +3391,7 @@ const makeDaemonCore = async (
         id,
         hostAgentId,
         hostHandleId,
-        /** @type {import('./types.js').PetName} */ (guestName),
+        /** @type {import('./types.js').NameOrPath} */ (guestName),
       ),
     timer: async ({ intervalMs, label: timerLabel }, context) => {
       const interval = Number(intervalMs) || 60_000;
@@ -3933,7 +3933,7 @@ const makeDaemonCore = async (
   /**
    * @param {FormulaIdentifier} hostAgentId
    * @param {FormulaIdentifier} hostHandleId
-   * @param {PetName} guestName
+   * @param {NameOrPath} guestName
    * @param {DeferredTasks<InvitationDeferredTaskParams>} deferredTasks
    */
   const formulateInvitation = async (
@@ -5497,10 +5497,15 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} id
    * @param {FormulaIdentifier} hostAgentId
    * @param {FormulaIdentifier} hostHandleId
-   * @param {import('./types.js').PetName} guestName
+   * @param {import('./types.js').NameOrPath} guestName
    */
   const makeInvitation = async (id, hostAgentId, hostHandleId, guestName) => {
     const hostAgent = /** @type {EndoHost} */ (await provide(hostAgentId));
+    // The invitation persists the name (or directory path) the redeemed
+    // guest should be stored under.  The durable mail-delivery name takes
+    // the full path; the pin and label use the leaf pet name.
+    const guestNamePath = namePathFrom(guestName);
+    const guestLeaf = guestNamePath[guestNamePath.length - 1];
 
     const locate = async () => {
       const { node, addresses } = await hostAgent.getPeerInfo();
@@ -5577,7 +5582,7 @@ const makeDaemonCore = async (
         hostAgentId,
         hostHandleId,
         guestTasks,
-        `guest:${guestName}`,
+        `guest:${guestLeaf}`,
       );
 
       // Look up the local guest's handle from its formula so we can
@@ -5589,7 +5594,7 @@ const makeDaemonCore = async (
 
       // Name the guest handle inside @pins so it persists.
       await E(hostAgent).storeIdentifier(
-        /** @type {NamePath} */ (['@pins', `guest-${guestName}`]),
+        /** @type {NamePath} */ (['@pins', `guest-${guestLeaf}`]),
         localGuestFormula.handle,
       );
       await unpinTransient(localGuestFormula.handle);
@@ -5598,10 +5603,7 @@ const makeDaemonCore = async (
       // Use storeLocator so the directory properly internalizes the
       // remote formula identifier for peer resolution.
       const guestHandleLocatorStr = formatLocator(guestHandleId, 'remote');
-      await E(hostAgent).storeLocator(
-        /** @type {NamePath} */ ([guestName]),
-        guestHandleLocatorStr,
-      );
+      await E(hostAgent).storeLocator(guestNamePath, guestHandleLocatorStr);
 
       // Return the remote guest's public key for retention tracking.
       return harden({ guestPublicKey: guestDaemonNode });

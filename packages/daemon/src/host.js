@@ -1310,10 +1310,12 @@ export const makeHostMaker = ({
     };
 
     /**
-     * @param {PetName} guestName
+     * @param {NameOrPath} guestName
      */
     const invite = async guestName => {
-      assertPetName(guestName);
+      const { namePath, petName: guestPetName } = assertPetNamePath(
+        namePathFrom(guestName),
+      );
       // We must immediately retain a formula under guestName so that we
       // preserve the invitation across restarts, but we must replace the
       // guestName with the handle of the guest that accepts the invitation.
@@ -1322,10 +1324,14 @@ export const makeHostMaker = ({
       // Overwriting the guestName must cancel the pending invitation (consume
       // once) so that the invitation can no longer modify the petStore entry
       // for the guestName.
+      // A path nests the invitation (and, once redeemed, the guest)
+      // inside a directory; the parent directory must already exist.
       /** @type {DeferredTasks<InvitationDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
       tasks.push(identifiers =>
-        petStore.storeIdentifier(guestName, identifiers.invitationId),
+        namePath.length === 1
+          ? petStore.storeIdentifier(guestPetName, identifiers.invitationId)
+          : E(directory).storeIdentifier(namePath, identifiers.invitationId),
       );
       const { value } = await formulateInvitation(
         hostId,
@@ -1338,10 +1344,14 @@ export const makeHostMaker = ({
 
     /**
      * @param {string} invitationLocator
-     * @param {PetName} guestName
+     * @param {NameOrPath} guestName
      */
     const accept = async (invitationLocator, guestName) => {
-      assertPetName(guestName);
+      // A path nests the accepted guest inside a directory; the parent
+      // directory must already exist.
+      const { namePath: guestNamePath, petName: guestLeaf } = assertPetNamePath(
+        namePathFrom(guestName),
+      );
       const url = new URL(invitationLocator);
       const daemonNode = url.hostname;
       const invitationNumber = url.searchParams.get('id');
@@ -1397,7 +1407,9 @@ export const makeHostMaker = ({
       const handleLocator = handleUrl.href;
 
       const invitation = await provide(invitationId, 'invitation');
-      await E(invitation).accept(handleLocator, guestName);
+      // The remote invitation ignores this name (`_hostNameFromGuest`),
+      // so the leaf pet name suffices for the protocol.
+      await E(invitation).accept(handleLocator, guestLeaf);
 
       // Create a local guest with a regular pet store.
       // Pin the guest handle via deferred task to prevent premature
@@ -1409,7 +1421,7 @@ export const makeHostMaker = ({
         hostId,
         handleId,
         guestTasks,
-        `guest:${guestName}`,
+        `guest:${guestLeaf}`,
       );
 
       // Look up the local guest's handle from its formula so we can
@@ -1422,7 +1434,7 @@ export const makeHostMaker = ({
 
       // Store the durable name and release the transient pin.
       await E(directory).storeIdentifier(
-        ['@pins', `guest-${guestName}`],
+        ['@pins', `guest-${guestLeaf}`],
         localGuestFormula.handle,
       );
       await unpinTransient(localGuestFormula.handle);
@@ -1438,7 +1450,7 @@ export const makeHostMaker = ({
         node: /** @type {import('./types.js').NodeNumber} */ (remoteHandleNode),
       });
       const remoteHandleLocator = formatLocator(remoteHandleId, 'handle');
-      await E(directory).storeLocator([guestName], remoteHandleLocator);
+      await E(directory).storeLocator(guestNamePath, remoteHandleLocator);
     };
 
     /** @type {EndoHost['cancel']} */

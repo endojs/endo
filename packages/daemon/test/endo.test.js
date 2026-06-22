@@ -2497,6 +2497,15 @@ test('makeTimer and makeChannel accept directory paths', async t => {
   t.true(await E(host).has('infra', 'chan'));
 });
 
+test('invite nests the invitation at a directory path', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeDirectory('peers');
+  const invitation = await E(host).invite(['peers', 'bob']);
+  t.truthy(await E(invitation).locate());
+  t.true(await E(host).has('peers', 'bob'));
+  t.false(await E(host).has('bob'));
+});
+
 testNeedsNodeWorker(
   'evaluate and makeUnconfined accept a worker at a directory path',
   async t => {

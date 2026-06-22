@@ -625,7 +625,7 @@ type InvitationFormula = {
   type: 'invitation';
   hostAgent: FormulaIdentifier;
   hostHandle: FormulaIdentifier;
-  guestName: PetName;
+  guestName: NameOrPath;
 };
 
 export type InvitationDeferredTaskParams = {
@@ -1571,8 +1571,11 @@ export interface EndoHost extends EndoAgent {
     locator: string,
     petNameOrPath: string | string[],
   ): Promise<void>;
-  invite(guestName: string): Promise<Invitation>;
-  accept(invitationLocator: string, guestName: string): Promise<void>;
+  invite(guestName: string | string[]): Promise<Invitation>;
+  accept(
+    invitationLocator: string,
+    guestName: string | string[],
+  ): Promise<void>;
   endow(
     messageNumber: bigint,
     bindings: Record<string, string | string[]>,
@@ -2248,7 +2251,7 @@ export interface DaemonCore {
   formulateInvitation: (
     hostAgentId: FormulaIdentifier,
     hostHandleId: FormulaIdentifier,
-    guestName: PetName,
+    guestName: NameOrPath,
     deferredTasks: DeferredTasks<InvitationDeferredTaskParams>,
   ) => FormulateResult<Invitation>;
 

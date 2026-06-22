@@ -391,9 +391,9 @@ export const HostInterface = M.interface('EndoHost', {
   // Adopt a value from a locator with connection hints
   adoptFromLocator: M.call(LocatorShape, NameOrPathShape).returns(M.promise()),
   // Create an invitation
-  invite: M.call(NameShape).returns(M.promise()),
+  invite: M.call(NameOrPathShape).returns(M.promise()),
   // Accept an invitation
-  accept: M.call(LocatorShape, NameShape).returns(M.promise()),
+  accept: M.call(LocatorShape, NameOrPathShape).returns(M.promise()),
   // Reply to a message
   reply: M.call(
     MessageNumberShape,
