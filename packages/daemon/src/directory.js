@@ -376,7 +376,9 @@ export const makeDirectoryMaker = ({
 
     /** @type {EndoDirectory['writeText']} */
     const writeText = async (petNameOrPath, content) => {
-      const { namePath } = petNamePathFrom(petNameOrPath);
+      // Coerce for branching only; the store funnels through this
+      // directory's own storeIdentifier, which enforces a pet-name leaf.
+      const namePath = namePathFrom(petNameOrPath);
       if (namePath.length < 2) {
         const bytes = bytesFromText(content);
         const readerRef = bytesReaderFromIterator([bytes]);

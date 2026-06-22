@@ -1049,9 +1049,14 @@ export const makeMailboxMaker = ({
     /** @type {Mail['request']} */
     const request = async (toNameOrPath, description, responseName) => {
       const toPath = namePathFrom(toNameOrPath);
+      // The response is stored under responseName, so it is a store
+      // target (pet-name leaf); coerce+validate once and reuse.
+      const responseNamePath =
+        responseName !== undefined
+          ? petNamePathFrom(responseName).namePath
+          : undefined;
       await null;
-      if (responseName !== undefined) {
-        const responseNamePath = namePathFrom(responseName);
+      if (responseNamePath !== undefined) {
         const resolutionId = await E(directory).identify(...responseNamePath);
         if (resolutionId !== undefined) {
           context.thisDiesIfThatDies(
@@ -1093,8 +1098,7 @@ export const makeMailboxMaker = ({
       context.thisDiesIfThatDies(resolutionId);
       const responseP = provide(resolutionId);
 
-      if (responseName !== undefined) {
-        const responseNamePath = namePathFrom(responseName);
+      if (responseNamePath !== undefined) {
         await E(directory).storeIdentifier(responseNamePath, resolutionId);
       }
 
