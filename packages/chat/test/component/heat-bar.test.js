@@ -28,8 +28,12 @@ const setupBar = async () => {
 
   const bar = createHeatBar($container, $sendButton);
 
-  // Let the root component's mount effect (which wires the controller setter)
-  // settle. Generous because the first test pays SES/Preact warmup.
+  // Kept as a deliberate settle for controller wiring: `bar.update()` fires the
+  // view setter exactly once and silently no-ops until the root's mount EFFECT
+  // installs `controller.setView`. That setter isn't observable from the test
+  // (the `.heat-bar` node renders a frame earlier, before the effect runs), so
+  // there is no DOM condition to poll that proves `update()` will take effect.
+  // The per-test `waitFor` after each `.update()` covers the render race itself.
   await tick(80);
   return { $container, $sibling, $sendButton, bar };
 };

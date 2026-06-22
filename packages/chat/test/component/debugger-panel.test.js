@@ -199,6 +199,8 @@ test.serial('console eval calls evaluate and shows the result', async t => {
   const $input = $container.querySelector('.debugger-console-input');
   $input.value = '1 + 1';
   $input.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
+  // Settle the input update between interactions so the Enter handler reads it;
+  // no positive condition to poll until the keydown drives evaluate.
   await tick(10);
 
   $input.dispatchEvent(
@@ -231,6 +233,9 @@ test.serial('adding a breakpoint sends setBreakpoint and lists it', async t => {
   $path.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
   $line.value = '7';
   $line.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
+  // Settle the path/line input updates between interactions so the add handler
+  // reads them; no positive condition to poll until the click drives
+  // setBreakpoint.
   await tick(10);
 
   $container.querySelector('.debugger-bp-add').click();

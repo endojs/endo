@@ -206,7 +206,7 @@ test.serial(
     });
 
     typeText(ctx.$input, 'hello world');
-    await tick(20);
+    await waitFor(() => ctx.component.getState().hasText);
 
     // Submit via the send button (handleSend → E(powers).send).
     ctx.$sendButton.click();
@@ -241,7 +241,7 @@ test.serial(
     const ctx = setup({ getChannelRef: () => channelRef });
 
     typeText(ctx.$input, 'channel hello');
-    await tick(20);
+    await waitFor(() => ctx.component.getState().hasText);
 
     ctx.$sendButton.click();
     await waitFor(() => posts.length > 0);
@@ -259,7 +259,7 @@ test.serial('state changes notify callback', async t => {
   t.is(ctx.stateChanges.length, 0);
 
   typeText(ctx.$input, 'h');
-  await tick(10);
+  await waitFor(() => ctx.stateChanges.length > 0);
 
   t.true(ctx.stateChanges.length > 0);
   const lastState = ctx.stateChanges[ctx.stateChanges.length - 1];
@@ -272,13 +272,13 @@ test.serial('clear resets state', async t => {
   const ctx = setup();
 
   typeText(ctx.$input, 'hello');
-  await tick(10);
+  await waitFor(() => ctx.component.getState().hasText);
 
   let state = ctx.component.getState();
   t.true(state.hasText);
 
   ctx.component.clear();
-  await tick(10);
+  await waitFor(() => ctx.component.getState().isEmpty);
 
   state = ctx.component.getState();
   t.true(state.isEmpty);
@@ -303,6 +303,8 @@ test.serial(
     t.true(before > 0);
 
     ctx.component.dispose();
+    // Settle delay before a negative assertion (the bar should be gone); there
+    // is no positive condition to poll for.
     await tick(20);
 
     t.falsy(
@@ -379,6 +381,9 @@ test.serial(
       lockoutDurationMs: 5000,
       postLockoutPct: 50,
     });
+    // Deliberate settle to let the post-dispose init continuation run, before a
+    // negative assertion that NO rAF loop started; there is no positive
+    // condition to poll for.
     await tick(50);
 
     t.is(rafAfterDispose, 0, 'no heat engine / rAF loop started after dispose');

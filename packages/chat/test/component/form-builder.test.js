@@ -135,6 +135,8 @@ test.serial(
 
     // Clicking submit with empty recipient shows an error and does not call onSubmit.
     $container.querySelector('.form-builder-submit').click();
+    // Settle before a NEGATIVE assertion (onSubmit must NOT fire); no positive
+    // condition to poll.
     await tick(30);
     t.is(submits.length, 0, 'onSubmit not called while invalid');
   },
@@ -175,6 +177,8 @@ test.serial(
     $description.dispatchEvent(
       new globalThis.Event('input', { bubbles: true }),
     );
+    // Settle the description input update between interactions; no positive DOM
+    // condition to poll yet (the field row is added by the next click).
     await tick(20);
 
     // Add a field and fill its name + label.
@@ -239,7 +243,7 @@ test.serial('close button resets, hides, and calls onClose', async t => {
   const $description = $container.querySelector('.form-builder-description');
   $description.value = 'something';
   $description.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
-  await tick(20);
+  await waitFor(() => builder.isDirty());
   t.true(builder.isDirty(), 'dirty after typing');
 
   $container.querySelector('.form-builder-close').click();

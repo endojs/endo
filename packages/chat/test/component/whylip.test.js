@@ -75,7 +75,7 @@ test.serial('whylip panels render through the confined tree', async t => {
 
   // Teardown unmounts the confined tree AND removes the mount node.
   cleanup();
-  await tick(20);
+  await waitFor(() => $parent.querySelector('.whylip-layout') === null);
   t.is(
     $parent.querySelector('.whylip-layout'),
     null,

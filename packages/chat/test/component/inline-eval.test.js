@@ -195,7 +195,7 @@ evalTest(
 
     const $source = $container.querySelector('.inline-eval-input');
     fireInput($source, '1 + 1');
-    await tick(40);
+    await waitFor(() => api.isValid());
 
     t.deepEqual(
       api.getData(),
@@ -224,11 +224,11 @@ evalTest('an endowment feeds the submitted data', async t => {
 
   const $petName = $container.querySelector('.inline-eval-petname');
   fireInput($petName, 'alice');
-  await tick(40);
+  await waitFor(() => $petName.value === 'alice');
 
   const $source2 = $container.querySelector('.inline-eval-input');
   fireInput($source2, 'alice');
-  await tick(40);
+  await waitFor(() => api.isValid());
 
   fireKeyDown($source2, 'Enter');
   await waitFor(() => events.submit.length === 1);
@@ -251,7 +251,7 @@ evalTest('Cmd-Enter expands with a cursor position', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireInput($source, 'expr');
-  await tick(40);
+  await waitFor(() => api.isValid());
   fireKeyDown($source, 'Enter', { metaKey: true });
   await waitFor(() => events.expand.length === 1);
 
@@ -403,10 +403,10 @@ evalTest('dispose unmounts the view', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireInput($source, 'x');
-  await tick(40);
+  await waitFor(() => api.isValid());
 
   api.dispose();
-  await tick(40);
+  await waitFor(() => !$container.querySelector('.inline-eval-input'));
 
   t.falsy(
     $container.querySelector('.inline-eval-input'),

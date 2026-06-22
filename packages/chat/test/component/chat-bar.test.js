@@ -137,12 +137,14 @@ const setupChatBar = async (overrides = {}) => {
 
   const api = chatBarComponent($parent, powers, options);
 
-  // Let the confined mounts' effects (which wire the modeline controller's
-  // setter) settle. Generous because the first test pays SES/Preact warmup.
-  await tick(80);
-
   const $chatBar = $parent.querySelector('#chat-bar');
   const $modeline = $parent.querySelector('#chat-modeline');
+
+  // Let the confined mounts' effects (which wire the modeline controller's
+  // setter) settle. The modeline paints its default hints on initial render, so
+  // their presence is a reliable signal the confined mounts are wired.
+  await waitFor(() => $modeline.querySelectorAll('.modeline-hint').length > 0);
+
   const $popover = $parent.querySelector('#chat-command-popover');
   const $menuButton = $parent.querySelector('#chat-menu-button');
 
@@ -284,7 +286,7 @@ test.serial(
     t.truthy($row, 'a /mkdir row is available');
 
     $row.click();
-    await tick(40);
+    await waitFor(() => !ctx.$popover.classList.contains('visible'));
 
     // The host hides the popover after selection (clears .visible).
     t.false(
@@ -326,7 +328,9 @@ test.serial('dispose unmounts the confined modeline mount', async t => {
   );
 
   ctx.api.dispose();
-  await tick(20);
+  await waitFor(
+    () => ctx.$modeline.querySelectorAll('.modeline-hint').length === 0,
+  );
 
   // unmount() tears the confined tree down, leaving no hint spans behind.
   t.is(

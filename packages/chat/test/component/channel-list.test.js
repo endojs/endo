@@ -3,7 +3,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
+import { createDOM, waitFor } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import { channelListComponent } from '../../channel-list.js';
 
@@ -31,8 +31,9 @@ const setupChannels = async (opts = {}) => {
   });
 
   // Let the followNameChanges loop + per-name locate probes + Preact effects
-  // settle. Generous because the first test pays SES/Preact warmup.
-  await tick(80);
+  // settle. Poll for the first channel row to render rather than racing a fixed
+  // delay; every test mounts at least one channel-typed name.
+  await waitFor(() => !!$container.querySelector('.channel-list-row'));
   return { $container, mock, selected, viewModes, api };
 };
 

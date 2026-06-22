@@ -180,7 +180,7 @@ test.serial('add-slot renders a controlled slot row', async t => {
   $codeName.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
   $label.value = 'a foo';
   $label.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
-  await tick(20);
+  await waitFor(() => form.isDirty());
 
   t.true(form.isDirty(), 'editing a slot marks the form dirty');
 });
@@ -210,7 +210,9 @@ test.serial('submit invokes onSubmit with the editor value', async t => {
   $codeName.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
   $label.value = 'a power';
   $label.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
-  await tick(20);
+  // Ensure the slot edits have registered into form state before submitting, so
+  // the completed slot is carried through.
+  await waitFor(() => form.isDirty());
 
   // Submit via the Define button.
   $container

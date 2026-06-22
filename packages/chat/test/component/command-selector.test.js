@@ -72,7 +72,7 @@ test.serial('filter narrows the command list', async t => {
   const { $menu, selector } = await setupSelector();
 
   selector.show();
-  await tick(20);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length > 0);
   const totalCount = $menu.querySelectorAll('.token-menu-item').length;
 
   selector.filter('mk');
@@ -104,7 +104,7 @@ test.serial('filter with no matches shows the empty state', async t => {
   const { $menu, selector } = await setupSelector();
 
   selector.show();
-  await tick(20);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length > 0);
 
   selector.filter('zzzznotacommand');
   await waitFor(() => $menu.querySelector('.token-menu-empty'));
@@ -150,7 +150,7 @@ test.serial(
     });
 
     selector.show();
-    await tick(20);
+    await waitFor(() => $menu.querySelectorAll('.token-menu-item').length > 0);
 
     const firstName = selector.getSelected();
 
@@ -196,7 +196,7 @@ test.serial(
     const { $menu, selector, selected } = await setupSelector();
 
     selector.show();
-    await tick(20);
+    await waitFor(() => $menu.querySelectorAll('.token-menu-item').length > 0);
 
     selector.selectNext();
     await waitFor(() => selector.getSelected());
@@ -228,7 +228,7 @@ test.serial('selectFirst and selectLast jump to the ends', async t => {
   const { selector } = await setupSelector();
 
   selector.show();
-  await tick(20);
+  await waitFor(() => !!selector.getSelected());
   const firstName = selector.getSelected();
 
   selector.selectLast();
@@ -247,7 +247,7 @@ test.serial('clicking a row selects that command and closes', async t => {
   const { $menu, selector, selected } = await setupSelector();
 
   selector.show();
-  await tick(20);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length >= 3);
 
   const $items = $menu.querySelectorAll('.token-menu-item');
   const $target = $items[2];

@@ -30,7 +30,10 @@ const setupDefine = async (overrides = {}) => {
   });
 
   // Let the root component's mount effect (which wires the controller) settle.
+  // The controller-wiring effect has no DOM signal to poll, so this stays a
+  // fixed settle; wait for the source input to render before returning.
   await tick(80);
+  await waitFor(() => !!$container.querySelector('.inline-eval-input'));
   return { $container, api, events };
 };
 
@@ -110,14 +113,14 @@ test.serial('slot codeName and label feed getData', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireInput($source, '@');
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.inline-eval-petname'));
 
   const $codeName = $container.querySelector('.inline-eval-petname');
   fireInput($codeName, 'foo');
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.inline-eval-codename'));
   const $label = $container.querySelector('.inline-eval-codename');
   fireInput($label, 'a foo thing');
-  await tick(20);
+  await waitFor(() => $label.value === 'a foo thing');
 
   // Source still needs a value to be valid.
   const $source2 = $container.querySelector('.inline-eval-input');
@@ -139,7 +142,7 @@ test.serial('Enter on the source submits parsed data', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireInput($source, 'doThing()');
-  await tick(20);
+  await waitFor(() => api.isValid());
   fireKeyDown($source, 'Enter');
   await waitFor(() => events.submit.length === 1);
 
@@ -154,6 +157,8 @@ test.serial('Enter on empty source does not submit', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireKeyDown($source, 'Enter');
+  // Settle delay before a negative assertion (no submit should occur); there is
+  // no positive condition to poll for.
   await tick(20);
 
   t.is(events.submit.length, 0, 'no submit on empty source');
@@ -166,7 +171,7 @@ test.serial('Cmd-Enter expands with a cursor position', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireInput($source, 'expr');
-  await tick(20);
+  await waitFor(() => api.isValid());
   fireKeyDown($source, 'Enter', { metaKey: true });
   await waitFor(() => events.expand.length === 1);
 
@@ -259,7 +264,7 @@ test.serial('setDisabled disables the source and slot inputs', async t => {
   const { $container, api } = await setupDefine();
 
   api.setData({ source: 'x', slots: [{ codeName: 'a', label: 'l' }] });
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.inline-eval-petname'));
 
   api.setDisabled(true);
   await waitFor(
@@ -288,10 +293,10 @@ test.serial('label defaults to codeName when blank', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireInput($source, '@');
-  await tick(20);
+  await waitFor(() => !!$container.querySelector('.inline-eval-petname'));
   const $codeName = $container.querySelector('.inline-eval-petname');
   fireInput($codeName, 'bar');
-  await tick(20);
+  await waitFor(() => $codeName.value === 'bar');
   const $source2 = $container.querySelector('.inline-eval-input');
   fireInput($source2, 'bar');
   await waitFor(() => api.getData().slots.length === 1);
@@ -306,7 +311,7 @@ test.serial('dispose unmounts the view', async t => {
 
   const $source = $container.querySelector('.inline-eval-input');
   fireInput($source, 'x');
-  await tick(20);
+  await waitFor(() => api.isValid());
 
   api.dispose();
   await waitFor(() => !$container.querySelector('.inline-eval-input'));

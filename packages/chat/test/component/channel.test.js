@@ -210,7 +210,11 @@ const setup = async () => {
 
   const push = async msg => {
     pushMessage(msg);
-    // Wait for the re-render to land.
+    // Kept as a deliberate inter-push settle: this shared helper can't know
+    // which message a given test pushed, so there is no single positive
+    // condition to poll here. Each test does its own `waitFor` on the concrete
+    // rendered result after pushing, which is the race-robust wait; this small
+    // gap only orders sequential pushes so the stream applies them in turn.
     await tick(60);
   };
 

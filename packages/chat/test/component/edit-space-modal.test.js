@@ -204,6 +204,8 @@ test.serial('save invokes onSubmit with the edited form data', async t => {
   const $name = $container.querySelector('#edit-space-name');
   $name.value = 'Workspace';
   $name.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
+  // Settle the name update into form state between interactions; no positive
+  // condition to poll here (the next icon click has its own waitFor).
   await tick(20);
 
   // Pick a different emoji icon (the first option).
@@ -252,6 +254,8 @@ test.serial('empty name blocks submit with a validation error', async t => {
   const $name = $container.querySelector('#edit-space-name');
   $name.value = '   ';
   $name.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
+  // Settle the (whitespace) name update into form state between interactions; no
+  // positive condition to poll until the submit drives the validation error.
   await tick(20);
 
   const $form = $container.querySelector('.add-space-form');

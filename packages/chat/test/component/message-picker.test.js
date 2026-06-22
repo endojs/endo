@@ -3,7 +3,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, waitFor } from '../helpers/dom-setup.js';
 import { createMessagePicker } from '../../message-picker.js';
 
 const { document: testDocument } = createDOM();
@@ -53,9 +53,6 @@ const setupPicker = async () => {
     onSelect: n => selected.push(n),
   });
 
-  // Let the root component's mount effect (which wires the controller setter)
-  // settle. Generous because the first test pays SES/Preact warmup.
-  await tick(80);
   return { $messagesContainer, picker, selected };
 };
 
@@ -78,21 +75,33 @@ const keydown = key => {
   );
 };
 
-// Enable the picker and wait until its overlay has rendered its items, which is
-// when the overlay element (and its onKeyDown handler) exists. Avoids racing
-// the first synthetic keystroke against the async enable -> setState -> render
-// sequence.
+// The number of rendered overlay items for the picker under test.
+const overlayItemCount = () => {
+  const $overlay = getOverlay();
+  return $overlay
+    ? $overlay.querySelectorAll('.message-picker-item').length
+    : 0;
+};
+
+// Enable the picker and wait until its overlay has rendered its items. The
+// root's mount effect wires the controller setter asynchronously, so a single
+// `enable()` can land first and no-op (`syncOverlay` bails without a setter,
+// and a second `enable()` is guarded out by `isActive`). Re-arm with
+// disable/enable each poll until the overlay actually populates — robust on a
+// loaded runner without racing a fixed warmup delay.
 const enableAndWait = async picker => {
-  picker.enable();
-  await null;
-  for (let i = 0; i < 20; i += 1) {
-    // eslint-disable-next-line no-await-in-loop
-    await tick(10);
-    const $overlay = getOverlay();
-    if ($overlay && $overlay.querySelectorAll('.message-picker-item').length) {
-      return;
-    }
-  }
+  await waitFor(() => {
+    if (overlayItemCount() > 0) return true;
+    if (picker.isActive()) picker.disable();
+    picker.enable();
+    return false;
+  });
+};
+
+// Whether the overlay item at `index` currently carries the keyboard highlight.
+const itemHighlighted = index => {
+  const $items = getOverlay().querySelectorAll('.message-picker-item');
+  return !!$items[index] && $items[index].classList.contains('highlighted');
 };
 
 test.serial('enable decorates host messages and renders overlay', async t => {
@@ -121,15 +130,17 @@ test.serial(
     await enableAndWait(picker);
 
     // Default highlight is the first row (#1). Arrow down twice -> #3, up -> #2.
+    // Poll the rendered highlight between keystrokes so each keydown reads the
+    // settled selectedIndex rather than racing the previous render.
     keydown('ArrowDown');
-    await tick(10);
+    await waitFor(() => itemHighlighted(1));
     keydown('ArrowDown');
-    await tick(10);
+    await waitFor(() => itemHighlighted(2));
     keydown('ArrowUp');
-    await tick(10);
+    await waitFor(() => itemHighlighted(1));
 
     keydown('Enter');
-    await tick(20);
+    await waitFor(() => selected.length >= 1);
 
     t.deepEqual(selected, [2], 'onSelect fired with the navigated message');
     t.is(picker.getSelected(), 2, 'selected number tracked');
@@ -145,7 +156,7 @@ test.serial('clicking an overlay item fires onSelect', async t => {
 
   const $items = getOverlay().querySelectorAll('.message-picker-item');
   $items[2].click();
-  await tick(20);
+  await waitFor(() => selected.length >= 1);
 
   t.deepEqual(selected, [3], 'onSelect fired with the clicked message');
 
@@ -159,7 +170,7 @@ test.serial('Escape closes the picker', async t => {
   t.truthy(getOverlay(), 'overlay rendered');
 
   keydown('Escape');
-  await tick(20);
+  await waitFor(() => !picker.isActive());
 
   t.false(picker.isActive(), 'picker disabled by Escape');
   t.is(getOverlay().style.display, 'none', 'overlay hidden');
@@ -183,7 +194,11 @@ test.serial(
     await enableAndWait(picker);
 
     picker.setSelected(2);
-    await tick(20);
+    await waitFor(() =>
+      $messagesContainer
+        .querySelectorAll('.message')[1]
+        .classList.contains('highlighted'),
+    );
     t.is(picker.getSelected(), 2, 'selected number recorded');
 
     const $messages = $messagesContainer.querySelectorAll('.message');
@@ -193,7 +208,7 @@ test.serial(
     );
 
     picker.disable();
-    await tick(20);
+    await waitFor(() => !picker.isActive());
 
     t.false(picker.isActive(), 'picker inactive after disable');
     t.is(getOverlay().style.display, 'none', 'overlay hidden after disable');

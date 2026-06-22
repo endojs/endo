@@ -224,6 +224,8 @@ test.serial(
     await waitFor(
       () => $parent.querySelectorAll('.message-envelope').length >= 1,
     );
+    // Settle before a NEGATIVE assertion: give the filtered-out message its
+    // chance to (wrongly) render before we assert exactly one renders.
     await tick(50);
 
     const envelopes = $parent.querySelectorAll('.message-envelope');
@@ -274,10 +276,12 @@ test.serial(
     t.truthy($input, 'pet-name input renders');
     $input.value = 'my-grant';
     $input.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
+    // Settle the input update between interactions; no positive condition to
+    // poll until the resolve click drives powers.resolve.
     await tick(10);
 
     $resolve.click();
-    await tick(20);
+    await waitFor(() => calls.some(c => c.method === 'resolve'));
 
     const resolveCall = calls.find(c => c.method === 'resolve');
     t.truthy(resolveCall, 'resolve was called');

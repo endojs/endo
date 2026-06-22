@@ -174,9 +174,9 @@ test.serial('hub-typed rows accept drop; leaf-typed rows do not', async t => {
     locators,
   });
 
-  // locate() runs asynchronously after each item is added; give it a beat
-  // beyond the initial render tick to settle.
-  await tick(80);
+  // locate() runs asynchronously after each item is added; wait for both type
+  // badges to resolve so the rows are typed before the drag interaction.
+  await waitFor(() => $list.querySelectorAll('.pet-type-badge').length === 2);
 
   const $inboxRow = /** @type {HTMLElement} */ (
     $list.querySelector('.pet-item-wrapper:nth-child(1) .pet-item-row')
@@ -215,6 +215,8 @@ test.serial('hub-typed rows accept drop; leaf-typed rows do not', async t => {
   );
 
   $noteRow.dispatchEvent(makeDragoverEvent());
+  // Settle delay before a negative assertion (the leaf row must NOT highlight);
+  // there is no positive condition to poll for.
   await tick(10);
   t.false(
     $noteRow.classList.contains('drop-target'),
@@ -303,7 +305,8 @@ test.serial(
       names: ['inbox'],
       locators: new Map([['inbox', 'endo://?type=directory&number=1']]),
     });
-    await tick(80);
+    // Wait for the locate probe to resolve so the row is typed as a directory.
+    await waitFor(() => !!$list.querySelector('.pet-type-badge'));
 
     const $row = /** @type {HTMLElement} */ (
       $list.querySelector('.pet-item-row')
@@ -385,7 +388,9 @@ test.serial(
         ['dest', 'endo://?type=directory&number=2'],
       ]),
     });
-    await tick(80);
+    // Wait for both locate probes to resolve so both rows are typed as
+    // directories (drop targets) before the drag interaction.
+    await waitFor(() => $list.querySelectorAll('.pet-type-badge').length === 2);
 
     const $destRow = /** @type {HTMLElement} */ (
       $list.querySelector('.pet-item-wrapper:nth-child(2) .pet-item-row')
@@ -445,7 +450,9 @@ test.serial(
         ['dest', 'endo://?type=directory&number=2'],
       ]),
     });
-    await tick(80);
+    // Wait for both locate probes to resolve so both rows are typed as
+    // directories (drop targets) before the drag interaction.
+    await waitFor(() => $list.querySelectorAll('.pet-type-badge').length === 2);
 
     const $destRow = /** @type {HTMLElement} */ (
       $list.querySelector('.pet-item-wrapper:nth-child(2) .pet-item-row')
@@ -502,7 +509,8 @@ test.serial(
       names: ['inbox'],
       locators: new Map([['inbox', 'endo://?type=directory&number=1']]),
     });
-    await tick(80);
+    // Wait for the locate probe to resolve so the row is typed as a directory.
+    await waitFor(() => !!$list.querySelector('.pet-type-badge'));
 
     const $row = /** @type {HTMLElement} */ (
       $list.querySelector('.pet-item-row')

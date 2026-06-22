@@ -198,7 +198,11 @@ const setup = async () => {
 
   const push = async msg => {
     pushMessage(msg);
-    // Wait past the 150ms debounce for the re-render to land.
+    // Kept as a deliberate timing device: the feed coalesces messages behind a
+    // 150ms debounce, so this waits past that window for the re-render to land.
+    // This shared helper can't know what a given test pushed (bios become the
+    // header, replies/edits fold into an existing post rather than adding one),
+    // so there is no single positive count/selector to poll generically.
     await tick(220);
   };
 

@@ -430,6 +430,8 @@ test.serial('immediate commands render no fields', async t => {
   });
 
   form.setCommand('exit'); // immediate command with no fields
+  // Settle before a NEGATIVE assertion: an immediate command must render no
+  // fields, so there is no positive condition to poll.
   await tick(30);
 
   const fields = $container.querySelectorAll('.inline-field');
@@ -522,7 +524,7 @@ test.serial('dispose tears everything down without leaking', async t => {
   await waitFor(() => !!$container.querySelector('.petname-input'));
 
   form.dispose();
-  await tick(30);
+  await waitFor(() => !$container.querySelector('.inline-command-form'));
 
   // The confined mount and all field nodes are gone from the container.
   t.falsy($container.querySelector('.inline-command-form'));

@@ -217,7 +217,7 @@ test.serial(
     // Controlled code-name input updates form state.
     $codeName.value = 'foo';
     $codeName.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
-    await tick(20);
+    await waitFor(() => form.isDirty());
 
     t.true(form.isDirty(), 'editing an endowment marks the form dirty');
   },
@@ -254,7 +254,7 @@ test.serial('submit invokes onSubmit with the editor value', async t => {
   const $resultName = $container.querySelector('#eval-result-name');
   $resultName.value = 'my-result';
   $resultName.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
-  await tick(20);
+  await waitFor(() => form.isDirty());
 
   // Submit via the Evaluate button.
   $container
@@ -349,7 +349,7 @@ test.serial(
     const $codeName = $container.querySelector('.eval-codename');
     $codeName.value = 'orphan';
     $codeName.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
-    await tick(20);
+    await waitFor(() => form.isDirty());
 
     $container
       .querySelector('.eval-submit')

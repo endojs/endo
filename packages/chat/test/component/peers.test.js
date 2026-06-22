@@ -120,7 +120,7 @@ test.serial('peers view renders through the confined tree', async t => {
 
   // Teardown unmounts the confined tree AND removes the mount node.
   cleanup();
-  await tick(20);
+  await waitFor(() => $parent.querySelector('.peers-container') === null);
   t.is(
     $parent.querySelector('.peers-container'),
     null,

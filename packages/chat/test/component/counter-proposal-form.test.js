@@ -360,6 +360,8 @@ test.serial(
     const $codeName = $container.querySelector('.eval-codename');
     $codeName.value = 'orphan';
     $codeName.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
+    // Settle the code-name update into form state between interactions; no
+    // positive condition to poll until the submit drives the validation error.
     await tick(20);
 
     $container
