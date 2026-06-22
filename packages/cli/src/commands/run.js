@@ -94,7 +94,10 @@ export const run = async ({
       } else if (powersName === '@endo') {
         powersP = bootstrap;
       } else {
-        powersP = E(agent).provideGuest(powersName);
+        // A slash-delimited powers name references a guest nested in a
+        // directory; the parent directory must already exist (as with
+        // `mkdir`, `store`, and `mv`).
+        powersP = E(agent).provideGuest(parsePetNamePath(powersName));
       }
 
       if (importPath !== undefined) {

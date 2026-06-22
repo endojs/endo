@@ -2451,6 +2451,40 @@ testNeedsNodeWorker(
   },
 );
 
+testNeedsNodeWorker(
+  'path-named agents and powers reject a missing parent directory',
+  async t => {
+    const { host } = await prepareHost(t);
+
+    // A specified path whose parent directory does not exist is rejected
+    // the same way `makeDirectory` (and the `mkdir` / `store` / `mv` CLI
+    // verbs that build on it) reject one: with "Unknown pet name".  No
+    // intermediate directories are auto-created, so provisioning an agent
+    // or referencing powers at a path follows the same rule as every
+    // other path operation.
+    await t.throwsAsync(E(host).makeDirectory(['nope', 'sub']), {
+      message: /Unknown pet name/,
+    });
+    await t.throwsAsync(E(host).provideGuest(['nope', 'handle']), {
+      message: /Unknown pet name/,
+    });
+    await t.throwsAsync(E(host).provideHost(['nope', 'handle']), {
+      message: /Unknown pet name/,
+    });
+
+    await E(host).provideWorker(['worker']);
+    const counterPath = path.join(dirname, 'test', 'counter.js');
+    const counterLocation = url.pathToFileURL(counterPath).href;
+    await t.throwsAsync(
+      E(host).makeUnconfined('worker', counterLocation, {
+        powersName: ['nope', 'agent'],
+        resultName: 'counter',
+      }),
+      { message: /Unknown pet name/ },
+    );
+  },
+);
+
 testNeedsNodeWorker('cancel because of requested capability', async t => {
   const { host } = await prepareHost(t);
 

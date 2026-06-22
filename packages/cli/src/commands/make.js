@@ -46,6 +46,10 @@ export const makeCommand = async ({
   }
 
   const resultPath = parseOptionalPetNamePath(resultName);
+  // A slash-delimited powers name references powers nested in a
+  // directory; the parent directory must already exist (as with
+  // `mkdir`, `store`, and `mv`).
+  const powersPath = parseOptionalPetNamePath(powersName);
 
   /** @type {PassableBytesReader | undefined} */
   let archiveReaderRef;
@@ -84,11 +88,11 @@ export const makeCommand = async ({
       resultP = E(agent).makeUnconfined(
         unconfinedWorkerName,
         url.pathToFileURL(path.resolve(importPath)).href,
-        { powersName, resultName: resultPath, env },
+        { powersName: powersPath, resultName: resultPath, env },
       );
     } else {
       resultP = E(agent).makeArchive(workerName, archiveName, {
-        powersName,
+        powersName: powersPath,
         resultName: resultPath,
         env,
       });
