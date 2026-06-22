@@ -15,6 +15,7 @@ import {
   assertNamePath,
   assertPetNamePath,
   namePathFrom,
+  petNamePathFrom,
 } from '../src/pet-name.js';
 
 // --- isValidName ---
@@ -204,4 +205,35 @@ test('namePathFrom passes through array', t => {
 test('namePathFrom validates', t => {
   t.throws(() => namePathFrom(''), { message: /Invalid/ });
   t.throws(() => namePathFrom([]), { message: /Invalid/ });
+});
+
+// --- petNamePathFrom ---
+
+test('petNamePathFrom coerces a string and returns structured result', t => {
+  const result = petNamePathFrom('hello');
+  t.deepEqual(result.namePath, ['hello']);
+  t.deepEqual(result.prefixPath, []);
+  t.is(result.petName, 'hello');
+});
+
+test('petNamePathFrom coerces a path and returns structured result', t => {
+  const result = petNamePathFrom(['a', 'b', 'c']);
+  t.deepEqual(result.namePath, ['a', 'b', 'c']);
+  t.deepEqual(result.prefixPath, ['a', 'b']);
+  t.is(result.petName, 'c');
+});
+
+test('petNamePathFrom allows a special name in the prefix', t => {
+  t.is(petNamePathFrom(['@self', 'child']).petName, 'child');
+});
+
+test('petNamePathFrom rejects a special name leaf', t => {
+  t.throws(() => petNamePathFrom('@self'), { message: /Invalid pet name/ });
+  t.throws(() => petNamePathFrom(['a', '@self']), {
+    message: /Invalid pet name/,
+  });
+});
+
+test('petNamePathFrom rejects an empty path', t => {
+  t.throws(() => petNamePathFrom([]), { message: /Invalid name path/ });
 });

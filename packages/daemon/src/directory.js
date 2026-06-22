@@ -13,6 +13,7 @@ import {
   assertNames,
   assertPetNamePath,
   namePathFrom,
+  petNamePathFrom,
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { directoryHelp, makeHelp } from './help-text.js';
@@ -311,9 +312,7 @@ export const makeDirectoryMaker = ({
      * @param {string} id
      */
     const storeIdentifier = async (petNamePath, id) => {
-      const { prefixPath, petName } = assertPetNamePath(
-        namePathFrom(petNamePath),
-      );
+      const { prefixPath, petName } = petNamePathFrom(petNamePath);
       await null;
       if (prefixPath.length === 0) {
         await controller.storeIdentifier(petName, id);

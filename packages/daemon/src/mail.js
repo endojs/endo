@@ -17,8 +17,8 @@ import {
 import {
   assertName,
   assertNames,
-  assertPetNamePath,
   namePathFrom,
+  petNamePathFrom,
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { makeSerialJobs } from './serial-jobs.js';
@@ -1006,8 +1006,7 @@ export const makeMailboxMaker = ({
     /** @type {Mail['adopt']} */
     const adopt = async (messageNumber, edgeName, petNameOrPath) => {
       assertName(edgeName);
-      const petNamePath = namePathFrom(petNameOrPath);
-      assertPetNamePath(petNamePath);
+      const { namePath: petNamePath } = petNamePathFrom(petNameOrPath);
       const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
       const message = messages.get(normalizedMessageNumber);
       if (message === undefined) {

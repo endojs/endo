@@ -9,6 +9,7 @@ import {
   assertNamePath,
   assertPetNamePath,
   namePathFrom,
+  petNamePathFrom,
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { idFromLocator } from './locator.js';
@@ -303,7 +304,7 @@ export const makeGuestMaker = ({
       if (petName === undefined) {
         throw new TypeError('storeBlob requires a pet name');
       }
-      const { namePath } = assertPetNamePath(namePathFrom(petName));
+      const { namePath } = petNamePathFrom(petName);
 
       /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
       const tasks = makeDeferredTasks();
