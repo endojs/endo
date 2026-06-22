@@ -131,7 +131,11 @@ test.serial('Save button fires onAssignName with the typed name', async t => {
 
   const $save = $container.querySelector('.profile-save-btn');
   $save.click();
-  await waitFor(() => assigned.length >= 1);
+  // Save fires onAssignName then onClose; the popup removal re-renders
+  // asynchronously, so gate on both the callback and the popup being gone.
+  await waitFor(
+    () => assigned.length >= 1 && !$container.querySelector('.profile-popup'),
+  );
 
   t.deepEqual(assigned, ['Ally'], 'onAssignName called with trimmed name');
   t.falsy(

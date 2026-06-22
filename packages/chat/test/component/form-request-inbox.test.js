@@ -7,7 +7,7 @@ import test from 'ava';
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
-import { createDOM, waitFor } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { inboxComponent } from '../../inbox-component.js';
 
 const { document: testDocument } = createDOM();
@@ -179,11 +179,12 @@ test.serial('form renders fields and Submit calls submit()', async t => {
   inputs[0].dispatchEvent(new globalThis.Event('input', { bubbles: true }));
   inputs[1].value = 'Portland';
   inputs[1].dispatchEvent(new globalThis.Event('input', { bubbles: true }));
-  // The inputs are controlled, so wait for the re-render to reflect both typed
-  // values before submitting (they would reset to state otherwise).
-  await waitFor(
-    () => inputs[0].value === 'green' && inputs[1].value === 'Portland',
-  );
+  // Deliberate flush, not a settle-poll: the submit handler reads the typed
+  // values out of component state (`values`), but a controlled input shows the
+  // same string whether or not that state has committed, so there is no DOM
+  // condition to poll. Let the onInput-triggered re-render commit both values
+  // into the handler's closure before clicking Submit.
+  await tick(10);
 
   // Click Submit
   const $submit = $parent.querySelector('.form-request-submit');

@@ -235,11 +235,13 @@ test('keyboard ArrowUp navigates to previous suggestion', async t => {
   $input.dispatchEvent(new Event('input', { bubbles: true }));
   await waitFor(() => !!$menu.querySelector('.token-menu-item.selected'));
 
-  // Go down first
+  // Go down first. Only 'alice' matches the 'a' prefix (filter is
+  // `startsWith`), so there is a single suggestion and ArrowDown does not move
+  // the selection — there is no transition to poll, so this stays a small
+  // deliberate gap sequencing the two keydowns.
   $input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
   );
-  // Small gap to let the down-navigation selection update before navigating up.
   await tick(20);
 
   // Go up

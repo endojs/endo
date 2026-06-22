@@ -6,7 +6,7 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
-import { createDOM, waitFor } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 
 import { outlinerComponent } from '../../outliner-component.js';
 
@@ -302,7 +302,9 @@ test.afterEach(async () => {
     const dispose = /** @type {() => void} */ (mountedDisposals.pop());
     dispose();
   }
-  await null;
+  // Let the iterator's return() and pending timers settle (macrotask) before
+  // detaching the DOM, matching forum.test.js.
+  await tick(0);
   testDocument.body.innerHTML = '';
 });
 

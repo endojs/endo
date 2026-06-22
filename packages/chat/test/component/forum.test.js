@@ -220,7 +220,11 @@ const setup = async () => {
 
   const push = async msg => {
     pushMessage(msg);
-    // Wait past the debounce for the re-render to land.
+    // Deliberate wait past the 50ms feed debounce: this generic helper can't
+    // poll a per-message node because modifier messages (edits/deletions) fold
+    // into an existing node instead of rendering their own, so there is no
+    // single positive selector valid for every caller. Each test does its own
+    // `waitFor` on the concrete rendered result afterward.
     await tick(120);
   };
 

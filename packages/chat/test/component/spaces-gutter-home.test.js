@@ -400,7 +400,14 @@ test.serial(
     t.deepEqual(storedConfig.profilePath, [], 'profilePath is enforced as []');
     t.is(storedConfig.icon, '🧙', 'icon was changed');
 
-    // Verify the rendered home icon updated
+    // The icon repaints only after the store await resolves and re-render runs,
+    // a step after the storeValue call above — poll the rendered icon itself
+    // rather than racing that re-render.
+    await waitFor(
+      () =>
+        $container.querySelector('.space-item.home .space-icon')
+          ?.textContent === '🧙',
+    );
     const $homeIcon = $container.querySelector('.space-item.home .space-icon');
     t.is($homeIcon.textContent, '🧙', 'rendered icon reflects new value');
   },

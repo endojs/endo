@@ -153,6 +153,9 @@ const setup = async ({ memberDelay = 0 } = {}) => {
 
   // Track how many messages have been pushed so `push` can poll for the
   // corresponding `.message-wrapper` to appear instead of guessing a delay.
+  // Assumes each pushed message is visible in the active view (true for every
+  // test here): the count is global, so pushing a message that isn't rendered
+  // in the currently-open thread would never reach `expectedWrappers`.
   let expectedWrappers = 0;
 
   /**
