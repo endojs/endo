@@ -226,6 +226,59 @@ test.serial('invited guest retains values shared through mail', async t => {
 });
 
 test.serial(
+  'invite and accept nest the redeemed guest at a directory path',
+  async t => {
+    const { host: hostA } = await prepareHostWithGcAndNetwork(t);
+    const { host: hostB } = await prepareHostWithGcAndNetwork(t);
+
+    // Parent directories must already exist (no mkdir -p), as with every
+    // other path verb.
+    await E(hostA).makeDirectory('peers');
+    await E(hostB).makeDirectory('friends');
+
+    // A invites a guest nested at peers/bob; B accepts it nested at
+    // friends/alice. This exercises both path-redeem branches: the
+    // invitation formula's accept handler (stores the remote handle on A)
+    // and host.accept (stores the local guest on B).
+    const invitation = await E(hostA).invite(['peers', 'bob']);
+    const invitationLocator = await E(invitation).locate();
+    await E(hostB).accept(invitationLocator, ['friends', 'alice']);
+
+    // On A: the remote handle is named at the invite path, and the local
+    // guest is pinned under the leaf name.
+    t.true(
+      await E(hostA).has('peers', 'bob'),
+      'A named the remote handle at peers/bob',
+    );
+    t.truthy(
+      await E(hostA).identify('@pins', 'guest-bob'),
+      'A pinned guest-bob by leaf',
+    );
+
+    // On B: the remote handle is named at the accept path, and the local
+    // guest is pinned under the leaf name.
+    t.true(
+      await E(hostB).has('friends', 'alice'),
+      'B named the remote handle at friends/alice',
+    );
+    t.truthy(
+      await E(hostB).identify('@pins', 'guest-alice'),
+      'B pinned guest-alice by leaf',
+    );
+
+    // The path-named guest is functional: a value shared from A to the
+    // path-named recipient reaches B's inbox.
+    await E(hostA).evaluate('@main', '"shared-value"', [], [], ['shared']);
+    await E(hostA).send(['peers', 'bob'], ['Here'], ['shared'], ['shared']);
+    const messages = /** @type {unknown[]} */ (await E(hostB).listMessages());
+    t.true(
+      messages.length > 0,
+      'B received a message via the path-named guest',
+    );
+  },
+);
+
+test.serial(
   'deleting invited guest and pin collects guest formulas',
   async t => {
     const { host: hostA, config: configA } =
