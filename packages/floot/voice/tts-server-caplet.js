@@ -29,11 +29,20 @@
 
 /* global Buffer */
 import { E } from '@endo/eventual-send';
-import { Far } from '@endo/pass-style';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 import { makeBufferedReader } from '../src/buffered-channel.js';
+
+// `synthesize` is synchronous (returns the audio reader immediately, then
+// streams), so it is guarded with `M.call`. Guards are permissive — the daemon
+// path is not runtime-tested here.
+const TtsServerInterface = M.interface('TtsServer', {
+  synthesize: M.call(M.any()).returns(M.remotable()),
+  help: M.call().returns(M.string()),
+});
 
 // ── Minimal sentence chunker (plain JS port of sentence-chunker.ts) ──────────
 const MIN_CHUNK_LENGTH = 10;
@@ -102,7 +111,7 @@ const makeChunker = () => {
     buffer = pending ? [pending, tail].filter(Boolean).join(' ') : tail;
     return chunks;
   };
-  return {
+  return harden({
     push: text => {
       buffer += text;
       return flush();
@@ -112,7 +121,7 @@ const makeChunker = () => {
       buffer = '';
       return trimmed ? [trimmed] : [];
     },
-  };
+  });
 };
 
 // ── Minimal audio-side stream channel (Far StreamReader) ─────────────────────
@@ -129,7 +138,7 @@ const makeAudioChannel = onClose => {
     end: () => push({ type: 'end' }),
     abort: reason => push({ type: 'abort', reason: `${reason}` }),
   };
-  return { writer, reader, isClosed };
+  return harden({ writer, reader, isClosed });
 };
 
 // ── Minimal piper driver (plain JS port of PiperTTSStream.synthesize) ────────
@@ -300,7 +309,7 @@ export const make = async (_powers, context, { env = {} } = {}) => {
       });
   }
 
-  return Far('TtsServer', {
+  return makeExo('TtsServer', TtsServerInterface, {
     synthesize: textReader => {
       const piper = makePiper({ binary, modelPath, speed, sampleRate });
       pipers.add(piper);

@@ -25,11 +25,20 @@
 // interchangeable from the caller's view.
 
 import { E } from '@endo/eventual-send';
-import { Far } from '@endo/pass-style';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 
 import { makeBufferedReader } from '../src/buffered-channel.js';
+
+// `transcribe` is synchronous (returns the transcript reader immediately, then
+// streams), so it is guarded with `M.call`. Guards are permissive — the daemon
+// path is not runtime-tested here.
+const AudioServerInterface = M.interface('AudioServer', {
+  transcribe: M.call(M.any()).returns(M.remotable()),
+  help: M.call().returns(M.string()),
+});
 
 // ── Minimal moonshine driver (plain JS port of MoonshineSTTProvider) ────────
 const makeMoonshine = ({ scriptPath, cwd, uv = 'uv', lang = 'en' }) => {
@@ -183,7 +192,10 @@ const makeTextChannel = () => {
     end: () => push({ type: 'end' }),
     abort: reason => push({ type: 'abort', reason: `${reason}` }),
   };
-  return { writer, reader, setOnClose };
+  // `setOnClose` must be wired by the caller AFTER construction (pump() calls it
+  // once it has an utterance to abort); the buffered reader tolerates a late
+  // hook because the consumer cannot `return()` before the first `next()`.
+  return harden({ writer, reader, setOnClose });
 };
 
 // Pump audio frames into moonshine and stream transcript events. Each partial
@@ -261,7 +273,7 @@ export const make = async (_powers, context, { env = {} } = {}) => {
       .catch(() => moonshine.dispose());
   }
 
-  return Far('AudioServer', {
+  return makeExo('AudioServer', AudioServerInterface, {
     transcribe: audioReader => {
       const { writer, reader, setOnClose } = makeTextChannel();
       // pump settles the writer on every path; guard the floating promise so a

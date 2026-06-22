@@ -19,7 +19,6 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { makeExo } from '@endo/exo';
-import { Far } from '@endo/far';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
@@ -123,6 +122,18 @@ const FlootFactoryInterface = M.interface('FlootFactory', {
   renameSession: M.callWhen(M.string(), M.string()).returns(M.undefined()),
   deleteSession: M.callWhen(M.string()).returns(M.undefined()),
   help: M.call().optional(M.string()).returns(M.string()),
+});
+
+// The session facet handed to the UI. `converse` is synchronous (it returns the
+// reply reader immediately, then streams), so it is guarded with `M.call`; the
+// rest are async (`M.callWhen`). Guards are permissive — the daemon path is not
+// runtime-tested here.
+const FlootSessionInterface = M.interface('FlootSession', {
+  getInfo: M.callWhen().returns(M.record()),
+  converse: M.call(M.any()).returns(M.remotable()),
+  getHistory: M.callWhen().returns(M.any()),
+  getUsage: M.callWhen().returns(M.any()),
+  help: M.call().returns(M.string()),
 });
 
 const defaultSystemPrompt = `\
@@ -1044,7 +1055,7 @@ export const make = (hostPowers, _context, { env } = {}) => {
   const getFacet = id => {
     let facet = facets.get(id);
     if (!facet) {
-      facet = Far('FlootSession', {
+      facet = makeExo('FlootSession', FlootSessionInterface, {
         async getInfo() {
           await loadRegistry();
           const entry = (registry || []).find(s => s.id === id);
