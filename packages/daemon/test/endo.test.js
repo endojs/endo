@@ -1270,6 +1270,125 @@ test('reply links to parent message', async t => {
   t.is(replyMessage.replyTo, hostMessage.messageId);
 });
 
+test('editMessage replaces payload and preserves history', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = iterateReader(E(host).followMessages());
+  const guestMessages = iterateReader(E(guest).followMessages());
+
+  await E(guest).send('@host', ['Thinking...'], [], []);
+
+  const [{ value: initialHost }, { value: initialGuest }] = await Promise.all([
+    hostMessages.next(),
+    guestMessages.next(),
+  ]);
+  t.deepEqual(initialHost.strings, ['Thinking...']);
+  t.is(initialHost.done, true);
+  t.is(initialGuest.done, true);
+
+  await E(guest).editMessage(
+    initialGuest.number,
+    ['Thinking more...'],
+    [],
+    [],
+    { done: false },
+  );
+  const [{ value: editHost1 }, { value: editGuest1 }] = await Promise.all([
+    hostMessages.next(),
+    guestMessages.next(),
+  ]);
+  t.deepEqual(editHost1.strings, ['Thinking more...']);
+  t.is(editHost1.done, false);
+  t.deepEqual(editGuest1.strings, ['Thinking more...']);
+  t.is(editGuest1.done, false);
+  t.is(editHost1.number, initialHost.number);
+  t.is(editHost1.messageId, initialHost.messageId);
+
+  await E(guest).editMessage(initialGuest.number, ['Final answer.'], [], [], {
+    done: true,
+  });
+  const [{ value: editHost2 }, { value: editGuest2 }] = await Promise.all([
+    hostMessages.next(),
+    guestMessages.next(),
+  ]);
+  t.deepEqual(editHost2.strings, ['Final answer.']);
+  t.is(editHost2.done, true);
+  t.is(editGuest2.done, true);
+
+  const guestHistory = await E(guest).messageHistory(initialGuest.number);
+  const hostHistory = await E(host).messageHistory(initialHost.number);
+  t.is(guestHistory.length, 3);
+  t.is(hostHistory.length, 3);
+  t.deepEqual(
+    guestHistory.map(r => ({ strings: r.envelope.strings, done: r.done })),
+    [
+      { strings: ['Thinking...'], done: true },
+      { strings: ['Thinking more...'], done: false },
+      { strings: ['Final answer.'], done: true },
+    ],
+  );
+  t.deepEqual(
+    hostHistory.map(r => ({ strings: r.envelope.strings, done: r.done })),
+    [
+      { strings: ['Thinking...'], done: true },
+      { strings: ['Thinking more...'], done: false },
+      { strings: ['Final answer.'], done: true },
+    ],
+  );
+  for (const revision of guestHistory) {
+    t.true(typeof revision.date === 'string');
+    t.false(Number.isNaN(revision.timestamp));
+  }
+});
+
+test('editMessage rejects edits from non-senders', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = iterateReader(E(host).followMessages());
+
+  await E(guest).send('@host', ['hello'], [], []);
+  const { value: hostMessage } = await hostMessages.next();
+
+  await t.throwsAsync(
+    () => E(host).editMessage(hostMessage.number, ['tampered'], [], []),
+    { message: /Only the original sender may edit/ },
+  );
+});
+
+test('editMessage accepts edits after done and records them', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = iterateReader(E(host).followMessages());
+  const guestMessages = iterateReader(E(guest).followMessages());
+
+  await E(guest).send('@host', ['original'], [], []);
+  const [{ value: initialGuest }] = await Promise.all([
+    guestMessages.next(),
+    hostMessages.next(),
+  ]);
+
+  await E(guest).editMessage(initialGuest.number, ['corrected'], [], [], {
+    done: true,
+  });
+  const [{ value: editGuest }, { value: editHost }] = await Promise.all([
+    guestMessages.next(),
+    hostMessages.next(),
+  ]);
+  t.deepEqual(editGuest.strings, ['corrected']);
+  t.is(editGuest.done, true);
+  t.deepEqual(editHost.strings, ['corrected']);
+
+  const history = await E(guest).messageHistory(initialGuest.number);
+  t.is(history.length, 2);
+  t.deepEqual(history[0].envelope.strings, ['original']);
+  t.deepEqual(history[1].envelope.strings, ['corrected']);
+  t.true(history[0].done);
+  t.true(history[1].done);
+});
+
 test('message hub avoids kebab-case reply metadata names', async t => {
   const { host } = await prepareHost(t);
 

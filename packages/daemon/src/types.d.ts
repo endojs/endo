@@ -561,6 +561,7 @@ type MessageFormula = {
   from: FormulaIdentifier;
   to: FormulaIdentifier;
   date: string;
+  done?: boolean;
   description?: string;
   promiseId?: FormulaIdentifier;
   resolverId?: FormulaIdentifier;
@@ -751,8 +752,16 @@ export interface Dismisser {
 export type StampedMessage = EnvelopedMessage & {
   number: bigint;
   date: string;
+  done: boolean;
   dismissed: Promise<void>;
   dismisser: ERef<Dismisser>;
+};
+
+export type MessageRevision = {
+  envelope: Message & { to: FormulaIdentifier; from: FormulaIdentifier };
+  done: boolean;
+  date: string;
+  timestamp: number;
 };
 
 export interface Invitation {
@@ -1048,6 +1057,31 @@ export interface Mail {
     messageNumber: bigint,
     valueId: FormulaIdentifier,
   ): Promise<void>;
+  /**
+   * Replace the interior of a message the caller previously sent.
+   *
+   * Only the original sender may edit.  Edits keep the same message
+   * number, reply-to linkage, and dismissal state but replace the
+   * payload.  The prior revision is retained in history
+   * (see `messageHistory`).
+   *
+   * `options.done` (default `true`) flags whether the revision represents
+   * a partial submission (`false`) or a settled state (`true`).  Edits
+   * after a settled revision are still accepted and recorded.
+   */
+  editMessage(
+    messageNumber: bigint,
+    strings: Array<string>,
+    edgeNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
+    options?: { done?: boolean },
+  ): Promise<void>;
+  /**
+   * Return the ordered revision history of a message in the caller's
+   * inbox or outbox.  Oldest entry first.  The current message content is
+   * equivalent to the last entry's envelope.
+   */
+  messageHistory(messageNumber: bigint): Promise<Array<MessageRevision>>;
 }
 
 export type MakeMailbox = (args: {
@@ -1312,6 +1346,8 @@ export interface EndoAgent extends EndoDirectory {
   send: Mail['send'];
   sendValue: Mail['sendValue'];
   deliver: Mail['deliver'];
+  editMessage: Mail['editMessage'];
+  messageHistory: Mail['messageHistory'];
   /**
    * @param id The formula identifier to look up.
    * @returns The pet names for the given formula identifier.

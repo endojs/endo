@@ -180,6 +180,22 @@ export const makeMailboxMaker = ({
     /** @type {WeakMap<{}, EnvelopedMessage>} */
     const outbox = new WeakMap();
 
+    /**
+     * Ephemeral outbox for edits in flight.  Mirrors `outbox`: the sender
+     * populates an entry keyed by a fresh envelope, the recipient calls
+     * `openEdit` on the sender's handle to retrieve the edit payload.
+     * @type {WeakMap<{}, EnvelopedMessage & { done: boolean }>}
+     */
+    const editOutbox = new WeakMap();
+
+    /**
+     * In-memory revision log per message number.  Each entry is the
+     * envelope as accepted, the `done` flag at the time of that revision,
+     * and the ISO date assigned when it was applied.
+     * @type {Map<bigint, Array<{ envelope: EnvelopedMessage, done: boolean, date: string }>>}
+     */
+    const revisionsByNumber = new Map();
+
     /** @type {Topic<StampedMessage>} */
     const messagesTopic = makeChangeTopic();
     const mailboxStoreJobs = makeSerialJobs();
@@ -276,9 +292,13 @@ export const makeMailboxMaker = ({
     /**
      * @param {EnvelopedMessage} envelope
      * @param {string} date
+     * @param {boolean} done
      * @returns {MessageFormula}
      */
-    const makeMessageFormula = (envelope, date) => {
+    const makeMessageFormula = (envelope, date, done) => {
+      if (typeof done !== 'boolean') {
+        throw new Error('makeMessageFormula requires a boolean `done`');
+      }
       const { type, messageId, replyTo, from, to } = envelope;
       const replyToRecord = replyTo === undefined ? {} : { replyTo };
       const envelopeRecord = {
@@ -287,6 +307,7 @@ export const makeMailboxMaker = ({
         messageId,
         from,
         to,
+        done,
         ...replyToRecord,
       };
 
@@ -444,6 +465,9 @@ export const makeMailboxMaker = ({
       /** @type {PromiseKit<void>} */
       const dismissal = makePromiseKit();
       const dismisser = makeDismisser(messageNumber, dismissal);
+      const done =
+        /** @type {MessageFormula & { done?: boolean }} */ (formula).done ??
+        true;
 
       if (formula.messageType === 'request') {
         if (
@@ -471,6 +495,7 @@ export const makeMailboxMaker = ({
           ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
+          done,
           dismissed: dismissal.promise,
           dismisser,
         });
@@ -504,6 +529,7 @@ export const makeMailboxMaker = ({
           ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
+          done,
           dismissed: dismissal.promise,
           dismisser,
         });
@@ -523,6 +549,7 @@ export const makeMailboxMaker = ({
           ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
+          done,
           dismissed: dismissal.promise,
           dismisser,
         });
@@ -542,6 +569,7 @@ export const makeMailboxMaker = ({
           ...(formula.replyTo !== undefined && { replyTo: formula.replyTo }),
           number: messageNumber,
           date: formula.date,
+          done,
           dismissed: dismissal.promise,
           dismisser,
         });
@@ -560,6 +588,7 @@ export const makeMailboxMaker = ({
           replyTo: formula.replyTo,
           number: messageNumber,
           date: formula.date,
+          done,
           dismissed: dismissal.promise,
           dismisser,
         });
@@ -696,7 +725,10 @@ export const makeMailboxMaker = ({
         assertMessageEnvelope(envelope);
         const messageNumber = nextMessageNumber;
         const date = new Date().toISOString();
-        const formula = makeMessageFormula(envelope, date);
+        const done =
+          /** @type {EnvelopedMessage & { done?: boolean }} */ (envelope)
+            .done ?? true;
+        const formula = makeMessageFormula(envelope, date, done);
         await persistMessage(messageNumber, formula);
 
         nextMessageNumber += 1n;
@@ -710,11 +742,16 @@ export const makeMailboxMaker = ({
           ...envelope,
           number: messageNumber,
           date,
+          done,
           dismissed: dismissal.promise,
           dismisser,
         });
 
         messages.set(messageNumber, message);
+        revisionsByNumber.set(
+          messageNumber,
+          harden([{ envelope: harden({ ...envelope, done }), done, date }]),
+        );
         messagesTopic.publisher.next(message);
       });
     };
@@ -1358,9 +1395,234 @@ export const makeMailboxMaker = ({
       await deliver(message);
     };
 
+    /**
+     * Apply an edit envelope to an existing local message record.
+     * @param {bigint} messageNumber
+     * @param {EnvelopedMessage & { done: boolean }} editEnvelope
+     * @returns {Promise<void>}
+     */
+    const applyEdit = async (messageNumber, editEnvelope) => {
+      await mailboxStoreJobs.enqueue(async () => {
+        const existing = messages.get(messageNumber);
+        if (existing === undefined) {
+          throw new Error(`No such message with number ${q(messageNumber)}`);
+        }
+        if (existing.type !== editEnvelope.type) {
+          throw new Error(
+            `Cannot change message type on edit of ${q(messageNumber)} (was ${q(existing.type)}, got ${q(editEnvelope.type)})`,
+          );
+        }
+        if (existing.from !== editEnvelope.from) {
+          throw new Error(
+            `Edit for message ${q(messageNumber)} has mismatched sender`,
+          );
+        }
+        if (existing.messageId !== editEnvelope.messageId) {
+          throw new Error(
+            `Edit for message ${q(messageNumber)} has mismatched messageId`,
+          );
+        }
+        const date = new Date().toISOString();
+        const formula = makeMessageFormula(
+          editEnvelope,
+          date,
+          editEnvelope.done,
+        );
+        await persistMessage(messageNumber, formula);
+
+        const revised = harden({
+          ...editEnvelope,
+          number: messageNumber,
+          date,
+          done: editEnvelope.done,
+          dismissed: existing.dismissed,
+          dismisser: existing.dismisser,
+        });
+        messages.set(messageNumber, revised);
+
+        const prior = revisionsByNumber.get(messageNumber) ?? harden([]);
+        revisionsByNumber.set(
+          messageNumber,
+          harden([
+            ...prior,
+            {
+              envelope: harden({ ...editEnvelope }),
+              done: editEnvelope.done,
+              date,
+            },
+          ]),
+        );
+
+        messagesTopic.publisher.next(revised);
+      });
+    };
+
+    /**
+     * @param {import('./types.js').FormulaNumber} messageId
+     * @param {FormulaIdentifier} fromId
+     * @returns {bigint | undefined}
+     */
+    const findMessageNumberByMessageId = (messageId, fromId) => {
+      for (const [number, message] of messages) {
+        if (message.messageId === messageId && message.from === fromId) {
+          return number;
+        }
+      }
+      return undefined;
+    };
+
+    /**
+     * @param {Envelope} envelope
+     */
+    const openEdit = envelope => {
+      const edit = editOutbox.get(envelope);
+      if (edit === undefined) {
+        throw new Error('Mail fraud: unrecognized edit parcel');
+      }
+      return edit;
+    };
+
+    /**
+     * Receive an edit from the alleged sender.
+     * @param {ERef<Envelope>} envelope
+     * @param {string} allegedFromId
+     */
+    const receiveEdit = async (envelope, allegedFromId) => {
+      assertValidId(allegedFromId);
+      const senderId = allegedFromId;
+      const sender = provide(senderId, 'handle');
+      const edit = await E(/** @type {any} */ (sender)).openEdit(envelope);
+      if (senderId !== edit.from) {
+        throw new Error(
+          'Mail fraud: alleged sender does not recognize edit parcel',
+        );
+      }
+      const messageNumber = findMessageNumberByMessageId(
+        edit.messageId,
+        senderId,
+      );
+      if (messageNumber === undefined) {
+        throw new Error(`No message with id ${q(edit.messageId)} from sender`);
+      }
+      await applyEdit(messageNumber, edit);
+    };
+
+    /** @type {Mail['editMessage']} */
+    const editMessage = async (
+      messageNumber,
+      strings,
+      edgeNames,
+      petNamesOrPaths,
+      options = {},
+    ) => {
+      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
+      const current = messages.get(normalizedMessageNumber);
+      if (current === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (current.from !== selfId) {
+        throw new Error(
+          `Only the original sender may edit message ${q(messageNumber)}`,
+        );
+      }
+      if (current.type !== 'package') {
+        throw new Error(
+          `editMessage currently supports only package messages (message ${q(messageNumber)} is ${q(current.type)})`,
+        );
+      }
+      assertNames(edgeNames);
+      assertUniqueEdgeNames(edgeNames);
+      if (!Array.isArray(strings)) {
+        throw new Error('editMessage requires an array of strings');
+      }
+      if (petNamesOrPaths.length !== edgeNames.length) {
+        throw new Error(
+          `Edit must have one edge name (${q(
+            edgeNames.length,
+          )}) for every pet name (${q(petNamesOrPaths.length)})`,
+        );
+      }
+      if (strings.length < petNamesOrPaths.length) {
+        throw new Error(
+          `Edit must have one string before every value delivered`,
+        );
+      }
+      const { done: doneOption = true } = options;
+      if (typeof doneOption !== 'boolean') {
+        throw new Error('editMessage "done" option must be a boolean');
+      }
+
+      const ids = await Promise.all(
+        petNamesOrPaths.map(async petNameOrPath => {
+          const petPath = namePathFrom(petNameOrPath);
+          const id = await E(directory).identify(...petPath);
+          if (id === undefined) {
+            throw new Error(`Unknown pet name ${q(petNameOrPath)}`);
+          }
+          assertValidId(id);
+          return /** @type {FormulaIdentifier} */ (id);
+        }),
+      );
+
+      /** @type {EnvelopedMessage & { done: boolean }} */
+      const editEnvelope = harden({
+        type: /** @type {const} */ ('package'),
+        strings,
+        names: edgeNames,
+        ids,
+        messageId: /** @type {import('./types.js').FormulaNumber} */ (
+          current.messageId
+        ),
+        ...(current.replyTo !== undefined && {
+          replyTo: /** @type {import('./types.js').FormulaNumber} */ (
+            current.replyTo
+          ),
+        }),
+        from: selfId,
+        to: /** @type {FormulaIdentifier} */ (current.to),
+        done: doneOption,
+      });
+
+      await applyEdit(normalizedMessageNumber, editEnvelope);
+
+      if (current.to !== current.from) {
+        const recipient = await provideHandle(
+          /** @type {FormulaIdentifier} */ (current.to),
+        );
+        const editParcel = makeEnvelope();
+        editOutbox.set(editParcel, editEnvelope);
+        await E(/** @type {any} */ (recipient)).receiveEdit(editParcel, selfId);
+      }
+    };
+
+    /** @type {Mail['messageHistory']} */
+    const messageHistory = async messageNumber => {
+      const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
+      if (!messages.has(normalizedMessageNumber)) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      const revisions = revisionsByNumber.get(normalizedMessageNumber) ?? [];
+      const externalized = await Promise.all(
+        revisions.map(async revision => {
+          const externalizedEnvelope = await externalizeMessage(
+            /** @type {any} */ (revision.envelope),
+          );
+          return harden({
+            envelope: externalizedEnvelope,
+            done: revision.done,
+            date: revision.date,
+            timestamp: Date.parse(revision.date),
+          });
+        }),
+      );
+      return harden(externalized);
+    };
+
     const handle = makeExo('Handle', HandleInterface, {
       receive,
       open,
+      receiveEdit,
+      openEdit,
     });
 
     await loadMailboxState();
@@ -1386,6 +1648,8 @@ export const makeMailboxMaker = ({
       submit,
       sendValue,
       deliverValueById,
+      editMessage,
+      messageHistory,
     });
   };
 

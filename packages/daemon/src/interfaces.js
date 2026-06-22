@@ -190,6 +190,17 @@ export const GuestInterface = M.interface('EndoGuest', {
     EdgeNamesShape,
     NamesOrPathsShape,
   ).returns(M.promise()),
+  // Edit a message the caller previously sent
+  editMessage: M.call(
+    MessageNumberShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  )
+    .optional(M.splitRecord({}, { done: M.boolean() }))
+    .returns(M.promise()),
+  // Return the revision history of a message
+  messageHistory: M.call(MessageNumberShape).returns(M.promise()),
   // Define code with named slots
   define: M.call(
     M.string(), // source
@@ -384,6 +395,17 @@ export const HostInterface = M.interface('EndoHost', {
     EdgeNamesShape,
     NamesOrPathsShape,
   ).returns(M.promise()),
+  // Edit a message the caller previously sent
+  editMessage: M.call(
+    MessageNumberShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  )
+    .optional(M.splitRecord({}, { done: M.boolean() }))
+    .returns(M.promise()),
+  // Return the revision history of a message
+  messageHistory: M.call(MessageNumberShape).returns(M.promise()),
   // Endow a definition request with bindings
   endow: M.call(
     MessageNumberShape, // messageNumber
