@@ -1,0 +1,51 @@
+{
+  "name": "@endo/space-floot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Floot voice-assistant space for Endo Chat — streaming LLM sessions with optional mic + spoken replies",
+  "keywords": [
+    "endo",
+    "floot",
+    "voice",
+    "chat"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/space-floot"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./floot.css": "./src/floot.css",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/exo-stream": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "preact": "^10.29.2"
+  },
+  "devDependencies": {
+    "eslint": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "env": {
+      "browser": true
+    }
+  }
+}
