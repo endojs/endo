@@ -11,13 +11,14 @@ import { h } from 'preact';
 // controller's snapshot; nothing here touches the DOM or audio.
 
 const ToolBlock = (
+  /** @type {string} */ key,
   /** @type {string} */ name,
   /** @type {string} */ content,
   /** @type {boolean} */ isResult,
 ) =>
   h(
     'div',
-    { class: 'floot-msg-row assistant' },
+    { key, class: 'floot-msg-row assistant' },
     h(
       'div',
       { class: `floot-tool${isResult ? ' result' : ''}` },
@@ -121,14 +122,19 @@ export const MessageList = ({ state, controller }) => {
   const rows = [];
   for (let i = 0; i < messages.length; i += 1) {
     const msg = messages[i];
+    // Keys are positional: the transcript is append-mostly, so an index key is
+    // stable and lets Preact reuse rows across streaming re-renders.
     if (msg.role === 'tool') {
-      rows.push(ToolBlock(msg.name || '', msg.args || '', false));
+      rows.push(ToolBlock(`tool-${i}`, msg.name || '', msg.args || '', false));
       if (msg.result != null) {
-        rows.push(ToolBlock(msg.name || '', msg.result, true));
+        rows.push(
+          ToolBlock(`tool-${i}-result`, msg.name || '', msg.result, true),
+        );
       }
     } else {
       rows.push(
         h(Bubble, {
+          key: `msg-${i}`,
           msg,
           canReplay,
           replaying: canReplay && replayingText === (msg.text || ''),
@@ -142,12 +148,12 @@ export const MessageList = ({ state, controller }) => {
     rows.push(
       h(
         'div',
-        { class: 'floot-msg-row assistant' },
+        { key: 'streaming', class: 'floot-msg-row assistant' },
         h('div', { class: 'floot-msg streaming' }, streamingText),
       ),
     );
   } else if (busy) {
-    rows.push(h(ThinkingRow, null));
+    rows.push(h(ThinkingRow, { key: 'thinking' }));
   }
 
   return h('div', { class: 'floot-messages' }, rows);
