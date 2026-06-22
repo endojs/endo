@@ -19,6 +19,9 @@ export const accept = async ({ guestName, agentNames }) => {
   return withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     // A slash-delimited guest name nests the accepted guest inside a
     // directory; the parent directory must already exist.
-    await E(agent).accept(invitationLocator.trim(), parsePetNamePath(guestName));
+    await E(agent).accept(
+      invitationLocator.trim(),
+      parsePetNamePath(guestName),
+    );
   });
 };
