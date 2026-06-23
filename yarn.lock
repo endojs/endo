@@ -1473,6 +1473,7 @@ __metadata:
     "@endo/preact-container": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
+    "@endo/space-chat": "workspace:^"
     "@endo/space-file-explorer": "workspace:^"
     "@endo/space-floot": "workspace:^"
     "@endo/space-inventory-graph": "workspace:^"
@@ -2693,6 +2694,20 @@ __metadata:
     eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/space-chat@workspace:^, @endo/space-chat@workspace:packages/space-chat":
+  version: 0.0.0-use.local
+  resolution: "@endo/space-chat@workspace:packages/space-chat"
+  dependencies:
+    "@endo/chat-kit": "workspace:^"
+    "@endo/daemon": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    eslint: "catalog:dev"
+    preact: "npm:^10.29.2"
   languageName: unknown
   linkType: soft
 
