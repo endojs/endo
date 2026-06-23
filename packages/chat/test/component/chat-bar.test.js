@@ -339,3 +339,39 @@ test.serial('dispose unmounts the confined modeline mount', async t => {
     'modeline hints removed after dispose',
   );
 });
+
+test.serial(
+  'dispose removes the global document/window listeners it added',
+  async t => {
+    const ctx = await setupChatBar();
+
+    // Count the listener removals the chat bar performs during dispose. The
+    // chat bar attaches a document `click` (popover dismiss) and two window
+    // `keydown` handlers (focus mode + global keypress-to-focus); before this
+    // fix they were anonymous and leaked one set per space switch.
+    let docClickRemovals = 0;
+    let winKeydownRemovals = 0;
+    const realDocRemove = testDocument.removeEventListener.bind(testDocument);
+    const realWinRemove = testWindow.removeEventListener.bind(testWindow);
+    testDocument.removeEventListener = (type, ...rest) => {
+      if (type === 'click') docClickRemovals += 1;
+      return realDocRemove(type, ...rest);
+    };
+    testWindow.removeEventListener = (type, ...rest) => {
+      if (type === 'keydown') winKeydownRemovals += 1;
+      return realWinRemove(type, ...rest);
+    };
+    t.teardown(() => {
+      testDocument.removeEventListener = realDocRemove;
+      testWindow.removeEventListener = realWinRemove;
+    });
+
+    ctx.api.dispose();
+
+    t.true(docClickRemovals >= 1, 'document click listener removed on dispose');
+    t.true(
+      winKeydownRemovals >= 2,
+      'both window keydown listeners removed on dispose',
+    );
+  },
+);

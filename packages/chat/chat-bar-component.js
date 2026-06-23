@@ -710,15 +710,17 @@ export const chatBarComponent = (
     }
   });
 
-  // Close popover when clicking outside
-  document.addEventListener('click', event => {
+  // Close popover when clicking outside. Named + removed in `dispose()` so a
+  // new document listener does not accumulate on every space switch.
+  const onDocumentClick = (/** @type {MouseEvent} */ event) => {
     if (
       !$commandPopover.contains(/** @type {Node} */ (event.target)) &&
       !$menuButton.contains(/** @type {Node} */ (event.target))
     ) {
       hideCommandPopover();
     }
-  });
+  };
+  document.addEventListener('click', onDocumentClick);
 
   let commandSubmitting = false;
 
@@ -1784,7 +1786,7 @@ export const chatBarComponent = (
   });
 
   // Global escape key handler and focus mode keyboard handler
-  window.addEventListener('keydown', event => {
+  const onFocusModeKeydown = (/** @type {KeyboardEvent} */ event) => {
     // Focus mode keyboard handling
     if (mode === 'focus') {
       if (event.key === 'Escape') {
@@ -1861,14 +1863,15 @@ export const chatBarComponent = (
         }
       }
     }
-  });
+  };
+  window.addEventListener('keydown', onFocusModeKeydown);
 
   // Auto-focus the command line and initialize modeline
   sendForm.focus();
   updateHasContent();
 
   // Focus command line on any keypress when nothing else is focused
-  window.addEventListener('keydown', event => {
+  const onGlobalKeypressFocus = (/** @type {KeyboardEvent} */ event) => {
     // Skip if not in send mode (command mode, focus mode, etc.)
     if (mode !== 'send') return;
 
@@ -1908,7 +1911,8 @@ export const chatBarComponent = (
       document.execCommand('insertText', false, event.key);
       event.preventDefault();
     }
-  });
+  };
+  window.addEventListener('keydown', onGlobalKeypressFocus);
 
   // Watch for new messages and update passive focus unless the user
   // is actively navigating in focus mode.
@@ -1933,6 +1937,9 @@ export const chatBarComponent = (
     focus: sendForm.focus,
     dispose: () => {
       messageObserver.disconnect();
+      document.removeEventListener('click', onDocumentClick);
+      window.removeEventListener('keydown', onFocusModeKeydown);
+      window.removeEventListener('keydown', onGlobalKeypressFocus);
       unmount($modelineMount);
       unmount($commandPopoverMount);
       sendForm.dispose();
