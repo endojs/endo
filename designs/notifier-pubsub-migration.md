@@ -46,7 +46,7 @@ analogous to `Reader<T>`, in the same way `@endo/exo-stream`'s
 local `Reader` / `Writer`.
 
 This design proposes a `@endo/exo-pubsub` package that lands two topic
-shapes (the third is dropped per *The three topic shapes* below) as exos,
+shapes (the third is dropped per *The topic shapes* below) as exos,
 coherent with the exo-streams discipline already established on the `llm`
 branch.
 
@@ -780,9 +780,9 @@ The new package's design avoids re-creating that pain:
   `package.json` shape as its sibling, and exposes one module per
   exported function (no barrel exports, per the project's `CLAUDE.md`).
 - **Pass-style is preserved across CapTP.**
-  Subscribers conform to `PassableReader`; the bidirectional-promise-chain
-  protocol the responders implement is already proven over CapTP via
-  `@endo/exo-stream`.
+  The topic exo's `sinkLatest` / `sinkChanges` methods ride the same
+  bidirectional-promise-chain protocol as `PassableReader.stream`, which
+  is already proven over CapTP via `@endo/exo-stream`.
 
 ## Open questions
 
