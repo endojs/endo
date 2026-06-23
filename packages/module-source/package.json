@@ -113,7 +113,8 @@
       }
     ],
     "ignorePatterns": [
-      "test/fixtures/"
+      "test/fixtures/",
+      "src/external.types.js"
     ]
   },
   "sesAvaConfigs": {

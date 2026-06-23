@@ -64,6 +64,10 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
+    ],
+    "ignorePatterns": [
+      "dist",
+      "types"
     ]
   },
   "ava": {

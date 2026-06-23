@@ -81,6 +81,10 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
+    ],
+    "ignorePatterns": [
+      "/dist",
+      "/src/bundles/"
     ]
   },
   "publishConfig": {

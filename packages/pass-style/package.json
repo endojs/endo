@@ -74,6 +74,9 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
+    ],
+    "ignorePatterns": [
+      "/src/types.js"
     ]
   },
   "sesAvaConfigs": {
