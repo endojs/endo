@@ -393,11 +393,33 @@ export interface AssertionUtilities {
    * Create an error with a `message` in which unquoted {@link details}
    * substitution values may have been redacted into lossy `typeof` output but
    * are still available for logging to an associated console.
+   *
+   * Narrows the return type to the constructor type.
+   *
+   * @template T The constructor to use
+   * @param details The details of what was asserted
+   * @param errConstructor The constructor to use
+   * @param options Options
+   * @returns Instance of `T`
+   */
+  makeError<T extends GenericErrorConstructor>(
+    details: Details,
+    errConstructor: T,
+    options?: AssertMakeErrorOptions,
+  ): InstanceType<T>;
+
+  /**
+   * Create an error with a `message` in which unquoted {@link details}
+   * substitution values may have been redacted into lossy `typeof` output but
+   * are still available for logging to an associated console.
+   *
+   * @param details The details of what was asserted
+   * @param errConstructor The constructor to use
+   * @param options Options
+   * @returns Instance of `Error`
    */
   makeError(
-    /** The details of what was asserted */
     details?: Details,
-    /** An optional alternate error constructor to use */
     errConstructor?: GenericErrorConstructor,
     options?: AssertMakeErrorOptions,
   ): Error;
