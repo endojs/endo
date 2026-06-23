@@ -129,7 +129,7 @@ test('makeGitTool drives a real Git cap: stage → status → commit → log →
 
   // `commit` (tool) records it; the marshalled message reaches the cap.
   const commit = /** @type {{ oid: string, summary: string }} */ (
-    await byName('commit').invoke({ arg0: 'add greeting' })
+    await byName('commit').invoke({ message: 'add greeting' })
   );
   t.regex(commit.oid, /^[0-9a-f]{7,64}$/);
   t.is(commit.summary, 'add greeting');
@@ -172,10 +172,10 @@ test('makeGitTool drives branch operations over a real Git cap', async t => {
 
   // `createBranch` then `switchBranch` (tools); the new branch becomes current.
   const created = /** @type {{ name: string }} */ (
-    await byName('createBranch').invoke({ arg0: 'feature' })
+    await byName('createBranch').invoke({ name: 'feature' })
   );
   t.is(created.name, 'feature');
-  await byName('switchBranch').invoke({ arg0: 'feature' });
+  await byName('switchBranch').invoke({ branch: 'feature' });
   const afterSwitch = /** @type {{ name: string }} */ (
     await byName('currentBranch').invoke({})
   );
@@ -193,10 +193,10 @@ test('the runtime guard rejects a bad arg before reaching the live cap', async t
   const { git } = await provisionGit(t);
   const byName = byNameOf(makeGitTool(git));
   await null;
-  // `commit`'s arg0 guard is M.string(); a number must be rejected by the
+  // `commit`'s `message` guard is M.string(); a number must be rejected by the
   // tool's `mustMatch` before the capability is ever touched — proving the
   // guard fires over a live cap, not only the stub.
-  await t.throwsAsync(() => byName('commit').invoke({ arg0: 123 }));
+  await t.throwsAsync(() => byName('commit').invoke({ message: 123 }));
   // The fail-closed key check rejects an unknown arg key too.
   await t.throwsAsync(() => byName('commit').invoke({ bogus: 'x' }));
 });

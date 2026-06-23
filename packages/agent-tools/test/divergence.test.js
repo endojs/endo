@@ -47,20 +47,22 @@ const guardShapeFor = method => {
 };
 
 /**
- * Decide whether the runtime guards accept a named-args record.
+ * Decide whether the runtime guards accept a named-args record, mapping the
+ * record's keys onto positional slots by the schema's declared property order.
  *
  * @param {{requiredCount:number, guards:Pattern[]}} shape
+ * @param {string[]} paramNames Declared property names, in positional order.
  * @param {Record<string, unknown>} record
  */
-const guardAccepts = (shape, record) => {
+const guardAccepts = (shape, paramNames, record) => {
   const { requiredCount, guards } = shape;
-  const allowed = new Set(guards.map((_g, i) => `arg${i}`));
+  const allowed = new Set(paramNames.slice(0, guards.length));
   for (const key of Object.keys(record)) {
     if (!allowed.has(key)) return false;
   }
   for (let i = 0; i < guards.length; i += 1) {
-    const key = `arg${i}`;
-    // JSON has no `undefined`, so a known `argN: undefined` is treated as absent.
+    const key = paramNames[i];
+    // JSON has no `undefined`, so a known `name: undefined` is treated as absent.
     const present =
       Object.prototype.hasOwnProperty.call(record, key) &&
       record[key] !== undefined;
@@ -74,40 +76,76 @@ const guardAccepts = (shape, record) => {
 };
 
 /**
- * Candidate named-args records covering valid and invalid shapes.
+ * Candidate args records covering valid and invalid shapes, keyed by abstract
+ * positional slots (`slot0`/`slot1`) plus an out-of-band `extra` key. The macro
+ * remaps each slot to the tool's real declared property name, so the same
+ * coverage exercises every tool's named signature.
  */
-const candidateRecords = harden([
+const slotRecords = harden([
   {},
-  { arg0: 'a-string' },
-  { arg0: '' },
-  { arg0: 42 },
-  { arg0: 42n },
-  { arg0: true },
-  { arg0: null },
-  { arg0: undefined },
-  { arg0: {} },
-  { arg0: { k: 'v' } },
-  { arg0: [] },
-  { arg1: 'only-second' },
-  { arg0: 'a', arg1: {} },
-  { arg0: 'a', arg1: { opt: 1 } },
-  { arg0: 'a', arg1: 'not-a-record' },
-  { arg0: 'a', arg1: 5 },
-  { arg0: {}, arg1: {} },
-  { arg0: 'a', arg2: 'extra' },
-  { arg0: 'a', extra: 'x' },
+  { slot0: 'a-string' },
+  { slot0: '' },
+  { slot0: 42 },
+  { slot0: 42n },
+  { slot0: true },
+  { slot0: null },
+  { slot0: undefined },
+  { slot0: {} },
+  { slot0: { k: 'v' } },
+  { slot0: [] },
+  { slot1: 'only-second' },
+  { slot0: 'a', slot1: {} },
+  { slot0: 'a', slot1: { opt: 1 } },
+  { slot0: 'a', slot1: 'not-a-record' },
+  { slot0: 'a', slot1: 5 },
+  { slot0: {}, slot1: {} },
+  { slot0: 'a', extra: 'x' },
   { extra: 'x' },
   { extra: undefined },
-  { arg0: undefined, arg1: undefined },
-  { arg0: 'a', arg1: {}, arg2: 'too-many' },
+  { slot0: undefined, slot1: undefined },
   // Open-object option records.
-  { arg0: { a: 1, b: 2 } },
-  { arg0: { nested: { x: 1 } } },
-  { arg0: harden({ author: 'alice', oneline: true, maxCount: 10 }) },
-  { arg0: 'a', arg1: { a: 1, b: 2 } },
-  { arg0: 'a', arg1: { nested: { x: 1 } } },
-  { arg0: 'a', arg1: harden({ track: true, startPoint: 'main' }) },
+  { slot0: { a: 1, b: 2 } },
+  { slot0: { nested: { x: 1 } } },
+  { slot0: harden({ author: 'alice', oneline: true, maxCount: 10 }) },
+  { slot0: 'a', slot1: { a: 1, b: 2 } },
+  { slot0: 'a', slot1: { nested: { x: 1 } } },
+  { slot0: 'a', slot1: harden({ track: true, startPoint: 'main' }) },
 ]);
+
+/**
+ * Declared property names for a tool, in positional order.
+ *
+ * @param {ToolRecord} tool
+ * @returns {string[]}
+ */
+const paramNamesOf = tool =>
+  Object.keys(
+    /** @type {{ properties?: Record<string, unknown> }} */ (tool.parameters)
+      .properties || {},
+  );
+
+/**
+ * Remap an abstract slot record onto a tool's real property names. `slot0` →
+ * the first declared property, `slot1` → the second; unknown slots and `extra`
+ * are preserved verbatim so the out-of-band-key cases still exercise rejection.
+ *
+ * @param {Record<string, unknown>} slotRecord
+ * @param {string[]} paramNames
+ * @returns {Record<string, unknown>}
+ */
+const toNamedRecord = (slotRecord, paramNames) => {
+  /** @type {Record<string, unknown>} */
+  const named = {};
+  for (const [slot, value] of Object.entries(slotRecord)) {
+    const match = /^slot(\d+)$/.exec(slot);
+    const key =
+      match && paramNames[Number(match[1])] !== undefined
+        ? paramNames[Number(match[1])]
+        : slot;
+    named[key] = value;
+  }
+  return named;
+};
 
 const gitTools = makeGitTool(
   // This test inspects schemas and guards; it never invokes the capability.
@@ -123,10 +161,12 @@ const gitTools = makeGitTool(
 const schemaGuardAgree = test.macro({
   exec(t, /** @type {ToolRecord} */ tool) {
     const shape = guardShapeFor(tool.name);
+    const paramNames = paramNamesOf(tool);
     const validate = ajv.compile(tool.parameters);
     let checked = 0;
-    for (const record of candidateRecords) {
-      const guardOk = guardAccepts(shape, record);
+    for (const slotRecord of slotRecords) {
+      const record = toNamedRecord(slotRecord, paramNames);
+      const guardOk = guardAccepts(shape, paramNames, record);
       const schemaOk = validate({ ...record });
       t.is(
         schemaOk,
