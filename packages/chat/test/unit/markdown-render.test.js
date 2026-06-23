@@ -8,7 +8,7 @@ import {
   renderMarkdown,
   renderPlainText,
   prepareTextWithPlaceholders,
-} from '../../markdown-render.js';
+} from '@endo/chat-kit/markdown-render.js';
 
 const { cleanup: cleanupDOM } = createDOM();
 

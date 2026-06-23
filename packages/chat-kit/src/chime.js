@@ -21,8 +21,12 @@ const rand = (min, max) => min + Math.random() * (max - min);
 export const playChime = () => {
   try {
     if (!audioContext) {
-      // @ts-expect-error webkitAudioContext for older Safari
-      const Ctx = globalThis.AudioContext || globalThis.webkitAudioContext;
+      // webkitAudioContext for older Safari (absent from the standard lib types)
+      const Ctx =
+        globalThis.AudioContext ||
+        /** @type {{ webkitAudioContext?: typeof globalThis.AudioContext }} */ (
+          /** @type {unknown} */ (globalThis)
+        ).webkitAudioContext;
       if (!Ctx) return;
       audioContext = new Ctx();
     }

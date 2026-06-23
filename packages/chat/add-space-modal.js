@@ -11,7 +11,7 @@ import harden from '@endo/harden';
 
 import { E } from '@endo/far';
 import { ALL_ICONS, IconSelector } from './icon-selector.js';
-import { assertValidLocator } from './locator.js';
+import { assertValidLocator } from '@endo/chat-kit/locator.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createSchemePicker } from './scheme-picker.js';
 import { Fragment, h, renderConfined } from './setup-preact-container.js';

@@ -16,8 +16,8 @@ import {
 } from './setup-preact-container.js';
 
 import { inferType, toClipboardText } from './value-render.js';
-import { valueToVnodes } from './value-vnodes.js';
-import { MarkdownFragment } from './markdown-vnodes.js';
+import { valueToVnodes } from '@endo/chat-kit/value-vnodes.js';
+import { MarkdownFragment } from '@endo/chat-kit/markdown-vnodes.js';
 import { inferLanguage } from './language-detect.js';
 import { isMarkdown } from './markdown-preview.js';
 

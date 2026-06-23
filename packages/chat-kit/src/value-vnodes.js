@@ -24,7 +24,7 @@
 import harden from '@endo/harden';
 import { passStyleOf } from '@endo/pass-style';
 
-import { h } from './setup-preact-container.js';
+import { h } from 'preact';
 import { numberFormatter } from './time-formatters.js';
 
 /**

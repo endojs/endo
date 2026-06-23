@@ -28,7 +28,7 @@ import {
   mountMentionNotifyArea,
   mountInboxSection,
 } from './chat-chrome.js';
-import { idFromLocator } from './locator.js';
+import { idFromLocator } from '@endo/chat-kit/locator.js';
 
 const template = `
 <div id="spaces-gutter"></div>

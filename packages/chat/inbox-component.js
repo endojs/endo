@@ -20,16 +20,16 @@ import {
   useState,
 } from './setup-preact-container.js';
 
-import { playChime } from './chime.js';
-import { idFromLocator } from './locator.js';
-import { prepareTextWithPlaceholders } from './markdown-render.js';
-import { markdownToVnodes } from './markdown-vnodes.js';
-import { valueToVnodes } from './value-vnodes.js';
+import { playChime } from '@endo/chat-kit/chime.js';
+import { idFromLocator } from '@endo/chat-kit/locator.js';
+import { prepareTextWithPlaceholders } from '@endo/chat-kit/markdown-render.js';
+import { markdownToVnodes } from '@endo/chat-kit/markdown-vnodes.js';
+import { valueToVnodes } from '@endo/chat-kit/value-vnodes.js';
 import {
   dateFormatter,
   timeFormatter,
   relativeTime,
-} from './time-formatters.js';
+} from '@endo/chat-kit/time-formatters.js';
 
 // 1:1 recipient-filtered default inbox view, migrated from imperative DOM to a
 // confined Preact component rendered through a single `renderConfined`.

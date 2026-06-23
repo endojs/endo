@@ -48,7 +48,7 @@
 import harden from '@endo/harden';
 import { parseBlocks } from '@endo/markmdown';
 
-import { Fragment, h } from './setup-preact-container.js';
+import { Fragment, h } from 'preact';
 
 // The chip-placeholder character (Unicode private use area). Must match the
 // constant used by `prepareTextWithPlaceholders` in markdown-render.js. It is

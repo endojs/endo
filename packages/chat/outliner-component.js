@@ -10,7 +10,7 @@ import {
   computeNodeContent,
   computeAllNodeContents,
 } from './edit-queue.js';
-import { relativeTime } from './time-formatters.js';
+import { relativeTime } from '@endo/chat-kit/time-formatters.js';
 import { tokenAutocompleteComponent } from './token-autocomplete.js';
 
 /** @import { ERef } from '@endo/far' */

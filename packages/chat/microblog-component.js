@@ -15,9 +15,9 @@ import {
 import { createChannelState } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
 import { isVisibleReplyType, computeNodeContent } from './edit-queue.js';
-import { relativeTime, dateFormatter } from './time-formatters.js';
-import { prepareTextWithPlaceholders } from './markdown-render.js';
-import { markdownToVnodes } from './markdown-vnodes.js';
+import { relativeTime, dateFormatter } from '@endo/chat-kit/time-formatters.js';
+import { prepareTextWithPlaceholders } from '@endo/chat-kit/markdown-render.js';
+import { markdownToVnodes } from '@endo/chat-kit/markdown-vnodes.js';
 
 /** @import { ChannelMessage } from './channel-utils.js' */
 

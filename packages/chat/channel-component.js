@@ -13,12 +13,12 @@ import {
   unmount,
 } from './setup-preact-container.js';
 
-import { timeFormatter, relativeTime } from './time-formatters.js';
+import { timeFormatter, relativeTime } from '@endo/chat-kit/time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
 import { createMessageMenu } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
-import { prepareTextWithPlaceholders } from './markdown-render.js';
-import { markdownToVnodes } from './markdown-vnodes.js';
+import { prepareTextWithPlaceholders } from '@endo/chat-kit/markdown-render.js';
+import { markdownToVnodes } from '@endo/chat-kit/markdown-vnodes.js';
 
 // Default multiuser channel body view (Dan's), migrated from imperative DOM to
 // a confined Preact component rendered through a single `renderConfined`.

@@ -10,9 +10,9 @@ import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 import { inboxComponent } from '../../inbox-component.js';
-import { markdownToVnodes } from '../../markdown-vnodes.js';
-import { prepareTextWithPlaceholders } from '../../markdown-render.js';
-import { idFromLocator } from '../../locator.js';
+import { markdownToVnodes } from '@endo/chat-kit/markdown-vnodes.js';
+import { prepareTextWithPlaceholders } from '@endo/chat-kit/markdown-render.js';
+import { idFromLocator } from '@endo/chat-kit/locator.js';
 
 const { document: testDocument } = createDOM();
 
