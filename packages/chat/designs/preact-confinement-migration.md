@@ -84,7 +84,7 @@ been converted to confined Preact:
 | Module                | Lines | Role                                                                                                                        |
 | --------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------- |
 | outliner-component    | 3003  | `outliner` viewMode body — held for the decompose-into-contract approach                                                    |
-| spaces-gutter         | 971   | left space gutter — **⊘ deferred** (the floot imperative-Space PR edits it, +41/-5)                                         |
+| spaces-gutter         | —     | left space gutter — **☑ done** (confined `SpacesGutterView`; the floot imperative-Space PR landed, lifting the freeze)        |
 | heat-simulation       | 225   | heat animation; still imperative but host-node-bridged by the converted `channel-header` (not a primary target)             |
 | inventory-graph (pkg) | ~     | `@endo/space-inventory-graph/src/graph.js` SVG view — needs the renderer's `allowedTags`/`allowedAttrs` SVG extension first |
 
@@ -391,7 +391,7 @@ for the incoming imperative-Space PR — see "Deferred" above)
 | channel-component                               | ☑      | Done — Dan's body; host-node-controller pattern for `react-utils`/`channel-utils`/`profile-popup`; +sync-reply follow-up                                                                 |
 | channel-header                                  | ☑      | Done — menu/invite/members/attenuator confined; host-node-bridges the imperative `heat-simulation`                                                                                       |
 | forum                                           | ☑      | Done — `forum` viewMode body; same pattern as microblog (a first attempt that only landed a test was reverted, then redone for real)                                                     |
-| spaces-gutter                                   | ⊘      | **Deferred** — the floot imperative-Space PR edits it (+41/-5); frozen imperative alongside chat.js + add-space-modal until that PR lands                                                |
+| spaces-gutter                                   | ☑      | Done — the floot imperative-Space PR has landed, lifting the freeze. The space icons, add-space button, and per-space context menu are one confined Preact tree (`SpacesGutterView`) driven by a host controller (`GutterViewState` snapshots + select/edit/delete/add callbacks); the menu dismisses via an in-tree focusable backdrop. All the stateful host work (pet-store load, watcher, modals, scheme, Cmd+1..9) is unchanged. |
 | outliner                                        | ☐      | ~3003 lines — largest body; needs the file-explorer-style decompose-into-contract approach, not a one-shot                                                                               |
 | add-space-modal                                 | ⊘      | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-type registration); resume after it lands                                                                   |
 | chat.js (root orchestrator)                     | ⊘      | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-mode dispatch); stays the trusted root that calls `renderConfined`                                          |

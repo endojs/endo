@@ -8,6 +8,14 @@ import harden from '@endo/harden';
 
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+
+import {
+  Fragment,
+  h,
+  renderConfined,
+  useEffect,
+  useState,
+} from './setup-preact-container.js';
 import { createAddSpaceModal } from './add-space-modal.js';
 import { createEditSpaceModal } from './edit-space-modal.js';
 
@@ -88,6 +96,236 @@ const pathsEqual = (a, b) => {
   return a.every((segment, i) => segment === b[i]);
 };
 harden(pathsEqual);
+
+// ── Confined Preact view ──────────────────────────────────────────────────
+//
+// The gutter's chrome (the space icons, the add-space button, and the
+// per-space context menu) is a confined Preact tree rendered through the
+// sanitizing `renderConfined`. Everything stateful — the pet-store load, the
+// `followNameChanges` watcher, the add/edit modals, scheme application, and the
+// Cmd+1..9 shortcuts — stays in the imperative host controller below and feeds
+// the view pure-data snapshots (`GutterViewState`) plus a handful of callbacks.
+
+/**
+ * @typedef {object} GutterSpaceView
+ * @property {string} id
+ * @property {string} name
+ * @property {string} icon
+ * @property {boolean} isHome
+ * @property {number} [shortcut] - 1..9 Cmd-shortcut number, if any
+ */
+
+/**
+ * @typedef {object} GutterViewState
+ * @property {GutterSpaceView[]} spaces
+ * @property {string} activeSpaceId
+ */
+
+/**
+ * @typedef {object} GutterMenuState
+ * @property {string} spaceId
+ * @property {string} name
+ * @property {boolean} isHome
+ * @property {number} x
+ * @property {number} y
+ */
+
+/**
+ * @typedef {object} GutterController
+ * @property {((state: GutterViewState) => void) | undefined} setState - wired by
+ *   the view's mount effect; the host calls it to push a fresh snapshot.
+ * @property {() => GutterViewState} getState - seeds the view's initial render.
+ * @property {(id: string) => void} selectSpace
+ * @property {(id: string) => void} editSpace
+ * @property {(id: string) => void} deleteSpace
+ * @property {() => void} addSpace
+ */
+
+/**
+ * One space icon button. Left-click selects; right-click opens the per-space
+ * context menu at the cursor.
+ *
+ * @param {object} props
+ * @param {GutterSpaceView} props.space
+ * @param {boolean} props.active
+ * @param {(id: string) => void} props.onSelect
+ * @param {(space: GutterSpaceView, x: number, y: number) => void} props.onOpenMenu
+ */
+const SpaceItem = ({ space, active, onSelect, onOpenMenu }) => {
+  const shortcutHint = space.shortcut ? ` (⌘${space.shortcut})` : '';
+  return h(
+    'div',
+    {
+      class: ['space-item', active && 'active', space.isHome && 'home']
+        .filter(Boolean)
+        .join(' '),
+      'data-space-id': space.id,
+      title: `${space.name}${shortcutHint}`,
+      onClick: () => onSelect(space.id),
+      /** @param {{ preventDefault: () => void, clientX: number, clientY: number }} e */
+      onContextMenu: e => {
+        e.preventDefault();
+        onOpenMenu(space, e.clientX, e.clientY);
+      },
+    },
+    h('span', { class: 'space-icon' }, space.icon),
+    h('span', { class: 'space-badge', style: 'display: none;' }, '0'),
+    space.shortcut
+      ? h('span', { class: 'space-shortcut-badge' }, String(space.shortcut))
+      : null,
+  );
+};
+harden(SpaceItem);
+
+/**
+ * The per-space context menu (Edit / Delete), positioned at the cursor. Both
+ * actions are always rendered; Delete is hidden (`display: none`) for the
+ * indelible home space, matching the original `data-menu-scope` behavior the
+ * component test asserts on. A focusable full-screen backdrop dismisses the
+ * menu on an outside click or Escape, declaratively, instead of document-level
+ * listeners.
+ *
+ * @param {object} props
+ * @param {GutterMenuState} props.menu
+ * @param {() => void} props.onClose
+ * @param {(id: string) => void} props.onEdit
+ * @param {(id: string) => void} props.onDelete
+ */
+const SpaceContextMenu = ({ menu, onClose, onEdit, onDelete }) =>
+  h(
+    Fragment,
+    null,
+    h('div', {
+      class: 'space-context-menu-backdrop',
+      tabindex: -1,
+      autofocus: true,
+      onClick: onClose,
+      /** @param {{ key?: string }} e */
+      onKeyDown: e => {
+        if (e.key === 'Escape') onClose();
+      },
+    }),
+    h(
+      'div',
+      {
+        class: 'space-context-menu visible',
+        style: `left:${menu.x}px;top:${menu.y}px`,
+        /** @param {{ stopPropagation: () => void }} e */
+        onClick: e => e.stopPropagation(),
+      },
+      h('div', { class: 'context-menu-title' }, menu.name),
+      h(
+        'button',
+        {
+          class: 'context-menu-item',
+          'data-action': 'edit',
+          onClick: () => {
+            onClose();
+            onEdit(menu.spaceId);
+          },
+        },
+        h('span', { class: 'context-menu-icon' }, '✏️'),
+        h('span', null, 'Edit Space'),
+      ),
+      h(
+        'button',
+        {
+          class: 'context-menu-item context-menu-delete',
+          'data-action': 'delete',
+          style: menu.isHome ? 'display: none;' : '',
+          onClick: () => {
+            onClose();
+            onDelete(menu.spaceId);
+          },
+        },
+        h('span', { class: 'context-menu-icon' }, '🗑'),
+        h('span', null, 'Delete Space'),
+      ),
+    ),
+  );
+harden(SpaceContextMenu);
+
+/**
+ * The gutter view root: the home + user space icons, the add-space button, and
+ * the per-space context menu. Driven entirely by the host `controller` — a
+ * `GutterViewState` snapshot pushed via `controller.setState`, plus
+ * select/edit/delete/add callbacks. Holds only its own ephemeral context-menu
+ * state.
+ *
+ * @param {object} props
+ * @param {GutterController} props.controller
+ */
+const SpacesGutterView = ({ controller }) => {
+  const [state, setState] = useState(
+    /** @type {GutterViewState} */ (controller.getState()),
+  );
+  // The controller is stable for the mount, so the bridge effect is mount-only
+  // (object props can't be effect deps under the sanitizer). The mount effect
+  // runs after the first paint, so a `pushState()` the host fired in between
+  // (the initial pet-store load / watcher replay) would be lost; re-read the
+  // live snapshot here to catch up before wiring further updates.
+  useEffect(() => {
+    controller.setState = setState;
+    setState(controller.getState());
+    return () => {
+      if (controller.setState === setState) controller.setState = undefined;
+    };
+  }, [controller]);
+
+  const [menu, setMenu] = useState(
+    /** @type {GutterMenuState | null} */ (null),
+  );
+
+  /** @type {(space: GutterSpaceView, x: number, y: number) => void} */
+  const onOpenMenu = (space, x, y) =>
+    setMenu({
+      spaceId: space.id,
+      name: space.name,
+      isHome: space.isHome,
+      x,
+      y,
+    });
+
+  return h(
+    Fragment,
+    null,
+    h(
+      'div',
+      { class: 'spaces-gutter-inner' },
+      h(
+        'div',
+        { class: 'spaces-list' },
+        state.spaces.map(space =>
+          h(SpaceItem, {
+            key: space.id,
+            space,
+            active: space.id === state.activeSpaceId,
+            onSelect: controller.selectSpace,
+            onOpenMenu,
+          }),
+        ),
+        h(
+          'div',
+          { class: 'space-item add-space-item', title: 'Add space' },
+          h(
+            'button',
+            { class: 'add-space-button', onClick: () => controller.addSpace() },
+            '+',
+          ),
+        ),
+      ),
+    ),
+    menu
+      ? h(SpaceContextMenu, {
+          menu,
+          onClose: () => setMenu(null),
+          onEdit: controller.editSpace,
+          onDelete: controller.deleteSpace,
+        })
+      : null,
+  );
+};
+harden(SpacesGutterView);
 
 /**
  * Create the spaces gutter component.
@@ -274,7 +512,7 @@ export const createSpacesGutter = ({
     // (to avoid bouncing during edits).
     spacesMap.delete(id);
     handleActiveSpaceRemoved();
-    render();
+    pushState();
   };
 
   /**
@@ -311,7 +549,7 @@ export const createSpacesGutter = ({
       if (activeSpaceId === 'home') {
         applyScheme(updated.scheme);
       }
-      render();
+      pushState();
       return;
     }
 
@@ -332,7 +570,7 @@ export const createSpacesGutter = ({
     if (id === activeSpaceId) {
       applyScheme(updated.scheme);
     }
-    render();
+    pushState();
   };
 
   /**
@@ -360,7 +598,7 @@ export const createSpacesGutter = ({
     if (id === 'home') {
       activeSpaceId = 'home';
       applyScheme(homeSpaceConfig.scheme);
-      render();
+      pushState();
       onNavigate(homeSpaceConfig.profilePath);
       return;
     }
@@ -370,7 +608,7 @@ export const createSpacesGutter = ({
 
     activeSpaceId = id;
     applyScheme(space.scheme);
-    render();
+    pushState();
     onNavigate(space.profilePath, {
       mode: space.mode,
       channelPetName: space.lastChannelPetName || space.channelPetName,
@@ -384,179 +622,67 @@ export const createSpacesGutter = ({
     });
   };
 
-  /** @type {string | null} */
-  let contextMenuSpaceId = null;
-
   /**
-   * Hide the context menu.
+   * Build the pure-data snapshot the confined view renders from. Home is always
+   * first; user spaces follow in numeric id order. The 1-indexed Cmd-shortcut
+   * (⌘1=home, ⌘2=first user space, …) is attached for the first nine items.
+   *
+   * @returns {GutterViewState}
    */
-  const hideContextMenu = () => {
-    const $menu = $container.querySelector('.space-context-menu');
-    if ($menu) {
-      $menu.classList.remove('visible');
-    }
-    contextMenuSpaceId = null;
+  const buildViewState = () => {
+    const allSpaces = [homeSpaceConfig, ...getSpacesArray()];
+    return {
+      activeSpaceId,
+      spaces: allSpaces.map((space, index) => {
+        const shortcutNum = index + 1;
+        /** @type {GutterSpaceView} */
+        const view = {
+          id: space.id,
+          name: space.name,
+          icon: space.icon,
+          isHome: space.id === 'home',
+        };
+        if (shortcutNum >= 1 && shortcutNum <= 9) {
+          view.shortcut = shortcutNum;
+        }
+        return view;
+      }),
+    };
+  };
+
+  // The host-owned controller passed to the confined `SpacesGutterView`. Not
+  // hardened: the view writes its `setState` setter onto it during mount. The
+  // edit/add callbacks reach the modals declared further below; they only run
+  // on user interaction, long after init completes.
+  /** @type {GutterController} */
+  const controller = {
+    setState: undefined,
+    getState: buildViewState,
+    selectSpace,
+    editSpace: id => {
+      if (id === 'home') {
+        homeEditModal.show(homeSpaceConfig);
+      } else {
+        const space = spacesMap.get(id);
+        if (space) {
+          editSpaceModal.show(space);
+        }
+      }
+    },
+    deleteSpace: id => {
+      removeSpace(id).catch(window.reportError);
+    },
+    addSpace: () => showAddSpaceDialog(),
   };
 
   /**
-   * Show the context menu at the given position.
-   * @param {string} spaceId
-   * @param {number} x
-   * @param {number} y
+   * Repaint the mounted view with the latest snapshot. Replaces the old
+   * imperative `render()`: every site that mutated `spacesMap`,
+   * `activeSpaceId`, or `homeSpaceConfig` now pushes through here.
    */
-  const showContextMenu = (spaceId, x, y) => {
-    const $menu = /** @type {HTMLElement | null} */ (
-      $container.querySelector('.space-context-menu')
-    );
-    if (!$menu) return;
-
-    contextMenuSpaceId = spaceId;
-    const space = spaceId === 'home' ? homeSpaceConfig : spacesMap.get(spaceId);
-    const $title = $menu.querySelector('.context-menu-title');
-    if ($title && space) {
-      $title.textContent = space.name;
-    }
-
-    // Toggle menu item visibility based on scope
-    const isIndelible = spaceId === 'home';
-    for (const $item of $menu.querySelectorAll('[data-menu-scope]')) {
-      const scope = $item.getAttribute('data-menu-scope');
-      /** @type {HTMLElement} */ ($item).style.display =
-        scope === 'all' || (!isIndelible && scope === 'delible') ? '' : 'none';
-    }
-
-    // Position the menu
-    $menu.style.left = `${x}px`;
-    $menu.style.top = `${y}px`;
-    $menu.classList.add('visible');
-
-    // Adjust if menu goes off screen
-    const rect = $menu.getBoundingClientRect();
-    if (rect.right > window.innerWidth) {
-      $menu.style.left = `${window.innerWidth - rect.width - 8}px`;
-    }
-    if (rect.bottom > window.innerHeight) {
-      $menu.style.top = `${window.innerHeight - rect.height - 8}px`;
-    }
-  };
-
-  /**
-   * Render the gutter UI.
-   */
-  const render = () => {
-    // Sort user spaces by id (numeric), home space is always first
-    const sortedUserSpaces = getSpacesArray();
-    const allSpaces = [homeSpaceConfig, ...sortedUserSpaces];
-
-    let html = `
-      <div class="spaces-gutter-inner">
-        <div class="spaces-list">
-    `;
-
-    allSpaces.forEach((space, index) => {
-      const isActive = space.id === activeSpaceId;
-      const isHome = space.id === 'home';
-      // 1-indexed shortcuts: ⌘1=home, ⌘2=first user space, etc.
-      const shortcutNum = index + 1;
-      const hasShortcut = shortcutNum >= 1 && shortcutNum <= 9;
-      const shortcutHint = hasShortcut ? `⌘${shortcutNum}` : '';
-
-      html += `
-        <div class="space-item ${isActive ? 'active' : ''}${isHome ? ' home' : ''}"
-             data-space-id="${space.id}"
-             title="${space.name}${shortcutHint ? ` (${shortcutHint})` : ''}">
-          <span class="space-icon">${space.icon}</span>
-          <span class="space-badge" style="display: none;">0</span>
-          ${hasShortcut ? `<span class="space-shortcut-badge">${shortcutNum}</span>` : ''}
-        </div>
-      `;
-    });
-
-    html += `
-          <div class="space-item add-space-item" title="Add space">
-            <button class="add-space-button">+</button>
-          </div>
-        </div>
-      </div>
-      <div class="space-context-menu">
-        <div class="context-menu-title"></div>
-        <button class="context-menu-item" data-action="edit" data-menu-scope="all">
-          <span class="context-menu-icon">✏️</span>
-          <span>Edit Space</span>
-        </button>
-        <button class="context-menu-item context-menu-delete" data-action="delete" data-menu-scope="delible">
-          <span class="context-menu-icon">🗑</span>
-          <span>Delete Space</span>
-        </button>
-      </div>
-    `;
-
-    $container.innerHTML = html;
-
-    // Attach context menu handlers
-    const $contextMenu = $container.querySelector('.space-context-menu');
-    if ($contextMenu) {
-      const $editBtn = $contextMenu.querySelector('[data-action="edit"]');
-      if ($editBtn) {
-        $editBtn.addEventListener('click', () => {
-          if (contextMenuSpaceId) {
-            if (contextMenuSpaceId === 'home') {
-              homeEditModal.show(homeSpaceConfig);
-            } else {
-              const space = spacesMap.get(contextMenuSpaceId);
-              if (space) {
-                editSpaceModal.show(space);
-              }
-            }
-          }
-          hideContextMenu();
-        });
-      }
-
-      const $deleteBtn = $contextMenu.querySelector('[data-action="delete"]');
-      if ($deleteBtn) {
-        $deleteBtn.addEventListener('click', () => {
-          if (contextMenuSpaceId) {
-            removeSpace(contextMenuSpaceId);
-          }
-          hideContextMenu();
-        });
-      }
-
-      // Prevent clicks inside context menu from closing it
-      $contextMenu.addEventListener('click', e => {
-        e.stopPropagation();
-      });
-    }
-
-    // Attach click handlers for space items
-    const $spaceItems = $container.querySelectorAll('.space-item');
-    for (const $item of $spaceItems) {
-      $item.addEventListener('click', () => {
-        const spaceId = $item.getAttribute('data-space-id');
-        if (spaceId) {
-          selectSpace(spaceId);
-        }
-      });
-
-      // Right-click context menu
-      $item.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        e.stopPropagation();
-        const spaceId = $item.getAttribute('data-space-id');
-        if (spaceId) {
-          const mouseEvent = /** @type {MouseEvent} */ (e);
-          showContextMenu(spaceId, mouseEvent.clientX, mouseEvent.clientY);
-        }
-      });
-    }
-
-    // Attach click handler for add button
-    const $addButton = $container.querySelector('.add-space-button');
-    if ($addButton) {
-      $addButton.addEventListener('click', () => {
-        showAddSpaceDialog();
-      });
+  const pushState = () => {
+    if (controller.setState) {
+      controller.setState(buildViewState());
     }
   };
 
@@ -819,13 +945,13 @@ export const createSpacesGutter = ({
           applyScheme(homeSpaceConfig.scheme);
         }
       }
-      render();
+      pushState();
       return;
     }
     const config = await loadSpaceConfig(id);
     if (config) {
       spacesMap.set(id, config);
-      render();
+      pushState();
     }
   };
 
@@ -845,11 +971,11 @@ export const createSpacesGutter = ({
       if (activeSpaceId === 'home') {
         applyScheme(homeSpaceConfig.scheme);
       }
-      render();
+      pushState();
       return;
     }
     spacesMap.delete(id);
-    render();
+    pushState();
   };
 
   /**
@@ -931,7 +1057,7 @@ export const createSpacesGutter = ({
 
     // Set active space based on current profile path
     syncActiveSpaceToPath();
-    render();
+    pushState();
   };
 
   /**
@@ -993,16 +1119,12 @@ export const createSpacesGutter = ({
   document.addEventListener('keyup', handleModifierKeyup);
   window.addEventListener('blur', handleBlur);
 
-  // Close context menu when clicking elsewhere or pressing Escape
-  document.addEventListener('click', hideContextMenu);
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      hideContextMenu();
-    }
-  });
+  // The context menu dismisses itself via its in-tree focusable backdrop
+  // (outside-click / Escape), so no document-level dismissal listeners are
+  // needed here.
 
-  // Initial render (empty)
-  render();
+  // Mount the confined view once; subsequent repaints go through pushState().
+  renderConfined(h(SpacesGutterView, { controller }), $container);
 
   // Load spaces and start watching
   refresh()

@@ -251,6 +251,14 @@ body {
   color: var(--accent-primary);
 }
 
+/* Focusable full-screen backdrop that dismisses the space context menu on an
+   outside click or Escape (sits just below the menu's z-index). */
+.space-context-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
 /* Space context menu */
 .space-context-menu {
   display: none;

@@ -254,6 +254,12 @@ test.serial('right-click home space shows Edit but not Delete', async t => {
   event.clientY = 50;
   $home.dispatchEvent(event);
 
+  // The gutter is now confined Preact: the context menu renders on the next
+  // async update after the right-click, so poll for it rather than querying
+  // synchronously.
+  await waitFor(
+    () => !!$container.querySelector('.space-context-menu.visible'),
+  );
   const $menu = $container.querySelector('.space-context-menu');
   t.truthy($menu, 'context menu exists');
   t.true($menu.classList.contains('visible'), 'context menu is visible');
@@ -297,6 +303,9 @@ test.serial('right-click regular space shows both Edit and Delete', async t => {
   event.clientY = 50;
   $space1.dispatchEvent(event);
 
+  await waitFor(
+    () => !!$container.querySelector('.space-context-menu.visible'),
+  );
   const $menu = $container.querySelector('.space-context-menu');
   const $edit = $menu.querySelector('[data-action="edit"]');
   const $delete = $menu.querySelector('[data-action="delete"]');
@@ -321,7 +330,10 @@ test.serial(
     ctxEvent.clientY = 50;
     $home.dispatchEvent(ctxEvent);
 
-    // Click Edit
+    // Click Edit (the confined menu renders on the next async update).
+    await waitFor(
+      () => !!$container.querySelector('.space-context-menu.visible'),
+    );
     const $edit = $container.querySelector('[data-action="edit"]');
     $edit.click();
 
@@ -359,7 +371,10 @@ test.serial(
     ctxEvent.clientY = 50;
     $home.dispatchEvent(ctxEvent);
 
-    // Click Edit
+    // Click Edit (the confined menu renders on the next async update).
+    await waitFor(
+      () => !!$container.querySelector('.space-context-menu.visible'),
+    );
     const $edit = $container.querySelector('[data-action="edit"]');
     $edit.click();
     await waitFor(
@@ -479,6 +494,9 @@ test.serial(
     ctxEvent.clientY = 50;
     $home.dispatchEvent(ctxEvent);
 
+    await waitFor(
+      () => !!$container.querySelector('.space-context-menu.visible'),
+    );
     const $edit = $container.querySelector('[data-action="edit"]');
     $edit.click();
     await waitFor(() => !!$editModalContainer.querySelector('.add-space-form'));
