@@ -5924,3 +5924,286 @@ test('mount symlink - all symlink types together in one listing', async t => {
   t.is(rawEntries.length, 8); // 2 real + 2 internal + 4 escaping
   t.is(entries.length, 4); // 2 real + 2 internal
 });
+
+test('readLog streams daemon logs', async t => {
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-reader-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  const bootstrap = getBootstrap();
+
+  // Write a marker log larger than one read window, using a 3-byte
+  // character so the streaming decoder is exercised across a window
+  // boundary (the 65536-byte window is not a multiple of 3).
+  const expected = '€'.repeat(50_000);
+  const markerPath = path.join(config.statePath, 'marker.log');
+  await fsp.writeFile(markerPath, expected);
+
+  /** @param {any} reader */
+  const collect = async reader => {
+    let text = '';
+    const sources = [];
+    for await (const entry of iterateReader(reader)) {
+      sources.push(entry.source);
+      text += entry.chunk;
+    }
+    return { text, sources };
+  };
+
+  // Filtering by display name yields exactly that log, reassembled
+  // intact across read-window boundaries.
+  const marker = await collect(
+    await E(bootstrap).readLog({ name: 'marker.log' }),
+  );
+  t.is(marker.text, expected);
+  t.deepEqual([...new Set(marker.sources)], ['marker.log']);
+
+  // An unknown name yields an empty stream.
+  const missing = await collect(
+    await E(bootstrap).readLog({ name: 'no-such.log' }),
+  );
+  t.is(missing.text, '');
+  t.deepEqual(missing.sources, []);
+
+  // Without a filter, the marker log is among the streamed sources.
+  const all = await collect(await E(bootstrap).readLog());
+  t.true(all.sources.includes('marker.log'));
+
+  // The pattern filter operates line-by-line. Write a log with known
+  // lines.
+  const linesPath = path.join(config.statePath, 'lines.log');
+  await fsp.writeFile(linesPath, 'alpha\nbeta\ngamma\nalpaca\n');
+
+  // A plain substring is just an unanchored pattern; the newline is
+  // preserved on each emitted line.
+  const substringResult = await collect(
+    await E(bootstrap).readLog({ name: 'lines.log', pattern: 'alp' }),
+  );
+  t.is(substringResult.text, 'alpha\nalpaca\n');
+
+  // Anchors and other regexp syntax work too.
+  const anchoredResult = await collect(
+    await E(bootstrap).readLog({ name: 'lines.log', pattern: 'ta$' }),
+  );
+  t.is(anchoredResult.text, 'beta\n');
+
+  cancel(Error('readLog test done'));
+});
+
+test('readLog filters lines by regexp over CapTP', async t => {
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-regexp-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  // The bootstrap is a remote reference: every readLog() call and the
+  // reader it returns are driven across the CapTP connection.
+  const bootstrap = getBootstrap();
+
+  /** @param {any} reader */
+  const drain = async reader => {
+    const entries = [];
+    for await (const entry of iterateReader(reader)) {
+      entries.push(entry);
+    }
+    return entries;
+  };
+  /** @param {any} reader */
+  const textOf = async reader =>
+    (await drain(reader)).map(entry => entry.chunk).join('');
+
+  await fsp.writeFile(
+    path.join(config.statePath, 'fruit.log'),
+    'apple 1\nbanana 2\ncherry 3\nAPPLE 4\n',
+  );
+
+  // Alternation selects multiple lines, preserved in file order.
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({
+        name: 'fruit.log',
+        pattern: 'apple|cherry',
+      }),
+    ),
+    'apple 1\ncherry 3\n',
+  );
+
+  // Character classes and anchors work; here, lines ending in 2 or 4.
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({ name: 'fruit.log', pattern: '[24]$' }),
+    ),
+    'banana 2\nAPPLE 4\n',
+  );
+
+  // Matching is case-sensitive (no flags are applied to the source).
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({ name: 'fruit.log', pattern: '^apple' }),
+    ),
+    'apple 1\n',
+  );
+
+  // A pattern that matches nothing yields an empty stream.
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({ name: 'fruit.log', pattern: 'durian' }),
+    ),
+    '',
+  );
+
+  // Without `name`, the regexp filters lines across every log, and each
+  // surviving line is tagged with its source. Use a token unlikely to
+  // occur in the daemon's own logs so the assertion is deterministic.
+  await fsp.writeFile(
+    path.join(config.statePath, 'a.log'),
+    'keep ZZTOKENZZ one\ndrop this\n',
+  );
+  await fsp.writeFile(
+    path.join(config.statePath, 'b.log'),
+    'drop that\nkeep ZZTOKENZZ two\n',
+  );
+  const tagged = await drain(
+    await E(bootstrap).readLog({ pattern: 'ZZTOKENZZ' }),
+  );
+  t.deepEqual(tagged.map(entry => `${entry.source}:${entry.chunk}`).sort(), [
+    'a.log:keep ZZTOKENZZ one\n',
+    'b.log:keep ZZTOKENZZ two\n',
+  ]);
+
+  cancel(Error('readLog regexp test done'));
+});
+
+test('readLog discovers worker logs and disambiguates colliding ids', async t => {
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-worker-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  const bootstrap = getBootstrap();
+
+  /** @param {any} reader */
+  const drain = async reader => {
+    const entries = [];
+    for await (const entry of iterateReader(reader)) {
+      entries.push(entry);
+    }
+    return entries;
+  };
+
+  // Synthesize worker logs directly under <state>/worker/<id>/worker.log.
+  // Two ids share an 8-char prefix; one is unique.
+  const workerDir = path.join(config.statePath, 'worker');
+  const writeWorkerLog = async (id, text) => {
+    await fsp.mkdir(path.join(workerDir, id), { recursive: true });
+    await fsp.writeFile(path.join(workerDir, id, 'worker.log'), text);
+  };
+  await writeWorkerLog('abc12345aaa', 'from aaa\n');
+  await writeWorkerLog('abc12345bbb', 'from bbb\n');
+  await writeWorkerLog('unique99zzz', 'from zzz\n');
+
+  const entries = await drain(await E(bootstrap).readLog());
+  /** @type {Map<string, string>} */
+  const bySource = new Map();
+  for (const { source, chunk } of entries) {
+    bySource.set(source, (bySource.get(source) ?? '') + chunk);
+  }
+  // Unique prefix collapses to the short display name.
+  t.is(bySource.get('worker/unique99'), 'from zzz\n');
+  // Colliding prefix falls back to full ids; logs are NOT merged.
+  t.is(bySource.get('worker/abc12345aaa'), 'from aaa\n');
+  t.is(bySource.get('worker/abc12345bbb'), 'from bbb\n');
+  t.false(bySource.has('worker/abc12345'));
+
+  // The short display name selects exactly that worker's log.
+  const one = await drain(
+    await E(bootstrap).readLog({ name: 'worker/unique99' }),
+  );
+  t.deepEqual(
+    one.map(entry => `${entry.source}:${entry.chunk}`),
+    ['worker/unique99:from zzz\n'],
+  );
+
+  cancel(Error('readLog worker test done'));
+});
+
+test('readLog handles empty, unterminated, CRLF, and invalid-pattern logs', async t => {
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-edge-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  const bootstrap = getBootstrap();
+
+  /** @param {any} reader */
+  const drain = async reader => {
+    const entries = [];
+    for await (const entry of iterateReader(reader)) {
+      entries.push(entry);
+    }
+    return entries;
+  };
+  /** @param {any} reader */
+  const textOf = async reader =>
+    (await drain(reader)).map(entry => entry.chunk).join('');
+
+  // An empty log yields no records at all.
+  await fsp.writeFile(path.join(config.statePath, 'empty.log'), '');
+  t.deepEqual(
+    await drain(await E(bootstrap).readLog({ name: 'empty.log' })),
+    [],
+  );
+
+  // A final line with no trailing newline: unfiltered returns it verbatim,
+  // and the filtered flush emits it without inventing a newline.
+  await fsp.writeFile(
+    path.join(config.statePath, 'tail.log'),
+    'first\nlast line no newline',
+  );
+  t.is(
+    await textOf(await E(bootstrap).readLog({ name: 'tail.log' })),
+    'first\nlast line no newline',
+  );
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({ name: 'tail.log', pattern: 'last' }),
+    ),
+    'last line no newline',
+  );
+
+  // CRLF: the terminator is excluded when matching, so `$` anchors work,
+  // and the original CRLF is preserved in the emitted chunk.
+  await fsp.writeFile(
+    path.join(config.statePath, 'crlf.log'),
+    'alpha\r\nbeta\r\n',
+  );
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({ name: 'crlf.log', pattern: 'alpha$' }),
+    ),
+    'alpha\r\n',
+  );
+
+  // An invalid RegExp source surfaces as a stream error when consumed.
+  await t.throwsAsync(
+    async () => {
+      const reader = await E(bootstrap).readLog({
+        name: 'crlf.log',
+        pattern: '[',
+      });
+      await drain(reader);
+    },
+    { message: /Invalid regular expression|character class|unterminated/ },
+  );
+
+  cancel(Error('readLog edge-case test done'));
+});

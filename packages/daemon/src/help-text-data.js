@@ -190,6 +190,8 @@ export const helpTextEntries = harden([
         'gateway() -> Promise<EndoGateway>\nGet the network gateway for providing values to peers.',
       nodeId:
         "nodeId() -> string\nGet this node's unique identifier.\nUsed for peer-to-peer communication.",
+      readLog:
+        'readLog(options?) -> AsyncIterator\nStream the daemon logs as { source, chunk } records, where source is a log\ndisplay name (such as endo.log or worker/<id8>) and chunk is a run of UTF-8\ntext. Returns a reader; consume it with iterateReader. The optional\noptions.name restricts the stream to a single log by display name; omitting\nit streams every log. options.pattern emits only lines matching a regular\nexpression given as a RegExp source string (a plain substring is just an\nunanchored pattern). Logs are read in bounded windows so a large log is\nnever buffered whole.',
       reviveNetworks:
         'reviveNetworks() -> Promise<void>\nRestore network connections from persisted state.',
       revivePins:

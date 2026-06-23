@@ -613,6 +613,18 @@ Get the network gateway for providing values to peers.
 Get this node's unique identifier.
 Used for peer-to-peer communication.
 
+## readLog(options?) -> AsyncIterator
+
+Stream the daemon logs as { source, chunk } records, where source is a log
+display name (such as endo.log or worker/<id8>) and chunk is a run of UTF-8
+text.
+Returns a reader; consume it with iterateReader.
+The optional options.name restricts the stream to a single log by display
+name; omitting it streams every log.
+options.pattern emits only lines matching a regular expression given as a
+RegExp source string (a plain substring is just an unanchored pattern).
+Logs are read in bounded windows so a large log is never buffered whole.
+
 ## reviveNetworks() -> Promise<void>
 
 Restore network connections from persisted state.

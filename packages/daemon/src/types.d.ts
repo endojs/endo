@@ -1733,6 +1733,17 @@ export type KnownEndoInspectors = {
   [formulaType: string]: EndoInspector<any>;
 };
 
+/**
+ * A run of newly read text from one of the daemon's log files, as
+ * streamed by `EndoBootstrap.readLog`.
+ */
+export type LogChunk = {
+  /** Display name of the source log, e.g. `endo.log` or `worker/<id8>`. */
+  source: string;
+  /** A run of UTF-8 text read from that log. */
+  chunk: string;
+};
+
 export type EndoBootstrap = {
   ping: () => Promise<string>;
   terminate: () => Promise<void>;
@@ -1740,7 +1751,12 @@ export type EndoBootstrap = {
   leastAuthority: () => Promise<EndoGuest>;
   greeter: () => Promise<EndoGreeter>;
   gateway: () => Promise<EndoGateway>;
+  nodeId: () => string;
   sign: (hexBytes: string) => Promise<string>;
+  readLog: (options?: {
+    name?: string;
+    pattern?: string;
+  }) => Promise<import('@endo/exo-stream').PassableReader<LogChunk, undefined>>;
   reviveNetworks: () => Promise<void>;
   revivePins: () => Promise<void>;
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;

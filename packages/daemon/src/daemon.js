@@ -101,7 +101,7 @@ import {
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { ArchiveTreeMethods } from './tar-checkin.js' */
-/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGit, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
+/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGit, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LogChunk, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
 
 /**
  * @typedef {{ kind: 'bearer', token: string } | { kind: 'basic', username: string, password: string }} GitCredentialMaterial
@@ -3122,6 +3122,190 @@ const makeDaemonCore = async (
       peers: peersId,
     }) => {
       const help = makeHelp(endoHelp);
+
+      // Size of each ranged read while streaming a log file. The
+      // reader yields one entry per non-empty chunk, so a larger
+      // window means fewer CapTP messages for big logs.
+      const logChunkBytes = 65_536;
+
+      /**
+       * Enumerate the daemon's log files — the top-level `*.log` files
+       * (e.g. `endo.log`) plus each worker's `worker/<id>/worker.log` —
+       * paired with a stable display name and modification time, oldest
+       * first. Mirrors the discovery the `endo log --all` CLI command
+       * performs directly against the filesystem.
+       *
+       * @returns {Promise<Array<{ path: string, source: string, mtime: bigint }>>}
+       */
+      const listLogFiles = async () => {
+        const { statePath } = persistencePowers;
+        /** @type {Array<{ path: string, source: string, mtime: bigint }>} */
+        const logFiles = [];
+        /**
+         * @param {string} logPath
+         * @param {string} source
+         */
+        const consider = async (logPath, source) => {
+          const stat = await filePowers
+            .statPath(logPath)
+            .catch(() => undefined);
+          if (stat !== undefined && stat.kind === 'file') {
+            logFiles.push(harden({ path: logPath, source, mtime: stat.mtime }));
+          }
+        };
+        // Top-level *.log files.
+        const entries = await filePowers
+          .readDirectory(statePath)
+          .catch(() => []);
+        for (const entry of entries) {
+          if (entry.endsWith('.log')) {
+            await consider(filePowers.joinPath(statePath, entry), entry);
+          }
+        }
+        // Per-worker worker.log files. The display name uses a short id
+        // prefix for readability, but since `source` doubles as the
+        // `name` selector, fall back to the full id whenever two workers
+        // would share a prefix — otherwise selecting one would
+        // ambiguously match (and concatenate) both.
+        const workerDirectory = filePowers.joinPath(statePath, 'worker');
+        const workerIds = await filePowers
+          .readDirectory(workerDirectory)
+          .catch(() => []);
+        const prefixCounts = new Map();
+        for (const workerId of workerIds) {
+          const prefix = workerId.slice(0, 8);
+          prefixCounts.set(prefix, (prefixCounts.get(prefix) ?? 0) + 1);
+        }
+        for (const workerId of workerIds) {
+          const prefix = workerId.slice(0, 8);
+          const source =
+            prefixCounts.get(prefix) === 1
+              ? `worker/${prefix}`
+              : `worker/${workerId}`;
+          await consider(
+            filePowers.joinPath(workerDirectory, workerId, 'worker.log'),
+            source,
+          );
+        }
+        logFiles.sort((a, b) => {
+          if (a.mtime < b.mtime) return -1;
+          if (a.mtime > b.mtime) return 1;
+          // Tie-break on the display name so logs with identical mtimes
+          // (created together, or on a coarse-resolution filesystem) have
+          // a fully deterministic order rather than a filesystem-dependent
+          // one.
+          if (a.source < b.source) return -1;
+          if (a.source > b.source) return 1;
+          return 0;
+        });
+        return harden(logFiles);
+      };
+
+      /**
+       * Stream the daemon's logs as a sequence of `{ source, chunk }`
+       * records, where `source` is the log's display name and `chunk`
+       * is a run of newly read UTF-8 text. Each file is read in bounded
+       * windows so an arbitrarily large log never has to be buffered in
+       * memory or marshalled in a single message. A streaming decoder
+       * keeps multi-byte characters intact across window boundaries.
+       *
+       * When a content filter (`pattern`) is supplied, the stream
+       * switches to line granularity: the windows are split into lines
+       * and only matching lines are emitted (each as its own `chunk`,
+       * newline included), so the consumer still reconstructs a
+       * coherent — but filtered — log by concatenating chunks. A plain
+       * substring search is just an unanchored pattern, so no separate
+       * `includes` option is needed.
+       *
+       * @param {object} [options]
+       * @param {string} [options.name] Restrict the stream to the single
+       *   log whose display name matches exactly (e.g. `endo.log` or
+       *   `worker/<id8>`). When omitted, every log is streamed.
+       * @param {string} [options.pattern] Emit only lines that match this
+       *   regular expression, given as a `RegExp` *source string* (a
+       *   `RegExp` object is not passable, so it cannot cross CapTP). The
+       *   line's terminator (`\n` or `\r\n`) is excluded when matching,
+       *   so `$`-anchored patterns behave the same on LF and CRLF logs.
+       * @returns {AsyncGenerator<LogChunk, undefined, undefined>}
+       */
+      const readLogEntries = async function* readLogEntries(options = {}) {
+        const { name, pattern } = options;
+        // Compile the caller's line predicate once. `pattern` arrives as
+        // a RegExp source string and is compiled here. A pathological
+        // pattern could backtrack catastrophically (ReDoS) while scanning
+        // a large log, but `readLog` is only reachable through the Endo
+        // bootstrap capability — a holder of which can already
+        // `terminate()` the daemon outright — so this adds no meaningful
+        // denial-of-service surface and is deliberately left unsanitised.
+        const regexp = pattern === undefined ? undefined : new RegExp(pattern);
+        const filtered = regexp !== undefined;
+        /** @param {string} line */
+        const matchesLine = line => regexp === undefined || regexp.test(line);
+
+        const logFiles = await listLogFiles();
+        const selected =
+          name === undefined
+            ? logFiles
+            : logFiles.filter(logFile => logFile.source === name);
+        for (const { path: logPath, source } of selected) {
+          const decoder = new TextDecoder();
+          let offset = 0;
+          // Holds the trailing partial line carried across windows while
+          // filtering by line.
+          let pending = '';
+          for (;;) {
+            const bytes = await filePowers.readFileRange(
+              logPath,
+              offset,
+              logChunkBytes,
+            );
+            if (bytes.length === 0) {
+              break;
+            }
+            offset += bytes.length;
+            const text = decoder.decode(bytes, { stream: true });
+            if (text.length !== 0) {
+              if (!filtered) {
+                yield harden({ source, chunk: text });
+              } else {
+                pending += text;
+                let newlineIndex = pending.indexOf('\n');
+                while (newlineIndex !== -1) {
+                  const line = pending.slice(0, newlineIndex);
+                  pending = pending.slice(newlineIndex + 1);
+                  // Match the content without its line terminator so a
+                  // trailing `\r` (CRLF logs) doesn't defeat `$` anchors;
+                  // re-emit the line with its original terminator intact.
+                  const content = line.endsWith('\r')
+                    ? line.slice(0, -1)
+                    : line;
+                  if (matchesLine(content)) {
+                    yield harden({ source, chunk: `${line}\n` });
+                  }
+                  newlineIndex = pending.indexOf('\n');
+                }
+              }
+            }
+          }
+          // Flush any bytes the streaming decoder was holding back, then
+          // the final unterminated line (if it survives the filter).
+          const tail = decoder.decode();
+          if (!filtered) {
+            if (tail.length > 0) {
+              yield harden({ source, chunk: tail });
+            }
+          } else {
+            pending += tail;
+            const content = pending.endsWith('\r')
+              ? pending.slice(0, -1)
+              : pending;
+            if (content.length > 0 && matchesLine(content)) {
+              yield harden({ source, chunk: pending });
+            }
+          }
+        }
+        return undefined;
+      };
       const endoBootstrap = /** @type {FarRef<EndoBootstrap>} */ (
         /** @type {unknown} */ (
           makeExo(
@@ -3138,6 +3322,11 @@ const makeDaemonCore = async (
               greeter: async () => localGreeter,
               gateway: async () => localGateway,
               nodeId: () => localNodeNumber,
+              readLog: async (options = {}) => {
+                return readerFromIterator(readLogEntries(options ?? {}), {
+                  buffer: 64,
+                });
+              },
               sign: async hexBytes => toHex(signBytes(fromHex(hexBytes))),
               reviveNetworks: async () => {
                 const networksDirectory = await provide(

@@ -697,6 +697,9 @@ export const EndoInterface = M.interface('Endo', {
   greeter: M.call().returns(M.promise()),
   gateway: M.call().returns(M.promise()),
   nodeId: M.call().returns(M.string()),
+  readLog: M.call()
+    .optional(M.splitRecord({}, { name: M.string(), pattern: M.string() }))
+    .returns(M.promise()),
   sign: M.call(M.string()).returns(M.promise()),
   reviveNetworks: M.call().returns(M.promise()),
   revivePins: M.call().returns(M.promise()),
