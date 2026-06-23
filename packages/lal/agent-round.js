@@ -7,8 +7,8 @@
  * the streaming bridge from a PiAgent's internal event stream onto a
  * narrower `ChatEvent` shape that `agent.js` switches on. It was previously
  * imported from `@endo/genie`'s public surface (`runAgentRound`); per
- * kriskowal's review on PR #290 the various agent-harness experiments
- * (lal, genie, fae) should not inter-depend as they evolve in parallel,
+ * The various agent-harness experiments (lal, genie, fae) should not
+ * inter-depend as they evolve in parallel,
  * so the few functions we use are copied here verbatim. The corresponding
  * upstream definitions live at `packages/genie/src/agent/index.js`.
  *

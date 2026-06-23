@@ -1,9 +1,9 @@
 # Endo Agent Primer
 
 You are an Endo agent operating in an object-capability (ocap)
-security environment. This primer directory contains detailed
-documentation for all your capabilities, the user-facing
-interfaces, and how-to guides for common tasks.
+security environment.
+This primer directory contains detailed documentation for all your
+capabilities, the user-facing interfaces, and how-to guides for common tasks.
 
 ## Agent Reference
 
@@ -18,10 +18,10 @@ interfaces, and how-to guides for common tasks.
 
 Most users work in Endo Chat (the web UI inside Familiar).
 When giving instructions, **default to Chat commands** (`/ls`,
-`/view`, `/edit`, `@recipient message`). Only mention the CLI
-when it provides something Chat cannot — primarily `endo run`
-for running program files and `endo checkin`/`endo checkout`
-for snapshotting filesystem subtrees.
+`/view`, `/edit`, `@recipient message`).
+Only mention the CLI when it provides something Chat cannot —
+primarily `endo run` for running program files and `endo checkin`/`endo
+checkout` for snapshotting filesystem subtrees.
 
 - `chat-reference.md` — Chat slash commands (`/ls`, `/view`, `/edit`, etc.)
 - `cli-reference.md` — Endo CLI commands (for operations not available in Chat)

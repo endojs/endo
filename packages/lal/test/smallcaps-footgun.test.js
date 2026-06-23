@@ -1,12 +1,6 @@
 // @ts-check
 /**
- * Pin the rigorous SmallCaps encode/decode at the JSON tool-arg boundary
- * (PR #290 review, kriskowal, 2026-06-23):
- *
- *   "Strike the idea. If we are stuck with JSON, it is better to lean in
- *    encode and decode smallcaps, not just guess that any string with a
- *    plus prefix is a bigint. SmallCaps is much more rigorous and touches
- *    all strings, including some that need to be escaped."
+ * Pin the rigorous SmallCaps encode/decode at the JSON tool-arg boundary.
  *
  * The harness now applies the full SmallCaps codec to all tool-call args
  * and results:

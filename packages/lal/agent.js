@@ -17,6 +17,7 @@ import { runAgentRound } from './agent-round.js';
 /** @import { Model } from '@earendil-works/pi-ai' */
 
 /** @import { FarRef } from '@endo/eventual-send' */
+/** @import { Pattern } from '@endo/patterns' */
 /** @import { GuestPowers, ToolCallArgs, InboxMessage, LalContext } from './agent.types.js' */
 
 // Register pi-ai's built-in API providers (anthropic, openai, google,
@@ -57,7 +58,7 @@ const LalInterface = M.interface('Lal', {
  * @property {string} name
  * @property {string} summary - one-line description sent to the LLM.
  * @property {object} [parameters] - JSON-schema-like shape (for documentation).
- * @property {import('@endo/patterns').Pattern} [params] - `@endo/patterns`
+ * @property {Pattern} [params] - `@endo/patterns`
  *   matcher run against the decoded args object before dispatch. Inspired by
  *   `packages/genie/src/tools/common.js`, which uses the same matcher
  *   discipline to validate tool inputs at the `@endo/patterns` layer that
@@ -66,7 +67,7 @@ const LalInterface = M.interface('Lal', {
 
 // Pet-name and path matchers are imported from `@endo/daemon/type-guards.js`
 // so lal validates inbound pet-name arguments against the same shapes the
-// daemon's own interfaces use (per #290 review).
+// daemon's own interfaces use.
 // Message numbers are BigInts. The rigorous SmallCaps decode (`decodeToolArgs`
 // below) always produces a BigInt for `"+N"`/`"-N"` inputs; plain numbers are
 // also accepted for ergonomic LLM emission of small integers.
@@ -502,8 +503,8 @@ before resorting to \`evaluate()\`. For unfamiliar capabilities, use
 // Tool Dispatch
 // ============================================================================
 
-// Rigorous SmallCaps encode/decode for tool-call args (#290 review,
-// kriskowal, 2026-06-23). The wire format is JSON all the way through Pi,
+// Rigorous SmallCaps encode/decode for tool-call args. The wire format is
+// JSON all the way through Pi,
 // but all arg values and tool results are interpreted as SmallCaps: BigInts
 // arrive as `"+N"` / `"-N"`, strings that begin with a special-prefix char
 // (the BANG-to-DASH range `!"#$%&'()*+,-`) are `!`-prefixed by the LLM,

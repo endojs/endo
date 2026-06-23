@@ -13,24 +13,26 @@ The LLM agent uses tool calls to interact with the Endo daemon, enabling it to:
 
 ## Architecture
 
-Lal's agent harness is built directly on
-`@earendil-works/pi-agent-core` + `@earendil-works/pi-ai`. Each worker is a
-single `PiAgent` whose internal message history is the durable transcript
-for the worker's lifetime. The Endo capability tool surface (the `help`,
-`list`, `lookup`, `send`, `reply`, `evaluate`, `define`, ... family) is
-dispatched through a `listTools` / `execTool` pair constructed at worker
-spawn; tool arguments are SmallCaps-decoded per call so BigInt-shaped
-strings (`"+5"`) and `"#undefined"` continue to round-trip correctly.
+Lal's agent harness is built directly on `@earendil-works/pi-agent-core` and
+`@earendil-works/pi-ai`.
+Each worker is a single `PiAgent` whose internal message history is the
+durable transcript for the worker's lifetime.
+The Endo capability tool surface (the `help`, `list`, `lookup`, `send`,
+`reply`, `evaluate`, `define`, ... family) is dispatched through a
+`listTools` / `execTool` pair constructed at worker spawn; tool arguments
+are SmallCaps-decoded per call so BigInt-shaped strings (`"+5"`) and
+`"#undefined"` continue to round-trip correctly.
 
-`packages/lal/providers/` remains in place as a stable surface for
-downstream consumers (jaine, fae). It is no longer used by lal's own
-agent loop, which now goes through pi-ai's multi-provider registry.
+`packages/lal/providers/` remains in place as a stable surface for downstream
+consumers (jaine, fae).
+It is no longer used by lal's own agent loop, which now goes through pi-ai's
+multi-provider registry.
 
 ## Configuration
 
-The agent is configured via environment variables. The legacy
-`LAL_HOST` + `LAL_MODEL` + `LAL_AUTH_TOKEN` triple is translated at
-worker spawn time into a pi-ai `provider/modelId` string:
+The agent is configured via environment variables.
+The legacy `LAL_HOST` + `LAL_MODEL` + `LAL_AUTH_TOKEN` triple is translated
+at worker spawn time into a pi-ai `provider/modelId` string:
 
 | `LAL_HOST` matches                              | pi-ai provider                               |
 | ----------------------------------------------- | -------------------------------------------- |
@@ -69,7 +71,7 @@ yarn setup
 
 The agent will:
 
-1. Send a configuration form to the host
-2. On submission, create a guest profile and start monitoring its inbox
-3. Respond to messages using LLM-driven tool calls
-4. Send replies back to message senders
+- Send a configuration form to the host
+- On submission, create a guest profile and start monitoring its inbox
+- Respond to messages using LLM-driven tool calls
+- Send replies back to message senders

@@ -4,17 +4,12 @@
  * and lal's tool surface (`toolDefs` + `makeExecuteTool` in `agent.js`).
  *
  * The harness migration moved provider/normalization logic into pi-agent-core
- * (#292) and message shaping into pi-ai (#293), so the pre-migration
- * normalization tests were removed (commit 4e6ed35). This test exercises what
+ * and message shaping into pi-ai, so the pre-migration normalization tests
+ * were removed (commit 4e6ed35). This test exercises what
  * remains lal-owned at the new seam: the full SmallCaps decode (via
  * `decodeToolArgs` in `agent.js`), the `@endo/patterns` validation, and the
  * JSON-encoded-string retry path that `decodeToolArgs`'s secondary fallback
  * provides for smaller LLMs.
- *
- * Per the directive on #290 (2026-05-19):
- *   "add a test that stubs convertToLlm and scripts two tool calls
- *    (one normal, one with a JSON-encoded-string arg to hit the
- *    JSON-string retry)."
  *
  * Strategy: construct a `PiAgent` the same way `spawnWorkerLoop` does (same
  * `convertToLlm`, same tool surface built from `toolDefs` + `makeExecuteTool`
