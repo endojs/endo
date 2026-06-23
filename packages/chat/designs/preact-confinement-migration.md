@@ -68,11 +68,16 @@ The single import surface for the confine/render helpers is
   components; the imperative `file-explorer.js` was removed). `chat.js` is
   unchanged — `file-explorer-component.js` keeps the same mount signature.
 
-What remains are the **outliner body**, the `chat.js` root orchestrator, and
-the `inventory-graph` SVG view (pending the renderer's SVG-tag support).
-`spaces-gutter` and `add-space-modal` have now landed (the floot
-imperative-Space PR lifted their freeze). See the "Still on the DOM API" table
-and the tracker below.
+What remains are the **outliner body** and the `inventory-graph` SVG view
+(pending the renderer's SVG-tag support). `chat.js`'s discrete chrome regions
+have since landed as confined Preact ([`chat-chrome.js`](../chat-chrome.js)); its
+space-mode dispatch and top-level layout template stay imperative **by design**
+(the trusted root that calls `renderConfined`). `spaces-gutter` and
+`add-space-modal` have landed (the floot imperative-Space PR lifted their
+freeze). A separate axis — extracting the in-chat bodies into standalone exported
+**component packages** — is tracked under "Blockers to every space being an
+exported component package" below. See the "Still on the DOM API" table and the
+tracker below.
 
 ## Still on the DOM API (remaining migration targets)
 
@@ -83,7 +88,7 @@ been converted to confined Preact:
 | Module                | Lines | Role                                                                                                                        |
 | --------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------- |
 | outliner-component    | 3003  | `outliner` viewMode body — held for the decompose-into-contract approach                                                    |
-| spaces-gutter         | —     | left space gutter — **☑ done** (confined `SpacesGutterView`; the floot imperative-Space PR landed, lifting the freeze)        |
+| spaces-gutter         | —     | left space gutter — **☑ done** (confined `SpacesGutterView`; the floot imperative-Space PR landed, lifting the freeze)      |
 | heat-simulation       | 225   | heat animation; still imperative but host-node-bridged by the converted `channel-header` (not a primary target)             |
 | inventory-graph (pkg) | ~     | `@endo/space-inventory-graph/src/graph.js` SVG view — needs the renderer's `allowedTags`/`allowedAttrs` SVG extension first |
 
@@ -370,30 +375,30 @@ for the incoming imperative-Space PR — see "Deferred" above)
 
 ### Tier 3 — composites (after their children)
 
-| Component                                       | Status | Notes                                                                                                                                                                                    |
-| ----------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| inbox-component                                 | ☑      | Done — the 1:1 recipient-filtered view; confined Preact in three stages (shell + 5 message types, markdown-vnodes + token chips, value-vnodes). Monaco colorize of code fences deferred. |
-| edit-space-modal                                | ☑      | Done — confined Preact + reusable `IconSelector` (Batch B stage 1); scheme picker still host-embedded                                                                                    |
-| send-form                                       | ☑      | Done — reply-context bar confined; composes heat-bar ☑ + token-autocomplete ☑ as host-node controllers                                                                                   |
-| help-modal                                      | ☑      | Done — confined Preact leaf modal                                                                                                                                                        |
-| share-modal                                     | ☑      | Done — confined Preact leaf modal                                                                                                                                                        |
-| scheme-picker                                   | ☑      | Done — confined; keeps the `#scheme-picker-slot` embedding contract                                                                                                                      |
-| inline-eval                                     | ☑      | Done — confined; endowment rows compose autocomplete as host-node controllers                                                                                                            |
-| endow-modal                                     | ☑      | Done — confined; definition-slot autocompletes host-embedded                                                                                                                             |
-| form-builder                                    | ☑      | Done — confined; recipient autocomplete host-embedded                                                                                                                                    |
-| inline-command-form                             | ☑      | Done — composite; confines its chrome, composes its converted children as host-node controllers                                                                                          |
-| define-form                                     | ☑      | Done — first Monaco-embedding form; established the host-node editor pattern + the Monaco test stub                                                                                      |
-| eval-form / blob-viewer / counter-proposal-form | ☑      | Done — Monaco forms on define-form's host-node editor pattern; blob-viewer moved its markdown preview to `markdownToVnodes`                                                              |
-| microblog                                       | ☑      | Done — `microblog` viewMode body; confined Preact via `renderConfined`, `markdownToVnodes` bodies, host-node-bridged author/react chips                                                  |
-| value-component                                 | ☑      | Done — value content via `valueToVnodes`, blob preview as a confined `BlobContent`; modal chrome stays host DOM                                                                          |
-| chat-bar-component                              | ☑      | Done (view regions) — modeline + command popover confined; the rest is irreducible imperative orchestration over shared `#messages` DOM                                                  |
-| channel-component                               | ☑      | Done — Dan's body; host-node-controller pattern for `react-utils`/`channel-utils`/`profile-popup`; +sync-reply follow-up                                                                 |
-| channel-header                                  | ☑      | Done — menu/invite/members/attenuator confined; host-node-bridges the imperative `heat-simulation`                                                                                       |
-| forum                                           | ☑      | Done — `forum` viewMode body; same pattern as microblog (a first attempt that only landed a test was reverted, then redone for real)                                                     |
-| spaces-gutter                                   | ☑      | Done — the floot imperative-Space PR has landed, lifting the freeze. The space icons, add-space button, and per-space context menu are one confined Preact tree (`SpacesGutterView`) driven by a host controller (`GutterViewState` snapshots + select/edit/delete/add callbacks); the menu dismisses via an in-tree focusable backdrop. All the stateful host work (pet-store load, watcher, modals, scheme, Cmd+1..9) is unchanged. |
-| outliner                                        | ☐      | ~3003 lines — largest body; needs the file-explorer-style decompose-into-contract approach, not a one-shot                                                                               |
+| Component                                       | Status | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| inbox-component                                 | ☑      | Done — the 1:1 recipient-filtered view; confined Preact in three stages (shell + 5 message types, markdown-vnodes + token chips, value-vnodes). Monaco colorize of code fences deferred.                                                                                                                                                                                                                                                                                                                                                                                    |
+| edit-space-modal                                | ☑      | Done — confined Preact + reusable `IconSelector` (Batch B stage 1); scheme picker still host-embedded                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| send-form                                       | ☑      | Done — reply-context bar confined; composes heat-bar ☑ + token-autocomplete ☑ as host-node controllers                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| help-modal                                      | ☑      | Done — confined Preact leaf modal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| share-modal                                     | ☑      | Done — confined Preact leaf modal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| scheme-picker                                   | ☑      | Done — confined; keeps the `#scheme-picker-slot` embedding contract                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| inline-eval                                     | ☑      | Done — confined; endowment rows compose autocomplete as host-node controllers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| endow-modal                                     | ☑      | Done — confined; definition-slot autocompletes host-embedded                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| form-builder                                    | ☑      | Done — confined; recipient autocomplete host-embedded                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| inline-command-form                             | ☑      | Done — composite; confines its chrome, composes its converted children as host-node controllers                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| define-form                                     | ☑      | Done — first Monaco-embedding form; established the host-node editor pattern + the Monaco test stub                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| eval-form / blob-viewer / counter-proposal-form | ☑      | Done — Monaco forms on define-form's host-node editor pattern; blob-viewer moved its markdown preview to `markdownToVnodes`                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| microblog                                       | ☑      | Done — `microblog` viewMode body; confined Preact via `renderConfined`, `markdownToVnodes` bodies, host-node-bridged author/react chips                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| value-component                                 | ☑      | Done — value content via `valueToVnodes`, blob preview as a confined `BlobContent`; modal chrome stays host DOM                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| chat-bar-component                              | ☑      | Done (view regions) — modeline + command popover confined; the rest is irreducible imperative orchestration over shared `#messages` DOM                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| channel-component                               | ☑      | Done — Dan's body; host-node-controller pattern for `react-utils`/`channel-utils`/`profile-popup`; +sync-reply follow-up                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| channel-header                                  | ☑      | Done — menu/invite/members/attenuator confined; host-node-bridges the imperative `heat-simulation`                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| forum                                           | ☑      | Done — `forum` viewMode body; same pattern as microblog (a first attempt that only landed a test was reverted, then redone for real)                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| spaces-gutter                                   | ☑      | Done — the floot imperative-Space PR has landed, lifting the freeze. The space icons, add-space button, and per-space context menu are one confined Preact tree (`SpacesGutterView`) driven by a host controller (`GutterViewState` snapshots + select/edit/delete/add callbacks); the menu dismisses via an in-tree focusable backdrop. All the stateful host work (pet-store load, watcher, modals, scheme, Cmd+1..9) is unchanged.                                                                                                                                       |
+| outliner                                        | ☐      | ~3003 lines — largest body; needs the file-explorer-style decompose-into-contract approach, not a one-shot                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | add-space-modal                                 | ☑      | Done — the whole wizard (chooser + all nine forms) is confined Preact via `renderConfined`, closing the unescaped-interpolation (`value="${userTyped}"`) injection surface that was the one open HIGH finding. Wizard state + the nine daemon submit handlers stay host-side; the scheme picker and pet-name autocompletes still mount into the slot/anchor elements the view renders (synchronous `renderConfined`). The per-render Escape-listener leak is fixed (registered once). Covered by `test/component/add-space-modal.test.js` (incl. an injection-safety case). |
-| chat.js (root orchestrator)                     | ⊘      | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-mode dispatch); stays the trusted root that calls `renderConfined`                                          |
+| chat.js (root orchestrator)                     | ◐      | Chrome confined — the profile breadcrumbs, the channel-invitations inbox, and the mention-notify prompts/toasts are confined Preact in `chat-chrome.js` (closing the `@${petName}` → `innerHTML` interpolation; tested). The space-mode dispatch and top-level layout template stay imperative **by design** — the trusted root that calls `renderConfined`, never itself a confined component.                                                                                                                                                                             |
 
 ### Whylip Space (separate `@endo/space-whylip` package)
 
@@ -427,14 +432,88 @@ Three migration targets remain, each its own focused effort:
   parallel agents (the file-explorer approach), with the host owning the editable
   DOM and the confined view rendering structure; **not** a one-shot.
 - `chat.js` (~1860) — stays the imperative trusted dispatch root by design (it
-  calls `renderConfined` on the Preact bodies). Only its discrete chrome regions
-  (breadcrumbs, the channel-invitations inbox section, the mention-notify toasts —
-  the last of which still string-interpolates `@${petName}` into `innerHTML`) are
-  candidates to confine in place; the space-mode dispatch and top-level layout
-  template remain imperative.
+  calls `renderConfined` on the Preact bodies). Its discrete chrome regions
+  (the profile breadcrumbs, the channel-invitations inbox section, and the
+  mention-notify prompts/toasts) **have now been confined in place** in
+  [`chat-chrome.js`](../chat-chrome.js), closing the unescaped `@${petName}` →
+  `innerHTML` interpolation in the mention-notify path (covered by
+  `test/component/chat-chrome.test.js`). The space-mode dispatch and top-level
+  layout template remain imperative by design.
 - a standing follow-up: render Monaco-colorized code fences as vnodes
   (tokenization rather than the `colorize` HTML string) in the inbox and
   definition bodies.
+
+## Blockers to every space being an exported component package
+
+There are **two independent axes** in this migration that are easy to conflate:
+
+- **View migration** — replace a body's imperative DOM construction with confined
+  Preact rendered through `renderConfined`. This is what the tracker above is
+  about, and it is nearly complete.
+- **Packaging** — make each space body a standalone workspace package that
+  **exports a component**, like `@endo/space-file-explorer` / `-whylip` /
+  `-peers` / `-inventory-graph`, reached through a thin chat wrapper.
+
+A body can be fully confined Preact (view done) and still **not** be extractable
+as a package. Most bodies are in exactly that state today: their views are
+migrated, but they remain modules _inside_ `@endo/chat` that `chat.js` imports
+and calls directly (`channel-component`, `forum-component`, `outliner-component`,
+`microblog-component`, `inbox-component`, `value-component`, `chat-bar-component`).
+
+The blockers to the packaging axis, in rough order of how much they bite:
+
+1. **Entry-contract divergence.** Extracted packages use a uniform _pure_
+   contract — `component(props) → cleanup` — and touch nothing beyond their own
+   mount node. The in-chat bodies use an imperative mount-and-mutate signature
+   that varies per body (`channelComponent($parent, $end, channel, options)`,
+   `valueComponent($parent, powers, options)`, …) and **stashes a control API
+   back onto the host node** — e.g. it assigns `$parent.channelAPI` a
+   `{ closeThread, dispose, focusOnNode }` object that `chat.js` then reads back.
+   Host and body communicate through DOM-node mutation and heterogeneous argument
+   lists rather than props, so the body cannot be `export`ed as a component
+   as-is. (Refs: `channel-component.js` signature + the `$parent`-stashed API;
+   the dispatch in `chat.js` ~620–930.)
+
+2. **Shared-module coupling (would-be circular dependency).** The bodies import
+   chat-internal helpers that live in `@endo/chat`: `channel-utils`
+   (channel/forum/outliner/microblog), `edit-queue` (outliner/microblog/forum),
+   `react-utils`, `token-autocomplete`, `send-form`, `profile-popup`. A
+   body-as-package importing `../chat/channel-utils.js` is backwards — it would
+   make a leaf package depend on the app. Until those shared helpers are reachable
+   from outside `@endo/chat`, every coupled body is pinned in place. This is the
+   gating blocker: the bodies with **no** such coupling are the only ones close to
+   extractable.
+
+3. **CSS packaging.** Extracted packages ship their own stylesheet (e.g.
+   `space-peers`, and `channel.css` for the channel list, exposed via the package
+   `exports` field); the in-chat bodies render against the app's global
+   stylesheet. Extraction has to carry each body's styles into its package rather
+   than leave them in the shared sheet.
+
+4. **`contentEditable` / cursor ownership (outliner and chat-bar only).** These
+   two own a live editable surface with selection / range / caret state that
+   fights the refs-stripped confined renderer. On top of the contract and coupling
+   issues, they need the host to retain the editable DOM while the confined view
+   renders structure — the decompose-into-contract approach already noted for the
+   outliner.
+
+### Per-body extractability
+
+| Body                | Extractable today? | Specific blocker                                                                                                  |
+| ------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| inbox-component     | closest            | imperative `$parent` contract; otherwise self-contained (no `channel-utils`)                                      |
+| value-component     | close              | imperative contract; stashes its API on `$parent`; small and isolated                                             |
+| microblog-component | close              | `channel-utils` + `edit-queue` coupling                                                                           |
+| forum-component     | no                 | `channel-utils` + `edit-queue` coupling                                                                           |
+| channel-component   | no                 | async message iterator + scroll-stickiness held on `$parent`; `channel-utils`                                     |
+| outliner-component  | no (hardest)       | `contentEditable` / cursor ownership + `edit-queue` / `token-autocomplete` + a back-reference to the chat-bar API |
+| chat-bar-component  | no (hardest)       | `contentEditable` input + focus/selection; heat-engine orchestration; form-builder / command-executor composition |
+
+The already-packaged spaces (`space-file-explorer`, `-whylip`, `-peers`,
+`-inventory-graph`) cleared all four because they were authored against the pure
+contract from the start (or rewritten into it) and carry their own helpers and
+CSS. `chat.js` itself is **not** on this axis — it is the trusted dispatch root
+that mounts the packages, not a space body.
 
 ## Inventory bar (`inventory-component.js`) decomposition
 
@@ -862,12 +941,12 @@ drag-highlight sweep.
 
 ### Severity roll-up
 
-| Package             | HIGH                  | MED | LOW |
-| ------------------- | --------------------- | --- | --- |
+| Package             | HIGH                   | MED | LOW |
+| ------------------- | ---------------------- | --- | --- |
 | chat                | 0 (add-space-modal ✅) | 6   | ~10 |
-| space-file-explorer | 0                     | 3   | 4   |
-| space-peers         | 0                     | 2   | 3   |
-| space-whylip        | 1 (stream cancel)     | 3   | 4   |
+| space-file-explorer | 0                      | 3   | 4   |
+| space-peers         | 0                      | 2   | 3   |
+| space-whylip        | 1 (stream cancel)      | 3   | 4   |
 
 Suggested fix order when picked up: (1) the subscription-cancellation class
 across whylip/peers (correctness); (2) the inbox + debugger-panel
