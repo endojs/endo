@@ -30,14 +30,16 @@ test('cancel-kit: race against cancelled breaks consumer loop', async t => {
 
   /** @type {Promise<IteratorResult<unknown, undefined>>} */
   const cancellationSentinel = cancelled.then(
-    () => /** @type {IteratorResult<unknown, undefined>} */ ({
-      value: undefined,
-      done: true,
-    }),
-    () => /** @type {IteratorResult<unknown, undefined>} */ ({
-      value: undefined,
-      done: true,
-    }),
+    () =>
+      /** @type {IteratorResult<unknown, undefined>} */ ({
+        value: undefined,
+        done: true,
+      }),
+    () =>
+      /** @type {IteratorResult<unknown, undefined>} */ ({
+        value: undefined,
+        done: true,
+      }),
   );
 
   // Publish two values, then drain them synchronously through the reader to
