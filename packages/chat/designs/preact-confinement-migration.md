@@ -499,21 +499,32 @@ The blockers to the packaging axis, in rough order of how much they bite:
 
 ### Per-body extractability
 
-| Body                | Extractable today? | Specific blocker                                                                                                  |
-| ------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| inbox-component     | closest            | imperative `$parent` contract; otherwise self-contained (no `channel-utils`)                                      |
-| value-component     | close              | imperative contract; stashes its API on `$parent`; small and isolated                                             |
-| microblog-component | close              | `channel-utils` + `edit-queue` coupling                                                                           |
-| forum-component     | no                 | `channel-utils` + `edit-queue` coupling                                                                           |
-| channel-component   | no                 | async message iterator + scroll-stickiness held on `$parent`; `channel-utils`                                     |
-| outliner-component  | no (hardest)       | `contentEditable` / cursor ownership + `edit-queue` / `token-autocomplete` + a back-reference to the chat-bar API |
-| chat-bar-component  | no (hardest)       | `contentEditable` input + focus/selection; heat-engine orchestration; form-builder / command-executor composition |
+| Body                | Extractable today? | Specific blocker                                                                                                                                                                                                   |
+| ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| inbox-component     | closest ◐          | scroll now host-callback'd (no host node in the component) + returns `dispose`; remaining: own CSS + the `$parent`/`$end` mount-target signature                                                                   |
+| value-component     | close ◐            | returns `dispose` now; remaining: queries chat's `#value-*` template DOM (must own its frame markup) + own CSS                                                                                                     |
+| microblog-component | close              | `channel-utils` + `edit-queue` coupling                                                                                                                                                                            |
+| forum-component     | no                 | `channel-utils` + `edit-queue` coupling                                                                                                                                                                            |
+| channel-component   | no                 | async message iterator + scroll-stickiness held on `$parent`; `channel-utils`                                                                                                                                      |
+| outliner-component  | no (hardest)       | `contentEditable` / cursor ownership + `edit-queue` / `token-autocomplete` + a back-reference to the chat-bar API                                                                                                  |
+| chat-bar-component  | no (hardest) ◐     | `dispose` now complete (the leaked global listeners are removed); remaining: queries `#chat-*` template DOM, observes the shared `#messages` container, owns a `contentEditable` input, composes the command forms |
 
 The already-packaged spaces (`space-file-explorer`, `-whylip`, `-peers`,
 `-inventory-graph`) cleared all four because they were authored against the pure
 contract from the start (or rewritten into it) and carry their own helpers and
 CSS. `chat.js` itself is **not** on this axis — it is the trusted dispatch root
 that mounts the packages, not a space body.
+
+**In-place progress (no new package).** Three bodies were moved toward the
+uniform `component(props) -> cleanup` contract without extracting them:
+`inbox-component` no longer threads the host scroll node into its confined
+`InboxRoot` (scroll is two host callbacks) and returns a `dispose()`;
+`value-component` returns a `dispose()` that detaches its host-template listeners
+(fixing a `window` keyup leak on teardown-while-shown); and `chat-bar-component`'s
+`dispose()` now removes its three leaked global `document`/`window` listeners.
+`chat.js` captures and disposes the inbox and value bodies at its teardown point.
+The remaining blockers above (host-template DOM ownership, `contentEditable`,
+shared-module coupling) are the larger efforts still outstanding.
 
 ## Inventory bar (`inventory-component.js`) decomposition
 
