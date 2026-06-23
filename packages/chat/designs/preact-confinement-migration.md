@@ -443,9 +443,36 @@ Three migration targets remain, each its own focused effort:
   (tokenization rather than the `colorize` HTML string) in the inbox and
   definition bodies.
 
+### Type-checking the extracted UI packages (tracked debt)
+
+A third axis, distinct from view migration and packaging: whether a package's
+source survives the repo-wide `tsc`/typedoc pass.
+The `docs` job type-checks `packages/**/*.js` through the root
+[`tsconfig.json`](../../../tsconfig.json), filtered only by that file's
+`exclude` list; the same packages are excluded from
+[`typedoc.json`](../../../typedoc.json) so they are not type-checked or
+documented.
+
+Status by extracted package:
+
+| Package             | In typecheck? | Why                                                                                                       |
+| ------------------- | ------------- | --------------------------------------------------------------------------------------------------------- |
+| `@endo/chat-kit`    | ☑ yes         | shared primitives, authored type-clean                                                                    |
+| `@endo/space-chat`  | ☑ yes         | exposes only the type-clean `InboxRoot` contract                                                           |
+| `@endo/space-channel` | ⊘ excluded  | `outliner-component.js` + `react-utils.js` carry ~307 pre-existing errors inherited from the imperative DOM |
+
+`space-channel` is excluded in both `tsconfig.json` and `typedoc.json`, exactly
+as `@endo/chat` itself is, because its still-imperative bodies (chiefly the
+3003-line `outliner-component`) were moved verbatim from the app, where they
+were never type-checked.
+Re-admitting `space-channel` to the typecheck is a **completion criterion of the
+`outliner` view migration above** — converting the imperative DOM to confined
+Preact is what makes the source type-clean — not a separate cleanup.
+Until then the exclusion is the deliberate, documented state, mirroring `chat`.
+
 ## Blockers to every space being an exported component package
 
-There are **two independent axes** in this migration that are easy to conflate:
+There are **three independent axes** in this migration that are easy to conflate:
 
 - **View migration** — replace a body's imperative DOM construction with confined
   Preact rendered through `renderConfined`. This is what the tracker above is
@@ -453,6 +480,10 @@ There are **two independent axes** in this migration that are easy to conflate:
 - **Packaging** — make each space body a standalone workspace package that
   **exports a component**, like `@endo/space-file-explorer` / `-whylip` /
   `-peers` / `-inventory-graph`, reached through a thin chat wrapper.
+- **Type-checking** — whether the package's source is admitted to the repo-wide
+  `tsc`/typedoc pass (see "Type-checking the extracted UI packages" above). A
+  body can be packaged but still typecheck-excluded if its view is unconverted;
+  `@endo/space-channel` is exactly that case today.
 
 A body can be fully confined Preact (view done) and still **not** be extractable
 as a package. Most bodies are in exactly that state today: their views are
