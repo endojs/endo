@@ -23,6 +23,11 @@ import { peersComponent } from './peers-component.js';
 import { flootComponent } from './floot-component.js';
 import { createShareModal } from './share-modal.js';
 import { microblogComponent } from './microblog-component.js';
+import {
+  renderProfileBar,
+  mountMentionNotifyArea,
+  mountInboxSection,
+} from './chat-chrome.js';
 import { idFromLocator } from './locator.js';
 
 const template = `
@@ -207,45 +212,6 @@ const resizeHandleComponent = $parent => {
   $handle.addEventListener('mousedown', onMouseDown);
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp);
-};
-
-/**
- * Render the profile breadcrumb bar.
- *
- * @param {HTMLElement} $profileBar
- * @param {string[]} profilePath
- * @param {(depth: number) => void} onNavigate - Called with depth to navigate to
- */
-const renderProfileBar = ($profileBar, profilePath, onNavigate) => {
-  $profileBar.innerHTML = '';
-
-  // Always show "Home" as the root
-  const $home = document.createElement('span');
-  $home.className = 'profile-breadcrumb';
-  if (profilePath.length === 0) {
-    $home.classList.add('current');
-  }
-  $home.textContent = 'Home';
-  $home.onclick = () => onNavigate(0);
-  $profileBar.appendChild($home);
-
-  // Add each segment of the path
-  for (let i = 0; i < profilePath.length; i += 1) {
-    const $sep = document.createElement('span');
-    $sep.className = 'profile-separator';
-    $sep.textContent = '›';
-    $profileBar.appendChild($sep);
-
-    const $crumb = document.createElement('span');
-    $crumb.className = 'profile-breadcrumb';
-    if (i === profilePath.length - 1) {
-      $crumb.classList.add('current');
-    }
-    $crumb.textContent = profilePath[i];
-    const depth = i + 1;
-    $crumb.onclick = () => onNavigate(depth);
-    $profileBar.appendChild($crumb);
-  }
 };
 
 /**
@@ -1189,29 +1155,15 @@ const bodyComponent = (
         ).catch(window.reportError);
       }
 
-      // Add collapsible inbox section to sidebar when in channel mode
+      // Add collapsible inbox section to sidebar when in channel mode.
+      // The view is a confined Preact component (chat-chrome.js); this host
+      // retains the powers, prompts, and gutter access and bridges them in
+      // through `loadEntries` / `onAdopt` / `onJoin`.
       if (isChannelMode) {
-        const $inboxSection = document.createElement('div');
-        $inboxSection.className = 'sidebar-inbox-section';
-
-        const $inboxHeader = document.createElement('div');
-        $inboxHeader.className = 'sidebar-inbox-header';
-        $inboxHeader.innerHTML =
-          '<span class="sidebar-inbox-toggle">\u25B6</span> <span>Inbox</span>';
-
-        const $inboxBody = document.createElement('div');
-        $inboxBody.className = 'sidebar-inbox-body';
-
-        $inboxSection.appendChild($inboxHeader);
-        $inboxSection.appendChild($inboxBody);
-        $pets.insertBefore($inboxSection, $profileBar);
-
-        let inboxExpanded = false;
-        let inboxLoaded = false;
-
-        const loadInbox = async () => {
-          $inboxBody.textContent = 'Loading\u2026';
-          try {
+        const $inboxMount = document.createElement('div');
+        $pets.insertBefore($inboxMount, $profileBar);
+        mountInboxSection($inboxMount, {
+          loadEntries: async () => {
             const rawMessages = await E(
               /** @type {{ listMessages: () => Promise<unknown[]> }} */ (
                 resolvedPowers
@@ -1224,151 +1176,94 @@ const bodyComponent = (
             const withValues = messages.filter(
               m => m.type === 'package' && m.names && m.names.length > 0,
             );
-            $inboxBody.innerHTML = '';
-            if (withValues.length === 0 && messages.length === 0) {
-              $inboxBody.innerHTML =
-                '<div class="sidebar-inbox-empty">No messages yet.</div>';
-              return;
+            return {
+              totalCount: messages.length,
+              entries: withValues.map(msg => ({
+                number: msg.number,
+                text: msg.strings ? msg.strings.join('') : '',
+                names: msg.names || [],
+              })),
+            };
+          },
+          onAdopt: async (number, name) => {
+            const petName = window.prompt(
+              `Adopt \u201C${name}\u201D as:`,
+              name,
+            );
+            if (!petName) return false;
+            try {
+              await E(
+                /** @type {{ adopt: (n: bigint, edge: string, pet: string) => Promise<void> }} */ (
+                  resolvedPowers
+                ),
+              ).adopt(number, name, petName);
+              window.alert(
+                `Adopted \u201C${name}\u201D as \u201C${petName}\u201D`,
+              );
+              return true;
+            } catch (err) {
+              window.alert(
+                `Failed to adopt: ${/** @type {Error} */ (err).message}`,
+              );
+              return false;
             }
-            if (withValues.length === 0) {
-              $inboxBody.innerHTML =
-                '<div class="sidebar-inbox-empty">No adoptable values.</div>';
-              return;
+          },
+          onJoin: async (number, name) => {
+            const localName = window.prompt(
+              `Local name for this channel:`,
+              name,
+            );
+            if (!localName) return false;
+            try {
+              // Adopt the channel reference
+              await E(
+                /** @type {{ adopt: (n: bigint, edge: string, pet: string) => Promise<void> }} */ (
+                  resolvedPowers
+                ),
+              ).adopt(number, name, localName);
+
+              // Look up and join the channel
+              const channelRef = await E(
+                /** @type {ERef<EndoHost>} */ (resolvedPowers),
+              ).lookup(localName);
+              const displayName =
+                window.prompt('Your display name in this channel:', 'Guest') ||
+                'Guest';
+              await E(channelRef).join(displayName);
+
+              // Create a space config for this channel
+              const spaceIcon = '\uD83D\uDCE8'; // 📨
+              await spacesGutterAPI.addSpace({
+                name: localName,
+                icon: spaceIcon,
+                profilePath,
+                mode: 'channel',
+                channelPetName: localName,
+                proposedName: displayName,
+                viewMode: 'chat',
+              });
+              window.alert(
+                `Joined channel as \u201C${displayName}\u201D. Check the spaces gutter.`,
+              );
+              return true;
+            } catch (err) {
+              window.alert(
+                `Failed to join channel: ${/** @type {Error} */ (err).message}`,
+              );
+              return false;
             }
-            for (const msg of withValues) {
-              const $entry = document.createElement('div');
-              $entry.className = 'sidebar-inbox-entry';
-
-              const text = msg.strings ? msg.strings.join('') : '';
-              if (text) {
-                const $text = document.createElement('div');
-                $text.className = 'sidebar-inbox-text';
-                $text.textContent = text;
-                $entry.appendChild($text);
-              }
-
-              for (const name of msg.names || []) {
-                const $btnRow = document.createElement('div');
-                $btnRow.className = 'inbox-btn-row';
-
-                const $btn = document.createElement('button');
-                $btn.className = 'inbox-adopt-btn';
-                $btn.textContent = `Adopt \u201C${name}\u201D`;
-                $btn.addEventListener('click', async () => {
-                  const petName = window.prompt(
-                    `Adopt \u201C${name}\u201D as:`,
-                    name,
-                  );
-                  if (!petName) return;
-                  try {
-                    await E(
-                      /** @type {{ adopt: (n: bigint, edge: string, pet: string) => Promise<void> }} */ (
-                        resolvedPowers
-                      ),
-                    ).adopt(msg.number, name, petName);
-                    window.alert(
-                      `Adopted \u201C${name}\u201D as \u201C${petName}\u201D`,
-                    );
-                    inboxLoaded = false;
-                    await loadInbox();
-                  } catch (err) {
-                    window.alert(
-                      `Failed to adopt: ${/** @type {Error} */ (err).message}`,
-                    );
-                  }
-                });
-                $btnRow.appendChild($btn);
-
-                // "Join as Channel" button
-                const $joinBtn = document.createElement('button');
-                $joinBtn.className = 'inbox-join-channel-btn';
-                $joinBtn.textContent = 'Join as Channel';
-                $joinBtn.addEventListener('click', async () => {
-                  const localName = window.prompt(
-                    `Local name for this channel:`,
-                    name,
-                  );
-                  if (!localName) return;
-                  $joinBtn.disabled = true;
-                  $joinBtn.textContent = 'Joining\u2026';
-                  try {
-                    // Adopt the channel reference
-                    await E(
-                      /** @type {{ adopt: (n: bigint, edge: string, pet: string) => Promise<void> }} */ (
-                        resolvedPowers
-                      ),
-                    ).adopt(msg.number, name, localName);
-
-                    // Look up and join the channel
-                    const channelRef = await E(
-                      /** @type {ERef<EndoHost>} */ (resolvedPowers),
-                    ).lookup(localName);
-                    const displayName =
-                      window.prompt(
-                        'Your display name in this channel:',
-                        'Guest',
-                      ) || 'Guest';
-                    await E(channelRef).join(displayName);
-
-                    // Create a space config for this channel
-                    // eslint-disable-next-line no-unused-vars
-                    const spaceId = String(Date.now());
-                    const spaceIcon = '\uD83D\uDCE8'; // 📨
-                    const spaceName = localName;
-                    await spacesGutterAPI.addSpace({
-                      name: spaceName,
-                      icon: spaceIcon,
-                      profilePath,
-                      mode: 'channel',
-                      channelPetName: localName,
-                      proposedName: displayName,
-                      viewMode: 'chat',
-                    });
-                    window.alert(
-                      `Joined channel as \u201C${displayName}\u201D. Check the spaces gutter.`,
-                    );
-                    inboxLoaded = false;
-                    await loadInbox();
-                  } catch (err) {
-                    $joinBtn.disabled = false;
-                    $joinBtn.textContent = 'Join as Channel';
-                    window.alert(
-                      `Failed to join channel: ${/** @type {Error} */ (err).message}`,
-                    );
-                  }
-                });
-                $btnRow.appendChild($joinBtn);
-
-                $entry.appendChild($btnRow);
-              }
-              $inboxBody.appendChild($entry);
-            }
-          } catch {
-            $inboxBody.textContent = 'Unable to load inbox.';
-          }
-          inboxLoaded = true;
-        };
-
-        $inboxHeader.addEventListener('click', () => {
-          inboxExpanded = !inboxExpanded;
-          $inboxBody.style.display = inboxExpanded ? '' : 'none';
-          const $toggle = $inboxHeader.querySelector('.sidebar-inbox-toggle');
-          if ($toggle) {
-            $toggle.textContent = inboxExpanded ? '\u25BC' : '\u25B6';
-          }
-          if (inboxExpanded && !inboxLoaded) {
-            loadInbox().catch(window.reportError);
-          }
+          },
         });
-
-        // Start collapsed
-        $inboxBody.style.display = 'none';
       }
 
       // --- Mention notification area ---
+      // Confined Preact view (chat-chrome.js); the host pushes prompts and
+      // toasts through the returned controller. Pet names render as escaped
+      // text children rather than interpolated innerHTML.
       const $mentionNotifyArea = document.createElement('div');
       $mentionNotifyArea.className = 'mention-notify-area';
       $chatBar.insertBefore($mentionNotifyArea, $chatBar.firstChild);
+      const mentionNotify = mountMentionNotifyArea($mentionNotifyArea);
 
       /**
        * Build a thread recap by walking the replyTo chain from a message
@@ -1634,45 +1529,10 @@ const bodyComponent = (
        * @param {string | undefined} threadKey
        */
       const showInvitePrompt = (petName, channelPetName, threadKey) => {
-        const $prompt = document.createElement('div');
-        $prompt.className = 'mention-notify-prompt';
-        $prompt.innerHTML = `
-          <span class="mention-notify-text">\uD83D\uDCE8 Invite & notify <strong>@${petName}</strong>?</span>
-          <button type="button" class="mention-notify-yes">Yes, invite</button>
-          <button type="button" class="mention-notify-no">No</button>
-        `;
-        $mentionNotifyArea.appendChild($prompt);
-
-        const $yes = /** @type {HTMLButtonElement} */ (
-          $prompt.querySelector('.mention-notify-yes')
-        );
-        const $no = /** @type {HTMLButtonElement} */ (
-          $prompt.querySelector('.mention-notify-no')
-        );
-
-        $no.addEventListener('click', () => {
-          $prompt.remove();
-        });
-
-        $yes.addEventListener('click', async () => {
-          $yes.disabled = true;
-          $yes.textContent = 'Sending\u2026';
-          try {
-            await sendMentionNotification(
-              petName,
-              channelPetName,
-              false,
-              threadKey,
-            );
-            $prompt.innerHTML = `<span class="mention-notify-text mention-notify-sent">\u2713 Notification sent to <strong>@${petName}</strong></span>`;
-            setTimeout(() => $prompt.remove(), 3000);
-          } catch (err) {
-            $yes.disabled = false;
-            $yes.textContent = 'Yes, invite';
-            window.alert(
-              `Failed to send notification: ${/** @type {Error} */ (err).message}`,
-            );
-          }
+        mentionNotify.showInvitePrompt?.({
+          petName,
+          onYes: () =>
+            sendMentionNotification(petName, channelPetName, false, threadKey),
         });
       };
 
@@ -1721,11 +1581,7 @@ const bodyComponent = (
 
                 if (alreadyInvited) {
                   // Already a member — auto-send notification silently
-                  const $toast = document.createElement('div');
-                  $toast.className = 'mention-notify-prompt';
-                  $toast.innerHTML = `<span class="mention-notify-text mention-notify-sent">\u2713 Notified <strong>@${petName}</strong></span>`;
-                  $mentionNotifyArea.appendChild($toast);
-                  setTimeout(() => $toast.remove(), 3000);
+                  const dismissToast = mentionNotify.showToast?.(petName);
 
                   sendMentionNotification(
                     petName,
@@ -1737,7 +1593,7 @@ const bodyComponent = (
                       'Auto-notify failed, falling back to invite prompt:',
                       err,
                     );
-                    $toast.remove();
+                    dismissToast?.();
                     // Fall back to the invite flow so the user can retry
                     showInvitePrompt(petName, channelPetName, info.replyTo);
                   });
