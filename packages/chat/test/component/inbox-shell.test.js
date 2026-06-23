@@ -329,3 +329,46 @@ test.serial('dismiss removes the envelope', async t => {
     'envelope removed after dismissed resolves',
   );
 });
+
+test.serial(
+  'dispose() unmounts the inbox and removes its mount node',
+  async t => {
+    const { $parent, $end } = createInboxDOM();
+    const dismissed = makePromiseKit().promise;
+
+    const messages = [
+      {
+        type: 'request',
+        number: 1n,
+        date: new Date(0).toISOString(),
+        from: HOST,
+        to: GUEST,
+        messageId: 'm1',
+        dismissed,
+        description: 'a thing',
+        settled: new Promise(() => {}),
+      },
+    ];
+    const { powers } = makeStreamPowers({
+      selfId: 'guest-handle-id',
+      messages,
+    });
+
+    const api = await inboxComponent($parent, $end, powers, {
+      showValue: () => {},
+    });
+    await waitFor(
+      () => $parent.querySelectorAll('.message-envelope').length >= 1,
+    );
+    t.is($parent.querySelectorAll('.message-envelope').length, 1);
+
+    // The confined tree mounts into a dedicated child of $parent; dispose removes
+    // it entirely, leaving only the scroll anchor.
+    api.dispose();
+    await waitFor(
+      () => $parent.querySelectorAll('.message-envelope').length === 0,
+    );
+    t.is($parent.querySelectorAll('.message-envelope').length, 0);
+    t.is($parent.contains($end), true, 'the host scroll anchor is untouched');
+  },
+);

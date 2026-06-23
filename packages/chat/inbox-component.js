@@ -12,6 +12,7 @@ import {
   createContext,
   h,
   renderConfined,
+  unmount,
   useContext,
   useEffect,
   useReducer,
@@ -42,8 +43,9 @@ import {
 // into.
 //
 // Scroll is handled imperatively against `$parent` (the host's own container)
-// in the entry closure and after each list mutation — `$parent` is NEVER put
-// into the confined vnode tree (refs are stripped there).
+// by the entry closure, which exposes `measureNearBottom()` / `scrollToBottom()`
+// callbacks to the confined tree. The component itself never receives a host DOM
+// node, so it holds no DOM authority (and refs are stripped there anyway).
 //
 // DEFERRED (see inline TODOs):
 //   - Monaco `colorize` of source (definition / package types) — code fences
@@ -1325,19 +1327,23 @@ harden(toInboxMessage);
  * subscription (in a `useEffect`, so `dispatch` is in scope with no
  * host/effect ordering race), recipient filtering, and the envelopes.
  *
- * `$parent` is the host's own scroll container, threaded through as a prop and
- * used ONLY inside the effect for imperative scroll geometry — it is never put
- * into the rendered vnode tree. `onScrollHint` lets the host align its initial
- * scroll once the first batch lands.
+ * Scroll geometry stays with the trusted host: `measureNearBottom()` and
+ * `scrollToBottom()` are callbacks the entry closure supplies (they close over
+ * the host's own scroll container). This component never receives or touches a
+ * host DOM node, so it is authority-free over the DOM.
  *
  * @param {object} props
  * @param {ERef<EndoHost>} props.powers
  * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} props.showValue
  * @param {Map<string, string>} props.formDescriptions
- * @param {HTMLElement} props.$parent - Host scroll container (effect-only).
+ * @param {() => Promise<boolean>} props.measureNearBottom - Resolves true when
+ *   the host container is scrolled within ~80px of the bottom (read at an
+ *   animation frame by the trusted host).
+ * @param {() => void} props.scrollToBottom - Pins the host container to the
+ *   bottom (host-owned imperative scroll).
  * @param {() => boolean} props.isLive - Returns false once the host has
- *   detached this view (chat.js rebuilds `$parent` rather than calling a
- *   dispose hook); the subscription stops dispatching once it returns false.
+ *   detached this view (chat.js rebuilds the container rather than always
+ *   calling dispose); the subscription stops dispatching once it returns false.
  * @param {string | null | undefined} props.conversationId
  * @param {string | string[] | null | undefined} props.conversationPetName
  */
@@ -1345,7 +1351,8 @@ const InboxRoot = ({
   powers,
   showValue,
   formDescriptions,
-  $parent,
+  measureNearBottom,
+  scrollToBottom,
   isLive,
   conversationId,
   conversationPetName,
@@ -1376,10 +1383,6 @@ const InboxRoot = ({
     let localDisposed = false;
     const disposed = () => localDisposed || !isLive();
 
-    const scrollToBottom = () => {
-      $parent.scrollTo(0, $parent.scrollHeight);
-    };
-
     const run = async () => {
       const selfLocator = await E(powers).locate('@self');
       if (disposed()) return;
@@ -1394,19 +1397,11 @@ const InboxRoot = ({
       )) {
         if (disposed()) break;
 
-        // Read DOM at animation frame to decide whether to pin scroll to the
-        // bottom. 80px tolerance (matching channel-component) so short messages
-        // don't cause the user to "lose" auto-scroll.
+        // Ask the host (which owns the scroll container) whether we were near
+        // the bottom before this envelope renders, so short messages don't make
+        // the user "lose" auto-scroll. 80px tolerance lives in the host callback.
         // eslint-disable-next-line no-await-in-loop
-        const wasAtEnd = await new Promise(resolve =>
-          requestAnimationFrame(() => {
-            const scrollTop = /** @type {number} */ ($parent.scrollTop);
-            const endScrollTop = /** @type {number} */ (
-              $parent.scrollHeight - $parent.clientHeight
-            );
-            resolve(endScrollTop - scrollTop < 80);
-          }),
-        );
+        const wasAtEnd = await measureNearBottom();
         if (disposed()) break;
 
         // eslint-disable-next-line no-await-in-loop
@@ -1511,6 +1506,9 @@ harden(InboxRoot);
  * @param {HTMLElement | null} $end
  * @param {ERef<EndoHost>} powers
  * @param {{ showValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>, conversationId?: string | null, conversationPetName?: string | null }} options
+ * @returns {Promise<{ dispose: () => void }>} A disposer that unmounts the
+ *   confined tree and removes its mount node. (The view also self-disables via
+ *   `isLive()` if the host rebuilds the container without calling it.)
  */
 export const inboxComponent = async (
   $parent,
@@ -1524,15 +1522,31 @@ export const inboxComponent = async (
   // DEDICATED child inserted before `$end`; that way siblings are never
   // clobbered, and re-invocation stays isolated.
   //
-  // Teardown: chat.js has no dispose hook for the inbox — it rebuilds `$parent`
+  // Teardown: the returned `dispose()` unmounts and removes `$mount`. As a
+  // belt-and-suspenders fallback, chat.js may instead rebuild `$parent`
   // (`innerHTML = template`) on space/conversation switch, which detaches
-  // `$mount`. The root component's subscription effect stops dispatching once
-  // `isLive()` reports the mount detached, so a stale view never mutates the
-  // rebuilt DOM. If the host ever does call `unmount($mount)`, the effect's
-  // own cleanup fires too.
+  // `$mount`; the subscription effect stops dispatching once `isLive()` reports
+  // the mount detached, so a stale view never mutates the rebuilt DOM.
   const $mount = document.createElement('div');
   $parent.insertBefore($mount, $end);
   const isLive = () => $mount.isConnected;
+
+  // Scroll geometry is the host's concern: these close over `$parent` (the
+  // host's own scroll container) and are passed to the confined `InboxRoot` as
+  // callbacks, so the component itself never receives a host DOM node.
+  const measureNearBottom = () =>
+    new Promise(resolve =>
+      requestAnimationFrame(() => {
+        const scrollTop = /** @type {number} */ ($parent.scrollTop);
+        const endScrollTop = /** @type {number} */ (
+          $parent.scrollHeight - $parent.clientHeight
+        );
+        // 80px tolerance (matching channel-component) so short messages don't
+        // make the user "lose" auto-scroll.
+        resolve(endScrollTop - scrollTop < 80);
+      }),
+    );
+  const scrollToBottom = () => $parent.scrollTo(0, $parent.scrollHeight);
 
   /** Map from form messageId to its description, for value message rendering. */
   /** @type {Map<string, string>} */
@@ -1543,7 +1557,8 @@ export const inboxComponent = async (
       powers,
       showValue,
       formDescriptions,
-      $parent,
+      measureNearBottom,
+      scrollToBottom,
       isLive,
       conversationId,
       conversationPetName,
@@ -1554,9 +1569,17 @@ export const inboxComponent = async (
   // Initial scroll handled imperatively against the host's own container (never
   // part of the confined tree). One immediate scroll, plus one after the first
   // backlog batch has rendered (150ms), so the user lands at the latest message.
-  $parent.scrollTo(0, $parent.scrollHeight);
-  setTimeout(() => {
-    if (isLive()) $parent.scrollTo(0, $parent.scrollHeight);
+  scrollToBottom();
+  const initialScrollTimer = setTimeout(() => {
+    if (isLive()) scrollToBottom();
   }, 150);
+
+  return harden({
+    dispose: () => {
+      clearTimeout(initialScrollTimer);
+      unmount($mount);
+      $mount.remove();
+    },
+  });
 };
 harden(inboxComponent);

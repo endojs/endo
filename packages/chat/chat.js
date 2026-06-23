@@ -287,6 +287,9 @@ const bodyComponent = (
   /** @type {{ dispose: () => void } | null} */
   let chatBarRef = null;
 
+  /** @type {{ dispose: () => void } | null} */
+  let inboxRef = null;
+
   $parent.innerHTML = template;
 
   const $messages = /** @type {HTMLElement} */ (
@@ -764,7 +767,9 @@ const bodyComponent = (
               ? activeConversation.petName
               : null,
           },
-        ).catch(window.reportError);
+        ).then(api => {
+          inboxRef = api;
+        }, window.reportError);
       }
       /**
        * Switch the active channel within the current space (channel mode only).
@@ -1635,6 +1640,10 @@ const bodyComponent = (
     if (chatBarRef) {
       chatBarRef.dispose();
       chatBarRef = null;
+    }
+    if (inboxRef) {
+      inboxRef.dispose();
+      inboxRef = null;
     }
   };
 };
