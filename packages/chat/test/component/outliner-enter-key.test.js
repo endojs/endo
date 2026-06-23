@@ -9,7 +9,6 @@ import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { outlinerComponent } from '@endo/space-channel/outliner-component.js';
 import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 
-
 const { document: testDocument, cleanup: cleanupDOM } = createDOM();
 
 // Globals the component expects
