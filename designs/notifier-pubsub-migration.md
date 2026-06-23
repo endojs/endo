@@ -156,6 +156,19 @@ package-name prefix*) is the right signal at the package-name level, and
 "notifier" is a misleading name for a primitive whose lossless variant
 delivers every delta rather than coalesced state.
 
+### Durable pubsub deferred
+
+The package supports only the in-memory wire-protocol shape.
+Persistence of unread deltas in `makeChangeTopic` across a daemon
+restart, or persistence of the latest cell in `makeLatestTopic`, is not
+in scope.
+The maintainer's framing on revision 1: *"Not relevant at this layer.
+Durable pubsub is another concern that would require durable exos. We
+can introduce these later."*
+A future *to be filed* tracking issue revisits durable pubsub once
+durable exos exist; that work is a separate sibling design, not a
+follow-up of this one.
+
 ## The topic shapes
 
 Two topic shapes ship in this iteration; endo#1444's proposed third
@@ -773,77 +786,18 @@ The new package's design avoids re-creating that pain:
 
 ## Open questions
 
-- **Storage / persistence of unread deltas in `makeChangeTopic` across
-  daemon restart?**
-  Resolved: not relevant at this layer.
-  Durable pubsub is a separate concern that requires durable exos, which
-  the project does not yet have; the maintainer's framing on revision 1:
-  *"Not relevant at this layer. Durable pubsub is another concern that
-  would require durable exos. We can introduce these later."*
-  The in-memory wire-protocol shape is the only shape this package
-  supports.
-  A future *to be filed* tracking issue revisits durable pubsub once
-  durable exos exist; that work is out of scope for this design.
-
-- **Back-pressure on a slow subscriber?**
-  Resolved: backlog accumulates in the **consumer process**, not the
-  producer process, by the same wire-protocol mechanism `@endo/exo-stream`
-  uses for one-to-one streams.
-  See *Back-pressure and wire protocol* above for the full description.
-  The producer side carries one chain-head reference per subscriber, not
-  a queue of cells; CapTP ferries cells across as the producer publishes,
-  and they accumulate on the consumer side until the consumer drains.
-  A consumer that needs a memory bound applies a coalescing or drop-oldest
-  policy on its local reader (the recovered `Reader<T>` from
-  `iterateChangeTopic`); the package does not bake one in.
-
-- **CapTP traversal: does a remote subscriber's connection severance
-  count as unsubscribe?**
-  Resolved for this iteration: out of reach; the topic cannot observe
-  severance directly because the
-  [`presence-severance-observation`](presence-severance-observation.md)
-  (PR #450) substrate has not landed.
-  The substitute is a required `cancelled: Promise<never>` argument on
-  `subscribe()` (see *Subscriber cancellation* above): the consumer
-  signals departure explicitly and the topic releases per-subscriber
-  state on the settlement.
-  A future revision can layer `E.whenSevered(presence)` on top once it
-  ships: severance settles `cancelled` automatically, and a remote
-  subscriber whose CapTP session severs is treated identically to a
-  graceful cancellation.
-
-- **Should subscribers see a snapshot of accumulated state on
-  `subscribe()`, or only future values?**
-  Resolved: `makeLatestTopic` subscribers see the current latest cell
-  immediately if one has ever been published (and wait for the first
-  publish if not).
-  `makeChangeTopic` subscribers see only deltas after `subscribe()`.
-  The snapshot-then-deltas mode is not a native topic kind; a consumer
-  that needs it composes a one-shot RPC for the snapshot with a
-  `makeChangeTopic` subscribe for subsequent deltas (the consumer
-  reconciles at the seam).
-
-- **`@agoric/notifier` caller survey across agoric-sdk + endo-but-for-bots
-  + endo.**
-  Open: the survey is Phase 2 work (designer-performed research).
-  Anchor for follow-up: *to be filed* tracking issue in the endo issue
-  tracker once Phase 1 ships.
-
-- **Final method names for distinguished latest / changes accessors on
-  a future topic Exo?**
-  Open for a future iteration.
-  This iteration uses `subscribe()` on a single-shape-per-topic factory
-  (`makeLatestTopic` or `makeChangeTopic`).
-  A future iteration that wants a single topic Exo to expose both
-  behaviors via distinguished methods (`subscribeLatest()` /
-  `subscribeChanges()` per *Method-name evolvability*) lands the chosen
-  method names then; the present design names the shape it leaves room
-  for but does not commit to spelling.
-
-- **Final names for the two retained topic factories.**
-  Resolved: `makeLatestTopic` and `makeChangeTopic`.
-  The names are absent from the prior library (per the researcher's
-  writeback); these names land here as authoritative.
+- **Final method names for the additional change-topic sinks the design
+  leaves room for?**
+  The present iteration ships one distinguished sink method per topic
+  exo (`sinkLatest` for `makeLatestTopic`, `sinkChanges` for
+  `makeChangeTopic`).
+  *Method-name evolvability* above describes the room the design leaves
+  for additional change-topic sinks (ack-driven coalescing,
+  consumer-side reduction); the present design does not commit to the
+  method names for those future sinks.
+  A future iteration that adds a second sink to either topic exo lands
+  the chosen method name then, as a non-breaking sibling-method-name
+  addition.
 
 ## Prompt
 
