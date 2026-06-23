@@ -10,7 +10,7 @@ interfaces, and how-to guides for common tasks.
 - `tools.md` — Your tool reference (list, readText, inspect, etc.)
 - `messaging.md` — Message handling and response protocol
 - `capabilities.md` — Working with capabilities and code evaluation
-- `smallcaps.md` — SmallCaps data encoding
+- `smallcaps.md` — SmallCaps data encoding (background; the harness handles it)
 - `formatting.md` — Message formatting (quasi-markdown)
 - `errors.md` — Error handling
 

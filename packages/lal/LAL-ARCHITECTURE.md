@@ -5,6 +5,18 @@ Reference document covering the architecture, message flow, and agent loop of
 capabilities. Lal runs as an unconfined caplet inside the Endo daemon, where
 it processes messages using tool calls and can evaluate code directly.
 
+> **Note (post-pi-harness adoption).** Lal's agent loop now runs
+> directly on `@earendil-works/pi-agent-core` +
+> `@earendil-works/pi-ai`. The OpenAI-format tool schemas and the
+> hand-rolled provider abstraction described in earlier revisions have
+> been replaced by a `listTools` / `execTool` pair constructed at
+> worker spawn. The Endo capability tool surface (`help`, `list`,
+> `lookup`, `send`, `reply`, `evaluate`, `define`, and the rest) is
+> preserved in name and semantics; only the harness driving them has
+> changed. `packages/lal/providers/` remains as a stable surface for
+> downstream consumers (jaine, fae) but is no longer used by lal
+> itself.
+
 ---
 
 ## High-Level Architecture

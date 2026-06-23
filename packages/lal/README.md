@@ -4,34 +4,58 @@ This `@endo/lal` package is an unconfined `@endo/daemon` plugin that provides
 an LLM-powered agent with Endo Guest capabilities.
 
 The LLM agent uses tool calls to interact with the Endo daemon, enabling it to:
+
 - Manage pet names (list, lookup, remove, move, copy)
 - Send and receive messages
 - Adopt capabilities from messages
 - Request capabilities from its host
-- Inspect capabilities via their help() methods
+- Inspect capabilities via their `help()` methods
+
+## Architecture
+
+Lal's agent harness is built directly on
+`@earendil-works/pi-agent-core` + `@earendil-works/pi-ai`. Each worker is a
+single `PiAgent` whose internal message history is the durable transcript
+for the worker's lifetime. The Endo capability tool surface (the `help`,
+`list`, `lookup`, `send`, `reply`, `evaluate`, `define`, ... family) is
+dispatched through a `listTools` / `execTool` pair constructed at worker
+spawn; tool arguments are SmallCaps-decoded per call so BigInt-shaped
+strings (`"+5"`) and `"#undefined"` continue to round-trip correctly.
+
+`packages/lal/providers/` remains in place as a stable surface for
+downstream consumers (jaine, fae). It is no longer used by lal's own
+agent loop, which now goes through pi-ai's multi-provider registry.
 
 ## Configuration
 
-The agent is configured via environment variables.
-If `LAL_HOST` contains `anthropic.com`, the Anthropic provider is used;
-otherwise the llama.cpp (OpenAI-compatible) provider is used.
+The agent is configured via environment variables. The legacy
+`LAL_HOST` + `LAL_MODEL` + `LAL_AUTH_TOKEN` triple is translated at
+worker spawn time into a pi-ai `provider/modelId` string:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LAL_HOST` | API base URL (Ollama, llama.cpp, or Anthropic) | `http://localhost:11434/v1` |
-| `LAL_MODEL` | Model name | `qwen3` (llama.cpp) or `claude-opus-4-5-20251101` (Anthropic) |
-| `LAL_AUTH_TOKEN` | API key (optional for local servers) | - |
-| `LAL_MAX_TOKENS` | Max completion tokens (llama.cpp provider) | `4096` |
-| `LAL_MAX_MESSAGES` | Truncate to last N messages before sending (avoids context-size errors) | - |
+| `LAL_HOST` matches                              | pi-ai provider                               |
+| ----------------------------------------------- | -------------------------------------------- |
+| `anthropic.com`                                 | `anthropic`                                  |
+| `generativelanguage.googleapis.com` or `gemini` | `google`                                     |
+| `openrouter`                                    | `openrouter`                                 |
+| `openai.com`                                    | `openai`                                     |
+| `:11434` (default Ollama port)                  | `ollama` (OpenAI-compatible local endpoint)  |
+| anything else with `/v1`                        | `openai` (OpenAI-compatible, e.g. llama.cpp) |
+
+`LAL_AUTH_TOKEN` is forwarded into `process.env.<PROVIDER>_API_KEY` so
+pi-ai's adaptor finds it.
+
+| Variable         | Description                          | Default                  |
+| ---------------- | ------------------------------------ | ------------------------ |
+| `LAL_HOST`       | API base URL                         | `http://localhost:11434` |
+| `LAL_MODEL`      | Model identifier within the provider | provider-specific        |
+| `LAL_AUTH_TOKEN` | API key                              | -                        |
 
 Example configuration files are provided:
+
 - `local.env.example` - Local Ollama instance
 - `cloud.env.example` - Remote Ollama with authentication
-- `openai.env.example` - OpenAI API (OpenAI-compatible provider)
+- `openai.env.example` - OpenAI API
 - `opus.env.example` - Anthropic Claude (Opus)
-
-For a llama.cpp server that returns "context size" errors, set `LAL_MAX_MESSAGES`
-(e.g. to `30`) to send only the last N messages and stay under the server's limit.
 
 ## Usage
 
@@ -40,11 +64,12 @@ For a llama.cpp server that returns "context size" errors, set `LAL_MAX_MESSAGES
 source local.env.example
 
 # Start the agent
-yarn start
+yarn setup
 ```
 
 The agent will:
-1. Create a guest profile named `lal`
-2. Start monitoring its inbox for messages
+
+1. Send a configuration form to the host
+2. On submission, create a guest profile and start monitoring its inbox
 3. Respond to messages using LLM-driven tool calls
 4. Send replies back to message senders
