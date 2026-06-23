@@ -503,10 +503,10 @@ The blockers to the packaging axis, in rough order of how much they bite:
 | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | inbox-component     | ☑ extracted        | now `@endo/space-chat` (pure `InboxRoot`) + a thin host wrapper; the first body to leave the app                                                                                                                   |
 | value-component     | closest ◐          | now owns its frame DOM + visibility + `dispose` (no longer queries chat's template); remaining: own CSS (+ drop the internal element IDs for multi-instance safety)                                                |
-| microblog-component | close              | `channel-utils` + `edit-queue` coupling                                                                                                                                                                            |
-| forum-component     | no                 | `channel-utils` + `edit-queue` coupling                                                                                                                                                                            |
-| channel-component   | no                 | async message iterator + scroll-stickiness held on `$parent`; `channel-utils`                                                                                                                                      |
-| outliner-component  | no (hardest)       | `contentEditable` / cursor ownership + `edit-queue` / `token-autocomplete` + a back-reference to the chat-bar API                                                                                                  |
+| microblog-component | ☑ extracted        | now in `@endo/space-channel`                                                                                                                                                                                       |
+| forum-component     | ☑ extracted        | now in `@endo/space-channel`                                                                                                                                                                                       |
+| channel-component   | ☑ extracted        | now in `@endo/space-channel`                                                                                                                                                                                       |
+| outliner-component  | ☑ extracted        | now in `@endo/space-channel` (still imperative-DOM internally; view-migration is a separate axis)                                                                                                                  |
 | chat-bar-component  | no (hardest) ◐     | `dispose` now complete (the leaked global listeners are removed); remaining: queries `#chat-*` template DOM, observes the shared `#messages` container, owns a `contentEditable` input, composes the command forms |
 
 The already-packaged spaces (`space-file-explorer`, `-whylip`, `-peers`,
@@ -609,19 +609,34 @@ buckets, not two** — a few things are shared by both and belong to neither.
    exempt from the workspace-wide `typedoc` and `SECURITY.md` checks, but an
    extracted package is **not**. Latent issues the app tolerated (a too-narrow
    `VNode[]` body type) became hard CI failures once moved. New packages must
-   ship a `SECURITY.md`, a `LICENSE`, and be **tsc/typedoc-clean** — hold them to
-   that bar up front, not "the app accepted it."
+   ship a `SECURITY.md` and a `LICENSE`. As for type-cleanliness: the app
+   packages (chat + every `space-*`) are **excluded from the workspace typedoc**
+   (`typedoc.json`), so an extracted UI package is not docs-gated — `chat-kit`,
+   `space-chat`, and `space-channel` were added to that exclude list. (`space-chat`
+   was the case that taught this: it briefly failed the docs build only because it
+   was the one app package missing from the exclude list.)
 
-4. **`@endo/space-channel`** — ☐ the big lift: move the 4 bodies + 4 substrate
-   modules together. This is where the 6-module coupling finally resolves. Expect
-   it to surface many latent type issues in `channel-utils` / `react-utils` /
-   the bodies once they face typedoc; budget for that. Best done as its **own PR**
-   given the blast radius.
+4. **`@endo/space-channel`** — ☑ **done**. The four bodies (`channel`, `forum`,
+   `microblog`, `outliner`) + their substrate (`channel-utils`, `react-utils`,
+   `edit-queue`, `profile-popup`) moved as a unit, so the substrate coupling
+   resolves (a body imports `channel-utils` from within its own package). Done in
+   phases: (A) `token-autocomplete` → `chat-kit` (the shared `contentEditable`
+   controller outliner + send-form both need); (B/C) the 8 family files moved
+   together (intra-family imports stay relative); `channel-header` stays in the
+   shell (needs `heat-*`, not the moved substrate); `send-form` stays in the shell
+   (the bodies referenced only its `SendFormAPI` _type_, loosened to `object`);
+   `channel.css` ships via the package's `./channel.css` export. The 106
+   channel-family tests pass through `@endo/space-channel`.
 
-This front-loads the cheap, high-confidence win (`inbox`) and defers the heavy
-channel move until the base and the pattern are proven. It is the first work that
-**creates packages and moves files across them** — larger blast radius than the
-in-place refactors above, which is why the boundary is written down first.
+This front-loaded the cheap, high-confidence win (`inbox`) and deferred the heavy
+channel move until the base and the pattern were proven. It was the first work to
+**create packages and move files across them** — which is why the boundary was
+written down first.
+
+**The chat/channel split is complete:** `@endo/chat-kit` (shared base),
+`@endo/space-chat` (1:1 inbox), and `@endo/space-channel` (the channel family) all
+exist; `@endo/chat` is the host shell that mounts them and keeps the dispatch root,
+the compose box (`chat-bar`/`send-form`), `channel-header`, and the value viewer.
 
 ## Inventory bar (`inventory-component.js`) decomposition
 
