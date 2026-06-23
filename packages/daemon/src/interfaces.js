@@ -11,16 +11,18 @@ import {
   rangeReadMethodGuards,
   getInfoMethodGuard,
 } from '@endo/platform/fs/lite';
+import {
+  NameShape,
+  NamePathShape,
+  NameOrPathShape,
+  NamesOrPathsShape,
+} from './type-guards.js';
 
 // #region Patterns
 
-// Names: pet names are lowercase (a-z start, then a-z0-9-), special names are uppercase
-// Pattern matching is done at runtime by the implementation, but we can at least
-// ensure strings are passed.
-const NameShape = M.string();
-const NamePathShape = M.arrayOf(NameShape);
-const NameOrPathShape = M.or(NameShape, NamePathShape);
-const NamesOrPathsShape = M.arrayOf(NameOrPathShape);
+// Pet-name and pet-path shapes are canonical in `./type-guards.js`
+// (re-exported as `@endo/daemon/type-guards.js` for consumers like
+// `@endo/lal`).  See that module for the contract.
 
 // Edge names for message edges (same pattern as Name)
 const EdgeNameShape = M.string();
