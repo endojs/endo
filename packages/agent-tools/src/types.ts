@@ -45,7 +45,11 @@ export interface ToolSpec {
    * runs.
    */
   argGuards?: Pattern[];
-  /** Dispatch target. Receives the named-args record `{arg0, arg1, ...}`. */
+  /**
+   * Dispatch target. Receives the named-args record keyed by the schema's
+   * declared `parameters.properties` names (e.g. `{ message }`, `{ name,
+   * options }`).
+   */
   execute: (args: Record<string, unknown>) => Promise<unknown>;
 }
 

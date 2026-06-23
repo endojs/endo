@@ -100,9 +100,9 @@ test('invoke marshals named args to positional and calls the capability', async 
 
   await null;
 
-  await byName('commit').invoke({ arg0: 'a message' });
-  await byName('createBranch').invoke({ arg0: 'feature' });
-  await byName('createBranch').invoke({ arg0: 'feature', arg1: harden({}) });
+  await byName('commit').invoke({ message: 'a message' });
+  await byName('createBranch').invoke({ name: 'feature' });
+  await byName('createBranch').invoke({ name: 'feature', options: harden({}) });
   await byName('log').invoke({});
 
   t.deepEqual(calls, [
@@ -118,5 +118,88 @@ test('invoke rejects an arg that violates the runtime guard', async t => {
   const commit = tools.find(tool => tool.name === 'commit');
   if (!commit) throw new Error('no commit tool');
   await null;
-  await t.throwsAsync(() => commit.invoke({ arg0: 123 }));
+  await t.throwsAsync(() => commit.invoke({ message: 123 }));
+});
+
+test('the schemas advertise real, declarative property names', t => {
+  const tools = makeGitTool(makeStubGit([]));
+  const byName = name => {
+    const found = tools.find(tool => tool.name === name);
+    if (!found) throw new Error(`no tool named ${name}`);
+    return found;
+  };
+  const propsOf = name =>
+    Object.keys(
+      /** @type {{ properties?: object }} */ (byName(name).parameters)
+        .properties || {},
+    );
+
+  // No method advertises the generic `argN` convention any more.
+  for (const tool of tools) {
+    const props = Object.keys(
+      /** @type {{ properties?: object }} */ (tool.parameters).properties || {},
+    );
+    for (const prop of props) {
+      t.false(
+        /^arg\d+$/.test(prop),
+        `${tool.name} should not advertise a generic argN property; got ${prop}`,
+      );
+    }
+  }
+
+  t.deepEqual(propsOf('commit'), ['message']);
+  t.deepEqual(propsOf('show'), ['ref']);
+  t.deepEqual(propsOf('createBranch'), ['name', 'options']);
+  t.deepEqual(propsOf('switchBranch'), ['branch']);
+  t.deepEqual(propsOf('log'), ['options']);
+  t.deepEqual(propsOf('diff'), ['options']);
+});
+
+test('invoke resolves named args by their real property names', async t => {
+  const calls = [];
+  const tools = makeGitTool(makeStubGit(calls));
+  const byName = name => {
+    const found = tools.find(tool => tool.name === name);
+    if (!found) throw new Error(`no tool named ${name}`);
+    return found;
+  };
+
+  await null;
+
+  await byName('show').invoke({ ref: 'HEAD' });
+  await byName('switchBranch').invoke({ branch: 'feature' });
+  await byName('log').invoke({ options: harden({ maxCount: 3 }) });
+
+  t.deepEqual(calls, [
+    ['show', 'HEAD'],
+    ['switchBranch', 'feature'],
+    ['log', { maxCount: 3 }],
+  ]);
+});
+
+test('invoke rejects a wrong property name and a missing required one', async t => {
+  const tools = makeGitTool(makeStubGit([]));
+  const byName = name => {
+    const found = tools.find(tool => tool.name === name);
+    if (!found) throw new Error(`no tool named ${name}`);
+    return found;
+  };
+
+  await null;
+
+  // The legacy `arg0` key is no longer accepted; `commit` wants `message`.
+  const wrongName = await t.throwsAsync(() =>
+    byName('commit').invoke({ arg0: 'a message' }),
+  );
+  t.true(
+    wrongName !== undefined && wrongName.message.includes('arg0'),
+    `error should name the offending key; got: ${wrongName?.message}`,
+  );
+
+  // Omitting the required `message` is rejected before the capability is hit.
+  const missing = await t.throwsAsync(() => byName('commit').invoke({}));
+  t.true(
+    missing !== undefined && missing.message.includes('message'),
+    `error should name the missing required key; got: ${missing?.message}`,
+  );
 });

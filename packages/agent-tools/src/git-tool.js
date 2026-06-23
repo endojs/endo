@@ -56,7 +56,7 @@ const gitToolSchemas = harden({
     description: 'List commit history, most recent first.',
     parameters: {
       type: 'object',
-      properties: { arg0: OPTIONS_PROP },
+      properties: { options: OPTIONS_PROP },
       required: [],
       additionalProperties: false,
     },
@@ -65,7 +65,7 @@ const gitToolSchemas = harden({
     description: 'Show changes between commits, the index, and the worktree.',
     parameters: {
       type: 'object',
-      properties: { arg0: OPTIONS_PROP },
+      properties: { options: OPTIONS_PROP },
       required: [],
       additionalProperties: false,
     },
@@ -74,8 +74,8 @@ const gitToolSchemas = harden({
     description: 'Show the contents of a git object (commit, tag, blob).',
     parameters: {
       type: 'object',
-      properties: { arg0: REF_PROP },
-      required: ['arg0'],
+      properties: { ref: REF_PROP },
+      required: ['ref'],
       additionalProperties: false,
     },
   },
@@ -84,9 +84,9 @@ const gitToolSchemas = harden({
     parameters: {
       type: 'object',
       properties: {
-        arg0: { type: 'string', description: 'The commit message.' },
+        message: { type: 'string', description: 'The commit message.' },
       },
-      required: ['arg0'],
+      required: ['message'],
       additionalProperties: false,
     },
   },
@@ -99,10 +99,10 @@ const gitToolSchemas = harden({
     parameters: {
       type: 'object',
       properties: {
-        arg0: { type: 'string', description: 'The new branch name.' },
-        arg1: OPTIONS_PROP,
+        name: { type: 'string', description: 'The new branch name.' },
+        options: OPTIONS_PROP,
       },
-      required: ['arg0'],
+      required: ['name'],
       additionalProperties: false,
     },
   },
@@ -111,9 +111,9 @@ const gitToolSchemas = harden({
     parameters: {
       type: 'object',
       properties: {
-        arg0: { type: 'string', description: 'The branch to switch to.' },
+        branch: { type: 'string', description: 'The branch to switch to.' },
       },
-      required: ['arg0'],
+      required: ['branch'],
       additionalProperties: false,
     },
   },
@@ -161,17 +161,21 @@ export const makeGitTool = gitCap => {
   const records = gitToolMethods.map(method => {
     const schema = gitToolSchemas[method];
     const argGuards = positionalArgGuards(method);
+    // The schema's declared property order is the positional argument order,
+    // matching the convention `makeTool` applies to the named-args record.
+    const paramNames = Object.keys(
+      /** @type {{ properties?: Record<string, unknown> }} */ (
+        schema.parameters
+      ).properties || {},
+    );
     return makeTool({
       name: method,
       description: schema.description,
       parameters: schema.parameters,
       argGuards,
       execute: async argsRecord => {
-        // Marshal named args back to positional order.
-        const positional = [];
-        for (let i = 0; i < argGuards.length; i += 1) {
-          positional.push(argsRecord[`arg${i}`]);
-        }
+        // Marshal named args back to positional order by declared name.
+        const positional = paramNames.map(paramName => argsRecord[paramName]);
         while (
           positional.length > 0 &&
           positional[positional.length - 1] === undefined

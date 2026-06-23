@@ -123,7 +123,61 @@ test('invoke rejects unknown argN keys', async t => {
   t.is(await tool.invoke({ arg0: 'hello' }), 5);
 });
 
-test('invoke marshals named args to positional and validates each', async t => {
+test('invoke maps real property names to positional order', async t => {
+  const tool = makeTool({
+    name: 'createBranch',
+    description: 'Create a branch.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        options: { type: 'object' },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+    argGuards: [M.string(), M.recordOf(M.string(), M.any())],
+    execute: async args => args,
+  });
+
+  await null;
+
+  // The named record reaches `execute` unchanged…
+  t.deepEqual(await tool.invoke({ name: 'feature' }), { name: 'feature' });
+  t.deepEqual(
+    await tool.invoke({ name: 'feature', options: { track: true } }),
+    {
+      name: 'feature',
+      options: { track: true },
+    },
+  );
+
+  // …a value under the wrong (undeclared) key is rejected.
+  const wrong = await t.throwsAsync(() => tool.invoke({ branch: 'feature' }));
+  t.true(
+    wrong !== undefined && wrong.message.includes('branch'),
+    `error should name the offending key; got: ${wrong?.message}`,
+  );
+
+  // …a missing required key is rejected by its real name.
+  const missing = await t.throwsAsync(() =>
+    tool.invoke({ options: { track: true } }),
+  );
+  t.true(
+    missing !== undefined && missing.message.includes('name'),
+    `error should name the missing required key; got: ${missing?.message}`,
+  );
+
+  // …a value of the wrong type under the right name fails its guard, and the
+  // guard label names the real property, not a generic `argN`.
+  const badType = await t.throwsAsync(() => tool.invoke({ name: 42 }));
+  t.true(
+    badType !== undefined && badType.message.includes('createBranch name'),
+    `guard label should name the real property; got: ${badType?.message}`,
+  );
+});
+
+test('invoke maps named args to positional and validates each', async t => {
   const tool = makeTool({
     name: 'pair',
     description: 'Two args.',
