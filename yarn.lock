@@ -1475,6 +1475,7 @@ __metadata:
     "@endo/preact-container": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
+    "@endo/space-channel": "workspace:^"
     "@endo/space-chat": "workspace:^"
     "@endo/space-file-explorer": "workspace:^"
     "@endo/space-floot": "workspace:^"
@@ -2696,6 +2697,22 @@ __metadata:
     eslint: "catalog:dev"
     tsd: "catalog:dev"
     typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/space-channel@workspace:^, @endo/space-channel@workspace:packages/space-channel":
+  version: 0.0.0-use.local
+  resolution: "@endo/space-channel@workspace:packages/space-channel"
+  dependencies:
+    "@endo/chat-kit": "workspace:^"
+    "@endo/daemon": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/monaco-wrapper": "workspace:^"
+    "@endo/preact-container": "workspace:^"
+    eslint: "catalog:dev"
+    preact: "npm:^10.29.2"
   languageName: unknown
   linkType: soft
 
