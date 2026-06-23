@@ -17,8 +17,8 @@ import {
 import {
   assertName,
   assertNames,
-  assertPetNamePath,
   namePathFrom,
+  petNamePathFrom,
 } from './pet-name.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { makeSerialJobs } from './serial-jobs.js';
@@ -1006,8 +1006,7 @@ export const makeMailboxMaker = ({
     /** @type {Mail['adopt']} */
     const adopt = async (messageNumber, edgeName, petNameOrPath) => {
       assertName(edgeName);
-      const petNamePath = namePathFrom(petNameOrPath);
-      assertPetNamePath(petNamePath);
+      const { namePath: petNamePath } = petNamePathFrom(petNameOrPath);
       const normalizedMessageNumber = mustParseBigint(messageNumber, 'message');
       const message = messages.get(normalizedMessageNumber);
       if (message === undefined) {
@@ -1050,9 +1049,14 @@ export const makeMailboxMaker = ({
     /** @type {Mail['request']} */
     const request = async (toNameOrPath, description, responseName) => {
       const toPath = namePathFrom(toNameOrPath);
+      // The response is stored under responseName, so it is a store
+      // target (pet-name leaf); coerce+validate once and reuse.
+      const responseNamePath =
+        responseName !== undefined
+          ? petNamePathFrom(responseName).namePath
+          : undefined;
       await null;
-      if (responseName !== undefined) {
-        const responseNamePath = namePathFrom(responseName);
+      if (responseNamePath !== undefined) {
         const resolutionId = await E(directory).identify(...responseNamePath);
         if (resolutionId !== undefined) {
           context.thisDiesIfThatDies(
@@ -1094,8 +1098,7 @@ export const makeMailboxMaker = ({
       context.thisDiesIfThatDies(resolutionId);
       const responseP = provide(resolutionId);
 
-      if (responseName !== undefined) {
-        const responseNamePath = namePathFrom(responseName);
+      if (responseNamePath !== undefined) {
         await E(directory).storeIdentifier(responseNamePath, resolutionId);
       }
 

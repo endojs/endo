@@ -12,7 +12,6 @@ import {
   getInfoMethodGuard,
 } from '@endo/platform/fs/lite';
 import {
-  NameShape,
   NamePathShape,
   NameOrPathShape,
   NamesOrPathsShape,
@@ -44,7 +43,7 @@ const EnvShape = M.recordOf(M.string(), M.string());
 const MakeCapletOptionsShape = M.splitRecord(
   {},
   {
-    powersName: NameShape,
+    powersName: NameOrPathShape,
     resultName: NameOrPathShape,
     env: EnvShape,
     workerTrustedShims: M.arrayOf(M.string()),
@@ -54,7 +53,7 @@ const MakeCapletOptionsShape = M.splitRecord(
 // Shared method guard for evaluate (used by both Host and Guest)
 // Both execute directly in a worker, differing only in namespace
 const EvaluateMethodGuard = M.call(
-  M.or(NameShape, M.undefined()),
+  M.or(NameOrPathShape, M.undefined()),
   M.string(),
   M.arrayOf(M.string()),
   NamesOrPathsShape,
@@ -329,41 +328,45 @@ export const HostInterface = M.interface('EndoHost', {
   // able to recover host paths for daemon-minted top-level mounts.
   provideHostPath: M.call(M.any()).returns(M.promise()),
   // Provide a guest
-  provideGuest: M.call().optional(NameShape, M.record()).returns(M.promise()),
+  provideGuest: M.call()
+    .optional(NameOrPathShape, M.record())
+    .returns(M.promise()),
   // Provide a host
-  provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
+  provideHost: M.call()
+    .optional(NameOrPathShape, M.record())
+    .returns(M.promise()),
   // Provide a worker
   provideWorker: M.call(NameOrPathShape).returns(M.promise()),
   // Evaluate code directly in a worker
   evaluate: EvaluateMethodGuard,
   // Make an unconfined caplet
-  makeUnconfined: M.call(M.or(NameShape, M.undefined()), M.string())
+  makeUnconfined: M.call(M.or(NameOrPathShape, M.undefined()), M.string())
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a caplet from a source-only ZIP archive
-  makeArchive: M.call(M.or(NameShape, M.undefined()), NameShape)
+  makeArchive: M.call(M.or(NameOrPathShape, M.undefined()), NameOrPathShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a caplet from a ReadableTree or Mount laid out as a
   // compartment-mapper archive (compartment-map.json at root plus
   // modules at their referenced paths).
-  makeFromTree: M.call(M.or(NameShape, M.undefined()), NameOrPathShape)
+  makeFromTree: M.call(M.or(NameOrPathShape, M.undefined()), NameOrPathShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Materialise a readable tree into a new scratch mount.
-  stageTree: M.call(NameOrPathShape, NameShape).returns(M.promise()),
+  stageTree: M.call(NameOrPathShape, NameOrPathShape).returns(M.promise()),
   // Stage a readable tree and run its entry module as an unconfined
   // Node caplet.
   makeUnconfinedFromTree: M.call(
-    M.or(NameShape, M.undefined()),
+    M.or(NameOrPathShape, M.undefined()),
     NameOrPathShape,
   )
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Create a channel
-  makeChannel: M.call(NameShape, M.string()).returns(M.promise()),
+  makeChannel: M.call(NameOrPathShape, M.string()).returns(M.promise()),
   // Create a timer
-  makeTimer: M.call(NameShape, M.number())
+  makeTimer: M.call(NameOrPathShape, M.number())
     .optional(M.string())
     .returns(M.promise()),
   // Cancel a value
@@ -387,9 +390,9 @@ export const HostInterface = M.interface('EndoHost', {
   // Adopt a value from a locator with connection hints
   adoptFromLocator: M.call(LocatorShape, NameOrPathShape).returns(M.promise()),
   // Create an invitation
-  invite: M.call(NameShape).returns(M.promise()),
+  invite: M.call(NameOrPathShape).returns(M.promise()),
   // Accept an invitation
-  accept: M.call(LocatorShape, NameShape).returns(M.promise()),
+  accept: M.call(LocatorShape, NameOrPathShape).returns(M.promise()),
   // Reply to a message
   reply: M.call(
     MessageNumberShape,
@@ -414,7 +417,7 @@ export const HostInterface = M.interface('EndoHost', {
     M.record(), // bindings
   )
     .optional(
-      M.or(NameShape, M.undefined()), // workerName
+      M.or(NameOrPathShape, M.undefined()), // workerName
       NameOrPathShape, // resultName
     )
     .returns(M.promise()),

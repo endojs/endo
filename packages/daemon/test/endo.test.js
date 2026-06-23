@@ -2378,6 +2378,208 @@ testNeedsNodeWorker('indirect cancellation via caplet', async t => {
   );
 });
 
+testNeedsNodeWorker(
+  'provideGuest and powersName accept directory paths (no move dance)',
+  async t => {
+    const { host } = await prepareHost(t);
+
+    // The factory's controller directory.
+    await E(host).makeDirectory('factory');
+
+    // The guest handle and its agent are born *inside* the directory —
+    // no top-level pet names, no relocate-after-makeUnconfined dance.
+    await E(host).provideGuest(['factory', 'handle'], {
+      agentName: ['factory', 'agent'],
+    });
+
+    // They are reachable by path and absent at the top level.
+    t.true(await E(host).has('factory', 'handle'));
+    t.true(await E(host).has('factory', 'agent'));
+    t.false(await E(host).has('handle'));
+    t.false(await E(host).has('agent'));
+
+    // A value the host will grant when the caplet asks its powers.
+    await E(host).provideWorker(['worker']);
+    await E(host).evaluate(
+      'worker',
+      `
+      makeExo('Answer', M.interface('Answer', {}, { defaultGuards: 'passable' }), {
+        value: () => 42,
+      })
+      `,
+      [],
+      [],
+      ['grant'],
+    );
+
+    // The caplet's powers are supplied *by directory path*, and its
+    // result is stored at a directory path too.
+    const servicePath = path.join(dirname, 'test', 'service.js');
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    await E(host).makeUnconfined('worker', serviceLocation, {
+      powersName: ['factory', 'agent'],
+      resultName: ['factory', 'service'],
+    });
+
+    // Asking the service routes a request to the host from the
+    // in-directory handle, proving the powers wired to the path-named
+    // agent.  The endowment is supplied by path as well.
+    const iterator = iterateReader(E(host).followMessages());
+    const answer = E(host).evaluate(
+      'worker',
+      'E(service).ask()',
+      ['service'],
+      [['factory', 'service']],
+      ['answer'],
+    );
+    const { value: message } = await iterator.next();
+    const { number, from: fromId } = E.get(message);
+    // `from` is a locator; compare against the in-directory handle's
+    // locator to prove the request came from the path-named handle.
+    t.is(await fromId, await E(host).locate('factory', 'handle'));
+    await E(host).resolve(await number, 'grant');
+    t.is(await E(await answer).value(), 42);
+
+    // Native path idempotency: re-providing the same guest at the same
+    // path resolves to the same agent id — no controller-path keying
+    // workaround required.
+    const agentId = await E(host).identify('factory', 'agent');
+    await E(host).provideGuest(['factory', 'handle'], {
+      agentName: ['factory', 'agent'],
+    });
+    t.is(await E(host).identify('factory', 'agent'), agentId);
+  },
+);
+
+testNeedsNodeWorker(
+  'path-named agents and powers reject a missing parent directory',
+  async t => {
+    const { host } = await prepareHost(t);
+
+    // A specified path whose parent directory does not exist is rejected
+    // the same way `makeDirectory` (and the `mkdir` / `store` / `mv` CLI
+    // verbs that build on it) reject one: with "Unknown pet name".  No
+    // intermediate directories are auto-created, so provisioning an agent
+    // or referencing powers at a path follows the same rule as every
+    // other path operation.
+    await t.throwsAsync(E(host).makeDirectory(['nope', 'sub']), {
+      message: /Unknown pet name/,
+    });
+    await t.throwsAsync(E(host).provideGuest(['nope', 'handle']), {
+      message: /Unknown pet name/,
+    });
+    await t.throwsAsync(E(host).provideHost(['nope', 'handle']), {
+      message: /Unknown pet name/,
+    });
+
+    await E(host).provideWorker(['worker']);
+    const counterPath = path.join(dirname, 'test', 'counter.js');
+    const counterLocation = url.pathToFileURL(counterPath).href;
+    await t.throwsAsync(
+      E(host).makeUnconfined('worker', counterLocation, {
+        powersName: ['nope', 'agent'],
+        resultName: 'counter',
+      }),
+      { message: /Unknown pet name/ },
+    );
+  },
+);
+
+test('makeTimer and makeChannel accept directory paths', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeDirectory('infra');
+
+  await E(host).makeTimer(['infra', 'tick'], 1000);
+  t.true(await E(host).has('infra', 'tick'));
+  t.false(await E(host).has('tick'));
+
+  await E(host).makeChannel(['infra', 'chan'], 'me');
+  t.true(await E(host).has('infra', 'chan'));
+});
+
+test('invite nests the invitation at a directory path', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeDirectory('peers');
+  const invitation = await E(host).invite(['peers', 'bob']);
+  t.truthy(await E(invitation).locate());
+  t.true(await E(host).has('peers', 'bob'));
+  t.false(await E(host).has('bob'));
+});
+
+testNeedsNodeWorker(
+  'evaluate and makeUnconfined accept a worker at a directory path',
+  async t => {
+    const { host } = await prepareHost(t);
+    await E(host).makeDirectory('workers');
+
+    // provideWorker already accepts a path; reference that same worker
+    // by path from evaluate and makeUnconfined.
+    await E(host).provideWorker(['workers', 'w']);
+    const workerId = await E(host).identify('workers', 'w');
+    t.true(await E(host).has('workers', 'w'));
+
+    t.is(
+      42,
+      await E(host).evaluate(['workers', 'w'], '6 * 7', [], [], ['answer']),
+    );
+    // The worker was reused, not recreated.
+    t.is(await E(host).identify('workers', 'w'), workerId);
+
+    const servicePath = path.join(dirname, 'test', 'service.js');
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    const service = await E(host).makeUnconfined(
+      ['workers', 'w'],
+      serviceLocation,
+      { powersName: '@none', resultName: ['workers', 'svc'] },
+    );
+    t.truthy(service);
+    t.is(await E(host).identify('workers', 'w'), workerId);
+
+    // A worker named at a path that does not yet exist is created and
+    // stored there (the parent directory must already exist).
+    t.is(
+      3,
+      await E(host).evaluate(['workers', 'w2'], '1 + 2', [], [], ['three']),
+    );
+    t.true(await E(host).has('workers', 'w2'));
+  },
+);
+
+testNeedsNodeWorker(
+  'makeArchive accepts a source archive at a directory path',
+  async t => {
+    const { host } = await prepareHost(t);
+    await E(host).provideWorker(['w1']);
+    await E(host).makeDirectory('archives');
+
+    // Store the source archive blob at a directory path.
+    const servicePath = path.join(
+      dirname,
+      'test',
+      'fixtures',
+      'archive-service',
+    );
+    const moduleLocation = url.pathToFileURL(servicePath).href;
+    const archiveBytes = await makeCompartmentArchive(
+      archiveReadPowers,
+      moduleLocation,
+      { parserForLanguage: sourceParserForLanguage },
+    );
+    const archiveReaderRef = bytesReaderFromIterator([archiveBytes]);
+    await E(host).storeBlob(archiveReaderRef, ['archives', 'svc']);
+    t.true(await E(host).has('archives', 'svc'));
+
+    // makeArchive resolves the source by path and stores its result by
+    // path too.
+    const service = await E(host).makeArchive('w1', ['archives', 'svc'], {
+      powersName: '@none',
+      resultName: ['archives', 's1'],
+    });
+    t.truthy(service);
+    t.true(await E(host).has('archives', 's1'));
+  },
+);
+
 testNeedsNodeWorker('cancel because of requested capability', async t => {
   const { host } = await prepareHost(t);
 

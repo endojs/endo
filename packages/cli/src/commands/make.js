@@ -46,6 +46,10 @@ export const makeCommand = async ({
   }
 
   const resultPath = parseOptionalPetNamePath(resultName);
+  // A slash-delimited powers name references powers nested in a
+  // directory; the parent directory must already exist (as with
+  // `mkdir`, `store`, and `mv`).
+  const powersPath = parseOptionalPetNamePath(powersName);
 
   /** @type {PassableBytesReader | undefined} */
   let archiveReaderRef;
@@ -69,26 +73,36 @@ export const makeCommand = async ({
     archiveReaderRef = bytesReaderFromIterator([archiveBytes]);
   }
 
+  // A slash-delimited archive name references (or stores) the source
+  // archive nested in a directory; the parent directory must already
+  // exist (as with `mkdir`, `store`, and `mv`).
+  const archivePath = parseOptionalPetNamePath(archiveName);
+
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     await null;
     // Prepare an archive, with the given name.
     if (archiveReaderRef !== undefined) {
-      await E(agent).storeBlob(archiveReaderRef, archiveName);
+      await E(agent).storeBlob(archiveReaderRef, archivePath);
     }
+
+    // A slash-delimited worker name references a worker nested in a
+    // directory; the parent directory must already exist (as with
+    // `mkdir`, `store`, and `mv`).
+    const workerPath = parseOptionalPetNamePath(workerName);
 
     let resultP;
     if (importPath !== undefined) {
       // makeUnconfined is unconditionally Node-scoped; default to
       // the host's @node worker when no other worker is named.
-      const unconfinedWorkerName = workerName ?? '@node';
+      const unconfinedWorkerName = workerPath ?? '@node';
       resultP = E(agent).makeUnconfined(
         unconfinedWorkerName,
         url.pathToFileURL(path.resolve(importPath)).href,
-        { powersName, resultName: resultPath, env },
+        { powersName: powersPath, resultName: resultPath, env },
       );
     } else {
-      resultP = E(agent).makeArchive(workerName, archiveName, {
-        powersName,
+      resultP = E(agent).makeArchive(workerPath, archivePath, {
+        powersName: powersPath,
         resultName: resultPath,
         env,
       });

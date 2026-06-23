@@ -625,7 +625,7 @@ type InvitationFormula = {
   type: 'invitation';
   hostAgent: FormulaIdentifier;
   hostHandle: FormulaIdentifier;
-  guestName: PetName;
+  guestName: NameOrPath;
 };
 
 export type InvitationDeferredTaskParams = {
@@ -1284,12 +1284,12 @@ export interface EndoMount {
 export interface EndoWorker {}
 
 export type MakeHostOrGuestOptions = {
-  agentName?: string;
+  agentName?: string | string[];
   introducedNames?: Record<string, string>;
 };
 
 export type MakeCapletOptions = {
-  powersName?: string;
+  powersName?: string | string[];
   resultName?: string | string[];
   env?: Record<string, string>;
   workerTrustedShims?: string[];
@@ -1368,7 +1368,7 @@ export interface EndoAgent extends EndoDirectory {
 export interface EndoGuest extends EndoAgent {
   /** Evaluate code directly in a worker, constrained by reachable capabilities. */
   evaluate(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     source: string,
     codeNames: Array<string>,
     petNamesOrPaths: Array<string | string[]>,
@@ -1495,34 +1495,34 @@ export interface EndoHost extends EndoAgent {
    */
   provideHostPath(cap: unknown): Promise<string>;
   provideGuest(
-    petName?: string,
+    petName?: string | string[],
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoGuest>;
   provideHost(
-    petName?: string,
+    petName?: string | string[],
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoHost>;
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
   provideWorker(petNamePath: string | string[]): Promise<EndoWorker>;
   evaluate(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     source: string,
     codeNames: Array<string>,
     petNamesOrPaths: Array<string | string[]>,
     resultName?: string | string[],
   ): Promise<unknown>;
   makeUnconfined(
-    workerName: string | undefined,
+    workerName: string | string[] | undefined,
     specifier: string,
     options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeArchive(
-    workerPetName: string | undefined,
-    archiveName: string,
+    workerPetName: string | string[] | undefined,
+    archiveName: string | string[],
     options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeFromTree(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     treeName: string | string[],
     options?: MakeCapletOptions,
   ): Promise<unknown>;
@@ -1534,7 +1534,7 @@ export interface EndoHost extends EndoAgent {
    */
   stageTree(
     treeName: string | string[],
-    scratchPetName: string,
+    scratchPetName: string | string[],
   ): Promise<unknown>;
   /**
    * Stage a readable tree (ReadableTree or Mount) into an internal
@@ -1543,7 +1543,7 @@ export interface EndoHost extends EndoAgent {
    * Supports native Node modules (unlike {@link makeFromTree}).
    */
   makeUnconfinedFromTree(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     treeName: string | string[],
     options?: MakeCapletOptions & { entry?: string },
   ): Promise<unknown>;
@@ -1555,9 +1555,12 @@ export interface EndoHost extends EndoAgent {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   listKnownPeers(): Promise<PeerInfo[]>;
   followPeerChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
-  makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
+  makeChannel(
+    petName: string | string[],
+    proposedName: string,
+  ): Promise<EndoChannel>;
   makeTimer(
-    petName: string,
+    petName: string | string[],
     intervalMs: number,
     label?: string,
   ): Promise<unknown>;
@@ -1568,12 +1571,15 @@ export interface EndoHost extends EndoAgent {
     locator: string,
     petNameOrPath: string | string[],
   ): Promise<void>;
-  invite(guestName: string): Promise<Invitation>;
-  accept(invitationLocator: string, guestName: string): Promise<void>;
+  invite(guestName: string | string[]): Promise<Invitation>;
+  accept(
+    invitationLocator: string,
+    guestName: string | string[],
+  ): Promise<void>;
   endow(
     messageNumber: bigint,
     bindings: Record<string, string | string[]>,
-    workerName?: string,
+    workerName?: string | string[],
     resultName?: string | string[],
   ): Promise<void>;
   submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
@@ -2245,7 +2251,7 @@ export interface DaemonCore {
   formulateInvitation: (
     hostAgentId: FormulaIdentifier,
     hostHandleId: FormulaIdentifier,
-    guestName: PetName,
+    guestName: NameOrPath,
     deferredTasks: DeferredTasks<InvitationDeferredTaskParams>,
   ) => FormulateResult<Invitation>;
 
