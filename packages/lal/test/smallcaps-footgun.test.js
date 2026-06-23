@@ -29,7 +29,8 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
 import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';
 
-import { toolDefs, makeExecuteTool, toAgentTool } from '../agent.js';
+import { makeExecuteTool, toAgentTool } from '../agent.js';
+import { tools } from '../tools/index.js';
 import { makeMockPowers } from '../tools/mock-powers.js';
 
 /** @type {any} */
@@ -125,7 +126,7 @@ const buildAgent = script => {
     return result;
   };
 
-  const agentTools = toolDefs.map(({ name, summary }) =>
+  const agentTools = tools.map(({ name, summary }) =>
     toAgentTool(name, summary, async (toolName, rawArgs) => {
       dispatched.push({ name: toolName, args: rawArgs });
       return executeTool(toolName, rawArgs);
@@ -213,7 +214,7 @@ test('dismiss: powers boundary sees BigInt for "+5" messageNumber', async t => {
   });
 
   const executeTool = makeExecuteTool(observingPowers);
-  const agentTools = toolDefs.map(({ name, summary }) =>
+  const agentTools = tools.map(({ name, summary }) =>
     toAgentTool(name, summary, executeTool),
   );
 
@@ -262,7 +263,7 @@ test('reply: messageNumber "+3" decodes to BigInt 3n', async t => {
     },
   });
   const executeTool = makeExecuteTool(powers);
-  const agentTools = toolDefs.map(({ name, summary }) =>
+  const agentTools = tools.map(({ name, summary }) =>
     toAgentTool(name, summary, executeTool),
   );
   const piAgent = new PiAgent({
@@ -464,7 +465,7 @@ test('evaluate: "#undefined" workerName decodes to undefined', async t => {
   });
 
   const executeTool = makeExecuteTool(observingPowers);
-  const agentTools = toolDefs.map(({ name, summary }) =>
+  const agentTools = tools.map(({ name, summary }) =>
     toAgentTool(name, summary, executeTool),
   );
   const piAgent = new PiAgent({

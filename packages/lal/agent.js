@@ -6,7 +6,6 @@ import { M, mustMatch } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { passableAsJustin, makeMarshal } from '@endo/marshal';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
-import { NamePathShape, NameOrPathShape } from '@endo/daemon/type-guards.js';
 import { makeLocalTree } from '@endo/platform/fs/node';
 
 import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
@@ -14,12 +13,12 @@ import { registerBuiltInApiProviders, getModel } from '@earendil-works/pi-ai';
 import { runAgentRound } from './agent-round.js';
 
 import { systemPrompt } from './prompts/system.js';
+import { tools } from './tools/index.js';
 
 /** @import { AgentTool, AgentToolResult } from '@earendil-works/pi-agent-core' */
 /** @import { Model } from '@earendil-works/pi-ai' */
 
 /** @import { FarRef } from '@endo/eventual-send' */
-/** @import { Pattern } from '@endo/patterns' */
 /** @import { GuestPowers, ToolCallArgs, InboxMessage, LalContext } from './agent.types.js' */
 
 // Register pi-ai's built-in API providers (anthropic, openai, google,
@@ -42,342 +41,17 @@ const LalInterface = M.interface('Lal', {
 // Endo Capability Tool Specs
 // ============================================================================
 //
-// Each tool is named, has a one-line summary (used by pi-agent-core as the
-// tool description sent to the LLM), and an `execute(powers, args)` callback
-// that calls into the daemon. The `parameters` field captures the JSON-schema
-// shape the LLM should target; `toAgentTool` (defined below) wraps each spec
-// in the permissive open-object schema pi-agent-core ships today. When
-// `pi-agent-core` learns to forward custom parameter schemas this field will
-// be wired through directly.
+// The set of tools the LLM can call is built up from per-family files under
+// `tools/`. Each family file exports a hardened array of `LalToolDef`
+// records; the aggregated `tools` array lives in `tools/index.js`. The
+// `summary` is what pi-agent-core sends to the LLM as the tool description;
+// `params` is the `@endo/patterns` matcher run against the decoded args
+// before dispatch.
 //
 // Tool dispatch lives entirely in this module: `executeTool` is the single
 // `switch` that maps tool names to `E(powers)` calls. The set of tools is the
 // same surface lal exposed before the genie migration; only the agent loop
 // driving them has been replaced.
-
-/**
- * @typedef {object} LalToolDef
- * @property {string} name
- * @property {string} summary - one-line description sent to the LLM.
- * @property {object} [parameters] - JSON-schema-like shape (for documentation).
- * @property {Pattern} [params] - `@endo/patterns`
- *   matcher run against the decoded args object before dispatch. Inspired by
- *   `packages/genie/src/tools/common.js`, which uses the same matcher
- *   discipline to validate tool inputs at the `@endo/patterns` layer that
- *   the rest of the Endo capability surface already speaks.
- */
-
-// Pet-name and path matchers are imported from `@endo/daemon/type-guards.js`
-// so lal validates inbound pet-name arguments against the same shapes the
-// daemon's own interfaces use.
-// Message numbers are BigInts. The rigorous SmallCaps decode (`decodeToolArgs`
-// below) always produces a BigInt for `"+N"`/`"-N"` inputs; plain numbers are
-// also accepted for ergonomic LLM emission of small integers.
-const MessageNumberShape = M.or(M.bigint(), M.number());
-
-/** @type {LalToolDef[]} */
-export const toolDefs = [
-  // --- Self-documentation ---
-  {
-    name: 'help',
-    summary:
-      'Get documentation for guest capabilities or a specific method. ' +
-      'Call with no arguments for an overview, or with a method name for specific documentation.',
-    params: M.splitRecord({}, { methodName: M.string() }),
-  },
-
-  // --- Directory operations ---
-  {
-    name: 'has',
-    summary:
-      'Check if a pet name exists in the directory. Returns true or false. ' +
-      'Argument: petNamePath (string[]).',
-    params: M.splitRecord({ petNamePath: NamePathShape }),
-  },
-  {
-    name: 'list',
-    summary:
-      'List contents of your directory or any capability you have a pet name for. ' +
-      'With no arguments, lists pet names in your root directory. ' +
-      'With a name, looks up that capability and calls list() on it. ' +
-      'Optional argument: name (string or string[]).',
-    params: M.splitRecord({}, { name: NameOrPathShape }),
-  },
-  {
-    name: 'lookup',
-    summary:
-      'Resolve a pet name or path to its value. Returns the value stored under that name. ' +
-      'Argument: petNameOrPath (string or string[]).',
-    params: M.splitRecord({ petNameOrPath: NameOrPathShape }),
-  },
-  {
-    name: 'remove',
-    summary:
-      'Remove a pet name from the directory. The underlying value is not deleted, just the name mapping. ' +
-      'Argument: petNamePath (string[]).',
-    params: M.splitRecord({ petNamePath: NamePathShape }),
-  },
-  {
-    name: 'move',
-    summary:
-      'Move/rename a reference from one name to another. The original name is removed. ' +
-      'Arguments: fromPath (string[]), toPath (string[]).',
-    params: M.splitRecord({ fromPath: NamePathShape, toPath: NamePathShape }),
-  },
-  {
-    name: 'copy',
-    summary:
-      'Copy a reference to a new name. Both names will refer to the same value. ' +
-      'Arguments: fromPath (string[]), toPath (string[]).',
-    params: M.splitRecord({ fromPath: NamePathShape, toPath: NamePathShape }),
-  },
-  {
-    name: 'makeDirectory',
-    summary:
-      'Create a new subdirectory at the given path. ' +
-      'Argument: petNamePath (string[]).',
-    params: M.splitRecord({ petNamePath: NamePathShape }),
-  },
-
-  // --- Mail operations ---
-  {
-    name: 'listMessages',
-    summary:
-      'List all messages in your inbox. Returns an array of message objects ' +
-      'with number, date, from, type, and content. No arguments.',
-    params: M.splitRecord({}),
-  },
-  {
-    name: 'resolve',
-    summary:
-      'Respond to a request message by providing a named value. ' +
-      'Arguments: messageNumber (BigInt encoded as "+N", e.g. "+5"), petNameOrPath.',
-    params: M.splitRecord({
-      messageNumber: MessageNumberShape,
-      petNameOrPath: NameOrPathShape,
-    }),
-  },
-  {
-    name: 'reject',
-    summary:
-      'Decline a request message. The requester receives an error. ' +
-      'Arguments: messageNumber (BigInt encoded as "+N", e.g. "+5"), optional reason (string).',
-    params: M.splitRecord(
-      { messageNumber: MessageNumberShape },
-      { reason: M.string() },
-    ),
-  },
-  {
-    name: 'adopt',
-    summary:
-      'Adopt a value from an incoming package message, giving it a pet name. ' +
-      'Arguments: messageNumber (BigInt encoded as "+N", e.g. "+5"), edgeName, petName.',
-    params: M.splitRecord({
-      messageNumber: MessageNumberShape,
-      edgeName: NameOrPathShape,
-      petName: NameOrPathShape,
-    }),
-  },
-  {
-    name: 'dismiss',
-    summary:
-      'Remove a message from your inbox. Use after you have processed a message. ' +
-      'Argument: messageNumber (BigInt encoded as "+N", e.g. "+5").',
-    params: M.splitRecord({ messageNumber: MessageNumberShape }),
-  },
-  {
-    name: 'request',
-    summary:
-      'Send a request to another agent asking for a capability. ' +
-      'Arguments: recipientName, description (string), optional responseName.',
-    params: M.splitRecord(
-      { recipientName: NameOrPathShape, description: M.string() },
-      { responseName: NameOrPathShape },
-    ),
-  },
-  {
-    name: 'send',
-    summary:
-      'Send a package message with values to another agent. ' +
-      'Arguments: recipientName, strings (string[]), edgeNames (string[]), petNames. ' +
-      'For text-only messages: send("@host", ["text"], [], []).',
-    params: M.splitRecord({
-      recipientName: NameOrPathShape,
-      strings: M.arrayOf(M.string()),
-      edgeNames: M.arrayOf(M.string()),
-      petNames: M.arrayOf(NameOrPathShape),
-    }),
-  },
-  {
-    name: 'reply',
-    summary:
-      'Reply to a message in your inbox, threading the response to the original message. ' +
-      'Use this instead of send() when responding to a received message. ' +
-      'Arguments: messageNumber (BigInt encoded as "+N", e.g. "+3"), strings (string[]), edgeNames (string[]), petNames.',
-    params: M.splitRecord({
-      messageNumber: MessageNumberShape,
-      strings: M.arrayOf(M.string()),
-      edgeNames: M.arrayOf(M.string()),
-      petNames: M.arrayOf(NameOrPathShape),
-    }),
-  },
-
-  {
-    type: 'function',
-    function: {
-      name: 'editMessage',
-      description: `\
-Replace the interior of a message you previously sent.
-
-Use to correct a prior reply, settle a "Thinking..." placeholder into a
-final answer, or amend a settled message. Only the original sender may
-edit. The message keeps its number and reply-linkage; the prior revision
-is preserved in messageHistory.
-
-Pairs with the daemon editMessage capability.
-Pass done: false to mark a partial submission (recipient should show a
-progress indicator); pass done: true (or omit) once the message has
-settled.`,
-      parameters: {
-        type: 'object',
-        properties: {
-          messageNumber: {
-            type: 'string',
-            description:
-              'The outbound message number (BigInt) to edit. Use SmallCaps format: "+5" for message 5.',
-          },
-          strings: {
-            type: 'array',
-            items: { type: 'string' },
-            description:
-              'New text fragments. Length should be edgeNames.length + 1.',
-          },
-          edgeNames: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Labels for the values being sent.',
-          },
-          petNames: {
-            type: 'array',
-            items: {
-              oneOf: [
-                { type: 'string' },
-                { type: 'array', items: { type: 'string' } },
-              ],
-            },
-            description:
-              'Pet names of values to include (same length as edgeNames).',
-          },
-          done: {
-            type: 'boolean',
-            description:
-              'Defaults to true. Pass false to mark this revision as a partial submission.',
-          },
-        },
-        required: ['messageNumber', 'strings', 'edgeNames', 'petNames'],
-      },
-    },
-  },
-
-  {
-    type: 'function',
-    function: {
-      name: 'messageHistory',
-      description: `\
-Return the ordered revision history of a message in your inbox or
-outbox.  Useful when an inbound message was edited after you began
-work and you need to know what the earlier text said.  Returns an
-array of revisions, oldest first; the last entry is the current
-message.
-
-Pairs with the daemon messageHistory capability.`,
-      parameters: {
-        type: 'object',
-        properties: {
-          messageNumber: {
-            type: 'string',
-            description:
-              'The message number (BigInt) to inspect. Use SmallCaps format: "+5" for message 5.',
-          },
-        },
-        required: ['messageNumber'],
-      },
-    },
-  },
-
-  // --- Identity ---
-  {
-    name: 'locate',
-    summary:
-      'Get the locator URL for a pet name. Returns an "endo://..." URL string. ' +
-      'Use locate(["@self"]) to get your own locator. ' +
-      'Argument: petNamePath (string[]).',
-    params: M.splitRecord({ petNamePath: NamePathShape }),
-  },
-
-  // --- Capability operations ---
-  {
-    name: 'inspect',
-    summary:
-      'Look up a capability by pet name and call its help() method to learn how to use it. ' +
-      'Argument: petNameOrPath.',
-    params: M.splitRecord({ petNameOrPath: NameOrPathShape }),
-  },
-  {
-    name: 'readText',
-    summary:
-      'Read text content from a capability (ReadableTree, WritableTree, etc.). ' +
-      'Arguments: petNameOrPath, fileName (string).',
-    params: M.splitRecord({
-      petNameOrPath: NameOrPathShape,
-      fileName: M.string(),
-    }),
-  },
-  {
-    name: 'writeText',
-    summary:
-      'Write text content to a capability (WritableTree, etc.). ' +
-      'Arguments: petNameOrPath, fileName (string), content (string).',
-    params: M.splitRecord({
-      petNameOrPath: NameOrPathShape,
-      fileName: M.string(),
-      content: M.string(),
-    }),
-  },
-
-  // --- Code evaluation ---
-  {
-    name: 'evaluate',
-    summary:
-      'Evaluate JavaScript code directly. Arguments: workerName (string|undefined), ' +
-      'source (string), codeNames (string[]), edgeNames (string[]), resultName.',
-    // workerName + codeNames + edgeNames are optional in the dispatcher
-    // (codeNames/edgeNames default to [] and workerName accepts the
-    // "#undefined" SmallCaps sentinel). Allow either undefined or the
-    // expected primitive shape.
-    params: M.splitRecord(
-      { source: M.string(), resultName: NameOrPathShape },
-      {
-        workerName: M.or(M.string(), M.undefined()),
-        codeNames: M.arrayOf(M.string()),
-        edgeNames: M.arrayOf(M.string()),
-      },
-    ),
-  },
-
-  // --- Define (code with slots for host to fill) ---
-  {
-    name: 'define',
-    summary:
-      'Propose a reusable program with named capability slots for the host to fill. ' +
-      'Unlike evaluate(), you do NOT provide the capabilities yourself. ' +
-      'Arguments: source (string), slots (object mapping slot name to { label }).',
-    params: M.splitRecord({
-      source: M.string(),
-      slots: M.recordOf(M.string(), M.splitRecord({ label: M.string() })),
-    }),
-  },
-];
 
 // ============================================================================
 // Tool Dispatch
@@ -412,7 +86,7 @@ const smallcapsMarshal = makeMarshal(undefined, undefined, {
 // + nested-JSON fixup) but expressed at the args-record level since lal's
 // tools share one switch-dispatcher rather than per-tool closures.
 const paramsByTool = new Map(
-  toolDefs.filter(t => t.params !== undefined).map(t => [t.name, t.params]),
+  tools.filter(t => t.params !== undefined).map(t => [t.name, t.params]),
 );
 
 /**
@@ -828,7 +502,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   //   (c) the per-tool parameter schema lives at the tool boundary,
   //       which lets `@endo/patterns` validation guard inbound args.
   const executeTool = makeExecuteTool(powers);
-  const agentTools = toolDefs.map(({ name, summary }) =>
+  const agentTools = tools.map(({ name, summary }) =>
     toAgentTool(name, summary, executeTool),
   );
 

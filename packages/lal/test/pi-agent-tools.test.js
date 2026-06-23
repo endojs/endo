@@ -25,7 +25,8 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
 import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';
 
-import { toolDefs, makeExecuteTool, toAgentTool } from '../agent.js';
+import { makeExecuteTool, toAgentTool } from '../agent.js';
+import { tools } from '../tools/index.js';
 import { makeMockPowers } from '../tools/mock-powers.js';
 
 /**
@@ -130,7 +131,7 @@ test('PiAgent + lal tools: normal arg dispatch + decodeToolArgs JSON-string retr
     return rawExecuteTool(name, rawArgs);
   };
 
-  const agentTools = toolDefs.map(({ name, summary }) =>
+  const agentTools = tools.map(({ name, summary }) =>
     toAgentTool(name, summary, executeTool),
   );
 
