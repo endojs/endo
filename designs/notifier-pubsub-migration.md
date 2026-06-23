@@ -132,21 +132,25 @@ package-name prefix*) is the right signal at the package-name level, and
 "notifier" is a misleading name for a primitive whose lossless variant
 delivers every delta rather than coalesced state.
 
-## The three topic shapes
+## The topic shapes
 
-All three topics share the same constructor return shape:
-a publisher (exo, `Writer<T>`-conformant) plus a `subscribe()` method that
-hands out subscribers (exo, `Reader<T>`-conformant).
+Two topic shapes ship in this iteration; endo#1444's proposed third
+(`makeUpdateTopic`) is eliminated entirely per the maintainer's revision 1
+review (see § `makeUpdateTopic` (eliminated) below).
+
+Both retained topics share the same constructor return shape:
+a publisher exo (passable, `PassableWriter<T>`-shaped) plus a `subscribe()`
+method that hands out subscriber exos (passable, `PassableReader<T>`-shaped).
 Late subscribers see history per the topic's lossiness policy; early
 subscribers see every event delivered after their `subscribe()` call.
 
 ```mermaid
 graph LR
-  Producer["Producer (local code)"] -->|"writer.next(value)"| Publisher["Publisher exo<br/>(Writer&lt;T&gt;)"]
+  Producer["Producer (local code)"] -->|"E(publisher).next(value)"| Publisher["Publisher exo<br/>(PassableWriter)"]
   Publisher --> Topic["Topic state<br/>(retention policy varies)"]
-  Topic --> S1["Subscriber 1 exo<br/>(Reader&lt;T&gt;)"]
-  Topic --> S2["Subscriber 2 exo<br/>(Reader&lt;T&gt;)"]
-  Topic --> S3["Subscriber 3 exo<br/>(Reader&lt;T&gt;)"]
+  Topic --> S1["Subscriber 1 exo<br/>(PassableReader)"]
+  Topic --> S2["Subscriber 2 exo<br/>(PassableReader)"]
+  Topic --> S3["Subscriber 3 exo<br/>(PassableReader)"]
   S1 --> R1["Consumer 1<br/>(local for await)"]
   S2 --> R2["Consumer 2<br/>(local for await, remote via iterateReader)"]
   S3 --> R3["Consumer 3<br/>(CapTP via PassableReader)"]
@@ -184,20 +188,25 @@ delivers the terminal result to new subscribers on first `next()` per the
 `{ value: undefined, done: true }`; `fail(error)` rejects.
 
 ```js
+import { makePromiseKit } from '@endo/promise-kit';
 import { makeLatestTopic } from '@endo/exo-pubsub/latest-topic.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 const { publisher, subscribe, finish, fail } = makeLatestTopic({
   valuePattern: M.number(),
   returnPattern: M.undefined(),
 });
 
-await publisher.next(1);
-await publisher.next(2);
-const subscriber = subscribe();
-const r = subscriber.next();  // resolves to 2 (the latest, not 1)
-await publisher.next(3);
-const r2 = subscriber.next();  // resolves to 3
-await finish();  // settles every subscriber's iteration with done: true
+await E(publisher).next(1);
+await E(publisher).next(2);
+const { reject: cancel, promise: cancelled } = makePromiseKit();
+const subscriber = await E(hub).subscribe(cancelled);
+const localReader = iterateReader(subscriber);
+const r = localReader.next();  // resolves to 2 (the latest, not 1)
+await E(publisher).next(3);
+const r2 = localReader.next(); // resolves to 3
+cancel(Error('done'));         // unsubscribe
+await E(finish)();             // settles every active subscriber with done: true
 ```
 
 InterfaceGuard sketch:
@@ -216,40 +225,53 @@ const LatestTopicSubscriberI = M.interface('LatestTopicSubscriber', {
 });
 
 const LatestTopicHubI = M.interface('LatestTopicHub', {
-  subscribe: M.call().returns(M.remotable('LatestTopicSubscriber')),
+  // subscribe takes a required cancellation promise; the topic
+  // settles per-subscriber state on the promise's rejection.
+  subscribe: M.call(M.promise()).returns(M.remotable('LatestTopicSubscriber')),
 });
 ```
 
 ### `makeChangeTopic` (lossless deltas)
 
 Every subscriber sees every value delivered after its `subscribe()` call.
-A subscriber that lags accumulates a per-subscriber queue (see *Backpressure*);
-a subscriber that goes away frees its queue.
+A subscriber that lags accumulates undelivered cells in its **consumer
+process's heap**, not in the topic's producer-side state; see
+*Back-pressure and wire protocol* below.
+A subscriber that cancels (settles its cancellation promise) releases its
+producer-side chain-head reference and stops ferrying further cells.
 Direct precedent: `formulaChangeTopic` in `packages/daemon/src/daemon.js`
 plus the `retention-accumulator.js` coalesce-then-deliver primitive from
 [`daemon-cross-peer-gc`](daemon-cross-peer-gc.md).
 Matches the lossiness semantics of `@agoric/notifier`'s subscription-pair.
 
 ```js
+import { makePromiseKit } from '@endo/promise-kit';
 import { makeChangeTopic } from '@endo/exo-pubsub/change-topic.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 const { publisher, subscribe, finish, fail } = makeChangeTopic({
   valuePattern: M.splitRecord({ add: M.arrayOf(M.string()) }),
 });
 
-const earlySubscriber = subscribe();
-await publisher.next({ add: ['a'] });
-await publisher.next({ add: ['b'] });
-const lateSubscriber = subscribe();
-await publisher.next({ add: ['c'] });
+const { promise: earlyCancelled } = makePromiseKit();
+const earlySubscriber = await E(hub).subscribe(earlyCancelled);
+await E(publisher).next({ add: ['a'] });
+await E(publisher).next({ add: ['b'] });
+const { promise: lateCancelled } = makePromiseKit();
+const lateSubscriber = await E(hub).subscribe(lateCancelled);
+await E(publisher).next({ add: ['c'] });
 
-// earlySubscriber.next() yields {add: ['a']}, then {add: ['b']}, then {add: ['c']}
-// lateSubscriber.next() yields {add: ['c']} only (subscribed after a and b)
+// iterateReader(earlySubscriber).next() yields {add: ['a']}, then
+// {add: ['b']}, then {add: ['c']}
+// iterateReader(lateSubscriber).next() yields {add: ['c']} only
+// (subscribed after a and b were ferried; the early subscriber's cells
+// accumulated in the consumer process's heap until drained)
 ```
 
 The InterfaceGuard shape mirrors `LatestTopic` with the same exo classes;
-the difference is internal storage (per-subscriber queue versus single
-latest cell).
+the difference is wire-protocol retention policy (one cell on the
+producer-side latest-cell for the lossy variant; one chain-head reference
+per subscriber for the lossless-deltas variant).
 
 ### `makeUpdateTopic` (eliminated)
 
@@ -406,7 +428,8 @@ established by `@endo/exo-stream` and `daemon-message-streaming`:
 
 The hub object returned by `makeLatestTopic` / `makeChangeTopic` is itself
 an exo (an outer kit), so a remote holder of the hub can call
-`E(hub).subscribe()` and receive a fresh subscriber exo reference over CapTP.
+`E(hub).subscribe(cancelled)` (with a cancellation promise per *Subscriber
+cancellation*) and receive a fresh subscriber exo reference over CapTP.
 
 ## Cross-design coordination
 
@@ -777,6 +800,6 @@ and endo#1182 (`Writer<T>` / `Reader<T>` duality).
 - Related designs on the `llm` branch's `designs/` tree:
   - [`daemon-message-streaming.md`](daemon-message-streaming.md) — StreamWriter / StreamReader exo interfaces with `append` / `setPhase` / `end` / `abort` (four-event taxonomy); CapTP-rides-method-calls discipline; persistence model (durable-on-end / partial-on-abort). The strongest precedent in-tree for how an exo-shaped streaming interface looks on this codebase.
   - [`daemon-cross-peer-gc.md`](daemon-cross-peer-gc.md) — the `formulaChangeTopic` single-mutation-surface pattern; `followRetentionSet` async-iterator follower lifecycle; how retention-accumulator subscribers feed deltas. Direct precedent for `makeChangeTopic`'s subscriber API.
-  - [`daemon-cas-management.md`](daemon-cas-management.md) — content-store as supervisor-owned subsystem with typed retain/release and background mark-sweep GC; relevant if `makeChangeTopic` needs durable storage of unread deltas.
-  - [`presence-severance-observation.md`](presence-severance-observation.md) — `E.whenSevered(presence)` as the holder-facing observer for transport-, object-, and permission-level severance. The hook the topic uses to detect remote-subscriber unsubscribe.
+  - [`daemon-cas-management.md`](daemon-cas-management.md) — content-store as supervisor-owned subsystem with typed retain/release and background mark-sweep GC; not in scope for this iteration's pubsub (durable pubsub deferred per the maintainer's revision 1 framing) but cited for context on the durable-exos surface this design would compose with later.
+  - [`presence-severance-observation.md`](presence-severance-observation.md) (PR #450, not yet landed) — `E.whenSevered(presence)` as the holder-facing observer for transport-, object-, and permission-level severance. Once landed, a future revision of this design can layer it on top of the cancellation-promise mechanism (severance settles `cancelled` automatically), so a severed remote subscriber is treated identically to a graceful cancellation. For this iteration the substrate is out of reach and the cancellation-promise argument is the substitute.
 - `packages/exo-stream/` (already on the `llm` branch per `concepts/exo-stream.md`) — the package source the new design extends; cite by relative path. Upstream PR `endojs/endo#3036` is the migration guide.
