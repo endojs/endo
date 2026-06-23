@@ -28,7 +28,8 @@
     "./time-formatters.js": "./src/time-formatters.js",
     "./chime.js": "./src/chime.js",
     "./locator.js": "./src/locator.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./token-autocomplete.js": "./src/token-autocomplete.js"
   },
   "scripts": {
     "build": "exit 0",
@@ -38,9 +39,11 @@
   },
   "dependencies": {
     "@endo/daemon": "workspace:^",
+    "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/markmdown": "workspace:^",
     "@endo/pass-style": "workspace:^",
+    "@endo/preact-container": "workspace:^",
     "preact": "^10.29.2"
   },
   "devDependencies": {

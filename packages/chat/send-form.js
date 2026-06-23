@@ -6,6 +6,7 @@
 
 import harden from '@endo/harden';
 
+import { tokenAutocompleteComponent } from '@endo/chat-kit/token-autocomplete.js';
 import {
   h,
   renderConfined,
@@ -14,7 +15,6 @@ import {
   useState,
 } from './setup-preact-container.js';
 
-import { tokenAutocompleteComponent } from './token-autocomplete.js';
 import { makeLiveHeatEngine } from './heat-engine.js';
 import { makeCompositeHeatEngine } from './composite-heat-engine.js';
 import { createHeatBar } from './heat-bar.js';

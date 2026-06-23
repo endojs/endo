@@ -6,9 +6,9 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { tokenAutocompleteComponent } from '@endo/chat-kit/token-autocomplete.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import { createDOM, createInputElements, tick } from '../helpers/dom-setup.js';
-import { tokenAutocompleteComponent } from '../../token-autocomplete.js';
 
 // Confined-conversion coverage for token-autocomplete: the dropdown body is now
 // rendered through `renderConfined` into the host-provided `$menu`. These tests

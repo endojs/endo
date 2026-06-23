@@ -6,13 +6,8 @@
 
 import harden from '@endo/harden';
 
-import {
-  Fragment,
-  h,
-  renderConfined,
-  useEffect,
-  useState,
-} from './setup-preact-container.js';
+import { Fragment, h, renderConfined } from '@endo/preact-container/renderer';
+import { useEffect, useState } from 'preact/hooks';
 
 // Token autocomplete, migrated from imperative `innerHTML`/`createElement` DOM
 // to a confined Preact component rendered through a single `renderConfined`.

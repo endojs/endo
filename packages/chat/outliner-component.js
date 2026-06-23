@@ -4,6 +4,7 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { relativeTime } from '@endo/chat-kit/time-formatters.js';
+import { tokenAutocompleteComponent } from '@endo/chat-kit/token-autocomplete.js';
 import { createChannelState, createMessageMenu } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
 import {
@@ -11,14 +12,13 @@ import {
   computeNodeContent,
   computeAllNodeContents,
 } from './edit-queue.js';
-import { tokenAutocompleteComponent } from './token-autocomplete.js';
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 /** @import { ChannelMessage } from './channel-utils.js' */
 /** @import { NodeEffectiveContent } from './edit-queue.js' */
 /** @import { EditQueueEntry } from './edit-queue.js' */
-/** @import { TokenAutocompleteAPI } from './token-autocomplete.js' */
+/** @import { TokenAutocompleteAPI } from '@endo/chat-kit/token-autocomplete.js' */
 
 /**
  * Badge labels and CSS classes for reply types.

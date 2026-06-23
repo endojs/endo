@@ -7,6 +7,7 @@
 
 import harden from '@endo/harden';
 
+import { tokenAutocompleteComponent } from '@endo/chat-kit/token-autocomplete.js';
 import {
   h,
   renderConfined,
@@ -20,7 +21,6 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createInlineEval } from './inline-eval.js';
 import { createInlineDefine } from './inline-define.js';
-import { tokenAutocompleteComponent } from './token-autocomplete.js';
 
 // Inline command form, migrated from imperative `innerHTML`/`createElement` DOM
 // to confined Preact for the parts that are genuinely a view, while keeping the
