@@ -502,7 +502,7 @@ The blockers to the packaging axis, in rough order of how much they bite:
 | Body                | Extractable today? | Specific blocker                                                                                                                                                                                                   |
 | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | inbox-component     | closest ◐          | scroll now host-callback'd (no host node in the component) + returns `dispose`; remaining: own CSS + the `$parent`/`$end` mount-target signature                                                                   |
-| value-component     | close ◐            | returns `dispose` now; remaining: queries chat's `#value-*` template DOM (must own its frame markup) + own CSS                                                                                                     |
+| value-component     | closest ◐          | now owns its frame DOM + visibility + `dispose` (no longer queries chat's template); remaining: own CSS (+ drop the internal element IDs for multi-instance safety)                                                |
 | microblog-component | close              | `channel-utils` + `edit-queue` coupling                                                                                                                                                                            |
 | forum-component     | no                 | `channel-utils` + `edit-queue` coupling                                                                                                                                                                            |
 | channel-component   | no                 | async message iterator + scroll-stickiness held on `$parent`; `channel-utils`                                                                                                                                      |
@@ -519,12 +519,15 @@ that mounts the packages, not a space body.
 uniform `component(props) -> cleanup` contract without extracting them:
 `inbox-component` no longer threads the host scroll node into its confined
 `InboxRoot` (scroll is two host callbacks) and returns a `dispose()`;
-`value-component` returns a `dispose()` that detaches its host-template listeners
-(fixing a `window` keyup leak on teardown-while-shown); and `chat-bar-component`'s
-`dispose()` now removes its three leaked global `document`/`window` listeners.
-`chat.js` captures and disposes the inbox and value bodies at its teardown point.
-The remaining blockers above (host-template DOM ownership, `contentEditable`,
-shared-module coupling) are the larger efforts still outstanding.
+`value-component` now **builds and owns its own modal frame** (visibility +
+teardown included) instead of querying chat's `#value-*` template — chat.js's
+`controlsComponent` and the `#value-frame` template block are gone, and the value
+body is created early, dissolving the old `focusValue`/`blurValue` forward-
+reference dance; and `chat-bar-component`'s `dispose()` now removes its three
+leaked global `document`/`window` listeners. `chat.js` captures and disposes the
+inbox and value bodies at its teardown point. The remaining blockers above
+(per-package CSS, the `contentEditable` bodies, shared-module coupling) are the
+larger efforts still outstanding.
 
 ## Inventory bar (`inventory-component.js`) decomposition
 
