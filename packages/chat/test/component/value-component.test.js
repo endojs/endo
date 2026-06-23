@@ -259,3 +259,29 @@ test.serial('Close button clears the value content and dismisses', async t => {
 test.after(() => {
   testDocument.body.innerHTML = '';
 });
+
+test.serial(
+  'dispose() unmounts the surfaces and detaches the close listener',
+  async t => {
+    const { $parent, $value, api, getDismissed } = setup();
+
+    await api.focusValue(42);
+    await waitFor(() => !!$value.querySelector('.number'));
+    t.truthy($value.querySelector('.number'), 'value content is mounted');
+
+    api.dispose();
+    // The confined value surface is unmounted.
+    await waitFor(() => !$value.querySelector('.number'));
+    t.is($value.querySelector('.number'), null, 'value content unmounted');
+
+    // The close listener was detached: clicking it no longer dismisses.
+    const before = getDismissed();
+    $parent
+      .querySelector('#value-close')
+      .dispatchEvent(
+        new testDocument.defaultView.Event('click', { bubbles: true }),
+      );
+    await tick(30);
+    t.is(getDismissed(), before, 'close no longer fires after dispose');
+  },
+);

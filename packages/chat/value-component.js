@@ -431,26 +431,31 @@ export const valueComponent = (
     dismissValue();
   };
 
-  $close.addEventListener('click', () => {
+  // Named handlers so `dispose()` can detach them. They live on host template
+  // elements (`#value-*`) that this component does not own, so leaving them
+  // attached would leak across teardown-while-shown.
+  const onClose = () => {
     clearValue();
-  });
-
-  $frame.addEventListener('click', event => {
+  };
+  const onFrameClick = event => {
     if (event.target === $frame) {
       clearValue();
     }
-  });
-
-  $type.addEventListener('change', () => {
+  };
+  const onTypeChange = () => {
     updateEnterProfileVisibility();
-  });
-
-  $enterProfile.addEventListener('click', async () => {
+  };
+  const onEnterProfile = async () => {
     if (!currentPetNamePath) return;
     const hostName = currentPetNamePath.join('/');
     clearValue();
     await enterProfile(hostName);
-  });
+  };
+
+  $close.addEventListener('click', onClose);
+  $frame.addEventListener('click', onFrameClick);
+  $type.addEventListener('change', onTypeChange);
+  $enterProfile.addEventListener('click', onEnterProfile);
 
   /** @param {KeyboardEvent} event */
   const handleKey = event => {
@@ -595,6 +600,20 @@ export const valueComponent = (
     window.removeEventListener('keyup', handleKey);
   };
 
-  return harden({ focusValue, blurValue });
+  // Teardown contract: detach every listener this component attached to the
+  // host's `#value-*` template elements (and the window keyup added while a
+  // value is shown), and unmount the two confined surfaces. Moves the body
+  // toward the uniform `component(props) -> cleanup` contract.
+  const dispose = () => {
+    window.removeEventListener('keyup', handleKey);
+    $close.removeEventListener('click', onClose);
+    $frame.removeEventListener('click', onFrameClick);
+    $type.removeEventListener('change', onTypeChange);
+    $enterProfile.removeEventListener('click', onEnterProfile);
+    unmount($valueMount);
+    unmount($actionsMount);
+  };
+
+  return harden({ focusValue, blurValue, dispose });
 };
 harden(valueComponent);

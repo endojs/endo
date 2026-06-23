@@ -290,6 +290,9 @@ const bodyComponent = (
   /** @type {{ dispose: () => void } | null} */
   let inboxRef = null;
 
+  /** @type {{ dispose: () => void } | null} */
+  let valueRef = null;
+
   $parent.innerHTML = template;
 
   const $messages = /** @type {HTMLElement} */ (
@@ -1625,7 +1628,7 @@ const bodyComponent = (
         },
       );
       chatBarRef = chatBarAPI;
-      const { focusValue, blurValue } = valueComponent(
+      const valueAPI = valueComponent(
         $parent,
         /** @type {ERef<EndoHost>} */ (resolvedPowers),
         {
@@ -1633,6 +1636,8 @@ const bodyComponent = (
           enterProfile: enterHost,
         },
       );
+      valueRef = valueAPI;
+      const { focusValue, blurValue } = valueAPI;
     })
     .catch(window.reportError);
 
@@ -1644,6 +1649,10 @@ const bodyComponent = (
     if (inboxRef) {
       inboxRef.dispose();
       inboxRef = null;
+    }
+    if (valueRef) {
+      valueRef.dispose();
+      valueRef = null;
     }
   };
 };
