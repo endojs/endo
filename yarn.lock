@@ -1437,11 +1437,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/chat-kit@workspace:^, @endo/chat-kit@workspace:packages/chat-kit":
+  version: 0.0.0-use.local
+  resolution: "@endo/chat-kit@workspace:packages/chat-kit"
+  dependencies:
+    "@endo/daemon": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/markmdown": "workspace:^"
+    "@endo/pass-style": "workspace:^"
+    eslint: "catalog:dev"
+    preact: "npm:^10.29.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/chat@workspace:packages/chat":
   version: 0.0.0-use.local
   resolution: "@endo/chat@workspace:packages/chat"
   dependencies:
     "@endo/captp": "workspace:^"
+    "@endo/chat-kit": "workspace:^"
     "@endo/cli": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/eventual-send": "workspace:^"
