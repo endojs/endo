@@ -3,12 +3,12 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { createDOM } from '../helpers/dom-setup.js';
 import {
   renderMarkdown,
   renderPlainText,
   prepareTextWithPlaceholders,
 } from '@endo/chat-kit/markdown-render.js';
+import { createDOM } from '../helpers/dom-setup.js';
 
 const { cleanup: cleanupDOM } = createDOM();
 
