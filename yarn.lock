@@ -1442,9 +1442,11 @@ __metadata:
   resolution: "@endo/chat-kit@workspace:packages/chat-kit"
   dependencies:
     "@endo/daemon": "workspace:^"
+    "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/markmdown": "workspace:^"
     "@endo/pass-style": "workspace:^"
+    "@endo/preact-container": "workspace:^"
     eslint: "catalog:dev"
     preact: "npm:^10.29.2"
   languageName: unknown
