@@ -9,34 +9,55 @@
 
 ## What is the Problem Being Solved?
 
-`@agoric/notifier` is the de facto pubsub primitive used across the Endo and
-Agoric ecosystem.
-It lives in `agoric-sdk` for historical reasons; endo#1035 records the
-commitment to migrate it into Endo so that consumers can depend on it without
-pulling in the agoric-sdk substrate (and so that the package no longer collides
-with `@endo/marshal` under bundlers like Parcel).
-endo#1444 proposes the migration land as three small topic shapes rather than
-the existing tripartite `makePublishKit` / `makeNotifierKit` / `makeSubscriptionKit`
-surface:
+Endo does not yet ship a pubsub primitive at the exo (CapTP-passable) layer.
+The closest in-tree precedents are `formulaChangeTopic` in
+`packages/daemon/src/daemon.js` (a single-purpose daemon-internal lossless
+topic) and the `retention-accumulator.js` coalesce-then-deliver primitive
+from [`daemon-cross-peer-gc`](daemon-cross-peer-gc.md).
+Neither is reusable across packages.
 
-- a **lossy** topic where late subscribers see the most recent value and then
+`@agoric/notifier`, in `agoric-sdk`, is the de facto pubsub primitive in
+the broader Agoric ecosystem.
+It is the design-vocabulary reference for the topic shapes (lossy versus
+lossless, snapshot-then-deltas versus deltas-only) and for the
+load-bearing distributed-systems invariants (producer-not-vulnerable-to-
+consumers, consumers-mutually-independent).
+This design borrows the vocabulary and the invariants; it does **not**
+retire `@agoric/notifier`.
+`@agoric/notifier` continues to ship from `agoric-sdk` and the agoric-sdk
+maintainer's schedule decides any future deprecation independently.
+
+endo#1444 proposes the new package land as small topic shapes rather than
+the existing tripartite `makePublishKit` / `makeNotifierKit` /
+`makeSubscriptionKit` surface:
+
+- a **lossy** topic where late consumers see the most recent value and then
   wait for the next change,
-- a **lossless deltas** topic where late subscribers see every change after
-  the moment of subscription,
+- a **lossless deltas** topic where late consumers see every change after
+  the moment they begin iterating,
 - an "update" topic whose disposition this design decides.
 
 endo#1182 records the duality constraint, which this design carries into the
 exo layer: the producer side of any new topic exo must satisfy a passable
 `PassableWriter<T>` shape analogous to the `Writer<T>` interface from
-`@endo/stream`, and the subscriber side must satisfy a passable
-`PassableReader<T>` shape analogous to `Reader<T>`, in the same way
-`@endo/exo-stream`'s `PassableReader` / `PassableWriter` are analogous to
-`@endo/stream`'s local `Reader` / `Writer`.
+`@endo/stream`, and the consumer side must satisfy a passable shape
+analogous to `Reader<T>`, in the same way `@endo/exo-stream`'s
+`PassableReader` / `PassableWriter` are analogous to `@endo/stream`'s
+local `Reader` / `Writer`.
 
 This design proposes a `@endo/exo-pubsub` package that lands two topic
 shapes (the third is dropped per *The three topic shapes* below) as exos,
 coherent with the exo-streams discipline already established on the `llm`
 branch.
+
+The package is **greenfield for Endo.**
+No existing Endo or endo-but-for-bots consumer migrates onto it as a
+prerequisite; the only in-tree call site that the package will eventually
+replace is `formulaChangeTopic` in `packages/daemon/`, and that replacement
+is a follow-up rather than a precondition.
+The package lands on its own merits as a primitive future Endo code can
+use; whether and when other ecosystems (agoric-sdk, third-party
+consumers) adopt it is out of scope for this design.
 
 ### Layering: local pubsub and exo pubsub
 
@@ -724,62 +745,6 @@ A future iteration that wants a single topic Exo to expose *both*
 lossy and lossless semantics, or a change topic with multiple trade-off
 sinks, lands the new distinguished methods then; the present design
 names the shape it leaves room for but does not commit to spelling.
-
-## Migration plan
-
-Two phases, each a separate PR pair (`llm` design, `master` implementation).
-(Revision 2: phase count drops from three to two because the
-`makeUpdateTopic` shim is eliminated and the retirement-of-the-shim phase
-goes away.)
-
-**Phase 1: land the package.**
-`@endo/exo-pubsub` ships with the two retained topics, AVA tests, and a
-README adapted from the `@agoric/notifier` README's framing (lifting the
-lossiness taxonomy vocabulary directly per the researcher's section
-family).
-There is no `makeUpdateTopic` shim (see *The three topic shapes* §
-`makeUpdateTopic` (eliminated)).
-The first call site to migrate is the daemon's `formulaChangeTopic`, which
-moves from its ad-hoc inline implementation to `makeChangeTopic`.
-This serves as the dogfood test for the new package on the project's own
-codebase.
-
-**Phase 2: codemod survey + dual-publishing period.**
-A designer-performed survey enumerates the `@agoric/notifier` call sites
-across:
-
-- `endojs/endo` (likely none today; the migration *is* the reason
-  `@endo/exo-pubsub` is being created),
-- `endojs/endo-but-for-bots` (likely a few in `packages/daemon/`),
-- `Agoric/agoric-sdk` (the bulk of the call sites; the project is on
-  passive standing watch per `journal/projects/agoric-sdk/README.md`,
-  so the codemod survey is research only and no agoric-sdk PR lands).
-
-The survey is filed as a follow-up tracking issue (*to be filed* in the
-endo issue tracker, anchor in the design's *Open questions*).
-For each call site, the survey records:
-
-- the topic shape currently used (notifier / subscription / publisher),
-- the equivalent `@endo/exo-pubsub` shape,
-- any non-trivial semantic delta (for example, a caller relying on
-  `getUpdateSince`-style queries or the `@agoric/notifier`-subscription
-  snapshot-then-deltas mode that this package does not expose).
-
-A snapshot-then-deltas caller migrates by explicit composition: read the
-producer's accumulated state via a one-shot RPC, then `subscribe()` a
-`makeChangeTopic` for subsequent deltas, reconciling at the seam.
-The migration burden is the same as the eliminated `makeUpdateTopic`
-shim's burden; the migration just makes that burden explicit at the call
-site rather than hiding it in a shim's contract.
-
-During this phase, `@agoric/notifier` continues to ship from `agoric-sdk`
-unchanged.
-`@endo/exo-pubsub` is the recommended new API; the two coexist until the
-agoric-sdk maintainer's schedule deprecates `@agoric/notifier`.
-
-Hard cutover is **not** the chosen path: the agoric-sdk migration is not
-under this project's control and a hard cutover would block
-`@endo/exo-pubsub` adoption on agoric-sdk's schedule.
 
 ## Compatibility considerations
 
