@@ -510,6 +510,7 @@ const PackageBody = ({ message, powers, showValue, setError }) => {
 
   // Inject the sender chip into the first paragraph / heading; otherwise (code
   // fence or list first) prepend a dedicated paragraph for it.
+  /** @type {import('preact').ComponentChild[]} */
   let body = nodes;
   if (senderChip) {
     if (
