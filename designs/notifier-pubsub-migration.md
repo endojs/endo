@@ -412,21 +412,197 @@ an exo (an outer kit), so a remote holder of the hub can call
 
 | Design | Relationship |
 |---|---|
-| [daemon-message-streaming](daemon-message-streaming.md) | The closest in-tree precedent for an exo-shaped streaming interface. Its four-event taxonomy (`append` / `setPhase` / `end` / `abort`) collapses onto `Writer<T>`'s `next` / `return` / `throw` triple, which this package adopts directly. A daemon-message-streaming consumer that wants a fan-out (one streaming source, many downstream UI surfaces) builds it by pumping the source into a `makeChangeTopic`. |
+| [daemon-message-streaming](daemon-message-streaming.md) | The closest in-tree precedent for an exo-shaped streaming interface. Its four-event taxonomy (`append` / `setPhase` / `end` / `abort`) collapses onto the `next` / `return` / `throw` triple, which the publisher exo of this package adopts (at the exo layer, not the local-`Writer<T>` layer). A daemon-message-streaming consumer that wants a fan-out (one streaming source, many downstream UI surfaces) builds it via a local pump-shaped helper: recover the local reader from the streaming source via `iterateReader`, recover the local publisher of a `makeChangeTopic` via a future planned `iteratePublisher` helper, and pump between them at the local layer. The cross-layer pump from `@endo/stream` is not the right shape (see *Layering: local pubsub and exo pubsub*). |
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | `formulaChangeTopic` is the direct in-tree precedent for `makeChangeTopic`. The `retention-accumulator.js` coalesce-then-deliver primitive is the precedent for the optional subscriber-side delta-coalescing addressed in *Backpressure*. The new package generalizes `formulaChangeTopic` from a single-purpose daemon-internal topic into a reusable exo primitive; the daemon's existing call site is one of the eventual migration targets. |
-| [presence-severance-observation](presence-severance-observation.md) (PR #450) | Severance on a remote subscriber's CapTP session is the same event class as `pump` failure terminating a writer. A topic implementation that holds remote subscribers attaches `E.whenSevered(subscriberPresence)` to each subscriber and treats severance as the subscriber's implicit `return()`. The topic's per-subscriber queue is released, the hub's internal subscriber set shrinks, and no further `next()` calls are pumped through the severed reference. |
-| `@endo/exo-stream` (`packages/exo-stream/`) | Subscribers *are* `PassableReader`s; remote consumption uses `iterateReader`. The package depends on `@endo/exo-stream` for the conversion utilities. |
-| `@endo/stream` (`packages/stream/`) | Publisher and subscriber satisfy `Writer<T>` and `Reader<T>`. `makeQueue` from `@endo/stream` (the "async-singly-linked-list-queue" endo#1444 names) is the internal queue primitive for per-subscriber buffering in `makeChangeTopic`. |
+| [presence-severance-observation](presence-severance-observation.md) (PR #450) | Out of reach for this iteration. The presence-severance design has not landed, so the topic cannot rely on `E.whenSevered(presence)` to observe a remote subscriber's CapTP severance. The topic instead requires a `cancelled: Promise<never>` argument on `subscribe()` (see *Subscriber cancellation*); the consumer settles it on the events the consumer can observe locally. Once presence-severance lands, a future revision can layer `E.whenSevered(subscriberPresence)` on top of the cancellation promise (severance settles `cancelled` automatically, the consumer keeps the right to settle it earlier on local conditions). |
+| `@endo/exo-stream` (`packages/exo-stream/`) | Subscribers conform to `PassableReader`; remote consumption uses `iterateReader`. The package depends on `@endo/exo-stream` for the conversion utilities, and `@endo/exo-pubsub` is intentionally a sibling at the same layer (see *Layering: local pubsub and exo pubsub*). |
+| `@endo/stream` (`packages/stream/`) | A *layering* relationship, not a composition one. The local layer's `Reader<T>` / `Writer<T>` shapes are the design vocabulary the exo layer's `PassableReader<T>` / `PassableWriter<T>` mirror. `makeQueue` from `@endo/stream` (the "async-singly-linked-list-queue" endo#1444 names) is the internal queue primitive for per-subscriber buffering in `makeChangeTopic`'s implementation, but `@endo/stream`'s `pump` / `makePipe` / `prime` do not compose with `@endo/exo-pubsub`'s exos. See *Layering: local pubsub and exo pubsub*. |
+| Earlier work on `@endo/stream` (`makePubSub` + `makeTopic`, commit `cbbd57c03`, since removed) | Design-consistency anchor for a future `@endo/pubsub` local-layer sibling. The new exo-layer package is not constrained to match the removed local-layer shape, but a future local `@endo/pubsub` should match it (or supersede it with a documented reason). |
+
+## Back-pressure and wire protocol
+
+The design intent for the wire protocol: a slow `makeChangeTopic` subscriber
+accumulates backlog **in the consumer process**, not in the producer
+process.
+The producer side observes a slow subscriber only as a slower `next()`
+acknowledgement from that subscriber; it does not queue per-subscriber
+deltas itself.
+
+This mirrors the wire-protocol discipline `@endo/exo-stream` already
+establishes for one-to-one streams: CapTP ferries `StreamNode` cells from
+the producer side to the consumer side as the producer's `next()`
+resolutions settle, and the cells sit in the consumer process's heap until
+the consumer drains them.
+A consumer who reads slowly piles cells in its own heap; the producer side
+holds only the chain-head reference and is bounded.
+
+For `@endo/exo-pubsub` this means each subscriber exo is the *consumer-side*
+endpoint of an exo-stream-shaped fan-out wire.
+The topic's per-subscriber state on the producer side is the chain-head
+reference (one promise per subscriber), not a queue of buffered cells.
+Each subscriber's queue of un-drained cells lives in the consumer-side
+runtime of the holder of the subscriber exo: a remote consumer's CapTP node
+ferries cells across as the producer publishes, and they accumulate on
+the consumer's side awaiting the consumer's `next()` drain.
+
+The implementation makes this explicit:
+
+- `makeChangeTopic`'s `publisher.next(value)` puts the value on the topic's
+  internal "next chain-head" promise once.
+  Each active subscriber holds an independent cursor on that chain
+  (per the `makePubSub` shape: sink + many independent springs over a
+  shared async linked list).
+  The producer's `next()` resolves once the chain advance is committed; the
+  resolution does **not** wait for every subscriber to have drained the
+  newly-published cell.
+- The bidirectional-promise-chain protocol from `@endo/exo-stream` carries
+  each cell across the CapTP boundary to each subscribing peer
+  *eagerly* (as the producer publishes, not as the consumer drains).
+  CapTP's promise-pipelining is the ferry; the cell crosses once the
+  producer publishes, regardless of consumer drain state.
+- A slow consumer accumulates undrained cells in its own runtime's heap.
+  The producer side carries one chain-head reference per subscriber, not a
+  buffer; producer-side memory is bounded by the active subscriber count
+  rather than by the slowest subscriber's lag.
+
+The producer is **not** vulnerable to a slow or unresponsive subscriber's
+memory growth: the slow subscriber's backlog grows in *its own* address
+space, not the producer's.
+This is the `@agoric/notifier`'s "producer not vulnerable to consumers"
+invariant carried into the exo layer via the same mechanism `@endo/exo-stream`
+already uses.
+
+`makeLatestTopic` has the same wire-protocol shape with a simpler retention
+policy: the producer side carries one cell (the latest), and each
+subscriber's chain advances past that cell as the subscriber drains.
+A slow `makeLatestTopic` subscriber that lags through several publishes
+sees only the most recent value when it drains; the intermediate cells are
+overwritten on the producer side, not buffered per subscriber.
+
+### Hub-side overflow policy on the consumer
+
+The wire-protocol-side accumulation is unbounded by default: a consumer that
+does not drain pins consumer-process memory.
+A consumer that needs a bound applies it on the local side, after
+`iterateReader`/`iterateLatestTopic`/`iterateChangeTopic` recovers the local
+reader: the consumer wraps its local reader with a coalescing accumulator
+(see `retention-accumulator.js` from
+[`daemon-cross-peer-gc`](daemon-cross-peer-gc.md)) or a drop-oldest policy
+of its own choosing.
+The package does not bake an overflow policy into the topic itself; the
+consumer that knows its memory budget knows the right policy.
+
+## Subscriber cancellation
+
+`subscribe()` takes a required `cancelled: Promise<never>` argument.
+The consumer arranges for that promise to settle (with a rejection) when
+the consumer wants to unsubscribe.
+The topic observes the settlement, releases the subscriber's per-chain
+producer-side state, and stops ferrying new cells across the wire.
+
+```js
+import { makePromiseKit } from '@endo/promise-kit';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+
+const { reject: cancel, promise: cancelled } = makePromiseKit();
+
+const subscriber = await E(hub).subscribe(cancelled);
+const localReader = iterateReader(subscriber);
+
+// Drain until some local condition says stop:
+const drain = async () => {
+  for await (const value of localReader) {
+    if (shouldStop(value)) {
+      cancel(Error('done'));
+      break;
+    }
+  }
+};
+```
+
+The argument is required, not optional.
+A `subscribe()` call without a cancellation promise gives the topic no way
+to detect a subscriber that walks away, and the producer-side chain-head
+reference for that subscriber is leaked.
+The pattern guard on `subscribe()` enforces the argument's presence at the
+CapTP boundary.
+
+This shape is the same one `packages/daemon/src/daemon.js` already uses
+across its operations: a `cancelled: Promise<never>` argument that the
+operation reacts to in concert with the operation's natural completion
+signals.
+
+**Why a cancellation promise and not `E.whenSevered(presence)`.**
+The presence-severance observability mechanism described in
+[`presence-severance-observation`](presence-severance-observation.md)
+(PR #450) is not in the repository yet.
+A topic implementation that relied on `E.whenSevered(subscriberPresence)`
+to detect subscriber departure would not compile, and could not be
+implemented today.
+The cancellation-promise pattern works at the current substrate's level: the
+consumer signals departure explicitly, and the topic responds.
+A future revision can layer `E.whenSevered(subscriberPresence)` on top:
+once it lands, the topic's `subscribe()` can additionally arrange to
+settle `cancelled` from the severance observer, so a remote subscriber
+whose CapTP session severs is treated identically to a graceful
+cancellation.
+The consumer retains the right to cancel earlier on local conditions
+(the cancellation promise stays in the API for that reason).
+The presence-severance design does not need to ship before this package
+can; once it ships, `@endo/exo-pubsub` benefits transparently.
+
+## Method-name evolvability
+
+The current iteration uses a single distinguished topic kind per package
+factory: `makeLatestTopic` produces a topic whose subscriber method is
+`subscribe()` and whose semantic is lossy; `makeChangeTopic` produces a
+topic whose subscriber method is `subscribe()` and whose semantic is
+lossless-deltas.
+
+For this iteration, that single-shape-per-topic surface is the deliverable.
+The naming convention is intentionally not foreclosed: the design leaves
+room for a future iteration where a single topic Exo provides **both**
+behaviors via distinguished methods on the topic.
+Specifically: a future topic Exo could expose `subscribeLatest()` and
+`subscribeChanges()` as two distinguished methods, and the subscriber
+side, like `iterateReader` / `iterateBytesReader` in `@endo/exo-stream`,
+would name which distinguished method to call on the topic.
+
+This is the same evolvability pattern `@endo/exo-stream` already uses for
+the `streamBase64()` ↔ `stream()` byte-stream migration: a responder
+that wants to migrate from one wire shape to another adds the new
+distinguished method alongside the old one, the iterator (subscriber-side
+helper) selects which to call, and the old method is deprecated and
+later removed.
+A future iteration where a producer wants to expose a snapshot-plus-changes
+shape over a single topic (for example, a topic over an array-like
+collection that provides a snapshot followed by changes) lands as
+distinguished methods on the topic Exo rather than as a new package or
+a new topic factory.
+
+This iteration does **not** introduce `subscribeLatest()` /
+`subscribeChanges()` and does **not** introduce a topic Exo that exposes
+both at once.
+Producers are still single-shape (a lossy topic only exposes the latest
+semantic; a lossless-deltas topic only exposes the deltas semantic) and
+subscribers still call `subscribe()`.
+The design only commits to *leaving room* for the multi-distinguished-method
+shape so a future iteration can land it without an API break.
 
 ## Migration plan
 
-Three phases, each a separate PR pair (`llm` design, `master` implementation).
+Two phases, each a separate PR pair (`llm` design, `master` implementation).
+(Revision 2: phase count drops from three to two because the
+`makeUpdateTopic` shim is eliminated and the retirement-of-the-shim phase
+goes away.)
 
 **Phase 1: land the package.**
-`@endo/exo-pubsub` ships with the two retained topics, the deprecated-on-arrival
-`makeUpdateTopic` shim, AVA tests, and a README adapted from the
-`@agoric/notifier` README's framing (lifting the lossiness taxonomy
-vocabulary directly per the researcher's section family).
+`@endo/exo-pubsub` ships with the two retained topics, AVA tests, and a
+README adapted from the `@agoric/notifier` README's framing (lifting the
+lossiness taxonomy vocabulary directly per the researcher's section
+family).
+There is no `makeUpdateTopic` shim (see *The three topic shapes* §
+`makeUpdateTopic` (eliminated)).
 The first call site to migrate is the daemon's `formulaChangeTopic`, which
 moves from its ad-hoc inline implementation to `makeChangeTopic`.
 This serves as the dogfood test for the new package on the project's own
@@ -436,12 +612,12 @@ codebase.
 A designer-performed survey enumerates the `@agoric/notifier` call sites
 across:
 
-- `endojs/endo` (likely none today; the migration *is* the reason `@endo/notifier`
-  is being created),
+- `endojs/endo` (likely none today; the migration *is* the reason
+  `@endo/exo-pubsub` is being created),
 - `endojs/endo-but-for-bots` (likely a few in `packages/daemon/`),
 - `Agoric/agoric-sdk` (the bulk of the call sites; the project is on
   passive standing watch per `journal/projects/agoric-sdk/README.md`,
-  so the codemod survey is research only (no agoric-sdk PR lands).
+  so the codemod survey is research only and no agoric-sdk PR lands).
 
 The survey is filed as a follow-up tracking issue (*to be filed* in the
 endo issue tracker, anchor in the design's *Open questions*).
@@ -450,23 +626,24 @@ For each call site, the survey records:
 - the topic shape currently used (notifier / subscription / publisher),
 - the equivalent `@endo/exo-pubsub` shape,
 - any non-trivial semantic delta (for example, a caller relying on
-  `getUpdateSince` style queries that the new package does not expose).
+  `getUpdateSince`-style queries or the `@agoric/notifier`-subscription
+  snapshot-then-deltas mode that this package does not expose).
+
+A snapshot-then-deltas caller migrates by explicit composition: read the
+producer's accumulated state via a one-shot RPC, then `subscribe()` a
+`makeChangeTopic` for subsequent deltas, reconciling at the seam.
+The migration burden is the same as the eliminated `makeUpdateTopic`
+shim's burden; the migration just makes that burden explicit at the call
+site rather than hiding it in a shim's contract.
 
 During this phase, `@agoric/notifier` continues to ship from `agoric-sdk`
 unchanged.
-`@endo/exo-pubsub` is the recommended new API; the two coexist.
-
-**Phase 3: retirement.**
-After agoric-sdk migrates its call sites (the maintainer of agoric-sdk
-drives the timing), `@agoric/notifier` is deprecated.
-At the next major of `@endo/exo-pubsub`, the `makeUpdateTopic` shim is
-removed; the package's API contracts on the two retained shapes only.
+`@endo/exo-pubsub` is the recommended new API; the two coexist until the
+agoric-sdk maintainer's schedule deprecates `@agoric/notifier`.
 
 Hard cutover is **not** the chosen path: the agoric-sdk migration is not
 under this project's control and a hard cutover would block
 `@endo/exo-pubsub` adoption on agoric-sdk's schedule.
-The shim-then-retire path keeps the two packages independent during the
-overlap.
 
 ## Compatibility considerations
 
@@ -496,48 +673,54 @@ The new package's design avoids re-creating that pain:
 ## Open questions
 
 - **Storage / persistence of unread deltas in `makeChangeTopic` across
-  daemon restart.**
-  The in-memory queue per subscriber is fine for runtime; surviving
-  daemon restart requires a durable backing.
-  Resolved: out of scope for v1.
-  A consumer that needs durability composes `makeChangeTopic` with
-  durable storage on the producer side (the producer replays from
-  storage after restart).
-  A future *to be filed* tracking issue revisits this if a concrete
-  consumer needs durable deltas.
+  daemon restart?**
+  Resolved: not relevant at this layer.
+  Durable pubsub is a separate concern that requires durable exos, which
+  the project does not yet have; the maintainer's framing on revision 1:
+  *"Not relevant at this layer. Durable pubsub is another concern that
+  would require durable exos. We can introduce these later."*
+  The in-memory wire-protocol shape is the only shape this package
+  supports.
+  A future *to be filed* tracking issue revisits durable pubsub once
+  durable exos exist; that work is out of scope for this design.
 
-- **Backpressure on a slow subscriber.**
-  Default: per-subscriber `makeQueue` grows without bound.
-  A subscriber that never drains pins memory.
-  Resolved for v1: a `subscriberQueueLimit` construction option caps the
-  per-subscriber queue depth; on overflow, the topic invokes a policy
-  (default: drop the oldest delta and continue; opt-in: error the
-  subscriber via `subscriber.throw(new Error('queue overflow'))`).
-  The `retention-accumulator.js` coalesce-then-deliver primitive from
-  [`daemon-cross-peer-gc`](daemon-cross-peer-gc.md) is the upgrade path
-  for a subscriber that prefers coalesced deltas to dropped ones; that
-  composition lives outside the package's core (the subscriber wraps
-  its `Reader<T>` with the accumulator).
+- **Back-pressure on a slow subscriber?**
+  Resolved: backlog accumulates in the **consumer process**, not the
+  producer process, by the same wire-protocol mechanism `@endo/exo-stream`
+  uses for one-to-one streams.
+  See *Back-pressure and wire protocol* above for the full description.
+  The producer side carries one chain-head reference per subscriber, not
+  a queue of cells; CapTP ferries cells across as the producer publishes,
+  and they accumulate on the consumer side until the consumer drains.
+  A consumer that needs a memory bound applies a coalescing or drop-oldest
+  policy on its local reader (the recovered `Reader<T>` from
+  `iterateChangeTopic`); the package does not bake one in.
 
 - **CapTP traversal: does a remote subscriber's connection severance
   count as unsubscribe?**
-  Resolved: yes, per
-  [`presence-severance-observation`](presence-severance-observation.md).
-  The topic attaches `E.whenSevered(subscriberPresence)` to each
-  remote subscriber it accepts via `subscribe()`; on severance, the
-  topic releases that subscriber's queue and removes it from the active
-  set, identical to a graceful `subscriber.return()`.
-  This is the same event class as `pump` failure terminating a writer,
-  and the topic treats it uniformly.
+  Resolved for this iteration: out of reach; the topic cannot observe
+  severance directly because the
+  [`presence-severance-observation`](presence-severance-observation.md)
+  (PR #450) substrate has not landed.
+  The substitute is a required `cancelled: Promise<never>` argument on
+  `subscribe()` (see *Subscriber cancellation* above): the consumer
+  signals departure explicitly and the topic releases per-subscriber
+  state on the settlement.
+  A future revision can layer `E.whenSevered(presence)` on top once it
+  ships: severance settles `cancelled` automatically, and a remote
+  subscriber whose CapTP session severs is treated identically to a
+  graceful cancellation.
 
 - **Should subscribers see a snapshot of accumulated state on
   `subscribe()`, or only future values?**
   Resolved: `makeLatestTopic` subscribers see the current latest cell
-  immediately (the lossy taxonomy *is* "see the latest").
-  `makeChangeTopic` subscribers see only deltas after `subscribe()`
-  (the lossless-deltas taxonomy).
-  The forward-lossless mode (snapshot + deltas) is the composition
-  the `makeUpdateTopic` shim packages, not a native topic kind.
+  immediately if one has ever been published (and wait for the first
+  publish if not).
+  `makeChangeTopic` subscribers see only deltas after `subscribe()`.
+  The snapshot-then-deltas mode is not a native topic kind; a consumer
+  that needs it composes a one-shot RPC for the snapshot with a
+  `makeChangeTopic` subscribe for subsequent deltas (the consumer
+  reconciles at the seam).
 
 - **`@agoric/notifier` caller survey across agoric-sdk + endo-but-for-bots
   + endo.**
@@ -545,11 +728,21 @@ The new package's design avoids re-creating that pain:
   Anchor for follow-up: *to be filed* tracking issue in the endo issue
   tracker once Phase 1 ships.
 
-- **Final names for the three topic shapes.**
-  Resolved: `makeLatestTopic` and `makeChangeTopic` retained; `makeUpdateTopic`
-  retired as a shim only.
-  The names are absent from the prior library (per the researcher's writeback);
-  these names land here as authoritative.
+- **Final method names for distinguished latest / changes accessors on
+  a future topic Exo?**
+  Open for a future iteration.
+  This iteration uses `subscribe()` on a single-shape-per-topic factory
+  (`makeLatestTopic` or `makeChangeTopic`).
+  A future iteration that wants a single topic Exo to expose both
+  behaviors via distinguished methods (`subscribeLatest()` /
+  `subscribeChanges()` per *Method-name evolvability*) lands the chosen
+  method names then; the present design names the shape it leaves room
+  for but does not commit to spelling.
+
+- **Final names for the two retained topic factories.**
+  Resolved: `makeLatestTopic` and `makeChangeTopic`.
+  The names are absent from the prior library (per the researcher's
+  writeback); these names land here as authoritative.
 
 ## Prompt
 
