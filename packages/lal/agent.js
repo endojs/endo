@@ -20,13 +20,14 @@ import {
   getOllamaApiKey,
 } from './model-resolution.js';
 import { runRound } from './round-runner.js';
+import { runInboxLoop } from './inbox-loop.js';
 
 // Re-export the tool-dispatch surface so tests that already import these
 // from `./agent.js` continue to work without churn.
 export { makeExecuteTool, toAgentTool };
 
 /** @import { FarRef } from '@endo/eventual-send' */
-/** @import { GuestPowers, InboxMessage, LalContext } from './agent.types.js' */
+/** @import { GuestPowers, LalContext } from './agent.types.js' */
 
 // Register pi-ai's built-in API providers (anthropic, openai, google,
 // openrouter, mistral, deepseek, groq, xai, github-copilot, and ~20 others)
@@ -127,138 +128,7 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
    */
   const runOneRound = prompt => runRound(piAgent, prompt);
 
-  /**
-   * Build the user-role content for an inbound message. lal's prompt is
-   * intentionally minimal: the LLM is expected to call listMessages() to
-   * inspect the inbox itself.
-   *
-   * @returns {string}
-   */
-  const formatInboundMessage = () =>
-    'You have new mail. Check your messages and respond appropriately.';
-
-  /**
-   * Run the agent loop, processing incoming messages.
-   *
-   * @returns {Promise<void>}
-   */
-  const runAgent = async () => {
-    // Announce ourselves with a call to action.
-    await E(powers).send(
-      '@host',
-      [
-        "Hello! I'm ready to help.\n\n" +
-          'Send me a message to get started — in Chat, type ' +
-          '`@` followed by my name and your request.\n\n' +
-          'A few things to try:\n' +
-          '- Ask me what I can do\n' +
-          '- Ask me to list your inventory\n' +
-          '- Ask me to help write a program\n\n' +
-          'Type `/help` to see all available Chat commands.',
-      ],
-      [],
-      [],
-    );
-
-    /** @type {string | undefined} */
-    const selfLocator = await E(powers).locate('@self');
-    const cancelled = await getCancelled();
-    const cancelledSignal = cancelled
-      ? cancelled.then(
-          () => ({ cancelled: true }),
-          () => ({ cancelled: true }),
-        )
-      : null;
-
-    // Follow messages and route each to the correct transcript chain.
-    //
-    // Re-emission of an already-processed inbound number indicates the
-    // sender called daemon `editMessage`: a partial submission that has
-    // settled, or an amendment of an already-settled message.  We do
-    // not start a fresh transcript turn for such re-emissions; the
-    // agent can call `messageHistory(n)` to retrieve the prior text
-    // if it needs to reason about the change.
-    /** @type {Set<bigint>} */
-    const seenInboundNumbers = new Set();
-
-    const messageIterator = iterateReader(E(powers).followMessages());
-    while (true) {
-      const nextMessage = messageIterator.next();
-      const raced = cancelledSignal
-        ? await Promise.race([
-            cancelledSignal,
-            nextMessage.then(result => ({ cancelled: false, result })),
-          ])
-        : { cancelled: false, result: await nextMessage };
-      if (raced.cancelled) {
-        try {
-          await messageIterator.return?.();
-        } catch {
-          // ignore iterator return errors on cancellation
-        }
-        break;
-      }
-      const { value: message, done } = raced.result;
-      if (done) {
-        break;
-      }
-      const inboxMessage =
-        /** @type {InboxMessage & {type?: string, messageId?: string, replyTo?: string, done?: boolean}} */ (
-          message
-        );
-      const {
-        from: fromLocator,
-        number,
-        type,
-        done: messageDone = true,
-      } = inboxMessage;
-
-      // Skip our own outbound messages; only act on inbound mail.
-      // eslint-disable-next-line @endo/restrict-comparison-operands
-      if (fromLocator !== selfLocator) {
-        // Skip partial (in-flight) submissions: wait until the sender
-        // marks the message done before spinning up an LLM turn.
-        if (messageDone === false) {
-          console.log(
-            `[mail] Message #${number} is not yet done; deferring until settled`,
-          );
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        if (seenInboundNumbers.has(number)) {
-          console.log(
-            `[mail] Message #${number} was edited after settlement; ` +
-              `not rerunning. Use messageHistory(${number}) for the prior text.`,
-          );
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        seenInboundNumbers.add(number);
-        console.log(
-          `[mail] New message #${number} (type: ${type || 'package'})`,
-        );
-        try {
-          await runOneRound(formatInboundMessage());
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          console.error('[agent] LLM error, notifying sender:', errorMessage);
-          try {
-            await E(powers).reply(
-              number,
-              [`LLM provider error: ${errorMessage}`],
-              [],
-              [],
-            );
-          } catch (replyError) {
-            console.error('[agent] Failed to notify sender:', replyError);
-          }
-        }
-      }
-    }
-  };
-
-  await runAgent();
+  await runInboxLoop({ powers, getCancelled, runOneRound });
 };
 harden(spawnWorkerLoop);
 
