@@ -68,12 +68,11 @@ The single import surface for the confine/render helpers is
   components; the imperative `file-explorer.js` was removed). `chat.js` is
   unchanged — `file-explorer-component.js` keeps the same mount signature.
 
-What remains are the **large composites and the alternate body views** — every
-one still imperative plain-DOM. In rough bottom-up order: `value-component`,
-`channel-header` (+ `heat-simulation`), `chat-bar-component` and
-`channel-component`, `add-space-modal`, `spaces-gutter`, the three alternate
-`viewMode` bodies (`forum`, `microblog`, `outliner`), and finally the `chat.js`
-root orchestrator. See the "Still on the DOM API" table and the tracker below.
+What remains are the **outliner body**, the `chat.js` root orchestrator, and
+the `inventory-graph` SVG view (pending the renderer's SVG-tag support).
+`spaces-gutter` and `add-space-modal` have now landed (the floot
+imperative-Space PR lifted their freeze). See the "Still on the DOM API" table
+and the tracker below.
 
 ## Still on the DOM API (remaining migration targets)
 
@@ -393,7 +392,7 @@ for the incoming imperative-Space PR — see "Deferred" above)
 | forum                                           | ☑      | Done — `forum` viewMode body; same pattern as microblog (a first attempt that only landed a test was reverted, then redone for real)                                                     |
 | spaces-gutter                                   | ☑      | Done — the floot imperative-Space PR has landed, lifting the freeze. The space icons, add-space button, and per-space context menu are one confined Preact tree (`SpacesGutterView`) driven by a host controller (`GutterViewState` snapshots + select/edit/delete/add callbacks); the menu dismisses via an in-tree focusable backdrop. All the stateful host work (pet-store load, watcher, modals, scheme, Cmd+1..9) is unchanged. |
 | outliner                                        | ☐      | ~3003 lines — largest body; needs the file-explorer-style decompose-into-contract approach, not a one-shot                                                                               |
-| add-space-modal                                 | ⊘      | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-type registration); resume after it lands                                                                   |
+| add-space-modal                                 | ☑      | Done — the whole wizard (chooser + all nine forms) is confined Preact via `renderConfined`, closing the unescaped-interpolation (`value="${userTyped}"`) injection surface that was the one open HIGH finding. Wizard state + the nine daemon submit handlers stay host-side; the scheme picker and pet-name autocompletes still mount into the slot/anchor elements the view renders (synchronous `renderConfined`). The per-render Escape-listener leak is fixed (registered once). Covered by `test/component/add-space-modal.test.js` (incl. an injection-safety case). |
 | chat.js (root orchestrator)                     | ⊘      | **Deferred** — frozen imperative for the incoming imperative-Space PR (space-mode dispatch); stays the trusted root that calls `renderConfined`                                          |
 
 ### Whylip Space (separate `@endo/space-whylip` package)
@@ -846,15 +845,15 @@ drag-highlight sweep.
 
 ### Standouts
 
-- **`add-space-modal.js` (HIGH, but the unmigrated baseline).** It does NOT use
-  `renderConfined`; it renders via `$container.innerHTML = html` with
-  **unescaped interpolation of user-typed values** (e.g. `value="${handleName}"`
-  near line 707), an injection surface that bypasses the sanitizer, plus a
-  per-render keydown-listener leak. `icon-selector.js`'s legacy
-  `renderIconSelector` string path (8 call sites here) shares the unescaped
-  -interpolation issue and cannot be deleted until add-space-modal is migrated.
-  Both are frozen for the incoming imperative-Space PR; this is the clear next
-  migration target once that lands.
+- **`add-space-modal.js` (HIGH — now fixed).** It used to render via
+  `$container.innerHTML = html` with **unescaped interpolation of user-typed
+  values** (e.g. `value="${handleName}"`), an injection surface that bypassed
+  the sanitizer, plus a per-render keydown-listener leak. It is now confined
+  Preact (`renderConfined`), so Preact escapes every attribute/text value and
+  the injection surface is closed; the Escape listener is registered once. The
+  legacy `renderIconSelector` string path is no longer called from here (the
+  forms compose the confined `IconSelector` component); its remaining call sites,
+  if any, can be retired separately.
 - **`space-whylip/src/hooks/useConversation.js`** is the one store hook with
   real lifecycle problems: the un-cancellable stream (above) plus a single
   mega-effect doing `locate('@self')` + backlog replay + live subscription,
@@ -864,12 +863,12 @@ drag-highlight sweep.
 
 ### Severity roll-up
 
-| Package             | HIGH                            | MED | LOW |
-| ------------------- | ------------------------------- | --- | --- |
-| chat                | 1 (add-space-modal, unmigrated) | 6   | ~10 |
-| space-file-explorer | 0                               | 3   | 4   |
-| space-peers         | 0                               | 2   | 3   |
-| space-whylip        | 1 (stream cancel)               | 3   | 4   |
+| Package             | HIGH                  | MED | LOW |
+| ------------------- | --------------------- | --- | --- |
+| chat                | 0 (add-space-modal ✅) | 6   | ~10 |
+| space-file-explorer | 0                     | 3   | 4   |
+| space-peers         | 0                     | 2   | 3   |
+| space-whylip        | 1 (stream cancel)     | 3   | 4   |
 
 Suggested fix order when picked up: (1) the subscription-cancellation class
 across whylip/peers (correctness); (2) the inbox + debugger-panel

@@ -10,10 +10,11 @@ import harden from '@endo/harden';
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
-import { ALL_ICONS, letterIcon, renderIconSelector } from './icon-selector.js';
+import { ALL_ICONS, IconSelector } from './icon-selector.js';
 import { assertValidLocator } from './locator.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createSchemePicker } from './scheme-picker.js';
+import { Fragment, h, renderConfined } from './setup-preact-container.js';
 
 const WHYLIP_SYSTEM_PROMPT = `\
 You are The Whylip Primer — an interactive illustrated primer that teaches \
@@ -56,10 +57,937 @@ The scene runs in a sandboxed iframe with no network access.`;
  * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
  * @property {string} [proposedName] - Display name for the channel creator
  * @property {string} [whylipSystemPrompt] - System prompt override for Whylip mode
- * @property {'chat' | 'forum'} [viewMode] - Channel view mode (default: 'chat')
+ * @property {'chat' | 'forum' | 'outliner' | 'microblog'} [viewMode] - Channel view mode (default: 'chat')
  * @property {boolean} [ownedPersona] - Whether the space owns the persona (for cleanup)
  * @property {string[]} [audioPath] - Pet name path to a speech-to-text object (floot mic)
  * @property {string[]} [ttsPath] - Pet name path to a text-to-speech object (floot spoken replies)
+ */
+
+// ── Confined Preact view ──────────────────────────────────────────────────
+//
+// The modal chrome and every form is a confined Preact tree rendered through
+// the sanitizing `renderConfined`, replacing the imperative innerHTML +
+// attachEventListeners path. This closes the unescaped-interpolation injection
+// surface the old `value="${userTyped}"` string templates had: Preact escapes
+// text and attribute values, so a malicious handle/name/locator can never break
+// out into markup.
+//
+// All wizard state and the daemon-side submit handlers stay host-side in
+// `createAddSpaceModal`; the view is driven by a pure-data `view` snapshot plus
+// an `on` callback bag. `renderConfined` is synchronous, so the host still
+// mounts the scheme picker and the pet-name autocompletes into the slot/anchor
+// elements the view renders (queried straight after each render), exactly as
+// before.
+
+/**
+ * @typedef {object} AddSpaceView
+ * @property {string} mode
+ * @property {string} nextIcon - first unused icon (the New Profile card preview)
+ * @property {string} selectedIcon
+ * @property {boolean} useLetterIcon
+ * @property {string} handleName
+ * @property {string} displayAgentName
+ * @property {string} channelPetName
+ * @property {string} channelProposedName
+ * @property {'chat' | 'forum' | 'outliner' | 'microblog'} channelViewMode
+ * @property {'new' | 'existing'} channelPersonaMode
+ * @property {string} channelIntroducedNames
+ * @property {string} connectLocator
+ * @property {string} connectSpaceName
+ * @property {string} connectProposedName
+ * @property {'new' | 'existing'} connectPersonaMode
+ * @property {string | null} connectExistingSpaceId
+ * @property {Array<{ id: string, name: string, icon: string, profilePath: string[] }>} existingChannelSpaces
+ * @property {string} whylipName
+ * @property {string} whylipAgentName
+ * @property {string} flootAudioPath
+ * @property {string} flootTtsPath
+ * @property {string | null} error
+ * @property {boolean} isSubmitting
+ */
+
+/**
+ * The space-type cards shown on the first screen. `data-mode` is preserved
+ * because the e2e suite selects cards by it.
+ *
+ * @type {Array<{ mode: string, icon: string, title: string, desc: string }>}
+ */
+const SPACE_TYPE_CARDS = harden([
+  {
+    mode: 'new-agent',
+    icon: '',
+    title: 'New Profile',
+    desc: 'Create a fresh profile',
+  },
+  {
+    mode: 'existing',
+    icon: '🐈‍⬛',
+    title: 'Existing Profile',
+    desc: 'Connect to an existing profile',
+  },
+  {
+    mode: 'new-channel',
+    icon: '📡',
+    title: 'New Channel',
+    desc: 'Create a multi-party chat room',
+  },
+  {
+    mode: 'connect-channel',
+    icon: '🔗',
+    title: 'Connect to Channel',
+    desc: 'Join a channel via invitation link',
+  },
+  {
+    mode: 'whylip',
+    icon: '📖',
+    title: 'Whylip Book',
+    desc: 'An interactive illustrated primer powered by a Fae agent',
+  },
+  {
+    mode: 'graph',
+    icon: '🕸️',
+    title: 'Inventory Graph',
+    desc: 'Visualize your pet store as a force-directed graph',
+  },
+  {
+    mode: 'peers',
+    icon: '🌐',
+    title: 'Known Peers',
+    desc: 'List all known remote Endo peers and connection hints',
+  },
+  {
+    mode: 'files',
+    icon: '📂',
+    title: 'File Explorer',
+    desc: 'Browse and edit endo-fs filesystem objects, mounts, and layers',
+  },
+  {
+    mode: 'floot',
+    icon: '💬',
+    title: 'Floot Chat',
+    desc: 'Chat with a Floot streaming agent and watch its reply arrive token by token',
+  },
+]);
+
+/** @type {Array<{ mode: 'chat' | 'forum' | 'outliner' | 'microblog', label: string, desc: string }>} */
+const CHANNEL_VIEW_MODES = harden([
+  {
+    mode: 'chat',
+    label: 'Traditional Chat',
+    desc: 'Chronological messages with thread drill-downs',
+  },
+  {
+    mode: 'forum',
+    label: 'Forum',
+    desc: 'Threaded tree view with active subtrees at bottom',
+  },
+  {
+    mode: 'outliner',
+    label: 'Outliner',
+    desc: 'Collaborative document with edit history',
+  },
+  {
+    mode: 'microblog',
+    label: 'Microblog',
+    desc: 'Reverse-chronological feed with profile header',
+  },
+]);
+
+/**
+ * The modal header: optional back arrow, title, close button.
+ *
+ * @param {object} props
+ * @param {string} props.title
+ * @param {(() => void)} [props.onBack]
+ * @param {() => void} props.onClose
+ */
+const ModalHeader = ({ title, onBack, onClose }) =>
+  h(
+    'div',
+    { class: 'add-space-header' },
+    onBack
+      ? h(
+          'button',
+          {
+            type: 'button',
+            class: 'add-space-back',
+            title: 'Back',
+            onClick: onBack,
+          },
+          '←',
+        )
+      : null,
+    h('h2', { class: 'add-space-title' }, title),
+    h(
+      'button',
+      {
+        type: 'button',
+        class: 'add-space-close',
+        title: 'Close (Esc)',
+        onClick: onClose,
+      },
+      '×',
+    ),
+  );
+harden(ModalHeader);
+
+/**
+ * The reusable icon-selector field wrapper (label + grid/letter input).
+ *
+ * @param {object} props
+ * @param {AddSpaceView} props.view
+ * @param {AddSpaceHandlers} props.on
+ */
+const IconField = ({ view, on }) =>
+  h(
+    'div',
+    { class: 'add-space-field' },
+    h(IconSelector, {
+      selectedIcon: view.selectedIcon,
+      useLetterIcon: view.useLetterIcon,
+      onSelectIcon: on.selectIcon,
+      onToggleLetterIcon: on.toggleLetterIcon,
+    }),
+  );
+harden(IconField);
+
+/** Empty `#scheme-picker-slot` anchor; the host mounts the picker into it. */
+const SchemeSlot = () =>
+  h('div', { id: 'scheme-picker-slot', class: 'add-space-field' });
+harden(SchemeSlot);
+
+/**
+ * @param {object} props
+ * @param {string | null} props.error
+ */
+const ErrorBlock = ({ error }) =>
+  error ? h('div', { class: 'add-space-error' }, error) : null;
+harden(ErrorBlock);
+
+/**
+ * The Cancel / Submit action row.
+ *
+ * @param {object} props
+ * @param {boolean} props.isSubmitting
+ * @param {string} props.label - submit label when idle
+ * @param {string} props.busyLabel - submit label while submitting
+ * @param {() => void} props.onCancel
+ */
+const Actions = ({ isSubmitting, label, busyLabel, onCancel }) =>
+  h(
+    'div',
+    { class: 'add-space-actions' },
+    h(
+      'button',
+      { type: 'button', class: 'add-space-cancel', onClick: onCancel },
+      'Cancel',
+    ),
+    h(
+      'button',
+      {
+        type: 'submit',
+        class: 'add-space-submit',
+        disabled: isSubmitting || undefined,
+      },
+      isSubmitting ? busyLabel : label,
+    ),
+  );
+harden(Actions);
+
+/**
+ * A standard labelled text input field.
+ *
+ * @param {object} props
+ * @param {string} props.id
+ * @param {string} props.label
+ * @param {string} props.placeholder
+ * @param {string} props.value
+ * @param {(value: string) => void} props.onInput
+ * @param {import('preact').ComponentChildren} [props.hint]
+ * @param {string} [props.pattern]
+ */
+const TextField = ({ id, label, placeholder, value, onInput, hint, pattern }) =>
+  h(
+    'div',
+    { class: 'add-space-field' },
+    h('label', { for: id }, label),
+    h('input', {
+      type: 'text',
+      id,
+      placeholder,
+      value,
+      autocomplete: 'off',
+      ...(pattern ? { pattern } : {}),
+      /** @param {{ target: { value: string } }} e */
+      onInput: e => onInput(e.target.value),
+    }),
+    hint ? h('div', { class: 'field-hint' }, hint) : null,
+  );
+harden(TextField);
+
+/** The single fixed "Mailbox" layout selector (decorative; one option). */
+const MailboxLayoutField = () =>
+  h(
+    'div',
+    { class: 'add-space-field' },
+    h('label', null, 'Layout'),
+    h(
+      'div',
+      { class: 'layout-selector' },
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'layout-option selected',
+          'data-layout': 'mailbox',
+        },
+        h('span', { class: 'layout-icon' }, '📬'),
+        h('span', { class: 'layout-name' }, 'Mailbox'),
+      ),
+    ),
+    h('div', { class: 'field-hint' }, 'More layouts coming soon'),
+  );
+harden(MailboxLayoutField);
+
+/**
+ * The space-type chooser (first screen).
+ *
+ * @param {object} props
+ * @param {AddSpaceView} props.view
+ * @param {AddSpaceHandlers} props.on
+ */
+const ChooseMode = ({ view, on }) =>
+  h(
+    Fragment,
+    null,
+    h('div', { class: 'add-space-backdrop', onClick: on.close }),
+    h(
+      'div',
+      { class: 'add-space-modal' },
+      h(ModalHeader, { title: 'Add Space', onClose: on.close }),
+      h(
+        'div',
+        { class: 'add-space-choose' },
+        SPACE_TYPE_CARDS.map(card =>
+          h(
+            'button',
+            {
+              key: card.mode,
+              type: 'button',
+              class: 'space-type-card',
+              'data-mode': card.mode,
+              onClick: () => on.selectMode(card.mode),
+            },
+            h(
+              'span',
+              { class: 'space-type-icon' },
+              card.mode === 'new-agent' ? view.nextIcon : card.icon,
+            ),
+            h('span', { class: 'space-type-title' }, card.title),
+            h('span', { class: 'space-type-desc' }, card.desc),
+          ),
+        ),
+      ),
+    ),
+  );
+harden(ChooseMode);
+
+/**
+ * Wrap a form body in the standard backdrop + modal + form shell.
+ *
+ * @param {object} props
+ * @param {string} props.title
+ * @param {AddSpaceHandlers} props.on
+ * @param {import('preact').ComponentChildren} [props.children]
+ */
+const FormShell = ({ title, on, children }) =>
+  h(
+    Fragment,
+    null,
+    h('div', { class: 'add-space-backdrop', onClick: on.close }),
+    h(
+      'div',
+      { class: 'add-space-modal' },
+      h(ModalHeader, { title, onBack: on.back, onClose: on.close }),
+      h(
+        'form',
+        {
+          class: 'add-space-form',
+          /** @param {{ preventDefault: () => void }} e */
+          onSubmit: e => {
+            e.preventDefault();
+            on.submit();
+          },
+        },
+        children,
+      ),
+    ),
+  );
+harden(FormShell);
+
+/**
+ * @param {object} props
+ * @param {AddSpaceView} props.view
+ * @param {AddSpaceHandlers} props.on
+ */
+const NewAgentForm = ({ view, on }) =>
+  h(
+    FormShell,
+    { title: 'New Profile', on },
+    h(TextField, {
+      id: 'handle-name',
+      label: 'Handle',
+      placeholder: 'e.g., clark, bruce, diana',
+      value: view.handleName,
+      onInput: on.handleInput,
+      hint: "The pet name for accessing this profile's powers",
+    }),
+    h(TextField, {
+      id: 'agent-name',
+      label: 'Agent Name',
+      placeholder: 'profile-for-handle',
+      value: view.displayAgentName,
+      onInput: on.agentInput,
+      hint: 'Internal identifier for the agent',
+    }),
+    h(IconField, { view, on }),
+    h(MailboxLayoutField, null),
+    h(SchemeSlot, null),
+    h(ErrorBlock, { error: view.error }),
+    h(Actions, {
+      isSubmitting: view.isSubmitting,
+      label: 'Create Space',
+      busyLabel: 'Creating...',
+      onCancel: on.close,
+    }),
+  );
+harden(NewAgentForm);
+
+/**
+ * The pet-name path autocomplete anchor (host mounts the control here).
+ *
+ * @param {object} props
+ * @param {string} props.label
+ * @param {string} props.inputId
+ * @param {string} props.menuId
+ * @param {import('preact').ComponentChildren} [props.hint]
+ */
+const PathSelectorField = ({ label, inputId, menuId, hint }) =>
+  h(
+    'div',
+    { class: 'add-space-field' },
+    h('label', null, label),
+    h(
+      'div',
+      { class: 'petname-path-selector' },
+      h('div', { id: inputId, class: 'profile-path-input-container' }),
+      h('div', { id: menuId, class: 'token-menu' }),
+    ),
+    hint ? h('div', { class: 'field-hint' }, hint) : null,
+  );
+harden(PathSelectorField);
+
+/** @param {{ view: AddSpaceView, on: AddSpaceHandlers }} props */
+const ExistingForm = ({ view, on }) =>
+  h(
+    FormShell,
+    { title: 'Existing Profile', on },
+    h(IconField, { view, on }),
+    h(PathSelectorField, {
+      label: 'Profile Path',
+      inputId: 'profile-path-input',
+      menuId: 'profile-path-menu',
+      hint: h(DrillHint, null),
+    }),
+    h(MailboxLayoutField, null),
+    h(SchemeSlot, null),
+    h(ErrorBlock, { error: view.error }),
+    h(Actions, {
+      isSubmitting: view.isSubmitting,
+      label: 'Add Space',
+      busyLabel: 'Adding...',
+      onCancel: on.close,
+    }),
+  );
+harden(ExistingForm);
+
+/** The drill-down hint shared by the path selectors. */
+const DrillHint = () =>
+  h(
+    Fragment,
+    null,
+    'Use ',
+    h('kbd', null, '.'),
+    ' to drill down, ',
+    h('kbd', null, 'Enter'),
+    ' to add space',
+  );
+harden(DrillHint);
+
+/** @param {{ view: AddSpaceView, on: AddSpaceHandlers }} props */
+const NewChannelForm = ({ view, on }) =>
+  h(
+    FormShell,
+    { title: 'New Channel', on },
+    h(
+      'div',
+      { class: 'add-space-field' },
+      h('label', null, 'Persona'),
+      h(
+        'div',
+        { class: 'connect-persona-choices' },
+        h(
+          'label',
+          { class: 'connect-persona-option' },
+          h('input', {
+            type: 'radio',
+            name: 'channel-persona-mode',
+            value: 'new',
+            checked: view.channelPersonaMode === 'new',
+            onChange: () => on.channelPersonaMode('new'),
+          }),
+          h('span', null, 'Create new persona'),
+        ),
+        h(
+          'label',
+          { class: 'connect-persona-option' },
+          h('input', {
+            type: 'radio',
+            name: 'channel-persona-mode',
+            value: 'existing',
+            checked: view.channelPersonaMode === 'existing',
+            onChange: () => on.channelPersonaMode('existing'),
+          }),
+          h('span', null, 'Use existing profile'),
+        ),
+      ),
+    ),
+    view.channelPersonaMode === 'existing'
+      ? h(
+          'div',
+          { class: 'add-space-field' },
+          h('label', null, 'Profile Path'),
+          h(
+            'div',
+            { class: 'petname-path-selector' },
+            h('div', {
+              id: 'channel-profile-path-input',
+              class: 'profile-path-input-container',
+            }),
+            h('div', { id: 'channel-profile-path-menu', class: 'token-menu' }),
+          ),
+          h(
+            'div',
+            { class: 'field-hint' },
+            'Use ',
+            h('kbd', null, '.'),
+            ' to drill down, ',
+            h('kbd', null, 'Enter'),
+            ' to select',
+          ),
+        )
+      : null,
+    h(IconField, { view, on }),
+    h(TextField, {
+      id: 'channel-pet-name',
+      label: 'Space Name',
+      placeholder: 'e.g., general, dev-chat',
+      value: view.channelPetName,
+      onInput: on.channelPetNameInput,
+      hint: 'Lowercase letters, numbers, and hyphens only (e.g., my-team)',
+      pattern: '[a-z][a-z0-9-]*',
+    }),
+    h(TextField, {
+      id: 'channel-proposed-name',
+      label: 'Your Display Name',
+      placeholder: 'e.g., Alice, Admin',
+      value: view.channelProposedName,
+      onInput: on.channelProposedNameInput,
+      hint: 'How others will see you in this channel',
+    }),
+    h(
+      'div',
+      { class: 'add-space-field' },
+      h('label', null, 'Channel View'),
+      h(
+        'div',
+        { class: 'view-mode-selector' },
+        CHANNEL_VIEW_MODES.map(vm =>
+          h(
+            'button',
+            {
+              key: vm.mode,
+              type: 'button',
+              class: `view-mode-option ${
+                view.channelViewMode === vm.mode ? 'selected' : ''
+              }`,
+              'data-view-mode': vm.mode,
+              onClick: () => on.channelViewMode(vm.mode),
+            },
+            h('span', { class: 'view-mode-label' }, vm.label),
+            h('span', { class: 'view-mode-desc' }, vm.desc),
+          ),
+        ),
+      ),
+    ),
+    view.channelPersonaMode === 'new'
+      ? h(TextField, {
+          id: 'channel-introduced-names',
+          label: 'Share from Inventory',
+          placeholder: 'e.g., my-tool, my-data',
+          value: view.channelIntroducedNames,
+          onInput: on.channelIntroducedNamesInput,
+          hint: "Comma-separated pet names to copy into this persona's namespace",
+        })
+      : null,
+    h(ErrorBlock, { error: view.error }),
+    h(Actions, {
+      isSubmitting: view.isSubmitting,
+      label: 'Create Channel',
+      busyLabel: 'Creating...',
+      onCancel: on.close,
+    }),
+  );
+harden(NewChannelForm);
+
+/** @param {{ view: AddSpaceView, on: AddSpaceHandlers }} props */
+const ConnectChannelForm = ({ view, on }) =>
+  h(
+    FormShell,
+    { title: 'Connect to Channel', on },
+    h(TextField, {
+      id: 'connect-locator',
+      label: 'Invitation Locator',
+      placeholder: 'endo://…',
+      value: view.connectLocator,
+      onInput: on.connectLocatorInput,
+      hint: 'Paste the invitation link you received',
+    }),
+    h(
+      'div',
+      { class: 'add-space-field' },
+      h('label', null, 'Persona'),
+      h(
+        'div',
+        { class: 'connect-persona-choices' },
+        h(
+          'label',
+          { class: 'connect-persona-option' },
+          h('input', {
+            type: 'radio',
+            name: 'connect-persona-mode',
+            value: 'new',
+            checked: view.connectPersonaMode === 'new',
+            onChange: () => on.connectPersonaMode('new'),
+          }),
+          h('span', null, 'Create new persona'),
+        ),
+        view.existingChannelSpaces.length > 0
+          ? h(
+              'label',
+              { class: 'connect-persona-option' },
+              h('input', {
+                type: 'radio',
+                name: 'connect-persona-mode',
+                value: 'existing',
+                checked: view.connectPersonaMode === 'existing',
+                onChange: () => on.connectPersonaMode('existing'),
+              }),
+              h('span', null, 'Use existing persona'),
+            )
+          : null,
+      ),
+    ),
+    view.connectPersonaMode === 'new'
+      ? h(
+          Fragment,
+          null,
+          h(IconField, { view, on }),
+          h(TextField, {
+            id: 'connect-space-name',
+            label: 'Space Name',
+            placeholder: 'e.g., team-chat',
+            value: view.connectSpaceName,
+            onInput: on.connectSpaceNameInput,
+            hint: 'Lowercase letters, numbers, and hyphens only (e.g., my-team)',
+            pattern: '[a-z][a-z0-9-]*',
+          }),
+          h(TextField, {
+            id: 'connect-proposed-name',
+            label: 'Your Display Name',
+            placeholder: 'e.g., Alice',
+            value: view.connectProposedName,
+            onInput: on.connectProposedNameInput,
+            hint: 'How others will see you in this channel',
+          }),
+        )
+      : h(
+          'div',
+          { class: 'add-space-field' },
+          h('label', null, 'Choose a persona'),
+          h(
+            'div',
+            { class: 'connect-existing-list' },
+            view.existingChannelSpaces.length > 0
+              ? view.existingChannelSpaces.map(s =>
+                  h(
+                    'label',
+                    { key: s.id, class: 'connect-persona-option' },
+                    h('input', {
+                      type: 'radio',
+                      name: 'connect-persona',
+                      value: s.id,
+                      checked: view.connectExistingSpaceId === s.id,
+                      onChange: () => on.connectExistingSpace(s.id),
+                    }),
+                    h('span', { class: 'connect-persona-icon' }, s.icon),
+                    h('span', { class: 'connect-persona-name' }, s.name),
+                  ),
+                )
+              : h(
+                  'div',
+                  { class: 'field-hint' },
+                  'No existing channel spaces found',
+                ),
+          ),
+        ),
+    h(ErrorBlock, { error: view.error }),
+    h(Actions, {
+      isSubmitting: view.isSubmitting,
+      label: 'Connect',
+      busyLabel: 'Connecting...',
+      onCancel: on.close,
+    }),
+  );
+harden(ConnectChannelForm);
+
+/** @param {{ view: AddSpaceView, on: AddSpaceHandlers }} props */
+const WhylipForm = ({ view, on }) =>
+  h(
+    FormShell,
+    { title: 'Whylip Book', on },
+    h(TextField, {
+      id: 'whylip-name',
+      label: 'Book Name',
+      placeholder: 'e.g., physics-primer',
+      value: view.whylipName,
+      onInput: on.whylipNameInput,
+      hint: 'A short name for this primer (letters, numbers, hyphens)',
+      pattern: '[a-zA-Z][a-zA-Z0-9_-]*',
+    }),
+    h(
+      'div',
+      { class: 'add-space-field' },
+      h('label', { for: 'whylip-agent-name' }, 'Fae Factory'),
+      h('input', {
+        type: 'text',
+        id: 'whylip-agent-name',
+        placeholder: 'e.g., fae-factory',
+        value: view.whylipAgentName,
+        autocomplete: 'off',
+        /** @param {{ target: { value: string } }} e */
+        onInput: e => on.whylipAgentNameInput(e.target.value),
+      }),
+      h(
+        'div',
+        { class: 'field-hint' },
+        'Pet name of the Fae factory controller (from ',
+        h('code', null, 'endo list'),
+        ')',
+      ),
+    ),
+    h(IconField, { view, on }),
+    h(SchemeSlot, null),
+    h(ErrorBlock, { error: view.error }),
+    h(Actions, {
+      isSubmitting: view.isSubmitting,
+      label: 'Create Book',
+      busyLabel: 'Creating...',
+      onCancel: on.close,
+    }),
+  );
+harden(WhylipForm);
+
+/** @param {{ view: AddSpaceView, on: AddSpaceHandlers }} props */
+const GraphForm = ({ view, on }) =>
+  h(
+    FormShell,
+    { title: 'Inventory Graph', on },
+    h(IconField, { view, on }),
+    h(PathSelectorField, {
+      label: 'Profile Path',
+      inputId: 'profile-path-input',
+      menuId: 'profile-path-menu',
+      hint: h(DrillHint, null),
+    }),
+    h(SchemeSlot, null),
+    h(ErrorBlock, { error: view.error }),
+    h(Actions, {
+      isSubmitting: view.isSubmitting,
+      label: 'Create Graph',
+      busyLabel: 'Creating...',
+      onCancel: on.close,
+    }),
+  );
+harden(GraphForm);
+
+/** @param {{ view: AddSpaceView, on: AddSpaceHandlers }} props */
+const FlootForm = ({ view, on }) =>
+  h(
+    FormShell,
+    { title: 'Floot Chat', on },
+    h(IconField, { view, on }),
+    h(PathSelectorField, {
+      label: 'Floot Agent Path',
+      inputId: 'profile-path-input',
+      menuId: 'profile-path-menu',
+      hint: 'Pet-name path to the Floot factory. Auto-detected as floot/controller when present; otherwise pick it from your inventory.',
+    }),
+    h(
+      'div',
+      { class: 'add-space-field' },
+      h('label', null, 'STT Object Path (optional)'),
+      h('input', {
+        type: 'text',
+        id: 'floot-audio-path',
+        class: 'add-space-input',
+        placeholder: 'floot/stt',
+        value: view.flootAudioPath,
+        /** @param {{ target: { value: string } }} e */
+        onInput: e => on.flootAudioInput(e.target.value),
+      }),
+      h(
+        'div',
+        { class: 'field-hint' },
+        'Enable the mic by pointing at a speech-to-text object (slash-separated path). Auto-filled from floot/stt when present; leave blank for text only.',
+      ),
+    ),
+    h(
+      'div',
+      { class: 'add-space-field' },
+      h('label', null, 'TTS Object Path (optional)'),
+      h('input', {
+        type: 'text',
+        id: 'floot-tts-path',
+        class: 'add-space-input',
+        placeholder: 'floot/tts',
+        value: view.flootTtsPath,
+        /** @param {{ target: { value: string } }} e */
+        onInput: e => on.flootTtsInput(e.target.value),
+      }),
+      h(
+        'div',
+        { class: 'field-hint' },
+        'Enable spoken replies by pointing at a text-to-speech object (slash-separated path). Auto-filled from floot/tts when present; leave blank for silent.',
+      ),
+    ),
+    h(SchemeSlot, null),
+    h(ErrorBlock, { error: view.error }),
+    h(Actions, {
+      isSubmitting: view.isSubmitting,
+      label: 'Create Chat',
+      busyLabel: 'Creating...',
+      onCancel: on.close,
+    }),
+  );
+harden(FlootForm);
+
+/** @param {{ view: AddSpaceView, on: AddSpaceHandlers }} props */
+const PeersForm = ({ view, on }) =>
+  h(
+    FormShell,
+    { title: 'Known Peers', on },
+    h(IconField, { view, on }),
+    h(SchemeSlot, null),
+    h(ErrorBlock, { error: view.error }),
+    h(Actions, {
+      isSubmitting: view.isSubmitting,
+      label: 'Create Space',
+      busyLabel: 'Creating...',
+      onCancel: on.close,
+    }),
+  );
+harden(PeersForm);
+
+/** @param {{ view: AddSpaceView, on: AddSpaceHandlers }} props */
+const FilesForm = ({ view, on }) =>
+  h(
+    FormShell,
+    { title: 'File Explorer', on },
+    h(IconField, { view, on }),
+    h(
+      'div',
+      { class: 'field-hint' },
+      'Open filesystems by pet name, or create in-memory ones, read-only views, and layers from inside the Space.',
+    ),
+    h(SchemeSlot, null),
+    h(ErrorBlock, { error: view.error }),
+    h(Actions, {
+      isSubmitting: view.isSubmitting,
+      label: 'Create Space',
+      busyLabel: 'Creating...',
+      onCancel: on.close,
+    }),
+  );
+harden(FilesForm);
+
+/**
+ * The root view: dispatch on `view.mode` to the matching screen.
+ *
+ * @param {object} props
+ * @param {AddSpaceView} props.view
+ * @param {AddSpaceHandlers} props.on
+ */
+const AddSpaceView = ({ view, on }) => {
+  switch (view.mode) {
+    case 'new-agent':
+      return h(NewAgentForm, { view, on });
+    case 'existing':
+      return h(ExistingForm, { view, on });
+    case 'new-channel':
+      return h(NewChannelForm, { view, on });
+    case 'connect-channel':
+      return h(ConnectChannelForm, { view, on });
+    case 'whylip':
+      return h(WhylipForm, { view, on });
+    case 'graph':
+      return h(GraphForm, { view, on });
+    case 'peers':
+      return h(PeersForm, { view, on });
+    case 'files':
+      return h(FilesForm, { view, on });
+    case 'floot':
+      return h(FlootForm, { view, on });
+    default:
+      return h(ChooseMode, { view, on });
+  }
+};
+harden(AddSpaceView);
+
+/**
+ * @typedef {object} AddSpaceHandlers
+ * @property {(mode: string) => void} selectMode
+ * @property {() => void} back
+ * @property {() => void} close
+ * @property {() => void} submit
+ * @property {(icon: string) => void} selectIcon
+ * @property {(useLetterIcon: boolean) => void} toggleLetterIcon
+ * @property {(value: string) => void} handleInput
+ * @property {(value: string) => void} agentInput
+ * @property {(value: string) => void} channelPetNameInput
+ * @property {(value: string) => void} channelProposedNameInput
+ * @property {(value: string) => void} channelIntroducedNamesInput
+ * @property {(mode: 'chat' | 'forum' | 'outliner' | 'microblog') => void} channelViewMode
+ * @property {(mode: 'new' | 'existing') => void} channelPersonaMode
+ * @property {(value: string) => void} whylipNameInput
+ * @property {(value: string) => void} whylipAgentNameInput
+ * @property {(value: string) => void} flootAudioInput
+ * @property {(value: string) => void} flootTtsInput
+ * @property {(value: string) => void} connectLocatorInput
+ * @property {(value: string) => void} connectSpaceNameInput
+ * @property {(value: string) => void} connectProposedNameInput
+ * @property {(mode: 'new' | 'existing') => void} connectPersonaMode
+ * @property {(id: string) => void} connectExistingSpace
  */
 
 /**
@@ -125,7 +1053,7 @@ export const createAddSpaceModal = ({
   let channelPetName = '';
   /** @type {string} */
   let channelProposedName = '';
-  /** @type {'chat' | 'forum' | 'outliner'} */
+  /** @type {'chat' | 'forum' | 'outliner' | 'microblog'} */
   let channelViewMode = 'chat';
   /** @type {'new' | 'existing'} */
   let channelPersonaMode = 'existing';
@@ -154,70 +1082,6 @@ export const createAddSpaceModal = ({
   let schemePicker = null;
 
   /**
-   * Render the choose mode screen.
-   * @returns {string}
-   */
-  const renderChooseMode = () => {
-    const nextIcon = getFirstUnusedIcon();
-    return `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <h2 class="add-space-title">Add Space</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <div class="add-space-choose">
-        <button type="button" class="space-type-card" data-mode="new-agent">
-          <span class="space-type-icon">${nextIcon}</span>
-          <span class="space-type-title">New Profile</span>
-          <span class="space-type-desc">Create a fresh profile</span>
-        </button>
-        <button type="button" class="space-type-card" data-mode="existing">
-          <span class="space-type-icon">🐈‍⬛</span>
-          <span class="space-type-title">Existing Profile</span>
-          <span class="space-type-desc">Connect to an existing profile</span>
-        </button>
-        <button type="button" class="space-type-card" data-mode="new-channel">
-          <span class="space-type-icon">📡</span>
-          <span class="space-type-title">New Channel</span>
-          <span class="space-type-desc">Create a multi-party chat room</span>
-        </button>
-        <button type="button" class="space-type-card" data-mode="connect-channel">
-          <span class="space-type-icon">🔗</span>
-          <span class="space-type-title">Connect to Channel</span>
-          <span class="space-type-desc">Join a channel via invitation link</span>
-        </button>
-        <button type="button" class="space-type-card" data-mode="whylip">
-          <span class="space-type-icon">📖</span>
-          <span class="space-type-title">Whylip Book</span>
-          <span class="space-type-desc">An interactive illustrated primer powered by a Fae agent</span>
-        </button>
-        <button type="button" class="space-type-card" data-mode="graph">
-          <span class="space-type-icon">🕸️</span>
-          <span class="space-type-title">Inventory Graph</span>
-          <span class="space-type-desc">Visualize your pet store as a force-directed graph</span>
-        </button>
-        <button type="button" class="space-type-card" data-mode="peers">
-          <span class="space-type-icon">🌐</span>
-          <span class="space-type-title">Known Peers</span>
-          <span class="space-type-desc">List all known remote Endo peers and connection hints</span>
-        </button>
-        <button type="button" class="space-type-card" data-mode="files">
-          <span class="space-type-icon">📂</span>
-          <span class="space-type-title">File Explorer</span>
-          <span class="space-type-desc">Browse and edit endo-fs filesystem objects, mounts, and layers</span>
-        </button>
-        <button type="button" class="space-type-card" data-mode="floot">
-          <span class="space-type-icon">💬</span>
-          <span class="space-type-title">Floot Chat</span>
-          <span class="space-type-desc">Chat with a Floot streaming agent and watch its reply arrive token by token</span>
-        </button>
-      </div>
-    </div>
-  `;
-  };
-
-  /**
    * Get the default agent name for a handle.
    * @param {string} handle
    * @returns {string}
@@ -227,556 +1091,53 @@ export const createAddSpaceModal = ({
   };
 
   /**
-   * Render the new agent form.
-   * @returns {string}
+   * Build the pure-data snapshot the confined view renders from.
+   *
+   * @returns {AddSpaceView}
    */
-  const renderNewAgentForm = () => {
-    const displayAgentName = agentNameManuallyEdited
-      ? agentName
-      : getDefaultAgentName(handleName);
-    return `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <button type="button" class="add-space-back" title="Back">←</button>
-        <h2 class="add-space-title">New Profile</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        <div class="add-space-field">
-          <label for="handle-name">Handle</label>
-          <input type="text" id="handle-name" placeholder="e.g., clark, bruce, diana"
-                 value="${handleName}" autocomplete="off" />
-          <div class="field-hint">The pet name for accessing this profile's powers</div>
-        </div>
-
-        <div class="add-space-field">
-          <label for="agent-name">Agent Name</label>
-          <input type="text" id="agent-name" placeholder="profile-for-handle"
-                 value="${displayAgentName}" autocomplete="off" />
-          <div class="field-hint">Internal identifier for the agent</div>
-        </div>
-
-        ${renderIconSelector({ selectedIcon, useLetterIcon })}
-
-        <div class="add-space-field">
-          <label>Layout</label>
-          <div class="layout-selector">
-            <button type="button" class="layout-option selected" data-layout="mailbox">
-              <span class="layout-icon">📬</span>
-              <span class="layout-name">Mailbox</span>
-            </button>
-          </div>
-          <div class="field-hint">More layouts coming soon</div>
-        </div>
-
-        <div id="scheme-picker-slot" class="add-space-field"></div>
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Creating...' : 'Create Space'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-  };
+  const buildView = () =>
+    harden({
+      mode,
+      nextIcon: getFirstUnusedIcon(),
+      selectedIcon,
+      useLetterIcon,
+      handleName,
+      displayAgentName: agentNameManuallyEdited
+        ? agentName
+        : getDefaultAgentName(handleName),
+      channelPetName,
+      channelProposedName,
+      channelViewMode,
+      channelPersonaMode,
+      channelIntroducedNames,
+      connectLocator,
+      connectSpaceName,
+      connectProposedName,
+      connectPersonaMode,
+      connectExistingSpaceId,
+      existingChannelSpaces: getExistingChannelSpaces
+        ? getExistingChannelSpaces()
+        : [],
+      whylipName,
+      whylipAgentName,
+      flootAudioPath,
+      flootTtsPath,
+      error,
+      isSubmitting,
+    });
 
   /**
-   * Render the existing profile form.
-   * @returns {string}
-   */
-  const renderExistingForm = () => `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <button type="button" class="add-space-back" title="Back">←</button>
-        <h2 class="add-space-title">Existing Profile</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        ${renderIconSelector({ selectedIcon, useLetterIcon })}
-
-        <div class="add-space-field">
-          <label>Profile Path</label>
-          <div class="petname-path-selector">
-            <div id="profile-path-input" class="profile-path-input-container"></div>
-            <div id="profile-path-menu" class="token-menu"></div>
-          </div>
-          <div class="field-hint">Use <kbd>.</kbd> to drill down, <kbd>Enter</kbd> to add space</div>
-        </div>
-
-        <div class="add-space-field">
-          <label>Layout</label>
-          <div class="layout-selector">
-            <button type="button" class="layout-option selected" data-layout="mailbox">
-              <span class="layout-icon">📬</span>
-              <span class="layout-name">Mailbox</span>
-            </button>
-          </div>
-          <div class="field-hint">More layouts coming soon</div>
-        </div>
-
-        <div id="scheme-picker-slot" class="add-space-field"></div>
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Adding...' : 'Add Space'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-
-  /**
-   * Render the new channel form.
-   * @returns {string}
-   */
-  const renderNewChannelForm = () => `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <button type="button" class="add-space-back" title="Back">←</button>
-        <h2 class="add-space-title">New Channel</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        <div class="add-space-field">
-          <label>Persona</label>
-          <div class="connect-persona-choices">
-            <label class="connect-persona-option">
-              <input type="radio" name="channel-persona-mode" value="new"
-                     ${channelPersonaMode === 'new' ? 'checked' : ''} />
-              <span>Create new persona</span>
-            </label>
-            <label class="connect-persona-option">
-              <input type="radio" name="channel-persona-mode" value="existing"
-                     ${channelPersonaMode === 'existing' ? 'checked' : ''} />
-              <span>Use existing profile</span>
-            </label>
-          </div>
-        </div>
-
-        ${
-          channelPersonaMode === 'existing'
-            ? `
-          <div class="add-space-field">
-            <label>Profile Path</label>
-            <div class="petname-path-selector">
-              <div id="channel-profile-path-input" class="profile-path-input-container"></div>
-              <div id="channel-profile-path-menu" class="token-menu"></div>
-            </div>
-            <div class="field-hint">Use <kbd>.</kbd> to drill down, <kbd>Enter</kbd> to select</div>
-          </div>
-        `
-            : ''
-        }
-
-        ${renderIconSelector({ selectedIcon, useLetterIcon })}
-
-        <div class="add-space-field">
-          <label for="channel-pet-name">Space Name</label>
-          <input type="text" id="channel-pet-name" placeholder="e.g., general, dev-chat"
-                 pattern="[a-z][a-z0-9-]*"
-                 value="${channelPetName}" autocomplete="off" />
-          <div class="field-hint">Lowercase letters, numbers, and hyphens only (e.g., my-team)</div>
-        </div>
-
-        <div class="add-space-field">
-          <label for="channel-proposed-name">Your Display Name</label>
-          <input type="text" id="channel-proposed-name" placeholder="e.g., Alice, Admin"
-                 value="${channelProposedName}" autocomplete="off" />
-          <div class="field-hint">How others will see you in this channel</div>
-        </div>
-
-        <div class="add-space-field">
-          <label>Channel View</label>
-          <div class="view-mode-selector">
-            <button type="button" class="view-mode-option ${channelViewMode === 'chat' ? 'selected' : ''}" data-view-mode="chat">
-              <span class="view-mode-label">Traditional Chat</span>
-              <span class="view-mode-desc">Chronological messages with thread drill-downs</span>
-            </button>
-            <button type="button" class="view-mode-option ${channelViewMode === 'forum' ? 'selected' : ''}" data-view-mode="forum">
-              <span class="view-mode-label">Forum</span>
-              <span class="view-mode-desc">Threaded tree view with active subtrees at bottom</span>
-            </button>
-            <button type="button" class="view-mode-option ${channelViewMode === 'outliner' ? 'selected' : ''}" data-view-mode="outliner">
-              <span class="view-mode-label">Outliner</span>
-              <span class="view-mode-desc">Collaborative document with edit history</span>
-            </button>
-            <button type="button" class="view-mode-option ${channelViewMode === 'microblog' ? 'selected' : ''}" data-view-mode="microblog">
-              <span class="view-mode-label">Microblog</span>
-              <span class="view-mode-desc">Reverse-chronological feed with profile header</span>
-            </button>
-          </div>
-        </div>
-
-        ${
-          channelPersonaMode === 'new'
-            ? `
-          <div class="add-space-field">
-            <label for="channel-introduced-names">Share from Inventory</label>
-            <input type="text" id="channel-introduced-names"
-                   placeholder="e.g., my-tool, my-data"
-                   value="${channelIntroducedNames}" autocomplete="off" />
-            <div class="field-hint">Comma-separated pet names to copy into this persona's namespace</div>
-          </div>
-        `
-            : ''
-        }
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Creating...' : 'Create Channel'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-
-  /**
-   * Render the connect to channel form.
-   * @returns {string}
-   */
-  const renderConnectChannelForm = () => {
-    const existingSpaces = getExistingChannelSpaces
-      ? getExistingChannelSpaces()
-      : [];
-
-    const existingSpacesHtml = existingSpaces
-      .map(
-        s => `
-        <label class="connect-persona-option">
-          <input type="radio" name="connect-persona" value="${s.id}"
-                 ${connectExistingSpaceId === s.id ? 'checked' : ''} />
-          <span class="connect-persona-icon">${s.icon}</span>
-          <span class="connect-persona-name">${s.name}</span>
-        </label>`,
-      )
-      .join('');
-
-    return `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <button type="button" class="add-space-back" title="Back">\u2190</button>
-        <h2 class="add-space-title">Connect to Channel</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        <div class="add-space-field">
-          <label for="connect-locator">Invitation Locator</label>
-          <input type="text" id="connect-locator" placeholder="endo://\u2026"
-                 value="${connectLocator}" autocomplete="off" />
-          <div class="field-hint">Paste the invitation link you received</div>
-        </div>
-
-        <div class="add-space-field">
-          <label>Persona</label>
-          <div class="connect-persona-choices">
-            <label class="connect-persona-option">
-              <input type="radio" name="connect-persona-mode" value="new"
-                     ${connectPersonaMode === 'new' ? 'checked' : ''} />
-              <span>Create new persona</span>
-            </label>
-            ${
-              existingSpaces.length > 0
-                ? `<label class="connect-persona-option">
-                <input type="radio" name="connect-persona-mode" value="existing"
-                       ${connectPersonaMode === 'existing' ? 'checked' : ''} />
-                <span>Use existing persona</span>
-              </label>`
-                : ''
-            }
-          </div>
-        </div>
-
-        ${
-          connectPersonaMode === 'new'
-            ? `
-          ${renderIconSelector({ selectedIcon, useLetterIcon })}
-          <div class="add-space-field">
-            <label for="connect-space-name">Space Name</label>
-            <input type="text" id="connect-space-name" placeholder="e.g., team-chat"
-                   pattern="[a-z][a-z0-9-]*"
-                   value="${connectSpaceName}" autocomplete="off" />
-            <div class="field-hint">Lowercase letters, numbers, and hyphens only (e.g., my-team)</div>
-          </div>
-          <div class="add-space-field">
-            <label for="connect-proposed-name">Your Display Name</label>
-            <input type="text" id="connect-proposed-name" placeholder="e.g., Alice"
-                   value="${connectProposedName}" autocomplete="off" />
-            <div class="field-hint">How others will see you in this channel</div>
-          </div>
-        `
-            : `
-          <div class="add-space-field">
-            <label>Choose a persona</label>
-            <div class="connect-existing-list">
-              ${existingSpacesHtml || '<div class="field-hint">No existing channel spaces found</div>'}
-            </div>
-          </div>
-        `
-        }
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Connecting...' : 'Connect'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-  };
-
-  /**
-   * Render the Whylip Book form.
-   * @returns {string}
-   */
-  const renderWhylipForm = () => `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <button type="button" class="add-space-back" title="Back">\u2190</button>
-        <h2 class="add-space-title">Whylip Book</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        <div class="add-space-field">
-          <label for="whylip-name">Book Name</label>
-          <input type="text" id="whylip-name" placeholder="e.g., physics-primer"
-                 pattern="[a-zA-Z][a-zA-Z0-9_-]*"
-                 value="${whylipName}" autocomplete="off" />
-          <div class="field-hint">A short name for this primer (letters, numbers, hyphens)</div>
-        </div>
-
-        <div class="add-space-field">
-          <label for="whylip-agent-name">Fae Factory</label>
-          <input type="text" id="whylip-agent-name" placeholder="e.g., fae-factory"
-                 value="${whylipAgentName}" autocomplete="off" />
-          <div class="field-hint">Pet name of the Fae factory controller (from <code>endo list</code>)</div>
-        </div>
-
-        ${renderIconSelector({ selectedIcon, useLetterIcon })}
-
-        <div id="scheme-picker-slot" class="add-space-field"></div>
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Creating...' : 'Create Book'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-
-  /**
-   * Render the inventory graph form.
-   * @returns {string}
-   */
-  const renderGraphForm = () => `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <button type="button" class="add-space-back" title="Back">\u2190</button>
-        <h2 class="add-space-title">Inventory Graph</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        ${renderIconSelector({ selectedIcon, useLetterIcon })}
-
-        <div class="add-space-field">
-          <label>Profile Path</label>
-          <div class="petname-path-selector">
-            <div id="profile-path-input" class="profile-path-input-container"></div>
-            <div id="profile-path-menu" class="token-menu"></div>
-          </div>
-          <div class="field-hint">Use <kbd>.</kbd> to drill down, <kbd>Enter</kbd> to add space</div>
-        </div>
-
-        <div id="scheme-picker-slot" class="add-space-field"></div>
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Creating...' : 'Create Graph'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-
-  /**
-   * Render the floot chat form.
-   * @returns {string}
-   */
-  const renderFlootForm = () => `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <button type="button" class="add-space-back" title="Back">←</button>
-        <h2 class="add-space-title">Floot Chat</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        ${renderIconSelector({ selectedIcon, useLetterIcon })}
-
-        <div class="add-space-field">
-          <label>Floot Agent Path</label>
-          <div class="petname-path-selector">
-            <div id="profile-path-input" class="profile-path-input-container"></div>
-            <div id="profile-path-menu" class="token-menu"></div>
-          </div>
-          <div class="field-hint">Pet-name path to the Floot factory. Auto-detected as floot/controller when present; otherwise pick it from your inventory.</div>
-        </div>
-
-        <div class="add-space-field">
-          <label>STT Object Path (optional)</label>
-          <input type="text" id="floot-audio-path" class="add-space-input"
-            placeholder="floot/stt" value="${flootAudioPath}" />
-          <div class="field-hint">Enable the mic by pointing at a speech-to-text object (slash-separated path). Auto-filled from floot/stt when present; leave blank for text only.</div>
-        </div>
-
-        <div class="add-space-field">
-          <label>TTS Object Path (optional)</label>
-          <input type="text" id="floot-tts-path" class="add-space-input"
-            placeholder="floot/tts" value="${flootTtsPath}" />
-          <div class="field-hint">Enable spoken replies by pointing at a text-to-speech object (slash-separated path). Auto-filled from floot/tts when present; leave blank for silent.</div>
-        </div>
-
-        <div id="scheme-picker-slot" class="add-space-field"></div>
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Creating...' : 'Create Chat'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-
-  /**
-   * Render the peers form.
-   * @returns {string}
-   */
-  const renderPeersForm = () => `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <button type="button" class="add-space-back" title="Back">\u2190</button>
-        <h2 class="add-space-title">Known Peers</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        ${renderIconSelector({ selectedIcon, useLetterIcon })}
-
-        <div id="scheme-picker-slot" class="add-space-field"></div>
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Creating...' : 'Create Space'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-
-  /**
-   * Render the file explorer form.
-   * @returns {string}
-   */
-  const renderFilesForm = () => `
-    <div class="add-space-backdrop"></div>
-    <div class="add-space-modal">
-      <div class="add-space-header">
-        <button type="button" class="add-space-back" title="Back">←</button>
-        <h2 class="add-space-title">File Explorer</h2>
-        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
-      </div>
-      <form class="add-space-form">
-        ${renderIconSelector({ selectedIcon, useLetterIcon })}
-
-        <div class="field-hint">
-          Open filesystems by pet name, or create in-memory ones,
-          read-only views, and layers from inside the Space.
-        </div>
-
-        <div id="scheme-picker-slot" class="add-space-field"></div>
-
-        ${error ? `<div class="add-space-error">${error}</div>` : ''}
-
-        <div class="add-space-actions">
-          <button type="button" class="add-space-cancel">Cancel</button>
-          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? 'Creating...' : 'Create Space'}
-          </button>
-        </div>
-      </form>
-    </div>
-  `;
-
-  /**
-   * Render the modal content based on current mode.
+   * Render the modal content based on the current mode, then (synchronously,
+   * because `renderConfined` is synchronous) mount the scheme picker and the
+   * pet-name autocompletes into the slot/anchor elements the view rendered, and
+   * focus the primary input — exactly the post-render steps the imperative
+   * version ran after its `innerHTML` write.
    */
   const render = () => {
-    let html;
-    switch (mode) {
-      case 'new-agent':
-        html = renderNewAgentForm();
-        break;
-      case 'new-channel':
-        html = renderNewChannelForm();
-        break;
-      case 'connect-channel':
-        html = renderConnectChannelForm();
-        break;
-      case 'existing':
-        html = renderExistingForm();
-        break;
-      case 'whylip':
-        html = renderWhylipForm();
-        break;
-      case 'graph':
-        html = renderGraphForm();
-        break;
-      case 'peers':
-        html = renderPeersForm();
-        break;
-      case 'files':
-        html = renderFilesForm();
-        break;
-      case 'floot':
-        html = renderFlootForm();
-        break;
-      default:
-        html = renderChooseMode();
-    }
-
-    $container.innerHTML = html;
-    attachEventListeners();
+    renderConfined(
+      h(AddSpaceView, { view: buildView(), on: handlers }),
+      $container,
+    );
 
     // Mount scheme picker into slot if in a form mode
     if (
@@ -872,7 +1233,10 @@ export const createAddSpaceModal = ({
         for (const name of names) {
           try {
             // eslint-disable-next-line no-await-in-loop
-            const obj = await E(host).lookup(['floot', name]);
+            const obj =
+              /** @type {{ __getMethodNames__: () => Promise<string[]> }} */ (
+                await E(host).lookup(['floot', name])
+              );
             // eslint-disable-next-line no-await-in-loop, no-underscore-dangle
             const methods = await E(obj).__getMethodNames__();
             if (
@@ -977,407 +1341,243 @@ export const createAddSpaceModal = ({
   };
 
   /**
-   * Attach event listeners to modal elements.
+   * The callback bag the confined view invokes. Each handler is a host closure
+   * passed as a prop, so it runs in the app realm and mutates wizard state.
+   * Where the imperative version avoided a full re-render — icon selection,
+   * channel view-mode, and the live text inputs — these update the rendered DOM
+   * in place (via `$container` queries) so the embedded controllers, the scheme
+   * picker and the pet-name autocompletes, survive between renders.
+   *
+   * @type {AddSpaceHandlers}
    */
-  const attachEventListeners = () => {
-    const $backdrop = $container.querySelector('.add-space-backdrop');
-    const $close = $container.querySelector('.add-space-close');
-    const $back = $container.querySelector('.add-space-back');
-    const $cancel = $container.querySelector('.add-space-cancel');
-    const $form = $container.querySelector('.add-space-form');
-    const $iconOptions = $container.querySelectorAll('.icon-option');
-    const $iconTabs = $container.querySelectorAll('.icon-tab');
-    const $letterInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#letter-icon')
-    );
-    const $handleNameInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#handle-name')
-    );
-    const $agentNameInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#agent-name')
-    );
-    const $typeCards = $container.querySelectorAll('.space-type-card');
-
-    // Close handlers
-    if ($backdrop) {
-      $backdrop.addEventListener('click', () => {
-        hide();
-        onClose();
-      });
-    }
-    if ($close) {
-      $close.addEventListener('click', () => {
-        hide();
-        onClose();
-      });
-    }
-    if ($cancel) {
-      $cancel.addEventListener('click', () => {
-        hide();
-        onClose();
-      });
-    }
-
-    // Back button
-    if ($back) {
-      $back.addEventListener('click', () => {
-        mode = 'choose';
+  const handlers = {
+    close: () => {
+      hide();
+      onClose();
+    },
+    back: () => {
+      mode = 'choose';
+      error = null;
+      render();
+    },
+    selectMode: selectedMode => {
+      if (selectedMode === 'new-agent') {
+        mode = 'new-agent';
+        selectedIcon = getFirstUnusedIcon();
+        useLetterIcon = false;
         error = null;
         render();
-      });
-    }
-
-    // Type card selection
-    for (const $card of $typeCards) {
-      $card.addEventListener('click', () => {
-        const selectedMode = $card.getAttribute('data-mode');
-        if (selectedMode === 'new-agent') {
-          mode = 'new-agent';
-          selectedIcon = getFirstUnusedIcon();
-          useLetterIcon = false;
-          error = null;
-          render();
-        } else if (selectedMode === 'existing') {
-          mode = 'existing';
-          selectedIcon = '🐈‍⬛';
-          useLetterIcon = false;
-          error = null;
-          render();
-        } else if (selectedMode === 'new-channel') {
-          mode = 'new-channel';
-          selectedIcon = '📡';
-          useLetterIcon = false;
-          channelPersonaMode = 'existing';
-          error = null;
-          render();
-        } else if (selectedMode === 'connect-channel') {
-          mode = 'connect-channel';
-          selectedIcon = getFirstUnusedIcon();
-          useLetterIcon = false;
-          connectPersonaMode = 'new';
-          connectExistingSpaceId = null;
-          error = null;
-          render();
-        } else if (selectedMode === 'whylip') {
-          mode = 'whylip';
-          selectedIcon = '📖';
-          useLetterIcon = false;
-          whylipName = '';
-          whylipAgentName = '';
-          error = null;
-          render();
-        } else if (selectedMode === 'graph') {
-          mode = 'graph';
-          selectedIcon = '🕸️';
-          useLetterIcon = false;
-          error = null;
-          render();
-        } else if (selectedMode === 'peers') {
-          mode = 'peers';
-          selectedIcon = '🌐';
-          useLetterIcon = false;
-          error = null;
-          render();
-        } else if (selectedMode === 'files') {
-          mode = 'files';
-          selectedIcon = '📂';
-          useLetterIcon = false;
-          error = null;
-          render();
-        } else if (selectedMode === 'floot') {
-          mode = 'floot';
-          selectedIcon = '💬';
-          useLetterIcon = false;
-          error = null;
-          flootControllerPath = null;
-          render();
-          // Auto-detect the floot/ objects and re-render with the picker
-          // defaulted to the controller and the STT/TTS fields pre-filled. Any
-          // values the user has already typed are preserved.
-          detectFlootObjects()
-            .then(detected => {
-              if (mode !== 'floot') return;
-              let changed = false;
-              if (detected.controller) {
-                flootControllerPath = detected.controller;
-                changed = true;
-              }
-              if (detected.stt && !flootAudioPath) {
-                flootAudioPath = detected.stt.join('/');
-                changed = true;
-              }
-              if (detected.tts && !flootTtsPath) {
-                flootTtsPath = detected.tts.join('/');
-                changed = true;
-              }
-              if (changed) render();
-            })
-            .catch(() => {});
-        }
-      });
-    }
-
-    // Handle name input - auto-populates agent name unless manually edited
-    if ($handleNameInput) {
-      $handleNameInput.addEventListener('input', () => {
-        handleName = $handleNameInput.value;
-        // Auto-update agent name if not manually edited
-        if (!agentNameManuallyEdited && $agentNameInput) {
-          $agentNameInput.value = getDefaultAgentName(handleName);
-        }
-      });
-    }
-
-    // Agent name input - track manual edits
-    if ($agentNameInput) {
-      $agentNameInput.addEventListener('input', () => {
-        agentName = $agentNameInput.value;
-        // Mark as manually edited if user changes it from the default
-        const defaultName = getDefaultAgentName(handleName);
-        if ($agentNameInput.value !== defaultName) {
-          agentNameManuallyEdited = true;
-        }
-      });
-    }
-
-    // Icon selection
-    for (const $option of $iconOptions) {
-      $option.addEventListener('click', () => {
-        const icon = $option.getAttribute('data-icon');
-        if (icon) {
-          selectedIcon = icon;
-          useLetterIcon = false;
-          // Just update icon selection, don't re-render whole modal
-          updateIconSelection();
-        }
-      });
-    }
-
-    // Icon tabs
-    for (const $tab of $iconTabs) {
-      $tab.addEventListener('click', () => {
-        const tab = $tab.getAttribute('data-tab');
-        useLetterIcon = tab === 'letter';
-        if (useLetterIcon && selectedIcon.length > 2) {
-          selectedIcon = 'AB';
-        }
+      } else if (selectedMode === 'existing') {
+        mode = 'existing';
+        selectedIcon = '🐈‍⬛';
+        useLetterIcon = false;
+        error = null;
         render();
-      });
-    }
-
-    // Letter icon input
-    if ($letterInput) {
-      $letterInput.addEventListener('input', () => {
-        selectedIcon = letterIcon($letterInput.value || 'AB');
-        const $preview = $container.querySelector('.letter-icon-preview');
-        if ($preview) {
-          $preview.textContent = selectedIcon;
-        }
-      });
-    }
-
-    // Channel form inputs
-    const $channelPetNameInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#channel-pet-name')
-    );
-    const $channelProposedNameInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#channel-proposed-name')
-    );
-    if ($channelPetNameInput) {
-      $channelPetNameInput.addEventListener('input', () => {
-        channelPetName = $channelPetNameInput.value;
-      });
-    }
-    if ($channelProposedNameInput) {
-      $channelProposedNameInput.addEventListener('input', () => {
-        channelProposedName = $channelProposedNameInput.value;
-      });
-    }
-
-    // Introduced names input
-    const $introducedNamesInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#channel-introduced-names')
-    );
-    if ($introducedNamesInput) {
-      $introducedNamesInput.addEventListener('input', () => {
-        channelIntroducedNames = $introducedNamesInput.value;
-      });
-    }
-
-    // View mode selector
-    const $viewModeOptions = $container.querySelectorAll('.view-mode-option');
-    for (const $option of $viewModeOptions) {
-      $option.addEventListener('click', () => {
-        const vm = $option.getAttribute('data-view-mode');
-        if (
-          vm === 'chat' ||
-          vm === 'forum' ||
-          vm === 'outliner' ||
-          vm === 'microblog'
-        ) {
-          channelViewMode = vm;
-          // Update selection visually
-          for (const $opt of $viewModeOptions) {
-            $opt.classList.toggle(
-              'selected',
-              $opt.getAttribute('data-view-mode') === vm,
-            );
-          }
-        }
-      });
-    }
-
-    // Channel persona mode radios
-    const $channelPersonaModeRadios = $container.querySelectorAll(
-      'input[name="channel-persona-mode"]',
-    );
-    for (const $radio of $channelPersonaModeRadios) {
-      $radio.addEventListener('change', () => {
-        channelPersonaMode =
-          /** @type {HTMLInputElement} */ ($radio).value === 'existing'
-            ? 'existing'
-            : 'new';
+      } else if (selectedMode === 'new-channel') {
+        mode = 'new-channel';
+        selectedIcon = '📡';
+        useLetterIcon = false;
+        channelPersonaMode = 'existing';
+        error = null;
         render();
-      });
-    }
-
-    // Whylip form inputs
-    const $whylipNameInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#whylip-name')
-    );
-    const $whylipAgentNameInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#whylip-agent-name')
-    );
-    if ($whylipNameInput) {
-      $whylipNameInput.addEventListener('input', () => {
-        whylipName = $whylipNameInput.value;
-      });
-    }
-    if ($whylipAgentNameInput) {
-      $whylipAgentNameInput.addEventListener('input', () => {
-        whylipAgentName = $whylipAgentNameInput.value;
-      });
-    }
-
-    // Floot form: optional audio object path
-    const $flootAudioPathInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#floot-audio-path')
-    );
-    if ($flootAudioPathInput) {
-      $flootAudioPathInput.addEventListener('input', () => {
-        flootAudioPath = $flootAudioPathInput.value;
-      });
-    }
-
-    // Floot form: optional text-to-speech object path
-    const $flootTtsPathInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#floot-tts-path')
-    );
-    if ($flootTtsPathInput) {
-      $flootTtsPathInput.addEventListener('input', () => {
-        flootTtsPath = $flootTtsPathInput.value;
-      });
-    }
-
-    // Connect channel form inputs
-    const $connectLocatorInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#connect-locator')
-    );
-    const $connectSpaceNameInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#connect-space-name')
-    );
-    const $connectProposedNameInput = /** @type {HTMLInputElement | null} */ (
-      $container.querySelector('#connect-proposed-name')
-    );
-    const $personaModeRadios = $container.querySelectorAll(
-      'input[name="connect-persona-mode"]',
-    );
-    const $existingPersonaRadios = $container.querySelectorAll(
-      'input[name="connect-persona"]',
-    );
-
-    if ($connectLocatorInput) {
-      $connectLocatorInput.addEventListener('input', () => {
-        connectLocator = $connectLocatorInput.value;
-      });
-    }
-    if ($connectSpaceNameInput) {
-      $connectSpaceNameInput.addEventListener('input', () => {
-        connectSpaceName = $connectSpaceNameInput.value;
-      });
-    }
-    if ($connectProposedNameInput) {
-      $connectProposedNameInput.addEventListener('input', () => {
-        connectProposedName = $connectProposedNameInput.value;
-      });
-    }
-    for (const $radio of $personaModeRadios) {
-      $radio.addEventListener('change', () => {
-        connectPersonaMode =
-          /** @type {HTMLInputElement} */ ($radio).value === 'existing'
-            ? 'existing'
-            : 'new';
+      } else if (selectedMode === 'connect-channel') {
+        mode = 'connect-channel';
+        selectedIcon = getFirstUnusedIcon();
+        useLetterIcon = false;
+        connectPersonaMode = 'new';
+        connectExistingSpaceId = null;
+        error = null;
         render();
-      });
-    }
-    for (const $radio of $existingPersonaRadios) {
-      $radio.addEventListener('change', () => {
-        connectExistingSpaceId = /** @type {HTMLInputElement} */ ($radio).value;
-      });
-    }
-
-    // Form submission
-    if ($form) {
-      $form.addEventListener('submit', async e => {
-        e.preventDefault();
-
-        if (mode === 'new-agent') {
-          await handleNewAgentSubmit();
-        } else if (mode === 'existing') {
-          await handleExistingSubmit();
-        } else if (mode === 'new-channel') {
-          await handleNewChannelSubmit();
-        } else if (mode === 'connect-channel') {
-          await handleConnectChannelSubmit();
-        } else if (mode === 'whylip') {
-          await handleWhylipSubmit();
-        } else if (mode === 'graph') {
-          await handleGraphSubmit();
-        } else if (mode === 'peers') {
-          await handlePeersSubmit();
-        } else if (mode === 'files') {
-          await handleFilesSubmit();
-        } else if (mode === 'floot') {
-          await handleFlootSubmit();
-        }
-      });
-    }
-
-    // Escape key handler
-    const handleEscape = (/** @type {KeyboardEvent} */ e) => {
-      if (e.key === 'Escape' && visible) {
-        // Don't close if autocomplete menu is visible
-        if (pathAutocomplete && pathAutocomplete.isMenuVisible()) {
-          return;
-        }
-        if (
-          channelPathAutocomplete &&
-          channelPathAutocomplete.isMenuVisible()
-        ) {
-          return;
-        }
-        // If in a sub-mode, go back to choose
-        if (mode !== 'choose') {
-          mode = 'choose';
-          error = null;
-          render();
-          return;
-        }
-        hide();
-        onClose();
+      } else if (selectedMode === 'whylip') {
+        mode = 'whylip';
+        selectedIcon = '📖';
+        useLetterIcon = false;
+        whylipName = '';
+        whylipAgentName = '';
+        error = null;
+        render();
+      } else if (selectedMode === 'graph') {
+        mode = 'graph';
+        selectedIcon = '🕸️';
+        useLetterIcon = false;
+        error = null;
+        render();
+      } else if (selectedMode === 'peers') {
+        mode = 'peers';
+        selectedIcon = '🌐';
+        useLetterIcon = false;
+        error = null;
+        render();
+      } else if (selectedMode === 'files') {
+        mode = 'files';
+        selectedIcon = '📂';
+        useLetterIcon = false;
+        error = null;
+        render();
+      } else if (selectedMode === 'floot') {
+        mode = 'floot';
+        selectedIcon = '💬';
+        useLetterIcon = false;
+        error = null;
+        flootControllerPath = null;
+        render();
+        // Auto-detect the floot/ objects and re-render with the picker
+        // defaulted to the controller and the STT/TTS fields pre-filled. Any
+        // values the user has already typed are preserved.
+        detectFlootObjects()
+          .then(detected => {
+            if (mode !== 'floot') return;
+            let changed = false;
+            if (detected.controller) {
+              flootControllerPath = detected.controller;
+              changed = true;
+            }
+            if (detected.stt && !flootAudioPath) {
+              flootAudioPath = detected.stt.join('/');
+              changed = true;
+            }
+            if (detected.tts && !flootTtsPath) {
+              flootTtsPath = detected.tts.join('/');
+              changed = true;
+            }
+            if (changed) render();
+          })
+          .catch(() => {});
       }
-    };
-    document.addEventListener('keydown', handleEscape);
+    },
+    submit: () => {
+      if (mode === 'new-agent') {
+        handleNewAgentSubmit();
+      } else if (mode === 'existing') {
+        handleExistingSubmit();
+      } else if (mode === 'new-channel') {
+        handleNewChannelSubmit();
+      } else if (mode === 'connect-channel') {
+        handleConnectChannelSubmit();
+      } else if (mode === 'whylip') {
+        handleWhylipSubmit();
+      } else if (mode === 'graph') {
+        handleGraphSubmit();
+      } else if (mode === 'peers') {
+        handlePeersSubmit();
+      } else if (mode === 'files') {
+        handleFilesSubmit();
+      } else if (mode === 'floot') {
+        handleFlootSubmit();
+      }
+    },
+    selectIcon: icon => {
+      selectedIcon = icon;
+      // The imperative version updated only the selection highlight (or the
+      // letter preview) without a full re-render, to keep embedded controllers
+      // alive; preserve that.
+      if (useLetterIcon) {
+        const $preview = $container.querySelector('.letter-icon-preview');
+        if ($preview) $preview.textContent = selectedIcon;
+      } else {
+        updateIconSelection();
+      }
+    },
+    toggleLetterIcon: useLetter => {
+      useLetterIcon = useLetter;
+      if (useLetterIcon && selectedIcon.length > 2) {
+        selectedIcon = 'AB';
+      }
+      render();
+    },
+    handleInput: value => {
+      handleName = value;
+      // Auto-populate the agent name (unless manually edited) by writing the
+      // sibling input directly, avoiding a re-render that would drop focus.
+      if (!agentNameManuallyEdited) {
+        const $agent = /** @type {HTMLInputElement | null} */ (
+          $container.querySelector('#agent-name')
+        );
+        if ($agent) $agent.value = getDefaultAgentName(handleName);
+      }
+    },
+    agentInput: value => {
+      agentName = value;
+      if (value !== getDefaultAgentName(handleName)) {
+        agentNameManuallyEdited = true;
+      }
+    },
+    channelPetNameInput: value => {
+      channelPetName = value;
+    },
+    channelProposedNameInput: value => {
+      channelProposedName = value;
+    },
+    channelIntroducedNamesInput: value => {
+      channelIntroducedNames = value;
+    },
+    channelViewMode: vm => {
+      channelViewMode = vm;
+      // Update the highlight in place (no re-render), matching the imperative
+      // version, so an open channel-path autocomplete is not torn down.
+      for (const $opt of $container.querySelectorAll('.view-mode-option')) {
+        $opt.classList.toggle(
+          'selected',
+          $opt.getAttribute('data-view-mode') === vm,
+        );
+      }
+    },
+    channelPersonaMode: m => {
+      channelPersonaMode = m;
+      render();
+    },
+    whylipNameInput: value => {
+      whylipName = value;
+    },
+    whylipAgentNameInput: value => {
+      whylipAgentName = value;
+    },
+    flootAudioInput: value => {
+      flootAudioPath = value;
+    },
+    flootTtsInput: value => {
+      flootTtsPath = value;
+    },
+    connectLocatorInput: value => {
+      connectLocator = value;
+    },
+    connectSpaceNameInput: value => {
+      connectSpaceName = value;
+    },
+    connectProposedNameInput: value => {
+      connectProposedName = value;
+    },
+    connectPersonaMode: m => {
+      connectPersonaMode = m;
+      render();
+    },
+    connectExistingSpace: id => {
+      connectExistingSpaceId = id;
+    },
+  };
+
+  /**
+   * Escape closes the modal (when no autocomplete menu is open), or steps back
+   * to the chooser from a sub-mode. Registered once at init (not per render) to
+   * avoid the listener leak the imperative version had.
+   *
+   * @param {KeyboardEvent} e
+   */
+  const handleEscape = e => {
+    if (e.key !== 'Escape' || !visible) return;
+    // Don't close if an autocomplete menu is handling the key.
+    if (pathAutocomplete && pathAutocomplete.isMenuVisible()) return;
+    if (channelPathAutocomplete && channelPathAutocomplete.isMenuVisible()) {
+      return;
+    }
+    if (mode !== 'choose') {
+      mode = 'choose';
+      error = null;
+      render();
+      return;
+    }
+    hide();
+    onClose();
   };
 
   /**
@@ -2212,6 +2412,10 @@ export const createAddSpaceModal = ({
   // Initial state
   $container.innerHTML = '';
   $container.style.display = 'none';
+
+  // One Escape listener for the modal's lifetime (the imperative version
+  // re-added one on every render).
+  document.addEventListener('keydown', handleEscape);
 
   return harden({ show, hide, isVisible });
 };
