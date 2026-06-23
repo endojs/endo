@@ -162,6 +162,27 @@ Matches the lossiness semantics of `@agoric/notifier`'s notifier-pair
 (latest-only), used for status-display, exchange-rate-style data, and any
 case where intermediate values are uninteresting.
 
+**Replay-on-subscribe semantic.**
+The lossy topic distinguishes two cases at `subscribe()` time:
+
+- The topic has **never emitted a value.**
+  The new subscriber's first `subscriber.next()` waits for the first
+  `publisher.next(value)` call before resolving.
+  There is no synthetic initial value; the subscriber blocks on the future.
+- The topic has **previously emitted at least one value.**
+  The new subscriber's first `subscriber.next()` resolves immediately to
+  the most recent value, without waiting for the next publish.
+  Subsequent `next()` calls then wait for the topic's next publish.
+
+This matches the canonical lossy semantic from `@agoric/notifier` and is the
+common case that makes the lossy topic a usable status-display surface: a
+late subscriber that opens a status view sees the current state immediately
+rather than waiting for the next change.
+A topic that has terminated (`finish()` or `fail()`) before `subscribe()`
+delivers the terminal result to new subscribers on first `next()` per the
+*Termination on late subscribe* contract: `finish()` delivers
+`{ value: undefined, done: true }`; `fail(error)` rejects.
+
 ```js
 import { makeLatestTopic } from '@endo/exo-pubsub/latest-topic.js';
 
@@ -230,26 +251,28 @@ The InterfaceGuard shape mirrors `LatestTopic` with the same exo classes;
 the difference is internal storage (per-subscriber queue versus single
 latest cell).
 
-### `makeUpdateTopic` (retired, with a thin shim)
+### `makeUpdateTopic` (eliminated)
 
-**Disposition: retired.**
+**Disposition: eliminated. No shim. No compatibility surface.**
 endo#1444's third proposed shape, `makeUpdateTopic`, is not lifted into the
-new package.
+new package and is not provided as a deprecated-on-arrival shim either.
+The maintainer's framing on revision 1: *"the existence of this mode is a
+usage hazard."*
 The two retained shapes (`makeLatestTopic` and `makeChangeTopic`) cover the
-lossy / fully-lossless taxonomy from the researcher's notifier-readme section
-family.
-The intermediate "forward-lossless" mode that `@agoric/notifier`'s subscription
-provides (subscriber sees the value-at-subscription-time, then every delta
-afterwards) is recovered by composition: `subscribe()` on a `makeChangeTopic`
-preceded by a one-shot `latestSnapshot()` query gives the same shape, without
-introducing a third topic kind that an author has to choose between.
+lossy / fully-lossless taxonomy from the researcher's notifier-readme
+section family; the "snapshot-then-deltas" mode that update-topic packaged
+is a usage hazard because the snapshot and the delta stream are two
+distinct semantic surfaces fused into one API, and a consumer who
+under-reads the contract treats deltas as authoritative state.
 
-A **thin compatibility shim** lives at
-`@endo/exo-pubsub/update-topic.js` for one minor cycle to ease the migration
-of agoric-sdk call sites; the shim is a straightforward composition of
-`makeChangeTopic` plus a `latestSnapshot()` accessor and is documented in
-the package CHANGELOG as deprecated-on-arrival.
-The shim is removed at the next major (see *Migration plan*).
+A migration that needs the snapshot-then-deltas shape obtains it by
+explicit composition: a one-shot RPC to read the producer's accumulated
+state, plus a `subscribe()` against a `makeChangeTopic` for subsequent
+deltas, with the consumer's burden to reconcile the two if a publish lands
+between the snapshot and the subscribe.
+That burden is the usage hazard the eliminated mode was hiding; surfacing
+it forces the migrating caller to acknowledge the race rather than
+inheriting an API that obscures it.
 
 Considered and rejected: keep `makeUpdateTopic` as a first-class topic.
 Reason: the lossiness taxonomy is two-dimensional (lossy versus lossless);
@@ -257,71 +280,94 @@ forward-lossless is a *composition*, not a third category.
 Asking authors to choose between three topics when two cover the design
 space is API bloat.
 
-## Producer-as-`Writer<T>`
+Considered and rejected: ship a deprecated-on-arrival shim at
+`@endo/exo-pubsub/update-topic.js` to ease agoric-sdk migration.
+Reason: a shim with the hazardous shape is the hazard.
+A migration aid that preserves the dangerous API for one cycle leaves the
+hazard in the package and in the migrating caller's habit; a one-cycle
+delay is not worth the cost of carrying the hazard into the surface a
+future engineer reads.
+Agoric-sdk migration absorbs the explicit-composition burden directly.
 
-The publisher exo's method names mirror the `Stream` interface from
-`@endo/stream` (`next`, `return`, `throw`), so the publisher *is*
-`Writer<T>`, so no adapter is required for `pump` or `makePipe` to compose
-with it.
+## Producer as a passable `PassableWriter<T>`
 
-```js
-import { pump, makePipe } from '@endo/stream';
-import { makeChangeTopic } from '@endo/exo-pubsub/change-topic.js';
+The publisher exo's method names mirror the `Stream` interface
+(`next`, `return`, `throw`), but the publisher is an **exo ref** that rides
+the CapTP bidirectional-promise-chain protocol, not a local
+`Writer<T>` from `@endo/stream`.
+A remote holder of the publisher exo (a peer who received the publisher
+reference over CapTP) calls `E(publisher).next(value)` and gets the same
+write-with-acknowledge shape that `@endo/exo-stream`'s `PassableWriter`
+exposes.
 
-// Pump from any reader into the topic:
-const [pipeReader, pipeWriter] = makePipe();
-const { publisher, subscribe } = makeChangeTopic();
-const pumpDone = pump(publisher, pipeReader);  // publisher: Writer<T>
-// Now pushing into pipeWriter feeds every subscriber of the topic.
-```
+This layering is deliberate (see *Layering: local pubsub and exo pubsub*
+above): the publisher exo lives at the `@endo/exo-stream` layer, not the
+`@endo/stream` layer, so utilities like `pump`, `makePipe`, and `prime` from
+`@endo/stream` do **not** compose with it directly.
+We do not have analogous utilities at the exo layer today: no exo `pump`,
+no exo `makePipe`.
+They could be added later as siblings of `iterateReader` in
+`@endo/exo-stream`; this design does not block that work and does not
+provide them itself.
+A consumer that wants the local async-iterator shape calls a planned
+`iterateLatestTopic` / `iterateChangeTopic` helper to recover a local
+`Reader<T>` from the remote subscriber exo (the analog of `iterateReader`
+on `PassableReader`), then composes the local reader with local
+`@endo/stream` utilities.
 
 Type signature on the publisher:
 
 ```ts
-type Publisher<T> = Writer<T, undefined>;  // from @endo/stream/types.d.ts
-type Subscriber<T> = Reader<T, undefined>;
+type PublisherExo<T> = ERef<{
+  next(value: T): Promise<undefined>;
+  return(value?: undefined): Promise<undefined>;
+  throw(error: Error): Promise<undefined>;
+}>;
+type SubscriberExo<T> = ERef<{
+  // PassableReader-shaped: stream(synHead) returns the bidirectional
+  // promise-chain head for receiving values, as in @endo/exo-stream.
+  stream(synHead: ERef<StreamNode<undefined, undefined>>):
+    Promise<StreamNode<T, undefined>>;
+  readPattern(): Pattern | undefined;
+  readReturnPattern(): Pattern | undefined;
+}>;
 type Hub<T> = {
-  publisher: Publisher<T>;
-  subscribe(): Subscriber<T>;
+  publisher: PublisherExo<T>;
+  subscribe(cancelled: Promise<never>): SubscriberExo<T>;
   // Convenience terminations; same effect as publisher.return() / .throw():
   finish(value?: undefined): Promise<void>;
   fail(reason: Error): Promise<void>;
-  // Lossless variants: a one-shot snapshot accessor for the
-  // forward-lossless composition pattern (used by the makeUpdateTopic shim).
-  latestSnapshot?(): T | undefined;  // present on LatestTopic; absent on ChangeTopic by default
 };
 ```
 
+The `subscribe()` method requires a `cancelled: Promise<never>` argument
+per *Subscriber cancellation* below; the topic uses that promise to detect
+the subscriber's intent to unsubscribe.
+
 The publisher exo's `next(value)` resolves once the topic's internal
-fan-out has acknowledged retention for every active subscriber (for
-`makeChangeTopic`) or has stored the latest cell (for `makeLatestTopic`).
-This is the back-pressure surface: a slow `next()` resolution means the
-topic is buffering and the producer should slow down (see *Backpressure*).
+fan-out has acknowledged value retention.
+For `makeLatestTopic` that acknowledgement is "the latest cell has been
+written and every actively-reading subscriber's pending `next()` has been
+satisfied"; for `makeChangeTopic` it is "the delta has been enqueued in
+every active subscriber's per-subscriber queue".
+This is the producer-side back-pressure surface; the wire-protocol detail
+that keeps backlog accumulating on the *consumer* side (not the producer
+side) is in *Back-pressure and wire protocol* below.
 
-## Subscriber-as-`Reader<T>`
+## Subscriber as a passable `PassableReader<T>`
 
-Each subscriber exo *is* `Reader<T>`.
-`subscriber.next()` resolves to the next `IteratorResult<T>`; `subscriber.return()`
-unsubscribes and releases queue memory; `subscriber.throw()` is treated as
-unsubscribe.
-
-A local subscriber is consumed with `for await`:
-
-```js
-const subscriber = subscribe();
-for await (const value of subscriber) {
-  // ...
-}
-```
-
-A remote subscriber is consumed via `iterateReader` from `@endo/exo-stream`,
-because the subscriber exo's stream method is the same `PassableReader`
-shape `iterateReader` already understands:
+Each subscriber is an exo conforming to the `PassableReader<T>` shape from
+`@endo/exo-stream`: it carries a `stream(synHead)` method that returns the
+bidirectional-promise-chain head for receiving values, plus
+`readPattern()` / `readReturnPattern()` introspection.
+A local consumer of a remote subscriber exo recovers the local
+async-iterator shape by calling `iterateReader` from `@endo/exo-stream`:
 
 ```js
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
-const localReader = iterateReader(remoteSubscriber);
+const subscriber = await E(hub).subscribe(cancelled);
+const localReader = iterateReader(subscriber);
 for await (const value of localReader) {
   // ...
 }
@@ -330,6 +376,19 @@ for await (const value of localReader) {
 The subscriber exo therefore composes with the four `@endo/exo-stream`
 conversion functions without an adapter, satisfying the maintainer's
 "coherent and consistent with the design of exo-streams" constraint.
+
+Unsubscribe happens through one of three paths:
+
+- **The local consumer breaks the loop** (a `break` in the `for await`).
+  `iterateReader` translates this into a `return()` call on the
+  subscriber exo, which the topic treats as unsubscribe.
+- **The consumer settles the cancellation promise** (see *Subscriber
+  cancellation* below).
+  The topic observes the cancellation and releases the subscriber's queue.
+- **The topic terminates** via `publisher.return()` / `finish()` or
+  `publisher.throw()` / `fail(error)`.
+  The subscriber sees the terminal `IteratorResult` (or rejection) and
+  the topic releases its queue.
 
 ## Exo-streams coherence
 
