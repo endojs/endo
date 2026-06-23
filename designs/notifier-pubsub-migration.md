@@ -3,8 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-06-23 |
+| **Updated** | 2026-06-23 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | Revision 2 (review feedback on revision 1 folded in) |
 
 ## What is the Problem Being Solved?
 
@@ -24,19 +25,68 @@ surface:
   the moment of subscription,
 - an "update" topic whose disposition this design decides.
 
-endo#1182 records the duality constraint: the producer side of any new topic
-must satisfy `Writer<T>` from `@endo/stream`, and the subscriber side must
-satisfy `Reader<T>`.
-Today `@agoric/notifier` exposes neither: its producer/consumer pair carries
-shapes specific to the notifier package, so `makePipe` and `pump` from
-`@endo/stream` cannot compose with notifier producers without an adapter.
+endo#1182 records the duality constraint, which this design carries into the
+exo layer: the producer side of any new topic exo must satisfy a passable
+`PassableWriter<T>` shape analogous to the `Writer<T>` interface from
+`@endo/stream`, and the subscriber side must satisfy a passable
+`PassableReader<T>` shape analogous to `Reader<T>`, in the same way
+`@endo/exo-stream`'s `PassableReader` / `PassableWriter` are analogous to
+`@endo/stream`'s local `Reader` / `Writer`.
 
-This design proposes a `@endo/exo-pubsub` package that lands the three topic
-shapes as exos, coherent with the exo-streams discipline already established
-on the `llm` branch.
-The producer and subscriber surfaces conform to `Writer<T>` and `Reader<T>`,
-so a notifier producer is drop-in composable with `pump`, `makePipe`, and
-`prime` from `@endo/stream`.
+This design proposes a `@endo/exo-pubsub` package that lands two topic
+shapes (the third is dropped per *The three topic shapes* below) as exos,
+coherent with the exo-streams discipline already established on the `llm`
+branch.
+
+### Layering: local pubsub and exo pubsub
+
+`@endo/stream` and `@endo/exo-stream` operate at different layers; the same
+layering applies to pubsub.
+`@endo/stream` is the local-only async-iteration layer (its `Reader<T>` and
+`Writer<T>` are not passable over CapTP; they are async-iterator-shaped
+JavaScript objects).
+`@endo/exo-stream` is the CapTP layer: `PassableReader` and `PassableWriter`
+are exo refs that ride a bidirectional-promise-chain protocol over remote
+references, and a `for await` consumer recovers an async iterator on the
+local side via `iterateReader` / `iterateWriter`.
+
+We expect `@endo/exo-pubsub` to compose with `@endo/exo-stream`, not with
+`@endo/stream`, exactly the same way `@endo/exo-stream` composes with
+`@endo/exo-stream`'s peer utilities rather than `@endo/stream`'s.
+A reader who hopes `pump`, `makePipe`, or `prime` from `@endo/stream` will
+compose with a `@endo/exo-pubsub` publisher exo over CapTP is reaching across
+layers; that composition does not work, and is not expected to.
+We do not have analogous utilities at the exo layer today (no exo `pump`, no
+exo `makePipe`), but they could be added later as siblings of `iterateReader`
+in `@endo/exo-stream`; the present design does not block that work.
+
+There is an implied **`@endo/pubsub`** sibling at the local layer.
+`@endo/pubsub` would expose local pubsub topics whose publisher is a local
+`Writer<T>` and whose subscribers are local `Reader<T>`s, in the same way
+`@endo/stream` exposes local `makeQueue` / `makePipe` / `pump` over local
+async iterators.
+Earlier work on `@endo/stream` itself introduced exactly this shape: a
+`makePubSub()` primitive (sink + many independent springs over a shared async
+linked list) and a `makeTopic()` factory (publisher: stream over the sink and
+the null spring, subscribers: stream over a fresh spring and the null sink),
+landed in commit `cbbd57c03` *feat(stream): Introduce pubsub topics* and
+later removed during the `@endo/harden` refactor pass.
+That removed code is the design-consistency anchor for a future `@endo/pubsub`:
+when the local-layer package is reintroduced, its primitives should match
+that prior shape (or supersede it with a documented reason) rather than
+diverge.
+
+A future local `@endo/pubsub` topic lifts to a `@endo/exo-pubsub` topic the
+same way a local async iterator lifts to a `PassableReader` via
+`exo-stream`'s `reader-from-iterator`: a thin wrapping factory whose publisher
+exo forwards `next` / `return` / `throw` to the local writer, and whose
+`subscribe()` mints a subscriber exo over each local subscriber.
+Symmetrically, a `@endo/exo-pubsub` topic drops to a local `@endo/pubsub`
+topic via the inverse: an `iterateLatestTopic` / `iterateChangeTopic`
+helper that yields a local subscriber over a remote subscriber exo,
+analogous to `iterateReader` over a remote `PassableReader`.
+This design specifies the exo layer; the local layer is named here so future
+work has a place to land.
 
 ## Scope and home
 
