@@ -6,8 +6,8 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { channelComponent } from '@endo/space-channel/channel-component.js';
 import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
-import { channelComponent } from '../../channel-component.js';
 
 const { document: testDocument, cleanup: cleanupDOM } = createDOM();
 

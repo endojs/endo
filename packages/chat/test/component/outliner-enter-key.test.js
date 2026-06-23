@@ -6,9 +6,9 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { outlinerComponent } from '@endo/space-channel/outliner-component.js';
 import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 
-import { outlinerComponent } from '../../outliner-component.js';
 
 const { document: testDocument, cleanup: cleanupDOM } = createDOM();
 

@@ -37,6 +37,11 @@ import '@endo/space-peers/peers.css';
 // eslint-disable-next-line import/no-unresolved
 import '@endo/space-floot/floot.css';
 
+// The channel space family (`@endo/space-channel`) ships its stylesheet via the
+// `./channel.css` package export (previously a `<link>` in index.html). Vite-only.
+// eslint-disable-next-line import/no-unresolved
+import '@endo/space-channel/channel.css';
+
 const RECONNECT_INTERVAL_MS = 5000;
 
 // Detect whether we are running inside the Familiar Electron shell.

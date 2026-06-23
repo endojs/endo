@@ -4,7 +4,7 @@
 import harden from '@endo/harden';
 import { E } from '@endo/far';
 
-/** @import { ChannelMessage } from './channel-utils.js' */
+/** @import { ChannelMessage } from '@endo/space-channel/channel-utils.js' */
 
 import { Fragment, h, renderConfined } from './setup-preact-container.js';
 

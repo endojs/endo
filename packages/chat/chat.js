@@ -8,9 +8,10 @@ import { E } from '@endo/far';
 import harden from '@endo/harden';
 import { fileExplorerComponent } from '@endo/space-file-explorer';
 import { idFromLocator } from '@endo/chat-kit/locator.js';
-import { channelComponent } from './channel-component.js';
-import { forumComponent } from './forum-component.js';
-import { outlinerComponent } from './outliner-component.js';
+import { channelComponent } from '@endo/space-channel/channel-component.js';
+import { forumComponent } from '@endo/space-channel/forum-component.js';
+import { outlinerComponent } from '@endo/space-channel/outliner-component.js';
+import { microblogComponent } from '@endo/space-channel/microblog-component.js';
 import { createChannelHeader } from './channel-header.js';
 import { inboxComponent } from './inbox-component.js';
 import { inventoryComponent } from './inventory/inventory.js';
@@ -23,7 +24,6 @@ import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
 import { flootComponent } from './floot-component.js';
 import { createShareModal } from './share-modal.js';
-import { microblogComponent } from './microblog-component.js';
 import {
   renderProfileBar,
   mountMentionNotifyArea,
@@ -551,7 +551,7 @@ const bodyComponent = (
             /**
              * Fork a message's heritage chain into a new channel
              * within the current persona, then navigate to it.
-             * @param {import('./channel-utils.js').ChannelMessage[]} heritageChain
+             * @param {import('@endo/space-channel/channel-utils.js').ChannelMessage[]} heritageChain
              * @param {string} previewText
              */
             const handleFork = async (heritageChain, previewText) => {
@@ -595,7 +595,7 @@ const bodyComponent = (
 
             /**
              * Open the share modal for a message's heritage chain.
-             * @param {import('./channel-utils.js').ChannelMessage[]} heritageChain
+             * @param {import('@endo/space-channel/channel-utils.js').ChannelMessage[]} heritageChain
              * @param {string} previewText
              */
             const handleShare = (heritageChain, previewText) => {
@@ -842,7 +842,7 @@ const bodyComponent = (
                     : channelComponent;
             /**
              * Fork handler for switched channels.
-             * @param {import('./channel-utils.js').ChannelMessage[]} heritageChain
+             * @param {import('@endo/space-channel/channel-utils.js').ChannelMessage[]} heritageChain
              * @param {string} previewText
              */
             const handleSwitchFork = async (heritageChain, previewText) => {
@@ -882,7 +882,7 @@ const bodyComponent = (
 
             /**
              * Share handler for switched channels.
-             * @param {import('./channel-utils.js').ChannelMessage[]} heritageChain
+             * @param {import('@endo/space-channel/channel-utils.js').ChannelMessage[]} heritageChain
              * @param {string} previewText
              */
             const handleSwitchShare = (heritageChain, previewText) => {

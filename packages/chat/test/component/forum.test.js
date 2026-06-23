@@ -6,8 +6,8 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { forumComponent } from '@endo/space-channel/forum-component.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
-import { forumComponent } from '../../forum-component.js';
 
 // The forum (threaded tree) body view, migrated from imperative DOM to a
 // confined Preact component rendered through `renderConfined`. It composes the

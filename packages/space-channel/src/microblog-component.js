@@ -62,7 +62,7 @@ import { isVisibleReplyType, computeNodeContent } from './edit-queue.js';
  * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply]
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen]
  * @param {() => void} [options.onThreadClose]
- * @param {() => import('./send-form.js').SendFormAPI | null} [options.chatBarAPI]
+ * @param {() => object | null} [options.chatBarAPI]
  * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork]
  * @param {(heritageChain: ChannelMessage[], previewText: string) => void} [options.onShare]
  */

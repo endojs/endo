@@ -8,7 +8,7 @@ import {
   computeNodeContent,
   computeAllNodeContents,
   isVisibleReplyType,
-} from '../../edit-queue.js';
+} from '@endo/space-channel/edit-queue.js';
 
 /**
  * Helper: create a synthetic ChannelMessage.
@@ -21,7 +21,7 @@ import {
  * @param {string[]} [opts.ids]
  * @param {string} [opts.replyTo]
  * @param {string} [opts.replyType]
- * @returns {import('../../channel-utils.js').ChannelMessage}
+ * @returns {import('@endo/space-channel/channel-utils.js').ChannelMessage}
  */
 const makeMsg = (number, memberId, strings, opts = {}) => ({
   type: 'package',
@@ -39,11 +39,11 @@ const makeMsg = (number, memberId, strings, opts = {}) => ({
 /**
  * Build messagesByKey and replyChildren maps from an array of messages.
  *
- * @param {import('../../channel-utils.js').ChannelMessage[]} msgs
- * @returns {{ messagesByKey: Map<string, { message: import('../../channel-utils.js').ChannelMessage }>, replyChildren: Map<string, string[]> }}
+ * @param {import('@endo/space-channel/channel-utils.js').ChannelMessage[]} msgs
+ * @returns {{ messagesByKey: Map<string, { message: import('@endo/space-channel/channel-utils.js').ChannelMessage }>, replyChildren: Map<string, string[]> }}
  */
 const buildMaps = msgs => {
-  /** @type {Map<string, { message: import('../../channel-utils.js').ChannelMessage }>} */
+  /** @type {Map<string, { message: import('@endo/space-channel/channel-utils.js').ChannelMessage }>} */
   const messagesByKey = new Map();
   /** @type {Map<string, string[]>} */
   const replyChildren = new Map();
