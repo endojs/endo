@@ -529,6 +529,83 @@ inbox and value bodies at its teardown point. The remaining blockers above
 (per-package CSS, the `contentEditable` bodies, shared-module coupling) are the
 larger efforts still outstanding.
 
+## Chat / channel family split — `@endo/space-chat` + `@endo/space-channel`
+
+> **Contract (agreed, not yet built).** The boundary for separating the
+> single-sender "default chat" from the multiuser "channel" family. Captured here
+> before any files move; supersedes nothing yet.
+
+### Goal
+
+Today `@endo/chat` mixes two unrelated messaging families plus the shared shell
+that hosts them:
+
+- **Default chat** — the 1:1, recipient-filtered mailbox (`inbox-component`) and
+  its single-sender message rendering.
+- **Channel family** — the multiuser `channel` / `forum` / `outliner` /
+  `microblog` bodies and their features (threads, reactions, collaborative
+  edits, member chips).
+
+The seam is already real: `inbox-component` imports **none** of the channel
+substrate (`channel-utils`, `react-utils`, `edit-queue`, `profile-popup`,
+`token-autocomplete`) — only leaf rendering utils (`markdown-render`,
+`markdown-vnodes`, `value-vnodes`, `time-formatters`, `chime`, `locator`). So the
+two families can become separate packages. The catch is that this is **three
+buckets, not two** — a few things are shared by both and belong to neither.
+
+### The three buckets + the host shell
+
+| Bucket                          | Contents                                                                                                                                                                                                                | Rationale                                                                                                                                                                   |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`@endo/space-chat`** (new)    | `inbox-component` (the 1:1 mailbox body)                                                                                                                                                                                | Touches zero channel modules; standalone today.                                                                                                                             |
+| **`@endo/space-channel`** (new) | `channel` / `forum` / `outliner` / `microblog` bodies **+** `channel-utils`, `react-utils`, `edit-queue`, `profile-popup` (likely `channel-header` too)                                                                 | The 4 bodies and their 4 substrate modules relocate **as one unit**, so the circular-dep blocker dissolves: a body imports `channel-utils` from _within its own package_.   |
+| **Shared base** (the enabler)   | `markdown-render`, `markdown-vnodes`, `value-vnodes`, `value-render`, `time-formatters`, `language-detect`, `message-parse`, `chime`, `locator`, `token-autocomplete`, `heat-engine`/`composite-heat-engine`/`heat-bar` | Both packages and the shell import these. Confinement primitives already live in `@endo/preact-container`; these chat-specific leaf utils have no home outside the app yet. |
+| **Host shell** (`@endo/chat`)   | `chat.js` dispatch root, `spaces-gutter`, `inventory`, `channel-list`, **`chat-bar` + `send-form`** (the shared compose box), **`value-component`** (the shared value viewer), the modals                               | Mounts whichever space; the compose box and value viewer are persistent chrome used in **both** families.                                                                   |
+
+### The two decisions this contract fixes
+
+1. **A shared base package is the prerequisite, not optional.** Without it,
+   `space-chat` → `@endo/chat` (for `markdown-vnodes` etc.) is circular — the same
+   "shared-module coupling" blocker, now narrowed from the whole channel substrate
+   down to a handful of genuinely-shared leaf utils. Name TBD (e.g.
+   `@endo/chat-kit`). Let its surface **emerge from real demand** (start with
+   exactly what `inbox` needs) rather than designing it up front.
+
+2. **The compose box and value viewer stay shell-side and shared.**
+   `chat-bar`/`send-form` already takes channel behavior through injected
+   callbacks (`getChannelRef`, `onMentionNotify`), so `chat.js` keeps injecting the
+   channel-specific bits (reply types, mention-notify, `channelReply`) from the
+   active space. `value-component` (the value overlay) is reached by every body via
+   `showValue`. Both remain shell chrome. Fully decoupling the compose box (the
+   space body supplies a "compose adapter") is a **later tightening**, explicitly
+   out of scope for the initial split.
+
+### Open interface questions (deferred)
+
+- **Compose adapter.** Long-term, `space-channel` should provide its reply-type /
+  mention-notify behavior to the shell's compose box through a typed adapter
+  rather than the current ad-hoc callbacks. Deferred — the callbacks work.
+- **`channel-header` placement.** It is channel-only chrome but is mounted by the
+  dispatch root; it can sit in `space-channel` or stay in the shell. Decide when
+  channel moves.
+- **`token-autocomplete` ownership.** Needed by both the shell's `send-form` and
+  `space-channel`'s `outliner`, so it lands in the shared base — but it is a large
+  `contentEditable` host controller, the heaviest thing in the base.
+
+### Recommended sequence
+
+1. **This contract** (done — agreed boundary).
+2. **`@endo/space-chat`** — extract `inbox` as the first vertical slice, pulling
+   only the utils it needs into the base as it goes. Smallest and cleanest; proves
+   the pattern end-to-end including per-package CSS.
+3. **`@endo/space-channel`** — the big lift: move the 4 bodies + 4 substrate
+   modules together. This is where the 6-module coupling finally resolves.
+
+This front-loads the cheap, high-confidence win (`inbox`) and defers the heavy
+channel move until the base and the pattern are proven. It is the first work that
+**creates packages and moves files across them** — larger blast radius than the
+in-place refactors above, which is why the boundary is written down first.
+
 ## Inventory bar (`inventory-component.js`) decomposition
 
 > **Historical record.** This section captured the decomposition plan for the
