@@ -29,6 +29,7 @@
     },
     "./locator.js": "./locator.js",
     "./pet-name.js": "./src/pet-name.js",
+    "./type-guards.js": "./src/type-guards.js",
     "./src/interfaces.js": "./src/interfaces.js",
     "./src/mount.js": "./src/mount.js",
     "./src/daemon-node-powers.js": "./src/daemon-node-powers.js",

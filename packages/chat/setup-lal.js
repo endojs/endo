@@ -12,6 +12,8 @@ import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { E } from '@endo/eventual-send';
 import harden from '@endo/harden';
 
+import { chooseModel, fetchAvailableModels } from './model-detect.js';
+
 /**
  * Scan the host inbox for the "Add an agent" form from setup-lal
  * and submit a response using ENDO_LLM_ environment variables.
@@ -22,12 +24,27 @@ export const main = async agent => {
   const { env } = process;
   const name = env.ENDO_LLM_NAME || 'lal';
   const host = env.ENDO_LLM_HOST || 'http://localhost:11434/v1';
-  const model = env.ENDO_LLM_MODEL || 'qwen3';
   const authToken = env.ENDO_LLM_AUTH_TOKEN || 'ollama';
 
-  console.log(`Setting up lal agent "${name}" (${host}, ${model})`);
-
   const selfLocator = await E(agent).locate('@self');
+
+  // Reconcile the default model against the endpoint's catalog so we
+  // never submit a model the server doesn't have (e.g. the bare `qwen3`
+  // default when only `qwen3.6:latest` is installed). An explicit
+  // ENDO_LLM_MODEL always wins and skips the probe.
+  let model = env.ENDO_LLM_MODEL || 'qwen3';
+  if (!env.ENDO_LLM_MODEL) {
+    const available = await fetchAvailableModels(host);
+    const chosen = available && chooseModel(available, model);
+    if (chosen && chosen !== model) {
+      console.log(
+        `Default model ${model} not installed at ${host} — using ${chosen}.`,
+      );
+      model = chosen;
+    }
+  }
+
+  console.log(`Setting up lal agent "${name}" (${host}, ${model})`);
   const messages = iterateReader(E(agent).followMessages());
 
   console.log('Scanning inbox for form from setup-lal...');

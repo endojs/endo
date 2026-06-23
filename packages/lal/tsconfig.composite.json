@@ -9,6 +9,9 @@
       "path": "../daemon/tsconfig.composite.json"
     },
     {
+      "path": "../errors/tsconfig.composite.json"
+    },
+    {
       "path": "../eventual-send/tsconfig.composite.json"
     },
     {
@@ -16,6 +19,9 @@
     },
     {
       "path": "../exo-stream/tsconfig.composite.json"
+    },
+    {
+      "path": "../harden/tsconfig.composite.json"
     },
     {
       "path": "../marshal/tsconfig.composite.json"

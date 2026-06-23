@@ -15,6 +15,7 @@
 //   ENDO_LLM_FAST_AUTH_TOKEN=...    (defaults to ENDO_LLM_AUTH_TOKEN)
 
 import { E } from '@endo/eventual-send';
+import { resolveModel } from '@endo/lal/model-detect.js';
 
 const jaineFactorySpecifier = new URL('agent.js', import.meta.url).href;
 
@@ -145,8 +146,21 @@ export const main = async agent => {
   const { env } = process;
   const providerName = env.ENDO_LLM_NAME || 'default';
   const llmHost = env.ENDO_LLM_HOST || 'http://localhost:11434/v1';
-  const llmModel = env.ENDO_LLM_MODEL || 'qwen3';
   const llmAuthToken = env.ENDO_LLM_AUTH_TOKEN || 'ollama';
+
+  // Reconcile the default model against the endpoint's catalog so we
+  // never provision a provider pinned to a model the server doesn't
+  // have (e.g. the bare `qwen3` default when only `qwen3.6:latest` is
+  // installed). An explicit ENDO_LLM_MODEL always wins.
+  const { model: llmModel, substituted } = await resolveModel({
+    host: llmHost,
+    explicitModel: env.ENDO_LLM_MODEL,
+  });
+  if (substituted) {
+    console.log(
+      `[jaine] Default model qwen3 not installed at ${llmHost} — using ${llmModel}.`,
+    );
+  }
 
   // Optional fast model for lightweight decisions (routing, triage).
   // Falls back to main provider values so you can just set ENDO_LLM_FAST_MODEL

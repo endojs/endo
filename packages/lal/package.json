@@ -2,7 +2,7 @@
   "name": "@endo/lal",
   "version": "0.1.0",
   "private": true,
-  "description": "AI agent plugin for Endo",
+  "description": "AI agent plugin for Endo, built on the @earendil-works/pi-agent-core pi-based harness",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -17,6 +17,7 @@
   },
   "type": "module",
   "exports": {
+    "./model-detect.js": "./model-detect.js",
     "./providers/index.js": "./providers/index.js",
     "./tools/mock-powers.js": "./tools/mock-powers.js",
     "./package.json": "./package.json"
@@ -29,17 +30,20 @@
     "lint:eslint": "eslint '**/*.js'",
     "lint:types": "tsc",
     "prepack": "exit 0",
-    "simulator": "node test/simulator/run-simulator.js",
     "test": "ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
+    "@earendil-works/pi-agent-core": "^0.79.0",
+    "@earendil-works/pi-ai": "^0.79.0",
     "@endo/daemon": "workspace:^",
+    "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/exo-stream": "workspace:^",
+    "@endo/harden": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/platform": "workspace:^",

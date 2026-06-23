@@ -7,6 +7,7 @@
 //   -E LAL_AUTH_TOKEN=sk-ant-...
 
 import { E } from '@endo/eventual-send';
+import { resolveModel } from '@endo/lal/model-detect.js';
 
 /**
  * Find the pending "Create LLM Provider" form in HOST's inbox
@@ -33,11 +34,23 @@ export const main = async agent => {
 
   const name = process.env.PROVIDER_NAME || 'default';
   const host = process.env.LAL_HOST || 'https://api.anthropic.com';
-  const model = process.env.LAL_MODEL || 'claude-sonnet-4-6-20250514';
   const authToken = process.env.LAL_AUTH_TOKEN;
 
   if (!authToken) {
     throw new Error('LAL_AUTH_TOKEN environment variable is required.');
+  }
+
+  // Reconcile the model against the endpoint's catalog when one isn't
+  // pinned. For the Anthropic default host the probe simply no-ops (no
+  // `/v1/models`) and the fallback stands; for a local endpoint it picks
+  // an installed model instead of one the server would 404 on.
+  const { model, substituted } = await resolveModel({
+    host,
+    explicitModel: process.env.LAL_MODEL,
+    fallback: 'claude-sonnet-4-6-20250514',
+  });
+  if (substituted) {
+    console.log(`Detected installed model at ${host} — using ${model}.`);
   }
 
   await E(agent).submit(
