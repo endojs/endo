@@ -409,30 +409,29 @@ for the incoming imperative-Space PR — see "Deferred" above)
 
 ## Recommended next migration
 
-Every leaf and near-leaf is converted (Tier 1 + Tier 2 leaves, the autocompletes,
-`icon-selector`, all the Monaco forms), along with the 1:1 inbox, the inventory
-tree, the channel list, the Whylip + File Explorer spaces, and now the
-**microblog** body. What is left is the **large composites and the other
-alternate bodies** (see "Still on the DOM API"), excluding the two **deferred**
-files (`chat.js`, `add-space-modal`) frozen for the incoming imperative-Space PR.
-Continuing bottom-up, lowest-risk first:
+Every leaf and near-leaf is converted, along with the 1:1 inbox, the inventory
+tree, the channel list, the Whylip + File Explorer spaces, the microblog/forum/
+value/channel/channel-header/chat-bar bodies, and — now that the floot
+imperative-Space PR has landed and lifted their freeze — the **spaces gutter**
+and the **add-space modal** (the latter closing the one open HIGH XSS finding).
 
-- `value-component` (~512 lines) — a self-contained value viewer whose only
-  remaining DOM is the string-returning `value-render`; swap it to `value-vnodes`
-  (which already exists for the inbox).
-- `forum` (~617) — redo the reverted attempt; mirror the just-landed `microblog`
-  conversion (same `renderConfined` + host-node-bridge shape).
-- `channel-header` (~694) + `heat-simulation` (~225), then `channel-component`
-  (~981, the host-node-controller pattern for `react-utils`/`channel-utils`) and
-  `spaces-gutter` (~971).
-- `chat-bar-component` (~1735) — fully unblocked: every form/picker child it
-  composes is converted, so its own chrome can convert in place.
-- `@endo/space-inventory-graph`'s `graph.js` (~28 SVG `createElement`s) — pending a
-  check that the confined renderer admits SVG tags/attributes.
-- `outliner` (~3003) — the largest body; decompose into a contract + parallel
-  agents (the file-explorer approach), not a one-shot.
-- **deferred until the imperative-Space PR lands:** `add-space-modal` (~1979)
-  then `chat.js` (~1846).
+Three migration targets remain, each its own focused effort:
+
+- `@endo/space-inventory-graph`'s `graph.js` (~28 SVG `createElement`s) — **blocked
+  first** on teaching the confined renderer to admit SVG tags/attributes (a
+  `@endo/preact-container` feature addition with its own tests), then the graph
+  view converts. Smallest and fully verifiable in-container.
+- `outliner` (~3003) — the largest body and the hardest: it is a `contentEditable`
+  collaborative editor with cursor/selection/range management and drag-and-drop,
+  which fights the refs-stripped confined renderer. Decompose into a contract +
+  parallel agents (the file-explorer approach), with the host owning the editable
+  DOM and the confined view rendering structure; **not** a one-shot.
+- `chat.js` (~1860) — stays the imperative trusted dispatch root by design (it
+  calls `renderConfined` on the Preact bodies). Only its discrete chrome regions
+  (breadcrumbs, the channel-invitations inbox section, the mention-notify toasts —
+  the last of which still string-interpolates `@${petName}` into `innerHTML`) are
+  candidates to confine in place; the space-mode dispatch and top-level layout
+  template remain imperative.
 - a standing follow-up: render Monaco-colorized code fences as vnodes
   (tokenization rather than the `colorize` HTML string) in the inbox and
   definition bodies.
