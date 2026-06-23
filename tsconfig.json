@@ -16,6 +16,7 @@
         "packages/test262-runner",
         "packages/ses/types.test-d.ts",
         "packages/chat",
+        "packages/space-channel",
         "packages/space-peers",
         "packages/conversation-tree",
         "packages/demo",
