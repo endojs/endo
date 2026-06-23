@@ -12,7 +12,6 @@ import {
   getInfoMethodGuard,
 } from '@endo/platform/fs/lite';
 import {
-  NameShape,
   NamePathShape,
   NameOrPathShape,
   NamesOrPathsShape,
