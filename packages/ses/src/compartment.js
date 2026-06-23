@@ -152,6 +152,11 @@ export const CompartmentPrototype = {
       .name;
   },
 
+  get __noNamespaceBox__() {
+    return /** @type {CompartmentFields} */ (weakmapGet(privateFields, this))
+      .noNamespaceBox;
+  },
+
   evaluate(source, options = {}) {
     const compartmentFields = weakmapGet(privateFields, this);
     return compartmentEvaluate(compartmentFields, source, options);

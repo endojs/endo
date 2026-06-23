@@ -77,3 +77,22 @@ test('Compartment constructor should be inert', t => {
     'Compartment constructor should be disabled',
   );
 });
+
+test('Compartment should expose __noNamespaceBox__ getter', t => {
+  t.plan(4);
+  const c1 = new Compartment({ __options__: true, __noNamespaceBox__: true });
+  // eslint-disable-next-line no-underscore-dangle
+  t.true('__noNamespaceBox__' in c1, '__noNamespaceBox__ should be exposed');
+  // eslint-disable-next-line no-underscore-dangle
+  t.is(c1.__noNamespaceBox__, true, '__noNamespaceBox__ should be true');
+  const c2 = new Compartment({ __options__: true, __noNamespaceBox__: false });
+  // eslint-disable-next-line no-underscore-dangle
+  t.is(c2.__noNamespaceBox__, false, '__noNamespaceBox__ should be false');
+  const c3 = new Compartment({ __options__: true });
+  t.is(
+    // eslint-disable-next-line no-underscore-dangle
+    c3.__noNamespaceBox__,
+    false,
+    '__noNamespaceBox__ should be false when not explicitly set',
+  );
+});
