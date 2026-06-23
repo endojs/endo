@@ -293,10 +293,11 @@ bottom after each render while that flag holds. This is a host
 DOM-housekeeping concern, not a rendered-UI overlay, so it stays clear of the
 view contract (none of the contingency options were needed).
 
-One minor regression: the compose `<textarea>` no longer JS-auto-grows (the old
-host code resized it imperatively). It is a confined controlled input with a CSS
-`max-height` and internal scroll; revisit with `field-sizing: content` or a host
-overlay if multi-line composing feels cramped.
+The compose `<textarea>` auto-grows up to its `max-height` via CSS
+`field-sizing: content`. The old host code resized it imperatively in JS on every
+input; a confined view cannot touch the DOM, so `floot.css` reproduces the
+grow-to-fit purely in CSS (restored in the post-review cleanup, commit
+`3b2cbafc`).
 
 ## Verification and gaps
 
