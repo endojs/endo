@@ -1,18 +1,18 @@
 // @ts-check
 /**
  * Pin the new boundary between `PiAgent` (from `@earendil-works/pi-agent-core`)
- * and lal's tool surface (`toolDefs` + `makeExecuteTool` in `agent.js`).
+ * and lal's tool surface (`tools` + `makeExecuteTool` in `tool-dispatch.js`).
  *
  * The harness migration moved provider/normalization logic into pi-agent-core
  * and message shaping into pi-ai, so the pre-migration normalization tests
  * were removed (commit 4e6ed35). This test exercises what
  * remains lal-owned at the new seam: the full SmallCaps decode (via
- * `decodeToolArgs` in `agent.js`), the `@endo/patterns` validation, and the
+ * `decodeToolArgs` in `tool-dispatch.js`), the `@endo/patterns` validation, and the
  * JSON-encoded-string retry path that `decodeToolArgs`'s secondary fallback
  * provides for smaller LLMs.
  *
  * Strategy: construct a `PiAgent` the same way `spawnWorkerLoop` does (same
- * `convertToLlm`, same tool surface built from `toolDefs` + `makeExecuteTool`
+ * `convertToLlm`, same tool surface built from `tools` + `makeExecuteTool`
  * + `toAgentTool`), but supply a scripted `streamFn` so no provider is
  * called. The scripted stream emits one assistant turn carrying two tool
  * calls (one normal, one with a JSON-encoded-string arg to hit the retry)
@@ -25,7 +25,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
 import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';
 
-import { makeExecuteTool, toAgentTool } from '../agent.js';
+import { makeExecuteTool, toAgentTool } from '../tool-dispatch.js';
 import { tools } from '../tools/index.js';
 import { makeMockPowers } from '../tools/mock-powers.js';
 

@@ -22,10 +22,6 @@ import {
 import { runRound } from './round-runner.js';
 import { runInboxLoop } from './inbox-loop.js';
 
-// Re-export the tool-dispatch surface so tests that already import these
-// from `./agent.js` continue to work without churn.
-export { makeExecuteTool, toAgentTool };
-
 /** @import { FarRef } from '@endo/eventual-send' */
 /** @import { GuestPowers, LalContext } from './agent.types.js' */
 

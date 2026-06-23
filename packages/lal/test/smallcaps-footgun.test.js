@@ -29,7 +29,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
 import { createAssistantMessageEventStream } from '@earendil-works/pi-ai';
 
-import { makeExecuteTool, toAgentTool } from '../agent.js';
+import { makeExecuteTool, toAgentTool } from '../tool-dispatch.js';
 import { tools } from '../tools/index.js';
 import { makeMockPowers } from '../tools/mock-powers.js';
 
