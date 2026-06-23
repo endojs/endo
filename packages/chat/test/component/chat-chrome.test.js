@@ -308,3 +308,175 @@ test.serial('inbox entry text is rendered as text, not HTML', async t => {
   t.is($mount.querySelector('script'), null);
   t.is($mount.querySelector('.sidebar-inbox-text').textContent, evil);
 });
+
+const expandInbox = async $mount => {
+  await waitFor(() => !!$mount.querySelector('.sidebar-inbox-header'));
+  $mount
+    .querySelector('.sidebar-inbox-header')
+    .dispatchEvent(new testWindow.Event('click', { bubbles: true }));
+};
+
+test.serial('inbox adopt button label escapes the name', async t => {
+  const $mount = makeMount();
+  const evil = '<img src=x onerror=alert(1)>';
+  mountInboxSection(
+    $mount,
+    noopHandlers({
+      loadEntries: async () => ({
+        totalCount: 1,
+        entries: [{ number: 1n, text: '', names: [evil] }],
+      }),
+    }),
+  );
+  await expandInbox($mount);
+  await waitFor(() => !!$mount.querySelector('.inbox-adopt-btn'));
+  t.is($mount.querySelector('img'), null);
+  t.is($mount.querySelector('.inbox-adopt-btn').textContent, `Adopt “${evil}”`);
+});
+
+test.serial(
+  'inbox renders one row per name even when names repeat',
+  async t => {
+    const $mount = makeMount();
+    mountInboxSection(
+      $mount,
+      noopHandlers({
+        loadEntries: async () => ({
+          totalCount: 1,
+          // A remote message could repeat a name; each must still get a row.
+          entries: [{ number: 1n, text: '', names: ['dup', 'dup'] }],
+        }),
+      }),
+    );
+    await expandInbox($mount);
+    await waitFor(() => $mount.querySelectorAll('.inbox-btn-row').length === 2);
+    t.is($mount.querySelectorAll('.inbox-btn-row').length, 2);
+    t.is($mount.querySelectorAll('.inbox-adopt-btn').length, 2);
+  },
+);
+
+test.serial('inbox join flow toggles "Joining…" and reloads', async t => {
+  const $mount = makeMount();
+  let loads = 0;
+  const joined = [];
+  let resolveJoin;
+  mountInboxSection(
+    $mount,
+    noopHandlers({
+      loadEntries: async () => {
+        loads += 1;
+        return {
+          totalCount: 1,
+          entries: [{ number: 9n, text: '', names: ['chan'] }],
+        };
+      },
+      onJoin: async (number, name) => {
+        joined.push([number, name]);
+        await new Promise(r => {
+          resolveJoin = r;
+        });
+        return true;
+      },
+    }),
+  );
+  await expandInbox($mount);
+  await waitFor(() => !!$mount.querySelector('.inbox-join-channel-btn'));
+  t.is(loads, 1);
+
+  $mount
+    .querySelector('.inbox-join-channel-btn')
+    .dispatchEvent(new testWindow.Event('click', { bubbles: true }));
+
+  await waitFor(
+    () =>
+      $mount.querySelector('.inbox-join-channel-btn').textContent ===
+      'Joining…',
+  );
+  t.true($mount.querySelector('.inbox-join-channel-btn').disabled);
+
+  resolveJoin();
+  await waitFor(() => loads === 2);
+  t.deepEqual(joined, [[9n, 'chan']]);
+});
+
+test.serial('inbox adopt returning false does not reload', async t => {
+  const $mount = makeMount();
+  let loads = 0;
+  mountInboxSection(
+    $mount,
+    noopHandlers({
+      loadEntries: async () => {
+        loads += 1;
+        return {
+          totalCount: 1,
+          entries: [{ number: 1n, text: '', names: ['gift'] }],
+        };
+      },
+      onAdopt: async () => false, // user cancelled — no reload
+    }),
+  );
+  await expandInbox($mount);
+  await waitFor(() => !!$mount.querySelector('.inbox-adopt-btn'));
+  $mount
+    .querySelector('.inbox-adopt-btn')
+    .dispatchEvent(new testWindow.Event('click', { bubbles: true }));
+  // Give any erroneous reload a chance to happen.
+  await tick(60);
+  t.is(loads, 1);
+});
+
+test.serial('inbox shows error text when loadEntries rejects', async t => {
+  const $mount = makeMount();
+  mountInboxSection(
+    $mount,
+    noopHandlers({
+      loadEntries: async () => {
+        throw new Error('boom');
+      },
+    }),
+  );
+  await expandInbox($mount);
+  await waitFor(
+    () =>
+      $mount.querySelector('.sidebar-inbox-body').textContent ===
+      'Unable to load inbox.',
+  );
+  t.is(
+    $mount.querySelector('.sidebar-inbox-body').textContent,
+    'Unable to load inbox.',
+  );
+});
+
+test.serial('mention invite "Yes" failure re-enables and alerts', async t => {
+  const $area = makeMount();
+  const controller = mountMentionNotifyArea($area);
+  await waitFor(() => !!controller.showInvitePrompt);
+
+  const originalAlert = testWindow.alert;
+  let alerted = '';
+  testWindow.alert = msg => {
+    alerted = String(msg);
+  };
+  t.teardown(() => {
+    testWindow.alert = originalAlert;
+  });
+
+  controller.showInvitePrompt({
+    petName: 'alice',
+    onYes: async () => {
+      throw new Error('nope');
+    },
+  });
+  await waitFor(() => !!$area.querySelector('.mention-notify-yes'));
+  $area
+    .querySelector('.mention-notify-yes')
+    .dispatchEvent(new testWindow.Event('click', { bubbles: true }));
+
+  await waitFor(() => alerted !== '');
+  t.regex(alerted, /Failed to send notification/);
+  // Prompt remains, button re-enabled and back to its idle label.
+  const yes = $area.querySelector('.mention-notify-yes');
+  t.truthy(yes);
+  t.false(yes.disabled);
+  t.is(yes.textContent, 'Yes, invite');
+});

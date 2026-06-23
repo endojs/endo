@@ -114,6 +114,20 @@ const InvitePrompt = ({ petName, onYes, onRemove }) => {
     /** @type {'idle' | 'sending' | 'sent'} */ ('idle'),
   );
 
+  // Keep the latest onRemove without re-arming the auto-remove timer when the
+  // parent re-renders (it passes a fresh closure each render).
+  const onRemoveRef = useRef(onRemove);
+  onRemoveRef.current = onRemove;
+
+  // Own the post-send auto-remove timer in an effect so it is cleared if the
+  // prompt is removed (or the area unmounts) before the 3s elapses, rather
+  // than firing a setState into a torn-down tree.
+  useEffect(() => {
+    if (status !== 'sent') return undefined;
+    const timer = setTimeout(() => onRemoveRef.current(), 3000);
+    return () => clearTimeout(timer);
+  }, [status]);
+
   if (status === 'sent') {
     return h(
       'div',
@@ -132,7 +146,6 @@ const InvitePrompt = ({ petName, onYes, onRemove }) => {
     try {
       await onYes();
       setStatus('sent');
-      setTimeout(onRemove, 3000);
     } catch (err) {
       setStatus('idle');
       window.alert(
@@ -202,32 +215,37 @@ const MentionNotifyArea = ({ controller }) => {
   );
   const nextId = useRef(0);
 
-  useEffect(() => {
-    const remove = id => setItems(prev => prev.filter(it => it.id !== id));
-    const add = item => {
-      nextId.current += 1;
-      const id = `n${nextId.current}`;
-      setItems(prev => [...prev, { ...item, id }]);
-      return id;
-    };
-
-    controller.showInvitePrompt = ({ petName, onYes }) => {
-      add({ kind: 'invite', petName, onYes });
-    };
-    controller.showToast = petName => {
-      const id = add({ kind: 'toast', petName });
-      const timer = setTimeout(() => remove(id), 3000);
-      return () => {
-        clearTimeout(timer);
-        remove(id);
-      };
-    };
-
+  // Wire the controller synchronously during render — not in an effect — so a
+  // prompt or toast fired in the same tick as the mount (before effects flush)
+  // is still delivered rather than silently dropped. `setItems` is a stable
+  // dispatcher and these are functional updaters, so reassigning the closures
+  // each render is harmless. The effect below only handles teardown cleanup.
+  const remove = id => setItems(prev => prev.filter(it => it.id !== id));
+  const add = item => {
+    nextId.current += 1;
+    const id = `n${nextId.current}`;
+    setItems(prev => [...prev, { ...item, id }]);
+    return id;
+  };
+  controller.showInvitePrompt = ({ petName, onYes }) => {
+    add({ kind: 'invite', petName, onYes });
+  };
+  controller.showToast = petName => {
+    const id = add({ kind: 'toast', petName });
+    const timer = setTimeout(() => remove(id), 3000);
     return () => {
+      clearTimeout(timer);
+      remove(id);
+    };
+  };
+
+  useEffect(
+    () => () => {
       delete controller.showInvitePrompt;
       delete controller.showToast;
-    };
-  }, [controller]);
+    },
+    [controller],
+  );
 
   return h(
     Fragment,
@@ -327,10 +345,12 @@ const InboxEntryView = ({ entry, onAdopt, onJoin }) =>
     'div',
     { class: 'sidebar-inbox-entry' },
     entry.text ? h('div', { class: 'sidebar-inbox-text' }, entry.text) : null,
-    ...entry.names.map(name =>
+    ...entry.names.map((name, j) =>
       h(
         'div',
-        { key: name, class: 'inbox-btn-row' },
+        // Key by index too: `names` comes from a remote message and may repeat
+        // a value; a bare `name` key would collide and drop a row.
+        { key: `${name}-${j}`, class: 'inbox-btn-row' },
         h(
           'button',
           { class: 'inbox-adopt-btn', onClick: () => onAdopt(name) },
