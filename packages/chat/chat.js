@@ -7,6 +7,7 @@
 import { E } from '@endo/far';
 import harden from '@endo/harden';
 import { fileExplorerComponent } from '@endo/space-file-explorer';
+import { idFromLocator } from '@endo/chat-kit/locator.js';
 import { channelComponent } from './channel-component.js';
 import { forumComponent } from './forum-component.js';
 import { outlinerComponent } from './outliner-component.js';
@@ -28,7 +29,6 @@ import {
   mountMentionNotifyArea,
   mountInboxSection,
 } from './chat-chrome.js';
-import { idFromLocator } from '@endo/chat-kit/locator.js';
 
 const template = `
 <div id="spaces-gutter"></div>

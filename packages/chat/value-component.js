@@ -8,6 +8,8 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { passStyleOf } from '@endo/pass-style';
 
+import { valueToVnodes } from '@endo/chat-kit/value-vnodes.js';
+import { MarkdownFragment } from '@endo/chat-kit/markdown-vnodes.js';
 import {
   h,
   renderConfined,
@@ -16,8 +18,6 @@ import {
 } from './setup-preact-container.js';
 
 import { inferType, toClipboardText } from './value-render.js';
-import { valueToVnodes } from '@endo/chat-kit/value-vnodes.js';
-import { MarkdownFragment } from '@endo/chat-kit/markdown-vnodes.js';
 import { inferLanguage } from './language-detect.js';
 import { isMarkdown } from './markdown-preview.js';
 

@@ -6,6 +6,9 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
+import { timeFormatter, relativeTime } from '@endo/chat-kit/time-formatters.js';
+import { prepareTextWithPlaceholders } from '@endo/chat-kit/markdown-render.js';
+import { markdownToVnodes } from '@endo/chat-kit/markdown-vnodes.js';
 import {
   Fragment,
   h,
@@ -13,12 +16,9 @@ import {
   unmount,
 } from './setup-preact-container.js';
 
-import { timeFormatter, relativeTime } from '@endo/chat-kit/time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
 import { createMessageMenu } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
-import { prepareTextWithPlaceholders } from '@endo/chat-kit/markdown-render.js';
-import { markdownToVnodes } from '@endo/chat-kit/markdown-vnodes.js';
 
 // Default multiuser channel body view (Dan's), migrated from imperative DOM to
 // a confined Preact component rendered through a single `renderConfined`.
@@ -412,7 +412,7 @@ export const channelComponent = async (
 
     const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
 
-    /** @type {import('./markdown-vnodes.js').RenderToken} */
+    /** @type {import('@endo/chat-kit/markdown-vnodes.js').RenderToken} */
     const renderToken = index => {
       const edgeName = messageNames[index];
       if (edgeName === undefined) return null;

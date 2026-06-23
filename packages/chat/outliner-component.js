@@ -3,6 +3,7 @@
 import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { relativeTime } from '@endo/chat-kit/time-formatters.js';
 import { createChannelState, createMessageMenu } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
 import {
@@ -10,7 +11,6 @@ import {
   computeNodeContent,
   computeAllNodeContents,
 } from './edit-queue.js';
-import { relativeTime } from '@endo/chat-kit/time-formatters.js';
 import { tokenAutocompleteComponent } from './token-autocomplete.js';
 
 /** @import { ERef } from '@endo/far' */

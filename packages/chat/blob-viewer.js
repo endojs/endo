@@ -7,9 +7,9 @@
 
 import { E } from '@endo/far';
 import { createMonacoEditor, detectTheme } from '@endo/monaco-wrapper';
+import { MarkdownFragment } from '@endo/chat-kit/markdown-vnodes.js';
 import { inferLanguage } from './language-detect.js';
 import { isMarkdown } from './markdown-preview.js';
-import { MarkdownFragment } from '@endo/chat-kit/markdown-vnodes.js';
 import { keyCombo, modKey } from './platform-keys.js';
 
 import { h, renderConfined, unmount } from './setup-preact-container.js';
