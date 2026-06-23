@@ -63,6 +63,7 @@
     "@endo/platform": "workspace:^",
     "@endo/preact-container": "workspace:^",
     "@endo/promise-kit": "workspace:^",
+    "@endo/space-chat": "workspace:^",
     "@endo/space-file-explorer": "workspace:^",
     "@endo/space-floot": "workspace:^",
     "@endo/space-inventory-graph": "workspace:^",
