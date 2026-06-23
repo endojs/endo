@@ -501,7 +501,7 @@ The blockers to the packaging axis, in rough order of how much they bite:
 
 | Body                | Extractable today? | Specific blocker                                                                                                                                                                                                   |
 | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| inbox-component     | closest ◐          | scroll now host-callback'd (no host node in the component) + returns `dispose`; remaining: own CSS + the `$parent`/`$end` mount-target signature                                                                   |
+| inbox-component     | ☑ extracted        | now `@endo/space-chat` (pure `InboxRoot`) + a thin host wrapper; the first body to leave the app                                                                                                                   |
 | value-component     | closest ◐          | now owns its frame DOM + visibility + `dispose` (no longer queries chat's template); remaining: own CSS (+ drop the internal element IDs for multi-instance safety)                                                |
 | microblog-component | close              | `channel-utils` + `edit-queue` coupling                                                                                                                                                                            |
 | forum-component     | no                 | `channel-utils` + `edit-queue` coupling                                                                                                                                                                            |
@@ -595,11 +595,28 @@ buckets, not two** — a few things are shared by both and belong to neither.
 ### Recommended sequence
 
 1. **This contract** (done — agreed boundary).
-2. **`@endo/space-chat`** — extract `inbox` as the first vertical slice, pulling
-   only the utils it needs into the base as it goes. Smallest and cleanest; proves
-   the pattern end-to-end including per-package CSS.
-3. **`@endo/space-channel`** — the big lift: move the 4 bodies + 4 substrate
-   modules together. This is where the 6-module coupling finally resolves.
+2. **Shared base `@endo/chat-kit`** — ☑ **done**. The six leaf utils
+   (`markdown-render`, `markdown-vnodes`, `value-vnodes`, `time-formatters`,
+   `chime`, `locator`) moved into the package; they author vnodes with plain
+   `preact` (the host applies `renderConfined`). All in-app importers repoint to
+   `@endo/chat-kit/*`.
+3. **`@endo/space-chat`** — ☑ **done**. `inbox` extracted: the package exports the
+   pure `InboxRoot` component; `@endo/chat/inbox-component.js` is now the thin host
+   wrapper (`renderConfined` + scroll + `dispose`), entry signature unchanged so
+   `chat.js` and the inbox tests were untouched.
+
+   **Lesson recorded for the next packages:** a private app (`@endo/chat`) is
+   exempt from the workspace-wide `typedoc` and `SECURITY.md` checks, but an
+   extracted package is **not**. Latent issues the app tolerated (a too-narrow
+   `VNode[]` body type) became hard CI failures once moved. New packages must
+   ship a `SECURITY.md`, a `LICENSE`, and be **tsc/typedoc-clean** — hold them to
+   that bar up front, not "the app accepted it."
+
+4. **`@endo/space-channel`** — ☐ the big lift: move the 4 bodies + 4 substrate
+   modules together. This is where the 6-module coupling finally resolves. Expect
+   it to surface many latent type issues in `channel-utils` / `react-utils` /
+   the bodies once they face typedoc; budget for that. Best done as its **own PR**
+   given the blast radius.
 
 This front-loads the cheap, high-confidence win (`inbox`) and defers the heavy
 channel move until the base and the pattern are proven. It is the first work that
