@@ -92,10 +92,8 @@ export const mailToolDefs = harden([
   },
 
   {
-    type: 'function',
-    function: {
-      name: 'editMessage',
-      description: `\
+    name: 'editMessage',
+    summary: `\
 Replace the interior of a message you previously sent.
 
 Use to correct a prior reply, settle a "Thinking..." placeholder into a
@@ -107,52 +105,49 @@ Pairs with the daemon editMessage capability.
 Pass done: false to mark a partial submission (recipient should show a
 progress indicator); pass done: true (or omit) once the message has
 settled.`,
-      parameters: {
-        type: 'object',
-        properties: {
-          messageNumber: {
-            type: 'string',
-            description:
-              'The outbound message number (BigInt) to edit. Use SmallCaps format: "+5" for message 5.',
-          },
-          strings: {
-            type: 'array',
-            items: { type: 'string' },
-            description:
-              'New text fragments. Length should be edgeNames.length + 1.',
-          },
-          edgeNames: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Labels for the values being sent.',
-          },
-          petNames: {
-            type: 'array',
-            items: {
-              oneOf: [
-                { type: 'string' },
-                { type: 'array', items: { type: 'string' } },
-              ],
-            },
-            description:
-              'Pet names of values to include (same length as edgeNames).',
-          },
-          done: {
-            type: 'boolean',
-            description:
-              'Defaults to true. Pass false to mark this revision as a partial submission.',
-          },
+    parameters: {
+      type: 'object',
+      properties: {
+        messageNumber: {
+          type: 'string',
+          description:
+            'The outbound message number (BigInt) to edit. Use SmallCaps format: "+5" for message 5.',
         },
-        required: ['messageNumber', 'strings', 'edgeNames', 'petNames'],
+        strings: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'New text fragments. Length should be edgeNames.length + 1.',
+        },
+        edgeNames: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Labels for the values being sent.',
+        },
+        petNames: {
+          type: 'array',
+          items: {
+            oneOf: [
+              { type: 'string' },
+              { type: 'array', items: { type: 'string' } },
+            ],
+          },
+          description:
+            'Pet names of values to include (same length as edgeNames).',
+        },
+        done: {
+          type: 'boolean',
+          description:
+            'Defaults to true. Pass false to mark this revision as a partial submission.',
+        },
       },
+      required: ['messageNumber', 'strings', 'edgeNames', 'petNames'],
     },
   },
 
   {
-    type: 'function',
-    function: {
-      name: 'messageHistory',
-      description: `\
+    name: 'messageHistory',
+    summary: `\
 Return the ordered revision history of a message in your inbox or
 outbox.  Useful when an inbound message was edited after you began
 work and you need to know what the earlier text said.  Returns an
@@ -160,17 +155,16 @@ array of revisions, oldest first; the last entry is the current
 message.
 
 Pairs with the daemon messageHistory capability.`,
-      parameters: {
-        type: 'object',
-        properties: {
-          messageNumber: {
-            type: 'string',
-            description:
-              'The message number (BigInt) to inspect. Use SmallCaps format: "+5" for message 5.',
-          },
+    parameters: {
+      type: 'object',
+      properties: {
+        messageNumber: {
+          type: 'string',
+          description:
+            'The message number (BigInt) to inspect. Use SmallCaps format: "+5" for message 5.',
         },
-        required: ['messageNumber'],
       },
+      required: ['messageNumber'],
     },
   },
 ]);
