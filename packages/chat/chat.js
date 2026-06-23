@@ -100,41 +100,6 @@ const template = `
 <div id="blob-viewer-backdrop"></div>
 <div id="blob-viewer-container"></div>
 
-<div id="value-frame" class="frame">
-  <div id="value-window" class="window">
-    <div class="value-header">
-      <span id="value-title" class="value-title">Value</span>
-      <select id="value-type" class="value-type-select">
-        <option value="unknown">Unknown</option>
-        <option value="profile">Profile</option>
-        <option value="directory">Directory</option>
-        <option value="worker">Worker</option>
-        <option value="handle">Handle</option>
-        <option value="invitation">Invitation</option>
-        <option value="readable">Readable</option>
-        <option value="string">String</option>
-        <option value="number">Number</option>
-        <option value="bigint">BigInt</option>
-        <option value="boolean">Boolean</option>
-        <option value="symbol">Symbol</option>
-        <option value="null">Null</option>
-        <option value="undefined">Undefined</option>
-        <option value="copyArray">Array</option>
-        <option value="copyRecord">Record</option>
-        <option value="error">Error</option>
-        <option value="promise">Promise</option>
-        <option value="remotable">Remotable</option>
-      </select>
-    </div>
-    <div id="value-value"></div>
-    <div class="value-actions">
-      <div id="value-actions-container"></div>
-      <button id="value-enter-profile" style="display: none;">Enter Profile</button>
-      <button id="value-close">Close</button>
-    </div>
-  </div>
-</div>
-
 <div id="help-modal-container"></div>
 <div id="add-space-modal-container"></div>
 <div id="share-modal-container"></div>
@@ -142,34 +107,6 @@ const template = `
 <div id="debugger-panel-backdrop"></div>
 <div id="debugger-panel-container"></div>
 `;
-
-/**
- * @param {HTMLElement} $parent
- * @param {{ focusValue: (value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>, blurValue: () => void }} callbacks
- */
-const controlsComponent = ($parent, { focusValue, blurValue }) => {
-  const $valueFrame = /** @type {HTMLElement} */ (
-    $parent.querySelector('#value-frame')
-  );
-
-  /**
-   * @param {unknown} value
-   * @param {string} [id]
-   * @param {string[]} [petNamePath]
-   * @param {{ number: bigint, edgeName: string }} [messageContext]
-   */
-  const showValue = (value, id, petNamePath, messageContext) => {
-    $valueFrame.dataset.show = 'true';
-    focusValue(value, id, petNamePath, messageContext);
-  };
-
-  const dismissValue = () => {
-    $valueFrame.dataset.show = 'false';
-    blurValue();
-  };
-
-  return { showValue, dismissValue };
-};
 
 /**
  * Set up the resizable sidebar handle.
@@ -434,13 +371,15 @@ const bodyComponent = (
   // Initialize components with resolved powers
   resolvePowers()
     .then(resolvedPowers => {
-      // To they who can avoid forward-references for entangled component
-      // dependency-injection, I salute you and welcome your pull requests.
-      const { showValue, dismissValue } = controlsComponent($parent, {
-        focusValue: (value, id, petNamePath, messageContext) =>
-          focusValue(value, id, petNamePath, messageContext),
-        blurValue: () => blurValue(),
-      });
+      // The value modal owns its own frame DOM, visibility, and teardown. It
+      // exposes `showValue` (used by the bodies and the chat bar) and a
+      // `dispose` we run at teardown.
+      const { showValue, dispose: disposeValue } = valueComponent(
+        $parent,
+        /** @type {ERef<EndoHost>} */ (resolvedPowers),
+        { enterProfile: enterHost },
+      );
+      valueRef = { dispose: disposeValue };
 
       const getConversationPetName = () =>
         activeConversation ? activeConversation.petName : null;
@@ -1628,16 +1567,6 @@ const bodyComponent = (
         },
       );
       chatBarRef = chatBarAPI;
-      const valueAPI = valueComponent(
-        $parent,
-        /** @type {ERef<EndoHost>} */ (resolvedPowers),
-        {
-          dismissValue,
-          enterProfile: enterHost,
-        },
-      );
-      valueRef = valueAPI;
-      const { focusValue, blurValue } = valueAPI;
     })
     .catch(window.reportError);
 

@@ -82,23 +82,9 @@ const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
 const setup = ({ reverseIdentify = async () => [] } = {}) => {
   testDocument.body.innerHTML = '';
 
+  // value-component now builds and owns its own #value-frame; the host only
+  // supplies an empty container to mount it into.
   const $parent = testDocument.createElement('div');
-  $parent.innerHTML = `
-    <div id="value-frame" class="frame">
-      <div id="value-window" class="window">
-        <div class="value-header">
-          <span id="value-title" class="value-title">Value</span>
-          <select id="value-type"><option value="unknown">unknown</option></select>
-        </div>
-        <div id="value-value"></div>
-        <div class="value-actions">
-          <div id="value-actions-container"></div>
-          <button id="value-enter-profile" style="display: none;">Enter Profile</button>
-          <button id="value-close">Close</button>
-        </div>
-      </div>
-    </div>
-  `;
   testDocument.body.appendChild($parent);
 
   /** @type {Array<{ method: string, args: unknown[] }>} */
@@ -120,11 +106,7 @@ const setup = ({ reverseIdentify = async () => [] } = {}) => {
     },
   });
 
-  let dismissed = 0;
   const api = valueComponent($parent, powers, {
-    dismissValue: () => {
-      dismissed += 1;
-    },
     enterProfile: async () => {},
   });
 
@@ -132,7 +114,7 @@ const setup = ({ reverseIdentify = async () => [] } = {}) => {
     $parent,
     api,
     calls,
-    getDismissed: () => dismissed,
+    $frame: $parent.querySelector('#value-frame'),
     $value: $parent.querySelector('#value-value'),
     $actions: $parent.querySelector('#value-actions-container'),
     $title: $parent.querySelector('#value-title'),
@@ -140,12 +122,12 @@ const setup = ({ reverseIdentify = async () => [] } = {}) => {
 };
 
 test.serial(
-  'focusValue renders a number as a .number span (vnodes, not innerHTML)',
+  'showValue renders a number as a .number span (vnodes, not innerHTML)',
   async t => {
     const { $value, api } = setup();
-    t.teardown(() => api.blurValue());
+    t.teardown(() => api.dismissValue());
 
-    await api.focusValue(42);
+    await api.showValue(42);
     await waitFor(() => !!$value.querySelector('.number'));
 
     const $number = $value.querySelector('.number');
@@ -155,11 +137,11 @@ test.serial(
   },
 );
 
-test.serial('focusValue renders a string as a quoted .string span', async t => {
+test.serial('showValue renders a string as a quoted .string span', async t => {
   const { $value, api } = setup();
-  t.teardown(() => api.blurValue());
+  t.teardown(() => api.dismissValue());
 
-  await api.focusValue('hello');
+  await api.showValue('hello');
   await waitFor(() => !!$value.querySelector('.string'));
 
   const $string = $value.querySelector('.string');
@@ -168,11 +150,11 @@ test.serial('focusValue renders a string as a quoted .string span', async t => {
   t.is($string.textContent, '"hello"');
 });
 
-test.serial('focusValue renders an array as nested .entries spans', async t => {
+test.serial('showValue renders an array as nested .entries spans', async t => {
   const { $value, api } = setup();
-  t.teardown(() => api.blurValue());
+  t.teardown(() => api.dismissValue());
 
-  await api.focusValue(harden([1, 2, 3]));
+  await api.showValue(harden([1, 2, 3]));
   await waitFor(() => !!$value.querySelector('.entries'));
 
   const $entries = $value.querySelector('.entries');
@@ -184,13 +166,13 @@ test.serial('focusValue renders an array as nested .entries spans', async t => {
 });
 
 test.serial(
-  'focusValue shows a "Save as:" action for an unnamed plain value, and Save stores it',
+  'showValue shows a "Save as:" action for an unnamed plain value, and Save stores it',
   async t => {
     const { $actions, api, calls } = setup();
-    t.teardown(() => api.blurValue());
+    t.teardown(() => api.dismissValue());
 
     // No id, no petNamePath, plain passable -> "Save as:" name action.
-    await api.focusValue(harden({ a: 1 }));
+    await api.showValue(harden({ a: 1 }));
     await waitFor(() => !!$actions.querySelector('.value-name-input'));
 
     const $input = $actions.querySelector('.value-name-input');
@@ -224,14 +206,14 @@ test.serial(
 );
 
 test.serial(
-  'focusValue resolves pet names into .token chips in the title',
+  'showValue resolves pet names into .token chips in the title',
   async t => {
     const { $title, api } = setup({
       reverseIdentify: async () => ['alice', 'alice'],
     });
-    t.teardown(() => api.blurValue());
+    t.teardown(() => api.dismissValue());
 
-    await api.focusValue('x', 'some-id');
+    await api.showValue('x', 'some-id');
     await waitFor(() => !!$title.querySelector('.token'));
 
     const tokens = $title.querySelectorAll('.token');
@@ -240,48 +222,50 @@ test.serial(
   },
 );
 
-test.serial('Close button clears the value content and dismisses', async t => {
-  const { $parent, $value, api, getDismissed } = setup();
-  t.teardown(() => api.blurValue());
+test.serial(
+  'Close button clears the value content and hides the frame',
+  async t => {
+    const { $frame, $value, api } = setup();
+    t.teardown(() => api.dismissValue());
 
-  await api.focusValue(7);
-  await waitFor(() => !!$value.querySelector('.number'));
+    await api.showValue(7);
+    await waitFor(() => !!$value.querySelector('.number'));
+    // showValue reveals the frame.
+    t.is($frame.dataset.show, 'true', 'frame shown while a value is open');
 
-  $parent
-    .querySelector('#value-close')
-    .dispatchEvent(new globalThis.Event('click', { bubbles: true }));
+    $frame
+      .querySelector('#value-close')
+      .dispatchEvent(new globalThis.Event('click', { bubbles: true }));
 
-  await waitFor(() => !$value.querySelector('.number'));
-  t.falsy($value.querySelector('.number'), 'value content unmounted');
-  t.is(getDismissed(), 1, 'dismissValue called once');
-});
+    await waitFor(() => !$value.querySelector('.number'));
+    t.falsy($value.querySelector('.number'), 'value content unmounted');
+    t.is($frame.dataset.show, 'false', 'frame hidden after close');
+  },
+);
 
 test.after(() => {
   testDocument.body.innerHTML = '';
 });
 
 test.serial(
-  'dispose() unmounts the surfaces and detaches the close listener',
+  'dispose() unmounts the surfaces and removes the owned frame',
   async t => {
-    const { $parent, $value, api, getDismissed } = setup();
+    const { $parent, $value, api } = setup();
 
-    await api.focusValue(42);
+    await api.showValue(42);
     await waitFor(() => !!$value.querySelector('.number'));
     t.truthy($value.querySelector('.number'), 'value content is mounted');
+    t.truthy($parent.querySelector('#value-frame'), 'frame is in the DOM');
 
     api.dispose();
-    // The confined value surface is unmounted.
-    await waitFor(() => !$value.querySelector('.number'));
-    t.is($value.querySelector('.number'), null, 'value content unmounted');
 
-    // The close listener was detached: clicking it no longer dismisses.
-    const before = getDismissed();
-    $parent
-      .querySelector('#value-close')
-      .dispatchEvent(
-        new testDocument.defaultView.Event('click', { bubbles: true }),
-      );
-    await tick(30);
-    t.is(getDismissed(), before, 'close no longer fires after dispose');
+    // dispose removes the entire frame the component created — no host markup
+    // is left behind, since the component owned it.
+    await waitFor(() => !$parent.querySelector('#value-frame'));
+    t.is(
+      $parent.querySelector('#value-frame'),
+      null,
+      'frame removed on dispose',
+    );
   },
 );

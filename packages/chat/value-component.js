@@ -25,26 +25,28 @@ import { isMarkdown } from './markdown-preview.js';
 // string/DOM `value-render` via `.innerHTML`) to a confined Preact component
 // rendered through a single `renderConfined`.
 //
-// THE HOST-NODE BOUNDARY. The value modal chrome (`#value-frame`, `#value-title`,
-// `#value-type`, `#value-close`, `#value-enter-profile`, `#value-actions-container`)
-// is host DOM owned by chat.js's template. `renderConfined` strips refs and real
-// nodes, so those host nodes never enter the confined tree. Instead the confined
-// Preact tree owns ONLY the value-content surface (`#value-value`): the rendered
-// passable value plus, for blob-like remotables, the inline blob preview. It is
-// rendered into a DEDICATED `$mount` child appended inside `#value-value`, so the
-// host chrome is untouched.
+// FRAME OWNERSHIP. The component builds its own modal frame from the static
+// `VALUE_FRAME_HTML` and appends it to the host container, rather than querying
+// chat.js's page template. It also owns the frame's visibility (the `data-show`
+// toggle that used to live in chat.js's `controlsComponent`) and removes the
+// frame on `dispose()`. This carries no dependency on host markup or IDs, which
+// is the precondition for extracting it into its own package later.
 //
-// The title chips, the type `<select>`, the enter-profile button visibility, the
-// close/frame/escape handlers, and the context-aware actions (rename / adopt /
-// save / copy) stay imperative against their host nodes — they were never part of
+// The confined Preact tree owns ONLY the value-content surface (`#value-value`):
+// the rendered passable value plus, for blob-like remotables, the inline blob
+// preview, mounted into a DEDICATED `$mount` child. The title chips, the type
+// `<select>`, the enter-profile button, the close/frame/escape handlers, and the
+// context-aware actions (rename / adopt / save / copy) are imperative chrome the
+// component drives against its own frame nodes — they were never part of
 // `value-render`'s `.innerHTML` sink, so they are not a view-migration target
 // here. Only the value rendering itself moves to vnodes (`valueToVnodes`), and
 // the blob preview moves from `renderMarkdownToHtml`/`colorize` + `.innerHTML` to
 // `MarkdownFragment` vnodes + a plain line-numbered `<pre>` (Monaco colorize of
 // the source is the same deferred limitation the inbox / blob-viewer document).
 //
-// Entry signature and the returned `{ focusValue, blurValue }` API are unchanged,
-// so chat.js (the caller at chat.js:1755) needs no changes.
+// The returned `{ showValue, dismissValue, dispose }` API: `showValue` reveals
+// the frame and renders a value, `dismissValue` hides + resets it, `dispose`
+// tears the whole frame down.
 
 /**
  * @param {object} props
@@ -354,38 +356,83 @@ const filenameFromPath = petNamePath => {
 };
 harden(filenameFromPath);
 
+// The value modal's chrome markup. Static (no interpolation), so building the
+// frame from this string in the owned `$frame` element is injection-free — the
+// component owns its own DOM rather than depending on chat.js's page template.
+const VALUE_FRAME_HTML = `
+  <div id="value-window" class="window">
+    <div class="value-header">
+      <span id="value-title" class="value-title">Value</span>
+      <select id="value-type" class="value-type-select">
+        <option value="unknown">Unknown</option>
+        <option value="profile">Profile</option>
+        <option value="directory">Directory</option>
+        <option value="worker">Worker</option>
+        <option value="handle">Handle</option>
+        <option value="invitation">Invitation</option>
+        <option value="readable">Readable</option>
+        <option value="string">String</option>
+        <option value="number">Number</option>
+        <option value="bigint">BigInt</option>
+        <option value="boolean">Boolean</option>
+        <option value="symbol">Symbol</option>
+        <option value="null">Null</option>
+        <option value="undefined">Undefined</option>
+        <option value="copyArray">Array</option>
+        <option value="copyRecord">Record</option>
+        <option value="error">Error</option>
+        <option value="promise">Promise</option>
+        <option value="remotable">Remotable</option>
+      </select>
+    </div>
+    <div id="value-value"></div>
+    <div class="value-actions">
+      <div id="value-actions-container"></div>
+      <button id="value-enter-profile" style="display: none;">Enter Profile</button>
+      <button id="value-close">Close</button>
+    </div>
+  </div>
+`;
+
 /**
- * @param {HTMLElement} $parent
+ * @param {HTMLElement} $parent - Host container to mount the value frame into.
  * @param {ERef<EndoHost>} powers
  * @param {object} options
- * @param {() => void} options.dismissValue
  * @param {(hostName: string) => Promise<void>} options.enterProfile
  */
-export const valueComponent = (
-  $parent,
-  powers,
-  { dismissValue, enterProfile },
-) => {
-  const $frame = /** @type {HTMLElement} */ (
-    $parent.querySelector('#value-frame')
-  );
+export const valueComponent = ($parent, powers, { enterProfile }) => {
+  // Build and own the modal frame, rather than querying chat.js's page
+  // template. The component appends `$frame` to the host container and removes
+  // it on `dispose()`, so it carries no dependency on host markup or IDs.
+  const $document = $parent.ownerDocument;
+  const $frame = /** @type {HTMLElement} */ ($document.createElement('div'));
+  $frame.id = 'value-frame';
+  $frame.className = 'frame';
+  $frame.innerHTML = VALUE_FRAME_HTML;
+  $parent.appendChild($frame);
+
+  // `.frame[data-show='true']` reveals the overlay (default `.frame` is hidden).
+  const setShown = (/** @type {boolean} */ shown) => {
+    $frame.dataset.show = shown ? 'true' : 'false';
+  };
+
   const $title = /** @type {HTMLElement} */ (
-    $parent.querySelector('#value-title')
+    $frame.querySelector('#value-title')
   );
   const $type = /** @type {HTMLSelectElement} */ (
-    $parent.querySelector('#value-type')
+    $frame.querySelector('#value-type')
   );
   const $value = /** @type {HTMLElement} */ (
-    $parent.querySelector('#value-value')
+    $frame.querySelector('#value-value')
   );
   const $close = /** @type {HTMLElement} */ (
-    $parent.querySelector('#value-close')
+    $frame.querySelector('#value-close')
   );
   const $actionsContainer = /** @type {HTMLElement} */ (
-    $parent.querySelector('#value-actions-container')
+    $frame.querySelector('#value-actions-container')
   );
   const $enterProfile = /** @type {HTMLButtonElement} */ (
-    $parent.querySelector('#value-enter-profile')
+    $frame.querySelector('#value-enter-profile')
   );
 
   // The clipboard capability lives in the trusted controller and is threaded
@@ -420,7 +467,12 @@ export const valueComponent = (
     }
   };
 
-  const clearValue = () => {
+  // Hide the overlay and reset its content. The component owns the frame's
+  // visibility now (it was previously a `data-show` toggle in chat.js's
+  // controlsComponent), so this is the single dismissal path.
+  const dismissValue = () => {
+    setShown(false);
+    window.removeEventListener('keyup', handleKey);
     unmount($valueMount);
     unmount($actionsMount);
     $title.textContent = 'Value';
@@ -428,18 +480,15 @@ export const valueComponent = (
     currentValue = undefined;
     currentPetNamePath = undefined;
     $enterProfile.style.display = 'none';
-    dismissValue();
   };
 
-  // Named handlers so `dispose()` can detach them. They live on host template
-  // elements (`#value-*`) that this component does not own, so leaving them
-  // attached would leak across teardown-while-shown.
+  // Named handlers so `dispose()` can detach them.
   const onClose = () => {
-    clearValue();
+    dismissValue();
   };
   const onFrameClick = event => {
     if (event.target === $frame) {
-      clearValue();
+      dismissValue();
     }
   };
   const onTypeChange = () => {
@@ -448,7 +497,7 @@ export const valueComponent = (
   const onEnterProfile = async () => {
     if (!currentPetNamePath) return;
     const hostName = currentPetNamePath.join('/');
-    clearValue();
+    dismissValue();
     await enterProfile(hostName);
   };
 
@@ -462,7 +511,7 @@ export const valueComponent = (
     const { key, repeat, metaKey } = event;
     if (repeat || metaKey) return;
     if (key === 'Escape') {
-      clearValue();
+      dismissValue();
       event.stopPropagation();
     }
   };
@@ -485,7 +534,8 @@ export const valueComponent = (
    * @param {string[]} [petNamePath]
    * @param {{ number: bigint, edgeName: string }} [messageContext]
    */
-  const focusValue = async (value, id, petNamePath, messageContext) => {
+  const showValue = async (value, id, petNamePath, messageContext) => {
+    setShown(true);
     currentValue = value;
     currentPetNamePath = petNamePath;
     window.addEventListener('keyup', handleKey);
@@ -578,7 +628,7 @@ export const valueComponent = (
         isAdopted,
         getCurrentPetNamePath: () => currentPetNamePath,
         powers,
-        clearValue,
+        clearValue: dismissValue,
         copy,
       }),
       $actionsMount,
@@ -596,14 +646,11 @@ export const valueComponent = (
     }
   };
 
-  const blurValue = () => {
-    window.removeEventListener('keyup', handleKey);
-  };
-
-  // Teardown contract: detach every listener this component attached to the
-  // host's `#value-*` template elements (and the window keyup added while a
-  // value is shown), and unmount the two confined surfaces. Moves the body
-  // toward the uniform `component(props) -> cleanup` contract.
+  // Teardown contract: detach the window keyup (added while a value is shown)
+  // and the frame's own listeners, unmount the two confined surfaces, and
+  // remove the frame this component created. The component owns its DOM, so
+  // teardown leaves nothing behind — the uniform `component(props) -> cleanup`
+  // contract the packaged spaces use.
   const dispose = () => {
     window.removeEventListener('keyup', handleKey);
     $close.removeEventListener('click', onClose);
@@ -612,8 +659,9 @@ export const valueComponent = (
     $enterProfile.removeEventListener('click', onEnterProfile);
     unmount($valueMount);
     unmount($actionsMount);
+    $frame.remove();
   };
 
-  return harden({ focusValue, blurValue, dispose });
+  return harden({ showValue, dismissValue, dispose });
 };
 harden(valueComponent);
