@@ -9,7 +9,10 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
-import { makeBrowserTree, checkoutToDirectory } from '../../browser-tree.js';
+import {
+  makeBrowserTree,
+  checkoutToDirectory,
+} from '@endo/spaces-util/browser-tree.js';
 
 const MockTreeI = M.interface('MockTree', {
   list: M.call().returns(M.any()),

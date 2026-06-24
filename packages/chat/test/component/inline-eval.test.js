@@ -5,9 +5,9 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
+import { createInlineEval } from '@endo/spaces-util/inline-eval.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
-import { createInlineEval } from '../../inline-eval.js';
 
 // inline-eval's confined sub-mount renders hang on slow CI runners: after a few
 // hundred sibling tests the worker's event loop stalls (timers stop firing), so
@@ -60,6 +60,9 @@ if (typeof globalThis.requestAnimationFrame !== 'function') {
  * ceiling — a fixed ceiling is itself a guessed delay that can be too short on a
  * loaded runner. AVA's global per-test timeout is the only bound, so a genuine
  * hang still fails with a clear timeout rather than passing on a guess.
+ * @param predicate
+ * @param root0
+ * @param root0.step
  */
 const waitFor = async (predicate, { step = 20 } = {}) => {
   while (!predicate()) {
@@ -88,6 +91,7 @@ const fireKeyDown = ($el, key, init = {}) => {
  * Mount inline-eval into a bare container, matching how inline-command-form.js
  * uses it: createInlineEval({ $container, E, powers, onSubmit, onExpand,
  * onCancel, onValidityChange }) then focus()/isValid()/setDisabled()/dispose().
+ * @param overrides
  */
 const setupEval = async (overrides = {}) => {
   testDocument.body.innerHTML = '';

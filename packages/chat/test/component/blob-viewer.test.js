@@ -43,7 +43,7 @@ register(
 // Dynamically imported AFTER the loader is registered so blob-viewer's (and
 // markdown-preview's) `import ... from '@endo/monaco-wrapper'` resolve to the
 // stub.
-const { createBlobViewer } = await import('../../blob-viewer.js');
+const { createBlobViewer } = await import('@endo/spaces-util/blob-viewer.js');
 
 const { document: testDocument } = createDOM();
 

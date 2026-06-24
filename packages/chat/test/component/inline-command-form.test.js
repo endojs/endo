@@ -5,9 +5,9 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
+import { createInlineCommandForm } from '@endo/spaces-util/inline-command-form.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
-import { createInlineCommandForm } from '../../inline-command-form.js';
 
 const { window: testWindow, cleanup: cleanupDOM } = createDOM();
 

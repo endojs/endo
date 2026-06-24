@@ -7,14 +7,10 @@
 
 import harden from '@endo/harden';
 
-import { tokenAutocompleteComponent } from '@endo/spaces-util/token-autocomplete.js';
-import {
-  h,
-  renderConfined,
-  unmount,
-  useEffect,
-  useState,
-} from './setup-preact-container.js';
+import { h } from 'preact';
+import { useEffect, useState } from 'preact/hooks';
+import { renderConfined, unmount } from '@endo/preact-container/renderer';
+import { tokenAutocompleteComponent } from './token-autocomplete.js';
 
 import { getCommand } from './command-registry.js';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';

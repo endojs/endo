@@ -13,8 +13,8 @@ import {
   getCommand,
   filterCommands,
   getCommandsByCategory,
-} from '../../command-registry.js';
-import { createCommandExecutor } from '../../command-executor.js';
+} from '@endo/spaces-util/command-registry.js';
+import { createCommandExecutor } from '@endo/spaces-util/command-executor.js';
 
 // ============ LANGUAGE INFERENCE TESTS ============
 

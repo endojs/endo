@@ -7,12 +7,12 @@
 
 import { E } from '@endo/far';
 import { createMonacoEditor, detectTheme } from '@endo/monaco-wrapper';
-import { MarkdownFragment } from '@endo/spaces-util/markdown-vnodes.js';
-import { inferLanguage } from '@endo/spaces-util/language-detect.js';
-import { isMarkdown } from '@endo/spaces-util/markdown-preview.js';
+import { h } from 'preact';
+import { renderConfined, unmount } from '@endo/preact-container/renderer';
+import { MarkdownFragment } from './markdown-vnodes.js';
+import { inferLanguage } from './language-detect.js';
+import { isMarkdown } from './markdown-preview.js';
 import { keyCombo, modKey } from './platform-keys.js';
-
-import { h, renderConfined, unmount } from './setup-preact-container.js';
 
 // Blob viewer/editor, migrated from imperative DOM to a confined Preact
 // component.

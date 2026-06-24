@@ -7,7 +7,7 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
-import { createCommandExecutor } from '../../command-executor.js';
+import { createCommandExecutor } from '@endo/spaces-util/command-executor.js';
 
 /**
  * Create a mock powers object that tracks calls.

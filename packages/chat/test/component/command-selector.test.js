@@ -3,8 +3,8 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
+import { commandSelectorComponent } from '@endo/spaces-util/command-selector.js';
 import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
-import { commandSelectorComponent } from '../../command-selector.js';
 
 const { document: testDocument } = createDOM();
 

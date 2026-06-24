@@ -22,3 +22,4 @@ export {
 export { playChime } from './src/chime.js';
 export { assertValidLocator, idFromLocator } from './src/locator.js';
 export { tokenAutocompleteComponent } from './src/token-autocomplete.js';
+export { chatBarComponent } from './src/chat-bar-component.js';

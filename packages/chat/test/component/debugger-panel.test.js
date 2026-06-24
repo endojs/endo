@@ -5,8 +5,8 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
+import { createDebuggerPanel } from '@endo/spaces-util/debugger-panel.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
-import { createDebuggerPanel } from '../../debugger-panel.js';
 
 const { document: testDocument } = createDOM();
 
@@ -25,6 +25,10 @@ if (typeof globalThis.requestAnimationFrame !== 'function') {
  * state through several eventual-send awaits + Preact effect flushes, so a
  * fixed delay races on slower CI runners; polling the actual condition is
  * robust. (Copied from inbox-shell.test.js — do not replace with a fixed tick.)
+ * @param predicate
+ * @param root0
+ * @param root0.timeout
+ * @param root0.step
  */
 const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
   const start = Date.now();
@@ -38,6 +42,7 @@ const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
 /**
  * A mock Debugger exo recording the eventual-send calls it receives. Defaults
  * to a paused worker with one frame and one local so the panel paints content.
+ * @param overrides
  */
 const makeMockDebugger = (overrides = {}) => {
   const calls = [];
@@ -131,6 +136,7 @@ const makeMockDebugger = (overrides = {}) => {
 /**
  * Fresh container + backdrop hosts, mirroring chat.js's #debugger-panel-*
  * nodes, and a created panel.
+ * @param overrides
  */
 const setupPanel = (overrides = {}) => {
   testDocument.body.innerHTML = '';

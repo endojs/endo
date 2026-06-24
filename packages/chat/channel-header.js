@@ -7,10 +7,13 @@ import harden from '@endo/harden';
 
 import { E } from '@endo/far';
 
+import {
+  deriveConstants,
+  formatDuration,
+} from '@endo/spaces-util/heat-engine.js';
 import { Fragment, h, renderConfined } from './setup-preact-container.js';
 
 import { createHeatSimulation } from './heat-simulation.js';
-import { deriveConstants, formatDuration } from './heat-engine.js';
 
 // Channel header chrome (menu button + dropdown, invite-delivery modal, members
 // panel, per-invitation attenuator modal), migrated from imperative DOM to a

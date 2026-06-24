@@ -5,8 +5,8 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far, E } from '@endo/far';
+import { createFormBuilder } from '@endo/spaces-util/form-builder.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
-import { createFormBuilder } from '../../form-builder.js';
 
 const { document: testDocument } = createDOM();
 
@@ -32,7 +32,11 @@ const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
   }
 };
 
-/** Mock powers providing a name registry for the recipient autocomplete. */
+/**
+ * Mock powers providing a name registry for the recipient autocomplete.
+ * @param root0
+ * @param root0.names
+ */
 const makePowers = ({ names = ['alice', 'bob'] } = {}) => {
   const powers = Far('MockPowers', {
     list() {

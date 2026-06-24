@@ -6,6 +6,7 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { E, Far } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { sendFormComponent } from '@endo/spaces-util/send-form.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import {
   createButton,
@@ -14,7 +15,6 @@ import {
   tick,
 } from '../helpers/dom-setup.js';
 import { typeText } from '../helpers/keyboard-events.js';
-import { sendFormComponent } from '../../send-form.js';
 
 const { document: testDocument, cleanup: cleanupDOM } = createDOM();
 
@@ -33,6 +33,10 @@ if (typeof globalThis.requestAnimationFrame !== 'function') {
  * child controllers mount through `renderConfined`, whose effects flush across
  * Preact's requestAnimationFrame-backed scheduler, so a fixed delay races on
  * slower CI runners; polling the actual condition is robust.
+ * @param predicate
+ * @param root0
+ * @param root0.timeout
+ * @param root0.step
  */
 const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
   const start = Date.now();
@@ -81,7 +85,7 @@ const setup = ({
 
   const { powers, sentMessages, addName, setValue } = makeMockPowers({ names });
 
-  /** @type {import('../../send-form.js').SendFormState[]} */
+  /** @type {import('@endo/spaces-util/send-form.js').SendFormState[]} */
   const stateChanges = [];
 
   const component = sendFormComponent({

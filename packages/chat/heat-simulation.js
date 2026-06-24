@@ -7,10 +7,10 @@ import {
   interpolateHeatColor,
   LOCKOUT_THRESHOLD,
   formatDuration,
-} from './heat-engine.js';
+} from '@endo/spaces-util/heat-engine.js';
 
 /**
- * @typedef {import('./heat-engine.js').HeatConfig} HeatConfig
+ * @typedef {import('@endo/spaces-util/heat-engine.js').HeatConfig} HeatConfig
  */
 
 /**

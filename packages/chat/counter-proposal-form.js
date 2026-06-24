@@ -3,11 +3,11 @@
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
-/** @import { PetNamePathAutocompleteAPI } from './petname-path-autocomplete.js' */
+/** @import { PetNamePathAutocompleteAPI } from '@endo/spaces-util/petname-path-autocomplete.js' */
 
 import { createMonacoEditor } from '@endo/monaco-wrapper';
-import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
-import { keyCombo, modKey } from './platform-keys.js';
+import { petNamePathAutocomplete } from '@endo/spaces-util/petname-path-autocomplete.js';
+import { keyCombo, modKey } from '@endo/spaces-util/platform-keys.js';
 
 import { h, renderConfined, unmount } from './setup-preact-container.js';
 

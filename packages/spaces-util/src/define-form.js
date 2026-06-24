@@ -2,9 +2,10 @@
 /* eslint-disable no-use-before-define */
 
 import { createMonacoEditor } from '@endo/monaco-wrapper';
-import { keyCombo, modKey } from './platform-keys.js';
 
-import { h, renderConfined, unmount } from './setup-preact-container.js';
+import { h } from 'preact';
+import { renderConfined, unmount } from '@endo/preact-container/renderer';
+import { keyCombo, modKey } from './platform-keys.js';
 
 // Define form, migrated from imperative DOM to a confined Preact component.
 //

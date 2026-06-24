@@ -2,14 +2,9 @@
 
 import harden from '@endo/harden';
 
-import {
-  Fragment,
-  h,
-  renderConfined,
-  unmount,
-  useEffect,
-  useState,
-} from './setup-preact-container.js';
+import { Fragment, h } from 'preact';
+import { useEffect, useState } from 'preact/hooks';
+import { renderConfined, unmount } from '@endo/preact-container/renderer';
 
 import {
   interpolateHeatColor,

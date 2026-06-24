@@ -4,13 +4,13 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { makeMockPowers } from '../helpers/mock-powers.js';
-import { createDOM, tick } from '../helpers/dom-setup.js';
-import { chatBarComponent } from '../../chat-bar-component.js';
+import { chatBarComponent } from '@endo/spaces-util/chat-bar-component.js';
 import {
   getCategories,
   getCommandsByCategory,
-} from '../../command-registry.js';
+} from '@endo/spaces-util/command-registry.js';
+import { makeMockPowers } from '../helpers/mock-powers.js';
+import { createDOM, tick } from '../helpers/dom-setup.js';
 
 const {
   window: testWindow,
@@ -48,6 +48,10 @@ if (typeof testDocument.execCommand !== 'function') {
  * popover mount through `renderConfined`, whose effects flush across Preact's
  * requestAnimationFrame-backed scheduler, so a fixed delay races on slower CI
  * runners; polling the actual condition is robust.
+ * @param predicate
+ * @param root0
+ * @param root0.timeout
+ * @param root0.step
  */
 const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
   const start = Date.now();

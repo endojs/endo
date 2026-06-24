@@ -26,13 +26,9 @@
 import { E } from '@endo/far';
 import harden from '@endo/harden';
 
-import {
-  Fragment,
-  h,
-  renderConfined,
-  useEffect,
-  useState,
-} from './setup-preact-container.js';
+import { Fragment, h } from 'preact';
+import { useEffect, useState } from 'preact/hooks';
+import { renderConfined } from '@endo/preact-container/renderer';
 
 /**
  * The Debugger exo's CapTP interface. Calls go out via `E(debuggerRef)`; the

@@ -6,10 +6,10 @@
 /** @import { PetNamePathAutocompleteAPI } from './petname-path-autocomplete.js' */
 
 import { createMonacoEditor } from '@endo/monaco-wrapper';
+import { h } from 'preact';
+import { renderConfined, unmount } from '@endo/preact-container/renderer';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 import { keyCombo, modKey } from './platform-keys.js';
-
-import { h, renderConfined, unmount } from './setup-preact-container.js';
 
 // Eval form, migrated from imperative DOM to a confined Preact component,
 // copying the host-node Monaco embedding pattern established in define-form.js.

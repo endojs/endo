@@ -473,7 +473,7 @@ Status by extracted package:
 
 | Package             | In typecheck? | Why                                                                                                       |
 | ------------------- | ------------- | --------------------------------------------------------------------------------------------------------- |
-| `@endo/spaces-util`    | ☑ yes         | shared primitives, authored type-clean                                                                    |
+| `@endo/spaces-util`    | ⊘ excluded    | now the shared chat-UI home: the type-clean primitives **plus** the view components moved out of `@endo/chat` (value-viewer, composer, etc.), which carry the same untyped-`E()` code that was never type-checked in `chat`. Excluded from the typecheck/typedoc the same way `chat` is — it is UI code, not a documented library API. The primitives stay type-checked transitively wherever a type-checked package (e.g. `space-channel`) imports them. |
 | `@endo/space-chat`  | ☑ yes         | `InboxRoot` plus the inventory tree — both confined Preact and type-clean (inventory was type-checked for the first time when it moved here, and passed with no fixes) |
 | `@endo/space-channel` | ☑ yes       | re-admitted after a JSDoc/cast pass fixed its 51 checkJs errors (see below) |
 

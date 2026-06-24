@@ -5,14 +5,14 @@
 import harden from '@endo/harden';
 
 /** @import { ColorScheme } from './spaces-gutter.js' */
-/** @import { PetNamePathsAutocompleteAPI } from './petname-paths-autocomplete.js' */
+/** @import { PetNamePathsAutocompleteAPI } from '@endo/spaces-util/petname-paths-autocomplete.js' */
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
 import { assertValidLocator } from '@endo/spaces-util/locator.js';
+import { petNamePathsAutocomplete } from '@endo/spaces-util/petname-paths-autocomplete.js';
 import { ALL_ICONS, IconSelector } from './icon-selector.js';
-import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createSchemePicker } from './scheme-picker.js';
 import { Fragment, h, renderConfined } from './setup-preact-container.js';
 

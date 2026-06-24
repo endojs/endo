@@ -5,8 +5,8 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far, E } from '@endo/far';
+import { createEndowModal } from '@endo/spaces-util/endow-modal.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
-import { createEndowModal } from '../../endow-modal.js';
 
 const { document: testDocument } = createDOM();
 
@@ -35,6 +35,8 @@ const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
 /**
  * Build mock powers that return a single definition message with slots, plus
  * a name registry for the pet-name path autocomplete.
+ * @param root0
+ * @param root0.names
  */
 const makePowers = ({ names = ['alice', 'bob'] } = {}) => {
   const powers = Far('MockPowers', {

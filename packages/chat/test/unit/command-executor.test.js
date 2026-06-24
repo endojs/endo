@@ -11,7 +11,7 @@ import { Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
-import { createCommandExecutor } from '../../command-executor.js';
+import { createCommandExecutor } from '@endo/spaces-util/command-executor.js';
 
 const MockTreeI = M.interface('MockTree', {
   list: M.call().returns(M.any()),

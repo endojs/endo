@@ -2,14 +2,10 @@
 
 import harden from '@endo/harden';
 
+import { Fragment, h } from 'preact';
+import { useEffect, useState } from 'preact/hooks';
+import { renderConfined } from '@endo/preact-container/renderer';
 import { filterCommands } from './command-registry.js';
-import {
-  Fragment,
-  h,
-  renderConfined,
-  useEffect,
-  useState,
-} from './setup-preact-container.js';
 
 // Command selector, migrated from imperative `innerHTML`/`createElement` DOM to
 // a confined Preact component rendered through a single `renderConfined`. The
