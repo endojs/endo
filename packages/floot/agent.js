@@ -234,6 +234,16 @@ Operating the daemon — reach the host in exec with
 - \`E(endo).provideGuest(name)\` and \`E(endo).provideHost(name)\` mint new agents;
   \`E(endo).provideWorker(name)\` mints a worker.
 - \`E(endo).cancel(name)\` tears a capability down — destructive, so confirm first.
+
+Your petstore also contains "endo-src" — a READ-ONLY mount of the Endo
+codebase you run inside. Use it to understand the capabilities you operate
+before acting through "endo". In exec, look it up and read from it:
+- \`const src = await E(powers).lookup('endo-src')\`
+- \`E(src).list()\` (optionally a sub-path) lists entries; \`E(src).readText(path)\`
+  reads a file, e.g. \`E(src).readText('packages/daemon/src/interfaces.js')\`.
+- It is strictly read-only — you cannot modify it. It may be absent if the
+  daemon host does not have the source on disk; if a lookup fails, carry on
+  without it.
 Speak short, plain summaries of what you did — never read code or raw capability
 output aloud.`;
 
@@ -264,7 +274,10 @@ const PRESETS = [
     description:
       'Full control of the Endo daemon via an "endo" host reference. High access — handle with care.',
     systemPrompt: fullControlSystemPrompt,
-    objects: [{ kind: 'host-powers', petName: 'endo' }],
+    objects: [
+      { kind: 'host-powers', petName: 'endo' },
+      { kind: 'code-mount', petName: 'endo-src' },
+    ],
   },
 ];
 const DEFAULT_PRESET_ID = 'general';
@@ -312,6 +325,9 @@ const isKnownModel = id => MODELS.some(m => m.id === id);
  * @param {any} sessionGuest - the resolved guest facet (for `has` checks)
  * @param {string} id - session id (used to namespace temporary host petnames)
  * @param {Array<{ kind: string, petName: string }>} objects
+ * @param {string} [codePath] - absolute host path to the Endo codebase, for the
+ *   `code-mount` object kind (read-only). Absent when the daemon host has no
+ *   source on disk; such objects are then skipped.
  */
 const provisionPresetObjects = async (
   host,
@@ -319,6 +335,7 @@ const provisionPresetObjects = async (
   sessionGuest,
   id,
   objects,
+  codePath,
 ) => {
   for (const obj of objects) {
     const alreadyPresent = await E(sessionGuest).has(obj.petName);
@@ -356,6 +373,25 @@ const provisionPresetObjects = async (
       // only adds a name in the guest; deleting the session drops that name and
       // reaps nothing else.
       await E(host).copy(['@agent'], [agentName, obj.petName]);
+    } else if (obj.kind === 'code-mount') {
+      // Mount the Endo codebase read-only so the session can read the source it
+      // runs inside. Skip silently when no path was configured (the daemon host
+      // may not have the source on disk). The mount points at an EXISTING
+      // external directory — unlike a scratch mount it does not own that dir, so
+      // GC of the formula when the session is deleted never touches the source.
+      // Provide into a session-scoped temp host name (cleared first in case a
+      // prior attempt aborted), then move it into the guest's petstore so the
+      // guest is the only reference.
+      if (!codePath) {
+        console.warn(
+          `[floot-factory] no code path configured; skipping "${obj.petName}" mount for session ${id}`,
+        );
+      } else {
+        const mountTmp = `_floot-codemount-${id}`;
+        if (await E(host).has(mountTmp)) await E(host).remove(mountTmp);
+        await E(host).provideMount(codePath, mountTmp, { readOnly: true });
+        await E(host).move([mountTmp], [agentName, obj.petName]);
+      }
     } else {
       console.warn(
         `[floot-factory] unknown preset object kind "${obj.kind}" for session ${id}`,
@@ -941,6 +977,10 @@ export const make = (hostPowers, _context, { env } = {}) => {
   /** @type {any} */
   const powers = hostPowers;
   const systemPrompt = env?.FLOOT_SYSTEM_PROMPT || undefined;
+  // Absolute host path to the Endo codebase, mounted read-only into full-control
+  // sessions (see the `code-mount` preset object). Resolved by the setup script
+  // and passed through env; empty when the daemon host has no source on disk.
+  const codePath = env?.FLOOT_CODE_PATH || undefined;
 
   // The factory runs with its own host powers, so it provisions session guests
   // directly — no introduced `host-agent` reference (that rehydrates as a
@@ -1072,6 +1112,7 @@ export const make = (hostPowers, _context, { env } = {}) => {
             sessionGuest,
             id,
             preset.objects,
+            codePath,
           );
         } catch (err) {
           console.warn(
