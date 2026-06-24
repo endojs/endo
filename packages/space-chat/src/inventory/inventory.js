@@ -60,26 +60,14 @@ harden(dropTargetPath);
  * @property {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} showValue
  * @property {((petName: string | string[], formulaId: string) => void)} [onSelectConversation]
  * @property {string | null} [activeConversationPetName]
+ * @property {(error: unknown) => void} reportError - Host-supplied sink for
+ *   background errors (inspect/remove failures), so this confined tree never
+ *   reaches for the ambient `reportError` global.
+ * @property {() => void} clearDropHighlights - Host-supplied sweep that clears
+ *   any lingering `.drop-target` / `.drop-target-list` highlight the browser's
+ *   per-element dragleave model left in the app's own DOM. Lives in the host
+ *   wrapper so the confined tree holds no ambient `document` authority.
  */
-
-/**
- * Clear any lingering drop-zone highlight from every row and list under the
- * inventory. Mirrors dnd.js's helper: visual drop state is Preact state now,
- * but the host component still sweeps the app's own DOM so an ancestor
- * highlight the browser's per-element dragleave model left behind (or a class
- * a caller set imperatively) retracts when the drop menu opens. This operates
- * on the host's own DOM, never on confined-guest output, so direct DOM access
- * is acceptable here.
- */
-const clearAllDropTargets = () => {
-  for (const $el of document.querySelectorAll('.drop-target')) {
-    $el.classList.remove('drop-target');
-  }
-  for (const $el of document.querySelectorAll('.drop-target-list')) {
-    $el.classList.remove('drop-target-list');
-  }
-};
-harden(clearAllDropTargets);
 
 /**
  * Reducer over the set of pet names discovered from `followNameChanges`.
@@ -130,8 +118,13 @@ const InventoryItem = ({
   rootPrefix,
   openDropMenu,
 }) => {
-  const { showValue, onSelectConversation, activeConversationPetName } =
-    options;
+  const {
+    showValue,
+    onSelectConversation,
+    activeConversationPetName,
+    reportError,
+    clearDropHighlights,
+  } = options;
 
   const itemPath = [...path, name];
   // Absolute path from the tree root, used for cross-level drag-and-drop.
@@ -196,7 +189,7 @@ const InventoryItem = ({
     const valueP = E(powers).lookup(itemPath);
     Promise.all([idP, valueP]).then(
       ([id, value]) => showValue(value, id, itemPath, undefined),
-      window.reportError,
+      reportError,
     );
   };
 
@@ -318,7 +311,7 @@ const InventoryItem = ({
   };
   const onDragEnd = () => {
     setDragging(false);
-    clearAllDropTargets();
+    clearDropHighlights();
   };
 
   // Drop target: only hub rows accept a drop; leaf rows let the event bubble
@@ -464,7 +457,7 @@ const InventoryItem = ({
           onRemove: () =>
             E(powers)
               .remove(.../** @type {[string, ...string[]]} */ (itemPath))
-              .catch(window.reportError),
+              .catch(reportError),
         }),
       ),
     ),
@@ -495,6 +488,8 @@ const InventoryItem = ({
                   }
                 : undefined,
               activeConversationPetName,
+              reportError,
+              clearDropHighlights,
             },
             path: [],
             rootPowers,
@@ -588,10 +583,11 @@ export const InventoryList = ({
    */
   const openDropMenu = (x, y, from, to) => {
     // Sweep any lingering ancestor drop-zone highlight the browser's
-    // per-element dragleave model left behind, and reset our own list-level
-    // highlight. Per-row highlight is each item's own state and is cleared by
-    // that row's drop handler before it asks us to open the menu.
-    clearAllDropTargets();
+    // per-element dragleave model left behind (a host-owned DOM sweep), and
+    // reset our own list-level highlight. Per-row highlight is each item's own
+    // state and is cleared by that row's drop handler before it asks us to open
+    // the menu.
+    options.clearDropHighlights();
     setDropTargetList(false);
     setMenu({ x, y, from, to });
   };
