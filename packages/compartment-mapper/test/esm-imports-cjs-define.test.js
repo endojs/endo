@@ -21,3 +21,24 @@ scaffold(
   assertFixture,
   fixtureAssertionCount,
 );
+const fixtureHack = new URL(
+  'fixtures-esm-imports-cjs-define/hack1.mjs',
+  import.meta.url,
+).toString();
+
+const assertFixtureHack = (t, data) => {
+  t.is(data.namespace.shared, 'I am shared-pkg version 2.0.0');
+};
+
+scaffold(
+  'fixtures-esm-imports-cjs-define/hack1',
+  test,
+  fixtureHack,
+  assertFixtureHack,
+  fixtureAssertionCount,
+  {
+    addGlobals: {
+      console,
+    },
+  },
+);
