@@ -292,8 +292,9 @@ harden(SenderChip);
  * @param {InboxMessage} props.message
  * @param {ERef<EndoHost>} props.powers
  * @param {(text: string) => void} props.setError
+ * @param {(error: unknown) => void} props.reportError
  */
-const RequestBody = ({ message, powers, setError }) => {
+const RequestBody = ({ message, powers, setError, reportError }) => {
   const { number, senderChip } = message;
   const { description, settled } = /** @type {any} */ (message.raw);
   const [value, setValue] = useState('');
@@ -352,7 +353,7 @@ const RequestBody = ({ message, powers, setError }) => {
             'button',
             {
               onClick: () => {
-                E(powers).reject(number, value).catch(window.reportError);
+                E(powers).reject(number, value).catch(reportError);
               },
             },
             'reject',
@@ -940,6 +941,7 @@ harden(ValueBody);
  * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} props.showValue
  * @param {Map<string, string>} props.formDescriptions
  * @param {(text: string) => void} props.setError
+ * @param {(error: unknown) => void} props.reportError
  */
 const MessageContent = ({
   message,
@@ -947,10 +949,11 @@ const MessageContent = ({
   showValue,
   formDescriptions,
   setError,
+  reportError,
 }) => {
   switch (message.type) {
     case 'request':
-      return h(RequestBody, { message, powers, setError });
+      return h(RequestBody, { message, powers, setError, reportError });
     case 'package':
       return h(PackageBody, { message, powers, showValue, setError });
     case 'definition':
@@ -1140,6 +1143,7 @@ harden(HistoryPanel);
  * @param {ERef<EndoHost>} props.powers
  * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} props.showValue
  * @param {Map<string, string>} props.formDescriptions
+ * @param {(error: unknown) => void} props.reportError
  * @param {boolean} [props.isEdited] - True when at least one revision exists.
  */
 const MessageEnvelope = ({
@@ -1147,6 +1151,7 @@ const MessageEnvelope = ({
   powers,
   showValue,
   formDescriptions,
+  reportError,
   isEdited,
 }) => {
   const { number, isSent, isPending } = message;
@@ -1190,6 +1195,7 @@ const MessageEnvelope = ({
           showValue,
           formDescriptions,
           setError,
+          reportError,
         }),
       ),
       editOpen
@@ -1343,6 +1349,9 @@ harden(toInboxMessage);
  *   calling dispose); the subscription stops dispatching once it returns false.
  * @param {string | null | undefined} props.conversationId
  * @param {string | string[] | null | undefined} props.conversationPetName
+ * @param {(error: unknown) => void} props.reportError - Host-supplied sink for
+ *   background errors (e.g. a failed `reject`), so this confined component never
+ *   reaches for the ambient `reportError` global.
  */
 export const InboxRoot = ({
   powers,
@@ -1353,6 +1362,7 @@ export const InboxRoot = ({
   isLive,
   conversationId,
   conversationPetName,
+  reportError,
 }) => {
   const [messages, dispatch] = useReducer(
     messagesReducer,
@@ -1491,6 +1501,7 @@ export const InboxRoot = ({
         powers,
         showValue,
         formDescriptions,
+        reportError,
         isEdited: editedNumbers.has(String(message.number)),
       }),
     ),
