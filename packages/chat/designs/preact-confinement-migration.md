@@ -25,13 +25,18 @@ The single import surface for the confine/render helpers is
   `.files` / `webkitGetAsEntry` filesystem capability). Adversarially audited
   and documented in
   [`@endo/preact-container`](../../preact-container/README.md).
-- **The inventory pet-name tree is fully migrated.** `inventory.js` is one
-  confined Preact tree — `InventoryList` (container) + `InventoryItem`
-  (recursive node), composing `ItemDisclosure`, `ItemLabel`, `ItemActions`, and
-  `DropMenu`. Link/move drag-and-drop is Preact event handlers over
-  `SafeDataTransfer`. The imperative `inventory/dnd.js` factories and the
-  `test/inventory-dnd` browser probe are deleted; no `display: contents` mount
-  hosts remain.
+- **The inventory pet-name tree is fully migrated, and now lives in
+  `@endo/space-chat`.** It is one confined Preact tree — `InventoryList`
+  (container) + `InventoryItem` (recursive node), composing `ItemDisclosure`,
+  `ItemLabel`, `ItemActions`, and `DropMenu`. Link/move drag-and-drop is Preact
+  event handlers over `SafeDataTransfer`. The imperative `inventory/dnd.js`
+  factories and the `test/inventory-dnd` browser probe are deleted; no
+  `display: contents` mount hosts remain. Inventory is the conversation/sender
+  picker for the default chat space (shown only in inbox mode, driving the
+  inbox's recipient filter via `onSelectConversation`), so it belongs with
+  `InboxRoot`: the pure tree moved into `@endo/space-chat/src/inventory/` and a
+  thin host wrapper, [`inventory-component.js`](../inventory-component.js),
+  stays in `@endo/chat` to own `renderConfined` — exactly the `InboxRoot` split.
 - **Channels left the inventory entirely** (see the revised section below). They
   are now a standalone Preact component, [`channel-list.js`](../channel-list.js),
   with their own CSS ([`channel.css`](../channel.css)); creation lives in the New
@@ -458,7 +463,7 @@ Status by extracted package:
 | Package             | In typecheck? | Why                                                                                                       |
 | ------------------- | ------------- | --------------------------------------------------------------------------------------------------------- |
 | `@endo/chat-kit`    | ☑ yes         | shared primitives, authored type-clean                                                                    |
-| `@endo/space-chat`  | ☑ yes         | exposes only the type-clean `InboxRoot` contract                                                           |
+| `@endo/space-chat`  | ☑ yes         | `InboxRoot` plus the inventory tree — both confined Preact and type-clean (inventory was type-checked for the first time when it moved here, and passed with no fixes) |
 | `@endo/space-channel` | ⊘ excluded  | `outliner-component.js` + `react-utils.js` carry ~307 pre-existing errors inherited from the imperative DOM |
 
 `space-channel` is excluded in both `tsconfig.json` and `typedoc.json`, exactly
