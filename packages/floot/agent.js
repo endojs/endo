@@ -114,10 +114,11 @@ const makeBufferingWriter = () => {
 
 const FlootFactoryInterface = M.interface('FlootFactory', {
   createSession: M.callWhen()
-    .optional(M.string(), M.string())
+    .optional(M.string(), M.string(), M.string())
     .returns(M.remotable()),
   listSessions: M.callWhen().returns(M.arrayOf(M.record())),
   listPresets: M.callWhen().returns(M.arrayOf(M.record())),
+  listModels: M.callWhen().returns(M.arrayOf(M.record())),
   getSession: M.callWhen(M.string()).returns(M.remotable()),
   renameSession: M.callWhen(M.string(), M.string()).returns(M.undefined()),
   deleteSession: M.callWhen(M.string()).returns(M.undefined()),
@@ -272,6 +273,33 @@ const getPreset = id =>
   /** @type {(typeof PRESETS)[number]} */ (
     PRESETS.find(p => p.id === DEFAULT_PRESET_ID)
   );
+
+// Catalog of models selectable for a new session. A session that does not pin
+// one of these follows the factory's configured default model (the `model` in
+// the `llm-provider` config, or the provider's own fallback). Ids are passed
+// verbatim to the provider, so they must be valid for the configured backend —
+// these are the Anthropic ids used by the default provider.
+const MODELS = [
+  {
+    id: 'claude-opus-4-8',
+    title: 'Claude Opus 4.8',
+    description: 'Most capable — best for hard reasoning and agentic work.',
+  },
+  {
+    id: 'claude-sonnet-4-6',
+    title: 'Claude Sonnet 4.6',
+    description: 'Balanced speed and capability — a good default.',
+  },
+  {
+    id: 'claude-haiku-4-5-20251001',
+    title: 'Claude Haiku 4.5',
+    description: 'Fastest and cheapest — best for quick, simple turns.',
+  },
+];
+// Mirrors createStreamingProvider's fallback so the UI's notion of "default"
+// agrees with what an unpinned session actually runs.
+const DEFAULT_MODEL_ID = 'claude-sonnet-4-6';
+const isKnownModel = id => MODELS.some(m => m.id === id);
 
 /**
  * Provision a preset's objects into a session guest's petstore, referenced ONLY
@@ -920,27 +948,49 @@ export const make = (hostPowers, _context, { env } = {}) => {
   // revived sessions). `powers` here is the factory's own host.
   const getHost = () => powers;
 
-  let providerP;
-  const getProvider = () => {
+  // The provider config (backend kind, default model, auth token) lives behind
+  // the `llm-provider` capability handle. Resolve it once and cache it; every
+  // per-model provider is built from it.
+  let providerConfigP;
+  const getProviderConfig = () => {
+    if (!providerConfigP) {
+      providerConfigP = E(powers)
+        .lookup('llm-provider')
+        .catch(error => {
+          providerConfigP = undefined;
+          throw error;
+        });
+    }
+    return providerConfigP;
+  };
+
+  // One streaming provider per model. Sessions that don't pin a model share the
+  // entry under the empty-string key (the factory's configured default model).
+  /** @type {Map<string, Promise<any>>} */
+  const providersByModel = new Map();
+  const getProvider = model => {
+    const key = model || '';
+    let providerP = providersByModel.get(key);
     if (!providerP) {
       providerP = (async () => {
-        const cfg = await E(powers).lookup('llm-provider');
+        const cfg = await getProviderConfig();
         return createStreamingProvider({
           FLOOT_PROVIDER: cfg.provider,
-          FLOOT_MODEL: cfg.model,
+          FLOOT_MODEL: model || cfg.model,
           FLOOT_AUTH_TOKEN: cfg.authToken,
         });
       })().catch(error => {
-        providerP = undefined;
+        providersByModel.delete(key);
         throw error;
       });
+      providersByModel.set(key, providerP);
     }
     return providerP;
   };
 
   // In-memory session registry, mirrored to the factory's petstore. Loaded
   // lazily so make() never awaits.
-  /** @type {Array<{ id: string, title: string, createdAt: number }> | undefined} */
+  /** @type {Array<{ id: string, title: string, createdAt: number, presetId?: string, systemPrompt?: string, model?: string }> | undefined} */
   let registry;
   const loadRegistry = async () => {
     if (registry) return registry;
@@ -1029,7 +1079,9 @@ export const make = (hostPowers, _context, { env } = {}) => {
             err instanceof Error ? err.message : String(err),
           );
         }
-        const provider = await getProvider();
+        // Build (or reuse) the provider for this session's pinned model; an
+        // unpinned session follows the factory's configured default.
+        const provider = await getProvider(entry?.model);
         const agent = await makeStreamingAgent(
           sessionGuest,
           undefined,
@@ -1064,6 +1116,7 @@ export const make = (hostPowers, _context, { env } = {}) => {
             title: entry?.title || '',
             createdAt: entry?.createdAt || 0,
             presetId: entry?.presetId || DEFAULT_PRESET_ID,
+            model: entry?.model || '',
           });
         },
         /**
@@ -1134,21 +1187,25 @@ export const make = (hostPowers, _context, { env } = {}) => {
     /**
      * @param {string} [title]
      * @param {string} [presetId]
+     * @param {string} [model]
      * @returns {Promise<object>} an opaque session facet
      */
-    async createSession(title, presetId) {
+    async createSession(title, presetId, model) {
       await loadRegistry();
       const preset = getPreset(presetId || DEFAULT_PRESET_ID);
       const id = newSessionId();
       // Snapshot the preset's id and prompt so later catalog edits don't change
       // a live session. The object set is re-read from the catalog by id in
-      // getAgent (objects are provisioned once, idempotently).
+      // getAgent (objects are provisioned once, idempotently). A model is pinned
+      // only when the caller chose a known one; otherwise the session follows
+      // the factory's configured default model.
       const entry = harden({
         id,
         title: title || 'New chat',
         createdAt: Date.now(),
         presetId: preset.id,
         systemPrompt: preset.systemPrompt,
+        ...(isKnownModel(model) ? { model } : {}),
       });
       /** @type {any[]} */ (registry).push(entry);
       await saveRegistry();
@@ -1157,22 +1214,25 @@ export const make = (hostPowers, _context, { env } = {}) => {
       // preset objects are provisioned up front.
       getAgent(id).catch(() => {});
       console.error(
-        `[floot-factory] Created session "${id}" (preset "${preset.id}")`,
+        `[floot-factory] Created session "${id}" (preset "${preset.id}"${
+          entry.model ? `, model "${entry.model}"` : ''
+        })`,
       );
       return getFacet(id);
     },
 
     /**
-     * @returns {Promise<Array<{ id: string, title: string, createdAt: number, presetId: string }>>}
+     * @returns {Promise<Array<{ id: string, title: string, createdAt: number, presetId: string, model: string }>>}
      */
     async listSessions() {
       await loadRegistry();
       return harden(
-        (registry || []).map(({ id, title, createdAt, presetId }) => ({
+        (registry || []).map(({ id, title, createdAt, presetId, model }) => ({
           id,
           title,
           createdAt,
           presetId: presetId || DEFAULT_PRESET_ID,
+          model: model || '',
         })),
       );
     },
@@ -1186,6 +1246,33 @@ export const make = (hostPowers, _context, { env } = {}) => {
           id,
           title,
           description,
+        })),
+      );
+    },
+
+    /**
+     * The selectable models for a new session. `default` marks the model an
+     * unpinned session runs (the factory's configured model, or the conventional
+     * fallback when that is unset or not in the catalog).
+     *
+     * @returns {Promise<Array<{ id: string, title: string, description: string, default: boolean }>>}
+     */
+    async listModels() {
+      let defaultModel = '';
+      try {
+        const cfg = await getProviderConfig();
+        defaultModel = (cfg && cfg.model) || '';
+      } catch {
+        // Provider config not resolvable yet — fall back to the conventional
+        // default so the picker still has a sensible pre-selection.
+      }
+      if (!isKnownModel(defaultModel)) defaultModel = DEFAULT_MODEL_ID;
+      return harden(
+        MODELS.map(({ id, title, description }) => ({
+          id,
+          title,
+          description,
+          default: id === defaultModel,
         })),
       );
     },
@@ -1250,15 +1337,17 @@ export const make = (hostPowers, _context, { env } = {}) => {
      */
     help(methodName) {
       if (methodName === undefined) {
-        return 'Floot factory: owns all chat sessions. createSession(title?, presetId?) -> session facet; listSessions() -> [{id,title,createdAt,presetId}]; listPresets() -> [{id,title,description}]; getSession(id) -> facet; renameSession(id,title); deleteSession(id). A session facet exposes converse(input) (streaming reply reader), getHistory(), and getInfo().';
+        return 'Floot factory: owns all chat sessions. createSession(title?, presetId?, model?) -> session facet; listSessions() -> [{id,title,createdAt,presetId,model}]; listPresets() -> [{id,title,description}]; listModels() -> [{id,title,description,default}]; getSession(id) -> facet; renameSession(id,title); deleteSession(id). A session facet exposes converse(input) (streaming reply reader), getHistory(), and getInfo().';
       }
       const docs = {
         createSession:
-          'createSession(title?, presetId?) — Create a new session (its own guest/petstore) seeded by a preset (default "general") and return an opaque session facet.',
+          'createSession(title?, presetId?, model?) — Create a new session (its own guest/petstore) seeded by a preset (default "general"), optionally pinning a model from listModels() (default: the factory\'s configured model), and return an opaque session facet.',
         listSessions:
-          'listSessions() — Return metadata [{id, title, createdAt, presetId}] for all sessions.',
+          'listSessions() — Return metadata [{id, title, createdAt, presetId, model}] for all sessions.',
         listPresets:
           'listPresets() — Return the available session presets [{id, title, description}].',
+        listModels:
+          'listModels() — Return the selectable models [{id, title, description, default}] for new sessions.',
         getSession: 'getSession(id) — Return the session facet for an id.',
         renameSession: 'renameSession(id, title) — Rename a session.',
         deleteSession:

@@ -124,9 +124,10 @@ The controller is the model; `FlootApp` is the view.
 controller = {
   // --- reactive state (pure data; re-read after every `change` notification) ---
   getState() => {
-    sessions: Array<{ id, title, createdAt, presetId, streaming, error }>,
+    sessions: Array<{ id, title, createdAt, presetId, model, streaming, error }>,
     activeSessionId: string | null,
     presets: Array<{ id, title, description }>,
+    models: Array<{ id, title, description, default }>,  // selectable for a new session
     messages: Array<FlootMessage>,   // active session transcript (history + live turn)
     streamingText: string,           // in-progress assistant bubble, '' when idle
     phase: string,                   // 'thinking' | 'using tools' | ...
@@ -144,7 +145,7 @@ controller = {
 
   // --- callbacks (the view calls these; the host does the imperative work) ---
   send(text), stop(),                   // compose / barge-in stop
-  selectSession(id), newSession(presetId?), renameSession(id, title),
+  selectSession(id), newSession(presetId?, model?), renameSession(id, title),
   deleteSession(id),
   toggleMic(), toggleTts(), replayMessage(text),
   toggleSettings(), setInput(text),     // input is host-held for IME/caret safety

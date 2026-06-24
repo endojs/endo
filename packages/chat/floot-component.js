@@ -442,11 +442,12 @@ const DEFAULT_PRESET_ID = 'general';
  * the view (see packages/space-floot/DESIGN.md).
  *
  * The factory owns every session; the UI never sees the backing guests. Its
- * interface is `createSession(title?, presetId?) -> facet`, `listSessions() ->
- * [{id,title,createdAt,presetId}]`, `getSession(id) -> facet`,
- * `renameSession(id,title)`, `deleteSession(id)`, `listPresets()`. A session
- * facet exposes `converse(input) -> replyReader`, `getHistory()`, `getInfo()`,
- * and `getUsage()`.
+ * interface is `createSession(title?, presetId?, model?) -> facet`,
+ * `listSessions() -> [{id,title,createdAt,presetId,model}]`, `getSession(id) ->
+ * facet`, `renameSession(id,title)`, `deleteSession(id)`, `listPresets()`,
+ * `listModels() -> [{id,title,description,default}]`. A session facet exposes
+ * `converse(input) -> replyReader`, `getHistory()`, `getInfo()`, and
+ * `getUsage()`.
  *
  * When `audioPath` is given, it resolves a speech-to-text object and enables a
  * mic: speech is captured as 16 kHz mono PCM, streamed to
@@ -510,12 +511,17 @@ export const flootComponent = (
    *   meta?: { mail?: { from?: string } },
    *   name?: string, args?: string, result?: string | null }} HistoryMessage
    * @typedef {{ id: string, title: string, createdAt: number, presetId: string,
-   *   messages: HistoryMessage[], facet: any, loaded: boolean }} FlootSession
+   *   model: string, messages: HistoryMessage[], facet: any, loaded: boolean }}
+   *   FlootSession
    * @typedef {{ id: string, title: string, description: string }} FlootPreset
+   * @typedef {{ id: string, title: string, description: string,
+   *   default: boolean }} FlootModel
    */
 
   /** @type {FlootPreset[]} */
   let presets = [];
+  /** @type {FlootModel[]} */
+  let models = [];
   /** @type {FlootSession[]} */
   let sessions = [];
   /** @type {string | null} */
@@ -605,11 +611,13 @@ export const flootComponent = (
   /**
    * @param {string} [title]
    * @param {string} [presetId]
+   * @param {string} [model]
    */
-  const createSession = async (title, presetId) => {
+  const createSession = async (title, presetId, model) => {
     const facet = await E(factory).createSession(
       title || DEFAULT_TITLE,
       presetId,
+      model,
     );
     const info = await E(facet).getInfo();
     /** @type {FlootSession} */
@@ -618,6 +626,7 @@ export const flootComponent = (
       title: info.title || DEFAULT_TITLE,
       createdAt: info.createdAt || Date.now(),
       presetId: info.presetId || DEFAULT_PRESET_ID,
+      model: info.model || '',
       messages: [],
       facet,
       loaded: true,
@@ -677,6 +686,7 @@ export const flootComponent = (
         title: s.title,
         createdAt: s.createdAt,
         presetId: s.presetId,
+        model: s.model,
         status: liveTurnFor(s.id)
           ? /** @type {const} */ ('streaming')
           : sessionStatus.get(s.id) || 'idle',
@@ -688,6 +698,12 @@ export const flootComponent = (
         id: p.id,
         title: p.title,
         description: p.description,
+      })),
+      models: models.map(m => ({
+        id: m.id,
+        title: m.title,
+        description: m.description,
+        default: m.default,
       })),
       messages: allMessages.map(toViewMessage),
       streamingText: liveTurn ? liveTurn.streamingText : '',
@@ -978,10 +994,13 @@ export const flootComponent = (
     openActiveHistory();
   };
 
-  /** @param {string} [presetId] */
-  const newSession = presetId => {
+  /**
+   * @param {string} [presetId]
+   * @param {string} [model]
+   */
+  const newSession = (presetId, model) => {
     if (busy) return;
-    createSession(undefined, presetId)
+    createSession(undefined, presetId, model)
       .then(() => {
         stick = true;
         notify();
@@ -1494,8 +1513,11 @@ export const flootComponent = (
     selectSession(/** @type {string} */ id) {
       selectSession(id);
     },
-    newSession(/** @type {string | undefined} */ presetId) {
-      newSession(presetId);
+    newSession(
+      /** @type {string | undefined} */ presetId,
+      /** @type {string | undefined} */ model,
+    ) {
+      newSession(presetId, model);
     },
     renameSession(/** @type {string} */ id, /** @type {string} */ title) {
       renameSession(id, title);
@@ -1565,13 +1587,17 @@ export const flootComponent = (
   // default session if the factory has none, then repaint the active history.
   (async () => {
     try {
-      const [metas, presetList] = await Promise.all([
+      const [metas, presetList, modelList] = await Promise.all([
         E(factory).listSessions(),
         E(factory)
           .listPresets()
           .catch(() => []),
+        E(factory)
+          .listModels()
+          .catch(() => []),
       ]);
       presets = presetList;
+      models = modelList;
       sessions = [...metas]
         .sort(
           (/** @type {any} */ a, /** @type {any} */ b) =>
@@ -1582,6 +1608,7 @@ export const flootComponent = (
           title: m.title || DEFAULT_TITLE,
           createdAt: m.createdAt || 0,
           presetId: m.presetId || DEFAULT_PRESET_ID,
+          model: m.model || '',
           messages: [],
           facet: null,
           loaded: false,

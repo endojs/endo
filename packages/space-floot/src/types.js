@@ -25,6 +25,7 @@ export {};
  *   title: string,
  *   createdAt: number,
  *   presetId: string,
+ *   model?: string,
  *   status?: 'idle' | 'streaming' | 'error',
  *   messageCount?: number,
  *   loaded?: boolean,
@@ -33,6 +34,17 @@ export {};
 
 /**
  * @typedef {{ id: string, title: string, description?: string }} FlootPreset
+ */
+
+/**
+ * A model selectable for a new session. `default` marks the model an unpinned
+ * session runs (the factory's configured default).
+ * @typedef {{
+ *   id: string,
+ *   title: string,
+ *   description?: string,
+ *   default?: boolean,
+ * }} FlootModel
  */
 
 /**
@@ -70,6 +82,7 @@ export {};
  *   sessions: FlootSessionMeta[],
  *   activeSessionId: string | null,
  *   presets: FlootPreset[],
+ *   models: FlootModel[],
  *   messages: FlootMessage[],
  *   streamingText: string,
  *   phase: string,
@@ -91,7 +104,7 @@ export {};
  * @property {(text?: string) => void} send
  * @property {() => void} stop
  * @property {(id: string) => void} selectSession
- * @property {(presetId?: string) => void} newSession
+ * @property {(presetId?: string, model?: string) => void} newSession
  * @property {(id: string, title: string) => void} renameSession
  * @property {(id: string) => void} deleteSession
  * @property {() => void} toggleMic

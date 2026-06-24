@@ -10,7 +10,7 @@ import { ComposeBar } from './ComposeBar.js';
 import { SettingsPanel } from './SettingsPanel.js';
 
 /** @import { VNode } from 'preact' */
-/** @import { FlootController, FlootPreset, FlootSafeEvent } from './types.js' */
+/** @import { FlootController, FlootPreset, FlootModel, FlootSafeEvent } from './types.js' */
 
 // Floot voice-assistant space as a PURE confined Preact component. The host
 // (packages/chat/floot-component.js) owns the imperative engine — mic capture,
@@ -35,11 +35,20 @@ const formatTokens = (/** @type {number} */ n) => {
 };
 
 /**
- * @param {{ presets: FlootPreset[], onPick: (id: string) => void, onClose: () => void }} props
+ * @param {{
+ *   presets: FlootPreset[],
+ *   models: FlootModel[],
+ *   onPick: (id: string, model: string) => void,
+ *   onClose: () => void,
+ * }} props
  * @returns {VNode}
  */
-const PresetModal = ({ presets, onPick, onClose }) =>
-  h(
+const PresetModal = ({ presets, models, onPick, onClose }) => {
+  // Pre-select the factory's default model (falling back to the first listed),
+  // so picking a preset alone still creates a session with a sensible model.
+  const preferred = models.find(m => m.default) || models[0];
+  const [model, setModel] = useState(preferred ? preferred.id : '');
+  return h(
     'div',
     { class: 'floot-modal-backdrop', onClick: onClose },
     h(
@@ -50,6 +59,29 @@ const PresetModal = ({ presets, onPick, onClose }) =>
         onClick: (/** @type {FlootSafeEvent} */ e) => e.stopPropagation(),
       },
       h('div', { class: 'floot-modal-title' }, 'Start a new session'),
+      models.length
+        ? h(
+            'label',
+            { class: 'floot-modal-field' },
+            h('span', { class: 'floot-modal-label' }, 'Model'),
+            h(
+              'select',
+              {
+                class: 'floot-model-select',
+                value: model,
+                onChange: (/** @type {FlootSafeEvent} */ e) =>
+                  setModel(e.target.value),
+              },
+              models.map(m =>
+                h(
+                  'option',
+                  { key: m.id, value: m.id },
+                  `${m.title}${m.default ? ' (default)' : ''}`,
+                ),
+              ),
+            ),
+          )
+        : null,
       h(
         'div',
         { class: 'floot-preset-list' },
@@ -60,7 +92,7 @@ const PresetModal = ({ presets, onPick, onClose }) =>
               type: 'button',
               key: p.id,
               class: 'floot-preset-card',
-              onClick: () => onPick(p.id),
+              onClick: () => onPick(p.id, model),
             },
             h('div', { class: 'floot-preset-name' }, p.title),
             h('div', { class: 'floot-preset-desc' }, p.description || ''),
@@ -69,6 +101,7 @@ const PresetModal = ({ presets, onPick, onClose }) =>
       ),
     ),
   );
+};
 harden(PresetModal);
 
 /**
@@ -82,21 +115,26 @@ export const FlootApp = ({ controller }) => {
   const [titleEditing, setTitleEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
 
-  const { sessions, activeSessionId, presets, usage, status } = state;
+  const { sessions, activeSessionId, presets, models, usage, status } = state;
   const active = sessions.find(s => s.id === activeSessionId);
 
   const onNew = () => {
-    if (presets.length <= 1) {
+    // Skip the modal only when there is nothing to choose — a single preset and
+    // no model alternatives. Multiple models alone still warrant the picker.
+    if (presets.length <= 1 && models.length <= 1) {
       controller.newSession(presets[0] ? presets[0].id : undefined);
       setDrawerOpen(false);
     } else {
       setModalOpen(true);
     }
   };
-  const pickPreset = (/** @type {string} */ id) => {
+  const pickPreset = (
+    /** @type {string} */ id,
+    /** @type {string} */ model,
+  ) => {
     setModalOpen(false);
     setDrawerOpen(false);
-    controller.newSession(id);
+    controller.newSession(id, model);
   };
 
   const commitTitle = () => {
@@ -195,6 +233,7 @@ export const FlootApp = ({ controller }) => {
     modalOpen
       ? h(PresetModal, {
           presets,
+          models,
           onPick: pickPreset,
           onClose: () => setModalOpen(false),
         })
