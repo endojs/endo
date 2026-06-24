@@ -18,7 +18,7 @@
     "**/node_modules/**",
     "packages/chacha12-fast-check-test",
     "packages/chat",
-    "packages/chat-kit",
+    "packages/spaces-util",
     "packages/space-peers",
     "packages/cjs-module-analyzer",
     "packages/cli",

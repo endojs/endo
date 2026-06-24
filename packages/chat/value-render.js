@@ -1,7 +1,7 @@
 // @ts-check
 
 import { passStyleOf, getInterfaceOf } from '@endo/pass-style';
-import { numberFormatter } from '@endo/chat-kit/time-formatters.js';
+import { numberFormatter } from '@endo/spaces-util/time-formatters.js';
 
 /**
  * Render a value as DOM elements.

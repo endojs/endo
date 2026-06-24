@@ -46,13 +46,13 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
-    "@endo/chat-kit": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/exo-stream": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/monaco-wrapper": "workspace:^",
     "@endo/preact-container": "workspace:^",
+    "@endo/spaces-util": "workspace:^",
     "preact": "^10.29.2"
   },
   "devDependencies": {

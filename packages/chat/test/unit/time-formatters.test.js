@@ -8,7 +8,7 @@ import {
   timeFormatter,
   relativeTime,
   numberFormatter,
-} from '@endo/chat-kit/time-formatters.js';
+} from '@endo/spaces-util/time-formatters.js';
 
 test('dateFormatter is an Intl.DateTimeFormat', t => {
   t.true(dateFormatter instanceof Intl.DateTimeFormat);

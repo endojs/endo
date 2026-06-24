@@ -7,7 +7,7 @@
 
 import harden from '@endo/harden';
 
-import { tokenAutocompleteComponent } from '@endo/chat-kit/token-autocomplete.js';
+import { tokenAutocompleteComponent } from '@endo/spaces-util/token-autocomplete.js';
 import {
   h,
   renderConfined,

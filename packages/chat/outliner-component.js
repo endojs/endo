@@ -10,13 +10,13 @@
 /** @import { OutlinerCallbacks, BreadcrumbItem, SlashMenuState, ProfilePopupState, EditHistoryState, PopupCallbacks, DragData } from '@endo/space-channel/outliner/outliner-structure.js' */
 /** @import { SnapshotReact } from '@endo/space-channel/outliner/tree-snapshot.js' */
 /** @import { SlashCommand } from '@endo/space-channel/outliner/slash-commands.js' */
-/** @import { TokenAutocompleteAPI } from '@endo/chat-kit/token-autocomplete.js' */
+/** @import { TokenAutocompleteAPI } from '@endo/spaces-util/token-autocomplete.js' */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
-import { tokenAutocompleteComponent } from '@endo/chat-kit/token-autocomplete.js';
+import { tokenAutocompleteComponent } from '@endo/spaces-util/token-autocomplete.js';
 import {
   computeNodeContent,
   isVisibleReplyType,

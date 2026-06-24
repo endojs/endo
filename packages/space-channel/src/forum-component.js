@@ -5,9 +5,9 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
-import { relativeTime, timeFormatter } from '@endo/chat-kit/time-formatters.js';
-import { prepareTextWithPlaceholders } from '@endo/chat-kit/markdown-render.js';
-import { markdownToVnodes } from '@endo/chat-kit/markdown-vnodes.js';
+import { relativeTime, timeFormatter } from '@endo/spaces-util/time-formatters.js';
+import { prepareTextWithPlaceholders } from '@endo/spaces-util/markdown-render.js';
+import { markdownToVnodes } from '@endo/spaces-util/markdown-vnodes.js';
 import { Fragment, h, renderConfined } from './setup-preact-container.js';
 
 import { createChannelState } from './channel-utils.js';
@@ -385,7 +385,7 @@ export const forumComponent = async (
 
     const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
 
-    /** @type {import('@endo/chat-kit/markdown-vnodes.js').RenderToken} */
+    /** @type {import('@endo/spaces-util/markdown-vnodes.js').RenderToken} */
     const renderToken = index => {
       const edgeName = messageNames[index];
       if (edgeName === undefined) return null;

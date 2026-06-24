@@ -102,7 +102,7 @@ are **what Preact replaces** — the bulk of the deletable code.
   precedent).
 - **Slash menu** (47, 1651-1820): menu vnode (S) + state (C); trigger detection
   runs island-side (`onInput` → `onSlashQuery`). Token autocomplete
-  (`@endo/chat-kit/token-autocomplete.js`, attached 1596-1637) is itself a
+  (`@endo/spaces-util/token-autocomplete.js`, attached 1596-1637) is itself a
   `contentEditable` host controller — mounts onto the island's real `$text`.
 - **Actions** (2327-2416, Reply/React/Fork/Share/Bookmark/Focus/Delete): menu
   vnode (S); handlers are **C** callbacks. `channelAPI`

@@ -7,7 +7,7 @@
 import { E } from '@endo/far';
 import harden from '@endo/harden';
 import { fileExplorerComponent } from '@endo/space-file-explorer';
-import { idFromLocator } from '@endo/chat-kit/locator.js';
+import { idFromLocator } from '@endo/spaces-util/locator.js';
 import { channelComponent } from '@endo/space-channel/channel-component.js';
 import { forumComponent } from '@endo/space-channel/forum-component.js';
 import { microblogComponent } from '@endo/space-channel/microblog-component.js';

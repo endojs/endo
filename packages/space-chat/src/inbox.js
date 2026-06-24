@@ -16,16 +16,16 @@ import {
   useState,
 } from 'preact/hooks';
 
-import { playChime } from '@endo/chat-kit/chime.js';
-import { idFromLocator } from '@endo/chat-kit/locator.js';
-import { prepareTextWithPlaceholders } from '@endo/chat-kit/markdown-render.js';
-import { markdownToVnodes } from '@endo/chat-kit/markdown-vnodes.js';
-import { valueToVnodes } from '@endo/chat-kit/value-vnodes.js';
+import { playChime } from '@endo/spaces-util/chime.js';
+import { idFromLocator } from '@endo/spaces-util/locator.js';
+import { prepareTextWithPlaceholders } from '@endo/spaces-util/markdown-render.js';
+import { markdownToVnodes } from '@endo/spaces-util/markdown-vnodes.js';
+import { valueToVnodes } from '@endo/spaces-util/value-vnodes.js';
 import {
   dateFormatter,
   timeFormatter,
   relativeTime,
-} from '@endo/chat-kit/time-formatters.js';
+} from '@endo/spaces-util/time-formatters.js';
 
 // 1:1 recipient-filtered default inbox view, migrated from imperative DOM to a
 // confined Preact component rendered through a single `renderConfined`.
@@ -492,7 +492,7 @@ const PackageBody = ({ message, powers, showValue, setError }) => {
     stringParts.map(String),
   );
 
-  /** @type {import('@endo/chat-kit/markdown-vnodes.js').RenderToken} */
+  /** @type {import('@endo/spaces-util/markdown-vnodes.js').RenderToken} */
   const renderToken = index => {
     const edgeName = String(nameParts[index]);
     const locator =

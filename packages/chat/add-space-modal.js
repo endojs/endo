@@ -10,7 +10,7 @@ import harden from '@endo/harden';
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
-import { assertValidLocator } from '@endo/chat-kit/locator.js';
+import { assertValidLocator } from '@endo/spaces-util/locator.js';
 import { ALL_ICONS, IconSelector } from './icon-selector.js';
 import { petNamePathsAutocomplete } from './petname-paths-autocomplete.js';
 import { createSchemePicker } from './scheme-picker.js';

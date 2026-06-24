@@ -8,9 +8,9 @@ import test from 'ava';
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
-import { markdownToVnodes } from '@endo/chat-kit/markdown-vnodes.js';
-import { prepareTextWithPlaceholders } from '@endo/chat-kit/markdown-render.js';
-import { idFromLocator } from '@endo/chat-kit/locator.js';
+import { markdownToVnodes } from '@endo/spaces-util/markdown-vnodes.js';
+import { prepareTextWithPlaceholders } from '@endo/spaces-util/markdown-render.js';
+import { idFromLocator } from '@endo/spaces-util/locator.js';
 import { inboxComponent } from '../../inbox-component.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 

@@ -7,7 +7,7 @@ import {
   renderMarkdown,
   renderPlainText,
   prepareTextWithPlaceholders,
-} from '@endo/chat-kit/markdown-render.js';
+} from '@endo/spaces-util/markdown-render.js';
 import { createDOM } from '../helpers/dom-setup.js';
 
 const { cleanup: cleanupDOM } = createDOM();

@@ -48,7 +48,6 @@
   },
   "dependencies": {
     "@endo/captp": "workspace:^",
-    "@endo/chat-kit": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
@@ -70,6 +69,7 @@
     "@endo/space-inventory-graph": "workspace:^",
     "@endo/space-peers": "workspace:^",
     "@endo/space-whylip": "workspace:^",
+    "@endo/spaces-util": "workspace:^",
     "@endo/where": "workspace:^",
     "marked": "^17.0.5",
     "monaco-editor": "^0.55.1",

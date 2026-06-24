@@ -1,5 +1,5 @@
 {
-  "name": "@endo/chat-kit",
+  "name": "@endo/spaces-util",
   "version": "0.1.0",
   "private": true,
   "description": "Shared message-rendering primitives for Endo Chat spaces (markdown/value vnodes, time formatting, chime, locator helpers)",
@@ -14,7 +14,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/chat-kit"
+    "directory": "packages/spaces-util"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

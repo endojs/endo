@@ -462,7 +462,7 @@ Status by extracted package:
 
 | Package             | In typecheck? | Why                                                                                                       |
 | ------------------- | ------------- | --------------------------------------------------------------------------------------------------------- |
-| `@endo/chat-kit`    | ☑ yes         | shared primitives, authored type-clean                                                                    |
+| `@endo/spaces-util`    | ☑ yes         | shared primitives, authored type-clean                                                                    |
 | `@endo/space-chat`  | ☑ yes         | `InboxRoot` plus the inventory tree — both confined Preact and type-clean (inventory was type-checked for the first time when it moved here, and passed with no fixes) |
 | `@endo/space-channel` | ☑ yes       | re-admitted after a JSDoc/cast pass fixed its 51 checkJs errors (see below) |
 
@@ -613,7 +613,7 @@ buckets, not two** — a few things are shared by both and belong to neither.
    `space-chat` → `@endo/chat` (for `markdown-vnodes` etc.) is circular — the same
    "shared-module coupling" blocker, now narrowed from the whole channel substrate
    down to a handful of genuinely-shared leaf utils. Name TBD (e.g.
-   `@endo/chat-kit`). Let its surface **emerge from real demand** (start with
+   `@endo/spaces-util`). Let its surface **emerge from real demand** (start with
    exactly what `inbox` needs) rather than designing it up front.
 
 2. **The compose box and value viewer stay shell-side and shared.**
@@ -640,11 +640,11 @@ buckets, not two** — a few things are shared by both and belong to neither.
 ### Recommended sequence
 
 1. **This contract** (done — agreed boundary).
-2. **Shared base `@endo/chat-kit`** — ☑ **done**. The six leaf utils
+2. **Shared base `@endo/spaces-util`** — ☑ **done**. The six leaf utils
    (`markdown-render`, `markdown-vnodes`, `value-vnodes`, `time-formatters`,
    `chime`, `locator`) moved into the package; they author vnodes with plain
    `preact` (the host applies `renderConfined`). All in-app importers repoint to
-   `@endo/chat-kit/*`.
+   `@endo/spaces-util/*`.
 3. **`@endo/space-chat`** — ☑ **done**. `inbox` extracted: the package exports the
    pure `InboxRoot` component; `@endo/chat/inbox-component.js` is now the thin host
    wrapper (`renderConfined` + scroll + `dispose`), entry signature unchanged so
@@ -656,7 +656,7 @@ buckets, not two** — a few things are shared by both and belong to neither.
    `VNode[]` body type) became hard CI failures once moved. New packages must
    ship a `SECURITY.md` and a `LICENSE`. As for type-cleanliness: the app
    packages (chat + every `space-*`) are **excluded from the workspace typedoc**
-   (`typedoc.json`), so an extracted UI package is not docs-gated — `chat-kit`,
+   (`typedoc.json`), so an extracted UI package is not docs-gated — `spaces-util`,
    `space-chat`, and `space-channel` were added to that exclude list. (`space-chat`
    was the case that taught this: it briefly failed the docs build only because it
    was the one app package missing from the exclude list.)
@@ -665,7 +665,7 @@ buckets, not two** — a few things are shared by both and belong to neither.
    `microblog`, `outliner`) + their substrate (`channel-utils`, `react-utils`,
    `edit-queue`, `profile-popup`) moved as a unit, so the substrate coupling
    resolves (a body imports `channel-utils` from within its own package). Done in
-   phases: (A) `token-autocomplete` → `chat-kit` (the shared `contentEditable`
+   phases: (A) `token-autocomplete` → `spaces-util` (the shared `contentEditable`
    controller outliner + send-form both need); (B/C) the 8 family files moved
    together (intra-family imports stay relative); `channel-header` stays in the
    shell (needs `heat-*`, not the moved substrate); `send-form` stays in the shell
@@ -678,7 +678,7 @@ channel move until the base and the pattern were proven. It was the first work t
 **create packages and move files across them** — which is why the boundary was
 written down first.
 
-**The chat/channel split is complete:** `@endo/chat-kit` (shared base),
+**The chat/channel split is complete:** `@endo/spaces-util` (shared base),
 `@endo/space-chat` (1:1 inbox), and `@endo/space-channel` (the channel family) all
 exist; `@endo/chat` is the host shell that mounts them and keeps the dispatch root,
 the compose box (`chat-bar`/`send-form`), `channel-header`, and the value viewer.

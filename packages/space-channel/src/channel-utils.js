@@ -6,8 +6,8 @@ import { colorize } from '@endo/monaco-wrapper';
 import {
   prepareTextWithPlaceholders,
   renderMarkdown,
-} from '@endo/chat-kit/markdown-render.js';
-import { timeFormatter, relativeTime } from '@endo/chat-kit/time-formatters.js';
+} from '@endo/spaces-util/markdown-render.js';
+import { timeFormatter, relativeTime } from '@endo/spaces-util/time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
 
 /**
