@@ -147,6 +147,7 @@ harden(CopyButton);
  * @param {() => string[] | undefined} props.getCurrentPetNamePath
  * @param {ERef<EndoHost>} props.powers
  * @param {() => void} props.clearValue
+ * @param {(text: string) => Promise<void>} props.copy - Clipboard capability
  */
 const ValueActions = ({
   value,
@@ -332,7 +333,9 @@ harden(ValueContent);
 const isBlobLike = async value => {
   try {
     // eslint-disable-next-line no-underscore-dangle
-    const methods = await E(value).__getMethodNames__();
+    const methods = await E(
+      /** @type {{ __getMethodNames__: () => Promise<string[]> }} */ (value),
+    ).__getMethodNames__();
     return Array.isArray(methods) && methods.includes('text');
   } catch {
     return false;
@@ -553,7 +556,7 @@ export const valueComponent = ($parent, powers, { enterProfile }) => {
         isBlobLike(value).then(isBlob => {
           if (!isBlob) return;
           // Value confirmed as blob — fetch text and render.
-          E(value)
+          E(/** @type {{ text: () => Promise<unknown> }} */ (value))
             .text()
             .then(
               text => {

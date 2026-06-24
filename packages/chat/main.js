@@ -1,4 +1,5 @@
 // @ts-check
+/// <reference path="./css-modules.types.d.ts" />
 
 // Lock down the realm before any application module evaluates. This is the
 // standard `@endo/init` preamble; `./pre-lockdown.js` runs first (it has no

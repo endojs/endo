@@ -11,6 +11,16 @@ import { E } from '@endo/far';
 import { makeBrowserTree, checkoutToDirectory } from './browser-tree.js';
 
 /**
+ * Structural shape of the channel exo ref the command executor talks to via
+ * `E()` when in channel mode.
+ *
+ * @typedef {object} CommandChannelRef
+ * @property {() => Promise<Array<{ number: bigint }>>} listMessages
+ * @property {(strings: string[], names: string[], petNamesOrPaths: string[], replyTo: string | undefined, resolvedIds: string[]) => Promise<unknown>} post
+ * @property {(proposedName: string) => Promise<[unknown, { setHeatConfig: (config: unknown) => Promise<unknown> }]>} createInvitation
+ */
+
+/**
  * @typedef {object} CommandResult
  * @property {boolean} success - Whether the command succeeded
  * @property {unknown} [value] - Result value (for show, list, etc.)
@@ -97,7 +107,9 @@ export const createCommandExecutor = ({
           // In channel mode, adopt from channel message by formula ID
           const channelRef = getChannelRef ? getChannelRef() : null;
           if (channelRef) {
-            const channelMessages = await E(channelRef).listMessages();
+            const channelMessages = await E(
+              /** @type {CommandChannelRef} */ (channelRef),
+            ).listMessages();
             const targetNumber = BigInt(/** @type {number} */ (messageNumber));
             const msg = channelMessages.find(
               (/** @type {{ number: bigint }} */ m) =>
@@ -184,7 +196,7 @@ export const createCommandExecutor = ({
                 return id || '';
               }),
             );
-            await E(channelRef).post(
+            await E(/** @type {CommandChannelRef} */ (channelRef)).post(
               strings,
               edgeNames,
               petNames,
@@ -247,7 +259,11 @@ export const createCommandExecutor = ({
           )) {
             slots[pair.codeName] = { label: pair.label };
           }
-          await E(powers).define(String(source), slots);
+          await E(
+            /** @type {{ define: (source: string, slots: Record<string, { label: string }>) => Promise<unknown> }} */ (
+              /** @type {unknown} */ (powers)
+            ),
+          ).define(String(source), slots);
           return {
             success: true,
             message: 'Definition sent to host',
@@ -398,10 +414,12 @@ export const createCommandExecutor = ({
           // directory locate() omits it, producing a broken link.
           if (String(locator).includes('type=invitation')) {
             try {
-              const ref = await E(powers).lookup(
-                .../** @type {[string, ...string[]]} */ (pathParts),
-              );
-              locator = await E(ref).locate();
+              const ref = await E(powers).lookup(pathParts);
+              locator = await E(
+                /** @type {{ locate: () => Promise<string | undefined> }} */ (
+                  ref
+                ),
+              ).locate();
             } catch {
               // Fall back to the generic locator
             }
@@ -513,7 +531,7 @@ export const createCommandExecutor = ({
               `[Chat] Creating channel invitation for "${guestName}"...`,
             );
             const [invitation, attenuator] = await E(
-              channelRef,
+              /** @type {CommandChannelRef} */ (channelRef),
             ).createInvitation(String(guestName));
 
             // Apply access level
@@ -606,7 +624,7 @@ export const createCommandExecutor = ({
             `[Chat] Accepting invitation for "${guestName}" from ${String(locator).slice(0, 40)}...`,
           );
           const accepted = E(powers).accept(String(locator), String(guestName));
-          /** @type {ReturnType<typeof setTimeout>} */
+          /** @type {ReturnType<typeof setTimeout> | undefined} */
           let timeoutId;
           const timeout = new Promise((_, reject) => {
             timeoutId = setTimeout(

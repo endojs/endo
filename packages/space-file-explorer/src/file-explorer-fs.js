@@ -168,7 +168,12 @@ harden(makeReadOnlyView);
  * @returns {Cap}
  */
 export const makeCachedFilesystem = filesystem =>
-  withCachedReads(filesystem, makeMemoryCas({ capacity: CAS_CAPACITY }));
+  withCachedReads(
+    filesystem,
+    /** @type {(opts: { capacity: number }) => Cap} */ (makeMemoryCas)({
+      capacity: CAS_CAPACITY,
+    }),
+  );
 harden(makeCachedFilesystem);
 
 /**
@@ -209,7 +214,7 @@ export const collectLayerOps = async layer => {
   /** @type {Array<Record<string, unknown>>} */
   const ops = [];
   for await (const op of iterateReader(reader)) {
-    ops.push(op);
+    ops.push(/** @type {Record<string, unknown>} */ (op));
   }
   return harden(ops);
 };

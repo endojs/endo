@@ -2,6 +2,7 @@
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
+/** @import { PassableReader } from '@endo/exo-stream' */
 
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
@@ -240,8 +241,10 @@ export const makeMockPowers = ({
     },
 
     /**
-     * Follow name changes as an async iterator.
-     * @returns {AsyncIterator<{ add: string } | { remove: string }>}
+     * Follow name changes as a passable reader stream. `readerFromIterator`
+     * returns a `PassableReader` (the async-iterable/reader wire shape), not a
+     * bare `AsyncIterator`, so annotate the return as the reader type.
+     * @returns {PassableReader<{ add: string } | { remove: string }>}
      */
     followNameChanges() {
       return readerFromIterator(makeNameChangesIterator());

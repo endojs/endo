@@ -22,6 +22,8 @@ import {
   ChannelMemberInterface,
 } from '@endo/daemon/src/interfaces.js';
 
+/** @import { InterfaceGuard, Pattern } from '@endo/patterns' */
+
 // ─── Helpers ───────────────────────────────────────────────────────────
 
 /**
@@ -32,7 +34,11 @@ import {
  * @returns {{ argGuards: unknown[], optionalArgGuards: unknown[], maxArgs: number, minArgs: number }}
  */
 const getMethodArgInfo = (iface, methodName) => {
-  const { methodGuards } = getInterfaceGuardPayload(iface);
+  const { methodGuards } = getInterfaceGuardPayload(
+    /** @type {InterfaceGuard<Record<PropertyKey, import('@endo/patterns').MethodGuard>>} */ (
+      iface
+    ),
+  );
   const methodGuard = methodGuards[methodName];
   if (!methodGuard) {
     throw new Error(`No method guard for ${methodName}`);
@@ -78,7 +84,7 @@ const validateArgs = (iface, methodName, args) => {
 
   const allGuards = [...argGuards, ...optionalArgGuards];
   for (let i = 0; i < args.length; i += 1) {
-    if (!matches(harden(args[i]), allGuards[i])) {
+    if (!matches(harden(args[i]), /** @type {Pattern} */ (allGuards[i]))) {
       return {
         ok: false,
         error: `${methodName}: arg ${i} does not match guard`,

@@ -31,6 +31,19 @@ import { E } from '@endo/far';
  * @property {'petstore' | 'formula'} kind
  */
 
+/**
+ * @typedef {object} GraphPowers
+ * @property {() => Promise<string[]>} list
+ * @property {(name: string) => Promise<string | undefined>} locate
+ * @property {(id: string) => Promise<string[]>} reverseIdentify
+ * @property {(name: string) => Promise<unknown>} lookup
+ */
+
+/**
+ * @typedef {object} GraphHost
+ * @property {() => Promise<unknown>} getFormulaGraph
+ */
+
 const SPECIAL_NAME_RE = /^[A-Z][A-Z0-9_-]*$/;
 
 const TYPE_COLORS = harden({
@@ -322,7 +335,7 @@ export const renderGraph = (
     );
     if (!$btn) return;
     const next = /** @type {'force' | 'hierarchy' | 'radial'} */ (
-      $btn.dataset.mode
+      /** @type {HTMLElement} */ ($btn).dataset.mode
     );
     if (next === layoutMode) return;
     layoutMode = next;
@@ -931,14 +944,18 @@ export const renderGraph = (
   const loadData = async () => {
     try {
       const powers = /** @type {ERef<unknown>} */ (resolvedPowers);
-      const names = /** @type {string[]} */ (await E(powers).list());
+      const names = /** @type {string[]} */ (
+        await E(/** @type {GraphPowers} */ (powers)).list()
+      );
 
       /** @type {Array<{ name: string, id: string, type: string }>} */
       const entries = [];
       await Promise.all(
         names.map(async name => {
           try {
-            const locator = await E(powers).locate(name);
+            const locator = await E(/** @type {GraphPowers} */ (powers)).locate(
+              name,
+            );
             if (!locator) return;
             const url = new URL(/** @type {string} */ (locator));
             // The first `@`-delimited URL-encoded path component is the
@@ -966,7 +983,9 @@ export const renderGraph = (
       let graphData;
       try {
         const host = /** @type {ERef<unknown>} */ (rootPowers);
-        const result = /** @type {any} */ (await E(host).getFormulaGraph());
+        const result = /** @type {any} */ (
+          await E(/** @type {GraphHost} */ (host)).getFormulaGraph()
+        );
         if (
           result &&
           Array.isArray(result.edges) &&
@@ -981,7 +1000,9 @@ export const renderGraph = (
       /** @type {string | undefined} */
       let agentId;
       try {
-        const locator = await E(powers).locate('@agent');
+        const locator = await E(/** @type {GraphPowers} */ (powers)).locate(
+          '@agent',
+        );
         if (locator) {
           const url = new URL(/** @type {string} */ (locator));
           // The first `@`-delimited URL-encoded path component is the
@@ -1017,7 +1038,7 @@ export const renderGraph = (
         uniqueIds.map(async id => {
           try {
             const allNames = /** @type {string[]} */ (
-              await E(powers).reverseIdentify(id)
+              await E(/** @type {GraphPowers} */ (powers)).reverseIdentify(id)
             );
             const node = nodeMap.get(id);
             if (node && allNames && allNames.length > 0) {
@@ -1045,7 +1066,7 @@ export const renderGraph = (
           if (!node) return;
           try {
             await Promise.race([
-              E(powers).lookup(name),
+              E(/** @type {GraphPowers} */ (powers)).lookup(name),
               new Promise((_resolve, reject) =>
                 setTimeout(
                   () => reject(new Error('timeout')),
@@ -1071,7 +1092,9 @@ export const renderGraph = (
           const node = nodeMap.get(id);
           if (!node) return;
           try {
-            const agentPowers = await E(powers).lookup(name);
+            const agentPowers = await E(
+              /** @type {GraphPowers} */ (powers),
+            ).lookup(name);
             const messages = /** @type {unknown[]} */ (
               await E(/** @type {any} */ (agentPowers)).listMessages()
             );

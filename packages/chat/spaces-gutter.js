@@ -335,7 +335,7 @@ harden(SpacesGutterView);
  * @param {HTMLElement} options.$modalContainer - Container for the add space modal
  * @param {ERef<EndoHost>} options.powers - Endo host powers
  * @param {string[]} options.currentProfilePath - Current profile path for initial selection
- * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' | 'outliner', channelOrder?: string[], bookmarks?: Array<{key: string, channelPetName: string, label: string}>, audioPath?: string[], ttsPath?: string[] }) => void} options.onNavigate - Navigate callback
+ * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' | 'outliner' | 'microblog', channelOrder?: string[], bookmarks?: Array<{key: string, channelPetName: string, label: string}>, audioPath?: string[], ttsPath?: string[] }) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
  */
 export const createSpacesGutter = ({
@@ -531,7 +531,7 @@ export const createSpacesGutter = ({
         name: 'Home',
         profilePath: [],
         id: 'home',
-        mode: 'inbox',
+        mode: /** @type {const} */ ('inbox'),
       });
 
       await null; // safe-await-separator
@@ -999,7 +999,11 @@ export const createSpacesGutter = ({
       const changesRef = E(
         /** @type {ERef<EndoHost>} */ (spacesDir),
       ).followNameChanges();
-      const changes = iterateReader(changesRef);
+      const changes = iterateReader(
+        /** @type {Parameters<typeof iterateReader>[0]} */ (
+          /** @type {unknown} */ (changesRef)
+        ),
+      );
 
       for await (const change of changes) {
         const { add, remove } =

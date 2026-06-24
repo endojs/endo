@@ -34,90 +34,92 @@ const createMockContext = () => {
   const showErrorCalls = [];
 
   const powers = /** @type {ERef<EndoHost>} */ (
-    makeExo(
-      'MockPowers',
-      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
-      {
-        request: async (recipientPath, description, resultPath) => {
-          calls.push({
-            method: 'request',
-            args: [recipientPath, description, resultPath],
-          });
+    /** @type {unknown} */ (
+      makeExo(
+        'MockPowers',
+        M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+        {
+          request: async (recipientPath, description, resultPath) => {
+            calls.push({
+              method: 'request',
+              args: [recipientPath, description, resultPath],
+            });
+          },
+          dismiss: async number => {
+            calls.push({ method: 'dismiss', args: [number] });
+          },
+          dismissAll: async () => {
+            calls.push({ method: 'dismissAll', args: [] });
+          },
+          adopt: async (number, edgeName, petName) => {
+            calls.push({ method: 'adopt', args: [number, edgeName, petName] });
+          },
+          resolve: async (number, petName) => {
+            calls.push({ method: 'resolve', args: [number, petName] });
+          },
+          reject: async (number, reason) => {
+            calls.push({ method: 'reject', args: [number, reason] });
+          },
+          evaluate: async (
+            workerName,
+            source,
+            codeNames,
+            petNamePaths,
+            resultPath,
+          ) => {
+            calls.push({
+              method: 'evaluate',
+              args: [workerName, source, codeNames, petNamePaths, resultPath],
+            });
+            return 'eval-result';
+          },
+          list: async (...pathParts) => {
+            calls.push({ method: 'list', args: pathParts });
+            return ['item1', 'item2'];
+          },
+          lookup: async (...pathParts) => {
+            calls.push({ method: 'lookup', args: pathParts });
+            return { looked: 'up' };
+          },
+          identify: async (...pathParts) => {
+            calls.push({ method: 'identify', args: pathParts });
+            return 'id:test';
+          },
+          remove: async (...pathParts) => {
+            calls.push({ method: 'remove', args: pathParts });
+          },
+          move: async (fromPath, toPath) => {
+            calls.push({ method: 'move', args: [fromPath, toPath] });
+          },
+          copy: async (fromPath, toPath) => {
+            calls.push({ method: 'copy', args: [fromPath, toPath] });
+          },
+          makeDirectory: async (...pathParts) => {
+            calls.push({ method: 'makeDirectory', args: pathParts });
+          },
+          invite: async guestName => {
+            calls.push({ method: 'invite', args: [guestName] });
+            return Far('MockInvitation', {
+              locate: async () => 'endo://invitation',
+            });
+          },
+          accept: async (locator, guestName) => {
+            calls.push({ method: 'accept', args: [locator, guestName] });
+          },
+          provideWorker: async pathParts => {
+            calls.push({ method: 'provideWorker', args: [pathParts] });
+          },
+          provideHost: async (handleName, options) => {
+            calls.push({ method: 'provideHost', args: [handleName, options] });
+          },
+          provideGuest: async (handleName, options) => {
+            calls.push({ method: 'provideGuest', args: [handleName, options] });
+          },
+          cancel: async (pathParts, error) => {
+            calls.push({ method: 'cancel', args: [pathParts, error] });
+          },
         },
-        dismiss: async number => {
-          calls.push({ method: 'dismiss', args: [number] });
-        },
-        dismissAll: async () => {
-          calls.push({ method: 'dismissAll', args: [] });
-        },
-        adopt: async (number, edgeName, petName) => {
-          calls.push({ method: 'adopt', args: [number, edgeName, petName] });
-        },
-        resolve: async (number, petName) => {
-          calls.push({ method: 'resolve', args: [number, petName] });
-        },
-        reject: async (number, reason) => {
-          calls.push({ method: 'reject', args: [number, reason] });
-        },
-        evaluate: async (
-          workerName,
-          source,
-          codeNames,
-          petNamePaths,
-          resultPath,
-        ) => {
-          calls.push({
-            method: 'evaluate',
-            args: [workerName, source, codeNames, petNamePaths, resultPath],
-          });
-          return 'eval-result';
-        },
-        list: async (...pathParts) => {
-          calls.push({ method: 'list', args: pathParts });
-          return ['item1', 'item2'];
-        },
-        lookup: async (...pathParts) => {
-          calls.push({ method: 'lookup', args: pathParts });
-          return { looked: 'up' };
-        },
-        identify: async (...pathParts) => {
-          calls.push({ method: 'identify', args: pathParts });
-          return 'id:test';
-        },
-        remove: async (...pathParts) => {
-          calls.push({ method: 'remove', args: pathParts });
-        },
-        move: async (fromPath, toPath) => {
-          calls.push({ method: 'move', args: [fromPath, toPath] });
-        },
-        copy: async (fromPath, toPath) => {
-          calls.push({ method: 'copy', args: [fromPath, toPath] });
-        },
-        makeDirectory: async (...pathParts) => {
-          calls.push({ method: 'makeDirectory', args: pathParts });
-        },
-        invite: async guestName => {
-          calls.push({ method: 'invite', args: [guestName] });
-          return Far('MockInvitation', {
-            locate: async () => 'endo://invitation',
-          });
-        },
-        accept: async (locator, guestName) => {
-          calls.push({ method: 'accept', args: [locator, guestName] });
-        },
-        provideWorker: async pathParts => {
-          calls.push({ method: 'provideWorker', args: [pathParts] });
-        },
-        provideHost: async (handleName, options) => {
-          calls.push({ method: 'provideHost', args: [handleName, options] });
-        },
-        provideGuest: async (handleName, options) => {
-          calls.push({ method: 'provideGuest', args: [handleName, options] });
-        },
-        cancel: async (pathParts, error) => {
-          calls.push({ method: 'cancel', args: [pathParts, error] });
-        },
-      },
+      )
     )
   );
 
@@ -464,14 +466,16 @@ test('execute mktmp command calls provideScratchMount', async t => {
   const calls = [];
 
   const powers = /** @type {ERef<EndoHost>} */ (
-    makeExo(
-      'MockPowers',
-      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
-      {
-        provideScratchMount: async petNamePath => {
-          calls.push({ method: 'provideScratchMount', args: [petNamePath] });
+    /** @type {unknown} */ (
+      makeExo(
+        'MockPowers',
+        M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+        {
+          provideScratchMount: async petNamePath => {
+            calls.push({ method: 'provideScratchMount', args: [petNamePath] });
+          },
         },
-      },
+      )
     )
   );
 
@@ -496,17 +500,19 @@ test('execute mount command calls provideMount', async t => {
   const calls = [];
 
   const powers = /** @type {ERef<EndoHost>} */ (
-    makeExo(
-      'MockPowers',
-      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
-      {
-        provideMount: async (mountPath, petNamePath, options) => {
-          calls.push({
-            method: 'provideMount',
-            args: [mountPath, petNamePath, options],
-          });
+    /** @type {unknown} */ (
+      makeExo(
+        'MockPowers',
+        M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+        {
+          provideMount: async (mountPath, petNamePath, options) => {
+            calls.push({
+              method: 'provideMount',
+              args: [mountPath, petNamePath, options],
+            });
+          },
         },
-      },
+      )
     )
   );
 
@@ -659,14 +665,16 @@ test('execute unknown command returns error', async t => {
 
 test('execute handles power errors', async t => {
   const powers = /** @type {ERef<EndoHost>} */ (
-    makeExo(
-      'FailingPowers',
-      M.interface('FailingPowers', {}, { defaultGuards: 'passable' }),
-      {
-        dismiss: async () => {
-          throw new Error('Permission denied');
+    /** @type {unknown} */ (
+      makeExo(
+        'FailingPowers',
+        M.interface('FailingPowers', {}, { defaultGuards: 'passable' }),
+        {
+          dismiss: async () => {
+            throw new Error('Permission denied');
+          },
         },
-      },
+      )
     )
   );
 
@@ -695,14 +703,16 @@ test('execute checkin command calls storeTree with browser tree', async t => {
   const calls = [];
 
   const powers = /** @type {ERef<EndoHost>} */ (
-    makeExo(
-      'MockPowers',
-      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
-      {
-        storeTree: async (tree, petNamePath) => {
-          calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+    /** @type {unknown} */ (
+      makeExo(
+        'MockPowers',
+        M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+        {
+          storeTree: async (tree, petNamePath) => {
+            calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+          },
         },
-      },
+      )
     )
   );
 
@@ -754,14 +764,16 @@ test('execute ci alias works like checkin', async t => {
   const calls = [];
 
   const powers = /** @type {ERef<EndoHost>} */ (
-    makeExo(
-      'MockPowers',
-      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
-      {
-        storeTree: async (tree, petNamePath) => {
-          calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+    /** @type {unknown} */ (
+      makeExo(
+        'MockPowers',
+        M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+        {
+          storeTree: async (tree, petNamePath) => {
+            calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+          },
         },
-      },
+      )
     )
   );
 
@@ -818,15 +830,17 @@ test('execute checkout command looks up tree and writes to directory', async t =
   });
 
   const powers = /** @type {ERef<EndoHost>} */ (
-    makeExo(
-      'MockPowers',
-      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
-      {
-        lookup: async pathParts => {
-          calls.push({ method: 'lookup', args: [pathParts] });
-          return mockRemoteTree;
+    /** @type {unknown} */ (
+      makeExo(
+        'MockPowers',
+        M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+        {
+          lookup: async pathParts => {
+            calls.push({ method: 'lookup', args: [pathParts] });
+            return mockRemoteTree;
+          },
         },
-      },
+      )
     )
   );
 
@@ -947,14 +961,16 @@ test('execute checkin splits pet name path on slashes', async t => {
   const calls = [];
 
   const powers = /** @type {ERef<EndoHost>} */ (
-    makeExo(
-      'MockPowers',
-      M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
-      {
-        storeTree: async (tree, petNamePath) => {
-          calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+    /** @type {unknown} */ (
+      makeExo(
+        'MockPowers',
+        M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+        {
+          storeTree: async (tree, petNamePath) => {
+            calls.push({ method: 'storeTree', args: [tree, petNamePath] });
+          },
         },
-      },
+      )
     )
   );
 

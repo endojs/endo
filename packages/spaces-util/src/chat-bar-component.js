@@ -309,7 +309,7 @@ harden(CommandChrome);
  * @param {() => void} [options.exitConversation] - Exit the current conversation view
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation
  * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
- * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after channel post with @-mentions
+ * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after channel post with at-mentions
  */
 export const chatBarComponent = (
   $parent,
@@ -516,6 +516,12 @@ export const chatBarComponent = (
   /** @type {import('./debugger-panel.js').DebuggerPanelAPI | null} */
   let debuggerPanel = null;
 
+  // The generic `iterateReader` is structurally narrower than the
+  // `(ref: unknown) => AsyncIterable<unknown>` factory the child components
+  // declare; widen it once for the prop sites below.
+  const iterateReaderFactory =
+    /** @type {(ref: unknown) => AsyncIterable<unknown>} */ (iterateReader);
+
   // Initialize the send form component
   const sendForm = sendFormComponent({
     $input,
@@ -524,7 +530,7 @@ export const chatBarComponent = (
     $sendButton,
     $chatBar,
     E,
-    iterateReader,
+    iterateReader: iterateReaderFactory,
     powers,
     showValue,
     shouldHandleEnter: () => mode === 'send',
@@ -1000,7 +1006,7 @@ export const chatBarComponent = (
     $container: $inlineFormContainer,
     E,
     powers,
-    iterateReader,
+    iterateReader: iterateReaderFactory,
     getContext: () => getCommandContext(), // eslint-disable-line no-use-before-define
     onSubmit: async (commandName, data) => {
       if (commandSubmitting) return;
@@ -1061,7 +1067,11 @@ export const chatBarComponent = (
         // In channel mode, look up edge names from channel messages
         const channelRef = getChannelRef ? getChannelRef() : null;
         const messageList = channelRef
-          ? await E(channelRef).listMessages()
+          ? await E(
+              /** @type {{ listMessages: () => Promise<Array<{ number: bigint, names?: string[], edgeNames?: string[] }>> }} */ (
+                channelRef
+              ),
+            ).listMessages()
           : await E(powers).listMessages();
         const targetNumber = BigInt(messageNumber);
         const message = messageList.find(
@@ -1740,11 +1750,16 @@ export const chatBarComponent = (
       defineForm = await createDefineForm({
         $container: $defineFormContainer,
         onSubmit: async data => {
+          /** @type {Record<string, { label: string }>} */
           const slots = {};
           for (const slot of data.slots) {
             slots[slot.codeName] = { label: slot.label };
           }
-          await E(powers).define(data.source, slots);
+          await E(
+            /** @type {{ define: (source: string, slots: Record<string, { label: string }>) => Promise<unknown> }} */ (
+              /** @type {unknown} */ (powers)
+            ),
+          ).define(data.source, slots);
         },
         onClose: () => {
           hideDefineForm(); // eslint-disable-line no-use-before-define

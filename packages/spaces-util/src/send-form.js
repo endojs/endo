@@ -3,6 +3,17 @@
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
+/** @import { HopPolicy, HopState, HeatEvent } from './composite-heat-engine.js' */
+
+/**
+ * Structural shape of the channel exo ref the send form talks to via `E()`.
+ *
+ * @typedef {object} SendFormChannelRef
+ * @property {(strings: string[], names: string[], petNamesOrPaths: string[], replyTo: string | undefined, resolvedIds: string[], replyType?: string) => Promise<unknown>} post
+ * @property {() => Promise<{ policies: HopPolicy[], states: HopState[] } | undefined>} getHopInfo
+ * @property {() => Promise<unknown>} followHeatEvents
+ * @property {() => Promise<unknown>} getHeatConfig
+ */
 
 import harden from '@endo/harden';
 
@@ -241,7 +252,7 @@ harden(ReplyContextBar);
  * @param {() => string | string[] | null} [options.getConversationPetName] - Returns active conversation pet name or path
  * @param {(petName: string) => void} [options.navigateToConversation] - Navigate to a conversation after sending
  * @param {() => unknown | null} [options.getChannelRef] - Returns channel exo ref when in channel mode, null otherwise
- * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after channel post with @-mentions instead of silent send
+ * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after channel post with at-mentions instead of silent send
  * @returns {SendFormAPI}
  */
 export const sendFormComponent = ({
@@ -401,7 +412,9 @@ export const sendFormComponent = ({
 
     try {
       // Try composite (multi-hop) engine first
-      const hopInfo = await E(channelRef).getHopInfo();
+      const hopInfo = await E(
+        /** @type {SendFormChannelRef} */ (channelRef),
+      ).getHopInfo();
       // Bail if the component was disposed while we awaited; otherwise we'd
       // start a heat engine whose rAF loop nothing will ever stop.
       if (disposed) return;
@@ -421,8 +434,14 @@ export const sendFormComponent = ({
 
         // Subscribe to heat events for real-time updates
         try {
-          const eventsRef = await E(channelRef).followHeatEvents();
-          const eventIter = iterateReader(eventsRef);
+          const eventsRef = await E(
+            /** @type {SendFormChannelRef} */ (channelRef),
+          ).followHeatEvents();
+          const eventIter = iterateReader(
+            /** @type {Parameters<typeof iterateReader>[0]} */ (
+              /** @type {unknown} */ (eventsRef)
+            ),
+          );
           (async () => {
             for await (const event of eventIter) {
               if (compositeEngine) {
@@ -441,7 +460,9 @@ export const sendFormComponent = ({
 
     // Fallback: single-hop heat engine
     try {
-      const config = await E(channelRef).getHeatConfig();
+      const config = await E(
+        /** @type {SendFormChannelRef} */ (channelRef),
+      ).getHeatConfig();
       // Bail if the component was disposed while we awaited (see above).
       if (disposed) return;
       if (config && typeof config === 'object') {
@@ -595,7 +616,7 @@ export const sendFormComponent = ({
       resolveIds
         .then(ids =>
           sendReplyType !== undefined
-            ? E(channelRef).post(
+            ? E(/** @type {SendFormChannelRef} */ (channelRef)).post(
                 messageStrings,
                 edgeNames,
                 petNames,
@@ -603,7 +624,7 @@ export const sendFormComponent = ({
                 ids,
                 sendReplyType,
               )
-            : E(channelRef).post(
+            : E(/** @type {SendFormChannelRef} */ (channelRef)).post(
                 messageStrings,
                 edgeNames,
                 petNames,
@@ -666,7 +687,10 @@ export const sendFormComponent = ({
         .send(conversationPetName, messageStrings, edgeNames, petNames)
         .then(
           () => {
-            lastRecipient = conversationPetName;
+            // `lastRecipient` is consumed downstream as a string (token
+            // insertion, navigation); the wired caller always supplies a
+            // string pet name here, never a path array.
+            lastRecipient = /** @type {string} */ (conversationPetName);
             tokenComponent.clear();
             clearError();
           },

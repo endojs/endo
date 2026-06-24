@@ -20,6 +20,17 @@ const MockTreeI = M.interface('MockTree', {
 });
 
 /**
+ * Structural interface for the browser tree refs under test. The real
+ * `makeBrowserTree` returns a `FarRef<unknown>`, so cast the ref to this
+ * shape at each `E(...)` call site to type the eventual sends.
+ *
+ * @typedef {object} BrowserTreeRef
+ * @property {(...names: string[]) => Promise<string[]>} list
+ * @property {(...names: string[]) => Promise<boolean>} has
+ * @property {(nameOrPath: string | string[]) => Promise<unknown>} lookup
+ */
+
+/**
  * Create a mock FileSystemFileHandle.
  *
  * @param {string} content - Text content of the file.
@@ -79,35 +90,51 @@ test('makeBrowserTree lists root entries', async t => {
     sub: mockDirHandle('sub', {}),
   });
   const tree = makeBrowserTree(dir);
-  const names = await E(tree).list();
+  const names = await E(
+    /** @type {BrowserTreeRef} */ (/** @type {unknown} */ (tree)),
+  ).list();
   t.deepEqual(names, ['a.txt', 'b.txt', 'sub']);
 });
 
 test('makeBrowserTree has returns true for existing entries', async t => {
   const dir = mockDirHandle('root', { 'a.txt': 'A' });
   const tree = makeBrowserTree(dir);
-  t.true(await E(tree).has('a.txt'));
+  t.true(
+    await E(/** @type {BrowserTreeRef} */ (/** @type {unknown} */ (tree))).has(
+      'a.txt',
+    ),
+  );
 });
 
 test('makeBrowserTree has returns false for missing entries', async t => {
   const dir = mockDirHandle('root', {});
   const tree = makeBrowserTree(dir);
-  t.false(await E(tree).has('nope.txt'));
+  t.false(
+    await E(/** @type {BrowserTreeRef} */ (/** @type {unknown} */ (tree))).has(
+      'nope.txt',
+    ),
+  );
 });
 
 test('makeBrowserTree lookup subdirectory returns a tree', async t => {
   const subDir = mockDirHandle('sub', { 'inner.txt': 'inner' });
   const dir = mockDirHandle('root', { sub: subDir });
   const tree = makeBrowserTree(dir);
-  const child = await E(tree).lookup('sub');
-  const names = await E(child).list();
+  const child = await E(
+    /** @type {BrowserTreeRef} */ (/** @type {unknown} */ (tree)),
+  ).lookup('sub');
+  const names = await E(
+    /** @type {BrowserTreeRef} */ (/** @type {unknown} */ (child)),
+  ).list();
   t.deepEqual(names, ['inner.txt']);
 });
 
 test('makeBrowserTree lookup file blob streams content via iterateBytesReader', async t => {
   const dir = mockDirHandle('root', { 'data.txt': 'ABC' });
   const tree = makeBrowserTree(dir);
-  const blob = await E(tree).lookup('data.txt');
+  const blob = await E(
+    /** @type {BrowserTreeRef} */ (/** @type {unknown} */ (tree)),
+  ).lookup('data.txt');
 
   // Collect all chunks via the new exo-stream wire protocol.
   const chunks = [];
@@ -132,9 +159,13 @@ test('makeBrowserTree onFile callback is called for file lookups', async t => {
     },
   });
 
-  await E(tree).lookup('a.txt');
+  await E(/** @type {BrowserTreeRef} */ (/** @type {unknown} */ (tree))).lookup(
+    'a.txt',
+  );
   t.is(fileCount, 1);
-  await E(tree).lookup('b.txt');
+  await E(/** @type {BrowserTreeRef} */ (/** @type {unknown} */ (tree))).lookup(
+    'b.txt',
+  );
   t.is(fileCount, 2);
 });
 
@@ -148,7 +179,9 @@ test('makeBrowserTree onFile is not called for directory lookups', async t => {
     },
   });
 
-  await E(tree).lookup('sub');
+  await E(/** @type {BrowserTreeRef} */ (/** @type {unknown} */ (tree))).lookup(
+    'sub',
+  );
   t.is(fileCount, 0);
 });
 

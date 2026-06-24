@@ -199,13 +199,19 @@ export const checkoutToDirectory = async (tree, rootHandle, options = {}) => {
    * @param {FileSystemDirectoryHandle} parentHandle
    */
   const walk = async (node, parentHandle) => {
-    const names = await E(node).list();
+    const treeNode =
+      /** @type {{ list: () => Promise<string[]>, lookup: (name: string) => Promise<unknown> }} */ (
+        node
+      );
+    const names = await E(treeNode).list();
     for (const name of names) {
-      const child = await E(node).lookup(name);
+      const child = await E(treeNode).lookup(name);
       // Use __getMethodNames__ to detect the node type without calling
       // a method that may not exist (which causes CapTP error logging).
       // eslint-disable-next-line no-underscore-dangle
-      const methods = await E(child).__getMethodNames__();
+      const methods = await E(
+        /** @type {{ __getMethodNames__: () => Promise<string[]> }} */ (child),
+      ).__getMethodNames__();
       const isTree = methods.includes('list');
       if (isTree) {
         const childDir = await parentHandle.getDirectoryHandle(name, {
@@ -222,7 +228,7 @@ export const checkoutToDirectory = async (tree, rootHandle, options = {}) => {
           for await (const bytes of iterateBytesReader(
             /** @type {any} */ (child),
           )) {
-            await writable.write(bytes);
+            await writable.write(/** @type {BufferSource} */ (bytes));
           }
         } finally {
           await writable.close();

@@ -4,6 +4,19 @@
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 
+/**
+ * Structural interface for the methods invoked on a channel or channel-member
+ * reference within this module.
+ *
+ * @typedef {object} ChannelMethods
+ * @property {() => Promise<string>} getProposedName
+ * @property {(proposedName: string) => Promise<unknown>} join
+ * @property {(strings: string[], names: string[], petNamesOrPaths: string[], replyTo: string | undefined, resolvedIds: string[]) => Promise<unknown>} post
+ * @property {(displayName: string) => Promise<unknown>} createInvitation
+ * @property {() => Promise<unknown>} listMessages
+ * @property {() => Promise<unknown>} getMembers
+ */
+
 import { E } from '@endo/far';
 import harden from '@endo/harden';
 import { fileExplorerComponent } from '@endo/space-file-explorer';
@@ -16,6 +29,7 @@ import { chatBarComponent } from '@endo/spaces-util/chat-bar-component.js';
 import { createChannelHeader } from '@endo/space-channel/channel-header.js';
 // Confined outliner host wrapper (the strangler-fig swap retired the imperative
 // `@endo/space-channel/outliner-component.js`; this is now the live outliner).
+import { createShareModal } from '@endo/space-channel/share-modal.js';
 import { outlinerComponent } from './outliner-component.js';
 import { inboxComponent } from './inbox-component.js';
 import { inventoryComponent } from './inventory-component.js';
@@ -25,7 +39,6 @@ import { inventoryGraphComponent } from './inventory-graph-component.js';
 import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
 import { flootComponent } from './floot-component.js';
-import { createShareModal } from '@endo/space-channel/share-modal.js';
 import {
   renderProfileBar,
   mountMentionNotifyArea,
@@ -383,8 +396,11 @@ const bodyComponent = (
       );
       valueRef = { dispose: disposeValue };
 
-      const getConversationPetName = () =>
-        activeConversation ? activeConversation.petName : null;
+      const getConversationPetName = () => {
+        if (!activeConversation) return null;
+        const { petName } = activeConversation;
+        return Array.isArray(petName) ? petName.join('/') : petName;
+      };
 
       /** @param {string} petName */
       const navigateToConversation = petName => {
@@ -476,12 +492,16 @@ const bodyComponent = (
             // If the channel's proposed name matches our space's proposed name,
             // we're the admin and can use the channel directly.
             // Otherwise, we join as a member so our posts carry our own identity.
-            const channelCreatorName = await E(channelRef).getProposedName();
+            const channelCreatorName = await E(
+              /** @type {ChannelMethods} */ (channelRef),
+            ).getProposedName();
             const ourProposedName = activeSpaceInfo.proposedName;
 
             if (ourProposedName && ourProposedName !== channelCreatorName) {
               // We're not the admin — join to get our own member ref for posting
-              const memberRef = await E(channelRef).join(ourProposedName);
+              const memberRef = await E(
+                /** @type {ChannelMethods} */ (channelRef),
+              ).join(ourProposedName);
               currentChannelRef = memberRef;
             } else {
               // We're the admin — use the channel directly
@@ -582,7 +602,7 @@ const bodyComponent = (
                 const msg = heritageChain[i];
                 const replyTo = i > 0 ? String(i - 1) : undefined;
                 // eslint-disable-next-line no-await-in-loop
-                await E(newChannelRef).post(
+                await E(/** @type {ChannelMethods} */ (newChannelRef)).post(
                   msg.strings,
                   msg.names,
                   [],
@@ -660,7 +680,7 @@ const bodyComponent = (
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
               ownMemberId,
-              powers: resolvedPowers,
+              powers: /** @type {ERef<EndoHost>} */ (resolvedPowers),
               onReply: info => {
                 if (chatBarAPI) {
                   chatBarAPI.setReplyTo(
@@ -707,9 +727,7 @@ const bodyComponent = (
           {
             showValue,
             conversationId: activeConversation ? activeConversation.id : null,
-            conversationPetName: activeConversation
-              ? activeConversation.petName
-              : null,
+            conversationPetName: getConversationPetName(),
           },
         ).then(api => {
           inboxRef = api;
@@ -776,11 +794,15 @@ const bodyComponent = (
         E(/** @type {ERef<EndoHost>} */ (resolvedPowers))
           .lookup(channelPetName)
           .then(async channelRef => {
-            const channelCreatorName = await E(channelRef).getProposedName();
+            const channelCreatorName = await E(
+              /** @type {ChannelMethods} */ (channelRef),
+            ).getProposedName();
             const ourProposedName = activeSpaceInfo.proposedName;
 
             if (ourProposedName && ourProposedName !== channelCreatorName) {
-              currentChannelRef = await E(channelRef).join(ourProposedName);
+              currentChannelRef = await E(
+                /** @type {ChannelMethods} */ (channelRef),
+              ).join(ourProposedName);
             } else {
               currentChannelRef = channelRef;
             }
@@ -870,7 +892,7 @@ const bodyComponent = (
                 const msg = heritageChain[i];
                 const replyTo = i > 0 ? String(i - 1) : undefined;
                 // eslint-disable-next-line no-await-in-loop
-                await E(newChannelRef).post(
+                await E(/** @type {ChannelMethods} */ (newChannelRef)).post(
                   msg.strings,
                   msg.names,
                   [],
@@ -948,7 +970,7 @@ const bodyComponent = (
               showValue: channelShowValue,
               personaId: profilePath.join('/'),
               ownMemberId: switchOwnMemberId,
-              powers: resolvedPowers,
+              powers: /** @type {ERef<EndoHost>} */ (resolvedPowers),
               onReply: info => {
                 if (chatBarAPI) {
                   chatBarAPI.setReplyTo(
@@ -1097,9 +1119,7 @@ const bodyComponent = (
             onSelectConversation: (petName, formulaId) => {
               onConversationChange({ petName, id: formulaId });
             },
-            activeConversationPetName: activeConversation
-              ? activeConversation.petName
-              : null,
+            activeConversationPetName: getConversationPetName(),
           },
         ).catch(window.reportError);
       }
@@ -1178,7 +1198,9 @@ const bodyComponent = (
               const displayName =
                 window.prompt('Your display name in this channel:', 'Guest') ||
                 'Guest';
-              await E(channelRef).join(displayName);
+              await E(/** @type {ChannelMethods} */ (channelRef)).join(
+                displayName,
+              );
 
               // Create a space config for this channel
               const spaceIcon = '\uD83D\uDCE8'; // 📨
@@ -1238,6 +1260,7 @@ const bodyComponent = (
         // Walk up from fromKey to root
         /** @type {Array<{ text: string, memberId: string | undefined }>} */
         const chain = [];
+        /** @type {string | undefined} */
         let current = fromKey;
         while (current) {
           const msg = byNumber.get(current);
@@ -1324,11 +1347,15 @@ const bodyComponent = (
               `Display name for ${petName} in this channel:`,
               petName,
             ) || petName;
-          await E(channelRef).createInvitation(displayName);
+          await E(/** @type {ChannelMethods} */ (channelRef)).createInvitation(
+            displayName,
+          );
         }
 
         // Build thread recap from the channel's messages
-        const rawMessages = await E(channelRef).listMessages();
+        const rawMessages = await E(
+          /** @type {ChannelMethods} */ (channelRef),
+        ).listMessages();
         const channelMessages =
           /** @type {Array<{ number: bigint, strings?: string[], names?: string[], replyTo?: string, memberId?: string }>} */ (
             rawMessages
@@ -1371,7 +1398,7 @@ const bodyComponent = (
         try {
           const memberList =
             /** @type {Array<{ memberId: string, invitedAs: string }>} */ (
-              await E(channelRef).getMembers()
+              await E(/** @type {ChannelMethods} */ (channelRef)).getMembers()
             );
           for (const m of memberList) {
             try {
@@ -1486,7 +1513,7 @@ const bodyComponent = (
       };
 
       /**
-       * Handle @-mention notifications after a channel post.
+       * Handle at-mention notifications after a channel post.
        * Auto-sends for already-invited members; prompts for new ones.
        * Only defined in channel mode.
        * @type {((info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => Promise<void>) | undefined}
@@ -1494,7 +1521,11 @@ const bodyComponent = (
       const onMentionNotify =
         isChannelMode && activeSpaceInfo.channelPetName
           ? async info => {
-              const { channelPetName } = activeSpaceInfo;
+              // This closure is only assigned when `activeSpaceInfo.channelPetName`
+              // is set (see the guard above), so it is a defined string here.
+              const channelPetName = /** @type {string} */ (
+                activeSpaceInfo.channelPetName
+              );
 
               // For each mentioned pet name, validate and notify
               for (const petName of info.petNames) {
@@ -1520,7 +1551,9 @@ const bodyComponent = (
                   if (channelRef) {
                     const members =
                       /** @type {Array<{ invitedAs: string }>} */ (
-                        await E(channelRef).getMembers()
+                        await E(
+                          /** @type {ChannelMethods} */ (channelRef),
+                        ).getMembers()
                       );
                     alreadyInvited = members.some(m => m.invitedAs === petName);
                   }
@@ -1594,7 +1627,7 @@ const bodyComponent = (
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
- * @property {'chat' | 'forum' | 'outliner'} [viewMode] - channel view mode (default: 'chat')
+ * @property {'chat' | 'forum' | 'outliner' | 'microblog'} [viewMode] - channel view mode (default: 'chat')
  * @property {string[]} [channelOrder] - persisted channel display order
  * @property {Array<{key: string, channelPetName: string, label: string}>} [bookmarks] - bookmarked threads
  * @property {string[]} [audioPath] - pet-name path to an audio object (floot mic input)

@@ -41,6 +41,7 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  * @property {string} recipient - Pet name path of the recipient
  * @property {string} description - Human-readable description
  * @property {FormField[]} fields - Field definitions
+ * @property {string} [resultName] - Optional pet name to store the result under
  */
 
 /**

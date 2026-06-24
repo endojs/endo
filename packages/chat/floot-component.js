@@ -59,6 +59,7 @@ const startFlootTurn = (key, sessionId, reader) => {
   let stopped = false;
   /** @type {() => void} */
   let resolveDone = () => {};
+  /** @type {Promise<void>} */
   const whenDone = new Promise(resolve => {
     resolveDone = resolve;
   });
@@ -671,7 +672,9 @@ export const flootComponent = (
           role: /** @type {'user' | 'assistant'} */ (m.role),
           text: m.text || '',
           .../** @type {any} */ (
-            m.meta ? { meta: /** @type {any} */ (m).meta } : {}
+            /** @type {{ meta?: unknown }} */ (m).meta
+              ? { meta: /** @type {{ meta?: unknown }} */ (m).meta }
+              : {}
           ),
         };
 
@@ -1050,7 +1053,7 @@ export const flootComponent = (
   let processor = null;
   /** @type {AnalyserNode | null} */
   let analyser = null;
-  /** @type {Float32Array | null} */
+  /** @type {Float32Array<ArrayBuffer> | null} */
   let analyserBuf = null;
   /** @type {ReturnType<typeof makeAudioChannel> | null} */
   let channel = null;
