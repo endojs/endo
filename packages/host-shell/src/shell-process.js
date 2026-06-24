@@ -187,8 +187,10 @@ export const makeShellProcess = options => {
 
   // A worker formula is cancelled when its dependencies die or the host
   // revokes it; tear the child down rather than orphaning a subprocess.
+  // `context` arrives as an opaque daemon capability; narrow it to the one
+  // method this formula uses.
   if (context !== undefined) {
-    E(context)
+    E(/** @type {{ whenCancelled: () => Promise<unknown> }} */ (context))
       .whenCancelled()
       .catch(() => {
         if (child.exitCode === null && !child.killed) {
