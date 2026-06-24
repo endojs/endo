@@ -5,7 +5,10 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
-import { relativeTime, dateFormatter } from '@endo/spaces-util/time-formatters.js';
+import {
+  relativeTime,
+  dateFormatter,
+} from '@endo/spaces-util/time-formatters.js';
 import { prepareTextWithPlaceholders } from '@endo/spaces-util/markdown-render.js';
 import { markdownToVnodes } from '@endo/spaces-util/markdown-vnodes.js';
 import {

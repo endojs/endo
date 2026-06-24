@@ -7,7 +7,10 @@ import {
   prepareTextWithPlaceholders,
   renderMarkdown,
 } from '@endo/spaces-util/markdown-render.js';
-import { timeFormatter, relativeTime } from '@endo/spaces-util/time-formatters.js';
+import {
+  timeFormatter,
+  relativeTime,
+} from '@endo/spaces-util/time-formatters.js';
 import { createProfilePopup } from './profile-popup.js';
 
 /**
