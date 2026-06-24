@@ -2788,9 +2788,11 @@ __metadata:
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/markmdown": "workspace:^"
+    "@endo/monaco-wrapper": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/preact-container": "workspace:^"
     eslint: "catalog:dev"
+    marked: "npm:^17.0.5"
     preact: "npm:^10.29.2"
   languageName: unknown
   linkType: soft
