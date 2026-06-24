@@ -191,7 +191,7 @@ export const helpTextEntries = harden([
       nodeId:
         "nodeId() -> string\nGet this node's unique identifier.\nUsed for peer-to-peer communication.",
       readLog:
-        'readLog(options?) -> AsyncIterator\nStream the daemon logs as { source, chunk } records, where source is a log\ndisplay name (such as endo.log or worker/<id8>) and chunk is a run of UTF-8\ntext. Returns a reader; consume it with iterateReader. The optional\noptions.name restricts the stream to a single log by display name; omitting\nit streams every log. options.pattern emits only lines matching a regular\nexpression given as a RegExp source string (a plain substring is just an\nunanchored pattern). Logs are read in bounded windows so a large log is\nnever buffered whole.',
+        'readLog(options?) -> AsyncIterator\nStream the daemon logs as { source, chunk } records, where source is a log\ndisplay name (such as endo.log or worker/<id8>) and chunk is a run of UTF-8\ntext. Returns a reader; consume it with iterateReader. The optional\noptions.name restricts the stream to a single log by display name; omitting\nit streams every log. options.pattern emits only lines matching a regular\nexpression given as a RegExp source string (a plain substring is just an\nunanchored pattern). By default the stream ends once the current logs have\nbeen read; pass options.follow true to keep it open and keep emitting new\nlines as the logs grow (and as new logs appear) until you close the reader.\nLogs are read in bounded windows so a large log is never buffered whole.',
       reviveNetworks:
         'reviveNetworks() -> Promise<void>\nRestore network connections from persisted state.',
       revivePins:

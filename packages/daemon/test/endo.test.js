@@ -6207,3 +6207,113 @@ test('readLog handles empty, unterminated, CRLF, and invalid-pattern logs', asyn
 
   cancel(Error('readLog edge-case test done'));
 });
+
+test('readLog follow streams appended content until the reader is closed', async t => {
+  // Guard the deadlock regression: a follow stream that fails to honor an
+  // early close, or to resume a file across polls, would hang here rather
+  // than fail fast.
+  t.timeout(60_000);
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-follow-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  const bootstrap = getBootstrap();
+
+  const followPath = path.join(config.statePath, 'follow.log');
+  await fsp.writeFile(followPath, 'one\ntwo\n');
+
+  const reader = await E(bootstrap).readLog({
+    name: 'follow.log',
+    follow: true,
+  });
+  const iterator = iterateReader(reader);
+
+  // Accumulate chunks until `marker` appears, so the assertions don't
+  // depend on how bytes happen to be split across reads or follow polls.
+  /** @param {string} marker */
+  const readUntil = async marker => {
+    let text = '';
+    while (!text.includes(marker)) {
+      // eslint-disable-next-line no-await-in-loop
+      const { value, done } = await iterator.next();
+      t.false(done, `stream ended before ${marker}`);
+      if (done) {
+        break;
+      }
+      text += value.chunk;
+    }
+    return text;
+  };
+
+  // The existing extent is delivered first, then the stream stays open.
+  t.is(await readUntil('two\n'), 'one\ntwo\n');
+
+  // Bytes appended after the stream started arrive without re-opening;
+  // the cursor resumes from where the prior poll stopped.
+  await fsp.appendFile(followPath, 'three\n');
+  t.is(await readUntil('three\n'), 'three\n');
+
+  // Closing the reader tears the follow loop down promptly (the buffer:0
+  // pump observes the close at the syn await rather than blocking inside a
+  // sleeping pull).
+  const final = await iterator.return();
+  t.true(final.done);
+
+  cancel(Error('readLog follow test done'));
+});
+
+test('readLog follow discovers new logs and settles on disconnect', async t => {
+  t.timeout(60_000);
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-follow-new-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  const bootstrap = getBootstrap();
+
+  // Follow every log, filtered to a token that won't occur in the
+  // daemon's own logs, so the only matches come from the file we create.
+  const reader = await E(bootstrap).readLog({
+    pattern: 'ZZFOLLOWZZ',
+    follow: true,
+  });
+  const iterator = iterateReader(reader);
+
+  // A log created only after the follow stream is live must still be
+  // picked up by the per-poll re-scan.
+  await fsp.writeFile(
+    path.join(config.statePath, 'late.log'),
+    'noise\nkeep ZZFOLLOWZZ now\n',
+  );
+
+  /** @type {any} */
+  let match;
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const { value, done } = await iterator.next();
+    t.false(done);
+    if (done) {
+      break;
+    }
+    if (value.chunk.includes('ZZFOLLOWZZ')) {
+      match = value;
+      break;
+    }
+  }
+  t.is(match.source, 'late.log');
+  t.is(match.chunk, 'keep ZZFOLLOWZZ now\n');
+
+  // With the follow stream still open and a pull outstanding, dropping the
+  // client connection must settle that pull rather than hang it.
+  const pending = iterator.next().then(
+    () => 'settled',
+    () => 'settled',
+  );
+  cancel(Error('readLog follow new-log test done'));
+  t.is(await pending, 'settled');
+});

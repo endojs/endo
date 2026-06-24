@@ -3128,6 +3128,11 @@ const makeDaemonCore = async (
       // window means fewer CapTP messages for big logs.
       const logChunkBytes = 65_536;
 
+      // How long a `follow` stream waits between filesystem polls once a
+      // log has no new bytes. Short enough to feel live, long enough that
+      // an idle `follow` stream does not busy-poll the disk.
+      const followPollMs = 1000;
+
       /**
        * Enumerate the daemon's log files — the top-level `*.log` files
        * (e.g. `endo.log`) plus each worker's `worker/<id>/worker.log` —
@@ -3226,10 +3231,17 @@ const makeDaemonCore = async (
        *   `RegExp` object is not passable, so it cannot cross CapTP). The
        *   line's terminator (`\n` or `\r\n`) is excluded when matching,
        *   so `$`-anchored patterns behave the same on LF and CRLF logs.
+       * @param {boolean} [options.follow] When false (the default), the
+       *   stream ends once the current extent of every selected log has
+       *   been read. When true, the stream stays open after reaching the
+       *   end and keeps emitting bytes as the logs grow — re-scanning on
+       *   each poll so newly created logs (e.g. a freshly spawned worker)
+       *   are picked up too — until the consumer closes the reader or the
+       *   daemon shuts down.
        * @returns {AsyncGenerator<LogChunk, undefined, undefined>}
        */
       const readLogEntries = async function* readLogEntries(options = {}) {
-        const { name, pattern } = options;
+        const { name, pattern, follow = false } = options;
         // Compile the caller's line predicate once. `pattern` arrives as
         // a RegExp source string and is compiled here. A pathological
         // pattern could backtrack catastrophically (ReDoS) while scanning
@@ -3242,66 +3254,134 @@ const makeDaemonCore = async (
         /** @param {string} line */
         const matchesLine = line => regexp === undefined || regexp.test(line);
 
-        const logFiles = await listLogFiles();
-        const selected =
-          name === undefined
-            ? logFiles
-            : logFiles.filter(logFile => logFile.source === name);
-        for (const { path: logPath, source } of selected) {
-          const decoder = new TextDecoder();
-          let offset = 0;
-          // Holds the trailing partial line carried across windows while
-          // filtering by line.
-          let pending = '';
+        // Per-log streaming cursor. `follow` resumes each log where the
+        // previous poll left off, so the byte offset, the streaming
+        // decoder (mid multi-byte character) and the trailing partial
+        // line must all persist across polls.
+        /** @typedef {{ path: string, source: string, offset: number, decoder: TextDecoder, pending: string }} LogCursor */
+        /** @type {Map<string, LogCursor>} */
+        const cursors = new Map();
+
+        /**
+         * @param {{ path: string, source: string }} logFile
+         * @returns {LogCursor}
+         */
+        const cursorFor = ({ path: logPath, source }) => {
+          let cursor = cursors.get(logPath);
+          if (cursor === undefined) {
+            cursor = {
+              path: logPath,
+              source,
+              offset: 0,
+              decoder: new TextDecoder(),
+              pending: '',
+            };
+            cursors.set(logPath, cursor);
+          }
+          return cursor;
+        };
+
+        /**
+         * Yield every byte currently readable from one log, advancing its
+         * cursor and stopping at the present end of file. Partial
+         * multi-byte characters, and (when filtering) the trailing partial
+         * line, are retained on the cursor for the next call rather than
+         * emitted prematurely.
+         *
+         * @param {LogCursor} cursor
+         */
+        const drainCursor = async function* drainCursor(cursor) {
           for (;;) {
             const bytes = await filePowers.readFileRange(
-              logPath,
-              offset,
+              cursor.path,
+              cursor.offset,
               logChunkBytes,
             );
             if (bytes.length === 0) {
               break;
             }
-            offset += bytes.length;
-            const text = decoder.decode(bytes, { stream: true });
-            if (text.length !== 0) {
-              if (!filtered) {
-                yield harden({ source, chunk: text });
-              } else {
-                pending += text;
-                let newlineIndex = pending.indexOf('\n');
-                while (newlineIndex !== -1) {
-                  const line = pending.slice(0, newlineIndex);
-                  pending = pending.slice(newlineIndex + 1);
-                  // Match the content without its line terminator so a
-                  // trailing `\r` (CRLF logs) doesn't defeat `$` anchors;
-                  // re-emit the line with its original terminator intact.
-                  const content = line.endsWith('\r')
-                    ? line.slice(0, -1)
-                    : line;
-                  if (matchesLine(content)) {
-                    yield harden({ source, chunk: `${line}\n` });
-                  }
-                  newlineIndex = pending.indexOf('\n');
+            cursor.offset += bytes.length;
+            const text = cursor.decoder.decode(bytes, { stream: true });
+            // An empty decode means the window ended mid multi-byte
+            // character; the decoder retains those bytes for the next read.
+            if (text.length !== 0 && !filtered) {
+              yield harden({ source: cursor.source, chunk: text });
+            } else if (text.length !== 0) {
+              cursor.pending += text;
+              let newlineIndex = cursor.pending.indexOf('\n');
+              while (newlineIndex !== -1) {
+                const line = cursor.pending.slice(0, newlineIndex);
+                cursor.pending = cursor.pending.slice(newlineIndex + 1);
+                // Match the content without its line terminator so a
+                // trailing `\r` (CRLF logs) doesn't defeat `$` anchors;
+                // re-emit the line with its original terminator intact.
+                const content = line.endsWith('\r') ? line.slice(0, -1) : line;
+                if (matchesLine(content)) {
+                  yield harden({ source: cursor.source, chunk: `${line}\n` });
                 }
+                newlineIndex = cursor.pending.indexOf('\n');
               }
             }
           }
-          // Flush any bytes the streaming decoder was holding back, then
-          // the final unterminated line (if it survives the filter).
-          const tail = decoder.decode();
+        };
+
+        /**
+         * Flush the bytes the streaming decoder is holding plus the final
+         * unterminated line. Only used when a log is considered complete,
+         * i.e. never in `follow` mode, where more bytes may still arrive.
+         *
+         * @param {LogCursor} cursor
+         */
+        const flushCursor = async function* flushCursor(cursor) {
+          const tail = cursor.decoder.decode();
           if (!filtered) {
             if (tail.length > 0) {
-              yield harden({ source, chunk: tail });
+              yield harden({ source: cursor.source, chunk: tail });
             }
-          } else {
-            pending += tail;
-            const content = pending.endsWith('\r')
-              ? pending.slice(0, -1)
-              : pending;
-            if (content.length > 0 && matchesLine(content)) {
-              yield harden({ source, chunk: pending });
-            }
+            return;
+          }
+          cursor.pending += tail;
+          const content = cursor.pending.endsWith('\r')
+            ? cursor.pending.slice(0, -1)
+            : cursor.pending;
+          if (content.length > 0 && matchesLine(content)) {
+            yield harden({ source: cursor.source, chunk: cursor.pending });
+          }
+          cursor.pending = '';
+        };
+
+        /** @param {Array<{ path: string, source: string }>} logFiles */
+        const select = logFiles =>
+          name === undefined
+            ? logFiles
+            : logFiles.filter(logFile => logFile.source === name);
+
+        if (!follow) {
+          for (const logFile of select(await listLogFiles())) {
+            const cursor = cursorFor(logFile);
+            yield* drainCursor(cursor);
+            yield* flushCursor(cursor);
+          }
+          return undefined;
+        }
+
+        // Follow mode: re-enumerate (to catch newly created logs), drain
+        // any new bytes from each, then wait and repeat — never flushing,
+        // since an unterminated tail may still be completed by later
+        // writes. The poll sleep is bounded by the daemon's grace-period
+        // promise so the loop and its timer cannot outlive the daemon;
+        // `delay` rejects when that promise rejects, which we treat as a
+        // clean end of stream. Early consumer close is handled by the
+        // reader pump calling this generator's `return()` at the yield
+        // point (see the `buffer: 0` note where `readLog` wraps this).
+        for (;;) {
+          for (const logFile of select(await listLogFiles())) {
+            yield* drainCursor(cursorFor(logFile));
+          }
+          try {
+            await delay(followPollMs, gracePeriodElapsed);
+          } catch {
+            break;
           }
         }
         return undefined;
@@ -3323,8 +3403,14 @@ const makeDaemonCore = async (
               gateway: async () => localGateway,
               nodeId: () => localNodeNumber,
               readLog: async (options = {}) => {
-                return readerFromIterator(readLogEntries(options ?? {}), {
-                  buffer: 64,
+                const settings = options ?? {};
+                // Bulk reads stay pipelined for throughput, but a `follow`
+                // stream uses no pre-buffer: the pump must park on the syn
+                // chain (not inside a pulled, sleeping `next()`) so an
+                // early `return()` from the consumer is observed promptly
+                // and tears the follow loop down instead of hanging.
+                return readerFromIterator(readLogEntries(settings), {
+                  buffer: settings.follow ? 0 : 64,
                 });
               },
               sign: async hexBytes => toHex(signBytes(fromHex(hexBytes))),

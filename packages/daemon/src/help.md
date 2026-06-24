@@ -623,6 +623,9 @@ The optional options.name restricts the stream to a single log by display
 name; omitting it streams every log.
 options.pattern emits only lines matching a regular expression given as a
 RegExp source string (a plain substring is just an unanchored pattern).
+By default the stream ends once the current logs have been read; pass
+options.follow true to keep it open and keep emitting new lines as the logs
+grow (and as new logs appear) until you close the reader.
 Logs are read in bounded windows so a large log is never buffered whole.
 
 ## reviveNetworks() -> Promise<void>

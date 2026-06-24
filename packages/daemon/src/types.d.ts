@@ -1756,6 +1756,7 @@ export type EndoBootstrap = {
   readLog: (options?: {
     name?: string;
     pattern?: string;
+    follow?: boolean;
   }) => Promise<import('@endo/exo-stream').PassableReader<LogChunk, undefined>>;
   reviveNetworks: () => Promise<void>;
   revivePins: () => Promise<void>;
