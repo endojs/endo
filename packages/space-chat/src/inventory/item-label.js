@@ -2,7 +2,7 @@
 
 import harden from '@endo/harden';
 
-import { Fragment, h } from '../setup-preact-container.js';
+import { Fragment, h } from 'preact';
 
 // Inventory item label: the pet name plus an optional formula-type badge.
 // Returns a Fragment so the name and badge render directly as flex children of

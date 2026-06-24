@@ -2,7 +2,7 @@
 
 import harden from '@endo/harden';
 
-import { h } from '../setup-preact-container.js';
+import { h } from 'preact';
 
 // The inventory item's disclosure triangle. A single `▶` button; the
 // `expanded` class rotates it 90° (CSS), `loading` pulses it, `hidden` hides

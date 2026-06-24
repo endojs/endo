@@ -70,7 +70,7 @@ const setupInventory = async (opts = {}) => {
 
   const mock = makeMockPowers(opts);
 
-  const { inventoryComponent } = await import('../../inventory/inventory.js');
+  const { inventoryComponent } = await import('../../inventory-component.js');
 
   // Fire-and-forget: inventoryComponent runs an infinite `for await` loop on
   // followNameChanges and only returns when the iterator does. The tests
@@ -94,7 +94,7 @@ const setupInventory = async (opts = {}) => {
 // ── harden ────────────────────────────────────────────────────────────
 
 test.serial('inventoryComponent export is hardened', async t => {
-  const { inventoryComponent } = await import('../../inventory/inventory.js');
+  const { inventoryComponent } = await import('../../inventory-component.js');
   t.true(Object.isFrozen(inventoryComponent), 'inventoryComponent is frozen');
 });
 
@@ -276,7 +276,10 @@ test.serial(
   async t => {
     const { readFile } = await import('node:fs/promises');
     const source = await readFile(
-      new URL('../../inventory/inventory.js', import.meta.url),
+      new URL(
+        '../../../space-chat/src/inventory/inventory.js',
+        import.meta.url,
+      ),
       'utf8',
     );
     // The spread form `.cancel(...` would forward path[1] as the optional

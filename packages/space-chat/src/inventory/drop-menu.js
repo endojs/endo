@@ -2,7 +2,7 @@
 
 import harden from '@endo/harden';
 
-import { h } from '../setup-preact-container.js';
+import { h } from 'preact';
 
 // The inventory link/move context menu: a Preact `h()` component (no JSX)
 // rendered in-tree by the inventory (inventory.js) at a drop location.

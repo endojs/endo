@@ -2,13 +2,8 @@
 
 import harden from '@endo/harden';
 
-import {
-  Fragment,
-  h,
-  useEffect,
-  useRef,
-  useState,
-} from '../setup-preact-container.js';
+import { Fragment, h } from 'preact';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
 // Inventory item action buttons (info / cancel / remove). A Preact `h()`
 // component (no JSX) returning a Fragment of the three buttons, rendered inside

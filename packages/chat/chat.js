@@ -14,7 +14,7 @@ import { outlinerComponent } from '@endo/space-channel/outliner-component.js';
 import { microblogComponent } from '@endo/space-channel/microblog-component.js';
 import { createChannelHeader } from './channel-header.js';
 import { inboxComponent } from './inbox-component.js';
-import { inventoryComponent } from './inventory/inventory.js';
+import { inventoryComponent } from './inventory-component.js';
 import { channelListComponent } from './channel-list.js';
 import { chatBarComponent } from './chat-bar-component.js';
 import { valueComponent } from './value-component.js';
