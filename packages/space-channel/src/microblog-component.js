@@ -19,7 +19,7 @@ import { createChannelState } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
 import { isVisibleReplyType, computeNodeContent } from './edit-queue.js';
 
-/** @import { ChannelMessage } from './channel-utils.js' */
+/** @import { ChannelMessage, ChannelRef } from './channel-utils.js' */
 
 // Microblog view — a reverse-chronological feed, migrated from imperative DOM to
 // a confined Preact component rendered through a single `renderConfined`.
@@ -190,6 +190,7 @@ export const microblogComponent = async (
   const getHeritageChain = key => {
     /** @type {ChannelMessage[]} */
     const chain = [];
+    /** @type {string | undefined} */
     let current = key;
     while (current) {
       const entry = messageIndex.get(current);
@@ -694,12 +695,19 @@ export const microblogComponent = async (
   rerender();
 
   // Start following messages.
-  const messagesRef = await E(channel).followMessages();
-  const messagesIterator = iterateReader(messagesRef, {
-    // Prefetch a window of messages so the backlog streams without a
-    // round-trip acknowledgement per message.
-    buffer: 64,
-  });
+  const messagesRef = await E(
+    /** @type {ChannelRef} */ (channel),
+  ).followMessages();
+  const messagesIterator = iterateReader(
+    /** @type {Parameters<typeof iterateReader>[0]} */ (
+      /** @type {unknown} */ (messagesRef)
+    ),
+    {
+      // Prefetch a window of messages so the backlog streams without a
+      // round-trip acknowledgement per message.
+      buffer: 64,
+    },
+  );
 
   const consumeMessages = async () => {
     for await (const message of messagesIterator) {

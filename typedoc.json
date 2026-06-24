@@ -33,7 +33,6 @@
     "packages/genie",
     "packages/harden-test",
     "packages/hex-test",
-    "packages/space-channel",
     "packages/space-chat",
     "packages/space-inventory-graph",
     "packages/ses-test",

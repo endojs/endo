@@ -15,7 +15,7 @@ import {
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
-/** @import { ChannelMessage } from './channel-utils.js' */
+/** @import { ChannelMessage, ChannelRef } from './channel-utils.js' */
 /** @import { NodeEffectiveContent } from './edit-queue.js' */
 /** @import { EditQueueEntry } from './edit-queue.js' */
 /** @import { TokenAutocompleteAPI } from '@endo/chat-kit/token-autocomplete.js' */
@@ -88,8 +88,8 @@ const SLASH_COMMANDS = harden([
  * @param {() => object | null} [options.chatBarAPI]
  * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork a message's heritage into a new channel
  * @param {(heritageChain: ChannelMessage[], previewText: string) => void} [options.onShare] - Open share modal for a message
- * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after posting a message with @-mentions
- * @param options.onBookmark
+ * @param {(info: { petNames: string[], edgeNames: string[], messageStrings: string[], replyTo: string | undefined }) => void} [options.onMentionNotify] - Called after posting a message with at-mentions
+ * @param {(key: string, preview: string) => void} [options.onBookmark] - Bookmark a thread by key
  */
 export const outlinerComponent = async (
   $parent,
@@ -234,7 +234,11 @@ export const outlinerComponent = async (
   if (powers) {
     (async () => {
       for await (const change of iterateReader(
-        E(/** @type {ERef<EndoHost>} */ (powers)).followNameChanges(),
+        /** @type {Parameters<typeof iterateReader>[0]} */ (
+          /** @type {unknown} */ (
+            E(/** @type {ERef<EndoHost>} */ (powers)).followNameChanges()
+          )
+        ),
       )) {
         if (disposed) break;
         if ('add' in /** @type {object} */ (change)) {
@@ -1049,7 +1053,7 @@ export const outlinerComponent = async (
           }
         }
 
-        E(channel)
+        E(/** @type {ChannelRef} */ (channel))
           .post(moveStrings, [], [], String(entry.message.number), [], 'move')
           .catch(
             /** @param {Error} err */ err => {
@@ -1122,12 +1126,12 @@ export const outlinerComponent = async (
         : Promise.resolve(/** @type {string[]} */ ([]));
     idsP
       .then(ids => {
-        const postP = E(channel).post(
+        const postP = E(/** @type {ChannelRef} */ (channel)).post(
           parsed.strings,
           parsed.edgeNames,
           parsed.petNames,
           String(entry.message.number),
-          ids,
+          /** @type {string[]} */ (ids),
           'edit',
         );
         if (parsed.petNames.length > 0 && onMentionNotify) {
@@ -1199,12 +1203,12 @@ export const outlinerComponent = async (
         : Promise.resolve(/** @type {string[]} */ ([]));
     draftIdsP
       .then(ids => {
-        const postP = E(channel).post(
+        const postP = E(/** @type {ChannelRef} */ (channel)).post(
           parsed.strings,
           parsed.edgeNames,
           parsed.petNames,
           draft.parentKey,
-          ids,
+          /** @type {string[]} */ (ids),
           draft.replyType,
         );
         if (parsed.petNames.length > 0 && onMentionNotify) {
@@ -1545,7 +1549,7 @@ export const outlinerComponent = async (
     // Not a recognized member — show value if possible
     if (powers) {
       E(/** @type {ERef<EndoHost>} */ (powers))
-        .lookup(.../** @type {[string, ...string[]]} */ (tokenName.split('/')))
+        .lookup(tokenName.split('/'))
         .then(ref => {
           showValue(ref, undefined, tokenName.split('/'));
         })
@@ -1605,9 +1609,11 @@ export const outlinerComponent = async (
       $node.appendChild($menu);
       activeTokenMenu = $menu;
       const typedPowers = /** @type {ERef<EndoHost>} */ (powers);
+      const typedIterateReader =
+        /** @type {(ref: unknown) => AsyncIterable<unknown>} */ (iterateReader);
       activeTokenComponent = tokenAutocompleteComponent($text, $menu, {
         E,
-        iterateReader,
+        iterateReader: typedIterateReader,
         powers: typedPowers,
         externalPetNames: sharedPetNames,
       });
@@ -1718,7 +1724,8 @@ export const outlinerComponent = async (
     }
     slashMenuDraftId = draftId;
 
-    activeSlashMenu.innerHTML = '';
+    const $slashMenu = activeSlashMenu;
+    $slashMenu.innerHTML = '';
     filtered.forEach((cmd, i) => {
       const $item = document.createElement('div');
       $item.className = 'outliner-slash-item';
@@ -1740,7 +1747,7 @@ export const outlinerComponent = async (
         e.preventDefault();
         applySlashCommand(draftId, cmd, $text);
       });
-      activeSlashMenu.appendChild($item);
+      $slashMenu.appendChild($item);
     });
   };
 
@@ -1891,7 +1898,7 @@ export const outlinerComponent = async (
           const idx = allNodes.indexOf($text);
           const entry = messageIndex.get(key);
           if (entry) {
-            E(channel)
+            E(/** @type {ChannelRef} */ (channel))
               .post([''], [], [], String(entry.message.number), [], 'deletion')
               .catch(
                 /** @param {Error} err */ err => {
@@ -1947,7 +1954,7 @@ export const outlinerComponent = async (
         // Post move message with reparenting
         const entry = messageIndex.get(key);
         if (entry) {
-          E(channel)
+          E(/** @type {ChannelRef} */ (channel))
             .post(
               [String(newOrder), prevKey],
               [],
@@ -2017,7 +2024,7 @@ export const outlinerComponent = async (
         const entry = messageIndex.get(key);
         if (entry) {
           const newParentStr = grandparent === undefined ? '' : grandparent;
-          E(channel)
+          E(/** @type {ChannelRef} */ (channel))
             .post(
               [String(newOrder), newParentStr],
               [],
@@ -2396,7 +2403,7 @@ export const outlinerComponent = async (
         label: 'Delete',
         icon: '\u2717',
         handler: () => {
-          E(channel)
+          E(/** @type {ChannelRef} */ (channel))
             .post([''], [], [], key, [], 'deletion')
             .catch(window.reportError);
         },
@@ -2449,8 +2456,8 @@ export const outlinerComponent = async (
   /**
    * Create a new draft node and insert it into the DOM.
    * @param {string | undefined} parentKey
-   * @param {string | undefined} afterKey
-   * @param beforeKey
+   * @param {string} [afterKey]
+   * @param {string} [beforeKey]
    * @returns {string} draftId
    */
   const createDraft = (parentKey, afterKey, beforeKey) => {
@@ -2888,7 +2895,7 @@ export const outlinerComponent = async (
     dispose: () => {
       disposed = true;
       if (activeIterator) {
-        activeIterator.return();
+        activeIterator.return?.();
       }
     },
   });
@@ -2899,7 +2906,7 @@ export const outlinerComponent = async (
   /** @type {unknown} */
   let messagesRef;
   try {
-    messagesRef = await E(channel).followMessages();
+    messagesRef = await E(/** @type {ChannelRef} */ (channel)).followMessages();
   } catch (err) {
     const $error = document.createElement('div');
     $error.className = 'channel-status channel-status-error';
@@ -2912,10 +2919,18 @@ export const outlinerComponent = async (
     }
     throw err;
   }
-  const messageIterator = iterateReader(messagesRef);
+  const messageIterator = iterateReader(
+    /** @type {Parameters<typeof iterateReader>[0]} */ (
+      /** @type {unknown} */ (messagesRef)
+    ),
+  );
   activeIterator = messageIterator;
 
-  /** Batch incoming messages during initial load. */
+  /**
+   * Batch incoming messages during initial load.
+   *
+   * @type {ReturnType<typeof setTimeout> | 0}
+   */
   let batchTimer = 0;
 
   batchTimer = setTimeout(() => {

@@ -18,6 +18,8 @@ import {
 
 import { createProfilePopup } from './profile-popup.js';
 import { createMessageMenu } from './channel-utils.js';
+
+/** @import { ChannelRef } from './channel-utils.js' */
 import { createReactSystem } from './react-utils.js';
 
 // Default multiuser channel body view (Dan's), migrated from imperative DOM to
@@ -133,7 +135,9 @@ export const channelComponent = async (
   /** @type {string} */
   let storageKey = 'channel-names';
   try {
-    const channelName = await E(channel).getProposedName();
+    const channelName = await E(
+      /** @type {ChannelRef} */ (channel),
+    ).getProposedName();
     storageKey = personaId
       ? `channel-names:${personaId}:${channelName}`
       : `channel-names:${channelName}`;
@@ -171,7 +175,9 @@ export const channelComponent = async (
   // themselves in scare quotes.
   if (ownMemberId !== undefined && !nameMap.has(ownMemberId)) {
     try {
-      const ownInfo = await E(channel).getMember(ownMemberId);
+      const ownInfo = await E(/** @type {ChannelRef} */ (channel)).getMember(
+        ownMemberId,
+      );
       if (ownInfo && ownInfo.proposedName) {
         nameMap.set(ownMemberId, ownInfo.proposedName);
         saveNameMap();
@@ -191,7 +197,8 @@ export const channelComponent = async (
       `.channel-author[data-member-id="${CSS.escape(memberId)}"]`,
     );
     for (const chip of chips) {
-      const proposedName = chip.dataset.proposedName || '';
+      const proposedName =
+        /** @type {HTMLElement} */ (chip).dataset.proposedName || '';
       if (assignedName) {
         chip.textContent = assignedName;
         chip.classList.add('named');
@@ -215,7 +222,9 @@ export const channelComponent = async (
   const getMemberInfo = async memberId => {
     if (memberCache.has(memberId)) return memberCache.get(memberId);
     try {
-      const info = await E(channel).getMember(memberId);
+      const info = await E(/** @type {ChannelRef} */ (channel)).getMember(
+        memberId,
+      );
       if (info) memberCache.set(memberId, info);
       return info;
     } catch {
@@ -365,6 +374,7 @@ export const channelComponent = async (
   const getHeritageChain = key => {
     /** @type {ChannelMessage[]} */
     const chain = [];
+    /** @type {string | undefined} */
     let current = key;
     while (current) {
       const entry = messageIndex.get(current);
@@ -661,6 +671,7 @@ export const channelComponent = async (
     const { entries, continuePoints } = buildThread(rootKey, MAX_INDENT_DEPTH);
 
     // Header: back button + breadcrumb
+    /** @type {import('preact').VNode[]} */
     const crumbs = [
       h(
         'span',
@@ -867,7 +878,7 @@ export const channelComponent = async (
       label: 'Delete',
       icon: '✗',
       handler: () => {
-        E(channel)
+        E(/** @type {ChannelRef} */ (channel))
           .post([''], [], [], messageKey, [], 'deletion')
           .catch(window.reportError);
       },
@@ -1088,7 +1099,7 @@ export const channelComponent = async (
         initialScrollTimer = 0;
       }
       if (activeIterator) {
-        activeIterator.return();
+        activeIterator.return?.();
       }
       unmount($mount);
       $mount.remove();
@@ -1119,7 +1130,7 @@ export const channelComponent = async (
   /** @type {unknown} */
   let messagesRef;
   try {
-    messagesRef = await E(channel).followMessages();
+    messagesRef = await E(/** @type {ChannelRef} */ (channel)).followMessages();
   } catch (err) {
     const $error = document.createElement('div');
     $error.className = 'channel-status channel-status-error';
@@ -1132,11 +1143,16 @@ export const channelComponent = async (
     }
     throw err;
   }
-  const messageIterator = iterateReader(messagesRef, {
-    // Prefetch a window of messages so the backlog streams without a
-    // round-trip acknowledgement per message.
-    buffer: 64,
-  });
+  const messageIterator = iterateReader(
+    /** @type {Parameters<typeof iterateReader>[0]} */ (
+      /** @type {unknown} */ (messagesRef)
+    ),
+    {
+      // Prefetch a window of messages so the backlog streams without a
+      // round-trip acknowledgement per message.
+      buffer: 64,
+    },
+  );
   activeIterator = messageIterator;
 
   // Schedule a hard scroll-to-bottom shortly after messages start arriving.

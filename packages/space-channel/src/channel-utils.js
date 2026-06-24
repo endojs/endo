@@ -60,6 +60,26 @@ import { createProfilePopup } from './profile-popup.js';
  */
 
 /**
+ * @typedef {object} ChannelMemberInfo
+ * @property {string} proposedName
+ * @property {string} invitedAs
+ * @property {string} memberId
+ * @property {string[]} pedigree
+ * @property {string[]} pedigreeMemberIds
+ */
+
+/**
+ * Structural interface for a channel or channel-member reference, covering the
+ * methods invoked via `E(channel).method(...)` across the channel components.
+ *
+ * @typedef {object} ChannelRef
+ * @property {(strings: string[], names: string[], petNamesOrPaths: string[], replyTo: string | undefined, resolvedIds: string[], replyType: string | undefined) => Promise<unknown>} post
+ * @property {() => Promise<string>} getProposedName
+ * @property {(memberId: string) => Promise<ChannelMemberInfo | undefined>} getMember
+ * @property {() => Promise<unknown>} followMessages
+ */
+
+/**
  * Create a three-dot (⋮) menu button with a dropdown for message actions.
  *
  * @param {MessageMenuItem[]} items - Menu items to display
@@ -159,7 +179,9 @@ export const createChannelState = async (channel, opts) => {
   /** @type {string} */
   let storageKey = 'channel-names';
   try {
-    const channelName = await E(channel).getProposedName();
+    const channelName = await E(
+      /** @type {ChannelRef} */ (channel),
+    ).getProposedName();
     storageKey = personaId
       ? `channel-names:${personaId}:${channelName}`
       : `channel-names:${channelName}`;
@@ -192,7 +214,9 @@ export const createChannelState = async (channel, opts) => {
   // Auto-assign the current user's own proposed name
   if (ownMemberId !== undefined && !nameMap.has(ownMemberId)) {
     try {
-      const ownInfo = await E(channel).getMember(ownMemberId);
+      const ownInfo = await E(/** @type {ChannelRef} */ (channel)).getMember(
+        ownMemberId,
+      );
       if (ownInfo && ownInfo.proposedName) {
         nameMap.set(ownMemberId, ownInfo.proposedName);
         saveNameMap();
@@ -211,7 +235,8 @@ export const createChannelState = async (channel, opts) => {
       `.channel-author[data-member-id="${CSS.escape(memberId)}"]`,
     );
     for (const chip of chips) {
-      const proposedName = chip.dataset.proposedName || '';
+      const proposedName =
+        /** @type {HTMLElement} */ (chip).dataset.proposedName || '';
       if (assignedName) {
         chip.textContent = assignedName;
         chip.classList.add('named');
@@ -231,7 +256,9 @@ export const createChannelState = async (channel, opts) => {
   const getMemberInfo = async memberId => {
     if (memberCache.has(memberId)) return memberCache.get(memberId);
     try {
-      const info = await E(channel).getMember(memberId);
+      const info = await E(/** @type {ChannelRef} */ (channel)).getMember(
+        memberId,
+      );
       if (info) memberCache.set(memberId, info);
       return info;
     } catch {
@@ -540,6 +567,7 @@ export const createChannelState = async (channel, opts) => {
           icon: '\u2442',
           handler: () => {
             const chain = [];
+            /** @type {string | undefined} */
             let current = key;
             while (current) {
               const entry = messageIndex.get(current);
@@ -560,6 +588,7 @@ export const createChannelState = async (channel, opts) => {
           icon: '\u21D7',
           handler: () => {
             const chain = [];
+            /** @type {string | undefined} */
             let cur = shareKey;
             while (cur) {
               const ent = messageIndex.get(cur);

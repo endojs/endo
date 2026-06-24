@@ -18,7 +18,7 @@ import {
   isEffectivelyDeleted,
 } from './edit-queue.js';
 
-/** @import { ChannelMessage } from './channel-utils.js' */
+/** @import { ChannelMessage, ChannelRef } from './channel-utils.js' */
 
 // Forum view — a threaded (tree) message view, migrated from imperative DOM to
 // a confined Preact component rendered through a single `renderConfined`.
@@ -548,6 +548,7 @@ export const forumComponent = async (
   const getHeritageChain = key => {
     /** @type {ChannelMessage[]} */
     const chain = [];
+    /** @type {string | undefined} */
     let current = key;
     while (current) {
       const entry = messageIndex.get(current);
@@ -899,6 +900,8 @@ export const forumComponent = async (
    * Batch incoming messages during initial load. Declared here so `dispose`
    * can cancel a pending initial render that would otherwise fire (and scroll)
    * against a torn-down container.
+   *
+   * @type {ReturnType<typeof setTimeout> | 0}
    */
   let batchTimer = 0;
   /** @type {{ closeThread: () => boolean, dispose: () => void }} */
@@ -911,7 +914,7 @@ export const forumComponent = async (
         batchTimer = 0;
       }
       if (activeIterator) {
-        activeIterator.return();
+        activeIterator.return?.();
       }
     },
   });
@@ -921,7 +924,7 @@ export const forumComponent = async (
   /** @type {unknown} */
   let messagesRef;
   try {
-    messagesRef = await E(channel).followMessages();
+    messagesRef = await E(/** @type {ChannelRef} */ (channel)).followMessages();
   } catch (err) {
     const $error = document.createElement('div');
     $error.className = 'channel-status channel-status-error';
@@ -934,11 +937,16 @@ export const forumComponent = async (
     }
     throw err;
   }
-  const messageIterator = iterateReader(messagesRef, {
-    // Prefetch a window of messages so the backlog streams without a
-    // round-trip acknowledgement per message.
-    buffer: 64,
-  });
+  const messageIterator = iterateReader(
+    /** @type {Parameters<typeof iterateReader>[0]} */ (
+      /** @type {unknown} */ (messagesRef)
+    ),
+    {
+      // Prefetch a window of messages so the backlog streams without a
+      // round-trip acknowledgement per message.
+      buffer: 64,
+    },
+  );
   activeIterator = messageIterator;
 
   // Schedule an initial render after the first batch arrives.

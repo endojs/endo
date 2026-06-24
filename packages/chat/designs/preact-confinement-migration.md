@@ -464,16 +464,25 @@ Status by extracted package:
 | ------------------- | ------------- | --------------------------------------------------------------------------------------------------------- |
 | `@endo/chat-kit`    | ☑ yes         | shared primitives, authored type-clean                                                                    |
 | `@endo/space-chat`  | ☑ yes         | `InboxRoot` plus the inventory tree — both confined Preact and type-clean (inventory was type-checked for the first time when it moved here, and passed with no fixes) |
-| `@endo/space-channel` | ⊘ excluded  | `outliner-component.js` + `react-utils.js` carry ~307 pre-existing errors inherited from the imperative DOM |
+| `@endo/space-channel` | ☑ yes       | re-admitted after a JSDoc/cast pass fixed its 51 checkJs errors (see below) |
 
-`space-channel` is excluded in both `tsconfig.json` and `typedoc.json`, exactly
-as `@endo/chat` itself is, because its still-imperative bodies (chiefly the
-3003-line `outliner-component`) were moved verbatim from the app, where they
-were never type-checked.
-Re-admitting `space-channel` to the typecheck is a **completion criterion of the
-`outliner` view migration above** — converting the imperative DOM to confined
-Preact is what makes the source type-clean — not a separate cleanup.
-Until then the exclusion is the deliberate, documented state, mirroring `chat`.
+`space-channel` is now in both `tsconfig.json` and `typedoc.json`.
+Re-admitting it turned out to be **independent of the `outliner` view
+migration**, correcting an earlier assumption recorded here: the "~307 errors"
+figure was a typedoc grand-total artifact; under the real (root-equivalent)
+config the package had only **51** checkJs errors (23 in `outliner-component`),
+and they were ordinary typing gaps — untyped `E(ref).method()` calls
+(`EMethods<Required<unknown>>`), `setTimeout`→`Timeout`-vs-`number`,
+`iterateReader` arg casts, optional-callback guards, and `string | undefined`
+narrowings — not artifacts of imperative DOM.
+A types/JSDoc/casts-only pass (a shared `ChannelRef` typedef plus the codebase's
+existing inline-cast idioms) drove them to zero with no behavioral change except
+one genuine latent bug it surfaced: `E(powers).lookup(...name.split('/'))`
+spread a multi-segment token path as varargs into a single-arg `lookup`,
+silently dropping all but the first segment — now passed as an array.
+So the imperative→confined-Preact conversion of `outliner` is **no longer
+gated by, nor gating, the typecheck**; it is a pure architectural cleanup that
+can proceed on its own schedule.
 
 ## Blockers to every space being an exported component package
 

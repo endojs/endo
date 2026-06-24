@@ -4,6 +4,8 @@
 import harden from '@endo/harden';
 import { E } from '@endo/far';
 
+/** @import { ChannelRef } from './channel-utils.js' */
+
 /** Default emoji palette for quick react picker */
 const DEFAULT_REACTS = harden([
   '\uD83D\uDC4D',
@@ -571,7 +573,7 @@ export const createReactSystem = ({
     // Left click: toggle own react
     $pill.addEventListener('click', () => {
       const type = members.has(myId) ? 'redact-react' : 'react';
-      E(channel)
+      E(/** @type {ChannelRef} */ (channel))
         .post([emoji], [], [], targetKey, [], type)
         .catch(
           /** @param {Error} err */ err => {
@@ -677,7 +679,7 @@ export const createReactSystem = ({
       $btn.className = 'react-picker-emoji';
       $btn.textContent = emoji;
       $btn.addEventListener('click', () => {
-        E(channel)
+        E(/** @type {ChannelRef} */ (channel))
           .post([emoji], [], [], key, [], 'react')
           .catch(
             /** @param {Error} err */ err => {
@@ -743,7 +745,7 @@ export const createReactSystem = ({
           $btn.className = 'react-picker-emoji';
           $btn.textContent = emoji;
           $btn.addEventListener('click', () => {
-            E(channel)
+            E(/** @type {ChannelRef} */ (channel))
               .post([emoji], [], [], key, [], 'react')
               .catch(
                 /** @param {Error} err */ err => {
