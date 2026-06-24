@@ -18,7 +18,7 @@ export {
 } from './shell-process.js';
 export { ShellProcessInterface } from './interfaces.js';
 
-/** @import { ShellProcess } from '../types.js' */
+/** @import { ShellProcess } from './types.js' */
 
 /**
  * Unconfined Endo formula entry point.  The daemon's `make-unconfined`

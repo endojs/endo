@@ -14,7 +14,7 @@ import { makeNodeWriter } from '@endo/stream-node';
 
 import { ShellProcessInterface } from './interfaces.js';
 
-/** @import { ShellProcess, ExitStatus, MakeShellProcessOptions } from '../types.js' */
+/** @import { ShellProcess, ExitStatus, MakeShellProcessOptions } from './types.js' */
 
 // Pre-synchronize this many byte chunks across CapTP, trading round-trips
 // for buffering on a high-latency link.  Applied symmetrically to stdin,
@@ -99,7 +99,7 @@ const makeEagerByteReader = source => {
         }
         // eslint-disable-next-line no-await-in-loop
         await new Promise(resolve => {
-          wakeWaiter = resolve;
+          wakeWaiter = () => resolve(undefined);
         });
       }
     },
@@ -255,13 +255,15 @@ export const makeShellProcess = options => {
     },
 
     /**
-     * Deliver a POSIX signal to the process.
+     * Deliver a POSIX signal to the process.  The parameter type matches
+     * the `ShellProcessInterface` guard (`string | number`); narrow to
+     * Node's signal union at the `child.kill` boundary.
      *
-     * @param {NodeJS.Signals | number} [signal]
+     * @param {string | number} [signal]
      * @returns {boolean} whether the signal was delivered
      */
     kill(signal = 'SIGTERM') {
-      return child.kill(signal);
+      return child.kill(/** @type {NodeJS.Signals | number} */ (signal));
     },
 
     /**

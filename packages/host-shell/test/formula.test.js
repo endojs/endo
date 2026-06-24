@@ -19,6 +19,8 @@ import { start, stop, purge, makeEndoClient } from '@endo/daemon';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
+/** @import { ShellProcess } from '../src/types.js' */
+
 const dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 const shellModuleHref = url.pathToFileURL(
@@ -97,11 +99,13 @@ test.serial('host-shell formula streams stdout and resolves exit', async t => {
   t.timeout(90_000);
   const { host } = await prepareHost(t);
 
-  const proc = await E(host).makeUnconfined('@node', shellModuleHref, {
-    powersName: '@none',
-    env: { command: 'echo', args: JSON.stringify(['hello-from-formula']) },
-    resultName: 'greeter',
-  });
+  const proc = /** @type {ShellProcess} */ (
+    await E(host).makeUnconfined('@node', shellModuleHref, {
+      powersName: '@none',
+      env: { command: 'echo', args: JSON.stringify(['hello-from-formula']) },
+      resultName: 'greeter',
+    })
+  );
 
   const out = await readAll(E(proc).stdout());
   t.is(out.trim(), 'hello-from-formula');
@@ -112,11 +116,13 @@ test.serial('host-shell formula round-trips stdin to stdout', async t => {
   t.timeout(90_000);
   const { host } = await prepareHost(t);
 
-  const proc = await E(host).makeUnconfined('@node', shellModuleHref, {
-    powersName: '@none',
-    env: { command: 'cat' },
-    resultName: 'echoer',
-  });
+  const proc = /** @type {ShellProcess} */ (
+    await E(host).makeUnconfined('@node', shellModuleHref, {
+      powersName: '@none',
+      env: { command: 'cat' },
+      resultName: 'echoer',
+    })
+  );
 
   const writer = iterateBytesWriter(E(proc).stdin(), { buffer: 64 });
   const collected = readAll(E(proc).stdout());
@@ -132,14 +138,16 @@ test.serial('host-shell formula reports a non-zero exit code', async t => {
   t.timeout(90_000);
   const { host } = await prepareHost(t);
 
-  const proc = await E(host).makeUnconfined('@node', shellModuleHref, {
-    powersName: '@none',
-    env: {
-      command: 'echo to-stderr 1>&2; exit 7',
-      shell: 'true',
-    },
-    resultName: 'failer',
-  });
+  const proc = /** @type {ShellProcess} */ (
+    await E(host).makeUnconfined('@node', shellModuleHref, {
+      powersName: '@none',
+      env: {
+        command: 'echo to-stderr 1>&2; exit 7',
+        shell: 'true',
+      },
+      resultName: 'failer',
+    })
+  );
 
   t.is((await readAll(E(proc).stderr())).trim(), 'to-stderr');
   t.is((await E(proc).exit()).code, 7);
