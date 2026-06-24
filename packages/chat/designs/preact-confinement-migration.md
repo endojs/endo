@@ -459,27 +459,51 @@ Both of the former hard targets are now **done**:
   (tokenization rather than the `colorize` HTML string) in the inbox and
   definition bodies.
 
-### Type-checking the extracted UI packages (tracked debt)
+### Type-checking the extracted UI packages
 
 A third axis, distinct from view migration and packaging: whether a package's
 source survives the repo-wide `tsc`/typedoc pass.
 The `docs` job type-checks `packages/**/*.js` through the root
 [`tsconfig.json`](../../../tsconfig.json), filtered only by that file's
-`exclude` list; the same packages are excluded from
-[`typedoc.json`](../../../typedoc.json) so they are not type-checked or
-documented.
+`exclude` list; [`typedoc.json`](../../../typedoc.json) has its **own** exclude
+list that controls only which packages are turned into API *documentation*.
 
-Status by extracted package:
+These two levers are separable, and we use that: the chat **apps/UI** packages
+are **type-checked** (kept out of `tsconfig.json`'s exclude) but **not
+documented** (kept in `typedoc.json`'s exclude) — type-checking has value;
+generating API docs for an app shell or a UI bundle does not.
 
-| Package             | In typecheck? | Why                                                                                                       |
+Status by package (all chat-ecosystem packages are now type-checked):
+
+| Package             | Type-checked? | Notes                                                                                                       |
 | ------------------- | ------------- | --------------------------------------------------------------------------------------------------------- |
-| `@endo/spaces-util`    | ⊘ excluded    | now the shared chat-UI home: the type-clean primitives **plus** the view components moved out of `@endo/chat` (value-viewer, composer, etc.), which carry the same untyped-`E()` code that was never type-checked in `chat`. Excluded from the typecheck/typedoc the same way `chat` is — it is UI code, not a documented library API. The primitives stay type-checked transitively wherever a type-checked package (e.g. `space-channel`) imports them. |
-| `@endo/space-chat`  | ☑ yes         | `InboxRoot` plus the inventory tree — both confined Preact and type-clean (inventory was type-checked for the first time when it moved here, and passed with no fixes) |
-| `@endo/space-channel` | ☑ yes       | re-admitted after a JSDoc/cast pass fixed its 51 checkJs errors (see below) |
+| `@endo/spaces-util`   | ☑ yes (no docs) | the shared chat-UI home (primitives + the value-viewer/composer view components moved out of `chat`); type-cleaned (~26 inline-`E()` casts) and re-admitted to the typecheck, kept out of typedoc docs |
+| `@endo/chat`          | ☑ yes (no docs) | the host shell + mount wrappers + gutter + new-space modal; type-cleaned (~75 inline-`E()` casts) and re-admitted to the typecheck, kept out of typedoc docs |
+| `@endo/space-chat`  | ☑ yes         | `InboxRoot` plus the inventory tree — both confined Preact and already type-clean (re-admitted with no fixes) |
+| `@endo/space-channel` | ☑ yes       | re-admitted after a JSDoc/cast pass fixed its 51 checkJs errors (see below); also now home to `channel-header`, `heat-simulation`, and `share-modal` (channel-specific views moved out of `chat`, type-cleaned on the way in) |
 
-`space-channel` is now in both `tsconfig.json` and `typedoc.json`.
-Re-admitting it turned out to be **independent of the `outliner` view
-migration**, correcting an earlier assumption recorded here: the "~307 errors"
+#### Chat view-component extraction (where each view lives)
+
+`@endo/chat` is being reduced to **dispatch/mount + the spaces gutter + the
+new-space modal**; every other view component moves into a package, taking
+`powers` as a prop and importing `E()`/`renderConfined` directly. Routing by
+ownership:
+
+- **Shared chat UI → `@endo/spaces-util`**: the rendering primitives
+  (markdown/value vnodes, time formatters, token-autocomplete, chime, locator),
+  the **value-viewer** (`value-component`/`value-render`/`language-detect`/
+  `markdown-preview`), and the **composer cluster** (`chat-bar`/`send-form` +
+  the command forms + pickers + `blob-viewer` + the heat engines).
+- **Channel-specific views → `@endo/space-channel`**: `channel-header`,
+  `heat-simulation` (canvas), `share-modal`.
+- **Inbox-specific views → `@endo/space-chat`**: `InboxRoot`, the inventory tree.
+
+Still in `@endo/chat` by design: `chat.js` (the trusted dispatch root + page
+template), the thin `*-component.js` mount wrappers, `spaces-gutter`,
+`add-space-modal` (+ its `scheme-picker`/`icon-selector`), `chat-chrome`.
+
+`space-channel` was re-admitted independently of the `outliner` view migration,
+correcting an earlier assumption recorded here: the "~307 errors"
 figure was a typedoc grand-total artifact; under the real (root-equivalent)
 config the package had only **51** checkJs errors (23 in `outliner-component`),
 and they were ordinary typing gaps — untyped `E(ref).method()` calls
