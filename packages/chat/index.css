@@ -97,6 +97,10 @@ body {
   color: var(--text-primary);
   background: var(--bg-primary);
   height: 100vh;
+  /* On mobile, 100vh is the *large* viewport (chrome retracted); when the
+     top chrome is visible the body extends past the visible area and its top
+     becomes unreachable. The dynamic viewport unit tracks the visible area. */
+  height: 100dvh;
   overflow: hidden;
   margin: 0;
   padding: 0;
@@ -421,261 +425,6 @@ body.resizing * {
   cursor: pointer;
 }
 
-/* Channel mode action buttons */
-.channel-actions {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
-  margin-right: 8px;
-}
-
-.channel-action-btn {
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 500;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.channel-action-btn:hover {
-  background: var(--accent-primary);
-  color: white;
-  border-color: var(--accent-primary);
-}
-
-/* Channel inline form (New / Join) */
-.channel-inline-form {
-  display: none;
-  padding: 0 12px 8px;
-}
-
-.channel-inline-form.visible {
-  display: block;
-}
-
-.channel-form {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-}
-
-.channel-form-input {
-  width: 100%;
-  padding: 6px 8px;
-  font-size: 13px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color var(--transition-fast);
-}
-
-.channel-form-input:focus {
-  border-color: var(--accent-primary);
-}
-
-.channel-form-buttons {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-.channel-form-submit {
-  padding: 4px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--accent-primary);
-  color: white;
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.channel-form-submit:hover {
-  background: var(--accent-hover);
-}
-
-.channel-form-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.channel-form-cancel {
-  padding: 4px 12px;
-  font-size: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.channel-form-cancel:hover {
-  background: var(--bg-hover);
-}
-
-/* Channel item styles */
-.pet-item-wrapper.channel-item > .pet-item-row .pet-name {
-  cursor: pointer;
-}
-
-.pet-item-wrapper.channel-item > .pet-item-row .pet-name:hover {
-  background: var(--bg-active);
-}
-
-.pet-item-wrapper.active-channel > .pet-item-row {
-  background: var(--accent-light);
-}
-
-.pet-item-wrapper.active-channel > .pet-item-row .pet-name {
-  color: var(--accent-primary);
-  font-weight: 500;
-}
-
-/* Channel drag-and-drop reordering */
-.pet-item-wrapper.channel-item > .pet-item-row {
-  cursor: grab;
-}
-
-.pet-item-wrapper.channel-item > .pet-item-row:active {
-  cursor: grabbing;
-}
-
-.pet-item-wrapper.channel-dragging {
-  opacity: 0.3;
-}
-
-.channel-drop-indicator {
-  position: absolute;
-  left: 4px;
-  right: 4px;
-  height: 2px;
-  background: var(--accent-primary);
-  pointer-events: none;
-  z-index: 10;
-  border-radius: 1px;
-}
-
-.channel-drop-indicator::before {
-  content: '';
-  position: absolute;
-  left: -3px;
-  top: -3px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent-primary);
-}
-
-/* Per-channel sidebar menu */
-.channel-sidebar-menu-btn {
-  background: none;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  font-size: 1em;
-  padding: 0 2px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.pet-item-row:hover .channel-sidebar-menu-btn {
-  opacity: 0.6;
-}
-
-.channel-sidebar-menu-btn:hover {
-  opacity: 1 !important;
-}
-
-.channel-sidebar-menu {
-  background: var(--bg-primary, #1e1e1e);
-  border: 1px solid var(--border-primary, #444);
-  border-radius: 6px;
-  padding: 4px;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  min-width: 100px;
-}
-
-.channel-sidebar-menu-item {
-  display: block;
-  width: 100%;
-  padding: 5px 12px;
-  border: none;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-  border-radius: 4px;
-  font-size: 0.85em;
-}
-
-.channel-sidebar-menu-item:hover {
-  background: var(--bg-tertiary, rgba(128, 128, 128, 0.15));
-}
-
-.channel-sidebar-menu-item.active {
-  font-weight: 600;
-  color: var(--accent-primary, #4a9eff);
-}
-
-/* Bookmarked thread items nested under channels */
-.bookmarked-thread-item {
-  padding: 2px 8px 2px 24px;
-  font-size: 0.85em;
-  opacity: 0.75;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  border-radius: 4px;
-}
-
-.bookmarked-thread-item:hover {
-  opacity: 1;
-  background: var(--bg-tertiary, rgba(128, 128, 128, 0.1));
-}
-
-.bookmark-label {
-  pointer-events: none;
-}
-
-.bookmark-context-menu {
-  background: var(--bg-primary, #1e1e1e);
-  border: 1px solid var(--border-primary, #444);
-  border-radius: 6px;
-  padding: 4px;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.bookmark-context-menu button {
-  display: block;
-  width: 100%;
-  padding: 6px 12px;
-  border: none;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-  border-radius: 4px;
-  font-size: 0.85em;
-}
-
-.bookmark-context-menu button:hover {
-  background: var(--bg-tertiary, rgba(128, 128, 128, 0.15));
-}
-
 /* Special (all-caps) items - hidden by default */
 .pet-item-wrapper.special {
   display: none;
@@ -698,10 +447,36 @@ body.resizing * {
   overflow-x: hidden;
 }
 
+/*
+ * The action buttons float over the right edge of the row instead of
+ * participating in its flex layout, so they no longer reserve a gutter that
+ * displaces the name. A left-fading backdrop (shown with the buttons on hover)
+ * keeps long names legible where they pass underneath.
+ */
 .pet-buttons {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 12px;
   display: flex;
   gap: 4px;
   align-items: center;
+  padding-left: 24px;
+  /* The transparent gradient region must not steal clicks from the name
+   * underneath; only the buttons themselves are interactive. */
+  pointer-events: none;
+}
+
+.pet-buttons button {
+  pointer-events: auto;
+}
+
+.pet-item-row:hover .pet-buttons {
+  background: linear-gradient(to right, transparent, var(--bg-hover) 24px);
+}
+
+.pet-item-wrapper.active-conversation > .pet-item-row:hover .pet-buttons {
+  background: linear-gradient(to right, transparent, var(--accent-hover) 24px);
 }
 
 .pet-name {
@@ -795,6 +570,7 @@ body.resizing * {
 }
 
 .pet-item-row {
+  position: relative;
   display: flex;
   align-items: center;
   padding: 8px 12px;
@@ -860,7 +636,7 @@ body.resizing * {
   right: 0;
   bottom: 60px;
   padding: 20px 24px;
-  padding-top: calc(100vh - 160px);
+  padding-top: calc(100dvh - 160px);
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--bg-primary);
@@ -1128,7 +904,7 @@ body.resizing * {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 800px;
-  max-height: 90vh;
+  max-height: 90dvh;
   z-index: 1000;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
@@ -1167,7 +943,7 @@ body.resizing * {
 .eval-form {
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: 90dvh;
 }
 
 .eval-header {
@@ -1439,7 +1215,7 @@ body.resizing * {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 80ex;
-  height: 90vh;
+  height: 90dvh;
   z-index: 1000;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
@@ -2322,6 +2098,16 @@ body.resizing * {
   font-weight: 400;
 }
 
+/*
+ * The source input renders confined into a dedicated mount child rather than
+ * directly into `.inline-eval-wrapper`. `display: contents` makes that mount
+ * transparent to the wrapper's flex layout so the input below keeps acting as a
+ * direct flex child (preserving its `flex: 1` growth).
+ */
+.inline-eval-source-mount {
+  display: contents;
+}
+
 .inline-eval-input {
   flex: 1;
   min-width: 100px;
@@ -2413,6 +2199,66 @@ body.resizing * {
 .message-picking-mode .message.selectable.highlighted .message-num-badge {
   opacity: 1;
   background: var(--success);
+}
+
+/* Confined message-picker overlay */
+.message-picker-overlay {
+  position: fixed;
+  right: 16px;
+  bottom: 80px;
+  z-index: 1000;
+}
+
+.message-picker {
+  max-width: 360px;
+  max-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--tooltip-bg);
+  color: var(--tooltip-fg);
+  border-radius: 6px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.message-picker-header {
+  padding: 6px 10px;
+  font-size: 12px;
+  opacity: 0.8;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.message-picker-list {
+  overflow-y: auto;
+}
+
+.message-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.message-picker-item:hover,
+.message-picker-item.highlighted {
+  background: var(--accent-light);
+  color: var(--accent-primary);
+}
+
+.message-picker-item .message-num-badge {
+  display: block;
+  position: static;
+  top: auto;
+  left: auto;
+  flex: 0 0 auto;
+}
+
+.message-picker-item-text {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /*
@@ -2967,7 +2813,7 @@ button.btn-spinner::after {
   padding: 24px;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  max-height: calc(100vh - 80px);
+  max-height: calc(100dvh - 80px);
   max-width: calc(100vw - 80px);
   min-width: 400px;
   overflow: auto;
@@ -3050,7 +2896,7 @@ button.btn-spinner::after {
 
 /* Blob content visualization in Show Value modal */
 .value-blob-content {
-  max-height: 60vh;
+  max-height: 60dvh;
   overflow: auto;
 }
 
@@ -3235,7 +3081,7 @@ button.btn-spinner::after {
   box-shadow: var(--shadow-lg);
   max-width: 700px;
   width: 90%;
-  max-height: 85vh;
+  max-height: 85dvh;
   display: flex;
   flex-direction: column;
 }
@@ -3751,6 +3597,110 @@ button.btn-spinner::after {
   display: block;
 }
 
+/* Type badge on inventory items */
+.pet-type-badge {
+  font-size: 0.65em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.15);
+  color: var(--text-muted, #888);
+  margin-left: 6px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Cancel button */
+.cancel-button {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  /* Hidden until the row is hovered, like the info and remove buttons. */
+  opacity: 0;
+  transition: all 0.2s;
+  color: inherit;
+  /* Optically center the ⊘ glyph, which renders slightly low and right. */
+  transform: translate(-0.5px, -0.5px);
+}
+.pet-item-row:hover button.cancel-button:not(:disabled) {
+  opacity: 1;
+}
+.pet-item-row:hover button.cancel-button:disabled {
+  opacity: 0.3;
+}
+.cancel-button:hover:not(:disabled) {
+  border-color: currentColor;
+}
+.cancel-button.confirming {
+  opacity: 1;
+  color: var(--error-color, #e74c3c);
+  border-color: var(--error-color, #e74c3c);
+  transform: translate(-0.5px, -0.5px) scale(1.2);
+}
+.cancel-button.cancelled {
+  opacity: 0.4;
+  border-color: currentColor;
+  border-style: dashed;
+}
+.cancel-button:disabled {
+  cursor: default;
+}
+
+/* Inventory drag and drop */
+.pet-item-row.dragging {
+  opacity: 0.4;
+}
+.pet-item-row.drop-target {
+  outline: 2px solid var(--accent-color, #3498db);
+  outline-offset: -2px;
+  background: rgba(52, 152, 219, 0.1);
+}
+.pet-list.drop-target-list,
+.pet-children.drop-target-list {
+  outline: 2px dashed var(--accent-color, #3498db);
+  outline-offset: -2px;
+  background: rgba(52, 152, 219, 0.06);
+}
+
+/* Drag-and-drop link/move menu */
+.inventory-drop-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+.inventory-drop-menu {
+  background: var(--bg-primary, #1e1e1e);
+  border: 1px solid var(--border-primary, #444);
+  border-radius: 6px;
+  padding: 4px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  min-width: 100px;
+}
+.inventory-drop-menu-item {
+  display: block;
+  width: 100%;
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.inventory-drop-menu-item:hover {
+  background: var(--bg-tertiary, rgba(128, 128, 128, 0.15));
+}
+
 #chat-bar.has-content #chat-menu-button,
 #chat-bar.command-mode #chat-menu-button {
   display: none;
@@ -3977,7 +3927,7 @@ button.btn-spinner::after {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 520px;
-  max-height: 90vh;
+  max-height: 90dvh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -3988,7 +3938,7 @@ button.btn-spinner::after {
 .form-builder {
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: 90dvh;
 }
 
 .form-builder-header {
@@ -4207,7 +4157,7 @@ button.btn-spinner::after {
   transform: translate(-50%, -50%);
   width: 90%;
   max-width: 560px;
-  max-height: 90vh;
+  max-height: 90dvh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -4218,7 +4168,7 @@ button.btn-spinner::after {
 .endow-modal {
   display: flex;
   flex-direction: column;
-  max-height: 90vh;
+  max-height: 90dvh;
 }
 
 .endow-modal-header {
@@ -4574,7 +4524,7 @@ button.btn-spinner::after {
   position: relative;
   width: 90%;
   max-width: 420px;
-  max-height: 80vh;
+  max-height: 80dvh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -4908,7 +4858,8 @@ button.btn-spinner::after {
 }
 
 /* Add Space Modal */
-#add-space-modal-container {
+#add-space-modal-container,
+.spaces-modal-overlay {
   display: none;
   position: fixed;
   inset: 0;
@@ -4928,7 +4879,7 @@ button.btn-spinner::after {
   position: relative;
   width: 90%;
   max-width: 480px;
-  max-height: 90vh;
+  max-height: 90dvh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -4944,6 +4895,7 @@ button.btn-spinner::after {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-light);
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .add-space-back {
@@ -4990,6 +4942,12 @@ button.btn-spinner::after {
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   padding: 24px 20px;
+  /* Let the card grid scroll within the modal instead of being clipped by
+     the modal's overflow:hidden + max-height (cards run off-screen on short
+     mobile viewports otherwise). */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .space-type-card {
@@ -5044,6 +5002,8 @@ button.btn-spinner::after {
 
 .add-space-form {
   padding: 20px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: visible;
   display: flex;
@@ -8737,7 +8697,7 @@ button.btn-spinner::after {
   transform: translate(-50%, -50%);
   width: 95%;
   max-width: 1100px;
-  height: 85vh;
+  height: 85dvh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
@@ -9175,4 +9135,681 @@ button.btn-spinner::after {
   font-size: 12px;
   color: var(--text-muted);
   font-style: italic;
+}
+
+/* ===================================================================
+ * File Explorer Space (file-explorer.js)
+ * =================================================================== */
+
+.fx-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.fx-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  align-items: center;
+}
+
+.fx-toolbar-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px 4px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+/* Cluster label sits to the LEFT of the buttons (rather than as
+   a fieldset legend on top) so the toolbar stays a single row.
+   The three categories the user asked for — View / New
+   filesystem / File actions — each get their own bordered cluster
+   with this label visible; the Layer subgroup follows the same
+   pattern when it appears. */
+.fx-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-right: 4px;
+  border-right: 1px solid var(--border-color);
+  margin-right: 4px;
+  user-select: none;
+}
+
+.fx-layer-group {
+  border-color: var(--accent-primary);
+}
+
+.fx-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fx-check input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.fx-check-disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.fx-check-disabled input {
+  cursor: default;
+}
+
+.fx-btn {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fx-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.fx-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fx-btn.fx-primary {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
+
+.fx-btn.fx-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.fx-btn.fx-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.fx-source-select,
+.fx-git-ref {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  max-width: 220px;
+}
+
+.fx-segmented {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.fx-seg {
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  border: none;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.fx-seg + .fx-seg {
+  border-left: 1px solid var(--border-color);
+}
+
+.fx-seg.fx-seg-on {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.fx-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.fx-browser {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: var(--bg-primary);
+}
+
+/* ---- Inventory sidebar (file-explorer Space) ------------------ */
+
+/* Left-hand list of pet names known to `rootPowers`. Each row is
+   disabled until its capability classifies as a Filesystem or a
+   Mount; non-fs items stay greyed so the user can still see what
+   else is in their inventory without being able to misclick. */
+.fx-inventory {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.fx-inv-header {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.fx-inv-list {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.fx-inv-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 4px 12px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-inv-item:hover:not(.fx-inv-disabled) {
+  background: var(--bg-hover, rgba(127, 127, 127, 0.12));
+}
+
+.fx-inv-disabled {
+  cursor: default;
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
+.fx-splitter {
+  width: 6px;
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: var(--border-color);
+}
+
+.fx-splitter:hover {
+  background: var(--accent-primary);
+}
+
+.fx-viewer {
+  flex: 0 0 auto;
+  width: 440px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+/* `display: flex` above wins over the user-agent
+   `[hidden] { display: none }`, so the "Hide viewer" toggle
+   (which sets `$viewer.hidden = true`) is otherwise a no-op.
+   Same for the resize splitter that sits next to the viewer. */
+.fx-viewer[hidden],
+.fx-splitter[hidden] {
+  display: none;
+}
+
+/* ---- Miller columns ---- */
+
+.fx-columns {
+  display: flex;
+  height: 100%;
+  align-items: stretch;
+}
+
+.fx-column {
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  flex: 0 0 240px;
+  border-right: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.fx-column-head {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-column-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Drop-target highlight for the whole column — fires when the
+   user is about to drop an entry anywhere on a column except
+   onto a more-specific directory row inside it (those use
+   `.fx-entry.fx-drop-target` and stopPropagation). Inset
+   outline matches the entry-level visual cue without affecting
+   the column's layout width. */
+.fx-column.fx-drop-target {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+.fx-empty-col {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 10px;
+}
+
+/* ---- tree ---- */
+
+.fx-tree {
+  padding: 4px 0;
+}
+
+/* ---- entry rows (shared) ---- */
+
+.fx-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.fx-entry:hover {
+  background: var(--bg-hover);
+}
+
+.fx-entry.fx-selected {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+/* Non-fs children (e.g. a git workspace) surfaced by raw-Mount
+   enumeration: shown for awareness but not browsable, mirroring the
+   inventory's disabled rows. */
+.fx-entry.unknown {
+  cursor: default;
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
+.fx-entry.unknown:hover {
+  background: none;
+}
+
+.fx-entry.fx-drop-target {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+  background: var(--bg-active);
+}
+
+.fx-twisty {
+  width: 12px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  flex: 0 0 12px;
+}
+
+.fx-entry.fx-selected .fx-twisty {
+  color: #fff;
+}
+
+.fx-entry-icon {
+  flex: 0 0 auto;
+}
+
+.fx-entry-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-entry-actions {
+  display: none;
+  gap: 2px;
+}
+
+.fx-entry:hover .fx-entry-actions {
+  display: flex;
+}
+
+.fx-mini {
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 5px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.fx-mini:hover {
+  background: var(--bg-hover);
+}
+
+/* ---- empty state ---- */
+
+.fx-emptystate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 100%;
+  text-align: center;
+  padding: 24px;
+}
+
+.fx-emptystate-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fx-emptystate-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 360px;
+}
+
+.fx-emptystate-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ---- viewer ---- */
+
+.fx-viewer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.fx-viewer-title {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fx-viewer-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.fx-viewer-controls {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.fx-viewer-body {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.fx-viewer-empty {
+  padding: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.fx-code {
+  margin: 0;
+  padding: 10px 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 2;
+  color: var(--code-fg, var(--text-primary));
+  background: var(--code-bg, var(--bg-primary));
+  min-height: 100%;
+}
+
+.fx-editor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: none;
+  resize: none;
+  padding: 10px 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  tab-size: 2;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.fx-editor:focus {
+  outline: none;
+}
+
+/* ---- status bar ---- */
+
+.fx-status {
+  padding: 4px 12px;
+  font-size: 12px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  min-height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fx-status.fx-status-error {
+  color: #fff;
+  background: var(--danger);
+}
+
+.fx-status.fx-status-info {
+  color: var(--text-secondary);
+}
+
+/* ---- dialog ---- */
+
+.fx-dialog-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--backdrop, rgba(0, 0, 0, 0.4));
+  z-index: 50;
+}
+
+.fx-dialog {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 16px;
+  width: 380px;
+  max-width: 90%;
+  max-height: 80%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fx-dialog-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.fx-dialog-message {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.fx-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.fx-dialog-input {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.fx-dialog-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fx-dialog-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.fx-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.fx-changes {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  max-height: 280px;
+  overflow: auto;
+}
+
+.fx-change-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  border-bottom: 1px solid var(--border-light, var(--border-color));
+}
+
+.fx-change-kind {
+  flex: 0 0 90px;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.fx-change-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+/* ---- file explorer: loading indicators ---- */
+
+.fx-spinner {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: fx-spin 0.7s linear infinite;
+  vertical-align: -2px;
+  margin-right: 6px;
+}
+
+@keyframes fx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fx-loading-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.fx-col-error {
+  color: var(--danger);
+  white-space: normal;
+  word-break: break-word;
+}
+
+.fx-status-text {
+  vertical-align: middle;
 }

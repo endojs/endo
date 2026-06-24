@@ -46,7 +46,7 @@ const TAG_UNSIGNED_BIGNUM = 2n;
 const TAG_NEGATIVE_BIGNUM = 3n;
 const TAG_RECORD = 27n; // Generic record/structure
 const TAG_SYMBOL = 280n; // OCapN symbol (selector)
-const TAG_TAGGED_VALUE = 55799n; // Self-described CBOR / OCapN tagged
+const TAG_TAGGED_VALUE = 55_799n; // Self-described CBOR / OCapN tagged
 
 // Canonical NaN representation (IEEE 754 quiet NaN)
 const CANONICAL_NAN = new Uint8Array([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
@@ -82,10 +82,10 @@ function writeTypeAndLength(writer, major, value) {
   } else if (n < 256n) {
     writeTypeByte(writer, major, AI_1BYTE);
     writer.writeUint8(Number(n));
-  } else if (n < 65536n) {
+  } else if (n < 65_536n) {
     writeTypeByte(writer, major, AI_2BYTE);
     writer.writeUint16(Number(n), false); // big-endian
-  } else if (n < 4294967296n) {
+  } else if (n < 4_294_967_296n) {
     writeTypeByte(writer, major, AI_4BYTE);
     writer.writeUint32(Number(n), false); // big-endian
   } else {

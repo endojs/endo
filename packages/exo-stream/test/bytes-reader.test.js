@@ -99,7 +99,7 @@ test('single-item bytes reader', async t => {
 });
 
 test('large bytes reader', async t => {
-  const largeChunk = new Uint8Array(10000);
+  const largeChunk = new Uint8Array(10_000);
   for (let i = 0; i < largeChunk.length; i += 1) {
     largeChunk[i] = i % 256;
   }

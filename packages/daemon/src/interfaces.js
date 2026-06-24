@@ -1,16 +1,27 @@
 // @ts-check
 
 import { M } from '@endo/patterns';
+import {
+  DirectoryInterface as PlatformDirectoryInterface,
+  FileInterface as PlatformFileInterface,
+  readableBlobMethodGuards,
+  readableTreeMethodGuards,
+  readableNameHubMethodGuards,
+  directoryFileMethodGuards,
+  rangeReadMethodGuards,
+  getInfoMethodGuard,
+} from '@endo/platform/fs/lite';
+import {
+  NamePathShape,
+  NameOrPathShape,
+  NamesOrPathsShape,
+} from './type-guards.js';
 
 // #region Patterns
 
-// Names: pet names are lowercase (a-z start, then a-z0-9-), special names are uppercase
-// Pattern matching is done at runtime by the implementation, but we can at least
-// ensure strings are passed.
-const NameShape = M.string();
-const NamePathShape = M.arrayOf(NameShape);
-const NameOrPathShape = M.or(NameShape, NamePathShape);
-const NamesOrPathsShape = M.arrayOf(NameOrPathShape);
+// Pet-name and pet-path shapes are canonical in `./type-guards.js`
+// (re-exported as `@endo/daemon/type-guards.js` for consumers like
+// `@endo/lal`).  See that module for the contract.
 
 // Edge names for message edges (same pattern as Name)
 const EdgeNameShape = M.string();
@@ -32,7 +43,7 @@ const EnvShape = M.recordOf(M.string(), M.string());
 const MakeCapletOptionsShape = M.splitRecord(
   {},
   {
-    powersName: NameShape,
+    powersName: NameOrPathShape,
     resultName: NameOrPathShape,
     env: EnvShape,
     workerTrustedShims: M.arrayOf(M.string()),
@@ -42,7 +53,7 @@ const MakeCapletOptionsShape = M.splitRecord(
 // Shared method guard for evaluate (used by both Host and Guest)
 // Both execute directly in a worker, differing only in namespace
 const EvaluateMethodGuard = M.call(
-  M.or(NameShape, M.undefined()),
+  M.or(NameOrPathShape, M.undefined()),
   M.string(),
   M.arrayOf(M.string()),
   NamesOrPathsShape,
@@ -62,18 +73,36 @@ export const ResponderInterface = M.interface('EndoResponder', {
   resolveWithId: M.callWhen(M.or(IdShape, M.promise())).returns(),
 });
 
-export const NameHubInterface = M.interface('EndoNameHub', {
-  has: M.call().rest(NamePathShape).returns(M.promise()),
+// `readableNameHubMethodGuards` (help / has / list / lookup / maybeLookup) and
+// `directoryFileMethodGuards` (makeDirectory / readText / maybeReadText /
+// writeText) are the portable name-hub records, now owned by
+// `@endo/platform/fs` so non-daemon hosts (genie, future browser/Go/Rust
+// clients) can consume them without depending on the daemon. They are imported
+// above; the daemon adds only the registry/locator surface below.
+
+// The documentation-contract interface for the narrow read surface. It is not
+// used to build an exo directly (each surface assembles its own guard from the
+// records); it names the contract that `__getMethodNames__`-based feature
+// detection keys on (namehub-interface-unification.md Decision 3).
+export const ReadableNameHubInterface = M.interface('ReadableNameHub', {
+  ...readableNameHubMethodGuards,
+});
+
+// The full name-hub method-guard record: the portable read contract plus the
+// daemon-specific registry/locator/mutation surface. `EndoDirectory` spreads it
+// (and `directoryFileMethodGuards`); `EndoGuest` / `EndoHost` spread it but
+// override the two `follow*` methods (which return `M.promise()` on agents,
+// where the hub returns `M.remotable()` — the exo awaits before wrapping the
+// reader).
+export const nameHubMethodGuards = harden({
+  ...readableNameHubMethodGuards,
   identify: M.call().rest(NamePathShape).returns(M.promise()),
   locate: M.call().rest(NamePathShape).returns(M.promise()),
   reverseLocate: M.call(LocatorShape).returns(M.promise()),
   followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
-  list: M.call().rest(NamePathShape).returns(M.promise()),
   listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
   listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.remotable()),
-  lookup: M.call(NameOrPathShape).returns(M.promise()),
-  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
   reverseLookup: M.call(M.any()).returns(M.promise()),
   storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
   storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
@@ -98,85 +127,31 @@ export const HandleInterface = M.interface(
   { defaultGuards: 'passable' },
 );
 
-export const AsyncIteratorInterface = M.interface('AsyncIterator', {
-  next: M.call().returns(M.promise()),
-  return: M.call().optional(M.any()).returns(M.promise()),
-  throw: M.call().optional(M.any()).returns(M.promise()),
-});
-
+// `EndoDirectory` is the writable name hub: the shared `nameHubMethodGuards`
+// (which carries `help` and the registry/mutation surface) plus the
+// `directoryFileMethodGuards` file-I/O surface it delegates to its backing
+// mount. See designs/fs-interface-consolidation.md § C1.
 export const DirectoryInterface = M.interface('EndoDirectory', {
-  // Self-documentation
-  help: M.call().optional(M.string()).returns(M.string()),
-  // Check if a name exists
-  has: M.call().rest(NamePathShape).returns(M.promise()),
-  // Get formula identifier for a name path
-  identify: M.call().rest(NamePathShape).returns(M.promise()),
-  // Get locator string for a name path
-  locate: M.call().rest(NamePathShape).returns(M.promise()),
-  // Find names for a locator
-  reverseLocate: M.call(LocatorShape).returns(M.promise()),
-  // Subscribe to name changes for a locator (returns iterator ref)
-  followLocatorNameChanges: M.call(LocatorShape).returns(M.remotable()),
-  // List names in a directory
-  list: M.call().rest(NamePathShape).returns(M.promise()),
-  // List unique formula identifiers
-  listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  // List locators for names
-  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
-  // Subscribe to name changes (returns iterator ref)
-  followNameChanges: M.call().returns(M.remotable()),
-  // Resolve a name path to a value
-  lookup: M.call(NameOrPathShape).returns(M.promise()),
-  // Resolve a name path, returning undefined if the head name is absent
-  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
-  // Get names for a value
-  reverseLookup: M.call(M.any()).returns(M.promise()),
-  // Store a formula identifier with a name
-  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  // Store an endo:// locator with a name
-  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  // Remove a name
-  remove: M.call().rest(NamePathShape).returns(M.promise()),
-  // Move/rename a reference
-  move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  // Copy a reference
-  copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  // Create a new directory
-  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
-  // Text I/O (delegated to mount)
-  readText: M.call(NameOrPathShape).returns(M.promise()),
-  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
-  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
+  ...nameHubMethodGuards,
+  ...directoryFileMethodGuards,
 });
 
 export const GuestInterface = M.interface('EndoGuest', {
-  // Self-documentation
-  help: M.call().optional(M.string()).returns(M.string()),
-  // Directory
-  has: M.call().rest(NamePathShape).returns(M.promise()),
-  identify: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseIdentify: M.call(IdShape).returns(M.array()),
-  locate: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseLocate: M.call(LocatorShape).returns(M.promise()),
+  // Name hub — the shared read (incl. `help`) + registry/locator/mutation
+  // surface, plus the directory file-I/O surface.
+  ...nameHubMethodGuards,
+  ...directoryFileMethodGuards,
+  // `followNameChanges` / `followLocatorNameChanges` are async on agents
+  // (the exo awaits before wrapping the reader), so they return a Promise
+  // where the bare `EndoDirectory` returns the reader synchronously
+  // (`M.remotable()`). Override the shared record's remotable shape with the
+  // agent's promise shape.
   followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
-  list: M.call().rest(NamePathShape).returns(M.promise()),
-  listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.promise()),
-  lookup: M.call(NameOrPathShape).returns(M.promise()),
-  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
+  // Agent-only registry extras beyond the bare name hub.
+  reverseIdentify: M.call(IdShape).returns(M.array()),
   lookupById: M.call(IdShape).returns(M.promise()),
-  reverseLookup: M.call(M.any()).returns(M.promise()),
-  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  remove: M.call().rest(NamePathShape).returns(M.promise()),
-  move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
-  // Text I/O (delegated to mount)
-  readText: M.call(NameOrPathShape).returns(M.promise()),
-  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
-  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
+  lookupByLocator: M.call(LocatorShape).returns(M.promise()),
   // Mail
   // Get the guest's mailbox handle
   handle: M.call().returns(M.remotable()),
@@ -216,6 +191,17 @@ export const GuestInterface = M.interface('EndoGuest', {
     EdgeNamesShape,
     NamesOrPathsShape,
   ).returns(M.promise()),
+  // Edit a message the caller previously sent
+  editMessage: M.call(
+    MessageNumberShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  )
+    .optional(M.splitRecord({}, { done: M.boolean() }))
+    .returns(M.promise()),
+  // Return the revision history of a message
+  messageHistory: M.call(MessageNumberShape).returns(M.promise()),
   // Define code with named slots
   define: M.call(
     M.string(), // source
@@ -250,33 +236,18 @@ export const GuestInterface = M.interface('EndoGuest', {
 });
 
 export const HostInterface = M.interface('EndoHost', {
-  // Self-documentation
-  help: M.call().optional(M.string()).returns(M.string()),
-  // Directory
-  has: M.call().rest(NamePathShape).returns(M.promise()),
-  identify: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseIdentify: M.call(IdShape).returns(M.array()),
-  locate: M.call().rest(NamePathShape).returns(M.promise()),
-  reverseLocate: M.call(LocatorShape).returns(M.promise()),
+  // Name hub — the shared read (incl. `help`) + registry/locator/mutation
+  // surface, plus the directory file-I/O surface.
+  ...nameHubMethodGuards,
+  ...directoryFileMethodGuards,
+  // Async on agents (see EndoGuest): override the shared record's
+  // synchronous remotable shape with the agent's promise shape.
   followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
-  list: M.call().rest(NamePathShape).returns(M.promise()),
-  listIdentifiers: M.call().rest(NamePathShape).returns(M.promise()),
-  listLocators: M.call().rest(NamePathShape).returns(M.promise()),
   followNameChanges: M.call().returns(M.promise()),
-  lookup: M.call(NameOrPathShape).returns(M.promise()),
-  maybeLookup: M.call(NameOrPathShape).returns(M.any()),
+  // Agent-only registry extras beyond the bare name hub.
+  reverseIdentify: M.call(IdShape).returns(M.array()),
   lookupById: M.call(IdShape).returns(M.promise()),
-  reverseLookup: M.call(M.any()).returns(M.promise()),
-  storeIdentifier: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  storeLocator: M.call(NameOrPathShape, IdShape).returns(M.promise()),
-  remove: M.call().rest(NamePathShape).returns(M.promise()),
-  move: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
-  makeDirectory: M.call(NameOrPathShape).returns(M.promise()),
-  // Text I/O (delegated to mount)
-  readText: M.call(NameOrPathShape).returns(M.promise()),
-  maybeReadText: M.call(NameOrPathShape).returns(M.promise()),
-  writeText: M.call(NameOrPathShape, M.string()).returns(M.promise()),
+  lookupByLocator: M.call(LocatorShape).returns(M.promise()),
   // Mail
   handle: M.call().returns(M.remotable()),
   listMessages: M.call().returns(M.promise()),
@@ -323,46 +294,79 @@ export const HostInterface = M.interface('EndoHost', {
   provideScratchMount: M.call(NameOrPathShape)
     .optional(M.splitRecord({}, { readOnly: M.boolean() }))
     .returns(M.promise()),
-  // Resolve a Mount capability to its host filesystem path. Used by
-  // the @endo/sandbox factory (and similar make-unconfined plugins)
-  // to translate granted Mount caps into bind-mount source paths.
+  // Derive a local Git capability from an authorized mount.
+  provideGit: M.callWhen(M.remotable(), NameOrPathShape).returns(
+    M.remotable('Git'),
+  ),
+  // Mint a GitRemote capability that wraps a writable Git cap with a
+  // policy-bound endpoint and (optional) credential.
+  provideGitRemote: M.callWhen(
+    M.remotable(),
+    NameOrPathShape,
+    M.recordOf(M.string(), M.any()),
+  ).returns(M.remotable('GitRemote')),
+  // Mint daemon-private Git credential capabilities.
+  provideBearerCredential: M.callWhen(
+    NameOrPathShape,
+    M.recordOf(M.string(), M.any()),
+  ).returns(M.remotable('BearerCredential')),
+  provideBasicCredential: M.callWhen(
+    NameOrPathShape,
+    M.recordOf(M.string(), M.any()),
+  ).returns(M.remotable('BasicCredential')),
+  // Host-side controllers for daemon-minted credential / remote caps.
+  getGitCredentialController: M.callWhen(M.remotable()).returns(
+    M.remotable('GitCredentialController'),
+  ),
+  getGitRemoteController: M.callWhen(M.remotable()).returns(
+    M.remotable('GitRemoteController'),
+  ),
+  // Resolve a Mount capability to its host filesystem path. This is
+  // deliberately part of the fully privileged EndoHost surface used
+  // by the @endo/sandbox factory (and similar make-unconfined
+  // plugins); do not hand an EndoHost cap to code that should not be
+  // able to recover host paths for daemon-minted top-level mounts.
   provideHostPath: M.call(M.any()).returns(M.promise()),
   // Provide a guest
-  provideGuest: M.call().optional(NameShape, M.record()).returns(M.promise()),
+  provideGuest: M.call()
+    .optional(NameOrPathShape, M.record())
+    .returns(M.promise()),
   // Provide a host
-  provideHost: M.call().optional(NameShape, M.record()).returns(M.promise()),
+  provideHost: M.call()
+    .optional(NameOrPathShape, M.record())
+    .returns(M.promise()),
   // Provide a worker
   provideWorker: M.call(NameOrPathShape).returns(M.promise()),
   // Evaluate code directly in a worker
   evaluate: EvaluateMethodGuard,
   // Make an unconfined caplet
-  makeUnconfined: M.call(M.or(NameShape, M.undefined()), M.string())
+  makeUnconfined: M.call(M.or(NameOrPathShape, M.undefined()), M.string())
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a caplet from a source-only ZIP archive
-  makeArchive: M.call(M.or(NameShape, M.undefined()), NameShape)
+  makeArchive: M.call(M.or(NameOrPathShape, M.undefined()), NameOrPathShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Make a caplet from a ReadableTree or Mount laid out as a
   // compartment-mapper archive (compartment-map.json at root plus
   // modules at their referenced paths).
-  makeFromTree: M.call(M.or(NameShape, M.undefined()), NameOrPathShape)
+  makeFromTree: M.call(M.or(NameOrPathShape, M.undefined()), NameOrPathShape)
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Materialise a readable tree into a new scratch mount.
-  stageTree: M.call(NameOrPathShape, NameShape).returns(M.promise()),
+  stageTree: M.call(NameOrPathShape, NameOrPathShape).returns(M.promise()),
   // Stage a readable tree and run its entry module as an unconfined
   // Node caplet.
   makeUnconfinedFromTree: M.call(
-    M.or(NameShape, M.undefined()),
+    M.or(NameOrPathShape, M.undefined()),
     NameOrPathShape,
   )
     .optional(MakeCapletOptionsShape)
     .returns(M.promise()),
   // Create a channel
-  makeChannel: M.call(NameShape, M.string()).returns(M.promise()),
+  makeChannel: M.call(NameOrPathShape, M.string()).returns(M.promise()),
   // Create a timer
-  makeTimer: M.call(NameShape, M.number())
+  makeTimer: M.call(NameOrPathShape, M.number())
     .optional(M.string())
     .returns(M.promise()),
   // Cancel a value
@@ -386,9 +390,9 @@ export const HostInterface = M.interface('EndoHost', {
   // Adopt a value from a locator with connection hints
   adoptFromLocator: M.call(LocatorShape, NameOrPathShape).returns(M.promise()),
   // Create an invitation
-  invite: M.call(NameShape).returns(M.promise()),
+  invite: M.call(NameOrPathShape).returns(M.promise()),
   // Accept an invitation
-  accept: M.call(LocatorShape, NameShape).returns(M.promise()),
+  accept: M.call(LocatorShape, NameOrPathShape).returns(M.promise()),
   // Reply to a message
   reply: M.call(
     MessageNumberShape,
@@ -396,13 +400,24 @@ export const HostInterface = M.interface('EndoHost', {
     EdgeNamesShape,
     NamesOrPathsShape,
   ).returns(M.promise()),
+  // Edit a message the caller previously sent
+  editMessage: M.call(
+    MessageNumberShape,
+    M.arrayOf(M.string()),
+    EdgeNamesShape,
+    NamesOrPathsShape,
+  )
+    .optional(M.splitRecord({}, { done: M.boolean() }))
+    .returns(M.promise()),
+  // Return the revision history of a message
+  messageHistory: M.call(MessageNumberShape).returns(M.promise()),
   // Endow a definition request with bindings
   endow: M.call(
     MessageNumberShape, // messageNumber
     M.record(), // bindings
   )
     .optional(
-      M.or(NameShape, M.undefined()), // workerName
+      M.or(NameOrPathShape, M.undefined()), // workerName
       NameOrPathShape, // resultName
     )
     .returns(M.promise()),
@@ -496,54 +511,145 @@ export const InspectorInterface = M.interface('EndoInspector', {
   list: M.call().returns(M.array()),
 });
 
+// `EndoBlob` is the daemon's immutable-bytes cap and the CapTP remote-read
+// target. It carries the whole-value `readableBlobMethodGuards` (help / text /
+// json / streamBase64) plus the range-I/O `rangeReadMethodGuards` (getInfo /
+// fetch) — i.e. exactly the shared `ReadableBlobRangeInterface`. The content
+// hash is reported by `getInfo().hash` (base64); there is no separate
+// `sha256()` accessor (the daemon's internals always already hold the hex
+// digest from `contentStore.store()` / the formula, so the cap method was
+// only ever a remote accessor, now superseded by `getInfo`). See
+// designs/fs-interface-consolidation.md § C4.
 export const BlobInterface = M.interface('EndoBlob', {
-  help: M.call().optional(M.string()).returns(M.string()),
-  sha256: M.call().returns(M.string()),
-  streamBase64: M.call().returns(M.remotable()),
-  text: M.call().returns(M.promise()),
-  json: M.call().returns(M.promise()),
+  ...readableBlobMethodGuards,
+  ...rangeReadMethodGuards,
 });
 
 const PathSegmentsShape = M.arrayOf(M.string());
-const PathArgShape = M.or(M.string(), PathSegmentsShape);
+const MountEntryShape = M.remotable('EndoMountEntry');
+const PathArgShape = M.or(M.string(), PathSegmentsShape, MountEntryShape);
 
+// `EndoMount` extends `Directory` from `@endo/platform/fs`.  Method
+// shapes that overlap with `PlatformDirectoryInterface` carry the
+// same `M.call(...)` arguments (path segments arrays plus an
+// `M.remotable()` value for `write`) and return shapes; the
+// mount-specific extensions (entry-arg overloads, `entry`, `stat`,
+// `readText`, `maybeReadText`, `writeText`, `makeFile`, `help`) are
+// additions, not redefinitions.  `has` widens `rest()` to `M.any()`
+// because the daemon supports the single-entry-value overload that
+// the platform contract does not name.
 export const MountInterface = M.interface('EndoMount', {
-  // ReadableTree-compatible surface
-  has: M.call().rest(PathSegmentsShape).returns(M.promise()),
+  // ReadableTree-compatible surface.  `has` accepts either variadic
+  // path segments or a single entry value; the impl validates the
+  // shape because rest-with-M.or pattern guards do not narrow
+  // remotables consistently across CapTP.
+  has: M.call().rest(M.any()).returns(M.promise()),
   list: M.call().rest(PathSegmentsShape).returns(M.promise()),
   lookup: M.call(PathArgShape).returns(M.promise()),
+  // `maybeLookup` is the `ReadableNameHub` primitive (lookup-or-undefined).
+  // Widened from the shared `NameOrPathShape` contract to `PathArgShape` so the
+  // mount accepts a `MountEntry` cap as the path argument, exactly like
+  // `lookup`. See designs/fs-interface-consolidation.md § C1.
+  maybeLookup: M.call(PathArgShape).returns(M.any()),
+  // `followNameChanges` is part of the full name-hub contract, but a live
+  // change feed requires a filesystem watcher behind the mount
+  // (filesystem-watchers.md), which is not yet implemented. The method is
+  // declared so the mount honestly advertises the surface (and a future
+  // watcher slots in without an interface bump); until then the
+  // implementation throws a clear "not supported" error rather than being
+  // silently absent. See designs/fs-interface-consolidation.md § C1.
+  followNameChanges: M.call().returns(M.any()),
+  // Confined sub-root: returns a sub-mount whose own confinement root is
+  // the target directory, so `..` cannot escape it (unlike a `lookup`
+  // sub-handle, which shares the mount's confinement root). The
+  // transient, in-session counterpart to `provideSubMount`.
+  subView: M.call(PathArgShape).returns(M.promise()),
+  // Directory-shape write/copy (literal shapes from
+  // PlatformDirectoryInterface for the path-segment form; entry-form
+  // overloads accept an `EndoMountEntry` as the path argument).
+  write: M.call(PathArgShape, M.remotable()).returns(M.promise()),
+  copy: M.call(PathArgShape, PathArgShape).returns(M.promise()),
+  // Mount-scoped descriptor minting (no I/O).
+  entry: M.call(M.or(M.string(), PathSegmentsShape)).returns(MountEntryShape),
+  // Metadata.
+  stat: M.call(PathArgShape).returns(M.promise()),
   // Raw data I/O
   readText: M.call(PathArgShape).returns(M.promise()),
   maybeReadText: M.call(PathArgShape).returns(M.promise()),
   writeText: M.call(PathArgShape, M.string()).returns(M.promise()),
+  // Path-form constructors.  `makeDirectory` returns a sub-mount
+  // (matches `Directory.makeDirectory(path): Promise<Directory>`);
+  // `makeFile` is the constructive sibling for parallel use.
+  makeDirectory: M.call(PathArgShape).returns(M.promise()),
+  makeFile: M.call(PathArgShape).optional(M.any()).returns(M.promise()),
   // Mutation
   remove: M.call(PathArgShape).returns(M.promise()),
   move: M.call(PathArgShape, PathArgShape).returns(M.promise()),
-  makeDirectory: M.call(PathArgShape).returns(M.promise()),
-  // Attenuation
-  readOnly: M.call().returns(M.remotable()),
+  // Attenuation — returns a structural ReadableTree view, not an
+  // EndoMount.  Callers that need mount-specific extensions on a
+  // read-only handle keep a reference to the un-attenuated mount.
+  readOnly: M.call().returns(M.remotable('ReadableTree')),
   // Snapshot
   snapshot: M.call().returns(M.promise()),
   // Discoverability
-  help: M.call().returns(M.string()),
-});
-
-export const MountFileInterface = M.interface('EndoMountFile', {
-  text: M.call().returns(M.promise()),
-  streamBase64: M.call().returns(M.remotable()),
-  json: M.call().returns(M.promise()),
-  writeText: M.call(M.string()).returns(M.promise()),
-  writeBytes: M.call(M.remotable()).returns(M.promise()),
-  readOnly: M.call().returns(M.remotable()),
-  help: M.call().returns(M.string()),
-});
-
-export const ReadableTreeInterface = M.interface('EndoReadableTree', {
   help: M.call().optional(M.string()).returns(M.string()),
+});
+
+// `EndoMountFile` extends `File` from `@endo/platform/fs`.  The
+// overlapping methods (`streamBase64`, `text`, `json`, `writeText`,
+// `writeBytes`, `append`, `snapshot`) carry the same shapes as
+// `PlatformFileInterface`; `stat`, `help`, and the `rangeReadMethodGuards`
+// (`getInfo` / `fetch`) are mount-specific extensions.  `getInfo` / `fetch`
+// expose the rich `BlobRef` range-I/O surface over the *live* file.
+// `readOnly` narrows to a structural ReadableBlob view that carries the same
+// rich surface.
+export const MountFileInterface = M.interface('EndoMountFile', {
+  // Whole-value read surface (help / streamBase64 / text / json) shared with
+  // every other readable blob, plus the rich `rangeReadMethodGuards`
+  // (getInfo / fetch) over the live file, plus the mount-file write surface.
+  ...readableBlobMethodGuards,
+  ...rangeReadMethodGuards,
+  writeText: M.call(M.string()).returns(M.promise()),
+  append: M.call(M.string()).returns(M.promise()),
+  writeBytes: M.call(M.remotable()).returns(M.promise()),
+  stat: M.call().returns(M.promise()),
+  snapshot: M.call().returns(M.promise()),
+  readOnly: M.call().returns(M.remotable('ReadableBlob')),
+});
+
+// Re-export so importing modules that already pull from
+// `./interfaces.js` can reach the platform shapes without a second
+// import line.
+export { PlatformDirectoryInterface, PlatformFileInterface };
+
+export const MountEntryInterface = M.interface('EndoMountEntry', {
+  segments: M.call().returns(PathSegmentsShape),
+  displayPath: M.call().returns(M.string()),
+  child: M.call(M.string()).returns(MountEntryShape),
+  help: M.call().optional(M.string()).returns(M.string()),
+});
+
+// The git-only interface guards and shape constants moved into
+// `@endo/exo-git/src/interfaces.js`.  Re-exported here for daemon-
+// internal consumers that referenced them by name from `./interfaces.js`.
+export {
+  GitInterface,
+  GitTreeInterface,
+  GitRemoteInterface,
+  GitRemoteControllerInterface,
+  GitCredentialControllerInterface,
+  BasicCredentialInterface,
+  BearerCredentialInterface,
+} from '@endo/exo-git';
+
+// `EndoReadableTree` is the daemon's content-addressed immutable directory
+// snapshot. Its read surface is the shared `readableTreeMethodGuards` from
+// `@endo/platform/fs` (help / has / list / lookup); it adds `sha256`, making it
+// the `SnapshotTree` shape. See designs/fs-interface-consolidation.md § C3.
+export const ReadableTreeInterface = M.interface('EndoReadableTree', {
+  ...readableTreeMethodGuards,
+  ...getInfoMethodGuard,
   sha256: M.call().returns(M.string()),
-  has: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
-  list: M.call().rest(M.arrayOf(M.string())).returns(M.promise()),
-  lookup: M.call(M.or(M.string(), M.arrayOf(M.string()))).returns(M.promise()),
 });
 
 export const DaemonFacetForWorkerInterface = M.interface(

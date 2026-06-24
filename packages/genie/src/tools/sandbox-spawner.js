@@ -23,6 +23,7 @@
 
 import { E } from '@endo/eventual-send';
 import { makeError, q, X } from '@endo/errors';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import harden from '@endo/harden';
 
 /** @import { Spawner, ProcessLike } from './spawner.js' */
@@ -80,11 +81,11 @@ import harden from '@endo/harden';
  */
 
 /**
- * Adapt a `ReaderRef`-shaped exo into an `AsyncIterable<Uint8Array>`
- * the host's drain loop can consume.  Calls `E(reader).next()`
- * eventually, yields the byte chunk, and stops when `done` is true.
+ * Adapt a remote `PassableBytesReader`-shaped exo into an
+ * `AsyncIterable<Uint8Array>` the host's drain loop can consume.
+ * Uses `iterateBytesReader` to drive the new exo-stream wire protocol.
  *
- * Errors from the remote `next()` call propagate as iterator
+ * Errors from the underlying CapTP stream propagate as iterator
  * exceptions; `runProcess` (in `./command.js`) swallows them so a
  * mid-stream kill surfaces as clean EOF rather than a tool error.
  *
@@ -93,16 +94,8 @@ import harden from '@endo/harden';
  */
 const readerRefToAsyncIterable = readerRef => {
   return harden({
-    async *[Symbol.asyncIterator]() {
-      await null;
-      for (;;) {
-        // eslint-disable-next-line no-await-in-loop
-        const step = await E(readerRef).next();
-        if (step.done) return;
-        if (step.value !== undefined) {
-          yield step.value;
-        }
-      }
+    [Symbol.asyncIterator]() {
+      return iterateBytesReader(/** @type {any} */ (readerRef));
     },
   });
 };

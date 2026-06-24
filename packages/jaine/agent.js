@@ -7,7 +7,7 @@
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { createProvider } from '@endo/lal/providers/index.js';
 
 import { makeRouter } from './router.js';
@@ -376,7 +376,7 @@ export const spawnWorkerLoop = async (
           `[jaine][watch] Poll error in ${channelName}:`,
           err instanceof Error ? err.message : String(err),
         );
-        await delay(10000);
+        await delay(10_000);
       }
     }
   };
@@ -461,7 +461,7 @@ export const spawnWorkerLoop = async (
 
   await E(powers).send('@host', ['Jaine agent ready.'], [], []);
 
-  const messageIterator = makeRefIterator(E(powers).followMessages());
+  const messageIterator = iterateReader(E(powers).followMessages());
   while (true) {
     const nextMessage = messageIterator.next();
     const raced = cancelledSignal

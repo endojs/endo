@@ -299,6 +299,37 @@ fn handle_control_message(sup: &Arc<Supervisor>, spawn_sup: &Arc<Supervisor>, ca
                 }
             }
         }
+        "listen-iroh" => {
+            // Manager requests an iroh network device. Payload is a CBOR map
+            // {"node": <NodeNumber hex>}; the supervisor derives the stable
+            // iroh identity from it and bridges inbound peers to the manager,
+            // wire-compatible with the Node.js iroh transport.
+            match codec::decode_listen_iroh_request(&msg.envelope.payload) {
+                Ok(node) => {
+                    crate::iroh_net::start_iroh_listener(
+                        Arc::clone(sup),
+                        msg.from,
+                        msg.from,
+                        msg.envelope.nonce,
+                        node,
+                    );
+                }
+                Err(e) => {
+                    eprintln!("endor: listen-iroh decode error: {e}");
+                    sup.deliver(Message {
+                        from: 0,
+                        to: msg.from,
+                        envelope: Envelope {
+                            handle: 0,
+                            verb: "error".to_string(),
+                            payload: format!("listen-iroh decode: {e}").into_bytes(),
+                            nonce: msg.envelope.nonce,
+                        },
+                        response_tx: None,
+                    });
+                }
+            }
+        }
         "spawn" => {
             match codec::decode_spawn_request(&msg.envelope.payload) {
                 Ok((platform, command, args)) => {

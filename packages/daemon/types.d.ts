@@ -19,9 +19,6 @@ import type {
   ValueMessage,
 } from './src/types.js';
 
-export { makeRefReader, makeRefIterator } from './src/ref-reader.js';
-export { makeReaderRef, makeIteratorRef } from './src/reader-ref.js';
-
 export type {
   Config,
   DefineRequest,

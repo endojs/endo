@@ -51,13 +51,15 @@ The scene runs in a sandboxed iframe with no network access.`;
  * @property {string} name - Display name for the space
  * @property {string} icon - Emoji or letter icon
  * @property {string[]} profilePath - Pet name path to the profile
- * @property {'mailbox' | 'channel' | 'whylip' | 'graph' | 'peers'} layout - Layout type
+ * @property {'mailbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot'} layout - Layout type
  * @property {ColorScheme} [scheme] - Color scheme preference
  * @property {string} [channelPetName] - Pet name for the channel object (channel mode)
  * @property {string} [proposedName] - Display name for the channel creator
  * @property {string} [whylipSystemPrompt] - System prompt override for Whylip mode
  * @property {'chat' | 'forum'} [viewMode] - Channel view mode (default: 'chat')
  * @property {boolean} [ownedPersona] - Whether the space owns the persona (for cleanup)
+ * @property {string[]} [audioPath] - Pet name path to a speech-to-text object (floot mic)
+ * @property {string[]} [ttsPath] - Pet name path to a text-to-speech object (floot spoken replies)
  */
 
 /**
@@ -96,12 +98,21 @@ export const createAddSpaceModal = ({
   };
 
   let visible = false;
-  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel' | 'whylip' | 'graph' | 'peers'} */
+  /** @type {'choose' | 'new-agent' | 'existing' | 'new-channel' | 'connect-channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot'} */
   let mode = 'choose';
   /** @type {string} */
   let whylipName = '';
   /** @type {string} */
   let whylipAgentName = '';
+  /** @type {string} */
+  let flootAudioPath = '';
+  /** @type {string} */
+  let flootTtsPath = '';
+  // Auto-detected default for the Floot controller path picker (the well-known
+  // `floot/controller`, or a probed entry under `floot/`). Null until detection
+  // runs / finds nothing, in which case the picker falls back to `['@agent']`.
+  /** @type {string[] | null} */
+  let flootControllerPath = null;
   let selectedIcon = '🐈‍⬛';
   let useLetterIcon = false;
   /** @type {string} */
@@ -190,6 +201,16 @@ export const createAddSpaceModal = ({
           <span class="space-type-icon">🌐</span>
           <span class="space-type-title">Known Peers</span>
           <span class="space-type-desc">List all known remote Endo peers and connection hints</span>
+        </button>
+        <button type="button" class="space-type-card" data-mode="files">
+          <span class="space-type-icon">📂</span>
+          <span class="space-type-title">File Explorer</span>
+          <span class="space-type-desc">Browse and edit endo-fs filesystem objects, mounts, and layers</span>
+        </button>
+        <button type="button" class="space-type-card" data-mode="floot">
+          <span class="space-type-icon">💬</span>
+          <span class="space-type-title">Floot Chat</span>
+          <span class="space-type-desc">Chat with a Floot streaming agent and watch its reply arrive token by token</span>
         </button>
       </div>
     </div>
@@ -603,6 +624,58 @@ export const createAddSpaceModal = ({
   `;
 
   /**
+   * Render the floot chat form.
+   * @returns {string}
+   */
+  const renderFlootForm = () => `
+    <div class="add-space-backdrop"></div>
+    <div class="add-space-modal">
+      <div class="add-space-header">
+        <button type="button" class="add-space-back" title="Back">←</button>
+        <h2 class="add-space-title">Floot Chat</h2>
+        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
+      </div>
+      <form class="add-space-form">
+        ${renderIconSelector({ selectedIcon, useLetterIcon })}
+
+        <div class="add-space-field">
+          <label>Floot Agent Path</label>
+          <div class="petname-path-selector">
+            <div id="profile-path-input" class="profile-path-input-container"></div>
+            <div id="profile-path-menu" class="token-menu"></div>
+          </div>
+          <div class="field-hint">Pet-name path to the Floot factory. Auto-detected as floot/controller when present; otherwise pick it from your inventory.</div>
+        </div>
+
+        <div class="add-space-field">
+          <label>STT Object Path (optional)</label>
+          <input type="text" id="floot-audio-path" class="add-space-input"
+            placeholder="floot/stt" value="${flootAudioPath}" />
+          <div class="field-hint">Enable the mic by pointing at a speech-to-text object (slash-separated path). Auto-filled from floot/stt when present; leave blank for text only.</div>
+        </div>
+
+        <div class="add-space-field">
+          <label>TTS Object Path (optional)</label>
+          <input type="text" id="floot-tts-path" class="add-space-input"
+            placeholder="floot/tts" value="${flootTtsPath}" />
+          <div class="field-hint">Enable spoken replies by pointing at a text-to-speech object (slash-separated path). Auto-filled from floot/tts when present; leave blank for silent.</div>
+        </div>
+
+        <div id="scheme-picker-slot" class="add-space-field"></div>
+
+        ${error ? `<div class="add-space-error">${error}</div>` : ''}
+
+        <div class="add-space-actions">
+          <button type="button" class="add-space-cancel">Cancel</button>
+          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
+            ${isSubmitting ? 'Creating...' : 'Create Chat'}
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  /**
    * Render the peers form.
    * @returns {string}
    */
@@ -616,6 +689,40 @@ export const createAddSpaceModal = ({
       </div>
       <form class="add-space-form">
         ${renderIconSelector({ selectedIcon, useLetterIcon })}
+
+        <div id="scheme-picker-slot" class="add-space-field"></div>
+
+        ${error ? `<div class="add-space-error">${error}</div>` : ''}
+
+        <div class="add-space-actions">
+          <button type="button" class="add-space-cancel">Cancel</button>
+          <button type="submit" class="add-space-submit" ${isSubmitting ? 'disabled' : ''}>
+            ${isSubmitting ? 'Creating...' : 'Create Space'}
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  /**
+   * Render the file explorer form.
+   * @returns {string}
+   */
+  const renderFilesForm = () => `
+    <div class="add-space-backdrop"></div>
+    <div class="add-space-modal">
+      <div class="add-space-header">
+        <button type="button" class="add-space-back" title="Back">←</button>
+        <h2 class="add-space-title">File Explorer</h2>
+        <button type="button" class="add-space-close" title="Close (Esc)">&times;</button>
+      </div>
+      <form class="add-space-form">
+        ${renderIconSelector({ selectedIcon, useLetterIcon })}
+
+        <div class="field-hint">
+          Open filesystems by pet name, or create in-memory ones,
+          read-only views, and layers from inside the Space.
+        </div>
 
         <div id="scheme-picker-slot" class="add-space-field"></div>
 
@@ -658,6 +765,12 @@ export const createAddSpaceModal = ({
       case 'peers':
         html = renderPeersForm();
         break;
+      case 'files':
+        html = renderFilesForm();
+        break;
+      case 'floot':
+        html = renderFlootForm();
+        break;
       default:
         html = renderChooseMode();
     }
@@ -671,7 +784,9 @@ export const createAddSpaceModal = ({
       mode === 'existing' ||
       mode === 'whylip' ||
       mode === 'graph' ||
-      mode === 'peers'
+      mode === 'peers' ||
+      mode === 'files' ||
+      mode === 'floot'
     ) {
       const $slot = /** @type {HTMLElement | null} */ (
         $container.querySelector('#scheme-picker-slot')
@@ -685,7 +800,7 @@ export const createAddSpaceModal = ({
       }
     }
 
-    if (mode === 'existing' || mode === 'graph') {
+    if (mode === 'existing' || mode === 'graph' || mode === 'floot') {
       initPathAutocomplete();
     }
     if (mode === 'new-channel' && channelPersonaMode === 'existing') {
@@ -732,6 +847,55 @@ export const createAddSpaceModal = ({
   };
 
   /**
+   * Auto-detect the Floot objects under the `floot/` inventory directory:
+   * the controller (prefer the well-known `floot/controller`, else probe each
+   * entry via `__getMethodNames__()` for `createSession`/`listSessions`) and the
+   * optional `floot/stt` / `floot/tts` voice caplets. Best-effort: any failure
+   * leaves a field undetected and the form falls back to manual entry.
+   *
+   * @returns {Promise<{ controller: string[] | null, stt: string[] | null, tts: string[] | null }>}
+   */
+  const detectFlootObjects = async () => {
+    const result = {
+      /** @type {string[] | null} */ controller: null,
+      /** @type {string[] | null} */ stt: null,
+      /** @type {string[] | null} */ tts: null,
+    };
+    const host = /** @type {ERef<EndoHost>} */ (powers);
+    try {
+      if (!(await E(host).has('floot'))) return result;
+      if (await E(host).has('floot', 'controller')) {
+        result.controller = ['floot', 'controller'];
+      } else {
+        // No well-known name — probe the directory for a factory-shaped object.
+        const names = await E(host).list('floot');
+        for (const name of names) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const obj = await E(host).lookup(['floot', name]);
+            // eslint-disable-next-line no-await-in-loop, no-underscore-dangle
+            const methods = await E(obj).__getMethodNames__();
+            if (
+              methods.includes('createSession') &&
+              methods.includes('listSessions')
+            ) {
+              result.controller = ['floot', name];
+              break;
+            }
+          } catch {
+            // not a factory (or not introspectable) — skip
+          }
+        }
+      }
+      if (await E(host).has('floot', 'stt')) result.stt = ['floot', 'stt'];
+      if (await E(host).has('floot', 'tts')) result.tts = ['floot', 'tts'];
+    } catch {
+      // no floot/ directory or powers unavailable — fall back to manual entry
+    }
+    return result;
+  };
+
+  /**
    * Initialize the path autocomplete component.
    */
   const initPathAutocomplete = () => {
@@ -764,8 +928,13 @@ export const createAddSpaceModal = ({
       },
     );
 
-    // Set default path and focus
-    pathAutocomplete.setValue(['@agent']);
+    // Set default path and focus. In Floot mode, prefer the auto-detected
+    // controller (`floot/controller`) so the user rarely types a path.
+    pathAutocomplete.setValue(
+      mode === 'floot' && flootControllerPath
+        ? flootControllerPath
+        : ['@agent'],
+    );
     pathAutocomplete.focus();
   };
 
@@ -909,6 +1078,41 @@ export const createAddSpaceModal = ({
           useLetterIcon = false;
           error = null;
           render();
+        } else if (selectedMode === 'files') {
+          mode = 'files';
+          selectedIcon = '📂';
+          useLetterIcon = false;
+          error = null;
+          render();
+        } else if (selectedMode === 'floot') {
+          mode = 'floot';
+          selectedIcon = '💬';
+          useLetterIcon = false;
+          error = null;
+          flootControllerPath = null;
+          render();
+          // Auto-detect the floot/ objects and re-render with the picker
+          // defaulted to the controller and the STT/TTS fields pre-filled. Any
+          // values the user has already typed are preserved.
+          detectFlootObjects()
+            .then(detected => {
+              if (mode !== 'floot') return;
+              let changed = false;
+              if (detected.controller) {
+                flootControllerPath = detected.controller;
+                changed = true;
+              }
+              if (detected.stt && !flootAudioPath) {
+                flootAudioPath = detected.stt.join('/');
+                changed = true;
+              }
+              if (detected.tts && !flootTtsPath) {
+                flootTtsPath = detected.tts.join('/');
+                changed = true;
+              }
+              if (changed) render();
+            })
+            .catch(() => {});
         }
       });
     }
@@ -1055,6 +1259,26 @@ export const createAddSpaceModal = ({
       });
     }
 
+    // Floot form: optional audio object path
+    const $flootAudioPathInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#floot-audio-path')
+    );
+    if ($flootAudioPathInput) {
+      $flootAudioPathInput.addEventListener('input', () => {
+        flootAudioPath = $flootAudioPathInput.value;
+      });
+    }
+
+    // Floot form: optional text-to-speech object path
+    const $flootTtsPathInput = /** @type {HTMLInputElement | null} */ (
+      $container.querySelector('#floot-tts-path')
+    );
+    if ($flootTtsPathInput) {
+      $flootTtsPathInput.addEventListener('input', () => {
+        flootTtsPath = $flootTtsPathInput.value;
+      });
+    }
+
     // Connect channel form inputs
     const $connectLocatorInput = /** @type {HTMLInputElement | null} */ (
       $container.querySelector('#connect-locator')
@@ -1121,6 +1345,10 @@ export const createAddSpaceModal = ({
           await handleGraphSubmit();
         } else if (mode === 'peers') {
           await handlePeersSubmit();
+        } else if (mode === 'files') {
+          await handleFilesSubmit();
+        } else if (mode === 'floot') {
+          await handleFlootSubmit();
         }
       });
     }
@@ -1749,6 +1977,56 @@ export const createAddSpaceModal = ({
   };
 
   /**
+   * Handle floot chat form submission.
+   */
+  const handleFlootSubmit = async () => {
+    if (!pathAutocomplete) return;
+
+    const paths = pathAutocomplete.getValue();
+    if (paths.length === 0) {
+      error = 'Please select the Floot agent path';
+      render();
+      return;
+    }
+
+    const pathString = paths[0];
+    const profilePath = pathString.split('/').filter(Boolean);
+
+    if (profilePath.length === 0) {
+      error = 'Please select a valid Floot agent path';
+      render();
+      return;
+    }
+
+    const name = `${profilePath[profilePath.length - 1]}-chat`;
+
+    const audioPath = flootAudioPath.split('/').filter(Boolean);
+    const ttsPath = flootTtsPath.split('/').filter(Boolean);
+
+    isSubmitting = true;
+    error = null;
+    render();
+
+    try {
+      await onSubmit({
+        name,
+        icon: selectedIcon,
+        profilePath,
+        layout: 'floot',
+        scheme: schemePicker ? schemePicker.getValue() : 'auto',
+        ...(audioPath.length ? { audioPath } : {}),
+        ...(ttsPath.length ? { ttsPath } : {}),
+      });
+      hide({ restoreScheme: false });
+      onClose();
+    } catch (err) {
+      error = `Failed to create floot chat space: ${/** @type {Error} */ (err).message}`;
+      isSubmitting = false;
+      render();
+    }
+  };
+
+  /**
    * Handle peers form submission.
    */
   const handlePeersSubmit = async () => {
@@ -1768,6 +2046,31 @@ export const createAddSpaceModal = ({
       onClose();
     } catch (err) {
       error = `Failed to create peers space: ${/** @type {Error} */ (err).message}`;
+      isSubmitting = false;
+      render();
+    }
+  };
+
+  /**
+   * Handle file explorer form submission.
+   */
+  const handleFilesSubmit = async () => {
+    isSubmitting = true;
+    error = null;
+    render();
+
+    try {
+      await onSubmit({
+        name: 'files',
+        icon: selectedIcon,
+        profilePath: [],
+        layout: 'files',
+        scheme: schemePicker ? schemePicker.getValue() : 'auto',
+      });
+      hide({ restoreScheme: false });
+      onClose();
+    } catch (err) {
+      error = `Failed to create files space: ${/** @type {Error} */ (err).message}`;
       isSubmitting = false;
       render();
     }
@@ -1856,6 +2159,8 @@ export const createAddSpaceModal = ({
     connectExistingSpaceId = null;
     whylipName = '';
     whylipAgentName = '';
+    flootAudioPath = '';
+    flootTtsPath = '';
     error = null;
     isSubmitting = false;
     schemePicker = null;

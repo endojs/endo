@@ -130,3 +130,18 @@ Run `yarn clean` to reset.
 - Use conventional commits: `feat(pkg):`, `fix(pkg):`, `refactor(pkg):`, `chore:`, `test(pkg):`
 - Breaking changes: `feat(pkg)!:` or `fix(pkg)!:`
 - File conversions (`.js` to `.ts`) get their own `refactor:` commit
+
+## Thunk modules
+
+A "thunk module" is a top-level `.js` file in a package whose only purpose is to re-export from one or more deeper files (e.g. `./src/foo.js`).  Thunk modules exist for two reasons:
+
+1. **`exports`-map portability.**  The `package.json` `"exports"` property is not supported by every Node.js version we still target.  A physical file at the path `consumers will import` is the fall-through resolution under the legacy directory-walk algorithm: `import '@endo/foo/bar.js'` resolves to `node_modules/@endo/foo/bar.js` when `exports` is unrecognized.  The `"main"` property by contrast is honored by every Node.js version, so a single primary entry point can point directly at `./src/foo.js` without a thunk.
+
+2. **Public-interface filtering.**  When a `src/` file exports both public and internal symbols (e.g. test-only primitives needed for known-answer cross-checks), a top-level thunk module that re-exports only the public subset gives the package a stable public surface.  In-package tests can still reach internals via relative imports; external callers cannot.
+
+When neither reason applies — a package has only one `exports` entry, OR the `src/` file already exports exactly the public surface — the thunk module is superfluous and can be deleted in favor of pointing `package.json` `"main"` (and `"exports"`) at `./src/foo.js` directly.
+
+When auditing thunk modules:
+
+- If the thunk re-exports `*` (or every named export) from `./src/foo.js`, consider deleting it and pointing `main`/`exports` at `./src/foo.js` directly.
+- If the thunk re-exports a strict subset, document the filtering intent in a comment at the top of the file so future maintainers understand why the indirection is load-bearing.

@@ -77,6 +77,10 @@ import { makeError, q, X } from '@endo/errors';
 import { makeExo } from '@endo/exo';
 import harden from '@endo/harden';
 import { M } from '@endo/patterns';
+import {
+  directoryFileMethodGuards,
+  readableNameHubMethodGuards,
+} from '@endo/platform/fs/lite';
 
 /** @import { MountCap, SandboxPowers } from '@endo/sandbox/types.js' */
 
@@ -90,15 +94,18 @@ import { M } from '@endo/patterns';
 const PathSegmentsShape = M.arrayOf(M.string());
 const PathArgShape = M.or(M.string(), PathSegmentsShape);
 
+// `LocalMount` is genie's host-backed sandbox mirror of the daemon mount
+// surface. It consumes the daemon's shared name-hub records rather than
+// re-declaring the shapes: the read surface (help / has / list / lookup /
+// maybeLookup) and the directory file-I/O surface (makeDirectory / readText /
+// maybeReadText / writeText). genie's local `PathArgShape` (`string |
+// string[]`) is exactly the daemon's `NameOrPathShape`, so the records apply
+// verbatim. `remove` / `move` stay declared here (they live in the daemon's
+// fuller `nameHubMethodGuards`, which carries registry methods genie does not
+// expose). See designs/fs-interface-consolidation.md § C1.
 const LocalMountInterface = M.interface('LocalMount', {
-  help: M.call().returns(M.string()),
-  has: M.call().rest(PathSegmentsShape).returns(M.promise()),
-  list: M.call().rest(PathSegmentsShape).returns(M.promise()),
-  lookup: M.call(PathArgShape).returns(M.promise()),
-  readText: M.call(PathArgShape).returns(M.promise()),
-  maybeReadText: M.call(PathArgShape).returns(M.promise()),
-  writeText: M.call(PathArgShape, M.string()).returns(M.promise()),
-  makeDirectory: M.call(PathArgShape).returns(M.promise()),
+  ...readableNameHubMethodGuards,
+  ...directoryFileMethodGuards,
   remove: M.call(PathArgShape).returns(M.promise()),
   move: M.call(PathArgShape, PathArgShape).returns(M.promise()),
 });
@@ -109,6 +116,7 @@ const LocalMountFileInterface = M.interface('LocalMountFile', {
 });
 
 const LocalSandboxPowersInterface = M.interface('LocalSandboxPowers', {
+  help: M.call().optional(M.string()).returns(M.string()),
   provideScratchMount: M.call(M.string()).returns(M.promise()),
   provideHostPath: M.call(M.any()).returns(M.promise()),
 });
@@ -323,6 +331,21 @@ const makeLocalMountCap = (hostPath, capToHostPath, topLevelCaps, options) => {
       return makeLocalMountFile(realTarget);
     },
 
+    // Lookup-or-undefined: the `ReadableNameHub` primitive. Resolve `pathArg`
+    // and return its cap, or `undefined` when the path is absent or escapes the
+    // mount root. Mirrors the daemon `EndoMount.maybeLookup` and
+    // `maybeReadText`'s broad catch — any resolution failure yields
+    // `undefined` rather than throwing.
+    /** @param {string | string[]} pathArg */
+    async maybeLookup(pathArg) {
+      await null;
+      try {
+        return await cap.lookup(pathArg);
+      } catch {
+        return undefined;
+      }
+    },
+
     /** @param {string | string[]} pathArg */
     async readText(pathArg) {
       const target = resolve(segmentsOf(pathArg));
@@ -499,6 +522,13 @@ export const makeLocalSandboxPowers = () => {
   const scratchDirs = [];
 
   const powersExo = makeExo('LocalSandboxPowers', LocalSandboxPowersInterface, {
+    /** @param {string} [method] */
+    help(method) {
+      return method === undefined
+        ? 'LocalSandboxPowers: host-backed sandbox powers (provideScratchMount, provideHostPath).'
+        : `No documentation for method ${q(method)}.`;
+    },
+
     /** @param {string} petName */
     async provideScratchMount(petName) {
       // `mkdtemp` ensures distinct tmpdirs per call even when two

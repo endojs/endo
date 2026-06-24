@@ -2,6 +2,7 @@
 import os from 'os';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
+import { parsePetNamePath, parseOptionalPetNamePath } from '../pet-name.js';
 
 export const mkguest = async ({
   handleName,
@@ -10,9 +11,12 @@ export const mkguest = async ({
   introducedNames,
 }) =>
   withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
-    const newGuest = await E(agent).provideGuest(handleName, {
+    // A slash-delimited handle or agent name nests the guest inside a
+    // directory; the parent directory must already exist (as with
+    // `mkdir`, `store`, and `mv`).
+    const newGuest = await E(agent).provideGuest(parsePetNamePath(handleName), {
       introducedNames,
-      agentName,
+      agentName: parseOptionalPetNamePath(agentName),
     });
     console.log(newGuest);
   });

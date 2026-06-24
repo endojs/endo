@@ -1,0 +1,118 @@
+{
+  "name": "@endo/preact-container",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mount untrusted Preact component code in a contained tree: a sanitizing renderer (components never see DOM nodes or raw events) plus a compartment wrapper",
+  "keywords": [
+    "preact",
+    "container",
+    "confine",
+    "sandbox",
+    "ses",
+    "compartment",
+    "endo"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/preact-container"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    "./renderer": {
+      "types": "./src/renderer.d.ts",
+      "default": "./src/renderer.js"
+    },
+    "./compartment": {
+      "types": "./src/compartment.d.ts",
+      "default": "./src/compartment.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint .",
+    "test": "playwright install chromium && vitest run",
+    "test:browser": "vitest run"
+  },
+  "peerDependencies": {
+    "preact": "^10.0.0 || ^11.0.0"
+  },
+  "devDependencies": {
+    "@lavamoat/lavatube": "^1.0.0",
+    "@vitest/browser": "^4.1.9",
+    "@vitest/browser-playwright": "^4.1.9",
+    "eslint": "catalog:dev",
+    "playwright": "^1.60.0",
+    "preact": "^10.29.2",
+    "ses": "workspace:^",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9"
+  },
+  "files": [
+    "src",
+    "LICENSE*",
+    "NOTICE*",
+    "SECURITY*"
+  ],
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "env": {
+      "browser": true
+    },
+    "globals": {
+      "globalThis": "readonly"
+    },
+    "rules": {
+      "no-underscore-dangle": "off",
+      "no-bitwise": "off",
+      "no-continue": "off",
+      "no-plusplus": "off",
+      "no-control-regex": "off",
+      "@endo/restrict-comparison-operands": "off"
+    },
+    "overrides": [
+      {
+        "files": [
+          "test/**/*.js",
+          "vitest.config.mjs"
+        ],
+        "env": {
+          "browser": true,
+          "node": true
+        },
+        "globals": {
+          "describe": "readonly",
+          "it": "readonly",
+          "beforeEach": "readonly",
+          "afterEach": "readonly",
+          "expect": "readonly",
+          "window": "readonly",
+          "document": "readonly",
+          "location": "readonly"
+        },
+        "rules": {
+          "no-undef": "off",
+          "no-unused-vars": "off",
+          "no-plusplus": "off",
+          "no-script-url": "off",
+          "no-extend-native": "off",
+          "no-restricted-globals": "off",
+          "max-classes-per-file": "off",
+          "class-methods-use-this": "off",
+          "import/no-extraneous-dependencies": "off",
+          "no-shadow": "off"
+        }
+      }
+    ]
+  }
+}

@@ -229,10 +229,10 @@ test('writer closes anywhere within chunk', async t => {
 const varyingMessages = async (t, opts) => {
   const array = ['', 'A', 'hello'];
 
-  for (let i = 1_020; i < 1_030; i += 1) {
+  for (let i = 1020; i < 1030; i += 1) {
     array.push(new Array(i).fill(':').join(''));
   }
-  for (let i = 2_040; i < 2_050; i += 1) {
+  for (let i = 2040; i < 2050; i += 1) {
     array.push(new Array(i).fill(':').join(''));
   }
 

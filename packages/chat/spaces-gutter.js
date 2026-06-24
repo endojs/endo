@@ -7,12 +7,19 @@ import harden from '@endo/harden';
 /** @import { EndoHost } from '@endo/daemon' */
 
 import { E } from '@endo/far';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { createAddSpaceModal } from './add-space-modal.js';
 import { createEditSpaceModal } from './edit-space-modal.js';
-import { makeRefIterator } from './ref-iterator.js';
 
 /** @type {ReadonlySet<string>} */
-const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
+const KNOWN_MODES = new Set([
+  'channel',
+  'whylip',
+  'graph',
+  'peers',
+  'files',
+  'floot',
+]);
 
 /**
  * @typedef {'auto' | 'light' | 'dark' | 'high-contrast-light' | 'high-contrast-dark'} ColorScheme
@@ -24,7 +31,7 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {string} name - display name (shown on hover)
  * @property {string} icon - emoji character
  * @property {string[]} profilePath - pet-name path to the agent
- * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} mode - interaction mode
+ * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot'} mode - interaction mode
  * @property {ColorScheme} [scheme] - color scheme preference (default: 'auto')
  * @property {string} [channelPetName] - pet name of the channel object (for channel mode)
  * @property {string} [proposedName] - display name for the channel creator
@@ -34,6 +41,8 @@ const KNOWN_MODES = new Set(['channel', 'whylip', 'graph', 'peers']);
  * @property {string} [lastChannelPetName] - last viewed channel in this space (restored on re-entry)
  * @property {string[]} [channelOrder] - persisted channel display order in sidebar
  * @property {Array<{key: string, channelPetName: string, label: string}>} [bookmarks] - bookmarked threads
+ * @property {string[]} [audioPath] - pet-name path to an audio object (floot mic input)
+ * @property {string[]} [ttsPath] - pet-name path to a text-to-speech object (floot spoken replies)
  */
 
 /**
@@ -88,7 +97,7 @@ harden(pathsEqual);
  * @param {HTMLElement} options.$modalContainer - Container for the add space modal
  * @param {ERef<EndoHost>} options.powers - Endo host powers
  * @param {string[]} options.currentProfilePath - Current profile path for initial selection
- * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' | 'outliner' }) => void} options.onNavigate - Navigate callback
+ * @param {(profilePath: string[], spaceInfo?: { mode: 'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot', channelPetName?: string, proposedName?: string, whylipSystemPrompt?: string, viewMode?: 'chat' | 'forum' | 'outliner', channelOrder?: string[], bookmarks?: Array<{key: string, channelPetName: string, label: string}>, audioPath?: string[], ttsPath?: string[] }) => void} options.onNavigate - Navigate callback
  * @returns {SpacesGutterAPI}
  */
 export const createSpacesGutter = ({
@@ -370,6 +379,8 @@ export const createSpacesGutter = ({
       viewMode: space.viewMode,
       channelOrder: space.channelOrder,
       bookmarks: space.bookmarks,
+      audioPath: space.audioPath,
+      ttsPath: space.ttsPath,
     });
   };
 
@@ -567,7 +578,7 @@ export const createSpacesGutter = ({
         name: data.name,
         icon: data.icon,
         profilePath: data.profilePath,
-        mode: /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} */ (
+        mode: /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot'} */ (
           KNOWN_MODES.has(data.layout) ? data.layout : 'inbox'
         ),
         scheme: data.scheme || 'auto',
@@ -586,6 +597,18 @@ export const createSpacesGutter = ({
       }
       if (typeof data.ownedPersona === 'boolean') {
         spaceConfig.ownedPersona = data.ownedPersona;
+      }
+      if (
+        Array.isArray(data.audioPath) &&
+        data.audioPath.every(p => typeof p === 'string')
+      ) {
+        spaceConfig.audioPath = data.audioPath;
+      }
+      if (
+        Array.isArray(data.ttsPath) &&
+        data.ttsPath.every(p => typeof p === 'string')
+      ) {
+        spaceConfig.ttsPath = data.ttsPath;
       }
       await addSpace(spaceConfig);
     },
@@ -608,9 +631,25 @@ export const createSpacesGutter = ({
     },
   });
 
+  // The add-space modal renders by assigning `innerHTML` on `$modalContainer`,
+  // which detaches anything else mounted there. The edit modals are confined
+  // Preact components that append a persistent mount, so sharing the container
+  // left the "edit space" button blank once the add-space modal had rendered.
+  // Give the edit modals their own overlay container, inserted as a sibling so
+  // the add-space modal's re-renders never touch it. Both edit modals are
+  // Preact (each renders nothing while closed) so they can share one container.
+  const $editModalContainer = document.createElement('div');
+  $editModalContainer.className = 'spaces-modal-overlay';
+  const $modalParent = $modalContainer.parentNode;
+  if ($modalParent) {
+    $modalParent.insertBefore($editModalContainer, $modalContainer.nextSibling);
+  } else {
+    $modalContainer.appendChild($editModalContainer);
+  }
+
   // Initialize the edit space modal (for regular spaces)
   const editSpaceModal = createEditSpaceModal({
-    $container: $modalContainer,
+    $container: $editModalContainer,
     onSubmit: async (id, data) => {
       /** @type {Partial<Pick<SpaceConfig, 'name' | 'icon' | 'scheme' | 'viewMode'>>} */
       const updates = {
@@ -630,7 +669,7 @@ export const createSpacesGutter = ({
 
   // Initialize the home edit modal (no name field)
   const homeEditModal = createEditSpaceModal({
-    $container: $modalContainer,
+    $container: $editModalContainer,
     showName: false,
     onSubmit: async (_id, data) => {
       await updateSpace('home', {
@@ -669,7 +708,7 @@ export const createSpacesGutter = ({
     if (!obj.profilePath.every(p => typeof p === 'string')) return null;
     // Mode is optional, default to 'inbox'
     const mode =
-      /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers'} */ (
+      /** @type {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot'} */ (
         typeof obj.mode === 'string' && KNOWN_MODES.has(obj.mode)
           ? obj.mode
           : 'inbox'
@@ -710,6 +749,18 @@ export const createSpacesGutter = ({
     }
     if (typeof obj.lastChannelPetName === 'string') {
       result.lastChannelPetName = obj.lastChannelPetName;
+    }
+    if (
+      Array.isArray(obj.audioPath) &&
+      obj.audioPath.every(p => typeof p === 'string')
+    ) {
+      result.audioPath = obj.audioPath;
+    }
+    if (
+      Array.isArray(obj.ttsPath) &&
+      obj.ttsPath.every(p => typeof p === 'string')
+    ) {
+      result.ttsPath = obj.ttsPath;
     }
     if (
       Array.isArray(obj.channelOrder) &&
@@ -822,7 +873,7 @@ export const createSpacesGutter = ({
       const changesRef = E(
         /** @type {ERef<EndoHost>} */ (spacesDir),
       ).followNameChanges();
-      const changes = makeRefIterator(changesRef);
+      const changes = iterateReader(changesRef);
 
       for await (const change of changes) {
         const { add, remove } =

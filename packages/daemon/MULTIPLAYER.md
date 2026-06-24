@@ -15,11 +15,12 @@ Two network transports are available:
 
 - **TCP** (`/network`): Direct TCP connections with netstring framing.
   Requires an open port. Best for same-network or same-machine setups.
-- **libp2p** (`/network-libp2p`): Peer-to-peer via the IPFS network.
-  No open ports needed — uses WebRTC with auto-discovered relays for NAT
-  traversal. Best for cross-network connections.
+- **iroh** (`/network-iroh`): Peer-to-peer over iroh ("dial keys, not
+  IPs"). Peers are dialed by their Ed25519 NodeId and resolved through
+  iroh discovery and relays over mutually authenticated, encrypted QUIC.
+  No open ports needed; NAT traversal and relay fallback are built in.
 
-Both use CapTP (Capability Transfer Protocol) for capability transport.
+All use CapTP (Capability Transfer Protocol) for capability transport.
 Object identity is preserved across the wire — capabilities sent in a
 message can be adopted by the recipient and used as if they were local.
 
@@ -27,7 +28,7 @@ message can be adopted by the recipient and used as if they were local.
 
 - Two running Endo daemons (see below for single-machine setup)
 - The chat UI running against each daemon (`yarn dev` in `packages/chat`)
-- The network module path on disk (TCP or libp2p)
+- The network module path on disk (TCP or iroh)
 
 ### Single-Machine Setup
 
@@ -125,51 +126,58 @@ yarn exec endo mv network-service NETS/tcp
 After this step, each daemon listens on an ephemeral TCP port and includes
 its address in `getPeerInfo()`.
 
-## Step 1b: Enable libp2p Networking (Alternative)
+## Step 1b: Enable iroh Networking (Alternative)
 
-Instead of TCP, you can use libp2p for peer connections. libp2p requires
-**no open ports and no self-hosted infrastructure** — it bootstraps into
-the public IPFS network and discovers relay peers automatically via
-Circuit Relay v2.
+iroh (https://www.iroh.computer) connects daemons by their Ed25519 NodeId
+rather than by IP address — "dial keys, not IPs". It needs **no open ports
+and no self-hosted infrastructure**: iroh discovery and its relay mesh
+resolve a NodeId to live network paths and hole-punch a direct,
+mutually authenticated, encrypted QUIC connection, falling back to relays
+when a direct path is unavailable.
 
-This is the recommended transport for connecting daemons across different
-networks or behind NATs.
+This is a good transport for connecting daemons across different networks
+or behind NATs. It relies on the optional native
+`@number0/iroh` binding, which is installed automatically where a prebuilt
+binary is available.
 
 ### Using the Chat UI
 
 In each chat window, run:
 
 ```
-/network-libp2p
+/network-iroh
 ```
 
 Fill in the fields:
 
-- **Module**: The `file://` URL to the libp2p network module.
-  Typically `file:///path/to/endo/packages/daemon/src/networks/libp2p.js`
+- **Module**: The `file://` URL to the iroh network module.
+  Typically `file:///path/to/endo/packages/daemon/src/networks/iroh.js`
 
-The module bootstraps into the IPFS Amino DHT, discovers relay peers, and
-registers itself in the daemon's `NETS/libp2p` directory. No listen
-address or relay configuration is needed.
+The module binds an in-memory iroh endpoint, derives a stable NodeId, and
+registers itself in the daemon's `NETS/iroh` directory. No listen address
+or relay configuration is needed.
 
 ### Using the CLI
 
 ```bash
-# Install the libp2p network (self-configures via public DHT, registers at NETS/libp2p)
-yarn exec endo run --UNCONFINED packages/daemon/src/networks/setup-libp2p.js --powers @agent
+# Install the iroh network (self-configures via iroh discovery, registers at NETS/iroh)
+yarn exec endo run --UNCONFINED packages/daemon/src/networks/setup-iroh.js --powers @agent
 ```
 
-After this step, each daemon has a libp2p peer ID and is reachable via
-circuit relay addresses on the public IPFS network. The `endo://`
-invitation locator will include these addresses alongside any TCP
-addresses.
+After this step, each daemon has an iroh NodeId and is reachable through
+iroh discovery and relays. The `endo://` invitation locator will include
+an `iroh+captp0://` address alongside any TCP addresses.
 
-### Using Both TCP and libp2p
+For the security and identity model behind this transport — including how
+the NodeId relates to the Endo node identity — see
+[designs/iroh-network-design.md](./designs/iroh-network-design.md).
 
-You can enable both transports on the same daemon. Invitation locators
-will include addresses for all active networks. When the accepting daemon
-connects, it tries each address in order and uses the first one that
-succeeds.
+### Using Multiple Transports Together
+
+You can enable any combination of these transports on the same daemon.
+Invitation locators will include addresses for all active networks. When
+the accepting daemon connects, it tries each address in order and uses the
+first one that succeeds.
 
 ## Step 2: Create and Accept an Invitation
 
@@ -370,11 +378,11 @@ up.
 
 ### Invitation locator doesn't work
 
-- Verify both daemons have networking enabled (TCP or libp2p)
+- Verify both daemons have networking enabled (TCP or iroh)
 - For TCP: check that the address in the locator is reachable from the
   accepting machine (use `127.0.0.1` only for same-machine setups)
-- For libp2p: ensure both daemons have internet access (needed for DHT
-  bootstrap and relay discovery)
+- For iroh: ensure both daemons have internet access (needed for iroh
+  discovery and relay fallback)
 - Ensure the inviting daemon is still running
 
 ### Adopted value hangs on lookup
@@ -383,9 +391,8 @@ The remote daemon may be unreachable. Check that:
 
 - The remote daemon is running
 - For TCP: the TCP port is accessible and no firewall is blocking it
-- For libp2p: both daemons have internet access; relay addresses may
-  change if the relay peer disconnects (re-run `/invite` to get a fresh
-  locator)
+- For iroh: both daemons have internet access for discovery and relay
+  fallback (re-run `/invite` to get a fresh locator if paths change)
 
 ### Messages not appearing
 
@@ -398,7 +405,7 @@ The remote daemon may be unreachable. Check that:
 | Command           | Description                                                |
 |-------------------|------------------------------------------------------------|
 | `/network`        | Enable TCP networking (module path + listen address)       |
-| `/network-libp2p` | Enable libp2p networking (no open ports needed)            |
+| `/network-iroh`   | Enable iroh networking (no open ports needed)              |
 | `/invite`         | Create an invitation for a peer (prints `endo://` locator) |
 | `/accept`         | Accept an invitation locator and name the peer             |
 | `/adopt`          | Adopt a value from a received message                      |

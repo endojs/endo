@@ -34,8 +34,8 @@ import { clearTimeout, setTimeout } from 'node:timers';
 /** @import { Tool } from '../tools/common.js' */
 /** @import { SearchBackend } from '../tools/memory.js' */
 /** @import { ChatEvent } from '../agent/index.js' */
-/** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
-/** @import { Api, Model } from '@mariozechner/pi-ai' */
+/** @import { Agent as PiAgent } from '@earendil-works/pi-agent-core' */
+/** @import { Api, Model } from '@earendil-works/pi-ai' */
 
 import { makePiAgent, runAgentRound } from '../agent/index.js';
 import { makeToolGate } from '../agent/tool-gate.js';

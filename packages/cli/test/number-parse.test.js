@@ -4,9 +4,11 @@ import { parseBigint } from '../src/number-parse.js';
 test('returns a bigint when input is a valid integer string', t => {
   t.is(parseBigint('42'), 42n);
   t.is(parseBigint('0'), 0n);
+  // eslint-disable-next-line unicorn/numeric-separators-style -- literal must visually match the string argument
   t.is(parseBigint('   9007199254740993   '), 9007199254740993n);
   t.is(
     parseBigint('123456789012345678901234567890'),
+    // eslint-disable-next-line unicorn/numeric-separators-style -- literal must visually match the string argument
     123456789012345678901234567890n,
   );
 });

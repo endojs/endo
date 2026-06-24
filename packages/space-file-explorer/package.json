@@ -1,0 +1,70 @@
+{
+  "name": "@endo/space-file-explorer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The File Explorer Space: browse and edit Endo filesystem, mount, and exo-git capabilities in the chat client",
+  "keywords": [
+    "endo",
+    "file-explorer",
+    "filesystem",
+    "space"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/space-file-explorer"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'",
+    "test": "ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava"
+  },
+  "dependencies": {
+    "@endo/exo-stream": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/monaco-wrapper": "workspace:^",
+    "@endo/platform": "workspace:^",
+    "@endo/preact-container": "workspace:^",
+    "preact": "^10.29.2"
+  },
+  "devDependencies": {
+    "@endo/init": "workspace:^",
+    "@endo/lockdown": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "happy-dom": "^15.0.0"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "env": {
+      "browser": true
+    }
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m",
+    "environmentVariables": {
+      "LOCKDOWN_OPTIONS": "{\"errorTaming\":\"unsafe\",\"overrideTaming\":\"severe\",\"domainTaming\":\"unsafe\"}"
+    }
+  }
+}

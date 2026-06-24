@@ -1,6 +1,0 @@
-{
-  "includeMergedTags": true,
-  "npmClient": "yarn",
-  "version": "independent",
-  "useNx": false
-}

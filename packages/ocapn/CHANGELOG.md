@@ -1,5 +1,64 @@
 # @endo/ocapn
 
+## 1.1.1
+
+### Patch Changes
+
+- [#3232](https://github.com/endojs/endo/pull/3232) [`3dee3aa`](https://github.com/endojs/endo/commit/3dee3aa7100a09e3b2c2e2e6ca75e34db91da9ea) Thanks [@kriskowal](https://github.com/kriskowal)! - Add `@endo/random`: a source-agnostic library of random sampling functions (`random`, `randomInt`, plus the underlying `randomUint8` / `randomUint16` / `randomUint24` / `randomUint32` / `randomUint53` readers).
+  Each function accepts a `RandomSource`, which is simply a function `(out: Uint8Array) => void` matching the shape of `crypto.getRandomValues` (minus the return value).
+  Names follow the TC39 [proposal-random-functions](https://tc39.es/proposal-random-functions/) translation `Random.method` -> `randomMethod`.
+  Each sampler is its own module so consumers can import only what they use:
+
+  ```js
+  import { random } from '@endo/random/random.js';
+  import { randomInt } from '@endo/random/int.js';
+  ```
+
+  The package also ships `@endo/random/seeds.js`, exporting the canonical `bobsCoffee32` 32-byte seed shared across Endo deterministic fuzz suites.
+
+  Add `@endo/chacha12`: a pure-JavaScript ChaCha12 keystream.
+  The factory `makeChaCha12(key)` returns a `ChaCha12Generator` record `{ next, getState, clone, fillRandomBytes }`.
+  The `fillRandomBytes` method has the shape `(out: Uint8Array) => void`, conforming to `@endo/random`'s `RandomSource` and to `crypto.getRandomValues`-style ergonomics; it can be passed directly to the samplers.
+  The remaining methods expose the keystream's internal state (snapshot via `getState`, independent copy via `clone`, signed-int32 pull via `next`) so the generator satisfies the [`pure-rand` v8 `RandomGenerator` interface](https://github.com/dubzzz/pure-rand/blob/v8.0.0/src/types/RandomGenerator.ts) structurally and can be used directly as a [`fast-check` v4 `randomType` parameter](https://fast-check.dev/docs/api/interfaces/Parameters/#randomtype).
+  A companion `makeChaCha12FromState(state)` reconstructs a generator from a snapshot for deterministic resumption.
+
+  The keystream is cross-checked against three published ChaCha12 test vectors from [`draft-strombergson-chacha-test-vectors-01`](https://datatracker.ietf.org/doc/html/draft-strombergson-chacha-test-vectors-01) (TC1, TC4, TC8).
+
+  ChaCha12 is the 12-round variant of Daniel J. Bernstein's ChaCha family.
+  The block function is identical to ChaCha20 modulo the round count (6 double-rounds vs 10), so the implementation, API, and harden discipline mirror the sibling 20-round implementation.
+  ChaCha12 trades cryptographic margin for throughput; for deterministic test fixtures, property-based testing, and fuzzing the extra speed is generally the right tradeoff.
+
+- Updated dependencies [[`3dee3aa`](https://github.com/endojs/endo/commit/3dee3aa7100a09e3b2c2e2e6ca75e34db91da9ea), [`dd0face`](https://github.com/endojs/endo/commit/dd0face7073b2f6b517d31f9d390a2b2157fa472)]:
+  - @endo/hex@1.1.1
+  - @endo/pass-style@1.8.1
+
+## 1.1.0
+
+### Minor Changes
+
+- [#3256](https://github.com/endojs/endo/pull/3256) [`bdb9ddc`](https://github.com/endojs/endo/commit/bdb9ddc50d3aa9cef17b61a4d587a14a39142470) Thanks [@kriskowal](https://github.com/kriskowal)! - - Add a `framing` option to `makeTcpNetLayer` (`@endo/ocapn/netlayer/tcp-testing`). The default is `'syrup'`, which wraps each message in the `<length>:<payload>` framing implemented by `@endo/syrup-frame`. This is the framing the OCapN TCP-for-testing netlayer is moving toward (cf. the 2025-12-09 OCapN plenary, https://github.com/ocapn/ocapn/blob/main/meeting-minutes/2025-12-09.md), and is robust to TCP chunk boundaries that split a single OCapN message. Pass `framing: 'none'` to interoperate with the existing `ocapn/ocapn-test-suite` Python `testing_only_tcp` netlayer, which writes a syrup-encoded record with `sendall` and reads one back with `syrup.syrup_read` (no length prefix on the wire). The `'none'` option exists only for that suite's sake and goes away once the suite either adopts syrup framing or is retired.
+
+- [#3192](https://github.com/endojs/endo/pull/3192) [`08b077d`](https://github.com/endojs/endo/commit/08b077d7a97be3dd28d7f424b7bf1742254b7c9d) Thanks [@kumavis](https://github.com/kumavis)! - Sync `@endo/ocapn` with [ocapn-test-suite](https://github.com/ocapn/ocapn-test-suite) at commit [74db78f08a40efba1e2b975d809374ff0e7acf60](https://github.com/ocapn/ocapn-test-suite/commit/74db78f08a40efba1e2b975d809374ff0e7acf60) (2026-02-25).
+  - GC operations use list payloads (`exportPositions` / `wireDeltas`, `answerPositions`); wire labels `op:gc-exports` and `op:gc-answers`.
+  - Remove `op:deliver-only`; fire-and-forget delivery uses `op:deliver` with `answerPosition` and `resolveMeDesc` set to `false`.
+  - Codec refactors: `makeOcapnFalseForOptionalCodec` for optional `false` branches, homogeneous Syrup lists via `makeListCodecFromEntryCodec`, and related cleanup in operations and peer location hints.
+
+  CI integration for the Python test suite is pinned to the same commit.
+
+- [#3209](https://github.com/endojs/endo/pull/3209) [`20f9e21`](https://github.com/endojs/endo/commit/20f9e2123888e334ebe6e00cb84858afa4dcf242) Thanks [@kumavis](https://github.com/kumavis)! - - Add a WebSocket netlayer exported as `@endo/ocapn/netlayer/ws` (`makeWebSocketNetLayer`). Used for interop with Guile-Goblins peers and for any other transport that prefers a framed WebSocket over the raw TCP test netlayer.
+  - Add `@endo/ocapn/netlayer/tcp-testing` to the package's `exports` map so consumers can import the existing test netlayer without reaching into `src/`.
+  - The main entry (`@endo/ocapn`) now re-exports `makeClient` and the swissnum helpers `swissnumFromBytes` / `swissnumToBytes` so consumers don't need a deep `src/client/...` import for the common case.
+  - `makeClient` accepts a new `logger` option; when omitted the existing console-based logger is used, so this is backwards-compatible.
+  - The CapTP version-mismatch log on `start-session` now includes both the received and expected version strings.
+
+### Patch Changes
+
+- Updated dependencies [[`ad7a177`](https://github.com/endojs/endo/commit/ad7a177e84b08c74526ceb9b0ea15f3c81c06158), [`dd45f4a`](https://github.com/endojs/endo/commit/dd45f4a7ffcf9f8d6fb3aa23a5d22fe00beef8e8), [`45d06cd`](https://github.com/endojs/endo/commit/45d06cd1624241b371c3ccc2076138c42ee7bd80), [`38fe678`](https://github.com/endojs/endo/commit/38fe6787d8187ec6614fc8f2dcb5b08088cbb0d2)]:
+  - @endo/hex@1.1.0
+  - @endo/bytes@1.0.0
+  - @endo/marshal@1.10.0
+  - @endo/syrup-frame@0.1.1
+
 ## 1.0.0
 
 ### Major Changes

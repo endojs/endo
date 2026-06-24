@@ -446,6 +446,43 @@ scaffold(
   },
 );
 
+// Counterpart of `policy - exitModules import` whose importHook returns the
+// `{ source: VirtualModuleSource }` StrictModuleDescriptor shape instead of a
+// bare virtual source. Covers the `'source' in moduleDescriptor` branch of
+// `attenuateModule` in policy.js, which the host-module-exits change added so
+// that arbitrary module descriptors can flow through the attenuating adapter.
+scaffold(
+  'policy - exitModules import returning a strict module descriptor',
+  test,
+  fixture,
+  makeResultAssertions(defaultExpectations),
+  1, // expected number of assertions
+  {
+    addGlobals: globals,
+    policy,
+    additionalOptions: {
+      modules: {},
+      importHook: async specifier => {
+        const ns = {
+          a: 1,
+          b: 2,
+          c: 3,
+        };
+        return Object.freeze({
+          source: Object.freeze({
+            imports: [],
+            exports: Object.keys(ns),
+            execute: moduleExports => {
+              moduleExports.default = ns;
+              Object.assign(moduleExports, ns);
+            },
+          }),
+        });
+      },
+    },
+  },
+);
+
 scaffold(
   'policy - nested export in attenuator',
   test,

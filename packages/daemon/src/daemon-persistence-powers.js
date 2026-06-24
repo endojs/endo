@@ -22,7 +22,6 @@
 import harden from '@endo/harden';
 import { makeSnapshotStore } from '@endo/platform/fs/lite';
 
-import { makeReaderRef } from './reader-ref.js';
 import { toHex, fromHex } from './hex.js';
 
 /** @import { Config, CryptoPowers, DaemonicPersistencePowers, FilePowers, Formula, FormulaNumber } from './types.js' */
@@ -160,13 +159,18 @@ export const makeDaemonicPersistencePowers = (
       /** @param {string} sha256 */
       fetch(sha256) {
         const storagePath = filePowers.joinPath(storageDirectoryPath, sha256);
-        const streamBase64 = () => {
-          const reader = filePowers.makeFileReader(storagePath);
-          return makeReaderRef(reader);
-        };
+        const makeFileReader = () => filePowers.makeFileReader(storagePath);
         const text = async () => filePowers.readFileText(storagePath);
         const json = async () => JSON.parse(await text());
-        return harden({ streamBase64, text, json });
+        // Byte length of the stored blob (bigint) — the `size` half of the
+        // content-addressed `getInfo()` triple, and the clamp bound for
+        // range reads.
+        const size = async () => (await filePowers.statPath(storagePath)).size;
+        // Windowed read for `BlobRef.fetch`-style range access: only the
+        // requested `[offset, offset + length)` window leaves disk.
+        const readRange = (offset, length) =>
+          filePowers.readFileRange(storagePath, offset, length);
+        return harden({ makeFileReader, text, json, size, readRange });
       },
       /**
        * @param {string} sha256

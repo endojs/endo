@@ -1,25 +1,27 @@
-# SmallCaps Encoding
+# SmallCaps Encoding (background)
 
-Tool arguments and results use SmallCaps encoding, which extends
-JSON with additional types. Use these special string formats in
-your tool call arguments:
+There is exactly one place SmallCaps surfaces in your tool calls:
+**message numbers**, which are BigInts and so cannot be expressed in
+plain JSON.
+Use the `"+N"` form for these (the leading `+` is the SmallCaps marker
+that the harness reads as "BigInt"):
 
-| Type       | SmallCaps Format  | Example          |
-|------------|-------------------|------------------|
-| BigInt     | "+N" or "-N"      | "+123", "-456"   |
-| undefined  | "#undefined"      | "#undefined"     |
-| Infinity   | "#Infinity"       | "#Infinity"      |
-| -Infinity  | "#-Infinity"      | "#-Infinity"     |
-| NaN        | "#NaN"            | "#NaN"           |
+```
+dismiss("+5")
+reply("+3", ["text"], [], [])
+```
 
-Examples:
-- Message number (BigInt): `{"messageNumber": "+5"}`
-- Checking for undefined: value === "#undefined"
+The individual tool summaries call this out for every argument that
+expects a message number.
+No other argument is decoded as SmallCaps; every other field passes
+through bytes-for-bytes to the tool, so a string the model writes
+(including one whose first character happens to be `!`, `#`, `$`, `%`,
+`&`, `+`, or `-`) reaches the tool as the exact bytes the model wrote.
 
-For regular strings that start with special characters
-(!, #, $, %, &, +, -), prefix with !:
-- String "!important" encodes as "!!important"
-- String "+positive" encodes as "!+positive"
-
-Most tool arguments are regular JSON values and don't need
-special encoding.
+For curiosity, the full SmallCaps grammar (BigInt `"+N"`/`"-N"`,
+`"#undefined"`, `"#Infinity"`, `"#-Infinity"`, `"#NaN"`, and the `!`
+escape for strings that would otherwise collide with those forms) is
+documented in `@endo/marshal`.
+The harness does not apply that grammar to your tool arguments; only
+the `messageNumber` fields documented in each tool summary go through
+BigInt coercion.

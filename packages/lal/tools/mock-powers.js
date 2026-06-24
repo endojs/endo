@@ -8,6 +8,7 @@
  */
 
 import { makePromiseKit } from '@endo/promise-kit';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 
 const SELF_ID = 'lal-self-id';
 
@@ -346,7 +347,7 @@ export function makeMockPowers(options = {}) {
     },
 
     followMessages() {
-      return followMessages();
+      return readerFromIterator(followMessages());
     },
 
     evaluate(_workerName, source, _codeNames, _edgeNames, _resultName) {

@@ -66,7 +66,7 @@ export const webSearch = makeTool('webSearch', {
       const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
       const response = await fetch(searchUrl, {
         method: 'GET',
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {

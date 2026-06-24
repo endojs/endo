@@ -179,6 +179,10 @@ The daemon's `EndoHost` exposes both `provideScratchMount` and
 `endo run --UNCONFINED packages/sandbox/src/agent.js` with
 `--powers @host` (the default for `make-unconfined`) gets the full
 `SandboxPowers` surface for free — no per-caller stub is required.
+This relies on `EndoHost` being a fully privileged host-authority
+capability: any holder of one can recover host paths for
+daemon-minted top-level mounts. Do not pass `EndoHost` to code that
+should only receive an attenuated guest or narrower sandbox powers.
 The resolver lives at `packages/daemon/src/host.js` `provideHostPath`;
 it rejects any cap the daemon did not mint as a top-level `mount`
 or `scratch-mount` formula, so an arbitrary remote object that quacks

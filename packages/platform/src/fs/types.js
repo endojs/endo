@@ -14,15 +14,39 @@
  * Exposed by platform as an Exo; directly usable locally.
  *
  * @typedef {object} ReadableBlob
- * @property {() => unknown} streamBase64
+ * @property {() => import('@endo/stream').Reader<Uint8Array>} makeFileReader
  * @property {() => Promise<string>} text
  * @property {() => Promise<any>} json
+ * @property {() => Promise<bigint>} [size]
+ *   Byte length of the blob as a bigint (the `size` half of a
+ *   content-addressed `getInfo()` triple). Optional: not every ContentStore
+ *   backing surfaces it yet.
+ * @property {(offset: number, length: number) => Promise<Uint8Array>} [readRange]
+ *   Windowed read of `[offset, offset + length)`, clamped at EOF.
+ *   Optional for the same reason as `size`.
+ */
+
+/**
+ * The `{ algorithm, hash, size }` content-address triple returned by
+ * `getInfo()`. `hash` is base64; `algorithm` is `'sha256'`; `size` is the byte
+ * length (of the blob, or of a tree's own manifest).
+ *
+ * @typedef {object} BlobInfo
+ * @property {string} algorithm
+ * @property {string} hash
+ * @property {bigint} size
  */
 
 /**
  * A SnapshotBlob is a ReadableBlob with a content-addressed identity.
+ * `sha256()` returns the digest as base64 (the canonical public hash encoding);
+ * the hex form is the internal content-store address. `getInfo()` is the
+ * uniform identity accessor (the same shape live blobs and trees expose).
  *
- * @typedef {ReadableBlob & { sha256: () => string }} SnapshotBlob
+ * @typedef {ReadableBlob & {
+ *   sha256: () => string,
+ *   getInfo: () => Promise<BlobInfo>,
+ * }} SnapshotBlob
  */
 
 /**
@@ -36,8 +60,14 @@
 
 /**
  * A SnapshotTree is a ReadableTree with a content-addressed identity.
+ * `sha256()` returns the digest as base64 (the canonical public hash encoding);
+ * the hex form is the internal content-store address. `getInfo()` is the
+ * uniform identity accessor (its `size` is the manifest byte length).
  *
- * @typedef {ReadableTree & { sha256: () => string }} SnapshotTree
+ * @typedef {ReadableTree & {
+ *   sha256: () => string,
+ *   getInfo: () => Promise<BlobInfo>,
+ * }} SnapshotTree
  */
 
 /**
@@ -72,6 +102,43 @@
  * @typedef {object} TreeWriter
  * @property {(pathSegments: string[], readable: AsyncIterator<Uint8Array> | AsyncIterable<Uint8Array>) => Promise<void>} writeBlob
  * @property {(pathSegments: string[]) => Promise<void>} makeDirectory
+ */
+
+/**
+ * A File presents a mutable byte-content interface that also satisfies
+ * the ReadableBlob read surface.  Concrete implementations supply
+ * confinement and provenance (e.g. EndoMountFile constrains writes to
+ * a mount root).
+ *
+ * @typedef {object} File
+ * @property {(synPromise: unknown) => Promise<unknown>} streamBase64
+ * @property {() => Promise<string>} text
+ * @property {() => Promise<any>} json
+ * @property {(content: string) => Promise<void>} writeText
+ * @property {(readable: unknown) => Promise<void>} writeBytes
+ * @property {(content: string) => Promise<void>} append
+ * @property {() => ReadableBlob} readOnly
+ * @property {() => Promise<SnapshotBlob>} snapshot
+ */
+
+/**
+ * A Directory presents a mutable handle-first filesystem interface
+ * that also satisfies the ReadableTree read surface on the query side.
+ * `write` accepts a `ReadableBlob` (materialised as bytes at `path`) or
+ * a `ReadableTree` (materialised recursively).  Concrete
+ * implementations supply confinement and provenance.
+ *
+ * @typedef {object} Directory
+ * @property {(...path: string[]) => Promise<boolean>} has
+ * @property {(...path: string[]) => Promise<string[]>} list
+ * @property {(path: string | string[]) => Promise<unknown>} lookup
+ * @property {(path: string[], value: unknown) => Promise<void>} write
+ * @property {(path: string[]) => Promise<void>} remove
+ * @property {(from: string[], to: string[]) => Promise<void>} move
+ * @property {(from: string[], to: string[]) => Promise<void>} copy
+ * @property {(path: string[]) => Promise<Directory>} makeDirectory
+ * @property {() => ReadableTree} readOnly
+ * @property {() => Promise<SnapshotTree>} snapshot
  */
 
 // This module has no runtime exports.

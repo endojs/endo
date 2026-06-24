@@ -1,12 +1,12 @@
 // @ts-nocheck - Component test with happy-dom
 /* global globalThis */
 
-import 'ses';
-import '@endo/eventual-send/shim.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { channelComponent } from '../../channel-component.js';
 
 const { document: testDocument, cleanup: cleanupDOM } = createDOM();
@@ -75,7 +75,7 @@ const makeMockChannel = ({ name = 'test-channel', memberDelay = 0 } = {}) => {
       return info;
     },
     followMessages() {
-      return messagesIterator;
+      return readerFromIterator(messagesIterator);
     },
   });
 
@@ -147,17 +147,28 @@ const setup = async ({ memberDelay = 0 } = {}) => {
     onThreadClose: () => threadCloseCallbacks.push(true),
   });
 
-  // Wait for async setup (getProposedName, getMember, followMessages)
-  await tick(50);
+  // Wait for async setup (getProposedName, getMember, followMessages). Poll for
+  // the channel API rather than racing a fixed delay on a loaded CI runner.
+  await waitFor(() => !!$parent.channelAPI);
+
+  // Track how many messages have been pushed so `push` can poll for the
+  // corresponding `.message-wrapper` to appear instead of guessing a delay.
+  // Assumes each pushed message is visible in the active view (true for every
+  // test here): the count is global, so pushing a message that isn't rendered
+  // in the currently-open thread would never reach `expectedWrappers`.
+  let expectedWrappers = 0;
 
   /**
-   * Push a message and wait for it to render.
+   * Push a message and wait for it to render into the chronological list.
    * @param msg
-   * @param ms
    */
-  const push = async (msg, ms = 80) => {
+  const push = async msg => {
+    expectedWrappers += 1;
     pushMessage(msg);
-    await tick(ms);
+    await waitFor(
+      () =>
+        $parent.querySelectorAll('.message-wrapper').length >= expectedWrappers,
+    );
   };
 
   return {
@@ -243,7 +254,11 @@ test.serial('clicking reply count opens thread view', async t => {
   const $badge = $parent.querySelector('.reply-count');
   t.truthy($badge, 'reply count badge should exist');
   $badge.click();
-  await tick(100);
+  await waitFor(
+    () =>
+      $parent.classList.contains('thread-active') &&
+      !!$parent.querySelector('.thread-view'),
+  );
 
   t.true(
     $parent.classList.contains('thread-active'),
@@ -264,7 +279,9 @@ test.serial(
     await push(makeMessage(2, 'Reply', { replyTo: 1 }));
 
     $parent.querySelector('.reply-count').click();
-    await tick(100);
+    await waitFor(
+      () => $parent.querySelectorAll('.thread-message').length >= 2,
+    );
 
     const threadMsgs = $parent.querySelectorAll('.thread-message');
     t.is(threadMsgs.length, 2, 'thread should contain root and reply');
@@ -280,14 +297,14 @@ test.serial('back button closes thread view', async t => {
   await push(makeMessage(2, 'Reply', { replyTo: 1 }));
 
   $parent.querySelector('.reply-count').click();
-  await tick(100);
+  await waitFor(() => !!$parent.querySelector('.thread-back'));
 
   t.true($parent.classList.contains('thread-active'));
 
   const $back = $parent.querySelector('.thread-back');
   t.truthy($back, 'back button should exist');
   $back.click();
-  await tick(50);
+  await waitFor(() => !$parent.classList.contains('thread-active'));
 
   t.false(
     $parent.classList.contains('thread-active'),
@@ -306,14 +323,14 @@ test.serial('Channel breadcrumb closes thread view', async t => {
   await push(makeMessage(2, 'Reply', { replyTo: 1 }));
 
   $parent.querySelector('.reply-count').click();
-  await tick(100);
+  await waitFor(() => $parent.querySelectorAll('.thread-crumb').length > 0);
 
   const crumbs = $parent.querySelectorAll('.thread-crumb');
   // First crumb should be "Channel"
   const $channelCrumb = crumbs[0];
   t.is($channelCrumb.textContent, 'Channel');
   $channelCrumb.click();
-  await tick(50);
+  await waitFor(() => !$parent.classList.contains('thread-active'));
 
   t.false($parent.classList.contains('thread-active'));
   t.falsy($parent.querySelector('.thread-view'));
@@ -327,14 +344,14 @@ test.serial('new reply appears in thread view (live update)', async t => {
 
   // Open thread view
   $parent.querySelector('.reply-count').click();
-  await tick(100);
+  await waitFor(() => $parent.querySelectorAll('.thread-message').length >= 2);
 
   let threadMsgs = $parent.querySelectorAll('.thread-message');
   t.is(threadMsgs.length, 2);
 
   // Push a new reply while thread is open
   await push(makeMessage(3, 'Reply 2', { replyTo: 1 }));
-  await tick(100);
+  await waitFor(() => $parent.querySelectorAll('.thread-message').length >= 3);
 
   threadMsgs = $parent.querySelectorAll('.thread-message');
   t.is(threadMsgs.length, 3, 'new reply should appear in thread view');
@@ -348,11 +365,11 @@ test.serial('nested reply in thread view (live update)', async t => {
 
   // Open thread view
   $parent.querySelector('.reply-count').click();
-  await tick(100);
+  await waitFor(() => $parent.querySelectorAll('.thread-message').length >= 2);
 
   // Push a reply to the reply (depth 2) while thread is open
   await push(makeMessage(3, 'Reply to reply', { replyTo: 2 }));
-  await tick(100);
+  await waitFor(() => $parent.querySelectorAll('.thread-message').length >= 3);
 
   const threadMsgs = $parent.querySelectorAll('.thread-message');
   t.is(threadMsgs.length, 3, 'nested reply should appear in thread view');
@@ -366,7 +383,7 @@ test.serial('thread view shows breadcrumb with thread number', async t => {
   await push(makeMessage(2, 'Reply', { replyTo: 1 }));
 
   $parent.querySelector('.reply-count').click();
-  await tick(100);
+  await waitFor(() => $parent.querySelectorAll('.thread-crumb').length >= 2);
 
   const crumbs = $parent.querySelectorAll('.thread-crumb');
   t.true(crumbs.length >= 2, 'should have Channel and Thread crumbs');
@@ -432,10 +449,14 @@ test.serial(
     // Without the re-render queue this reply would be lost because the
     // message loop's showThreadView call hits the threadViewRendering guard.
     await tick(5);
-    await push(makeMessage(3, 'Reply 2', { replyTo: 1 }), 10);
+    await push(makeMessage(3, 'Reply 2', { replyTo: 1 }));
 
-    // Wait long enough for the initial render + queued re-render to finish.
-    await tick(400);
+    // Poll for the initial render + queued re-render to finish rather than
+    // racing a fixed delay: on a loaded CI runner the queued re-render can land
+    // well after any fixed timeout, which is the original flake.
+    await waitFor(
+      () => $parent.querySelectorAll('.thread-message').length >= 3,
+    );
 
     const threadMsgs = $parent.querySelectorAll('.thread-message');
     t.is(
@@ -455,7 +476,7 @@ test.serial('onThreadOpen fires when thread view opens', async t => {
   await push(makeMessage(2, 'Reply', { replyTo: 1 }));
 
   $parent.querySelector('.reply-count').click();
-  await tick(100);
+  await waitFor(() => threadOpenCallbacks.length >= 1);
 
   t.is(threadOpenCallbacks.length, 1, 'onThreadOpen should be called once');
   t.is(threadOpenCallbacks[0].number, '1');
@@ -469,12 +490,12 @@ test.serial('onThreadClose fires when back button closes thread', async t => {
   await push(makeMessage(2, 'Reply', { replyTo: 1 }));
 
   $parent.querySelector('.reply-count').click();
-  await tick(100);
+  await waitFor(() => !!$parent.querySelector('.thread-back'));
 
   t.is(threadCloseCallbacks.length, 0, 'onThreadClose not called yet');
 
   $parent.querySelector('.thread-back').click();
-  await tick(50);
+  await waitFor(() => threadCloseCallbacks.length >= 1);
 
   t.is(threadCloseCallbacks.length, 1, 'onThreadClose should be called once');
 });
@@ -486,11 +507,11 @@ test.serial('onThreadClose fires when Escape closes thread', async t => {
   await push(makeMessage(2, 'Reply', { replyTo: 1 }));
 
   $parent.querySelector('.reply-count').click();
-  await tick(100);
+  await waitFor(() => $parent.classList.contains('thread-active'));
 
   const ev = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
   testDocument.dispatchEvent(ev);
-  await tick(50);
+  await waitFor(() => threadCloseCallbacks.length >= 1);
 
   t.is(threadCloseCallbacks.length, 1, 'onThreadClose should fire on Escape');
 });
@@ -504,11 +525,11 @@ test.serial(
     await push(makeMessage(2, 'Reply', { replyTo: 1 }));
 
     $parent.querySelector('.reply-count').click();
-    await tick(100);
+    await waitFor(() => $parent.querySelectorAll('.thread-crumb').length > 0);
 
     const crumbs = $parent.querySelectorAll('.thread-crumb');
     crumbs[0].click(); // "Channel" crumb
-    await tick(50);
+    await waitFor(() => threadCloseCallbacks.length >= 1);
 
     t.is(
       threadCloseCallbacks.length,
@@ -536,7 +557,11 @@ test.serial(
     t.is(indicators.length, 2, 'should have two reply indicators');
     // Click the indicator on message 3 (the deepest one)
     indicators[1].click();
-    await tick(100);
+    await waitFor(
+      () =>
+        $parent.classList.contains('thread-active') &&
+        $parent.querySelectorAll('.thread-message').length >= 3,
+    );
 
     t.true(
       $parent.classList.contains('thread-active'),
@@ -579,7 +604,7 @@ test.serial(
     const badges = $parent.querySelectorAll('.reply-count');
     t.is(badges.length, 2, 'should have two reply count badges');
     badges[0].click();
-    await tick(100);
+    await waitFor(() => $parent.classList.contains('thread-active'));
 
     t.true(
       $parent.classList.contains('thread-active'),
@@ -591,7 +616,7 @@ test.serial(
     // This should close the thread and keep us in the channel.
     const closed = $parent.channelAPI.closeThread();
     t.true(closed, 'closeThread() should return true when thread was active');
-    await tick(50);
+    await waitFor(() => threadCloseCallbacks.length >= 1);
 
     t.false(
       $parent.classList.contains('thread-active'),
@@ -607,7 +632,11 @@ test.serial(
     const newBadges = $parent.querySelectorAll('.reply-count');
     t.true(newBadges.length >= 2, 'reply count badges should still exist');
     newBadges[1].click();
-    await tick(100);
+    await waitFor(
+      () =>
+        $parent.classList.contains('thread-active') &&
+        !!$parent.querySelector('.thread-back'),
+    );
 
     t.true(
       $parent.classList.contains('thread-active'),
@@ -620,7 +649,7 @@ test.serial(
 
     // Close the second thread via its own back button
     $parent.querySelector('.thread-back').click();
-    await tick(50);
+    await waitFor(() => threadCloseCallbacks.length >= 2);
 
     t.false(
       $parent.classList.contains('thread-active'),
@@ -640,7 +669,7 @@ test.serial(
 
     // Open thread
     $parent.querySelector('.reply-count').click();
-    await tick(100);
+    await waitFor(() => $parent.classList.contains('thread-active'));
 
     t.true($parent.classList.contains('thread-active'));
 

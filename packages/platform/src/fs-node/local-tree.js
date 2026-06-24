@@ -100,6 +100,11 @@ export const makeLocalTree = (dirPath, options = {}) => {
           }
           return current;
         },
+        /** @param {string} [method] */
+        help: method =>
+          method === undefined
+            ? 'LocalTree: read-only view of a host directory tree (has, list, lookup).'
+            : `No documentation for method ${method}.`,
       }),
     );
   };

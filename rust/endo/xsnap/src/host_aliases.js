@@ -29,6 +29,8 @@
     hostReadFileBytes: 'readFile',
     hostMaybeReadFileBytes: 'maybeReadFile',
     hostWriteFile: 'writeFileText',
+    hostAppendFile: 'appendFile',
+    hostStat: 'stat',
     hostReadDir: 'readDir',
     hostMkdir: 'mkdir',
     hostRemove: 'remove',

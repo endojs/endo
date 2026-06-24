@@ -178,34 +178,26 @@ export default function removeUnpermittedIntrinsics(
     if (typeof permit === 'string') {
       // A string permit can have one of two meanings:
 
-      if (prop === 'prototype' || prop === 'constructor') {
-        // For prototype and constructor value properties, the permit
-        // is the name of an intrinsic.
-        // Assumption: prototype and constructor cannot be primitives.
-        // Assert: the permit is the name of an intrinsic.
-        // Assert: the property value is equal to that intrinsic.
+      if (arrayIncludes(primitives, permit)) {
+        // The permit is the name of a primitive.
 
-        if (hasOwn(intrinsics, permit)) {
-          if (value !== intrinsics[permit]) {
-            throw TypeError(`Does not match permit for ${path}`);
-          }
-          return true;
+        if (prop === 'prototype' || prop === 'constructor') {
+          throw new TypeError(`At ${path} expected intrinsic, not ${permit}`);
         }
-      } else {
-        // For all other properties, the permit is the name of a primitive.
-        // Assert: the permit is the name of a primitive.
-        // Assert: the property value type is equal to that primitive.
+        // eslint wants to compare typeof only to string literals
+        // eslint-disable-next-line valid-typeof
+        if (typeof value !== permit) {
+          throw TypeError(`At ${path} expected ${permit} not ${typeof value}`);
+        }
+        return true;
+      }
 
-        // eslint-disable-next-line no-lonely-if
-        if (arrayIncludes(primitives, permit)) {
-          // eslint-disable-next-line valid-typeof
-          if (typeof value !== permit) {
-            throw TypeError(
-              `At ${path} expected ${permit} not ${typeof value}`,
-            );
-          }
-          return true;
+      if (hasOwn(intrinsics, permit)) {
+        // the permit is the name of an intrinsic.
+        if (value !== intrinsics[permit]) {
+          throw TypeError(`Does not match permit for ${path}`);
         }
+        return true;
       }
     }
 

@@ -1,22 +1,41 @@
 // @ts-check
 
-// Chat sources its `harden` via `@endo/harden` rather than from SES, so
-// `lockdown()` is never called. Monaco editor and other dependencies rely
-// on mutable intrinsics, which SES lockdown would freeze.
-// However, importing `ses` (without calling `lockdown()`) is still
-// required to install `globalThis.assert`. The shim modules under
-// `@endo/eventual-send/shim.js` and other library code in the bundle
-// destructure `assert` at module-load (`const { Fail, quote } = assert;`),
-// which throws `ReferenceError: assert is not defined` if SES has not
-// at least installed its assert shim. The `assert-shim.js` side effect
-// of `import 'ses'` runs without freezing intrinsics, so Monaco still
-// works.
-import 'ses';
-// CapTP and E() require HandledPromise to be installed as a global.
-import '@endo/eventual-send/shim.js';
+// Lock down the realm before any application module evaluates. This is the
+// standard `@endo/init` preamble; `./pre-lockdown.js` runs first (it has no
+// imports, so its body executes during hoisted evaluation) to select
+// `overrideTaming: 'severe'`, the level `@endo/preact-container` requires for
+// mounting untrusted components. Monaco was historically assumed to need
+// mutable intrinsics, but is verified compatible (see test/monaco-lockdown).
+//
+// `@endo/init` installs `globalThis.assert` and `harden`, freezes the
+// primordials, and (via its `pre-remoting` shim) installs the HandledPromise
+// global that CapTP and `E()` require — so the previous explicit `ses` and
+// `@endo/eventual-send/shim.js` imports are no longer needed.
+import './pre-lockdown.js';
+import '@endo/init';
 
 import { connectToGateway } from './connection.js';
 import { make } from './chat.js';
+
+// Whylip ships its own stylesheet. The `@endo/space-whylip` package does no
+// rendering and deliberately avoids a JS CSS side-effect import (so it stays
+// loadable under plain Node / tsc / AVA); the host bundles the stylesheet here
+// instead. This import is Vite-only — no test loads `main.js`.
+// eslint-disable-next-line import/no-unresolved
+import '@endo/space-whylip/whylip.css';
+
+// The peers view (`@endo/space-peers`) likewise does no rendering and
+// ships its stylesheet via the `./peers.css` package export; the host bundles
+// it here. Vite-only — no test loads `main.js`.
+// eslint-disable-next-line import/no-unresolved
+import '@endo/space-peers/peers.css';
+
+// The Floot view (`@endo/space-floot`) is a pure confined component and ships
+// its stylesheet via the `./floot.css` package export; the host bundles it
+// here (the old imperative floot-component carried inline <style>). Vite-only —
+// no test loads `main.js`.
+// eslint-disable-next-line import/no-unresolved
+import '@endo/space-floot/floot.css';
 
 const RECONNECT_INTERVAL_MS = 5000;
 
@@ -211,11 +230,20 @@ function reconnectInElectronMode() {
   countdown();
 }
 
+// A gateway is "local" when it points at this machine's loopback. Only then
+// is the Vite /dev redirect (which always emits a 127.0.0.1 gateway) usable.
+// When the page was loaded against a remote gateway (e.g. a Tailscale host for
+// phone access), redirecting to /dev would overwrite the fragment with an
+// unreachable localhost address, so we reconnect by reusing the fragment.
+const isLocalGateway = /^(127\.0\.0\.1|localhost|\[?::1\]?)(:|$)/.test(
+  gateway || '',
+);
+
 /**
  * Start the appropriate reconnection strategy based on mode.
  */
 const startReconnection = () => {
-  if (isElectronMode) {
+  if (isElectronMode || !isLocalGateway) {
     reconnectInElectronMode();
   } else {
     pollHealthThenReconnect();

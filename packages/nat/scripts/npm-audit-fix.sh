@@ -1,5 +1,8 @@
+#!/bin/bash
+die() { printf '%s\n' "$*" >&2; exit 1; }
+
 git clone https://github.com/AgoricBot/nat.git
-cd nat
+cd nat || die "cd: nat failed"
 git remote add upstream https://github.com/Agoric/nat.git
 git remote set-url origin https://AgoricBot:$GITHUB_TOKEN@github.com/AgoricBot/nat.git
 git fetch upstream
@@ -24,7 +27,7 @@ else
 fi
 
 # Do the same thing with the package.json in the integration-test folder
-cd integration-test
+cd integration-test || die "cd: integration-test failed"
 if npm audit ; then
     echo "Nothing to fix"
 else
@@ -34,7 +37,7 @@ fi
 cd ..
 
 if [ "$files_changed" = true ] ; then
-  git add . 
+  git add .
   git commit -m "results of running npm audit fix"
   git push origin npm-audit-fix
   hub pull-request --no-edit --base Agoric/nat:master

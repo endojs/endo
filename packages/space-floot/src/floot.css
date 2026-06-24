@@ -1,0 +1,779 @@
+/*
+ * Floot space styles. Scoped under `.floot-app` so they don't leak into the
+ * rest of the chat shell. Linked by the host (see packages/chat/main.js); not
+ * imported as a JS side-effect so the package stays loadable under Node.
+ */
+.floot-app {
+  --fl-bg: #0f0f10;
+  --fl-surface: #17171a;
+  --fl-surface2: #1f1f23;
+  --fl-surface3: #26262b;
+  --fl-border: #2a2a2e;
+  --fl-border-strong: #3a3a40;
+  --fl-text: #e4e4e7;
+  --fl-text-muted: #8a8a92;
+  --fl-text-faint: #5e5e66;
+  --fl-user: #2563eb;
+  --fl-user-text: #fff;
+  --fl-assistant: #27272a;
+  --fl-accent: #3b82f6;
+  --fl-red: #ef4444;
+  --fl-green: #22c55e;
+  --fl-amber: #f59e0b;
+  --fl-tool: #a78bfa;
+  --fl-tool-result: #86efac;
+  --fl-mail: #0e7490;
+  --fl-mail-text: #e0f2fe;
+  position: relative;
+  height: 100%;
+  display: flex;
+  box-sizing: border-box;
+  background: var(--fl-bg);
+  color: var(--fl-text);
+  overflow: hidden;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.floot-app * {
+  box-sizing: border-box;
+}
+
+.floot-sidebar {
+  width: 240px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--fl-surface);
+  border-right: 1px solid var(--fl-border);
+  transition: transform 0.2s ease;
+}
+.floot-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid var(--fl-border);
+}
+.floot-sidebar-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.floot-new-btn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: var(--fl-accent);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.floot-new-btn:hover {
+  background: #2563eb;
+}
+.floot-session-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.4rem;
+}
+.floot-session-empty {
+  padding: 1rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--fl-text-faint);
+  text-align: center;
+}
+
+.floot-session-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 2px;
+  color: var(--fl-text-muted);
+  transition: background 0.12s;
+}
+.floot-session-item:hover {
+  background: var(--fl-surface2);
+}
+.floot-session-item.active {
+  background: var(--fl-surface3);
+}
+.floot-session-item.active .floot-session-name {
+  color: var(--fl-text);
+}
+.floot-status-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fl-text-faint);
+}
+.floot-status-dot.streaming {
+  background: var(--fl-accent);
+  animation: floot-dot-pulse 1.2s ease-in-out infinite;
+}
+.floot-status-dot.error {
+  background: var(--fl-red);
+}
+@keyframes floot-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+.floot-session-meta {
+  flex: 1;
+  min-width: 0;
+}
+.floot-session-name {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.floot-session-sub {
+  font-size: 0.72rem;
+  color: var(--fl-text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.floot-session-item .floot-row-btn {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--fl-text-muted);
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.floot-session-item:hover .floot-row-btn {
+  display: flex;
+}
+.floot-row-btn:hover {
+  background: var(--fl-surface3);
+  color: var(--fl-text);
+}
+.floot-session-title-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid var(--fl-accent);
+  background: var(--fl-bg);
+  color: var(--fl-text);
+  outline: none;
+}
+
+.floot-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.floot-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--fl-surface);
+  border-bottom: 1px solid var(--fl-border);
+  flex-shrink: 0;
+}
+.floot-menu-btn {
+  display: none;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--fl-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.25rem;
+  align-items: center;
+  justify-content: center;
+}
+.floot-menu-btn:hover {
+  color: var(--fl-text);
+  background: var(--fl-surface2);
+}
+.floot-header-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+.floot-header-title-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--fl-text);
+  background: var(--fl-surface);
+  border: 1px solid var(--fl-border);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+.floot-header-btn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--fl-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.floot-header-btn:hover {
+  color: var(--fl-text);
+  background: var(--fl-surface2);
+}
+.floot-header-btn.on {
+  color: var(--fl-accent);
+}
+
+.floot-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  scroll-behavior: smooth;
+}
+.floot-empty-state {
+  margin: auto;
+  text-align: center;
+  color: var(--fl-text-faint);
+  font-size: 0.9rem;
+  padding: 2rem;
+}
+.floot-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.floot-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--fl-border);
+  border-top-color: var(--fl-text-muted);
+  animation: floot-spin 0.8s linear infinite;
+}
+@keyframes floot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.floot-msg-row {
+  display: flex;
+  flex-direction: column;
+  animation: floot-fade 0.15s ease;
+}
+.floot-mail-caption {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--fl-text-faint);
+  margin-bottom: 2px;
+  max-width: 80%;
+}
+.floot-mail-caption .token {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.floot-msg-row.user {
+  align-items: flex-end;
+}
+.floot-msg-row.assistant {
+  align-items: flex-start;
+}
+@keyframes floot-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.floot-msg {
+  max-width: 80%;
+  padding: 0.6rem 0.9rem;
+  border-radius: 16px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.floot-msg-row.user .floot-msg {
+  background: var(--fl-user);
+  color: var(--fl-user-text);
+  border-bottom-right-radius: 4px;
+}
+.floot-msg-row.assistant .floot-msg {
+  background: var(--fl-assistant);
+  color: var(--fl-text);
+  border-bottom-left-radius: 4px;
+}
+.floot-msg-row.mail .floot-msg {
+  background: var(--fl-mail);
+  color: var(--fl-mail-text);
+}
+.floot-msg.streaming::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 1em;
+  background: var(--fl-text-muted);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: floot-caret 1s steps(2) infinite;
+}
+@keyframes floot-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.floot-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: var(--fl-assistant);
+  border-radius: 12px;
+}
+.floot-thinking span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fl-text-muted);
+  animation: floot-bounce 1.2s ease-in-out infinite;
+}
+.floot-thinking span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.floot-thinking span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes floot-bounce {
+  0%,
+  60%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.3;
+  }
+  30% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+.floot-status-bar {
+  padding: 0.25rem 1rem;
+  font-size: 0.75rem;
+  color: var(--fl-text-muted);
+  background: var(--fl-surface);
+  border-top: 1px solid var(--fl-border);
+  min-height: 1.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+.floot-status-bar.error {
+  color: var(--fl-red);
+}
+.floot-tokens {
+  margin-left: auto;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.floot-meter {
+  display: none;
+  position: relative;
+  height: 6px;
+  background: var(--fl-border);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.floot-meter.on {
+  display: block;
+}
+.floot-meter-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  background: var(--fl-green);
+  opacity: 0.35;
+  transition: width 0.08s linear;
+}
+.floot-meter-fill.active {
+  opacity: 1;
+}
+.floot-meter-noise,
+.floot-meter-threshold {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+}
+.floot-meter-noise {
+  background: var(--fl-amber);
+}
+.floot-meter-threshold {
+  background: var(--fl-text);
+}
+
+.floot-compose {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  padding: 0.6rem 0.75rem;
+  padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+  background: var(--fl-surface);
+  border-top: 1px solid var(--fl-border);
+  flex-shrink: 0;
+}
+.floot-input {
+  flex: 1;
+  resize: none;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 0.55rem 1rem;
+  border-radius: 20px;
+  border: 1px solid var(--fl-border);
+  background: var(--fl-surface2);
+  color: var(--fl-text);
+  /* Grow with content up to max-height. The old imperative component resized
+     the textarea in JS on every input; a confined view cannot touch the DOM,
+     so this reproduces auto-grow in pure CSS. */
+  field-sizing: content;
+  max-height: 120px;
+  outline: none;
+}
+.floot-input::placeholder {
+  color: var(--fl-text-muted);
+}
+.floot-input:focus {
+  border-color: var(--fl-accent);
+}
+.floot-send,
+.floot-mic {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.floot-send {
+  border: none;
+  background: var(--fl-accent);
+  color: #fff;
+}
+.floot-send:hover {
+  background: #2563eb;
+}
+.floot-send.cancel {
+  background: #dc2626;
+}
+.floot-send.cancel:hover {
+  background: #b91c1c;
+}
+.floot-send svg {
+  width: 20px;
+  height: 20px;
+}
+.floot-mic {
+  border: 2px solid var(--fl-border);
+  background: var(--fl-surface2);
+  color: var(--fl-text-muted);
+  font-size: 1.15rem;
+}
+.floot-mic:hover {
+  border-color: var(--fl-text-muted);
+}
+.floot-mic.listening {
+  border-color: var(--fl-green);
+  color: var(--fl-green);
+}
+.floot-mic.recording {
+  border-color: var(--fl-green);
+  color: var(--fl-green);
+  animation: floot-mic-pulse 1.5s ease infinite;
+}
+@keyframes floot-mic-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+  }
+}
+.floot-speaker {
+  opacity: 0.5;
+}
+.floot-speaker.on {
+  opacity: 1;
+  border-color: var(--fl-accent);
+  color: var(--fl-accent);
+}
+.floot-speaker.speaking {
+  background: var(--fl-accent);
+  color: #fff;
+  border-color: var(--fl-accent);
+}
+.floot-bubble-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  max-width: 80%;
+}
+.floot-bubble-wrap .floot-msg {
+  max-width: 100%;
+}
+.floot-replay {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--fl-text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.floot-replay:hover {
+  color: var(--fl-text);
+}
+.floot-replay.playing {
+  color: var(--fl-green);
+}
+
+.floot-tool {
+  max-width: 80%;
+  background: #1a1a2e;
+  border: 1px solid #2a2a3e;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--fl-tool);
+  animation: floot-fade 0.15s ease;
+}
+.floot-tool-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #7c6fbf;
+  margin-bottom: 0.25rem;
+}
+.floot-tool-pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  color: #c4b5fd;
+  max-height: 150px;
+  overflow-y: auto;
+}
+.floot-tool.result {
+  background: #1a2e1a;
+  border-color: #2a3e2a;
+  color: var(--fl-tool-result);
+}
+.floot-tool.result .floot-tool-label {
+  color: #4ade80;
+}
+.floot-tool.result .floot-tool-pre {
+  color: #bbf7d0;
+}
+
+.floot-backdrop {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 4;
+}
+
+.floot-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+  animation: floot-fade 0.12s ease;
+}
+.floot-modal {
+  width: min(420px, 100%);
+  max-height: 80%;
+  overflow-y: auto;
+  background: var(--fl-surface);
+  border: 1px solid var(--fl-border-strong);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.floot-modal-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+.floot-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.floot-preset-card {
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  background: var(--fl-surface2);
+  border: 1px solid var(--fl-border);
+  border-radius: 8px;
+  padding: 0.7rem 0.85rem;
+  color: var(--fl-text);
+  transition:
+    border-color 0.12s,
+    background 0.12s;
+}
+.floot-preset-card:hover {
+  background: var(--fl-surface3);
+  border-color: var(--fl-accent);
+}
+.floot-preset-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.floot-preset-desc {
+  font-size: 0.78rem;
+  color: var(--fl-text-muted);
+  margin-top: 0.15rem;
+  line-height: 1.35;
+}
+
+.floot-session-pill {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--fl-surface3);
+  color: var(--fl-tool);
+  border: 1px solid var(--fl-border-strong);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.floot-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.floot-settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+.floot-settings-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fl-text-muted);
+}
+
+@media (max-width: 640px) {
+  .floot-sidebar {
+    position: absolute;
+    z-index: 20;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(280px, 82vw);
+    transform: translateX(-100%);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
+  }
+  .floot-sidebar.open {
+    transform: translateX(0);
+  }
+  .floot-backdrop {
+    z-index: 19;
+  }
+  .floot-backdrop.open {
+    display: block;
+  }
+  .floot-row-btn {
+    display: flex;
+  }
+  .floot-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .floot-header {
+    padding: 0.6rem 0.75rem;
+  }
+  .floot-messages {
+    padding: 0.75rem;
+  }
+}

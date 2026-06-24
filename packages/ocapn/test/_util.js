@@ -142,7 +142,7 @@ testWithErrorUnwrapping.only = (testName, fn) => {
  * @param {number} delayMs
  * @returns {Promise<void>}
  */
-export const waitUntilTrue = async (fn, timeoutMs = 10000, delayMs = 20) => {
+export const waitUntilTrue = async (fn, timeoutMs = 10_000, delayMs = 20) => {
   await undefined;
   const endTime = timeoutMs + Date.now();
   while (endTime > Date.now()) {

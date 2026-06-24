@@ -4,5 +4,24 @@
   "compilerOptions": {
     "composite": true
   },
-  "references": []
+  "references": [
+    {
+      "path": "../errors/tsconfig.composite.json"
+    },
+    {
+      "path": "../harden/tsconfig.composite.json"
+    },
+    {
+      "path": "../netstring/tsconfig.composite.json"
+    },
+    {
+      "path": "../ocapn/tsconfig.composite.json"
+    },
+    {
+      "path": "../stream/tsconfig.composite.json"
+    },
+    {
+      "path": "../stream-node/tsconfig.composite.json"
+    }
+  ]
 }

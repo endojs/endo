@@ -4,7 +4,7 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, waitFor } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import { petNamePathsAutocomplete } from '../../petname-paths-autocomplete.js';
 
@@ -147,7 +147,7 @@ test('menu shows on focus', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => api.isMenuVisible());
 
   t.true(api.isMenuVisible());
 
@@ -165,7 +165,7 @@ test('dispose hides menu', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => api.isMenuVisible());
   t.true(api.isMenuVisible());
 
   api.dispose();
@@ -202,7 +202,7 @@ test('clicking remove button removes chip', async t => {
 
   const firstRemove = $container.querySelector('.path-chip-remove');
   /** @type {HTMLElement} */ (firstRemove).click();
-  await tick(10);
+  await waitFor(() => $container.querySelectorAll('.path-chip').length === 1);
 
   t.deepEqual(api.getValue(), ['bob']);
   t.is($container.querySelectorAll('.path-chip').length, 1);
@@ -227,7 +227,7 @@ test('Backspace on empty input removes last chip', async t => {
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }),
   );
-  await tick(10);
+  await waitFor(() => $container.querySelectorAll('.path-chip').length === 1);
 
   t.deepEqual(api.getValue(), ['alice']);
   t.is($container.querySelectorAll('.path-chip').length, 1);
@@ -246,13 +246,13 @@ test('Escape hides menu', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => api.isMenuVisible());
   t.true(api.isMenuVisible());
 
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
   );
-  await tick(10);
+  await waitFor(() => !api.isMenuVisible());
 
   t.false(api.isMenuVisible());
 
@@ -270,7 +270,13 @@ test('ArrowDown navigates suggestions', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(50);
+  // The suggestions load through an async `E(powers).list()` chain, so poll for
+  // the rendered selection rather than guessing a fixed delay (which races on a
+  // slow CI runner).
+  await waitFor(
+    () =>
+      $menu.querySelector('.token-menu-item.selected')?.textContent === 'alice',
+  );
 
   let selected = $menu.querySelector('.token-menu-item.selected');
   t.is(selected?.textContent, 'alice');
@@ -278,7 +284,10 @@ test('ArrowDown navigates suggestions', async t => {
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
   );
-  await tick(10);
+  await waitFor(
+    () =>
+      $menu.querySelector('.token-menu-item.selected')?.textContent === 'bob',
+  );
 
   selected = $menu.querySelector('.token-menu-item.selected');
   t.is(selected?.textContent, 'bob');
@@ -297,13 +306,13 @@ test('Space creates chip and starts new path', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => !!$menu.querySelector('.token-menu-item.selected'));
 
   // Select first suggestion (alice) with Space
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: ' ', bubbles: true }),
   );
-  await tick(50);
+  await waitFor(() => $container.querySelectorAll('.path-chip').length === 1);
 
   const chips = $container.querySelectorAll('.path-chip');
   t.is(chips.length, 1);
@@ -325,12 +334,12 @@ test('Tab completes suggestion in input', async t => {
   );
   input.value = 'a';
   input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => !!$menu.querySelector('.token-menu-item.selected'));
 
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
   );
-  await tick(10);
+  await waitFor(() => input.value === 'alice');
 
   t.is(input.value, 'alice');
   // No chip created yet - Tab just completes
@@ -374,7 +383,7 @@ test('onChange callback is called when value changes', async t => {
   );
   input.value = 'test';
   input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(10);
+  await waitFor(() => changeCount > 0);
 
   t.true(changeCount > 0);
 
@@ -403,7 +412,7 @@ test('onSubmit callback is called on Enter', async t => {
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
   );
-  await tick(10);
+  await waitFor(() => submitted);
 
   t.true(submitted);
 
@@ -421,7 +430,7 @@ test('menu shows hint text', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => !!$menu.querySelector('.token-menu-hint'));
 
   const hint = $menu.querySelector('.token-menu-hint');
   t.truthy(hint);
@@ -494,7 +503,7 @@ test('finalizeOnSelect: selecting does not show more suggestions', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => !!$menu.querySelector('.token-menu-item'));
 
   t.true(api.isMenuVisible());
 
@@ -503,7 +512,7 @@ test('finalizeOnSelect: selecting does not show more suggestions', async t => {
   menuItem?.dispatchEvent(
     new testWindow.MouseEvent('mousedown', { bubbles: true }),
   );
-  await tick(50);
+  await waitFor(() => !api.isMenuVisible());
 
   // Menu should be hidden (not showing more suggestions)
   t.false(api.isMenuVisible());
@@ -556,8 +565,8 @@ test('Shift+Tab goes back to edit previous chip', async t => {
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }),
   );
-  // updateSuggestions is async, wait longer
-  await tick(100);
+  // updateSuggestions is async; poll for the nested children to render.
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length === 2);
 
   // Chip should be removed and path should be in input with trailing slash
   t.is($container.querySelectorAll('.path-chip').length, 0);
@@ -587,7 +596,7 @@ test('finalizeOnSelect: hint shows Shift+Tab instead of Space', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => !!$menu.querySelector('.token-menu-hint'));
 
   const hint = $menu.querySelector('.token-menu-hint');
   t.truthy(hint);
@@ -609,7 +618,7 @@ test('clicking menu item creates chip (modal usage pattern)', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => !!$menu.querySelector('.token-menu-item'));
 
   // Click on the first menu item (use mousedown since that's what triggers selection)
   const menuItem = $menu.querySelector('.token-menu-item');
@@ -617,7 +626,7 @@ test('clicking menu item creates chip (modal usage pattern)', async t => {
   menuItem?.dispatchEvent(
     new testWindow.MouseEvent('mousedown', { bubbles: true }),
   );
-  await tick(50);
+  await waitFor(() => $container.querySelectorAll('.path-chip').length === 1);
 
   // Clicking now creates a chip (uses 'space' mode)
   const chips = $container.querySelectorAll('.path-chip');
@@ -667,7 +676,7 @@ test('setValue with path then focus shows nested suggestions', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(100);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length === 2);
 
   // Should show children of @agent
   t.true(api.isMenuVisible(), 'Menu should be visible');
@@ -719,7 +728,7 @@ test('clicking nested suggestion extends chip path', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(100);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length === 2);
 
   // Menu should show children of @agent
   t.true(api.isMenuVisible(), 'Menu should be visible');
@@ -730,7 +739,7 @@ test('clicking nested suggestion extends chip path', async t => {
   menuItems[0].dispatchEvent(
     new testWindow.MouseEvent('mousedown', { bubbles: true }),
   );
-  await tick(50);
+  await waitFor(() => api.getValue()[0] === '@agent/child1');
 
   // Should have extended the @agent chip to @agent/child1
   const chips = $container.querySelectorAll('.path-chip');
@@ -778,7 +787,11 @@ test('ArrowDown works after setValue with existing chip', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(100);
+  await waitFor(
+    () =>
+      $menu.querySelector('.token-menu-item.selected')?.textContent ===
+      'option1',
+  );
 
   // Verify initial selection
   let selected = $menu.querySelector('.token-menu-item.selected');
@@ -788,7 +801,11 @@ test('ArrowDown works after setValue with existing chip', async t => {
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
   );
-  await tick(10);
+  await waitFor(
+    () =>
+      $menu.querySelector('.token-menu-item.selected')?.textContent ===
+      'option2',
+  );
 
   selected = $menu.querySelector('.token-menu-item.selected');
   t.is(selected?.textContent, 'option2');
@@ -797,7 +814,11 @@ test('ArrowDown works after setValue with existing chip', async t => {
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
   );
-  await tick(10);
+  await waitFor(
+    () =>
+      $menu.querySelector('.token-menu-item.selected')?.textContent ===
+      'option3',
+  );
 
   selected = $menu.querySelector('.token-menu-item.selected');
   t.is(selected?.textContent, 'option3');
@@ -842,13 +863,17 @@ test('Space on nested suggestion extends the chip path', async t => {
     $container.querySelector('input.chip-input')
   );
   input.dispatchEvent(new Event('focus', { bubbles: true }));
-  await tick(100);
+  await waitFor(
+    () =>
+      $menu.querySelector('.token-menu-item.selected')?.textContent ===
+      'child1',
+  );
 
   // Press Space to select 'child1' - should extend @agent chip to @agent/child1
   input.dispatchEvent(
     new KeyboardEvent('keydown', { key: ' ', bubbles: true }),
   );
-  await tick(50);
+  await waitFor(() => api.getValue()[0] === '@agent/child1');
 
   // Should now have one chip with extended path
   const chips = $container.querySelectorAll('.path-chip');

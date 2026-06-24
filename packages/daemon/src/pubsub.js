@@ -72,7 +72,26 @@ export const makeChangeTopic = () => {
   const { sink, makeSpring } = makeChangePubSub();
   return harden({
     publisher: makeStream(nullIteratorQueue, sink),
-    subscribe: () => makeStream(makeSpring(), nullIteratorQueue),
+    subscribe: () => {
+      // A subscriber reads published values from the spring. `makeStream`'s
+      // own `return()`/`throw()` settle via `acks.get()`, which for a
+      // subscriber is the spring — so they await the *next* published value
+      // and never settle once the reader has caught up. Override them so a
+      // subscription can be closed promptly. This matters for consumers that
+      // stop early (a `for await` that breaks) and for the @endo/exo-stream
+      // reader pump, which calls `return()` to release a stream; awaiting the
+      // spring there would deadlock the consumer's pending read.
+      const subscription = makeStream(makeSpring(), nullIteratorQueue);
+      const reader = harden({
+        next: value => subscription.next(value),
+        return: async value => harden({ value, done: true }),
+        throw: async error => {
+          throw error;
+        },
+        [Symbol.asyncIterator]: () => reader,
+      });
+      return reader;
+    },
   });
 };
 harden(makeChangeTopic);

@@ -43,7 +43,7 @@ const cborAppendHead = (buf, major, n) => {
     buf.push(m | 24, n);
   } else if (n <= 0xffff) {
     buf.push(m | 25, (n >> 8) & 0xff, n & 0xff);
-  } else if (n <= 0xffffffff) {
+  } else if (n <= 0xffff_ffff) {
     buf.push(
       m | 26,
       (n >> 24) & 0xff,

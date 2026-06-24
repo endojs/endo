@@ -402,6 +402,35 @@ pub fn decode_listen_path_request(data: &[u8]) -> io::Result<String> {
 }
 
 // ---------------------------------------------------------------------------
+// listen-iroh request decoding (CBOR map: {"node": <hex text>})
+//
+// The manager asks the supervisor to host an iroh network device. The
+// payload carries the daemon's NodeNumber (64-hex-character Ed25519 public
+// key); the supervisor derives the iroh secret key from it, exactly as the
+// Node.js transport does, so the iroh NodeId is stable and consistent.
+// ---------------------------------------------------------------------------
+
+pub fn decode_listen_iroh_request(data: &[u8]) -> io::Result<String> {
+    let mut c = Cursor::new(data);
+    let n = c.read_map_header()?;
+    let mut node = String::new();
+    for _ in 0..n {
+        let key = c.read_text()?;
+        match key.as_str() {
+            "node" => node = c.read_text()?,
+            _ => c.skip()?,
+        }
+    }
+    if node.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "listen-iroh: missing or empty node",
+        ));
+    }
+    Ok(node)
+}
+
+// ---------------------------------------------------------------------------
 // Suspend request decoding (CBOR map: {"handle": <i64>})
 // ---------------------------------------------------------------------------
 

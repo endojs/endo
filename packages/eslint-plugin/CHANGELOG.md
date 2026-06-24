@@ -1,10 +1,61 @@
 # @endo/eslint-plugin
 
+## 2.6.0
+
+### Minor Changes
+
+- [#3263](https://github.com/endojs/endo/pull/3263) [`c423ed3`](https://github.com/endojs/endo/commit/c423ed37b4c574aaccd778fc72acb2ff8910d586) Thanks [@kriskowal](https://github.com/kriskowal)! - The `internal` preset now enforces `unicorn/numeric-separators-style` with
+  default groupings: decimal numbers of five or more digits must use underscore
+  separators every three digits, and hexadecimal, binary, and octal literals must
+  use the rule's conventional group lengths.
+  Consumers of `plugin:@endo/internal` will see lint errors on numeric literals
+  that violate the rule; `eslint --fix` rewrites them automatically.
+  Sites extending the preset must add `eslint-plugin-unicorn` to their devDeps.
+
+- [#3277](https://github.com/endojs/endo/pull/3277) [`da632a2`](https://github.com/endojs/endo/commit/da632a20788a17c1e80c6fee8071ca78a52be9c4) Thanks [@kriskowal](https://github.com/kriskowal)! - The `@endo/harden-exports` rule now skips named exports whose initializer is
+  a Pattern maker call of the form `M.something(...)`.
+  Pattern makers return values that are already hardened, so a follow-up
+  `harden(name)` after their export is redundant noise.
+
+  A new companion rule, `@endo/no-harden-pattern-maker`, surfaces existing
+  sites where code over-hardens a Pattern maker result.
+  The rule fires on both `harden(M.string())` and the indirect form
+  `const x = M.string(); harden(x);`, and is included in the recommended
+  configuration as a warning so existing code doesn't break loudly while
+  the redundant calls are cleaned up.
+
+### Patch Changes
+
+- [#3292](https://github.com/endojs/endo/pull/3292) [`62d1b0a`](https://github.com/endojs/endo/commit/62d1b0acafa2a865e37f4efc3b3a08aaed2e96df) Thanks [@turadg](https://github.com/turadg)! - Declare `@typescript-eslint/*` and `typescript-eslint` as caret ranges
+  (`^8.39.1`) rather than exact pins, so consumers can dedupe them against
+  their own typescript-eslint versions instead of being forced onto a
+  single release. Also drop the redundant `parserOptions.project` from the
+  internal config: typescript-eslint 8.60 errors when `project` is set
+  alongside `projectService`, which now supplies the type-aware program.
+
+## 2.5.0
+
+### Minor Changes
+
+- [#3255](https://github.com/endojs/endo/pull/3255) [`638306e`](https://github.com/endojs/endo/commit/638306eacce0b58055ac2c6d3f000a0edbd30f4f) Thanks [@kriskowal](https://github.com/kriskowal)! - Migrate the bundled `@endo/imports` ESLint config off the unmaintained `eslint-plugin-import` and onto the actively-maintained `eslint-plugin-import-x` soft fork.
+  This is done via a Yarn package alias (`eslint-plugin-import: 'npm:eslint-plugin-import-x@4.16.2'` in the `dev` catalog), so the package on disk is still named `eslint-plugin-import` and ESLint continues to register its rules under the existing `import/*` namespace.
+  The import-x implementation ships its own `unrs-resolver`, which natively honours the `package.json` `exports` field, so the explicit `import/resolver` settings block is no longer required and has been removed.
+  Downstream consumers do not need to rename any `import/*` rule references; existing `eslintrc` snippets continue to work.
+
+### Patch Changes
+
+- [#3274](https://github.com/endojs/endo/pull/3274) [`e153a5a`](https://github.com/endojs/endo/commit/e153a5afa74e78d5d89d86a3740a8c3cb7f19c19) Thanks [@kriskowal](https://github.com/kriskowal)! - `harden-exports` now collects export names from all binding pattern shapes
+  that may appear on the left-hand side of `export const ... = ...`:
+  aliased object destructuring (`{ propName: aliasName }`), object and array
+  rest, nested patterns, sparse holes, and default-value assignment patterns.
+  A new `unknownBindingPattern` report surfaces any pattern type the helper
+  does not recognize, in place of silent passthrough.
+
 ## [2.4.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.3.2...@endo/eslint-plugin@2.4.0) (2025-07-12)
 
 ### Features
 
-* **eslint-plugin:** Add ses configuration ([eeed479](https://github.com/endojs/endo/commit/eeed479d407fcb15334eb85929a5148421cadb8c))
+- **eslint-plugin:** Add ses configuration ([eeed479](https://github.com/endojs/endo/commit/eeed479d407fcb15334eb85929a5148421cadb8c))
 
 ## [2.3.2](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.3.1...@endo/eslint-plugin@2.3.2) (2025-06-17)
 
@@ -18,7 +69,7 @@
 
 ### Features
 
-* **ses:** Add XS variant of shim ([f6c8456](https://github.com/endojs/endo/commit/f6c84566bb6a698709dc3474726000f07b94f3db))
+- **ses:** Add XS variant of shim ([f6c8456](https://github.com/endojs/endo/commit/f6c84566bb6a698709dc3474726000f07b94f3db))
 
 ## [2.2.3](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.2.2...@endo/eslint-plugin@2.2.3) (2024-11-13)
 
@@ -36,10 +87,10 @@
 
 ### Features
 
-* auto-fix for harden-exports rule ([b07a159](https://github.com/endojs/endo/commit/b07a159490a3217643ecd147a361a25f27a25460))
-* error attempting to harden 'function' export ([d799b69](https://github.com/endojs/endo/commit/d799b69191883d9dd097b8e2b3873947ee13ac28))
-* harden-exports rule ([9f5ed41](https://github.com/endojs/endo/commit/9f5ed41a40f01e6d8f7648b2e6827ce6a4db68d5))
-* **harden-exports:** handle TypeScript ([387409c](https://github.com/endojs/endo/commit/387409c7dfbc29d332a3721fba6ab2ed1a6c2772))
+- auto-fix for harden-exports rule ([b07a159](https://github.com/endojs/endo/commit/b07a159490a3217643ecd147a361a25f27a25460))
+- error attempting to harden 'function' export ([d799b69](https://github.com/endojs/endo/commit/d799b69191883d9dd097b8e2b3873947ee13ac28))
+- harden-exports rule ([9f5ed41](https://github.com/endojs/endo/commit/9f5ed41a40f01e6d8f7648b2e6827ce6a4db68d5))
+- **harden-exports:** handle TypeScript ([387409c](https://github.com/endojs/endo/commit/387409c7dfbc29d332a3721fba6ab2ed1a6c2772))
 
 ## [2.1.3](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.1.2...@endo/eslint-plugin@2.1.3) (2024-05-07)
 
@@ -57,17 +108,17 @@
 
 ### Features
 
-* **ses:** permit Promise.any, AggregateError ([6a8c4d8](https://github.com/endojs/endo/commit/6a8c4d8795c991cdaf542d5dcb691aae4e989d79))
+- **ses:** permit Promise.any, AggregateError ([6a8c4d8](https://github.com/endojs/endo/commit/6a8c4d8795c991cdaf542d5dcb691aae4e989d79))
 
 ### Bug Fixes
 
-* Relax lint for optional chaining and nullish coallescing for daemon ([ff58c06](https://github.com/endojs/endo/commit/ff58c065130b774ccb3c9cddbb7562505f0e43a0))
+- Relax lint for optional chaining and nullish coallescing for daemon ([ff58c06](https://github.com/endojs/endo/commit/ff58c065130b774ccb3c9cddbb7562505f0e43a0))
 
 ## [2.0.2](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.0.1...@endo/eslint-plugin@2.0.2) (2024-02-15)
 
 ### Bug Fixes
 
-* Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
+- Add repository directory to all package descriptors ([e5f36e7](https://github.com/endojs/endo/commit/e5f36e7a321c13ee25e74eb74d2a5f3d7517119c))
 
 ## [2.0.1](https://github.com/endojs/endo/compare/@endo/eslint-plugin@2.0.0...@endo/eslint-plugin@2.0.1) (2024-01-18)
 
@@ -77,15 +128,15 @@
 
 ### ⚠ BREAKING CHANGES
 
-* **eslint-plugin:** Disallow ?? and ?. operators
+- **eslint-plugin:** Disallow ?? and ?. operators
 
 ### Features
 
-* **eslint-plugin:** Disallow ?? and ?. operators ([15b543a](https://github.com/endojs/endo/commit/15b543ace415c8c5848bbf50aac758bf94d4ce09))
+- **eslint-plugin:** Disallow ?? and ?. operators ([15b543a](https://github.com/endojs/endo/commit/15b543ace415c8c5848bbf50aac758bf94d4ce09))
 
 ### Bug Fixes
 
-* **eslint-plugin:** Relax null coalescing and optional chaining to warning ([3ffb01e](https://github.com/endojs/endo/commit/3ffb01efc775a37a909c5a3bc3bc07d338ba65e5))
+- **eslint-plugin:** Relax null coalescing and optional chaining to warning ([3ffb01e](https://github.com/endojs/endo/commit/3ffb01efc775a37a909c5a3bc3bc07d338ba65e5))
 
 ## [1.0.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.5.2...@endo/eslint-plugin@1.0.0) (2023-12-12)
 
@@ -99,21 +150,21 @@
 
 ### Features
 
-* always lint types ([cf68fb0](https://github.com/endojs/endo/commit/cf68fb0cfdba5a1deb03b27df9b7f49f6499448f))
+- always lint types ([cf68fb0](https://github.com/endojs/endo/commit/cf68fb0cfdba5a1deb03b27df9b7f49f6499448f))
 
 ### Bug Fixes
 
-* **typescript-eslint:** workaround for `exports.js` with `.d.ts` ([8a956d8](https://github.com/endojs/endo/commit/8a956d89ef02ed6f0c8c14fcb3987f3c80e89e84))
+- **typescript-eslint:** workaround for `exports.js` with `.d.ts` ([8a956d8](https://github.com/endojs/endo/commit/8a956d89ef02ed6f0c8c14fcb3987f3c80e89e84))
 
 ## [0.5.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.4.5...@endo/eslint-plugin@0.5.0) (2023-08-07)
 
 ### Features
 
-* always lint types ([cf68fb0](https://github.com/endojs/endo/commit/cf68fb0cfdba5a1deb03b27df9b7f49f6499448f))
+- always lint types ([cf68fb0](https://github.com/endojs/endo/commit/cf68fb0cfdba5a1deb03b27df9b7f49f6499448f))
 
 ### Bug Fixes
 
-* **typescript-eslint:** workaround for `exports.js` with `.d.ts` ([8a956d8](https://github.com/endojs/endo/commit/8a956d89ef02ed6f0c8c14fcb3987f3c80e89e84))
+- **typescript-eslint:** workaround for `exports.js` with `.d.ts` ([8a956d8](https://github.com/endojs/endo/commit/8a956d89ef02ed6f0c8c14fcb3987f3c80e89e84))
 
 ## [0.4.5](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.4.4...@endo/eslint-plugin@0.4.5) (2023-07-19)
 

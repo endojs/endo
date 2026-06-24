@@ -1,12 +1,47 @@
 // @ts-check
+/* eslint-disable no-use-before-define */
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
+
+import harden from '@endo/harden';
+
+import {
+  h,
+  renderConfined,
+  unmount,
+  useEffect,
+  useState,
+} from './setup-preact-container.js';
 
 import { tokenAutocompleteComponent } from './token-autocomplete.js';
 import { makeLiveHeatEngine } from './heat-engine.js';
 import { makeCompositeHeatEngine } from './composite-heat-engine.js';
 import { createHeatBar } from './heat-bar.js';
+
+// Send form, migrated from imperative DOM to a confined Preact component for the
+// one piece that is genuinely a view: the reply-context bar. The rest of the
+// form is irreducible trusted host work — it owns the contenteditable `$input`
+// (focus, selection, contentEditable), `$error.textContent`, the `$sendButton`
+// classes/`disabled`, the `$chatBar` classes, the heat-engine orchestration, and
+// the `E()` eventual-sends — and stays imperative, exactly as token-autocomplete
+// keeps contenteditable editing imperative and renders only its dropdown body
+// confined.
+//
+// COMPOSITION. Both child components are host-node CONTROLLERS, not Preact
+// components: `createHeatBar($container, $sendButton)` and
+// `tokenAutocompleteComponent($input, $menu, opts)` each own their OWN
+// `renderConfined` into a host node and return a control object. They are
+// therefore mounted IMPERATIVELY into host nodes the form already owns (the
+// heat bar into `$input.parentElement`, the token dropdown into `$menu`) — the
+// host-node embedding pattern (cf. edit-space-modal's scheme picker) — NOT
+// nested inside this form's vnode tree.
+//
+// The reply-context bar renders confined into a DEDICATED mount child this form
+// creates inside the host `$chatBar` container (cf. inbox-component). Host DOM
+// nodes never enter that vnode tree; its inputs are controlled SafeEvent
+// handlers and there is no dangerouslySetInnerHTML. The same `.reply-context-*`
+// / `.reply-type-*` CSS class names are reused so styling is unchanged.
 
 /**
  * @typedef {object} SendFormState
@@ -33,11 +68,164 @@ import { createHeatBar } from './heat-bar.js';
  * @property {() => boolean} isSubmitting - Check if a send is in progress
  * @property {(number: string, authorName: string, preview: string) => void} setReplyTo - Set reply context
  * @property {() => void} clearReplyTo - Clear reply context
+ * @property {(number: string, authorName: string, preview: string) => void} setDefaultReplyTo - Set default (auto-restoring) reply context
+ * @property {() => void} clearDefaultReplyTo - Clear default reply context
  * @property {(type: string | undefined) => void} setReplyType - Set reply type for next send
  * @property {() => string | undefined} getReplyType - Get current reply type
  * @property {(text: string) => void} setText - Set the input text content
  * @property {() => void} dispose - Tear down polling, engines, and heat bar
  */
+
+/**
+ * One reply-type entry for the picker menu.
+ *
+ * @typedef {object} ReplyTypeEntry
+ * @property {string | undefined} type
+ * @property {string} icon
+ * @property {string} label
+ * @property {string} verb
+ */
+
+/**
+ * Plain-data view state pushed into the confined reply-context bar. `null` hides
+ * the bar entirely (the component renders nothing), matching the original
+ * `display:none` teardown.
+ *
+ * @typedef {object} ReplyBarView
+ * @property {string} verb - Verb prefix for the label (e.g. "Replying to").
+ * @property {string} icon - Current reply-type icon.
+ * @property {string} authorName - Author being replied to.
+ * @property {string} preview - Message preview text.
+ * @property {string | undefined} activeType - The active reply type.
+ */
+
+/**
+ * Reply type definitions for the picker menu.
+ *
+ * @type {ReadonlyArray<ReplyTypeEntry>}
+ */
+const REPLY_TYPES = harden([
+  { type: undefined, icon: '↩', label: 'Reply', verb: 'Replying to' },
+  { type: 'edit', icon: '✎', label: 'Edit', verb: 'Editing' },
+  { type: 'pro', icon: '✔', label: 'Pro', verb: 'Pro for' },
+  { type: 'con', icon: '✘', label: 'Con', verb: 'Con for' },
+  {
+    type: 'evidence',
+    icon: '📄',
+    label: 'Evidence',
+    verb: 'Evidence for',
+  },
+]);
+
+/**
+ * Mutable bridge between the host controller and the reply-context component.
+ * The component writes its state setter; the host writes the row callbacks. Not
+ * hardened — both sides assign onto it.
+ *
+ * @typedef {object} ReplyBarController
+ * @property {(view: ReplyBarView | null) => void} [setView]
+ * @property {() => ReplyBarView | null} [getView]
+ * @property {() => void} [closeMenu]
+ * @property {(type: string | undefined) => void} [onSelectType]
+ * @property {() => void} [onClose]
+ */
+
+/**
+ * The confined reply-context bar. Pure view over plain-data props plus
+ * controller callbacks; holds only its own menu-open state. Host DOM never
+ * enters this tree, and there is no dangerouslySetInnerHTML — the reply-type
+ * menu renders as real vnodes.
+ *
+ * @param {object} props
+ * @param {ReplyBarController} props.controller
+ */
+const ReplyContextBar = ({ controller }) => {
+  const [view, setView] = useState(/** @type {ReplyBarView | null} */ (null));
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    controller.setView = setView;
+    controller.closeMenu = () => setMenuOpen(false);
+    // The host may have called `setView` (via `renderReplyContextBar`) before
+    // this effect wired the setter — that call is a no-op while `setView` is
+    // unset. Pull the host's current view on mount so an early reply context is
+    // not dropped.
+    if (controller.getView) {
+      setView(controller.getView());
+    }
+    return () => {
+      if (controller.setView === setView) delete controller.setView;
+    };
+  }, [controller]);
+
+  if (!view) {
+    return null;
+  }
+
+  const menu = menuOpen
+    ? h(
+        'div',
+        { class: 'reply-type-menu' },
+        REPLY_TYPES.map(rt =>
+          h(
+            'button',
+            {
+              key: rt.label,
+              class:
+                rt.type === view.activeType
+                  ? 'reply-type-menu-item active'
+                  : 'reply-type-menu-item',
+              /** @param {{ stopPropagation: () => void }} e */
+              onClick: e => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                if (controller.onSelectType) controller.onSelectType(rt.type);
+              },
+            },
+            h('span', { class: 'reply-type-menu-icon' }, rt.icon),
+            ` ${rt.label}`,
+          ),
+        ),
+      )
+    : null;
+
+  return h(
+    'div',
+    { class: 'reply-context-bar' },
+    h(
+      'button',
+      {
+        class: 'reply-type-picker',
+        title: 'Change reply type',
+        /** @param {{ stopPropagation: () => void }} e */
+        onClick: e => {
+          e.stopPropagation();
+          setMenuOpen(open => !open);
+        },
+      },
+      view.icon,
+    ),
+    h(
+      'span',
+      { class: 'reply-context-label' },
+      `${view.verb} ${view.authorName}`,
+    ),
+    h('span', { class: 'reply-context-preview' }, view.preview),
+    h(
+      'button',
+      {
+        class: 'reply-context-close',
+        title: 'Cancel reply',
+        onClick: () => {
+          if (controller.onClose) controller.onClose();
+        },
+      },
+      '×',
+    ),
+    menu,
+  );
+};
+harden(ReplyContextBar);
 
 /**
  * Send form component - handles message sending with token autocomplete.
@@ -49,7 +237,7 @@ import { createHeatBar } from './heat-bar.js';
  * @param {HTMLElement} options.$sendButton - Send button element
  * @param {HTMLElement} options.$chatBar - Chat bar element (for submitting class)
  * @param {typeof import('@endo/far').E} options.E - Eventual send function
- * @param {(ref: unknown) => AsyncIterable<unknown>} options.makeRefIterator - Ref iterator factory
+ * @param {(ref: unknown) => AsyncIterable<unknown>} options.iterateReader - Ref iterator factory
  * @param {ERef<EndoHost>} options.powers - Powers object
  * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} [options.showValue] - Display a value
  * @param {() => boolean} [options.shouldHandleEnter] - Optional callback to check if Enter should be handled
@@ -67,7 +255,7 @@ export const sendFormComponent = ({
   $sendButton,
   $chatBar,
   E,
-  makeRefIterator,
+  iterateReader,
   powers,
   showValue,
   shouldHandleEnter = () => true,
@@ -94,6 +282,16 @@ export const sendFormComponent = ({
   let heatBar = null;
   /** Guard against double-init (polling + async race) */
   let heatEngineInitialized = false;
+  /**
+   * Set once `dispose()` runs. `initHeatEngine` is async (it awaits
+   * `getHopInfo`/`getHeatConfig`), so a component can be disposed while an
+   * init is still in flight. Without this guard the awaited continuation
+   * would create and `start()` a heat engine *after* dispose stopped the
+   * (still-null) engines, leaking a self-rescheduling requestAnimationFrame
+   * loop that keeps the process alive forever — which hangs the test worker
+   * (and CI) even though every test passed.
+   */
+  let disposed = false;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let pollTimeoutId = null;
 
@@ -109,42 +307,36 @@ export const sendFormComponent = ({
   /** @type {ReplyContext | null} */
   let defaultReplyContext = null;
 
-  const $replyContextBar = document.createElement('div');
-  $replyContextBar.className = 'reply-context-bar';
-  $replyContextBar.style.display = 'none';
-  $chatBar.insertBefore($replyContextBar, $chatBar.firstChild);
+  // The reply-context bar renders confined into a dedicated mount child inserted
+  // at the top of the host `$chatBar`. `renderConfined` reconciles only against
+  // this mount's children, so the form's other chat-bar content is untouched.
+  const $replyBarMount = document.createElement('div');
+  $chatBar.insertBefore($replyBarMount, $chatBar.firstChild);
 
-  // Keep #messages bottom in sync with #chat-bar's actual height so the
-  // reply context bar (and any other dynamic chat-bar content) never
-  // overlaps the scrollable message area.
-  const $messages = document.getElementById('messages');
-  if ($messages && typeof ResizeObserver !== 'undefined') {
-    const chatBarObserver = new ResizeObserver(() => {
-      $messages.style.bottom = `${$chatBar.offsetHeight}px`;
-    });
-    chatBarObserver.observe($chatBar);
-  }
+  // Mutable bridge to the reply-context component (populated by its effect).
+  // Intentionally NOT hardened — the component writes its setter onto it.
+  /** @type {ReplyBarController} */
+  const replyBarController = {};
 
-  /**
-   * Reply type definitions for the picker menu.
-   * @type {Array<{ type: string | undefined, icon: string, label: string, verb: string }>}
-   */
-  const REPLY_TYPES = [
-    { type: undefined, icon: '\u21A9', label: 'Reply', verb: 'Replying to' },
-    { type: 'edit', icon: '\u270E', label: 'Edit', verb: 'Editing' },
-    { type: 'pro', icon: '\u2714', label: 'Pro', verb: 'Pro for' },
-    { type: 'con', icon: '\u2718', label: 'Con', verb: 'Con for' },
-    {
-      type: 'evidence',
-      icon: '\uD83D\uDCC4',
-      label: 'Evidence',
-      verb: 'Evidence for',
-    },
-  ];
+  // The latest reply-bar view, kept here so a `setView` issued before the
+  // component's effect wires up is not lost: the effect pulls it via `getView`.
+  /** @type {ReplyBarView | null} */
+  let currentReplyView = null;
+  replyBarController.getView = () => currentReplyView;
+
+  // Close the reply-type menu on any outside click. Host-side document listener
+  // (the confined tree never sees DOM nodes), mirroring edit-space-modal's
+  // host-side keydown listener. The picker/menu buttons stopPropagation, so a
+  // click on them never reaches here.
+  /** @param {Event} _event */
+  const onDocumentClick = _event => {
+    if (replyBarController.closeMenu) replyBarController.closeMenu();
+  };
+  document.addEventListener('click', onDocumentClick);
 
   /**
    * Get the reply type entry for the current pendingReplyType.
-   * @returns {{ type: string | undefined, icon: string, label: string, verb: string }}
+   * @returns {ReplyTypeEntry}
    */
   const getCurrentReplyTypeEntry = () => {
     const entry = REPLY_TYPES.find(rt => rt.type === pendingReplyType);
@@ -152,79 +344,55 @@ export const sendFormComponent = ({
   };
 
   /**
-   * Render the reply context bar UI.
+   * Push the current reply context into the confined bar as plain data (or
+   * `null` to hide it).
    */
   const renderReplyContextBar = () => {
     if (!replyContext) {
-      $replyContextBar.style.display = 'none';
-      return;
+      currentReplyView = null;
+    } else {
+      const rtEntry = getCurrentReplyTypeEntry();
+      currentReplyView = harden({
+        verb: rtEntry.verb,
+        icon: rtEntry.icon,
+        authorName: replyContext.authorName,
+        preview: replyContext.preview,
+        activeType: pendingReplyType,
+      });
     }
-    $replyContextBar.style.display = '';
-    $replyContextBar.innerHTML = '';
-
-    const rtEntry = getCurrentReplyTypeEntry();
-
-    // Reply type picker button
-    const $typePicker = document.createElement('button');
-    $typePicker.className = 'reply-type-picker';
-    $typePicker.title = 'Change reply type';
-    $typePicker.textContent = rtEntry.icon;
-    $typePicker.addEventListener('click', e => {
-      e.stopPropagation();
-      const $existing = $replyContextBar.querySelector('.reply-type-menu');
-      if ($existing) {
-        $existing.remove();
-        return;
-      }
-      // eslint-disable-next-line no-shadow
-      const $menu = document.createElement('div');
-      $menu.className = 'reply-type-menu';
-      const dismissMenu = () => {
-        $menu.remove();
-        document.removeEventListener('click', dismissMenu);
-      };
-      for (const rt of REPLY_TYPES) {
-        const $item = document.createElement('button');
-        $item.className = 'reply-type-menu-item';
-        if (rt.type === pendingReplyType) {
-          $item.classList.add('active');
-        }
-        $item.innerHTML = `<span class="reply-type-menu-icon">${rt.icon}</span> ${rt.label}`;
-        $item.addEventListener('click', ev => {
-          ev.stopPropagation();
-          pendingReplyType = rt.type;
-          dismissMenu();
-          renderReplyContextBar();
-        });
-        $menu.appendChild($item);
-      }
-      $replyContextBar.appendChild($menu);
-      // Close menu on outside click (next tick so this click doesn't trigger it)
-      setTimeout(() => document.addEventListener('click', dismissMenu), 0);
-    });
-    $replyContextBar.appendChild($typePicker);
-
-    const $label = document.createElement('span');
-    $label.className = 'reply-context-label';
-    $label.textContent = `${rtEntry.verb} ${replyContext.authorName}`;
-    $replyContextBar.appendChild($label);
-
-    const $preview = document.createElement('span');
-    $preview.className = 'reply-context-preview';
-    $preview.textContent = replyContext.preview;
-    $replyContextBar.appendChild($preview);
-
-    const $close = document.createElement('button');
-    $close.className = 'reply-context-close';
-    $close.title = 'Cancel reply';
-    $close.textContent = '\u00D7';
-    $close.addEventListener('click', () => {
-      replyContext = defaultReplyContext;
-      pendingReplyType = undefined;
-      renderReplyContextBar();
-    });
-    $replyContextBar.appendChild($close);
+    if (replyBarController.setView) {
+      replyBarController.setView(currentReplyView);
+    }
   };
+
+  // Row callbacks the confined bar invokes with plain data.
+  replyBarController.onSelectType = type => {
+    pendingReplyType = type;
+    renderReplyContextBar();
+  };
+  replyBarController.onClose = () => {
+    replyContext = defaultReplyContext;
+    pendingReplyType = undefined;
+    renderReplyContextBar();
+  };
+
+  renderConfined(
+    h(ReplyContextBar, { controller: replyBarController }),
+    $replyBarMount,
+  );
+
+  // Keep #messages bottom in sync with #chat-bar's actual height so the
+  // reply context bar (and any other dynamic chat-bar content) never
+  // overlaps the scrollable message area.
+  /** @type {ResizeObserver | null} */
+  let chatBarObserver = null;
+  const $messages = document.getElementById('messages');
+  if ($messages && typeof ResizeObserver !== 'undefined') {
+    chatBarObserver = new ResizeObserver(() => {
+      $messages.style.bottom = `${$chatBar.offsetHeight}px`;
+    });
+    chatBarObserver.observe($chatBar);
+  }
 
   /**
    * Initialize the composite heat engine for multi-hop heat tracking.
@@ -238,6 +406,9 @@ export const sendFormComponent = ({
     try {
       // Try composite (multi-hop) engine first
       const hopInfo = await E(channelRef).getHopInfo();
+      // Bail if the component was disposed while we awaited; otherwise we'd
+      // start a heat engine whose rAF loop nothing will ever stop.
+      if (disposed) return;
       if (hopInfo && hopInfo.policies && hopInfo.policies.length !== 0) {
         heatBar = createHeatBar(
           /** @type {HTMLElement} */ ($input.parentElement),
@@ -255,7 +426,7 @@ export const sendFormComponent = ({
         // Subscribe to heat events for real-time updates
         try {
           const eventsRef = await E(channelRef).followHeatEvents();
-          const eventIter = makeRefIterator(eventsRef);
+          const eventIter = iterateReader(eventsRef);
           (async () => {
             for await (const event of eventIter) {
               if (compositeEngine) {
@@ -275,6 +446,8 @@ export const sendFormComponent = ({
     // Fallback: single-hop heat engine
     try {
       const config = await E(channelRef).getHeatConfig();
+      // Bail if the component was disposed while we awaited (see above).
+      if (disposed) return;
       if (config && typeof config === 'object') {
         const heatConfig =
           /** @type {import('./heat-engine.js').HeatConfig} */ (config);
@@ -316,7 +489,7 @@ export const sendFormComponent = ({
   // Initialize token autocomplete
   const tokenComponent = tokenAutocompleteComponent($input, $menu, {
     E,
-    makeRefIterator,
+    iterateReader,
     powers,
   });
 
@@ -652,7 +825,7 @@ export const sendFormComponent = ({
   // Also notify on keyup for menu state changes
   $input.addEventListener('keyup', notifyStateChange);
 
-  return {
+  return harden({
     focus: () => $input.focus(),
     clear: () => tokenComponent.clear(),
     isMenuVisible: () => tokenComponent.isMenuVisible(),
@@ -705,6 +878,9 @@ export const sendFormComponent = ({
       }
     },
     dispose: () => {
+      // Mark disposed first so any in-flight `initHeatEngine` continuation
+      // bails out instead of starting an engine after we've torn down.
+      disposed = true;
       if (pollTimeoutId !== null) {
         clearTimeout(pollTimeoutId);
         pollTimeoutId = null;
@@ -721,6 +897,14 @@ export const sendFormComponent = ({
         heatBar.dispose();
         heatBar = null;
       }
+      if (chatBarObserver) {
+        chatBarObserver.disconnect();
+        chatBarObserver = null;
+      }
+      document.removeEventListener('click', onDocumentClick);
+      unmount($replyBarMount);
+      $replyBarMount.remove();
     },
-  };
+  });
 };
+harden(sendFormComponent);

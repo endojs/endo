@@ -105,7 +105,7 @@ const makeDaemonManager = logger => {
       setTimeout(() => {
         child.kill();
         reject(new Error(`Timeout running endo ${args.join(' ')}`));
-      }, 30000);
+      }, 30_000);
     });
   };
 

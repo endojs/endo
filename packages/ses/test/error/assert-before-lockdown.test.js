@@ -21,7 +21,7 @@ test('assert errors are not redacted before lockdown', t => {
   // in the error message, not be redacted to type placeholders.
   t.throws(
     () =>
-      preLockdownFail`Incorrect luggage combination: ${12345}, consider ${q('abc123')} or ${b('invalid')}`,
+      preLockdownFail`Incorrect luggage combination: ${12_345}, consider ${q('abc123')} or ${b('invalid')}`,
     {
       message:
         /Incorrect luggage combination: 12345, consider "abc123" or invalid/,
@@ -40,7 +40,7 @@ test('assert errors are redacted after lockdown with default errorTaming', t => 
   // should be redacted to type placeholders like "(a number)".
   t.throws(
     () =>
-      postLockdownFail`Incorrect luggage combination: ${12345}, consider ${q('abc123')} or ${b('invalid')}`,
+      postLockdownFail`Incorrect luggage combination: ${12_345}, consider ${q('abc123')} or ${b('invalid')}`,
     {
       message:
         /Incorrect luggage combination: \(a number\), consider "abc123" or invalid/,

@@ -48,7 +48,7 @@ const TAG_UNSIGNED_BIGNUM = 2n;
 const TAG_NEGATIVE_BIGNUM = 3n;
 const TAG_RECORD = 27n;
 const TAG_SYMBOL = 280n;
-const TAG_TAGGED_VALUE = 55799n;
+const TAG_TAGGED_VALUE = 55_799n;
 
 // Canonical NaN representation
 const CANONICAL_NAN = freeze([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);

@@ -41,13 +41,12 @@ import {
 const protocol = 'ws-relay+captp0';
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
-const INITIAL_RECONNECT_DELAY_MS = 1_000;
+const INITIAL_RECONNECT_DELAY_MS = 1000;
 
 /**
  * Build a channel-to-stream adapter. Each multiplexed channel becomes
  * a { reader, writer, sink, closed, resolveClosed } triple suitable
- * for feeding into makeNetstringCapTP, following the same model as
- * libp2p-stream-adapter.js.
+ * for feeding into makeNetstringCapTP.
  *
  * @param {(channelId: number, data: Uint8Array) => void} sendDataFn
  * @param {(channelId: number) => void} sendCloseFn

@@ -12,11 +12,9 @@
 //   xst test/decode.bench.js                  (XS direct, ESM)
 //   ./test/run-benches.sh                      (rolls up + eshost)
 
+import { makeChaCha12 } from '@endo/chacha12';
+import { bobsCoffee32 } from '@endo/random/seeds.js';
 import { jsDecodeHex as shippedDecode } from '../src/decode.js';
-// `_xorshift.js` is a copy of `packages/ocapn/test/_xorshift.js`; if
-// either is updated, the other should be kept in sync, and ideally we
-// should factor the PRNG out into a shared test helper.
-import { XorShift } from './_xorshift.js';
 
 const hexAlphabet = '0123456789abcdef';
 
@@ -187,15 +185,13 @@ const pairMapTableDecode = (string, name = '<unknown>') => {
 // input, worst-case throw path).
 const tableDecode = arrayTableDecode;
 
-// Deterministic PRNG, same seed shape as other Endo fuzz tests.
-const defaultSeed = [0xb0b5c0ff, 0xeefacade, 0xb0b5c0ff, 0xeefacade];
+// Deterministic PRNG: shared default seed across the hex/ocapn fuzz
+// suites; see `@endo/random/seeds.js`.
 const makeBytes = size => {
-  const bytes = new Uint8Array(size);
-  const prng = new XorShift(defaultSeed);
-  for (let i = 0; i < size; i += 1) {
-    bytes[i] = Math.floor(prng.random() * 256);
-  }
-  return bytes;
+  const { fillRandomBytes } = makeChaCha12(bobsCoffee32);
+  const out = new Uint8Array(size);
+  fillRandomBytes(out);
+  return out;
 };
 
 const encode = bytes => {
@@ -244,7 +240,7 @@ const time = (label, size, iters, fn) => {
     fn();
   }
   const elapsedNs = nowNs() - start;
-  const perIterUs = elapsedNs / iters / 1_000;
+  const perIterUs = elapsedNs / iters / 1000;
   const mibPerSec = (size * iters) / (elapsedNs / 1e9) / (1 << 20);
   console.log(
     `  ${padR(label, 30)} ${padL(perIterUs.toFixed(3), 11)} us/iter  ${padL(mibPerSec.toFixed(1), 8)} MiB/s`,
@@ -308,7 +304,7 @@ const runWorstCase = iters => {
     }
     const elapsedNs = nowNs() - start;
     return {
-      perIterUs: elapsedNs / iters / 1_000,
+      perIterUs: elapsedNs / iters / 1000,
       opsPerSec: iters / (elapsedNs / 1e9),
     };
   };
@@ -341,8 +337,8 @@ console.log(engineLine);
 console.log('');
 
 // Small inputs: typical digest/signature sizes.
-runSize(32, 200000);
-runSize(256, 50000);
+runSize(32, 200_000);
+runSize(256, 50_000);
 // Large input: 1 MiB.
 runSize(1 << 20, 20);
-runWorstCase(50000);
+runWorstCase(50_000);
