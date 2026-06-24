@@ -23,6 +23,8 @@
   "exports": {
     ".": "./index.js",
     "./channel-component.js": "./src/channel-component.js",
+    "./channel-header.js": "./src/channel-header.js",
+    "./heat-simulation.js": "./src/heat-simulation.js",
     "./channel-utils.js": "./src/channel-utils.js",
     "./channel.css": "./src/channel.css",
     "./edit-queue.js": "./src/edit-queue.js",

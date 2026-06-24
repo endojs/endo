@@ -6,7 +6,7 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { Far } from '@endo/far';
 import { createDOM, tick } from '../helpers/dom-setup.js';
-import { createChannelHeader } from '../../channel-header.js';
+import { createChannelHeader } from '@endo/space-channel/channel-header.js';
 
 // The channel header chrome, migrated from imperative DOM to a confined Preact
 // component rendered through `renderConfined`. It composes the reused imperative

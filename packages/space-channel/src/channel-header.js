@@ -11,7 +11,8 @@ import {
   deriveConstants,
   formatDuration,
 } from '@endo/spaces-util/heat-engine.js';
-import { Fragment, h, renderConfined } from './setup-preact-container.js';
+import { Fragment, h } from 'preact';
+import { renderConfined } from '@endo/preact-container/renderer';
 
 import { createHeatSimulation } from './heat-simulation.js';
 
@@ -49,6 +50,17 @@ import { createHeatSimulation } from './heat-simulation.js';
  * @property {string} memberId
  * @property {string[]} pedigree
  * @property {boolean} active
+ */
+
+/**
+ * The channel/member methods this header invokes via `E()`. The `channel`
+ * option is loosely typed (`unknown`) at the boundary; cast through this at the
+ * call sites, matching the inline-cast pattern the rest of the file uses.
+ *
+ * @typedef {object} ChannelHeaderChannel
+ * @property {(inviteeName: string) => Promise<unknown>} createInvitation
+ * @property {() => Promise<MemberInfo[]>} getMembers
+ * @property {(invitedAs: string) => Promise<unknown>} getAttenuator
  */
 
 /**
@@ -729,7 +741,9 @@ export const createChannelHeader = ({
     if (!inviteeName) return;
 
     try {
-      await E(channel).createInvitation(inviteeName);
+      await E(/** @type {ChannelHeaderChannel} */ (channel)).createInvitation(
+        inviteeName,
+      );
 
       if (powers && channelPetName) {
         // Show the delivery-options modal as a confined overlay.
@@ -811,9 +825,9 @@ export const createChannelHeader = ({
 
   const showMembers = async () => {
     try {
-      const members = /** @type {MemberInfo[]} */ (
-        await E(channel).getMembers()
-      );
+      const members = await E(
+        /** @type {ChannelHeaderChannel} */ (channel),
+      ).getMembers();
       disposeSim();
       patch({
         overlay: 'members',
@@ -837,8 +851,10 @@ export const createChannelHeader = ({
   const showAttenuatorModal = async invitedAs => {
     try {
       const [attenuator, members] = await Promise.all([
-        E(channel).getAttenuator(invitedAs),
-        /** @type {Promise<MemberInfo[]>} */ (E(channel).getMembers()),
+        E(/** @type {ChannelHeaderChannel} */ (channel)).getAttenuator(
+          invitedAs,
+        ),
+        E(/** @type {ChannelHeaderChannel} */ (channel)).getMembers(),
       ]);
       const memberInfo = members.find(m => m.invitedAs === invitedAs);
       const isActive = memberInfo ? memberInfo.active : true;
@@ -846,7 +862,11 @@ export const createChannelHeader = ({
       // Fetch existing heat config.
       let existingConfig = null;
       try {
-        existingConfig = await E(attenuator).getHeatConfig();
+        existingConfig = await E(
+          /** @type {{ getHeatConfig: () => Promise<HeatConfig> }} */ (
+            attenuator
+          ),
+        ).getHeatConfig();
       } catch {
         // No config yet.
       }
