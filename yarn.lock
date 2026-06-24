@@ -2085,6 +2085,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/host-shell@workspace:packages/host-shell":
+  version: 0.0.0-use.local
+  resolution: "@endo/host-shell@workspace:packages/host-shell"
+  dependencies:
+    "@endo/daemon": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/stream-node": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/immutable-arraybuffer@workspace:^, @endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
   version: 0.0.0-use.local
   resolution: "@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer"
