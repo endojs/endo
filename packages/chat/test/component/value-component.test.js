@@ -42,7 +42,7 @@ register(
 
 // Dynamically imported AFTER the loader is registered so the transitive
 // `@endo/monaco-wrapper` import resolves to the stub.
-const { valueComponent } = await import('../../value-component.js');
+const { valueComponent } = await import('@endo/spaces-util/value-component.js');
 
 const { document: testDocument } = createDOM();
 

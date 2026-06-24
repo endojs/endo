@@ -7,6 +7,7 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
+import { inferLanguage } from '@endo/spaces-util/language-detect.js';
 import {
   COMMANDS,
   getCommand,
@@ -14,7 +15,6 @@ import {
   getCommandsByCategory,
 } from '../../command-registry.js';
 import { createCommandExecutor } from '../../command-executor.js';
-import { inferLanguage } from '../../language-detect.js';
 
 // ============ LANGUAGE INFERENCE TESTS ============
 

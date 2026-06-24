@@ -8,15 +8,12 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { passStyleOf } from '@endo/pass-style';
 
-import { valueToVnodes } from '@endo/spaces-util/value-vnodes.js';
-import { MarkdownFragment } from '@endo/spaces-util/markdown-vnodes.js';
-import {
-  h,
-  renderConfined,
-  unmount,
-  useState,
-} from './setup-preact-container.js';
+import { h } from 'preact';
+import { useState } from 'preact/hooks';
+import { renderConfined, unmount } from '@endo/preact-container/renderer';
 
+import { valueToVnodes } from './value-vnodes.js';
+import { MarkdownFragment } from './markdown-vnodes.js';
 import { inferType, toClipboardText } from './value-render.js';
 import { inferLanguage } from './language-detect.js';
 import { isMarkdown } from './markdown-preview.js';

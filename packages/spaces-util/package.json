@@ -25,6 +25,10 @@
     "./markdown-render.js": "./src/markdown-render.js",
     "./markdown-vnodes.js": "./src/markdown-vnodes.js",
     "./value-vnodes.js": "./src/value-vnodes.js",
+    "./value-component.js": "./src/value-component.js",
+    "./value-render.js": "./src/value-render.js",
+    "./language-detect.js": "./src/language-detect.js",
+    "./markdown-preview.js": "./src/markdown-preview.js",
     "./time-formatters.js": "./src/time-formatters.js",
     "./chime.js": "./src/chime.js",
     "./locator.js": "./src/locator.js",
@@ -42,8 +46,10 @@
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/markmdown": "workspace:^",
+    "@endo/monaco-wrapper": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/preact-container": "workspace:^",
+    "marked": "^17.0.5",
     "preact": "^10.29.2"
   },
   "devDependencies": {

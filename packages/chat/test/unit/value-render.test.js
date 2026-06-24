@@ -4,8 +4,12 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
+import {
+  render,
+  inferType,
+  INTERFACE_TO_TYPE,
+} from '@endo/spaces-util/value-render.js';
 import { createDOM } from '../helpers/dom-setup.js';
-import { render, inferType, INTERFACE_TO_TYPE } from '../../value-render.js';
 
 const { cleanup: cleanupDOM } = createDOM();
 

@@ -12,6 +12,7 @@ export {
 } from './src/markdown-render.js';
 export { markdownToVnodes, MarkdownFragment } from './src/markdown-vnodes.js';
 export { valueToVnodes } from './src/value-vnodes.js';
+export { valueComponent } from './src/value-component.js';
 export {
   dateFormatter,
   timeFormatter,
