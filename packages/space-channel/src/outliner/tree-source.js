@@ -186,6 +186,108 @@ export const getHeritageChain = (store, key) => {
 harden(getHeritageChain);
 
 /**
+ * One node's new placement after a drop: a `move` to perform. `sortOrder` is the
+ * new effective sort order; `newParent` is the new effective parent (`undefined`
+ * = root), or `undefined` for the WHOLE field when the node is NOT being
+ * reparented (a pure reorder — the `move` post then omits the parent column).
+ *
+ * @typedef {object} DropMove
+ * @property {string} key - The dragged node key.
+ * @property {number} sortOrder - New effective sort order.
+ * @property {string | undefined} newParent - New effective parent key
+ *   (`undefined` = root level).
+ * @property {boolean} reparenting - Whether the parent changed.
+ */
+
+/**
+ * Pure port of the imperative `handleDrop` sort-order math
+ * (outliner-component.js:943) AND the `reorderChildren`/`updateNodeDepths`
+ * fallout (924/1051): given a host-measured drop position and the dragged keys,
+ * compute the new sort order + parent for each dragged node. NO DOM, NO rects —
+ * the host measures geometry and hands us `{ parentKey, afterKey, onto }`; we do
+ * the snapshot-order arithmetic. The caller applies the returned moves to its
+ * `moveOverrides` / `parentOverrides` and posts them.
+ *
+ * @param {TreeStore} store
+ * @param {string[]} draggedKeys - Keys being dragged (any order).
+ * @param {{ parentKey: string | undefined, afterKey: string | undefined, onto: boolean }} pos
+ * @returns {DropMove[]}
+ */
+export const computeDropMoves = (store, draggedKeys, pos) => {
+  if (draggedKeys.length === 0) return harden([]);
+  const newParentKey = pos.parentKey;
+
+  // Siblings under the target parent, excluding the dragged keys themselves.
+  const dragged = new Set(draggedKeys);
+  const siblings = getSortedVisibleChildren(
+    store,
+    newParentKey,
+    undefined,
+  ).filter(k => !dragged.has(k));
+
+  // For "onto" drops, insert at the end of the target's children. For "between"
+  // drops, find the insert position from `afterKey`.
+  let insertIdx = 0;
+  if (pos.onto) {
+    insertIdx = siblings.length;
+  } else if (pos.afterKey) {
+    const idx = siblings.indexOf(pos.afterKey);
+    if (idx !== -1) {
+      insertIdx = idx + 1;
+    } else if (pos.afterKey === newParentKey) {
+      insertIdx = 0;
+    } else {
+      insertIdx = siblings.length;
+    }
+  }
+
+  // Boundary sort orders (mirrors the original).
+  let beforeOrder;
+  if (insertIdx > 0) {
+    beforeOrder = getEffectiveSortOrder(store, siblings[insertIdx - 1]);
+  } else if (siblings.length > 0) {
+    beforeOrder =
+      getEffectiveSortOrder(store, siblings[0]) - draggedKeys.length - 1;
+  } else {
+    beforeOrder = 0;
+  }
+  const afterOrder =
+    insertIdx < siblings.length
+      ? getEffectiveSortOrder(store, siblings[insertIdx])
+      : beforeOrder + draggedKeys.length + 1;
+  const step = (afterOrder - beforeOrder) / (draggedKeys.length + 1);
+
+  // Preserve the dragged nodes' relative order.
+  const sortedDragged = [...draggedKeys].sort(
+    (a, b) => getEffectiveSortOrder(store, a) - getEffectiveSortOrder(store, b),
+  );
+
+  /** @type {DropMove[]} */
+  const moves = [];
+  for (let i = 0; i < sortedDragged.length; i += 1) {
+    const key = sortedDragged[i];
+    const entry = store.messageIndex.get(key);
+    if (!entry) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    const newOrder = beforeOrder + step * (i + 1);
+    const oldParent = getEffectiveParent(store, key);
+    const reparenting = oldParent !== newParentKey;
+    moves.push(
+      harden({
+        key,
+        sortOrder: newOrder,
+        newParent: newParentKey,
+        reparenting,
+      }),
+    );
+  }
+  return harden(moves);
+};
+harden(computeDropMoves);
+
+/**
  * Check whether `targetKey` is a descendant of (or equal to) any of the given
  * ancestor keys, walking effective parents.
  * Extracted from outliner-component.js:818.

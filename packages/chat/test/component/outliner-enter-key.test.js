@@ -6,7 +6,12 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { Far } from '@endo/far';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
-import { outlinerComponent } from '@endo/space-channel/outliner-component.js';
+// Repointed in the Phase-5 swap from the retired imperative
+// `@endo/space-channel/outliner-component.js` to the live CONFINED host wrapper,
+// so these Enter-key regressions are asserted against the implementation that
+// actually ships. The wrapper sets `$parent.channelAPI` and renders the same
+// `[data-key]` / `outliner-draft` / `data-depth` DOM the assertions read.
+import { outlinerComponent } from '../../outliner-component.js';
 import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 
 const { document: testDocument, cleanup: cleanupDOM } = createDOM();

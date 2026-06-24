@@ -9,7 +9,6 @@
 export { channelComponent } from './src/channel-component.js';
 export { forumComponent } from './src/forum-component.js';
 export { microblogComponent } from './src/microblog-component.js';
-export { outlinerComponent } from './src/outliner-component.js';
 export { createChannelState, createMessageMenu } from './src/channel-utils.js';
 
 // Phase-0 outliner-confinement spike: the confined structure root and the

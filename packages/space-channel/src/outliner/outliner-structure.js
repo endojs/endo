@@ -11,6 +11,31 @@ import { filterSlashCommands } from './slash-commands.js';
 /** @import { SlashCommand } from './slash-commands.js' */
 /** @import { EditQueueEntry } from '../edit-queue.js' */
 
+// String-only drag-data MIME for outliner node drags, mirroring the inventory
+// precedent's `ENDO_PETNAME_MIME` (space-chat/src/inventory/inventory.js). The
+// payload is a comma-joined list of dragged node keys — plain strings, NEVER a
+// `File` / `FileSystemEntry` / DOM node. The confined affordance reads/writes it
+// over the narrow `SafeDataTransfer` facade (string-only by construction); there
+// is no `.files` access anywhere in this layer.
+export const OUTLINER_DRAG_MIME = 'application/x-endo-outliner-keys';
+harden(OUTLINER_DRAG_MIME);
+
+/**
+ * The string-only drag-data facade a confined drag handler receives in place of
+ * the real `DataTransfer` (preact-container `makeSafeDataTransfer`,
+ * renderer.js:559). Declared locally so this structure module needs no
+ * cross-package dependency on the host renderer; it is structurally the subset
+ * of `SafeDataTransfer` this layer uses. NEVER carries `.files` — read access to
+ * the user's filesystem is exactly what the facade exists to withhold.
+ *
+ * @typedef {object} DragData
+ * @property {(format: string) => string} getData
+ * @property {(format: string, data: string) => void} setData
+ * @property {readonly string[]} types
+ * @property {string} effectAllowed
+ * @property {string} dropEffect
+ */
+
 // Phase-2 confined STRUCTURE tree for the outliner migration. This is the full
 // `OutlinerRoot` of design §4: it consumes the Phase-1 `OutlinerSnapshotNode`
 // shape (`buildTreeSnapshot`, tree-snapshot.js) and renders the node structure
@@ -68,6 +93,21 @@ import { filterSlashCommands } from './slash-commands.js';
  *   slash command picked by mouse (sets the draft's replyType, clears the text).
  * @property {(key: string) => void} [onSlashDismiss] - Dismiss the slash menu
  *   (backdrop click).
+ * @property {(key: string, dataTransfer: DragData | undefined) => void} [onDragStart]
+ *   - Begin dragging a node: the confined affordance writes the dragged keys
+ *   into the string-only `SafeDataTransfer` (the inventory precedent); the
+ *   controller records the dragged set (defaulting to the node itself or the
+ *   whole selection). NO geometry here — see `onDragOver`.
+ * @property {(key: string, clientY: number, dataTransfer: DragData | undefined) => void} [onDragOver]
+ *   - Dragging over a node: the confined event carries only the cursor `clientY`
+ *   (a `SafeEvent` has no rects); the controller measures the live mount
+ *   geometry, runs the pure `findDropPosition`, and moves the drop indicator.
+ * @property {(key: string) => void} [onDragLeave] - Pointer left a node row.
+ * @property {(key: string, clientY: number, dataTransfer: DragData | undefined) => void} [onDrop]
+ *   - Drop onto a node: the controller re-measures at `clientY`, computes the
+ *   final drop position from the snapshot, and posts the `move`(s).
+ * @property {() => void} [onDragEnd] - Drag finished (cleanup the dragging /
+ *   drop-target state + indicator).
  */
 
 /**
@@ -799,9 +839,53 @@ const OutlinerNode = ({ node, resolveName, callbacks, slashMenu }) => {
     'outliner-node',
     node.isDraft && 'outliner-draft',
     node.selected && 'outliner-selected',
+    node.dragging && 'outliner-dragging',
+    node.dropTarget && 'outliner-drop-target',
   ]
     .filter(Boolean)
     .join(' ');
+
+  // DnD over the string-only `SafeDataTransfer` (the inventory precedent). The
+  // confined affordance only WRITES the dragged keys and reads the cursor
+  // `clientY`; it never touches geometry (a `SafeEvent` has no rects), so the
+  // controller measures the mount and decides the drop. Drafts are not
+  // draggable / droppable (mirrors the original, which only drags committed
+  // nodes).
+  const dnd = node.isDraft
+    ? {}
+    : {
+        draggable: true,
+        /** @param {{ dataTransfer?: DragData }} e */
+        onDragStart: e => {
+          if (callbacks.onDragStart)
+            callbacks.onDragStart(node.key, e.dataTransfer);
+        },
+        /** @param {{ preventDefault: () => void, clientY: number, dataTransfer?: DragData }} e */
+        onDragOver: e => {
+          if (!e.dataTransfer) return;
+          if (!e.dataTransfer.types.includes(OUTLINER_DRAG_MIME)) return;
+          // preventDefault marks this a valid drop target (WHATWG DnD).
+          e.preventDefault();
+          if (callbacks.onDragOver)
+            callbacks.onDragOver(node.key, e.clientY, e.dataTransfer);
+        },
+        /** @param {unknown} _e */
+        onDragLeave: _e => {
+          if (callbacks.onDragLeave) callbacks.onDragLeave(node.key);
+        },
+        /** @param {{ preventDefault: () => void, clientY: number, dataTransfer?: DragData }} e */
+        onDrop: e => {
+          if (!e.dataTransfer) return;
+          if (!e.dataTransfer.types.includes(OUTLINER_DRAG_MIME)) return;
+          e.preventDefault();
+          if (callbacks.onDrop)
+            callbacks.onDrop(node.key, e.clientY, e.dataTransfer);
+        },
+        /** @param {unknown} _e */
+        onDragEnd: _e => {
+          if (callbacks.onDragEnd) callbacks.onDragEnd();
+        },
+      };
 
   const childrenClass = [
     'outliner-children',
@@ -869,15 +953,27 @@ const OutlinerNode = ({ node, resolveName, callbacks, slashMenu }) => {
         onShowHistory: callbacks.onShowHistory,
       });
 
+  // Between-rows drop line, placed by the controller on exactly one node after
+  // it measured the mount geometry. `display: contents` so the indicator does
+  // not perturb layout; the `above`/`below` modifier drives its CSS position.
+  const indicator = node.dropIndicator
+    ? h('div', {
+        class: `outliner-drop-indicator outliner-drop-indicator-${node.dropIndicator}`,
+      })
+    : null;
+
   return h(
     'div',
     {
       class: nodeClass,
       'data-key': node.key,
       'data-depth': String(node.depth),
+      ...dnd,
     },
+    node.dropIndicator === 'above' ? indicator : null,
     meta,
     row,
+    node.dropIndicator === 'below' ? indicator : null,
     h(
       'div',
       { class: childrenClass },

@@ -7,7 +7,7 @@
 /** @import { SnapshotViewState, OutlinerSnapshotNode } from '@endo/space-channel/outliner/tree-snapshot.js' */
 /** @import { EditableLine, LineContent, EnterIntent } from '@endo/space-channel/outliner/editable-line.js' */
 /** @import { DraftStore, DraftNode, ParsedContent } from '@endo/space-channel/outliner/controller-intents.js' */
-/** @import { OutlinerCallbacks, BreadcrumbItem, SlashMenuState, ProfilePopupState, EditHistoryState, PopupCallbacks } from '@endo/space-channel/outliner/outliner-structure.js' */
+/** @import { OutlinerCallbacks, BreadcrumbItem, SlashMenuState, ProfilePopupState, EditHistoryState, PopupCallbacks, DragData } from '@endo/space-channel/outliner/outliner-structure.js' */
 /** @import { SnapshotReact } from '@endo/space-channel/outliner/tree-snapshot.js' */
 /** @import { SlashCommand } from '@endo/space-channel/outliner/slash-commands.js' */
 /** @import { TokenAutocompleteAPI } from '@endo/chat-kit/token-autocomplete.js' */
@@ -23,10 +23,12 @@ import {
 } from '@endo/space-channel/edit-queue.js';
 import { createReactSystem } from '@endo/space-channel/react-utils.js';
 import {
+  computeDropMoves,
   getEffectiveParent,
   getEffectiveSortOrder,
   getHeritageChain,
   getSortedVisibleChildren,
+  isDescendantOf,
 } from '@endo/space-channel/outliner/tree-source.js';
 import { buildTreeSnapshot } from '@endo/space-channel/outliner/tree-snapshot.js';
 import {
@@ -38,28 +40,33 @@ import {
 } from '@endo/space-channel/outliner/controller-intents.js';
 import { makeEditableLine } from '@endo/space-channel/outliner/editable-line.js';
 import { filterSlashCommands } from '@endo/space-channel/outliner/slash-commands.js';
-import { OutlinerRoot } from '@endo/space-channel/outliner/outliner-structure.js';
+import {
+  OUTLINER_DRAG_MIME,
+  OutlinerRoot,
+} from '@endo/space-channel/outliner/outliner-structure.js';
 
 import { h, renderConfined, unmount } from './setup-preact-container.js';
 
-// Phase-2 host wrapper / controller for the outliner-confinement migration. It
-// coexists with the imperative `space-channel/src/outliner-component.js` under a
-// NEW name; Phase 5 renames/swaps it. Mirrors `inbox-component.js`: it resolves
-// a dedicated mount, owns the `followMessages` subscription, builds the live
-// tree `store` + view state, calls `buildTreeSnapshot`, and renders the CONFINED
-// `OutlinerRoot` through `renderConfined`. The editable text of each node is a
-// HOST-OWNED island (`makeEditableLine`): the controller keeps one persistent
-// `contentEditable` line per node and re-parents it into its
+// Host wrapper / controller for the CONFINED outliner. This is the live
+// `outlinerComponent` wired into `chat.js` (Phase 5 retired the imperative
+// `space-channel/src/outliner-component.js`). Mirrors `inbox-component.js`: it
+// resolves a dedicated mount, owns the `followMessages` subscription, builds the
+// live tree `store` + view state, calls `buildTreeSnapshot`, and renders the
+// CONFINED `OutlinerRoot` through `renderConfined`. The editable text of each
+// node is a HOST-OWNED island (`makeEditableLine`): the controller keeps one
+// persistent `contentEditable` line per node and re-parents it into its
 // `[data-line-anchor]` slot after every confined render (the define-form /
 // outliner-spike anchor-slot pattern), so Preact never owns the editable DOM and
 // the live caret survives re-renders.
 //
-// SCOPE — Phase 2 wires the READ path end to end (messages → store → snapshot →
-// confined render → re-parented editable lines with content + chips +
-// selection). The editable lines accept input and call `onInput`/`onCommit`, but
-// keyboard tree-manipulation, draft creation, slash menu, actions, and DnD are
-// Phases 3–5: they are left as clean callback seams on `callbacks` (see the
-// TODO-tagged stubs below), not implemented here.
+// The full feature set is wired end to end across the migration phases: the READ
+// path (messages → store → snapshot → confined render → re-parented editable
+// lines with content + chips + selection), keyboard tree-manipulation + draft
+// creation, the slash menu + token autocomplete, the node actions + reacts, and
+// (Phase 5) drag-and-drop, rubber-band selection, focus/zoom mode, and a
+// complete idempotent `dispose`. The host wrapper exposes the same
+// `$parent.channelAPI = { closeThread, focusOnNode, dispose }` contract as the
+// retired imperative component, so `chat.js`'s call site is unchanged.
 
 /**
  * Resolve the absolute source of truth for the outliner tree from the channel
@@ -189,7 +196,7 @@ harden(lineContentToParsed);
  *   `tokenAutocompleteComponent`); a seam for tests to spy attach/detach.
  * @returns {Promise<{ dispose: () => void }>}
  */
-export const outlinerComponentNext = async (
+export const outlinerComponent = async (
   $parent,
   $end,
   channel,
@@ -240,6 +247,11 @@ export const outlinerComponentNext = async (
     drafts: draftStore.drafts,
     // eslint-disable-next-line no-use-before-define
     reactsForKey: key => reactsForKey(key),
+    // DnD view state (controller-owned; see the drag-and-drop section). Absent /
+    // empty when no drag is in progress so the snapshot carries no DnD flags.
+    draggedNodes: new Set(),
+    dropTargetKey: undefined,
+    dropIndicator: undefined,
   };
 
   // ---- Author-name resolution (controller-side; powers never enter the tree) ----
@@ -1230,6 +1242,415 @@ export const outlinerComponentNext = async (
     },
   });
 
+  // ---- Drag and drop (confined affordance + HOST-measured geometry) ----
+  // The confined `OutlinerNode` owns the affordance: `draggable`, the
+  // string-only `SafeDataTransfer` payload (the dragged keys), and the
+  // `dragging`/`drop-target`/indicator classes (props). It CANNOT measure
+  // geometry — a `SafeEvent` has no rects — so it only forwards the cursor
+  // `clientY`. The controller (here, host) measures the live mount, runs the
+  // pure drop decision, and posts the `move`(s). This mirrors the imperative
+  // `findDropPosition`/`handleDrop` (outliner-component.js:800/943) but splits
+  // the rect-measuring (host) from the parent/sort-order math (pure
+  // `computeDropMoves`).
+
+  /** @type {string[]} The keys of the active drag, or empty. */
+  let draggedKeys = [];
+
+  /**
+   * The DIRECT `.outliner-node-row` child of a node element, found by iterating
+   * `children` rather than a `:scope > …` selector. `:scope` is unreliable in
+   * non-browser DOMs (happy-dom returns nothing for `:scope >`), so iterate to
+   * stay portable across the test DOM and real browsers — the row is always a
+   * direct child of its `.outliner-node`.
+   *
+   * @param {HTMLElement} el
+   * @returns {HTMLElement | null}
+   */
+  const directRowOf = el => {
+    for (const child of el.children) {
+      if (child.classList.contains('outliner-node-row')) {
+        return /** @type {HTMLElement} */ (child);
+      }
+    }
+    return null;
+  };
+
+  /**
+   * Collect the visible committed node rows in document order with their live
+   * bounding rects, skipping dragged nodes and drafts. Host-measured port of
+   * `getVisibleNodeRows` (outliner-component.js:749): it reads the real mount
+   * DOM (the confined render's `.outliner-node` rows) — legitimate host code.
+   *
+   * @returns {Array<{ key: string, rect: DOMRect }>}
+   */
+  const visibleNodeRows = () => {
+    /** @type {Array<{ key: string, rect: DOMRect }>} */
+    const rows = [];
+    const $nodes = $mount.querySelectorAll('.outliner-node');
+    for (const $node of $nodes) {
+      const el = /** @type {HTMLElement} */ ($node);
+      const key = el.dataset.key;
+      if (!key) {
+        // skip
+      } else if (el.classList.contains('outliner-draft')) {
+        // skip drafts (not droppable targets / not committed)
+      } else if (draggedKeys.includes(key)) {
+        // skip dragged nodes
+      } else {
+        // skip nodes inside a collapsed container
+        let hidden = false;
+        let ancestor = el.parentElement;
+        while (ancestor && ancestor !== $mount) {
+          if (ancestor.classList.contains('outliner-children-collapsed')) {
+            hidden = true;
+            break;
+          }
+          ancestor = ancestor.parentElement;
+        }
+        if (!hidden) {
+          const $row = directRowOf(el);
+          if ($row) rows.push({ key, rect: $row.getBoundingClientRect() });
+        }
+      }
+    }
+    return rows;
+  };
+
+  /**
+   * Host-measured drop decision. Port of `findDropPosition`
+   * (outliner-component.js:800): the GEOMETRY (which row + above/below midpoint /
+   * center "onto" zone) is measured here against the real mount; the resulting
+   * `{ parentKey, afterKey, onto }` is pure data fed to `computeDropMoves`.
+   *
+   * @param {number} clientY
+   * @returns {{ parentKey: string | undefined, afterKey: string | undefined, onto: boolean, target: { key: string, side: 'above' | 'below' } | undefined } | null}
+   */
+  const findDropPosition = clientY => {
+    if (draggedKeys.length === 0) return null;
+    const rows = visibleNodeRows();
+    if (rows.length === 0) {
+      return {
+        parentKey: undefined,
+        afterKey: undefined,
+        onto: false,
+        target: undefined,
+      };
+    }
+    const ROW_CENTER_ZONE = 0.3;
+
+    // Center zone of a row → drop AS A CHILD of that node ("onto").
+    for (const { key, rect } of rows) {
+      const centerStart = rect.top + rect.height * ROW_CENTER_ZONE;
+      const centerEnd = rect.bottom - rect.height * ROW_CENTER_ZONE;
+      if (clientY >= centerStart && clientY <= centerEnd) {
+        // Never drop onto a descendant of the dragged node.
+        if (isDescendantOf(store, key, draggedKeys)) return null;
+        return {
+          parentKey: key,
+          afterKey: undefined,
+          onto: true,
+          target: { key, side: 'below' },
+        };
+      }
+    }
+
+    // Otherwise, nearest gap between rows.
+    /** @type {{ parentKey: string | undefined, afterKey: string | undefined, onto: boolean, target: { key: string, side: 'above' | 'below' } | undefined } | null} */
+    let best = null;
+    let bestDist = Infinity;
+
+    // Gap before the first row.
+    const firstGapY = rows[0].rect.top;
+    let dist = Math.abs(clientY - firstGapY);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = {
+        parentKey: getEffectiveParent(store, rows[0].key),
+        afterKey: undefined,
+        onto: false,
+        target: { key: rows[0].key, side: 'above' },
+      };
+    }
+
+    // Gap after each row.
+    for (let i = 0; i < rows.length; i += 1) {
+      const gapY = rows[i].rect.bottom;
+      dist = Math.abs(clientY - gapY);
+      if (dist < bestDist) {
+        bestDist = dist;
+        const nextParent =
+          i + 1 < rows.length
+            ? getEffectiveParent(store, rows[i + 1].key)
+            : undefined;
+        best = {
+          parentKey: nextParent,
+          afterKey: rows[i].key,
+          onto: false,
+          target: { key: rows[i].key, side: 'below' },
+        };
+      }
+    }
+    return best;
+  };
+
+  /** Clear all transient drag view state. */
+  const clearDragState = () => {
+    if (view.draggedNodes) view.draggedNodes.clear();
+    view.dropTargetKey = undefined;
+    view.dropIndicator = undefined;
+  };
+
+  /**
+   * Begin a drag. If the node is in a multi-selection, drag the whole
+   * selection; otherwise drag just this node (and select it). Writes the
+   * string-only payload onto the `SafeDataTransfer` (the inventory precedent).
+   *
+   * @param {string} key
+   * @param {DragData | undefined} dataTransfer
+   */
+  const onNodeDragStart = (key, dataTransfer) => {
+    if (view.selectedNodes.has(key) && view.selectedNodes.size > 1) {
+      draggedKeys = [...view.selectedNodes];
+    } else {
+      view.selectedNodes.clear();
+      view.selectedNodes.add(key);
+      draggedKeys = [key];
+    }
+    if (dataTransfer) {
+      // String-only payload — NEVER `.files`. The narrow facade only exposes
+      // string get/setData (preact-container `makeSafeDataTransfer`).
+      dataTransfer.setData(OUTLINER_DRAG_MIME, draggedKeys.join(','));
+      dataTransfer.setData('text/plain', draggedKeys.join(','));
+      dataTransfer.effectAllowed = 'move';
+    }
+    if (view.draggedNodes) {
+      view.draggedNodes.clear();
+      for (const k of draggedKeys) view.draggedNodes.add(k);
+    }
+    scheduleRender();
+  };
+
+  /**
+   * Dragging over a node: measure geometry at `clientY`, decide the drop, and
+   * reflect it via the drop-target / indicator view state.
+   *
+   * @param {string} _key
+   * @param {number} clientY
+   */
+  const onNodeDragOver = (_key, clientY) => {
+    if (draggedKeys.length === 0) return;
+    const pos = findDropPosition(clientY);
+    let changed = false;
+    if (!pos) {
+      if (view.dropTargetKey || view.dropIndicator) changed = true;
+      view.dropTargetKey = undefined;
+      view.dropIndicator = undefined;
+    } else if (pos.onto) {
+      if (view.dropTargetKey !== pos.parentKey || view.dropIndicator)
+        changed = true;
+      view.dropTargetKey = /** @type {string} */ (pos.parentKey);
+      view.dropIndicator = undefined;
+    } else {
+      const prev = view.dropIndicator;
+      const next = pos.target;
+      if (
+        view.dropTargetKey ||
+        !prev ||
+        !next ||
+        prev.key !== next.key ||
+        prev.side !== next.side
+      ) {
+        changed = true;
+      }
+      view.dropTargetKey = undefined;
+      view.dropIndicator = next;
+    }
+    if (changed) scheduleRender();
+  };
+
+  /** @param {string} _key */
+  const onNodeDragLeave = _key => {
+    // Leaving a single row does not end the drag; the next `dragover` (or the
+    // drop / dragend) updates the indicator. Intentionally a no-op to avoid
+    // flicker, matching the original which only cleared on dragend / drop.
+    void _key;
+  };
+
+  /**
+   * Drop onto a node: re-measure at `clientY`, compute the moves from the
+   * snapshot, apply overrides optimistically, and post each `move`.
+   *
+   * @param {string} _key
+   * @param {number} clientY
+   */
+  const onNodeDrop = (_key, clientY) => {
+    if (draggedKeys.length === 0) return;
+    const pos = findDropPosition(clientY);
+    if (pos) {
+      const moves = computeDropMoves(store, draggedKeys, {
+        parentKey: pos.parentKey,
+        afterKey: pos.afterKey,
+        onto: pos.onto,
+      });
+      for (const move of moves) {
+        // Mirror optimistically (the imperative `handleDrop` set these before
+        // the echo), then post.
+        store.moveOverrides.set(move.key, move.sortOrder);
+        if (move.reparenting) {
+          store.parentOverrides.set(move.key, move.newParent);
+        }
+        const entry = store.messageIndex.get(move.key);
+        if (entry) {
+          postMove({
+            channel,
+            replyTo: String(entry.message.number),
+            sortOrder: move.sortOrder,
+            // Omit the parent column on a pure reorder; '' = root when
+            // reparenting to the top level.
+            newParent: move.reparenting
+              ? move.newParent === undefined
+                ? ''
+                : move.newParent
+              : undefined,
+          });
+        }
+      }
+    }
+    draggedKeys = [];
+    clearDragState();
+    scheduleRender();
+  };
+
+  /** End a drag (cleanup), whether or not a drop happened. */
+  const onNodeDragEnd = () => {
+    draggedKeys = [];
+    clearDragState();
+    scheduleRender();
+  };
+
+  // ---- Rubber-band selection (HOST-side; real geometry + document listeners) --
+  // The controller tracks a drag-rect over the real mount node and computes the
+  // covered committed-node keys from live `getBoundingClientRect`s, setting
+  // `view.selectedNodes`. The `document` mousemove/up listeners live HERE (host)
+  // and are added on a background mousedown + removed on mouseup / dispose —
+  // never in a confined component (§2, §7). Port of outliner-component.js:2669.
+
+  let rbStartX = 0;
+  let rbStartY = 0;
+  let isRubberBanding = false;
+  /** @type {HTMLElement | null} */
+  let $rbRect = null;
+  let rubberBandJustFinished = false;
+  /** @type {((e: MouseEvent) => void) | null} */
+  let rbMouseMove = null;
+  /** @type {(() => void) | null} */
+  let rbMouseUp = null;
+
+  /** Detach any live rubber-band document listeners + the rect element. */
+  const teardownRubberBand = () => {
+    if (rbMouseMove) document.removeEventListener('mousemove', rbMouseMove);
+    if (rbMouseUp) document.removeEventListener('mouseup', rbMouseUp);
+    rbMouseMove = null;
+    rbMouseUp = null;
+    if ($rbRect) {
+      $rbRect.remove();
+      $rbRect = null;
+    }
+    isRubberBanding = false;
+  };
+
+  /** @param {MouseEvent} e */
+  const onMountMouseDown = e => {
+    const target = /** @type {HTMLElement} */ (e.target);
+    // Only start on background (the mount, the root, or a children container).
+    if (
+      target !== $mount &&
+      !target.classList.contains('outliner-root') &&
+      !target.classList.contains('outliner-children')
+    ) {
+      return;
+    }
+    if (e.button !== 0) return;
+    rbStartX = e.clientX;
+    rbStartY = e.clientY;
+    isRubberBanding = false;
+
+    rbMouseMove = /** @param {MouseEvent} me */ me => {
+      const dx = me.clientX - rbStartX;
+      const dy = me.clientY - rbStartY;
+      if (!isRubberBanding && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+        isRubberBanding = true;
+        $rbRect = document.createElement('div');
+        $rbRect.className = 'outliner-selection-rect';
+        $mount.appendChild($rbRect);
+      }
+      if (isRubberBanding && $rbRect) {
+        const viewRect = $mount.getBoundingClientRect();
+        $rbRect.style.left = `${Math.min(rbStartX, me.clientX) - viewRect.left}px`;
+        $rbRect.style.top = `${Math.min(rbStartY, me.clientY) - viewRect.top}px`;
+        $rbRect.style.width = `${Math.abs(dx)}px`;
+        $rbRect.style.height = `${Math.abs(dy)}px`;
+
+        const selLeft = Math.min(rbStartX, me.clientX);
+        const selTop = Math.min(rbStartY, me.clientY);
+        const selRight = Math.max(rbStartX, me.clientX);
+        const selBottom = Math.max(rbStartY, me.clientY);
+
+        view.selectedNodes.clear();
+        const $nodes = $mount.querySelectorAll('.outliner-node');
+        for (const $node of $nodes) {
+          const el = /** @type {HTMLElement} */ ($node);
+          const key = el.dataset.key;
+          if (!key || el.classList.contains('outliner-draft')) {
+            // skip drafts / keyless
+          } else {
+            const $row = directRowOf(el);
+            if ($row) {
+              const r = $row.getBoundingClientRect();
+              if (
+                r.bottom > selTop &&
+                r.top < selBottom &&
+                r.right > selLeft &&
+                r.left < selRight
+              ) {
+                view.selectedNodes.add(key);
+              }
+            }
+          }
+        }
+        scheduleRender();
+      }
+    };
+
+    rbMouseUp = () => {
+      teardownRubberBand();
+      if (isRubberBanding) {
+        rubberBandJustFinished = true;
+        setTimeout(() => {
+          rubberBandJustFinished = false;
+        }, 0);
+      }
+    };
+
+    document.addEventListener('mousemove', rbMouseMove);
+    document.addEventListener('mouseup', rbMouseUp);
+  };
+
+  /** @param {KeyboardEvent} e */
+  const onDocumentKeydown = e => {
+    if (e.key === 'Escape' && view.selectedNodes.size > 0) {
+      view.selectedNodes.clear();
+      scheduleRender();
+    }
+  };
+
+  $mount.addEventListener('mousedown', onMountMouseDown);
+  document.addEventListener('keydown', onDocumentKeydown);
+
+  // Suppress the click that a rubber-band drag ends on (avoid a spurious
+  // single-select after a band) — referenced to keep the flag meaningful.
+  void rubberBandJustFinished;
+
   // ---- Confined callbacks (the §4 seam) ----
   /** @type {OutlinerCallbacks} */
   const callbacks = harden({
@@ -1257,6 +1678,11 @@ export const outlinerComponentNext = async (
     onToggleReact,
     onSlashSelect,
     onSlashDismiss,
+    onDragStart: onNodeDragStart,
+    onDragOver: onNodeDragOver,
+    onDragLeave: onNodeDragLeave,
+    onDrop: onNodeDrop,
+    onDragEnd: onNodeDragEnd,
   });
 
   /**
@@ -1394,28 +1820,60 @@ export const outlinerComponentNext = async (
     }
   });
 
-  return harden({
-    dispose: () => {
-      disposed = true;
-      // Cancel the message iterator (preserve the imperative dispose's
-      // `iterator.return()`, outliner-component.js:2760).
-      if (activeIterator && activeIterator.return) {
-        activeIterator.return();
-      }
-      if (nameChangesIterator && nameChangesIterator.return) {
-        nameChangesIterator.return();
-      }
-      detachTokenAutocomplete();
-      for (const line of lines.values()) {
-        line.dispose();
-      }
-      lines.clear();
-      editBuffers.clear();
-      dirtyNodes.clear();
-      renderedContent.clear();
-      unmount($mount);
-      $mount.remove();
+  /**
+   * Complete + idempotent teardown. Cancels the message + name-changes
+   * iterators (`.return()`), detaches token autocomplete, removes the
+   * rubber-band `document` listeners (and any in-flight rect), removes the mount
+   * mousedown + document keydown listeners, disposes every editable line,
+   * unmounts the confined root, and removes the mount. Calling it twice is a
+   * no-op (the `disposed` guard).
+   */
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    // Cancel the message iterator (preserve the imperative dispose's
+    // `iterator.return()`, outliner-component.js:2760).
+    if (activeIterator && activeIterator.return) {
+      activeIterator.return();
+    }
+    if (nameChangesIterator && nameChangesIterator.return) {
+      nameChangesIterator.return();
+    }
+    detachTokenAutocomplete();
+    // Remove the host-side rubber-band + selection listeners (never confined).
+    teardownRubberBand();
+    $mount.removeEventListener('mousedown', onMountMouseDown);
+    document.removeEventListener('keydown', onDocumentKeydown);
+    for (const line of lines.values()) {
+      line.dispose();
+    }
+    lines.clear();
+    editBuffers.clear();
+    dirtyNodes.clear();
+    renderedContent.clear();
+    unmount($mount);
+    $mount.remove();
+  };
+
+  // `channelAPI` for `chat.js` compatibility (the imperative
+  // `channelAPI = { closeThread, focusOnNode, dispose }`, outliner-component.js:
+  // 2753). The outliner has no separate thread panel, so `closeThread` reports
+  // "nothing to close" (`false`). `focusOnNode` drives focus/zoom mode (used by
+  // the bookmark deep-link in chat.js). The wrapper publishes it on `$parent` as
+  // a side-effect, exactly like the original.
+  /** @type {{ closeThread: () => boolean, focusOnNode: (key: string | undefined) => void, dispose: () => void }} */
+  const channelAPI = harden({
+    closeThread: () => false,
+    focusOnNode: key => {
+      view.focusedKey = key;
+      scheduleRender();
+      $parent.scrollTo(0, 0);
     },
+    dispose,
   });
+  /** @type {{ channelAPI?: typeof channelAPI }} */ ($parent).channelAPI =
+    channelAPI;
+
+  return harden({ dispose });
 };
-harden(outlinerComponentNext);
+harden(outlinerComponent);

@@ -28,7 +28,6 @@
     "./edit-queue.js": "./src/edit-queue.js",
     "./forum-component.js": "./src/forum-component.js",
     "./microblog-component.js": "./src/microblog-component.js",
-    "./outliner-component.js": "./src/outliner-component.js",
     "./outliner/controller-intents.js": "./src/outliner/controller-intents.js",
     "./outliner/editable-line.js": "./src/outliner/editable-line.js",
     "./outliner/outliner-root.js": "./src/outliner/outliner-root.js",

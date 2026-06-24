@@ -10,9 +10,11 @@ import { fileExplorerComponent } from '@endo/space-file-explorer';
 import { idFromLocator } from '@endo/chat-kit/locator.js';
 import { channelComponent } from '@endo/space-channel/channel-component.js';
 import { forumComponent } from '@endo/space-channel/forum-component.js';
-import { outlinerComponent } from '@endo/space-channel/outliner-component.js';
 import { microblogComponent } from '@endo/space-channel/microblog-component.js';
 import { createChannelHeader } from './channel-header.js';
+// Confined outliner host wrapper (the strangler-fig swap retired the imperative
+// `@endo/space-channel/outliner-component.js`; this is now the live outliner).
+import { outlinerComponent } from './outliner-component.js';
 import { inboxComponent } from './inbox-component.js';
 import { inventoryComponent } from './inventory-component.js';
 import { channelListComponent } from './channel-list.js';

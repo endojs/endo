@@ -74,6 +74,13 @@ import {
  * @property {boolean} collapsed - Whether this node's children are collapsed.
  * @property {boolean} selected - Whether this node is in the selection set.
  * @property {boolean} focused - Whether this node is the current focus-mode root.
+ * @property {boolean} dragging - Whether this node is part of the active drag
+ *   set (drives the `outliner-dragging` class; controller-owned DnD state).
+ * @property {boolean} dropTarget - Whether this node is the current "onto" drop
+ *   target (drives the `outliner-drop-target` class).
+ * @property {'above' | 'below' | null} dropIndicator - Where to render the
+ *   between-rows drop line relative to this node's row (`null` = none). The
+ *   controller, which measured the geometry, places it on exactly one node.
  * @property {string | undefined} replyType - Raw reply type (`undefined` for a
  *   plain reply / root).
  * @property {SnapshotBadge[]} badges - Type badges to render on the row.
@@ -137,6 +144,12 @@ const badgesForReplyType = replyType => {
  * @property {(key: string) => SnapshotReact[]} [reactsForKey] - Project a
  *   node's react pill summaries from the host `reactSystem` (powers/`E()` stay
  *   controller-side). Optional: absent → no reacts.
+ * @property {Set<string>} [draggedNodes] - Keys currently being dragged (drive
+ *   the per-node `dragging` flag). Optional: absent → no drag in progress.
+ * @property {string} [dropTargetKey] - The current "onto" drop-target key, if
+ *   any (drives the `dropTarget` flag).
+ * @property {{ key: string, side: 'above' | 'below' }} [dropIndicator] - The
+ *   between-rows drop line: the node it sits on and which side. Optional.
  */
 
 /**
@@ -168,6 +181,12 @@ const buildCommittedNode = (
     collapsed: view.collapsedNodes.has(key) && hasChildren,
     selected: view.selectedNodes.has(key),
     focused: view.focusedKey === key,
+    dragging: view.draggedNodes ? view.draggedNodes.has(key) : false,
+    dropTarget: view.dropTargetKey === key,
+    dropIndicator:
+      view.dropIndicator && view.dropIndicator.key === key
+        ? view.dropIndicator.side
+        : null,
     replyType,
     badges: badgesForReplyType(replyType),
     effective: harden({
@@ -200,6 +219,9 @@ const buildDraftNode = (view, draft, depth) =>
     collapsed: false,
     selected: false,
     focused: false,
+    dragging: false,
+    dropTarget: false,
+    dropIndicator: null,
     replyType: draft.replyType,
     badges: badgesForReplyType(draft.replyType),
     effective: harden({ strings: [draft.text], names: [] }),

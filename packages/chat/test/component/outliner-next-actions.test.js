@@ -168,10 +168,9 @@ const setup = async ({ options = {} } = {}) => {
     pedigreeMemberIds: [],
   });
 
-  const { outlinerComponentNext } =
-    await import('../../outliner-component-next.js');
+  const { outlinerComponent } = await import('../../outliner-component.js');
 
-  const handle = await outlinerComponentNext($parent, $end, channel, options);
+  const handle = await outlinerComponent($parent, $end, channel, options);
   mountedDisposals.push(() => handle.dispose());
 
   const $mount = $parent.firstElementChild;

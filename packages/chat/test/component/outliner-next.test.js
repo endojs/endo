@@ -134,10 +134,9 @@ const setup = async () => {
     pedigreeMemberIds: [],
   });
 
-  const { outlinerComponentNext } =
-    await import('../../outliner-component-next.js');
+  const { outlinerComponent } = await import('../../outliner-component.js');
 
-  const handle = await outlinerComponentNext($parent, $end, channel, {
+  const handle = await outlinerComponent($parent, $end, channel, {
     powers: undefined,
   });
 
