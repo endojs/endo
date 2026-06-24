@@ -4,6 +4,7 @@
 /** @import { Message, Model } from '@earendil-works/pi-ai' */
 /** @import { Agent, AgentMessage, AgentTool, StreamFn } from '@earendil-works/pi-agent-core' */
 /** @import { ThinkingLevel } from './model.js' */
+/** @import { GetApiKey } from './credentials.js' */
 
 import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
 
@@ -43,7 +44,7 @@ const defaultConvertToLlm = messages =>
  * @param {AgentMessage[]} [options.messages]
  * @param {StreamFn} [options.streamFn]
  * @param {(messages: AgentMessage[]) => Message[] | Promise<Message[]>} [options.convertToLlm]
- * @param {(provider: string) => Promise<string | undefined> | string | undefined} [options.getApiKey]
+ * @param {GetApiKey} [options.getApiKey]
  * @param {ThinkingLevel} [options.thinkingLevel]
  * @param {'sequential' | 'parallel'} [options.toolExecution]
  * @returns {Agent}

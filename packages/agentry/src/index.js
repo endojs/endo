@@ -8,6 +8,7 @@ export {
   smallcapsMarshal,
   getAmbientEnv,
   makeEnvCredentials,
+  makeApiKeyGetter,
   resolveModel,
   resolveModelProfile,
   resolveModelString,

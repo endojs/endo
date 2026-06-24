@@ -6,7 +6,7 @@
 
 import { getModel, registerBuiltInApiProviders } from '@earendil-works/pi-ai';
 
-import { makeEnvCredentials } from './credentials.js';
+import { getAmbientEnv, makeEnvCredentials } from './credentials.js';
 
 // Provider registration is NOT an import side effect: importing
 // `@endo/agentry/harness` does not mutate pi-ai's global registry. Instead,
@@ -278,7 +278,7 @@ harden(resolveModelString);
  */
 export const buildOllamaModel = async (
   id,
-  credentials = makeEnvCredentials(),
+  credentials = makeEnvCredentials(getAmbientEnv()),
   budget = {},
 ) => {
   await Promise.resolve();

@@ -3,7 +3,7 @@
 
 /** @import { Model } from '@earendil-works/pi-ai' */
 /** @import { Agent, AgentMessage, StreamFn } from '@earendil-works/pi-agent-core' */
-/** @import { Credentials } from '../harness/credentials.js' */
+/** @import { Credentials, GetApiKey } from '../harness/credentials.js' */
 /** @import { ThinkingLevel } from '../harness/model.js' */
 /** @import { CodeModeExecute, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from './tool.js' */
 
@@ -11,7 +11,7 @@ import { E } from '@endo/far';
 import { isGitReadOnly } from '@endo/exo-git';
 
 import { defineAgent } from '../define-agent.js';
-import { makeEnvCredentials } from '../harness/credentials.js';
+import { getAmbientEnv, makeEnvCredentials } from '../harness/credentials.js';
 import { makeCompartmentExecute } from './compartment.js';
 import { makeExecuteTool, toSmallcapsPiAgentTool } from './tool.js';
 import { makeCodeModeSystemPrompt, normalizeGlobals } from './globals.js';
@@ -68,7 +68,7 @@ const lookupRequiredPower = (powers, petName, label) => {
  * @property {string} [preamble]
  * @property {AgentMessage[]} [messages]
  * @property {StreamFn} [streamFn]
- * @property {(provider: string) => Promise<string | undefined> | string | undefined} [getApiKey]
+ * @property {GetApiKey} [getApiKey]
  * @property {ThinkingLevel} [thinkingLevel]
  */
 
@@ -186,7 +186,7 @@ export const makeCodeModeAgent = options => {
     model,
     powers = {},
     lookupPowers,
-    credentials = makeEnvCredentials(),
+    credentials = makeEnvCredentials(getAmbientEnv()),
     endowments: baseEndowments = {},
     storeResult,
     messages,
@@ -246,7 +246,7 @@ harden(makeCodeModeAgent);
  * @property {string} [systemPrompt]
  * @property {AgentMessage[]} [messages]
  * @property {StreamFn} [streamFn]
- * @property {(provider: string) => Promise<string | undefined> | string | undefined} [getApiKey]
+ * @property {GetApiKey} [getApiKey]
  * @property {ThinkingLevel} [thinkingLevel]
  * @property {boolean} [readOnlyGit]
  */

@@ -3,10 +3,10 @@
 
 /** @import { Message, Model } from '@earendil-works/pi-ai' */
 /** @import { Agent, AgentMessage, AgentTool, StreamFn } from '@earendil-works/pi-agent-core' */
-/** @import { Credentials } from './harness/credentials.js' */
+/** @import { Credentials, GetApiKey } from './harness/credentials.js' */
 /** @import { ThinkingLevel } from './harness/model.js' */
 
-import { makeEnvCredentials } from './harness/credentials.js';
+import { makeApiKeyGetter, makeEnvCredentials } from './harness/credentials.js';
 import { resolveModelProfile } from './harness/model.js';
 import { makePiAgent } from './harness/pi-agent.js';
 
@@ -31,7 +31,7 @@ import { makePiAgent } from './harness/pi-agent.js';
  * @property {AgentMessage[]} [messages]
  * @property {StreamFn} [streamFn]
  * @property {(messages: AgentMessage[]) => Message[] | Promise<Message[]>} [convertToLlm]
- * @property {(provider: string) => Promise<string | undefined> | string | undefined} [getApiKey]
+ * @property {GetApiKey} [getApiKey]
  * @property {ThinkingLevel} [thinkingLevel]
  *
  * @typedef {(options?: AgentMakeOptions) => Agent} AgentMaker A maker function:
@@ -44,7 +44,7 @@ import { makePiAgent } from './harness/pi-agent.js';
  *   string resolved via the harness (`'sonnet'`, `'anthropic/claude-...'`).
  * @property {string} [instructions] The system prompt.
  * @property {AgentTool<any>[]} [tools] The powerless model-facing tool surface.
- * @property {(definition: AgentDefinition, options: AgentMakeOptions) => { tools?: AgentTool<any>[], getApiKey?: (provider: string) => Promise<string | undefined> | string | undefined }} [endow]
+ * @property {(definition: AgentDefinition, options: AgentMakeOptions) => { tools?: AgentTool<any>[], getApiKey?: GetApiKey }} [endow]
  *   A hook the maker calls at construction time to derive the powered tool
  *   surface and credential resolver from the live powers. This is the seam
  *   where a powerless definition is endowed with powers without the powerless
@@ -90,6 +90,25 @@ const resolveConfiguredModel = model => {
 };
 
 /**
+ * Derive a pi-agent-core `getApiKey` hook from a `Credentials` seam. Resolves
+ * `<PROVIDER>_API_KEY` through the seam; for a local-Ollama model it falls back
+ * to the harmless `'ollama'` sentinel pi-ai's openai-completions adaptor
+ * accepts in lieu of a real key (a local-Ollama model masquerades as the
+ * `'openai'` provider, so no real `OPENAI_API_KEY` is expected for it).
+ *
+ * @param {Credentials} credentials
+ * @param {boolean} localOllama
+ * @returns {GetApiKey}
+ */
+const deriveCredentialApiKeyGetter = (credentials, localOllama) => {
+  const getApiKey = makeApiKeyGetter(credentials);
+  if (!localOllama) {
+    return getApiKey;
+  }
+  return provider => getApiKey(provider) ?? 'ollama';
+};
+
+/**
  * Define an agent from configuration alone, returning a **maker function**. The
  * definition (resolved model, instructions, powerless tool surface) is captured
  * in the maker's closure and holds no powers; calling the returned maker with a
@@ -126,7 +145,20 @@ export const defineAgent = (config = {}) => {
     const endowments = endow ? endow(definition, options) : {};
     const builtTools =
       options.tools || endowments.tools || definition.toolSchemas;
-    const getApiKey = options.getApiKey || endowments.getApiKey;
+    // getApiKey precedence: an explicit caller hook wins, then the endow hook's,
+    // then one derived from the supplied (or code-mode default) `credentials`
+    // seam. Without this last fallback a caller that wires only `credentials`
+    // (the advertised seam) would build an agent with no key resolver, and the
+    // default local-Ollama path would throw 'No API key for provider: openai'
+    // because pi-ai's openai-completions adaptor rejects a missing key.
+    const credentialsGetApiKey = options.credentials
+      ? deriveCredentialApiKeyGetter(
+          options.credentials,
+          definition.localOllama,
+        )
+      : undefined;
+    const getApiKey =
+      options.getApiKey || endowments.getApiKey || credentialsGetApiKey;
     return makePiAgent({
       model: definition.model,
       tools: builtTools,
