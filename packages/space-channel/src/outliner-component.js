@@ -7,17 +7,30 @@ import { relativeTime } from '@endo/chat-kit/time-formatters.js';
 import { tokenAutocompleteComponent } from '@endo/chat-kit/token-autocomplete.js';
 import { createChannelState, createMessageMenu } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
+import { isVisibleReplyType, computeAllNodeContents } from './edit-queue.js';
 import {
-  isVisibleReplyType,
-  computeNodeContent,
-  computeAllNodeContents,
-} from './edit-queue.js';
+  getEffective as getEffectiveFromStore,
+  getEffectiveParent as getEffectiveParentFromStore,
+  getEffectiveSortOrder as getEffectiveSortOrderFromStore,
+  getHeritageChain as getHeritageChainFromStore,
+  getNodeDepth as getNodeDepthFromStore,
+  getSortedVisibleChildren as getSortedVisibleChildrenFromStore,
+  isDescendantOf as isDescendantOfFromStore,
+} from './outliner/tree-source.js';
+import {
+  makeDraftStore,
+  postDeletion,
+  postDraft,
+  postEdit,
+  postMove,
+} from './outliner/controller-intents.js';
 
 /** @import { ERef } from '@endo/far' */
 /** @import { EndoHost } from '@endo/daemon' */
 /** @import { ChannelMessage, ChannelRef } from './channel-utils.js' */
 /** @import { NodeEffectiveContent } from './edit-queue.js' */
 /** @import { EditQueueEntry } from './edit-queue.js' */
+/** @import { TreeStore } from './outliner/tree-source.js' */
 /** @import { TokenAutocompleteAPI } from '@endo/chat-kit/token-autocomplete.js' */
 
 /**
@@ -30,15 +43,6 @@ const REPLY_TYPE_BADGES = harden({
   evidence: { label: 'Evidence', className: 'outliner-badge-evidence' },
   fork: { label: 'Fork', className: 'outliner-badge-fork' },
 });
-
-/**
- * @typedef {object} DraftNode
- * @property {string} draftId
- * @property {string} text
- * @property {string | undefined} parentKey
- * @property {string | undefined} afterKey
- * @property {string | undefined} replyType
- */
 
 /**
  * Slash command definitions for the outliner.
@@ -205,8 +209,10 @@ export const outlinerComponent = async (
    */
   const draftEls = new Map();
 
-  /** @type {Map<string, DraftNode>} */
-  const drafts = new Map();
+  // Draft store: owns the `drafts` map, id allocation, and pending-match logic.
+  // DOM bookkeeping (`draftEls`) stays in this controller.
+  const draftStore = makeDraftStore();
+  const { drafts } = draftStore;
 
   /** @type {Set<string>} Committed keys with unsaved edits */
   const dirtyNodes = new Set();
@@ -261,7 +267,6 @@ export const outlinerComponent = async (
   /** @type {HTMLElement | null} */
   let activeTokenMenu = null;
 
-  let draftCounter = 0;
   let initialLoadComplete = false;
 
   /** @type {Set<string>} Selected committed node keys */
@@ -276,6 +281,25 @@ export const outlinerComponent = async (
   /** @type {Map<string, string | undefined>} Parent overrides: committed node key → new parent key (undefined = root) */
   const parentOverrides = new Map();
 
+  // The tree-projection store: the subset of controller state the pure
+  // `tree-source.js` functions read. They are the single source of truth for
+  // tree projection; the local helpers below delegate to them with this store.
+  //
+  // NOT `harden`-ed: this is a live view over the controller's MUTABLE maps and
+  // arrays (`messageIndex`/`replyChildren`/`moveOverrides`/`parentOverrides`/
+  // `rootKeys`). Deep-freezing the wrapper would freeze those collections and
+  // break every subsequent `.set()`/`.push()`. The projection functions only
+  // read it.
+  /** @type {TreeStore} */
+  const store = {
+    messageIndex,
+    replyChildren,
+    moveOverrides,
+    parentOverrides,
+    rootKeys,
+    blockedMemberIds,
+  };
+
   /** @type {string[] | null} Keys currently being dragged */
   let draggedKeys = null;
 
@@ -289,33 +313,23 @@ export const outlinerComponent = async (
 
   // ---- Depth & container helpers ----
 
+  // The pure tree projections live in `outliner/tree-source.js` and take the
+  // `store` explicitly. These thin wrappers bind `store` so the rest of this
+  // imperative controller can keep calling them by their original arity.
+
   /**
    * Get the effective parent key for a node, considering reparent overrides.
    * @param {string} key
    * @returns {string | undefined}
    */
-  const getEffectiveParent = key => {
-    if (parentOverrides.has(key)) return parentOverrides.get(key);
-    const entry = messageIndex.get(key);
-    return entry ? entry.message.replyTo : undefined;
-  };
+  const getEffectiveParent = key => getEffectiveParentFromStore(store, key);
 
   /**
    * Walk up effective parent chain to determine committed node depth.
    * @param {string} key
    * @returns {number}
    */
-  const getNodeDepth = key => {
-    let depth = 0;
-    let current = key;
-    while (current) {
-      const parent = getEffectiveParent(current);
-      if (!parent) break;
-      current = parent;
-      depth += 1;
-    }
-    return depth;
-  };
+  const getNodeDepth = key => getNodeDepthFromStore(store, key);
 
   /**
    * Get the effective sort order for a committed node.
@@ -323,12 +337,8 @@ export const outlinerComponent = async (
    * @param {string} key
    * @returns {number}
    */
-  const getEffectiveSortOrder = key => {
-    const override = moveOverrides.get(key);
-    if (override !== undefined) return override;
-    const entry = messageIndex.get(key);
-    return entry ? Number(entry.message.number) : 0;
-  };
+  const getEffectiveSortOrder = key =>
+    getEffectiveSortOrderFromStore(store, key);
 
   /**
    * Get the children container for a parent key.
@@ -501,8 +511,7 @@ export const outlinerComponent = async (
    * @param {string} key
    * @returns {NodeEffectiveContent}
    */
-  const getEffective = key =>
-    computeNodeContent(key, messageIndex, replyChildren, blockedMemberIds);
+  const getEffective = key => getEffectiveFromStore(store, key);
 
   /**
    * Get sorted visible children keys for a parent.
@@ -510,34 +519,8 @@ export const outlinerComponent = async (
    * @param {Map<string, NodeEffectiveContent>} [effectiveContents]
    * @returns {string[]}
    */
-  const getSortedVisibleChildren = (parentKey, effectiveContents) => {
-    // Start with natural children, filtering out those reparented away
-    const naturalKeys = parentKey
-      ? replyChildren.get(parentKey) || []
-      : rootKeys;
-    const keys = naturalKeys.filter(k => {
-      if (parentOverrides.has(k)) return parentOverrides.get(k) === parentKey;
-      return true;
-    });
-    // Add nodes reparented INTO this parent from elsewhere
-    for (const [k, p] of parentOverrides.entries()) {
-      if (p === parentKey && !keys.includes(k)) {
-        keys.push(k);
-      }
-    }
-    return keys
-      .filter(k => {
-        const entry = messageIndex.get(k);
-        if (!entry || !isVisibleReplyType(entry.message.replyType)) {
-          return false;
-        }
-        const eff = effectiveContents
-          ? effectiveContents.get(k)
-          : getEffective(k);
-        return eff && !eff.deleted;
-      })
-      .sort((a, b) => getEffectiveSortOrder(a) - getEffectiveSortOrder(b));
-  };
+  const getSortedVisibleChildren = (parentKey, effectiveContents) =>
+    getSortedVisibleChildrenFromStore(store, parentKey, effectiveContents);
 
   // ---- Heritage chain utility ----
 
@@ -547,18 +530,7 @@ export const outlinerComponent = async (
    * @param {string} key
    * @returns {ChannelMessage[]}
    */
-  const getHeritageChain = key => {
-    /** @type {ChannelMessage[]} */
-    const chain = [];
-    let current = /** @type {string | undefined} */ (key);
-    while (current) {
-      const entry = messageIndex.get(current);
-      if (!entry) break;
-      chain.unshift(entry.message);
-      current = entry.message.replyTo;
-    }
-    return chain;
-  };
+  const getHeritageChain = key => getHeritageChainFromStore(store, key);
 
   // ---- Focus mode ----
 
@@ -815,16 +787,8 @@ export const outlinerComponent = async (
    * @param {string[]} ancestorKeys
    * @returns {boolean}
    */
-  const isDescendantOf = (targetKey, ancestorKeys) => {
-    let current = targetKey;
-    while (current) {
-      if (ancestorKeys.includes(current)) return true;
-      const parent = getEffectiveParent(current);
-      if (!parent) break;
-      current = parent;
-    }
-    return false;
-  };
+  const isDescendantOf = (targetKey, ancestorKeys) =>
+    isDescendantOfFromStore(store, targetKey, ancestorKeys);
 
   /**
    * Find the drop position closest to the mouse.
@@ -1036,11 +1000,9 @@ export const outlinerComponent = async (
         const oldParent = getEffectiveParent(sortedDragged[i]);
         moveOverrides.set(sortedDragged[i], newOrder);
 
-        // Build move message strings: [sortOrder, newParentKey?]
-        const moveStrings = [String(newOrder)];
-        if (oldParent !== newParentKey) {
-          // Include new parent: '' for root, message number for specific parent
-          moveStrings.push(newParentKey === undefined ? '' : newParentKey);
+        // Reparent only when the target parent differs from the current one.
+        const reparenting = oldParent !== newParentKey;
+        if (reparenting) {
           parentOverrides.set(sortedDragged[i], newParentKey);
 
           // Move DOM node to the new parent container
@@ -1053,13 +1015,18 @@ export const outlinerComponent = async (
           }
         }
 
-        E(/** @type {ChannelRef} */ (channel))
-          .post(moveStrings, [], [], String(entry.message.number), [], 'move')
-          .catch(
-            /** @param {Error} err */ err => {
-              console.error('Failed to post move:', err);
-            },
-          );
+        postMove({
+          channel,
+          replyTo: String(entry.message.number),
+          sortOrder: newOrder,
+          // '' for root, message number for a specific parent; omit when not
+          // reparenting so the move message stays a pure reorder.
+          newParent: reparenting
+            ? newParentKey === undefined
+              ? ''
+              : newParentKey
+            : undefined,
+        });
       }
     }
 
@@ -1111,48 +1078,13 @@ export const outlinerComponent = async (
     const entry = messageIndex.get(key);
     if (!entry) return;
 
-    // Resolve IDs for pet names, then post
-    const idsP =
-      powers && parsed.petNames.length > 0
-        ? Promise.all(
-            parsed.petNames.map(name =>
-              E(/** @type {ERef<EndoHost>} */ (powers))
-                .identify(
-                  .../** @type {[string, ...string[]]} */ (name.split('/')),
-                )
-                .catch(() => ''),
-            ),
-          )
-        : Promise.resolve(/** @type {string[]} */ ([]));
-    idsP
-      .then(ids => {
-        const postP = E(/** @type {ChannelRef} */ (channel)).post(
-          parsed.strings,
-          parsed.edgeNames,
-          parsed.petNames,
-          String(entry.message.number),
-          /** @type {string[]} */ (ids),
-          'edit',
-        );
-        if (parsed.petNames.length > 0 && onMentionNotify) {
-          postP
-            .then(() =>
-              onMentionNotify({
-                petNames: parsed.petNames,
-                edgeNames: parsed.edgeNames,
-                messageStrings: parsed.strings,
-                replyTo: String(entry.message.number),
-              }),
-            )
-            .catch(() => {});
-        }
-        return postP;
-      })
-      .catch(
-        /** @param {Error} err */ err => {
-          console.error('Failed to post edit:', err);
-        },
-      );
+    postEdit({
+      channel,
+      powers,
+      replyTo: String(entry.message.number),
+      parsed,
+      onMentionNotify,
+    });
   };
 
   // ---- Draft handling ----
@@ -1162,7 +1094,7 @@ export const outlinerComponent = async (
    * @param {string} draftId
    */
   const removeDraft = draftId => {
-    drafts.delete(draftId);
+    draftStore.removeDraft(draftId);
     const els = draftEls.get(draftId);
     if (els) {
       els.$node.remove();
@@ -1188,48 +1120,14 @@ export const outlinerComponent = async (
       return;
     }
 
-    // Resolve IDs for pet names, then post
-    const draftIdsP =
-      powers && parsed.petNames.length > 0
-        ? Promise.all(
-            parsed.petNames.map(name =>
-              E(/** @type {ERef<EndoHost>} */ (powers))
-                .identify(
-                  .../** @type {[string, ...string[]]} */ (name.split('/')),
-                )
-                .catch(() => ''),
-            ),
-          )
-        : Promise.resolve(/** @type {string[]} */ ([]));
-    draftIdsP
-      .then(ids => {
-        const postP = E(/** @type {ChannelRef} */ (channel)).post(
-          parsed.strings,
-          parsed.edgeNames,
-          parsed.petNames,
-          draft.parentKey,
-          /** @type {string[]} */ (ids),
-          draft.replyType,
-        );
-        if (parsed.petNames.length > 0 && onMentionNotify) {
-          postP
-            .then(() =>
-              onMentionNotify({
-                petNames: parsed.petNames,
-                edgeNames: parsed.edgeNames,
-                messageStrings: parsed.strings,
-                replyTo: draft.parentKey,
-              }),
-            )
-            .catch(() => {});
-        }
-        return postP;
-      })
-      .catch(
-        /** @param {Error} err */ err => {
-          console.error('Failed to post draft:', err);
-        },
-      );
+    postDraft({
+      channel,
+      powers,
+      parentKey: draft.parentKey,
+      replyType: draft.replyType,
+      parsed,
+      onMentionNotify,
+    });
 
     // Mark pending — keep visible until real message arrives
     if (els) {
@@ -1898,13 +1796,7 @@ export const outlinerComponent = async (
           const idx = allNodes.indexOf($text);
           const entry = messageIndex.get(key);
           if (entry) {
-            E(/** @type {ChannelRef} */ (channel))
-              .post([''], [], [], String(entry.message.number), [], 'deletion')
-              .catch(
-                /** @param {Error} err */ err => {
-                  console.error('Failed to delete:', err);
-                },
-              );
+            postDeletion({ channel, replyTo: String(entry.message.number) });
           }
           if (idx > 0) {
             focusTextNode(allNodes[idx - 1], true);
@@ -1954,20 +1846,12 @@ export const outlinerComponent = async (
         // Post move message with reparenting
         const entry = messageIndex.get(key);
         if (entry) {
-          E(/** @type {ChannelRef} */ (channel))
-            .post(
-              [String(newOrder), prevKey],
-              [],
-              [],
-              String(entry.message.number),
-              [],
-              'move',
-            )
-            .catch(
-              /** @param {Error} err */ err => {
-                console.error('Failed to post move:', err);
-              },
-            );
+          postMove({
+            channel,
+            replyTo: String(entry.message.number),
+            sortOrder: newOrder,
+            newParent: prevKey,
+          });
         }
 
         // Expand previous sibling if collapsed
@@ -2023,21 +1907,12 @@ export const outlinerComponent = async (
         // Post move message with reparenting
         const entry = messageIndex.get(key);
         if (entry) {
-          const newParentStr = grandparent === undefined ? '' : grandparent;
-          E(/** @type {ChannelRef} */ (channel))
-            .post(
-              [String(newOrder), newParentStr],
-              [],
-              [],
-              String(entry.message.number),
-              [],
-              'move',
-            )
-            .catch(
-              /** @param {Error} err */ err => {
-                console.error('Failed to post move:', err);
-              },
-            );
+          postMove({
+            channel,
+            replyTo: String(entry.message.number),
+            sortOrder: newOrder,
+            newParent: grandparent === undefined ? '' : grandparent,
+          });
         }
 
         // Move DOM node
@@ -2403,9 +2278,7 @@ export const outlinerComponent = async (
         label: 'Delete',
         icon: '\u2717',
         handler: () => {
-          E(/** @type {ChannelRef} */ (channel))
-            .post([''], [], [], key, [], 'deletion')
-            .catch(window.reportError);
+          postDeletion({ channel, replyTo: key, onError: window.reportError });
         },
       });
       if (menuItems.length > 0) {
@@ -2461,17 +2334,8 @@ export const outlinerComponent = async (
    * @returns {string} draftId
    */
   const createDraft = (parentKey, afterKey, beforeKey) => {
-    draftCounter += 1;
-    const draftId = `draft-${draftCounter}`;
-    /** @type {DraftNode} */
-    const draft = {
-      draftId,
-      text: '',
-      parentKey,
-      afterKey,
-      replyType: undefined,
-    };
-    drafts.set(draftId, draft);
+    const draft = draftStore.createDraft(parentKey, afterKey);
+    const { draftId } = draft;
 
     const depth = parentKey ? getNodeDepth(parentKey) + 1 : 0;
 
@@ -2609,18 +2473,16 @@ export const outlinerComponent = async (
    * @returns {boolean}
    */
   const matchPendingDraft = message => {
-    const msgText = message.strings.join('').trim();
-    for (const [draftId, draft] of drafts) {
-      const els = draftEls.get(draftId);
-      if (
-        els &&
-        els.$node.classList.contains('outliner-draft-pending') &&
-        (draft.parentKey || undefined) === (message.replyTo || undefined) &&
-        draft.text === msgText
-      ) {
-        removeDraft(draftId);
-        return true;
-      }
+    // The "pending" flag lives in this controller's DOM bookkeeping (the
+    // draft's element carries `outliner-draft-pending`), so the predicate is
+    // supplied here; the draft store does the parent/text matching.
+    const draftId = draftStore.matchPendingDraft(message, draft => {
+      const els = draftEls.get(draft.draftId);
+      return !!els && els.$node.classList.contains('outliner-draft-pending');
+    });
+    if (draftId !== undefined) {
+      removeDraft(draftId);
+      return true;
     }
     return false;
   };
