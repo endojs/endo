@@ -1294,9 +1294,13 @@ export const createAddSpaceModal = ({
 
     // Set default path and focus. In Floot mode, prefer the auto-detected
     // controller (`floot/controller`) so the user rarely types a path.
+    // `setValue` takes an array of path-strings (one chip each, slashes allowed
+    // within a chip). The detected controller is a segment array
+    // (`['floot', 'controller']`), so join it into a single `floot/controller`
+    // chip — otherwise it becomes two chips and submit only reads the first.
     pathAutocomplete.setValue(
       mode === 'floot' && flootControllerPath
-        ? flootControllerPath
+        ? [flootControllerPath.join('/')]
         : ['@agent'],
     );
     pathAutocomplete.focus();
