@@ -79,7 +79,7 @@ export const inboxComponent = async (
       // The confined view is authority-free over ambient globals; the trusted
       // host supplies the error sink. `reportError` surfaces background failures
       // (e.g. a rejected `reject`) to the platform's unhandled-error handler.
-      reportError: error => globalThis.reportError(error),
+      reportError: error => window.reportError(error),
     }),
     $mount,
   );
