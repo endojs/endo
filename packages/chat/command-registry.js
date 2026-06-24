@@ -721,10 +721,10 @@ export const COMMANDS = {
     ],
     submitLabel: 'Enable',
   },
-  'network-libp2p': {
-    name: 'network-libp2p',
-    label: 'Enable libp2p Network',
-    description: 'Enable libp2p peer-to-peer network (no open ports needed)',
+  'network-iroh': {
+    name: 'network-iroh',
+    label: 'Enable iroh Network',
+    description: 'Enable iroh peer-to-peer network (no open ports needed)',
     category: 'connections',
     mode: 'inline',
     fields: [
@@ -733,9 +733,9 @@ export const COMMANDS = {
         label: 'Module',
         type: 'text',
         required: false,
-        placeholder: 'file:// URL to libp2p.js',
+        placeholder: 'file:// URL to iroh.js',
         // @ts-ignore Vite injects this at build time
-        defaultValue: import.meta.env?.LIBP2P_PATH || '',
+        defaultValue: import.meta.env?.IROH_PATH || '',
       },
     ],
     submitLabel: 'Enable',

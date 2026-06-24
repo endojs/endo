@@ -5,7 +5,7 @@ import { join } from 'path';
 import harden from '@endo/harden';
 
 import { runAgentRound } from '../agent/index.js';
-/** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
+/** @import { Agent as PiAgent } from '@earendil-works/pi-agent-core' */
 
 /**
  * @typedef {object} HeartbeatEvent

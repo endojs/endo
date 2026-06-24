@@ -77,3 +77,11 @@ export type UnionToIntersection<U> = (
  * Makes a nicer tooltip for `T` in IDEs (most of the time).
  */
 export type Simplify<T> = { [K in keyof T]: T[K] } & {};
+
+/**
+ * `true` when the type parameter is a wide `any`
+ *
+ * `0 extends 1 & T` is true for `T = any` and false for `void` and specific literals
+ * @see {@link https://github.com/microsoft/TypeScript/issues/30029}
+ */
+export type IsAny<T> = 0 extends 1 & T ? true : false;

@@ -39,7 +39,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { registerFauxProvider } from '@mariozechner/pi-ai';
+import { registerFauxProvider } from '@earendil-works/pi-ai';
 
 import buildSystemPrompt from '../../src/system/index.js';
 import { makePiAgent } from '../../src/agent/index.js';

@@ -4,7 +4,7 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
 import { petNamePathAutocomplete } from '../../petname-path-autocomplete.js';
 
@@ -107,7 +107,7 @@ test('menu shows on input when there are matching names', async t => {
 
   $input.value = 'a';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => api.isMenuVisible());
 
   t.true(api.isMenuVisible());
   t.true($menu.classList.contains('visible'));
@@ -124,7 +124,7 @@ test('menu shows suggestions filtered by input', async t => {
 
   $input.value = 'al';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length >= 2);
 
   const items = $menu.querySelectorAll('.token-menu-item');
   t.is(items.length, 2); // alice and alfred
@@ -142,13 +142,13 @@ test('menu hides when input is empty', async t => {
   // First show menu
   $input.value = 'a';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => api.isMenuVisible());
   t.true(api.isMenuVisible());
 
   // Then clear
   $input.value = '';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => !api.isMenuVisible());
 
   t.false(api.isMenuVisible());
 
@@ -164,7 +164,7 @@ test('dispose hides menu', async t => {
 
   $input.value = 'a';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => api.isMenuVisible());
   t.true(api.isMenuVisible());
 
   api.dispose();
@@ -181,13 +181,13 @@ test('keyboard Escape hides menu', async t => {
 
   $input.value = 'a';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => api.isMenuVisible());
   t.true(api.isMenuVisible());
 
   $input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
   );
-  await tick(10);
+  await waitFor(() => !api.isMenuVisible());
 
   t.false(api.isMenuVisible());
 
@@ -203,7 +203,7 @@ test('keyboard ArrowDown navigates to next suggestion', async t => {
 
   $input.value = 'a';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(100);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length >= 1);
 
   // Get initial selection
   const items = $menu.querySelectorAll('.token-menu-item');
@@ -215,7 +215,7 @@ test('keyboard ArrowDown navigates to next suggestion', async t => {
   $input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
   );
-  await tick(20);
+  await waitFor(() => !!$menu.querySelector('.token-menu-item.selected'));
 
   selected = $menu.querySelector('.token-menu-item.selected');
   // Should either move to next item or wrap around
@@ -233,9 +233,12 @@ test('keyboard ArrowUp navigates to previous suggestion', async t => {
 
   $input.value = 'a';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(100);
+  await waitFor(() => !!$menu.querySelector('.token-menu-item.selected'));
 
-  // Go down first
+  // Go down first. Only 'alice' matches the 'a' prefix (filter is
+  // `startsWith`), so there is a single suggestion and ArrowDown does not move
+  // the selection — there is no transition to poll, so this stays a small
+  // deliberate gap sequencing the two keydowns.
   $input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
   );
@@ -245,7 +248,9 @@ test('keyboard ArrowUp navigates to previous suggestion', async t => {
   $input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }),
   );
-  await tick(20);
+  await waitFor(
+    () => !!$menu.querySelector('.token-menu-item.selected')?.textContent,
+  );
 
   const afterUp = $menu.querySelector('.token-menu-item.selected')?.textContent;
 
@@ -264,7 +269,7 @@ test('Tab selects suggestion and updates input', async t => {
 
   $input.value = 'a';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(100);
+  await waitFor(() => !!$menu.querySelector('.token-menu-item.selected'));
 
   // Get the currently selected suggestion
   const selected = $menu.querySelector('.token-menu-item.selected');
@@ -273,7 +278,7 @@ test('Tab selects suggestion and updates input', async t => {
   $input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
   );
-  await tick(50);
+  await waitFor(() => $input.value === expectedValue);
 
   // Input should now have the selected value
   t.is($input.value, expectedValue);
@@ -290,12 +295,12 @@ test('Enter selects suggestion', async t => {
 
   $input.value = 'b';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => !!$menu.querySelector('.token-menu-item.selected'));
 
   $input.dispatchEvent(
     new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
   );
-  await tick(10);
+  await waitFor(() => $input.value === 'bob');
 
   t.is($input.value, 'bob');
 
@@ -311,7 +316,7 @@ test('menu shows hint text', async t => {
 
   $input.value = 'a';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => !!$menu.querySelector('.token-menu-hint'));
 
   const hint = $menu.querySelector('.token-menu-hint');
   t.truthy(hint);
@@ -334,7 +339,7 @@ test('handles path with dots - fetches from nested directory', async t => {
 
   $input.value = 'dir.';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => api.isMenuVisible());
 
   // Should show nested items
   const items = $menu.querySelectorAll('.token-menu-item');
@@ -352,7 +357,7 @@ test('shows "No matches" when no suggestions', async t => {
 
   $input.value = 'xyz';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(50);
+  await waitFor(() => !!$menu.querySelector('.token-menu-empty'));
 
   const empty = $menu.querySelector('.token-menu-empty');
   t.truthy(empty);
@@ -370,7 +375,7 @@ test('menu wraps around when navigating past end', async t => {
 
   $input.value = 'a';
   $input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(100);
+  await waitFor(() => !!$menu.querySelector('.token-menu-item.selected'));
 
   const items = $menu.querySelectorAll('.token-menu-item');
   const itemCount = items.length;
@@ -385,7 +390,11 @@ test('menu wraps around when navigating past end', async t => {
       new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
     );
   }
-  await tick(10);
+  await waitFor(
+    () =>
+      $menu.querySelector('.token-menu-item.selected')?.textContent ===
+      firstName,
+  );
 
   const afterWrap = $menu.querySelector('.token-menu-item.selected');
   // After wrapping, should be back at first item

@@ -4,7 +4,7 @@
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 const ProviderFactoryInterface = M.interface('LLMProviderFactory', {
   help: M.call().optional(M.string()).returns(M.string()),
@@ -69,7 +69,7 @@ export const make = (guestPowers, _context) => {
       }
     }
 
-    const messageIterator = makeRefIterator(E(powers).followMessages());
+    const messageIterator = iterateReader(E(powers).followMessages());
     while (true) {
       const { value: message, done } = await messageIterator.next();
       if (done) break;

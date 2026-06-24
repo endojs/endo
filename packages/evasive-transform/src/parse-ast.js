@@ -12,7 +12,7 @@ const { parse: parseBabel } = babelParser;
  * This is a subset of `@babel/parser`'s `ParserOptions['sourceType']`, but
  * re-implemented here for decoupling purposes.
  *
- * @typedef {'module' | 'script'} SourceType
+ * @typedef {'module' | 'script' | 'commonjs'} SourceType
  * @public
  */
 
@@ -37,7 +37,8 @@ export function parseAst(source, opts = {}) {
   return parseBabel(source, {
     tokens: true,
     createParenthesizedExpressions: true,
-    allowReturnOutsideFunction: opts.sourceType === 'script',
+    allowReturnOutsideFunction:
+      opts.sourceType === 'script' || opts.sourceType === 'commonjs',
     ...(opts.sourceType !== undefined && { sourceType: opts.sourceType }),
   });
 }

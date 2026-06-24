@@ -162,12 +162,14 @@ export const helpTextEntries = harden([
   [
     'EndoReadable',
     {
-      '': 'EndoReadable - A readable blob of binary data.\n\nBlobs store binary content with a content-addressed hash.\nUse text() to read as a string, json() to parse as JSON,\nor streamBase64() for streaming access.',
+      '': 'EndoReadable - A readable blob of binary data.\n\nBlobs store binary content with a content-addressed hash.\nUse text() to read as a string, json() to parse as JSON,\nstreamBase64() for streaming access, or getInfo()/fetch()\nfor the content-addressed range-I/O surface.',
       help: 'help(methodName?) -> string\nGet documentation for this interface or a specific method.',
-      sha256:
-        'sha256() -> string\nGet the SHA-256 hash of the blob content.\nThis is the content address used for storage.',
+      getInfo:
+        'getInfo() -> Promise<{ algorithm, hash, size }>\nThe content-addressed identity of the blob in one round-trip:\nalgorithm ("sha256"), hash (base64), and size (bigint bytes).\nLets a caller consult a local content store before fetching.',
+      fetch:
+        'fetch(offset, length) -> Promise<PassableBytesReader>\nRead the byte range [offset, offset + length) without\nstreaming the whole blob. offset and length are bigints;\nthe range is clamped at end-of-content.',
       streamBase64:
-        'streamBase64() -> AsyncIterator<string>\nStream the blob content as base64-encoded chunks.\nUse for large files to avoid loading everything into memory.',
+        'streamBase64(syndicationPromise) -> Promise\nStream the blob content as base64 chunks, driven by the\nsyndication promise (the reader-pump flow-control protocol).\nUse for large files to avoid loading everything into memory.',
       text: 'text() -> Promise<string>\nRead the entire blob as a UTF-8 string.',
       json: 'json() -> Promise<any>\nRead and parse the blob as JSON.',
     },
@@ -199,8 +201,12 @@ export const helpTextEntries = harden([
   [
     'ReadableTree',
     {
-      '': 'ReadableTree - A read-only tree of files and subdirectories.\n\nAn immutable directory: entries cannot be added, removed, or modified.\nlookup() returns EndoReadable values for files and nested ReadableTree\nvalues for subdirectories.',
+      '': 'ReadableTree - A read-only tree of files and subdirectories.\n\nAn immutable, content-addressed directory: entries cannot be added, removed,\nor modified. lookup() returns EndoReadable values for files and nested\nReadableTree values for subdirectories. Its identity is available via sha256()\nor, uniformly with blobs, via getInfo().',
       help: 'help(methodName?) -> string\nGet documentation for this interface or a specific method.',
+      sha256:
+        "sha256() -> string\nThe content address of the tree's manifest, as base64.",
+      getInfo:
+        'getInfo() -> Promise<{ algorithm, hash, size }>\nThe content-addressed identity of the tree in one round-trip: algorithm\n("sha256"), hash (base64, the same value as sha256()), and size (the byte\nlength of the tree\'s own manifest). The uniform identity accessor shared with\nblobs, so generic code can read a content hash off any blob or tree.',
       has: 'has(...names) -> Promise<boolean>\nCheck if an entry exists at the given path.\nnames: string[] - Path segments.\nExample: has("index.html") → true\nExample: has("assets", "style.css") → true',
       list: 'list(...names) -> Promise<string[]>\nList entry names at the given path (or root).\nnames: string[] - Path segments (optional, defaults to root).\nExample: list() → ["index.html", "app.js", "assets"]\nExample: list("assets") → ["style.css", "logo.png"]',
       lookup:
@@ -212,7 +218,7 @@ export const helpTextEntries = harden([
     {
       '': 'EndoMount - Live mutable access to a filesystem directory.\n\nAll paths are confined to the mount root. Symlinks that escape\nthe root are invisible. Use readOnly() for an attenuated view.',
       help: 'help(methodName?) -> string\nGet documentation for this interface or a specific method.',
-      has: 'has(...pathSegments) -> Promise<boolean>\nCheck if a path exists within the mount.\nEach argument is one path segment: has("dir", "file.txt").',
+      has: 'has(...pathSegments | entry) -> Promise<boolean>\nCheck if a path exists within the mount.\nEither pass path segments (has("dir", "file.txt")) or a single EndoMountEntry.',
       list: 'list(...pathSegments) -> Promise<string[]>\nList directory entries at the given path.\nEach argument is one path segment: list("subdir").\nCall with no arguments to list the root.\nEntries with symlinks escaping the mount root are excluded.',
       lookup:
         'lookup(path) -> Promise<EndoMount | EndoMountFile>\nResolve a path within the mount.\npath: string | string[] — Name or path segments.\nReturns EndoMount for directories, EndoMountFile for files.',
@@ -226,28 +232,40 @@ export const helpTextEntries = harden([
         'remove(path) -> Promise<void>\nRemove a file or empty directory.\npath: string | string[] — Name or path segments.',
       move: 'move(from, to) -> Promise<void>\nRename an entry within the mount.\nfrom: string | string[] — Source name or path segments.\nto: string | string[] — Destination name or path segments.',
       makeDirectory:
-        'makeDirectory(path) -> Promise<void>\nCreate a directory (and missing parents).\npath: string | string[] — Name or path segments.',
+        'makeDirectory(path) -> Promise<EndoMount>\nCreate a directory (and missing parents) at the given path; returns a sub-mount.\npath: string | string[] | EndoMountEntry — Name, path segments, or mount entry.',
+      makeFile:
+        'makeFile(path, content?) -> Promise<void>\nCreate a file at the given path, with optional initial text content.\npath: string | string[] | EndoMountEntry — Name, path segments, or mount entry.\ncontent: string (optional) — Initial text content. An existing file is truncated when content is provided. For binary content, use `write(path, readableBlob)`.',
+      write:
+        'write(path, value) -> Promise<void>\nMaterialize a ReadableBlob or ReadableTree at the given path.\npath: string | string[] | EndoMountEntry — Name, path segments, or mount entry.\nvalue: ReadableBlob | ReadableTree — Source remotable; blobs are written as bytes, trees recurse.',
+      copy: 'copy(from, to) -> Promise<void>\nCopy a node within the mount.\nfrom: string | string[] | EndoMountEntry — Source name, path segments, or mount entry.\nto: string | string[] | EndoMountEntry — Destination name, path segments, or mount entry.\nBoth endpoints are confinement-checked.',
+      stat: 'stat(path) -> Promise<EndoMountStat | undefined>\nQuery metadata for a path within the mount.\npath: string | string[] | EndoMountEntry — Name, path segments, or mount entry.\nReturns undefined when the path is missing or escapes the mount.',
       readOnly:
-        'readOnly() -> EndoMount\nReturns a read-only view of this mount.',
+        'readOnly() -> ReadableTree\nReturns a structural ReadableTree view (has, list, lookup) of this mount.\nMount-specific extensions (entry, stat, readText, makeFile) are not on the view.',
       snapshot:
-        'snapshot() -> Promise<SnapshotTree>\nCapture current state as an immutable readable-tree.\n(Not yet implemented.)',
+        'snapshot() -> Promise<SnapshotTree>\nCapture current state as an immutable readable-tree.',
     },
   ],
   [
     'EndoMountFile',
     {
-      '': 'EndoMountFile - A file within a mounted directory.',
+      '': 'EndoMountFile - A file within a mounted directory.\n\nA live, host-backed file. Read it with text() / json() / streamBase64(),\ninspect and range-read it with getInfo() / fetch(), write it with\nwriteText() / append() / writeBytes(), or snapshot() it into the content\nstore. stat() returns the bigint-nanosecond metadata record.',
       help: 'help(methodName?) -> string\nGet documentation for this interface or a specific method.',
+      getInfo:
+        'getInfo() -> Promise<{ algorithm, hash, size }>\nThe content-addressed identity of the file\'s current bytes in one\nround-trip: algorithm ("sha256"), hash (base64), and size (bigint).\nRecomputed each call, since the live file may change.',
+      fetch:
+        'fetch(offset, length) -> Promise<PassableBytesReader>\nRead the byte range [offset, offset + length) of the live file without\nstreaming the whole thing. offset and length are bigints; the range is\nclamped at end-of-content.',
       text: 'text() -> Promise<string>\nRead the file content as a UTF-8 string.',
       streamBase64:
-        'streamBase64() -> AsyncIterator<string>\nStream the file content as base64 chunks.',
+        'streamBase64(syndicationPromise) -> Promise\nStream the file content as base64 chunks, driven by the syndication\npromise (the reader-pump flow-control protocol).',
       json: 'json() -> Promise<any>\nRead and parse the file as JSON.',
       writeText:
         'writeText(content) -> Promise<void>\nWrite a string to the file. Throws if read-only.',
+      append:
+        'append(content) -> Promise<void>\nAppend a string to the file. Throws if read-only.',
       writeBytes:
         'writeBytes(readableRef) -> Promise<void>\nWrite bytes from an async iterator. Throws if read-only.',
       readOnly:
-        'readOnly() -> EndoMountFile\nReturns a read-only view of this file.',
+        'readOnly() -> ReadableBlob\nReturns a structural ReadableBlob view (text, json, streamBase64, getInfo,\nfetch) of this file. The view is a write-disabled face over the live file,\nnot a snapshot. Mount-specific extensions (stat, snapshot) are not on it.',
     },
   ],
 ]);

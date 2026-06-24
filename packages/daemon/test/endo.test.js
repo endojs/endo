@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* global process, setTimeout */
+/* global Buffer, process, setTimeout */
 
 // Establish a perimeter:
 // eslint-disable-next-line import/order
@@ -11,6 +11,8 @@ import fsp from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
+import { execFile } from 'child_process';
+import { promisify as nodePromisify } from 'util';
 import { E, Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
@@ -19,15 +21,10 @@ import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper'
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
 import { ZipReader } from '@endo/zip/reader.js';
-import {
-  start,
-  stop,
-  restart,
-  purge,
-  makeEndoClient,
-  makeReaderRef,
-  makeRefIterator,
-} from '../index.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 import { makeCryptoPowers } from '../src/daemon-node-powers.js';
 import { makeDaemonDatabase } from '../src/daemon-database-node.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
@@ -44,6 +41,7 @@ import {
  */
 
 const cryptoPowers = makeCryptoPowers(crypto);
+const execFileAsync = nodePromisify(execFile);
 
 const { raw } = String;
 
@@ -75,7 +73,7 @@ const drainIterator = async (iteratorRef, count) => {
   let remaining = count;
   while (remaining > 0) {
     // eslint-disable-next-line no-await-in-loop
-    await E(iteratorRef).next();
+    await iteratorRef.next();
     remaining -= 1;
   }
 };
@@ -218,7 +216,7 @@ const waitForCondition = async (predicate, opts = {}) => {
  */
 const prepareFollowNameChangesIterator = async host => {
   const existingNames = await E(host).list();
-  const changesIterator = makeRefIterator(await E(host).followNameChanges());
+  const changesIterator = iterateReader(await E(host).followNameChanges());
   await takeCount(changesIterator, existingNames.length);
   return changesIterator;
 };
@@ -232,7 +230,7 @@ const prepareFollowNameChangesIterator = async host => {
  */
 const prepareFollowLocatorNameChangesIterator = async (host, locator) => {
   await null;
-  const changesIterator = makeRefIterator(
+  const changesIterator = iterateReader(
     await E(host).followLocatorNameChanges(locator),
   );
   await takeCount(changesIterator, 1);
@@ -342,7 +340,7 @@ const doMakeArchive = async (host, packageDir, callback) => {
       parserForLanguage: sourceParserForLanguage,
     },
   );
-  const archiveReaderRef = makeReaderRef([archiveBytes]);
+  const archiveReaderRef = bytesReaderFromIterator([archiveBytes]);
 
   await E(host).storeBlob(archiveReaderRef, archiveName);
   const result = await callback(archiveName);
@@ -689,7 +687,9 @@ test('persist spawn and evaluation', async t => {
 test('store blob without name fails', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await t.throwsAsync(E(host).storeBlob(readerRef), {
     message: 'Invalid name path',
   });
@@ -700,7 +700,9 @@ test('store with name', async t => {
 
   {
     const { host } = await makeHost(config, cancelled);
-    const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+    const readerRef = bytesReaderFromIterator([
+      new TextEncoder().encode('hello\n'),
+    ]);
     const readable = await E(host).storeBlob(readerRef, 'hello-text');
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
@@ -714,13 +716,53 @@ test('store with name', async t => {
   }
 });
 
+test('stored blob exposes the rich BlobRef range-I/O surface (getInfo + fetch)', async t => {
+  const { cancelled, config } = await prepareConfig(t);
+  const { host } = await makeHost(config, cancelled);
+
+  const payload = new TextEncoder().encode('hello world\n'); // 12 bytes
+  const readerRef = bytesReaderFromIterator([payload]);
+  const blob = await E(host).storeBlob(readerRef, 'rich-blob');
+
+  /** @param {any} reader */
+  const collect = async reader => {
+    const chunks = [];
+    for await (const chunk of iterateBytesReader(reader)) {
+      chunks.push(chunk);
+    }
+    const total = chunks.reduce((n, c) => n + c.length, 0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const c of chunks) {
+      out.set(c, offset);
+      offset += c.length;
+    }
+    return new TextDecoder().decode(out);
+  };
+
+  // getInfo() is the blob's content-address accessor (there is no separate
+  // sha256() method — getInfo().hash, base64, is the canonical content hash).
+  const info = await E(blob).getInfo();
+  t.is(info.algorithm, 'sha256');
+  t.is(info.size, 12n);
+  t.is(info.hash, crypto.createHash('sha256').update(payload).digest('base64'));
+
+  // fetch(offset, length) is a windowed read, clamped at EOF.
+  t.is(await collect(await E(blob).fetch(0n, 12n)), 'hello world\n');
+  t.is(await collect(await E(blob).fetch(0n, 5n)), 'hello');
+  t.is(await collect(await E(blob).fetch(6n, 100n)), 'world\n');
+  t.is(await collect(await E(blob).fetch(100n, 4n)), '');
+});
+
 test('store blob in subdirectory', async t => {
   const { cancelled, config } = await prepareConfig(t);
 
   {
     const { host } = await makeHost(config, cancelled);
     await E(host).makeDirectory('subdir');
-    const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+    const readerRef = bytesReaderFromIterator([
+      new TextEncoder().encode('hello\n'),
+    ]);
     const readable = await E(host).storeBlob(readerRef, [
       'subdir',
       'hello-text',
@@ -740,7 +782,9 @@ test('store blob in subdirectory', async t => {
 test('store blob requires a name', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await t.throwsAsync(E(host).storeBlob(readerRef, []), {
     message: 'Invalid name path',
   });
@@ -1019,8 +1063,8 @@ testNeedsNodeWorker(
         [],
         ['grant'],
       );
-      const iteratorRef = E(host).followMessages();
-      const { value: message } = await E(iteratorRef).next();
+      const iterator = iterateReader(E(host).followMessages());
+      const { value: message } = await iterator.next();
       const { number, from: fromId } = E.get(message);
       const [fromName] = await E(host).reverseLocate(await fromId);
       t.is(await fromName, 'h1');
@@ -1087,8 +1131,8 @@ testNeedsNodeWorker('persist confined services and their requests', async t => {
       [],
       ['grant'],
     );
-    const iteratorRef = E(host).followMessages();
-    const { value: message } = await E(iteratorRef).next();
+    const iterator = iterateReader(E(host).followMessages());
+    const { value: message } = await iterator.next();
     const { number, from: fromId } = E.get(message);
     const [fromName] = await E(host).reverseLocate(await fromId);
     t.is(await fromName, 'h1');
@@ -1144,16 +1188,16 @@ test('guest facet receives a message for host', async t => {
   await E(host).provideWorker(['worker']);
   await E(host).evaluate('worker', '10', [], [], ['ten1']);
 
-  const iteratorRef = E(host).followMessages();
+  const iterator = iterateReader(E(host).followMessages());
   const numberP = E(guest).request('@host', 'a number', 'number');
-  const { value: message0 } = await E(iteratorRef).next();
+  const { value: message0 } = await iterator.next();
   t.is(message0.number, 0n);
   await E(host).resolve(message0.number, 'ten1');
   await numberP;
 
   await E(guest).send('@host', ['Hello, World!'], ['gift'], ['number']);
 
-  const { value: message1 } = await E(iteratorRef).next();
+  const { value: message1 } = await iterator.next();
   t.is(message1.number, 1n);
   await E(host).adopt(message1.number, 'gift', ['ten2']);
   const ten = await E(host).lookup(['ten2']);
@@ -1205,14 +1249,14 @@ test('reply links to parent message', async t => {
   const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  const hostMessages = E(host).followMessages();
-  const guestMessages = E(guest).followMessages();
+  const hostMessages = iterateReader(E(host).followMessages());
+  const guestMessages = iterateReader(E(guest).followMessages());
 
   await E(guest).send('@host', ['hello'], [], []);
 
   const [{ value: hostMessage }, { value: sentMessage }] = await Promise.all([
-    E(hostMessages).next(),
-    E(guestMessages).next(),
+    hostMessages.next(),
+    guestMessages.next(),
   ]);
 
   t.is(hostMessage.type, 'package');
@@ -1221,21 +1265,140 @@ test('reply links to parent message', async t => {
 
   await E(host).reply(hostMessage.number, ['hi'], [], []);
 
-  const { value: replyMessage } = await E(guestMessages).next();
+  const { value: replyMessage } = await guestMessages.next();
   t.is(replyMessage.type, 'package');
   t.is(replyMessage.replyTo, hostMessage.messageId);
+});
+
+test('editMessage replaces payload and preserves history', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = iterateReader(E(host).followMessages());
+  const guestMessages = iterateReader(E(guest).followMessages());
+
+  await E(guest).send('@host', ['Thinking...'], [], []);
+
+  const [{ value: initialHost }, { value: initialGuest }] = await Promise.all([
+    hostMessages.next(),
+    guestMessages.next(),
+  ]);
+  t.deepEqual(initialHost.strings, ['Thinking...']);
+  t.is(initialHost.done, true);
+  t.is(initialGuest.done, true);
+
+  await E(guest).editMessage(
+    initialGuest.number,
+    ['Thinking more...'],
+    [],
+    [],
+    { done: false },
+  );
+  const [{ value: editHost1 }, { value: editGuest1 }] = await Promise.all([
+    hostMessages.next(),
+    guestMessages.next(),
+  ]);
+  t.deepEqual(editHost1.strings, ['Thinking more...']);
+  t.is(editHost1.done, false);
+  t.deepEqual(editGuest1.strings, ['Thinking more...']);
+  t.is(editGuest1.done, false);
+  t.is(editHost1.number, initialHost.number);
+  t.is(editHost1.messageId, initialHost.messageId);
+
+  await E(guest).editMessage(initialGuest.number, ['Final answer.'], [], [], {
+    done: true,
+  });
+  const [{ value: editHost2 }, { value: editGuest2 }] = await Promise.all([
+    hostMessages.next(),
+    guestMessages.next(),
+  ]);
+  t.deepEqual(editHost2.strings, ['Final answer.']);
+  t.is(editHost2.done, true);
+  t.is(editGuest2.done, true);
+
+  const guestHistory = await E(guest).messageHistory(initialGuest.number);
+  const hostHistory = await E(host).messageHistory(initialHost.number);
+  t.is(guestHistory.length, 3);
+  t.is(hostHistory.length, 3);
+  t.deepEqual(
+    guestHistory.map(r => ({ strings: r.envelope.strings, done: r.done })),
+    [
+      { strings: ['Thinking...'], done: true },
+      { strings: ['Thinking more...'], done: false },
+      { strings: ['Final answer.'], done: true },
+    ],
+  );
+  t.deepEqual(
+    hostHistory.map(r => ({ strings: r.envelope.strings, done: r.done })),
+    [
+      { strings: ['Thinking...'], done: true },
+      { strings: ['Thinking more...'], done: false },
+      { strings: ['Final answer.'], done: true },
+    ],
+  );
+  for (const revision of guestHistory) {
+    t.true(typeof revision.date === 'string');
+    t.false(Number.isNaN(revision.timestamp));
+  }
+});
+
+test('editMessage rejects edits from non-senders', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = iterateReader(E(host).followMessages());
+
+  await E(guest).send('@host', ['hello'], [], []);
+  const { value: hostMessage } = await hostMessages.next();
+
+  await t.throwsAsync(
+    () => E(host).editMessage(hostMessage.number, ['tampered'], [], []),
+    { message: /Only the original sender may edit/ },
+  );
+});
+
+test('editMessage accepts edits after done and records them', async t => {
+  const { host } = await prepareHost(t);
+
+  const guest = E(host).provideGuest('guest');
+  const hostMessages = iterateReader(E(host).followMessages());
+  const guestMessages = iterateReader(E(guest).followMessages());
+
+  await E(guest).send('@host', ['original'], [], []);
+  const [{ value: initialGuest }] = await Promise.all([
+    guestMessages.next(),
+    hostMessages.next(),
+  ]);
+
+  await E(guest).editMessage(initialGuest.number, ['corrected'], [], [], {
+    done: true,
+  });
+  const [{ value: editGuest }, { value: editHost }] = await Promise.all([
+    guestMessages.next(),
+    hostMessages.next(),
+  ]);
+  t.deepEqual(editGuest.strings, ['corrected']);
+  t.is(editGuest.done, true);
+  t.deepEqual(editHost.strings, ['corrected']);
+
+  const history = await E(guest).messageHistory(initialGuest.number);
+  t.is(history.length, 2);
+  t.deepEqual(history[0].envelope.strings, ['original']);
+  t.deepEqual(history[1].envelope.strings, ['corrected']);
+  t.true(history[0].done);
+  t.true(history[1].done);
 });
 
 test('message hub avoids kebab-case reply metadata names', async t => {
   const { host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  const hostMessages = E(host).followMessages();
+  const hostMessages = iterateReader(E(host).followMessages());
 
   await E(guest).send('@host', ['hello'], [], []);
-  const { value: hostMessage } = await E(hostMessages).next();
+  const { value: hostMessage } = await hostMessages.next();
   await E(host).reply(hostMessage.number, ['hi'], [], []);
-  const { value: replyMessage } = await E(hostMessages).next();
+  const { value: replyMessage } = await hostMessages.next();
 
   const replyHub = await E(host).lookup(['@mail', String(replyMessage.number)]);
   const replyNames = await E(replyHub).list();
@@ -1253,14 +1416,14 @@ test('mailboxes persist messages across restart', async t => {
   const { cancelled, config, host } = await prepareHost(t);
 
   const guest = E(host).provideGuest('guest');
-  const iteratorRef = E(host).followMessages();
+  const iterator = iterateReader(E(host).followMessages());
 
   // Await delivery of the first message before sending the second to
   // guarantee deterministic message numbering.
   E.sendOnly(guest).request('@host', 'first request', 'response0');
-  const { value: message0 } = await E(iteratorRef).next();
+  const { value: message0 } = await iterator.next();
   E.sendOnly(guest).request('@host', 'second request', 'response1');
-  const { value: message1 } = await E(iteratorRef).next();
+  const { value: message1 } = await iterator.next();
   t.is(message0.number, 0n);
   t.is(message1.number, 1n);
 
@@ -1300,11 +1463,11 @@ test('rehydrated requests can be resolved after restart', async t => {
   await E(host).storeValue(10, 'ten');
 
   const guest = E(host).provideGuest('guest');
-  const guestMessages = E(guest).followMessages();
+  const guestMessages = iterateReader(E(guest).followMessages());
 
   E.sendOnly(guest).request('@host', 'need a number');
 
-  const { value: guestMessage } = await E(guestMessages).next();
+  const { value: guestMessage } = await guestMessages.next();
   const { promiseId: promiseLocatorP } = E.get(guestMessage);
   const promiseLocator = await promiseLocatorP;
   await E(host).storeLocator(['pending'], promiseLocator);
@@ -1328,7 +1491,7 @@ test('followNamehanges first publishes existing names', async t => {
   const { host } = await prepareHost(t);
 
   const existingNames = await E(host).list();
-  const changesIterator = makeRefIterator(await E(host).followNameChanges());
+  const changesIterator = iterateReader(await E(host).followNameChanges());
   const values = await takeCount(changesIterator, existingNames.length);
 
   t.deepEqual(values.map(value => value.add).sort(), [...existingNames].sort());
@@ -1418,7 +1581,7 @@ test('followLocatorNameChanges first publishes existing pet name', async t => {
   await E(host).storeValue(10, 'ten');
 
   const tenLocator = await E(host).locate('ten');
-  const tenLocatorSub = makeRefIterator(
+  const tenLocatorSub = iterateReader(
     await E(host).followLocatorNameChanges(tenLocator),
   );
   const { value } = await tenLocatorSub.next();
@@ -1429,7 +1592,7 @@ test('followLocatorNameChanges first publishes existing special name', async t =
   const { host } = await prepareHost(t);
 
   const selfLocator = await E(host).locate('@self');
-  const selfLocatorSub = makeRefIterator(
+  const selfLocatorSub = iterateReader(
     await E(host).followLocatorNameChanges(selfLocator),
   );
   const { value } = await selfLocatorSub.next();
@@ -1443,7 +1606,7 @@ test('followLocatorNameChanges first publishes existing pet and special names', 
   await E(host).storeLocator(['self1'], selfLocator);
   await E(host).storeLocator(['self2'], selfLocator);
 
-  const selfLocatorSub = makeRefIterator(
+  const selfLocatorSub = iterateReader(
     await E(host).followLocatorNameChanges(selfLocator),
   );
   const { value } = await selfLocatorSub.next();
@@ -2165,7 +2328,7 @@ testNeedsNodeWorker('indirect cancellation via worker', async t => {
 // Regression test 2 for https://github.com/endojs/endo/issues/2074
 testNeedsNodeWorker('indirect cancellation via caplet', async t => {
   const { host } = await prepareHost(t);
-  const messages = E(host).followMessages();
+  const messages = iterateReader(E(host).followMessages());
 
   await E(host).provideWorker(['w1']);
   const counterPath = path.join(dirname, 'test', 'counter.js');
@@ -2184,7 +2347,7 @@ testNeedsNodeWorker('indirect cancellation via caplet', async t => {
     resultName: 'doubler',
   });
   {
-    const { value: message } = await E(messages).next();
+    const { value: message } = await messages.next();
     t.is(message.type, 'request');
     t.is(message.description, 'a counter, suitable for doubling');
     await E(host).resolve(message.number, 'counter');
@@ -2215,13 +2378,215 @@ testNeedsNodeWorker('indirect cancellation via caplet', async t => {
   );
 });
 
+testNeedsNodeWorker(
+  'provideGuest and powersName accept directory paths (no move dance)',
+  async t => {
+    const { host } = await prepareHost(t);
+
+    // The factory's controller directory.
+    await E(host).makeDirectory('factory');
+
+    // The guest handle and its agent are born *inside* the directory —
+    // no top-level pet names, no relocate-after-makeUnconfined dance.
+    await E(host).provideGuest(['factory', 'handle'], {
+      agentName: ['factory', 'agent'],
+    });
+
+    // They are reachable by path and absent at the top level.
+    t.true(await E(host).has('factory', 'handle'));
+    t.true(await E(host).has('factory', 'agent'));
+    t.false(await E(host).has('handle'));
+    t.false(await E(host).has('agent'));
+
+    // A value the host will grant when the caplet asks its powers.
+    await E(host).provideWorker(['worker']);
+    await E(host).evaluate(
+      'worker',
+      `
+      makeExo('Answer', M.interface('Answer', {}, { defaultGuards: 'passable' }), {
+        value: () => 42,
+      })
+      `,
+      [],
+      [],
+      ['grant'],
+    );
+
+    // The caplet's powers are supplied *by directory path*, and its
+    // result is stored at a directory path too.
+    const servicePath = path.join(dirname, 'test', 'service.js');
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    await E(host).makeUnconfined('worker', serviceLocation, {
+      powersName: ['factory', 'agent'],
+      resultName: ['factory', 'service'],
+    });
+
+    // Asking the service routes a request to the host from the
+    // in-directory handle, proving the powers wired to the path-named
+    // agent.  The endowment is supplied by path as well.
+    const iterator = iterateReader(E(host).followMessages());
+    const answer = E(host).evaluate(
+      'worker',
+      'E(service).ask()',
+      ['service'],
+      [['factory', 'service']],
+      ['answer'],
+    );
+    const { value: message } = await iterator.next();
+    const { number, from: fromId } = E.get(message);
+    // `from` is a locator; compare against the in-directory handle's
+    // locator to prove the request came from the path-named handle.
+    t.is(await fromId, await E(host).locate('factory', 'handle'));
+    await E(host).resolve(await number, 'grant');
+    t.is(await E(await answer).value(), 42);
+
+    // Native path idempotency: re-providing the same guest at the same
+    // path resolves to the same agent id — no controller-path keying
+    // workaround required.
+    const agentId = await E(host).identify('factory', 'agent');
+    await E(host).provideGuest(['factory', 'handle'], {
+      agentName: ['factory', 'agent'],
+    });
+    t.is(await E(host).identify('factory', 'agent'), agentId);
+  },
+);
+
+testNeedsNodeWorker(
+  'path-named agents and powers reject a missing parent directory',
+  async t => {
+    const { host } = await prepareHost(t);
+
+    // A specified path whose parent directory does not exist is rejected
+    // the same way `makeDirectory` (and the `mkdir` / `store` / `mv` CLI
+    // verbs that build on it) reject one: with "Unknown pet name".  No
+    // intermediate directories are auto-created, so provisioning an agent
+    // or referencing powers at a path follows the same rule as every
+    // other path operation.
+    await t.throwsAsync(E(host).makeDirectory(['nope', 'sub']), {
+      message: /Unknown pet name/,
+    });
+    await t.throwsAsync(E(host).provideGuest(['nope', 'handle']), {
+      message: /Unknown pet name/,
+    });
+    await t.throwsAsync(E(host).provideHost(['nope', 'handle']), {
+      message: /Unknown pet name/,
+    });
+
+    await E(host).provideWorker(['worker']);
+    const counterPath = path.join(dirname, 'test', 'counter.js');
+    const counterLocation = url.pathToFileURL(counterPath).href;
+    await t.throwsAsync(
+      E(host).makeUnconfined('worker', counterLocation, {
+        powersName: ['nope', 'agent'],
+        resultName: 'counter',
+      }),
+      { message: /Unknown pet name/ },
+    );
+  },
+);
+
+test('makeTimer and makeChannel accept directory paths', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeDirectory('infra');
+
+  await E(host).makeTimer(['infra', 'tick'], 1000);
+  t.true(await E(host).has('infra', 'tick'));
+  t.false(await E(host).has('tick'));
+
+  await E(host).makeChannel(['infra', 'chan'], 'me');
+  t.true(await E(host).has('infra', 'chan'));
+});
+
+test('invite nests the invitation at a directory path', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).makeDirectory('peers');
+  const invitation = await E(host).invite(['peers', 'bob']);
+  t.truthy(await E(invitation).locate());
+  t.true(await E(host).has('peers', 'bob'));
+  t.false(await E(host).has('bob'));
+});
+
+testNeedsNodeWorker(
+  'evaluate and makeUnconfined accept a worker at a directory path',
+  async t => {
+    const { host } = await prepareHost(t);
+    await E(host).makeDirectory('workers');
+
+    // provideWorker already accepts a path; reference that same worker
+    // by path from evaluate and makeUnconfined.
+    await E(host).provideWorker(['workers', 'w']);
+    const workerId = await E(host).identify('workers', 'w');
+    t.true(await E(host).has('workers', 'w'));
+
+    t.is(
+      42,
+      await E(host).evaluate(['workers', 'w'], '6 * 7', [], [], ['answer']),
+    );
+    // The worker was reused, not recreated.
+    t.is(await E(host).identify('workers', 'w'), workerId);
+
+    const servicePath = path.join(dirname, 'test', 'service.js');
+    const serviceLocation = url.pathToFileURL(servicePath).href;
+    const service = await E(host).makeUnconfined(
+      ['workers', 'w'],
+      serviceLocation,
+      { powersName: '@none', resultName: ['workers', 'svc'] },
+    );
+    t.truthy(service);
+    t.is(await E(host).identify('workers', 'w'), workerId);
+
+    // A worker named at a path that does not yet exist is created and
+    // stored there (the parent directory must already exist).
+    t.is(
+      3,
+      await E(host).evaluate(['workers', 'w2'], '1 + 2', [], [], ['three']),
+    );
+    t.true(await E(host).has('workers', 'w2'));
+  },
+);
+
+testNeedsNodeWorker(
+  'makeArchive accepts a source archive at a directory path',
+  async t => {
+    const { host } = await prepareHost(t);
+    await E(host).provideWorker(['w1']);
+    await E(host).makeDirectory('archives');
+
+    // Store the source archive blob at a directory path.
+    const servicePath = path.join(
+      dirname,
+      'test',
+      'fixtures',
+      'archive-service',
+    );
+    const moduleLocation = url.pathToFileURL(servicePath).href;
+    const archiveBytes = await makeCompartmentArchive(
+      archiveReadPowers,
+      moduleLocation,
+      { parserForLanguage: sourceParserForLanguage },
+    );
+    const archiveReaderRef = bytesReaderFromIterator([archiveBytes]);
+    await E(host).storeBlob(archiveReaderRef, ['archives', 'svc']);
+    t.true(await E(host).has('archives', 'svc'));
+
+    // makeArchive resolves the source by path and stores its result by
+    // path too.
+    const service = await E(host).makeArchive('w1', ['archives', 'svc'], {
+      powersName: '@none',
+      resultName: ['archives', 's1'],
+    });
+    t.truthy(service);
+    t.true(await E(host).has('archives', 's1'));
+  },
+);
+
 testNeedsNodeWorker('cancel because of requested capability', async t => {
   const { host } = await prepareHost(t);
 
   await E(host).provideWorker(['worker']);
   await E(host).provideGuest('guest', { agentName: 'guest-agent' });
 
-  const messages = E(host).followMessages();
+  const messages = iterateReader(E(host).followMessages());
 
   const counterPath = path.join(dirname, 'test', 'counter-agent.js');
   const counterLocation = url.pathToFileURL(counterPath).href;
@@ -2231,7 +2596,7 @@ testNeedsNodeWorker('cancel because of requested capability', async t => {
   });
 
   await E(host).evaluate('worker', '0', [], [], ['zero']);
-  const { value: message } = await E(messages).next();
+  const { value: message } = await messages.next();
   t.is(message.type, 'request');
   await E(host).resolve(message.number, 'zero');
 
@@ -2512,7 +2877,9 @@ test('evaluate name resolved by lookup path', async t => {
 test('list special names', async t => {
   const { host } = await prepareHost(t);
 
-  const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('hello\n'),
+  ]);
   await E(host).storeBlob(readerRef, 'hello-text');
 
   /** @type {string[]} */
@@ -2950,16 +3317,16 @@ testNeedsNodeWorker('follow messages across nodes', async t => {
   const invitationLocator = await E(invitation).locate();
   await E(hostB).accept(invitationLocator, 'alice');
 
-  const iteratorRef = E(hostB).followMessages();
+  const iterator = iterateReader(E(hostB).followMessages());
   const existingMessages = /** @type {unknown[]} */ (
     await E(hostB).listMessages()
   );
-  await drainIterator(iteratorRef, existingMessages.length);
+  await drainIterator(iterator, existingMessages.length);
 
   await E(hostA).evaluate('@main', '"streamed"', [], [], ['stream-val']);
   await E(hostA).send('bob', ['Stream test'], ['stream-val'], ['stream-val']);
 
-  const { value: msg } = await E(iteratorRef).next();
+  const { value: msg } = await iterator.next();
   t.is(msg.type, 'package');
   t.is(msg.strings[0], 'Stream test');
 });
@@ -2972,8 +3339,8 @@ testNeedsNodeWorker('reply across nodes', async t => {
   const invitationLocator = await E(invitation).locate();
   await E(hostB).accept(invitationLocator, 'alice');
 
-  const iteratorA = E(hostA).followMessages();
-  const iteratorB = E(hostB).followMessages();
+  const iteratorA = iterateReader(E(hostA).followMessages());
+  const iteratorB = iterateReader(E(hostB).followMessages());
   const existingA = /** @type {unknown[]} */ (await E(hostA).listMessages());
   await drainIterator(iteratorA, existingA.length);
   const existingB = /** @type {unknown[]} */ (await E(hostB).listMessages());
@@ -2982,18 +3349,18 @@ testNeedsNodeWorker('reply across nodes', async t => {
   await E(hostA).send('bob', ['Hello Bob'], [], []);
 
   // A's outgoing message appears in A's own iterator
-  const { value: sentMsg } = await E(iteratorA).next();
+  const { value: sentMsg } = await iteratorA.next();
   t.is(sentMsg.type, 'package');
 
   // B receives the message
-  const { value: received } = await E(iteratorB).next();
+  const { value: received } = await iteratorB.next();
   t.is(received.type, 'package');
   t.is(received.strings[0], 'Hello Bob');
 
   await E(hostB).reply(received.number, ['Hello Alice'], [], []);
 
   // A receives the reply via its iterator
-  const { value: replyMsg } = await E(iteratorA).next();
+  const { value: replyMsg } = await iteratorA.next();
   t.is(replyMsg.type, 'package');
   t.is(replyMsg.strings[0], 'Hello Alice');
 });
@@ -3008,13 +3375,13 @@ testNeedsNodeWorker('request and resolve across nodes', async t => {
 
   await E(hostB).evaluate('@main', '42', [], [], ['answer']);
 
-  const iteratorB = E(hostB).followMessages();
+  const iteratorB = iterateReader(E(hostB).followMessages());
   const existingB = /** @type {unknown[]} */ (await E(hostB).listMessages());
   await drainIterator(iteratorB, existingB.length);
 
   const resultP = E(hostA).request('bob', 'need a number', 'result');
 
-  const { value: requestMsg } = await E(iteratorB).next();
+  const { value: requestMsg } = await iteratorB.next();
   t.is(requestMsg.type, 'request');
 
   await E(hostB).resolve(requestMsg.number, 'answer');
@@ -3126,9 +3493,9 @@ test('resolve with pet name path', async t => {
   // Create a guest and have it make a request
   const guest = E(host).provideGuest('guest');
 
-  const iteratorRef = E(host).followMessages();
+  const iterator = iterateReader(E(host).followMessages());
   E.sendOnly(guest).request('@host', 'a response');
-  const { value: message } = await E(iteratorRef).next();
+  const { value: message } = await iterator.next();
   t.is(message.number, 0n);
 
   // Resolve using a pet name path
@@ -3148,14 +3515,14 @@ test('request with pet name path for response storage', async t => {
   await E(guest).makeDirectory(['responses']);
 
   // Have the guest make a request, storing response in a path within guest's directory
-  const iteratorRef = E(host).followMessages();
+  const iterator = iterateReader(E(host).followMessages());
   const requestP = E(guest).request('@host', 'give me something', [
     'responses',
     'result',
   ]);
 
   // Host receives and resolves the request
-  const { value: message } = await E(iteratorRef).next();
+  const { value: message } = await iterator.next();
   t.is(message.type, 'request');
 
   // Create something to respond with
@@ -3468,8 +3835,8 @@ test('form happy path: guest sends form, host submits', async t => {
   const guest = await E(host).provideGuest('guest');
 
   // Follow messages on both sides
-  const hostIteratorRef = E(host).followMessages();
-  const guestIteratorRef = E(guest).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
+  const guestIterator = iterateReader(E(guest).followMessages());
 
   // Guest sends a form to the host (fire-and-forget)
   await E(guest).form(
@@ -3482,7 +3849,7 @@ test('form happy path: guest sends form, host submits', async t => {
   );
 
   // Host receives the form message
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
   t.is(formMsg.description, 'Please configure');
 
@@ -3494,9 +3861,9 @@ test('form happy path: guest sends form, host submits', async t => {
 
   // Guest should receive the value message in followMessages
   // First message is the form itself (self-delivery), then the value reply
-  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  const { value: guestFormMsg } = await guestIterator.next();
   t.is(guestFormMsg.type, 'form');
-  const { value: valueMsg } = await E(guestIteratorRef).next();
+  const { value: valueMsg } = await guestIterator.next();
   t.is(valueMsg.type, 'value');
   t.is(typeof valueMsg.valueId, 'string');
   t.is(valueMsg.replyTo, formMsg.messageId);
@@ -3506,7 +3873,7 @@ test('form submit rejects when a field is missing', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3517,7 +3884,7 @@ test('form submit rejects when a field is missing', async t => {
     ]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   // Submit with only one field — should throw
@@ -3531,7 +3898,7 @@ test('form submit with pattern validation rejects non-matching value', async t =
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3539,7 +3906,7 @@ test('form submit with pattern validation rejects non-matching value', async t =
     harden([{ name: 'count', label: 'Count', pattern: M.number() }]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   // Submit with wrong type — should throw
@@ -3553,7 +3920,7 @@ test('form submit with pattern validation accepts matching value', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3561,7 +3928,7 @@ test('form submit with pattern validation accepts matching value', async t => {
     harden([{ name: 'count', label: 'Count', pattern: M.number() }]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   // Should not throw
@@ -3573,7 +3940,7 @@ test('form default pattern is M.string() — rejects non-string', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3581,7 +3948,7 @@ test('form default pattern is M.string() — rejects non-string', async t => {
     harden([{ name: 'name', label: 'Name' }]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   // Submit with a number — should throw because default pattern is M.string()
@@ -3595,8 +3962,8 @@ test('form multi-submission: same form submitted twice produces two value messag
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
-  const guestIteratorRef = E(guest).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
+  const guestIterator = iterateReader(E(guest).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3604,7 +3971,7 @@ test('form multi-submission: same form submitted twice produces two value messag
     harden([{ name: 'answer', label: 'Answer' }]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   // Submit twice
@@ -3612,11 +3979,11 @@ test('form multi-submission: same form submitted twice produces two value messag
   await E(host).submit(formMsg.number, harden({ answer: 'second' }));
 
   // Guest should see the form + two value messages
-  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  const { value: guestFormMsg } = await guestIterator.next();
   t.is(guestFormMsg.type, 'form');
-  const { value: value1 } = await E(guestIteratorRef).next();
+  const { value: value1 } = await guestIterator.next();
   t.is(value1.type, 'value');
-  const { value: value2 } = await E(guestIteratorRef).next();
+  const { value: value2 } = await guestIterator.next();
   t.is(value2.type, 'value');
 
   // Both should reference the same form
@@ -3644,8 +4011,8 @@ test('form reverse: host sends form to guest, guest submits', async t => {
   const guest = await E(host).provideGuest('alice');
 
   // Follow guest messages
-  const guestIteratorRef = E(guest).followMessages();
-  const hostIteratorRef = E(host).followMessages();
+  const guestIterator = iterateReader(E(guest).followMessages());
+  const hostIterator = iterateReader(E(host).followMessages());
 
   // Host sends a form to the guest
   await E(host).form(
@@ -3655,7 +4022,7 @@ test('form reverse: host sends form to guest, guest submits', async t => {
   );
 
   // Guest receives the form message
-  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  const { value: guestFormMsg } = await guestIterator.next();
   t.is(guestFormMsg.type, 'form');
   t.is(guestFormMsg.description, 'Survey');
 
@@ -3666,9 +4033,9 @@ test('form reverse: host sends form to guest, guest submits', async t => {
   );
 
   // Host should see the form (self-delivery) and then the value message
-  const { value: hostFormMsg } = await E(hostIteratorRef).next();
+  const { value: hostFormMsg } = await hostIterator.next();
   t.is(hostFormMsg.type, 'form');
-  const { value: hostValueMsg } = await E(hostIteratorRef).next();
+  const { value: hostValueMsg } = await hostIterator.next();
   t.is(hostValueMsg.type, 'value');
   t.is(hostValueMsg.replyTo, guestFormMsg.messageId);
 });
@@ -3682,23 +4049,23 @@ test('sendValue replies to a message with a retained value', async t => {
   await E(host).send('guest', ['Here is a question'], [], []);
 
   // Guest receives the package
-  const guestIteratorRef = E(guest).followMessages();
-  const { value: pkgMsg } = await E(guestIteratorRef).next();
+  const guestIterator = iterateReader(E(guest).followMessages());
+  const { value: pkgMsg } = await guestIterator.next();
   t.is(pkgMsg.type, 'package');
 
   // Set up host iterator and drain existing messages BEFORE sendValue
-  const hostIteratorRef = E(host).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
   const existingMessages = /** @type {unknown[]} */ (
     await E(host).listMessages()
   );
-  await drainIterator(hostIteratorRef, existingMessages.length);
+  await drainIterator(hostIterator, existingMessages.length);
 
   // Guest stores a value and sends it back as a reply
   await E(guest).storeValue(99, 'my-reply');
   await E(guest).sendValue(pkgMsg.number, 'my-reply');
 
   // Host receives the value message via the iterator
-  const { value: valueMsg } = await E(hostIteratorRef).next();
+  const { value: valueMsg } = await hostIterator.next();
   t.is(valueMsg.type, 'value');
   t.is(valueMsg.replyTo, pkgMsg.messageId);
 
@@ -3719,8 +4086,8 @@ test('sendValue rejects unknown pet name', async t => {
   // Send a message to the guest so there's something to reply to
   await E(host).send('guest', ['Hello'], [], []);
 
-  const guestIteratorRef = E(guest).followMessages();
-  const { value: pkgMsg } = await E(guestIteratorRef).next();
+  const guestIterator = iterateReader(E(guest).followMessages());
+  const { value: pkgMsg } = await guestIterator.next();
 
   // Attempt to sendValue with a nonexistent pet name
   await t.throwsAsync(() => E(guest).sendValue(pkgMsg.number, 'nonexistent'), {
@@ -3745,8 +4112,8 @@ test('form value message @value is addressable via @mail/N/@value', async t => {
   const { host } = await prepareHost(t);
 
   const guest = await E(host).provideGuest('guest');
-  const hostIteratorRef = E(host).followMessages();
-  const guestIteratorRef = E(guest).followMessages();
+  const hostIterator = iterateReader(E(host).followMessages());
+  const guestIterator = iterateReader(E(guest).followMessages());
 
   await E(guest).form(
     '@host',
@@ -3754,15 +4121,15 @@ test('form value message @value is addressable via @mail/N/@value', async t => {
     harden([{ name: 'displayName', label: 'Display Name' }]),
   );
 
-  const { value: formMsg } = await E(hostIteratorRef).next();
+  const { value: formMsg } = await hostIterator.next();
   t.is(formMsg.type, 'form');
 
   await E(host).submit(formMsg.number, harden({ displayName: 'Bob' }));
 
   // Guest receives form + value
-  const { value: guestFormMsg } = await E(guestIteratorRef).next();
+  const { value: guestFormMsg } = await guestIterator.next();
   t.is(guestFormMsg.type, 'form');
-  const { value: valueMsg } = await E(guestIteratorRef).next();
+  const { value: valueMsg } = await guestIterator.next();
   t.is(valueMsg.type, 'value');
 
   // Look up the value message hub
@@ -3787,14 +4154,14 @@ test('form value message @value is addressable via @mail/N/@value', async t => {
 // readable-tree tests
 
 /**
- * Helper: create a Far blob Exo from a string.
+ * Helper: create a blob Exo from a string.  Returns a `PassableBytesReader`
+ * (an Exo with `streamBase64(synPromise)` that can be passed directly to
+ * any consumer expecting an `iterateBytesReader`-compatible blob).
  * @param {string} content
  */
 const makeFarBlob = content => {
   const bytes = new TextEncoder().encode(content);
-  return Far('TestBlob', {
-    streamBase64: () => makeReaderRef([bytes]),
-  });
+  return bytesReaderFromIterator([bytes]);
 };
 
 /**
@@ -3924,6 +4291,7 @@ test('readable tree lookup unknown name throws', async t => {
  * @param {Record<string, string>} files - Map of relative path to content.
  */
 const createMountFixture = async (basePath, files) => {
+  await fs.promises.rm(basePath, { recursive: true, force: true });
   await fs.promises.mkdir(basePath, { recursive: true });
   for (const [relPath, content] of Object.entries(files)) {
     const fullPath = path.join(basePath, relPath);
@@ -3934,6 +4302,457 @@ const createMountFixture = async (basePath, files) => {
     await fs.promises.writeFile(fullPath, content, 'utf-8');
   }
 };
+
+/**
+ * @param {string} repoPath
+ * @param {string[]} args
+ */
+const git = (repoPath, args) => execFileAsync('git', args, { cwd: repoPath });
+
+/**
+ * @param {string} repoPath
+ */
+const createGitFixture = async repoPath => {
+  await fs.promises.rm(repoPath, { recursive: true, force: true });
+  await fs.promises.mkdir(repoPath, { recursive: true });
+  await git(repoPath, ['init', '-q', '-b', 'main']);
+  await fs.promises.writeFile(
+    path.join(repoPath, 'README.md'),
+    'initial\n',
+    'utf-8',
+  );
+  await git(repoPath, ['add', 'README.md']);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'initial commit',
+  ]);
+};
+
+/**
+ * @param {object} options
+ * @param {string} options.name
+ * @param {string} [options.typeFlag]
+ * @param {string | Uint8Array} [options.body]
+ * @param {string} [options.linkName]
+ */
+const makeTarEntry = ({ name, typeFlag = '0', body = '', linkName = '' }) => {
+  const content =
+    typeof body === 'string' ? Buffer.from(body, 'utf8') : Buffer.from(body);
+  const header = Buffer.alloc(512);
+  header.write(name, 0, 100, 'utf8');
+  header.write('0000644\0', 100, 8, 'ascii');
+  header.write('0000000\0', 108, 8, 'ascii');
+  header.write('0000000\0', 116, 8, 'ascii');
+  header.write(
+    `${content.byteLength.toString(8).padStart(11, '0')}\0`,
+    124,
+    12,
+    'ascii',
+  );
+  header.write('00000000000\0', 136, 12, 'ascii');
+  header.write(typeFlag, 156, 1, 'ascii');
+  header.write(linkName, 157, 100, 'utf8');
+  header.write('ustar\0', 257, 6, 'ascii');
+  const padding = Buffer.alloc((512 - (content.byteLength % 512)) % 512);
+  return Buffer.concat([header, content, padding]);
+};
+
+/**
+ * Build a pax extended header block (typeflag `x` or `g`) from a record
+ * map, mirroring what `git archive --format=tar` emits before an entry
+ * whose path or size will not fit the ustar header fields.
+ *
+ * @param {Record<string, string>} records
+ * @param {string} [typeFlag]
+ */
+const makePaxHeader = (records, typeFlag = 'x') => {
+  let body = '';
+  for (const [key, value] of Object.entries(records)) {
+    const tail = ` ${key}=${value}\n`;
+    // `<length>` is the decimal byte length of the whole record,
+    // including the length digits, the space, and the newline; solve
+    // for the self-referential length.
+    const tailLength = Buffer.byteLength(tail, 'utf8');
+    let length = tailLength + 1;
+    while (`${length}`.length + tailLength !== length) {
+      length = `${length}`.length + tailLength;
+    }
+    body += `${length}${tail}`;
+  }
+  return makeTarEntry({ name: '@PaxHeader', typeFlag, body });
+};
+
+/**
+ * @param {Uint8Array} archiveBytes
+ */
+const makeArchiveTree = archiveBytes =>
+  Far('ArchiveTree', {
+    archiveTar() {
+      return bytesReaderFromIterator([archiveBytes]);
+    },
+  });
+
+test('provideGit tree exposes immutable commit contents', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const repoPath = path.join(config.statePath, '..', 'git-tree-repo');
+  await createGitFixture(repoPath);
+  await fs.promises.mkdir(path.join(repoPath, 'src'));
+  await fs.promises.writeFile(
+    path.join(repoPath, 'src', 'main.js'),
+    'export default 1;\n',
+    'utf-8',
+  );
+  // Symlink exercises the tar `typeFlag === '2'` branch in
+  // `checkinTarTree`; `git archive` emits symlinks as type-`l`
+  // entries whose linkname is the target path.
+  await fs.promises.symlink('main.js', path.join(repoPath, 'src', 'alias.js'));
+  await git(repoPath, ['add', 'src/main.js', 'src/alias.js']);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'add source',
+  ]);
+
+  const mount = await E(host).provideMount(repoPath, 'git-tree-worktree');
+  const gitCap = await E(host).provideGit(mount, 'git-tree-cap');
+  const tree = await E(gitCap).tree('HEAD');
+  // eslint-disable-next-line no-underscore-dangle
+  const treeMethods = await E(tree).__getMethodNames__();
+  t.true(treeMethods.includes('archiveTar'));
+
+  const names = await E(tree).list();
+  t.deepEqual(names, ['README.md', 'src']);
+  const src = await E(tree).lookup('src');
+  t.deepEqual(await E(src).list(), ['alias.js', 'main.js']);
+
+  const main = await E(tree).lookup(['src', 'main.js']);
+  t.is(await E(main).text(), 'export default 1;\n');
+
+  // GitBlob exposes the rich BlobRef range-I/O surface (getInfo + fetch).
+  const mainInfo = await E(main).getInfo();
+  t.is(mainInfo.algorithm, 'sha256');
+  t.is(mainInfo.size, 18n); // 'export default 1;\n'
+  /** @param {any} reader */
+  const collectText = async reader => {
+    const chunks = [];
+    for await (const chunk of iterateBytesReader(reader)) {
+      chunks.push(chunk);
+    }
+    const total = chunks.reduce((n, c) => n + c.length, 0);
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) {
+      out.set(c, off);
+      off += c.length;
+    }
+    return new TextDecoder().decode(out);
+  };
+  t.is(await collectText(await E(main).fetch(0n, 6n)), 'export');
+  t.is(await collectText(await E(main).fetch(0n, 18n)), 'export default 1;\n');
+
+  await fs.promises.writeFile(
+    path.join(repoPath, 'src', 'main.js'),
+    'export default 2;\n',
+    'utf-8',
+  );
+  t.is(await E(main).text(), 'export default 1;\n');
+
+  await E(host).storeTree(tree, 'git-tree-snapshot');
+  const storedTree = await E(host).lookup('git-tree-snapshot');
+  const storedMain = await E(storedTree).lookup(['src', 'main.js']);
+  t.is(await E(storedMain).text(), 'export default 1;\n');
+  // The symlink is checked in as a blob whose contents are the link
+  // target text, anchored to the immutable commit tree.
+  const storedAlias = await E(storedTree).lookup(['src', 'alias.js']);
+  t.is(await E(storedAlias).text(), 'main.js');
+});
+
+test('storeTree honors pax extended headers for long paths', async t => {
+  const { host } = await prepareHost(t);
+
+  // A single filename over 100 bytes cannot fit the ustar name/prefix
+  // fields, so `git archive --format=tar` emits a pax extended header
+  // (typeflag `x`) carrying `path=<long>` before the file entry. The
+  // ustar header that follows holds a truncated stand-in name; the pax
+  // `path` override is authoritative.
+  const longName = `${'deep-path-segment-'.repeat(7)}file.txt`;
+  t.true(longName.length > 100);
+  const body = 'pax payload\n';
+  const archive = Buffer.concat([
+    makePaxHeader({ path: longName }),
+    // ustar name is the truncated path; parser ignores it in favor of
+    // the pax override. Its size field still governs the content block.
+    makeTarEntry({ name: longName.slice(0, 100), body }),
+  ]);
+
+  const archiveTree = makeArchiveTree(archive);
+  await E(host).storeTree(archiveTree, 'pax-snapshot');
+  const storedTree = await E(host).lookup('pax-snapshot');
+  // Fail-closed: the unfixed parser rejects the typeflag-`x` header as
+  // an "Unsupported tar entry type", so storeTree never reaches here.
+  const storedFile = await E(storedTree).lookup(longName);
+  t.is(await E(storedFile).text(), body);
+});
+
+test('storeTree honors pax linkpath for long symlink targets', async t => {
+  const { host } = await prepareHost(t);
+
+  const longTarget = `${'target-segment-'.repeat(8)}leaf.txt`;
+  t.true(longTarget.length > 100);
+  const archive = Buffer.concat([
+    makePaxHeader({ linkpath: longTarget }),
+    makeTarEntry({
+      name: 'long-link',
+      typeFlag: '2',
+      linkName: 'see 1234567890abcdef.paxheader',
+    }),
+  ]);
+
+  const archiveTree = makeArchiveTree(archive);
+  await E(host).storeTree(archiveTree, 'pax-linkpath-snapshot');
+  const storedTree = await E(host).lookup('pax-linkpath-snapshot');
+  const storedLink = await E(storedTree).lookup('long-link');
+  t.is(await E(storedLink).text(), longTarget);
+});
+
+test('storeTree falls back for export-ignore trees the archive would drop', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const repoPath = path.join(config.statePath, '..', 'git-export-ignore-repo');
+  await createGitFixture(repoPath);
+  // `git archive --format=tar` honors a committed `.gitattributes`
+  // `export-ignore`, OMITTING `secret.txt` from the tar. The committed
+  // tree still contains it, so the immutable snapshot must include it.
+  await fs.promises.writeFile(
+    path.join(repoPath, 'secret.txt'),
+    'keep me\n',
+    'utf-8',
+  );
+  await fs.promises.writeFile(
+    path.join(repoPath, '.gitattributes'),
+    'secret.txt export-ignore\n',
+    'utf-8',
+  );
+  await git(repoPath, ['add', 'secret.txt', '.gitattributes']);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'add export-ignored file',
+  ]);
+
+  const mount = await E(host).provideMount(repoPath, 'export-ignore-worktree');
+  const gitCap = await E(host).provideGit(mount, 'export-ignore-cap');
+  const tree = await E(gitCap).tree('HEAD');
+
+  // The tree reports itself NOT archive-lossless, so checkinTree routes
+  // to the per-entry walk instead of the lossy fast path.
+  t.is(await E(tree).archiveLossless(), false);
+
+  await E(host).storeTree(tree, 'export-ignore-snapshot');
+  const storedTree = await E(host).lookup('export-ignore-snapshot');
+  // Fail-closed: the unfixed fast path takes `git archive`, which drops
+  // `secret.txt`, so this lookup would reject. The fallback preserves it.
+  const storedSecret = await E(storedTree).lookup('secret.txt');
+  t.is(await E(storedSecret).text(), 'keep me\n');
+});
+
+test('storeTree falls back for export-subst trees the archive would rewrite', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const repoPath = path.join(config.statePath, '..', 'git-export-subst-repo');
+  await createGitFixture(repoPath);
+  await fs.promises.writeFile(
+    path.join(repoPath, 'template.txt'),
+    '$Format:%H$\n',
+    'utf-8',
+  );
+  await fs.promises.writeFile(
+    path.join(repoPath, '.gitattributes'),
+    'template.txt export-subst\n',
+    'utf-8',
+  );
+  await git(repoPath, ['add', 'template.txt', '.gitattributes']);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'add export-subst file',
+  ]);
+
+  const mount = await E(host).provideMount(repoPath, 'export-subst-worktree');
+  const gitCap = await E(host).provideGit(mount, 'export-subst-cap');
+  const tree = await E(gitCap).tree('HEAD');
+
+  t.is(await E(tree).archiveLossless(), false);
+
+  await E(host).storeTree(tree, 'export-subst-snapshot');
+  const storedTree = await E(host).lookup('export-subst-snapshot');
+  const storedTemplate = await E(storedTree).lookup('template.txt');
+  t.is(await E(storedTemplate).text(), '$Format:%H$\n');
+});
+
+test('storeTree falls back for info attributes the archive would honor', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const repoPath = path.join(config.statePath, '..', 'git-info-attrs-repo');
+  await createGitFixture(repoPath);
+  await fs.promises.writeFile(
+    path.join(repoPath, 'secret.txt'),
+    'keep me\n',
+    'utf-8',
+  );
+  await git(repoPath, ['add', 'secret.txt']);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'add secret file',
+  ]);
+  await fs.promises.writeFile(
+    path.join(repoPath, '.git', 'info', 'attributes'),
+    'secret.txt export-ignore\n',
+    'utf-8',
+  );
+
+  const mount = await E(host).provideMount(repoPath, 'info-attrs-worktree');
+  const gitCap = await E(host).provideGit(mount, 'info-attrs-cap');
+  const tree = await E(gitCap).tree('HEAD');
+
+  t.is(await E(tree).archiveLossless(), false);
+
+  await E(host).storeTree(tree, 'info-attrs-snapshot');
+  const storedTree = await E(host).lookup('info-attrs-snapshot');
+  const storedSecret = await E(storedTree).lookup('secret.txt');
+  t.is(await E(storedSecret).text(), 'keep me\n');
+});
+
+test('git tree reports a gitlink as not archive-lossless', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const repoPath = path.join(config.statePath, '..', 'git-gitlink-repo');
+  await createGitFixture(repoPath);
+  // Stage a gitlink (submodule commit, mode 160000) directly via the
+  // index. `git archive` would flatten it to an empty directory; the
+  // tree must report itself NOT archive-lossless so checkinTree takes
+  // the per-entry walk, which fails loudly on the submodule commit
+  // rather than silently dropping the reference.
+  await git(repoPath, [
+    'update-index',
+    '--add',
+    '--cacheinfo',
+    `160000,${'0'.repeat(39)}1,vendor/sub`,
+  ]);
+  await git(repoPath, [
+    '-c',
+    'user.email=t@t',
+    '-c',
+    'user.name=T',
+    'commit',
+    '-m',
+    'add gitlink',
+  ]);
+
+  const mount = await E(host).provideMount(repoPath, 'gitlink-worktree');
+  const gitCap = await E(host).provideGit(mount, 'gitlink-cap');
+  const tree = await E(gitCap).tree('HEAD');
+
+  // Fail-closed: the unfixed flow lacks this signal and would archive
+  // the tree, snapshotting the gitlink as an empty directory.
+  t.is(await E(tree).archiveLossless(), false);
+});
+
+test('storeTree rejects malformed archiveTar streams', async t => {
+  const { host } = await prepareHost(t);
+
+  // Tar entry whose `size` field has been corrupted to non-octal text;
+  // exercises the `tarOctal` regex-reject branch.
+  const invalidOctalEntry = makeTarEntry({ name: 'a.txt', body: 'x' });
+  invalidOctalEntry.write('99999999999\0', 124, 12, 'ascii');
+
+  // Header that claims more content than the archive contains;
+  // exercises the `Truncated tar content` branch.
+  const truncatedContentEntry = makeTarEntry({ name: 'a.txt', body: 'x' });
+  // Override size to 1024 (octal 2000) without supplying the bytes.
+  truncatedContentEntry.write('00000002000\0', 124, 12, 'ascii');
+  const truncatedContent = truncatedContentEntry.slice(0, 512);
+
+  const cases = [
+    {
+      name: 'traversal',
+      bytes: makeTarEntry({ name: '../escape.txt', body: 'bad' }),
+      message: /Invalid tar entry path segment/,
+    },
+    {
+      name: 'absolute',
+      bytes: makeTarEntry({ name: '/etc/passwd', body: 'bad' }),
+      message: /Invalid tar entry path/,
+    },
+    {
+      name: 'duplicate',
+      bytes: Buffer.concat([
+        makeTarEntry({ name: 'same.txt', body: 'one' }),
+        makeTarEntry({ name: 'same.txt', body: 'two' }),
+      ]),
+      message: /Duplicate tar entry path/,
+    },
+    {
+      name: 'blob-dir-conflict',
+      bytes: Buffer.concat([
+        makeTarEntry({ name: 'collide', body: 'leaf' }),
+        makeTarEntry({ name: 'collide/inside.txt', body: 'nested' }),
+      ]),
+      message: /Tar entry path conflicts with blob/,
+    },
+    {
+      name: 'invalid-octal',
+      bytes: invalidOctalEntry,
+      message: /Invalid tar octal field/,
+    },
+    {
+      name: 'truncated-content',
+      bytes: truncatedContent,
+      message: /Truncated tar content/,
+    },
+    {
+      name: 'truncated',
+      bytes: Buffer.alloc(64),
+      message: /Truncated tar header/,
+    },
+    {
+      name: 'unsupported',
+      bytes: makeTarEntry({ name: 'fifo', typeFlag: '6' }),
+      message: /Unsupported tar entry type/,
+    },
+  ];
+
+  for (const { name, bytes, message } of cases) {
+    const archiveTree = makeArchiveTree(bytes);
+    // eslint-disable-next-line no-await-in-loop
+    await t.throwsAsync(E(host).storeTree(archiveTree, `bad-${name}`), {
+      message,
+    });
+  }
+});
 
 // --- Retention sync tests ---
 
@@ -4221,16 +5040,28 @@ test('mount readOnly() attenuation', async t => {
   await E(host).provideMount(mountPath, 'test-mount-attenuate');
   const mount = await E(host).lookup(['test-mount-attenuate']);
 
-  const roMount = await E(mount).readOnly();
+  const roTree = await E(mount).readOnly();
 
-  // Reading should work through attenuated view.
-  const entries = await E(roMount).list();
+  // The structural narrowing returns a ReadableTree view, not an
+  // EndoMount.  Reading through the platform surface (has, list,
+  // lookup) still works.
+  const entries = await E(roTree).list();
   t.deepEqual(entries, ['file.txt']);
+  t.true(await E(roTree).has('file.txt'));
 
-  // Writing should fail through attenuated view.
-  await t.throwsAsync(E(roMount).writeText(['new.txt'], 'fail'), {
-    message: /read-only/,
-  });
+  // Mount-specific extensions are not on the read-only view; the
+  // method names are constrained to the ReadableTree surface
+  // (filtering Exo introspection helpers). `help` is part of the
+  // platform ReadableTree contract (every capability is
+  // self-documenting), so it appears alongside has/list/lookup.
+  // eslint-disable-next-line no-underscore-dangle
+  const methods = await E(roTree).__getMethodNames__();
+  t.deepEqual(methods.filter(name => !name.startsWith('__')).sort(), [
+    'has',
+    'help',
+    'list',
+    'lookup',
+  ]);
 });
 
 test('mount dot-dot navigation clamped at root', async t => {
@@ -4339,6 +5170,51 @@ test('provideHostPath resolves Mount caps to host paths', async t => {
   await t.throwsAsync(() => E(host).provideHostPath(fake), {
     message: /not a daemon-minted mount/,
   });
+});
+
+test('provideHostPath is an EndoHost-only capability not reachable through an EndoGuest', async t => {
+  // Documents the danger of `provideHostPath` by example: the surface
+  // returns a real host-filesystem path string, so any code that can
+  // call it learns the absolute path of a daemon-managed mount.  The
+  // platform's defence is that the method only exists on the fully
+  // privileged `EndoHost`; a guest cannot reach it, so handing a
+  // guest to less-trusted code does not leak the host path even when
+  // the same daemon session also serves the host.
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'host-path-danger-mount');
+  await createMountFixture(mountPath, { 'sentinel.txt': 'present' });
+  await E(host).provideMount(mountPath, 'host-path-danger-mount');
+
+  // The host can resolve the cap to its real path: that *is* the
+  // danger — calling code that holds an EndoHost can map any mount
+  // cap back to a real filesystem path.
+  const mountCap = await E(host).lookup(['host-path-danger-mount']);
+  t.is(await E(host).provideHostPath(mountCap), mountPath);
+
+  // A guest spawned from this host does not have the
+  // `provideHostPath` method on its method set.  Less-trusted code
+  // that should not learn host filesystem paths receives a guest, not
+  // an EndoHost; this is the attenuation the platform relies on.
+  const guest = await E(host).provideGuest('danger-guest', {
+    agentName: 'danger-guest-agent',
+  });
+  // eslint-disable-next-line no-underscore-dangle
+  const guestMethods = await E(guest).__getMethodNames__();
+  t.false(
+    guestMethods.includes('provideHostPath'),
+    'EndoGuest must not expose provideHostPath: host paths are an EndoHost-only authority',
+  );
+
+  // The CapTP boundary refuses the call directly when a caller goes
+  // looking — the method does not exist on the guest's interface
+  // guard, so the send is rejected at the receiver.
+  await t.throwsAsync(
+    // The cast documents that the caller is overstepping the type.
+    () => E(/** @type {any} */ (guest)).provideHostPath(mountCap),
+    { message: /provideHostPath/ },
+    'a guest cannot stand in for a host on the privileged surface',
+  );
 });
 
 test('provideHostPath rejects a spoof that passes the genie shape gate', async t => {
@@ -4457,6 +5333,82 @@ test('mount file writeText and json', async t => {
     'utf-8',
   );
   t.is(actualContent, '{"version": 2}');
+});
+
+test('mount entry descriptors support has, lookup, stat, makeFile, and provenance', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-entry');
+  const otherPath = path.join(config.statePath, '..', 'mount-test-entry-other');
+  await createMountFixture(mountPath, {
+    'src/existing.txt': 'existing',
+  });
+  await createMountFixture(otherPath, {});
+
+  await E(host).provideMount(mountPath, 'test-mount-entry');
+  await E(host).provideMount(otherPath, 'test-mount-entry-other');
+  const mount = await E(host).lookup(['test-mount-entry']);
+  const otherMount = await E(host).lookup(['test-mount-entry-other']);
+
+  const createdEntry = await E(mount).entry(['src', 'created.txt']);
+  t.is(await E(createdEntry).displayPath(), 'src/created.txt');
+  t.deepEqual(await E(createdEntry).segments(), ['src', 'created.txt']);
+  t.false(await E(mount).has(createdEntry));
+  t.is(await E(mount).stat(createdEntry), undefined);
+
+  await E(mount).makeFile(createdEntry, 'created');
+  const createdFile = await E(mount).lookup(createdEntry);
+  await E(createdFile).append(' and appended');
+  t.is(await E(createdFile).text(), 'created and appended');
+  t.true(await E(mount).has(createdEntry));
+
+  const stat = await E(mount).stat(createdEntry);
+  t.like(stat, {
+    kind: 'file',
+    size: BigInt('created and appended'.length),
+  });
+
+  const srcEntry = await E(mount).entry('src');
+  const srcDir = await E(mount).lookup(srcEntry);
+  t.deepEqual(await E(srcDir).list(), ['created.txt', 'existing.txt']);
+
+  const childEntry = await E(srcEntry).child('created.txt');
+  const openedFile = await E(mount).lookup(childEntry);
+  t.is(await E(openedFile).text(), 'created and appended');
+
+  await t.throwsAsync(() => E(otherMount).readText(createdEntry), {
+    message: /different mount root/,
+  });
+});
+
+test('mount snapshots capture immutable tree and file views', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-snapshot');
+  await createMountFixture(mountPath, {
+    'live.txt': 'initial',
+    'nested/file.txt': 'nested',
+  });
+
+  await E(host).provideMount(mountPath, 'test-mount-snapshot');
+  const mount = await E(host).lookup(['test-mount-snapshot']);
+
+  const snapshotTree = await E(mount).snapshot();
+  const snapshotFile = await E(snapshotTree).lookup('live.txt');
+  const liveFile = await E(mount).lookup('live.txt');
+
+  const snapshotBlob = await E(liveFile).snapshot();
+
+  await E(liveFile).writeText('changed');
+  await E(mount).writeText(['nested', 'file.txt'], 'changed nested');
+
+  t.is(await E(snapshotFile).text(), 'initial');
+  t.is(await E(snapshotBlob).text(), 'initial');
+  t.is(await E(liveFile).text(), 'changed');
+
+  const nestedSnapshotDir = await E(snapshotTree).lookup('nested');
+  const nestedSnapshotFile = await E(nestedSnapshotDir).lookup('file.txt');
+  t.is(await E(nestedSnapshotFile).text(), 'nested');
 });
 
 // symlink confinement tests
@@ -4765,6 +5717,26 @@ test('Phase 8: stageTree materialises a ReadableTree into a scratch mount', asyn
   // The staged mount has the same compartment-map.json content.
   const text = await E(scratch).readText('compartment-map.json');
   t.regex(text, /"entry"/);
+});
+
+test('stageTree preserves binary blobs in a scratch mount', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const srcDir = path.join(config.statePath, '..', 'stage-tree-binary-src');
+  fs.mkdirSync(srcDir, { recursive: true });
+  const expected = Buffer.from([0, 159, 146, 150, 255, 65, 10]);
+  fs.writeFileSync(path.join(srcDir, 'bytes.bin'), expected);
+  await E(host).provideMount(srcDir, 'binary-src-mount', { readOnly: true });
+
+  const scratch = await E(host).stageTree('binary-src-mount', 'binary-staged');
+  const file = await E(scratch).lookup('bytes.bin');
+  const reader = iterateBytesReader(file);
+  const chunks = [];
+  for await (const chunk of reader) {
+    chunks.push(chunk);
+  }
+  const actual = Buffer.concat(chunks);
+  t.deepEqual([...actual], [...expected]);
 });
 
 testNeedsNodeWorker(

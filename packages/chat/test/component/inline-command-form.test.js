@@ -1,4 +1,5 @@
 // @ts-nocheck - Component test with happy-dom
+/* global globalThis */
 
 import '@endo/init/debug.js';
 
@@ -10,8 +11,38 @@ import { createInlineCommandForm } from '../../inline-command-form.js';
 
 const { window: testWindow, cleanup: cleanupDOM } = createDOM();
 
+// renderConfined renders through Preact; its menu/effect idioms defer with
+// requestAnimationFrame. dom-setup stubs setTimeout but not rAF; provide a
+// setTimeout-backed shim, as a real browser would (copied from
+// inbox-shell.test.js).
+if (typeof globalThis.requestAnimationFrame !== 'function') {
+  globalThis.requestAnimationFrame = fn =>
+    globalThis.setTimeout(() => fn(0), 0);
+  globalThis.cancelAnimationFrame = id => globalThis.clearTimeout(id);
+}
+
 /**
- * Create DOM container for form testing.
+ * Poll until `predicate()` is true (or a timeout elapses, in which case the
+ * caller's assertion reports the real difference). The confined form body
+ * renders through Preact (per-render requestAnimationFrame + effect flush, then
+ * a host re-parent of controller nodes), so a fixed delay races on slower CI
+ * runners; polling the actual condition is robust. (Copied from
+ * inbox-shell.test.js — a POLL helper, not a fixed tick.)
+ *
+ * @param {() => boolean} predicate
+ * @param {{ timeout?: number, step?: number }} [opts]
+ */
+const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
+  const start = Date.now();
+  while (!predicate()) {
+    if (Date.now() - start > timeout) return;
+    // eslint-disable-next-line no-await-in-loop
+    await tick(step);
+  }
+};
+
+/**
+ * Create a DOM container for form testing.
  * @returns {{ $container: HTMLElement, cleanup: () => void }}
  */
 const createElements = () => {
@@ -37,7 +68,7 @@ test.after(() => {
   cleanupDOM();
 });
 
-test('createInlineCommandForm creates API with expected methods', t => {
+test.serial('createInlineCommandForm creates API with expected methods', t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -62,7 +93,7 @@ test('createInlineCommandForm creates API with expected methods', t => {
   cleanup();
 });
 
-test('getCommand returns null initially', t => {
+test.serial('getCommand returns null initially', t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -81,7 +112,7 @@ test('getCommand returns null initially', t => {
   cleanup();
 });
 
-test('setCommand sets current command', t => {
+test.serial('setCommand sets current command', t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -101,34 +132,44 @@ test('setCommand sets current command', t => {
   cleanup();
 });
 
-test('setCommand renders form fields for show command', async t => {
-  const { $container, cleanup } = createElements();
-  const { powers } = makeMockPowers({ names: ['alice'] });
+test.serial(
+  'form mounts with its child sub-mounts (host-node re-parent)',
+  async t => {
+    const { $container, cleanup } = createElements();
+    const { powers } = makeMockPowers({ names: ['alice'] });
 
-  const form = createInlineCommandForm({
-    $container,
-    E,
-    powers,
-    onSubmit: () => {},
-    onCancel: () => {},
-    onValidityChange: () => {},
-  });
+    const form = createInlineCommandForm({
+      $container,
+      E,
+      powers,
+      onSubmit: () => {},
+      onCancel: () => {},
+      onValidityChange: () => {},
+    });
 
-  form.setCommand('show');
-  await tick(10);
+    form.setCommand('show');
+    // The confined body renders the field, then the host re-parents the
+    // petNamePathAutocomplete host `<input>` into the field's anchor.
+    await waitFor(() => !!$container.querySelector('.petname-input'));
 
-  // show command has one field: petName
-  const fields = $container.querySelectorAll('.inline-field');
-  t.is(fields.length, 1);
+    // The confined form shell rendered.
+    t.truthy($container.querySelector('.inline-command-form'));
+    const fields = $container.querySelectorAll('.inline-field');
+    t.is(fields.length, 1);
+    t.is($container.querySelector('.inline-field-label')?.textContent, 'Name');
 
-  const label = $container.querySelector('.inline-field-label');
-  t.is(label?.textContent, 'Name');
+    // The host-node child controller's input was re-parented into the field
+    // anchor (a real sub-mount, not a confined-rendered node).
+    const petInput = $container.querySelector('.petname-input');
+    t.truthy(petInput);
+    t.truthy(petInput.closest('.inline-field-input-wrapper'));
 
-  form.dispose();
-  cleanup();
-});
+    form.dispose();
+    cleanup();
+  },
+);
 
-test('setCommand renders form fields for adopt command', async t => {
+test.serial('setCommand renders form fields for adopt command', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -142,17 +183,18 @@ test('setCommand renders form fields for adopt command', async t => {
   });
 
   form.setCommand('adopt');
-  await tick(10);
+  // adopt has: messageNumber, edgeName, petName
+  await waitFor(
+    () => $container.querySelectorAll('.inline-field').length === 3,
+  );
 
-  // adopt command has: messageNumber, edgeName, petName
-  const fields = $container.querySelectorAll('.inline-field');
-  t.is(fields.length, 3);
+  t.is($container.querySelectorAll('.inline-field').length, 3);
 
   form.dispose();
   cleanup();
 });
 
-test('isValid returns false when required fields empty', t => {
+test.serial('isValid returns false when required fields empty', t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -172,7 +214,7 @@ test('isValid returns false when required fields empty', t => {
   cleanup();
 });
 
-test('isValid returns true when required fields filled', async t => {
+test.serial('isValid returns true when required fields filled', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -186,13 +228,14 @@ test('isValid returns true when required fields filled', async t => {
   });
 
   form.setCommand('show');
+  await waitFor(() => !!$container.querySelector('.petname-input'));
 
   const input = /** @type {HTMLInputElement} */ (
-    $container.querySelector('input')
+    $container.querySelector('.petname-input')
   );
   input.value = 'alice';
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(10);
+  input.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+  await waitFor(() => form.isValid());
 
   t.true(form.isValid());
 
@@ -200,7 +243,7 @@ test('isValid returns true when required fields filled', async t => {
   cleanup();
 });
 
-test('getData returns form field values', async t => {
+test.serial('getData returns form field values', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -214,22 +257,22 @@ test('getData returns form field values', async t => {
   });
 
   form.setCommand('show');
+  await waitFor(() => !!$container.querySelector('.petname-input'));
 
   const input = /** @type {HTMLInputElement} */ (
-    $container.querySelector('input')
+    $container.querySelector('.petname-input')
   );
   input.value = 'my-value';
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(10);
+  input.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+  await waitFor(() => form.getData().petName === 'my-value');
 
-  const data = form.getData();
-  t.is(data.petName, 'my-value');
+  t.is(form.getData().petName, 'my-value');
 
   form.dispose();
   cleanup();
 });
 
-test('clear resets command and container', t => {
+test.serial('clear resets command and container', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -243,9 +286,10 @@ test('clear resets command and container', t => {
   });
 
   form.setCommand('show');
-  t.truthy($container.querySelector('.inline-field'));
+  await waitFor(() => !!$container.querySelector('.inline-field'));
 
   form.clear();
+  await waitFor(() => !$container.querySelector('.inline-field'));
 
   t.is(form.getCommand(), null);
   t.falsy($container.querySelector('.inline-field'));
@@ -254,7 +298,7 @@ test('clear resets command and container', t => {
   cleanup();
 });
 
-test('onValidityChange callback is called', async t => {
+test.serial('onValidityChange callback is called', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -273,66 +317,72 @@ test('onValidityChange callback is called', async t => {
   });
 
   form.setCommand('show');
-  await tick(10);
+  await waitFor(() => !!$container.querySelector('.petname-input'));
 
   const input = /** @type {HTMLInputElement} */ (
-    $container.querySelector('input')
+    $container.querySelector('.petname-input')
   );
   input.value = 'test';
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(10);
+  input.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+  await waitFor(
+    () => validityChanges.length > 0 && validityChanges.at(-1) === true,
+  );
 
   t.true(validityChanges.length > 0);
-  t.true(validityChanges[validityChanges.length - 1]); // Last should be valid
+  t.true(validityChanges[validityChanges.length - 1]);
 
   form.dispose();
   cleanup();
 });
 
-test('onSubmit callback is called on Enter when valid', async t => {
-  const { $container, cleanup } = createElements();
-  const { powers } = makeMockPowers({ names: ['alice'] });
+test.serial(
+  'primary command submit invokes onSubmit on Enter when valid',
+  async t => {
+    const { $container, cleanup } = createElements();
+    const { powers } = makeMockPowers({ names: ['alice'] });
 
-  let submittedData = null;
-  let submittedCommand = null;
+    let submittedData = null;
+    let submittedCommand = null;
 
-  const form = createInlineCommandForm({
-    $container,
-    E,
-    powers,
-    onSubmit: (cmd, data) => {
-      submittedCommand = cmd;
-      submittedData = data;
-    },
-    onCancel: () => {},
-    onValidityChange: () => {},
-  });
+    const form = createInlineCommandForm({
+      $container,
+      E,
+      powers,
+      onSubmit: (cmd, data) => {
+        submittedCommand = cmd;
+        submittedData = data;
+      },
+      onCancel: () => {},
+      onValidityChange: () => {},
+    });
 
-  form.setCommand('show');
+    // dismiss has a single confined messageNumber field; its Enter handler runs
+    // through the confined SafeEvent path into the form's submit.
+    form.setCommand('dismiss');
+    await waitFor(() => !!$container.querySelector('input[type="number"]'));
 
-  const input = /** @type {HTMLInputElement} */ (
-    $container.querySelector('input')
-  );
-  input.value = 'test-name';
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(10);
+    const input = /** @type {HTMLInputElement} */ (
+      $container.querySelector('input[type="number"]')
+    );
+    input.value = '7';
+    input.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+    await waitFor(() => form.isValid());
 
-  // Press Enter
-  const formEl = $container.querySelector('.inline-command-form');
-  formEl?.dispatchEvent(
-    new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-  );
-  await tick(10);
+    input.dispatchEvent(
+      new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    await waitFor(() => submittedCommand !== null);
 
-  t.is(submittedCommand, 'show');
-  t.truthy(submittedData);
-  t.is(/** @type {any} */ (submittedData).petName, 'test-name');
+    t.is(submittedCommand, 'dismiss');
+    t.truthy(submittedData);
+    t.is(/** @type {any} */ (submittedData).messageNumber, 7);
 
-  form.dispose();
-  cleanup();
-});
+    form.dispose();
+    cleanup();
+  },
+);
 
-test('onCancel callback is called on Escape', async t => {
+test.serial('onCancel callback is called on Escape', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -349,14 +399,16 @@ test('onCancel callback is called on Escape', async t => {
     onValidityChange: () => {},
   });
 
-  form.setCommand('show');
-  await tick(10);
+  form.setCommand('dismiss');
+  await waitFor(() => !!$container.querySelector('input[type="number"]'));
 
-  const formEl = $container.querySelector('.inline-command-form');
-  formEl?.dispatchEvent(
-    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+  const input = /** @type {HTMLInputElement} */ (
+    $container.querySelector('input[type="number"]')
   );
-  await tick(10);
+  input.dispatchEvent(
+    new testWindow.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+  );
+  await waitFor(() => cancelled);
 
   t.true(cancelled);
 
@@ -364,7 +416,7 @@ test('onCancel callback is called on Escape', async t => {
   cleanup();
 });
 
-test('immediate commands render no fields', t => {
+test.serial('immediate commands render no fields', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -378,6 +430,9 @@ test('immediate commands render no fields', t => {
   });
 
   form.setCommand('exit'); // immediate command with no fields
+  // Settle before a NEGATIVE assertion: an immediate command must render no
+  // fields, so there is no positive condition to poll.
+  await tick(30);
 
   const fields = $container.querySelectorAll('.inline-field');
   t.is(fields.length, 0);
@@ -386,127 +441,7 @@ test('immediate commands render no fields', t => {
   cleanup();
 });
 
-test('renders messageNumber field as number input', async t => {
-  const { $container, cleanup } = createElements();
-  const { powers } = makeMockPowers({ names: ['alice'] });
-
-  const form = createInlineCommandForm({
-    $container,
-    E,
-    powers,
-    onSubmit: () => {},
-    onCancel: () => {},
-    onValidityChange: () => {},
-  });
-
-  form.setCommand('dismiss'); // has messageNumber field
-  await tick(10);
-
-  const input = $container.querySelector('input[type="number"]');
-  t.truthy(input);
-
-  form.dispose();
-  cleanup();
-});
-
-test('renders text field as text input', async t => {
-  const { $container, cleanup } = createElements();
-  const { powers } = makeMockPowers({ names: ['alice'] });
-
-  const form = createInlineCommandForm({
-    $container,
-    E,
-    powers,
-    onSubmit: () => {},
-    onCancel: () => {},
-    onValidityChange: () => {},
-  });
-
-  form.setCommand('request'); // has description text field
-  await tick(10);
-
-  const textInput = $container.querySelector('.text-input');
-  t.truthy(textInput);
-
-  form.dispose();
-  cleanup();
-});
-
-test('petNamePaths field creates chip container', async t => {
-  const { $container, cleanup } = createElements();
-  const { powers } = makeMockPowers({ names: ['alice'] });
-
-  const form = createInlineCommandForm({
-    $container,
-    E,
-    powers,
-    onSubmit: () => {},
-    onCancel: () => {},
-    onValidityChange: () => {},
-  });
-
-  form.setCommand('remove'); // has petNamePaths field
-  await tick(10);
-
-  const chipContainer = $container.querySelector('.chip-container');
-  t.truthy(chipContainer);
-
-  form.dispose();
-  cleanup();
-});
-
-test('dispose cleans up form', t => {
-  const { $container, cleanup } = createElements();
-  const { powers } = makeMockPowers({ names: ['alice'] });
-
-  const form = createInlineCommandForm({
-    $container,
-    E,
-    powers,
-    onSubmit: () => {},
-    onCancel: () => {},
-    onValidityChange: () => {},
-  });
-
-  form.setCommand('show');
-  form.dispose();
-
-  // After dispose, further operations should be safe
-  t.notThrows(() => form.clear());
-
-  cleanup();
-});
-
-test('switching commands clears previous form', async t => {
-  const { $container, cleanup } = createElements();
-  const { powers } = makeMockPowers({ names: ['alice'] });
-
-  const form = createInlineCommandForm({
-    $container,
-    E,
-    powers,
-    onSubmit: () => {},
-    onCancel: () => {},
-    onValidityChange: () => {},
-  });
-
-  form.setCommand('show');
-  await tick(10);
-
-  let fields = $container.querySelectorAll('.inline-field');
-  t.is(fields.length, 1); // show has 1 field
-
-  form.setCommand('adopt');
-  await tick(10);
-
-  fields = $container.querySelectorAll('.inline-field');
-  t.is(fields.length, 3); // adopt has 3 fields
-
-  form.dispose();
-  cleanup();
-});
-
-test('getData returns messageNumber as number', async t => {
+test.serial('renders messageNumber field as number input', async t => {
   const { $container, cleanup } = createElements();
   const { powers } = makeMockPowers({ names: ['alice'] });
 
@@ -520,14 +455,140 @@ test('getData returns messageNumber as number', async t => {
   });
 
   form.setCommand('dismiss');
-  await tick(10);
+  await waitFor(() => !!$container.querySelector('input[type="number"]'));
+
+  t.truthy($container.querySelector('input[type="number"]'));
+
+  form.dispose();
+  cleanup();
+});
+
+test.serial('renders text field as text input', async t => {
+  const { $container, cleanup } = createElements();
+  const { powers } = makeMockPowers({ names: ['alice'] });
+
+  const form = createInlineCommandForm({
+    $container,
+    E,
+    powers,
+    onSubmit: () => {},
+    onCancel: () => {},
+    onValidityChange: () => {},
+  });
+
+  form.setCommand('request'); // has description text field
+  await waitFor(() => !!$container.querySelector('.text-input'));
+
+  t.truthy($container.querySelector('.text-input'));
+
+  form.dispose();
+  cleanup();
+});
+
+test.serial('petNamePaths field creates chip container sub-mount', async t => {
+  const { $container, cleanup } = createElements();
+  const { powers } = makeMockPowers({ names: ['alice'] });
+
+  const form = createInlineCommandForm({
+    $container,
+    E,
+    powers,
+    onSubmit: () => {},
+    onCancel: () => {},
+    onValidityChange: () => {},
+  });
+
+  form.setCommand('remove'); // has petNamePaths field
+  await waitFor(() => !!$container.querySelector('.chip-container'));
+
+  t.truthy($container.querySelector('.chip-container'));
+
+  form.dispose();
+  cleanup();
+});
+
+test.serial('dispose tears everything down without leaking', async t => {
+  const { $container, cleanup } = createElements();
+  const { powers } = makeMockPowers({ names: ['alice'] });
+
+  const form = createInlineCommandForm({
+    $container,
+    E,
+    powers,
+    onSubmit: () => {},
+    onCancel: () => {},
+    onValidityChange: () => {},
+  });
+
+  form.setCommand('show');
+  await waitFor(() => !!$container.querySelector('.petname-input'));
+
+  form.dispose();
+  await waitFor(() => !$container.querySelector('.inline-command-form'));
+
+  // The confined mount and all field nodes are gone from the container.
+  t.falsy($container.querySelector('.inline-command-form'));
+  t.falsy($container.querySelector('.inline-field'));
+  t.falsy($container.querySelector('.petname-input'));
+  t.is($container.children.length, 0);
+
+  // After dispose, further operations are safe.
+  t.notThrows(() => form.clear());
+
+  cleanup();
+});
+
+test.serial('switching commands clears previous form', async t => {
+  const { $container, cleanup } = createElements();
+  const { powers } = makeMockPowers({ names: ['alice'] });
+
+  const form = createInlineCommandForm({
+    $container,
+    E,
+    powers,
+    onSubmit: () => {},
+    onCancel: () => {},
+    onValidityChange: () => {},
+  });
+
+  form.setCommand('show');
+  await waitFor(
+    () => $container.querySelectorAll('.inline-field').length === 1,
+  );
+  t.is($container.querySelectorAll('.inline-field').length, 1);
+
+  form.setCommand('adopt');
+  await waitFor(
+    () => $container.querySelectorAll('.inline-field').length === 3,
+  );
+  t.is($container.querySelectorAll('.inline-field').length, 3);
+
+  form.dispose();
+  cleanup();
+});
+
+test.serial('getData returns messageNumber as number', async t => {
+  const { $container, cleanup } = createElements();
+  const { powers } = makeMockPowers({ names: ['alice'] });
+
+  const form = createInlineCommandForm({
+    $container,
+    E,
+    powers,
+    onSubmit: () => {},
+    onCancel: () => {},
+    onValidityChange: () => {},
+  });
+
+  form.setCommand('dismiss');
+  await waitFor(() => !!$container.querySelector('input[type="number"]'));
 
   const input = /** @type {HTMLInputElement} */ (
     $container.querySelector('input[type="number"]')
   );
   input.value = '42';
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  await tick(10);
+  input.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+  await waitFor(() => form.getData().messageNumber === 42);
 
   const data = form.getData();
   t.is(data.messageNumber, 42);

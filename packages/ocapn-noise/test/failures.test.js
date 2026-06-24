@@ -113,7 +113,7 @@ test('encryption fails when message is too long', async t => {
   responder.responderReadSynWriteSynack(prefixedSyn, synack);
   const { encrypt: initiatorEncrypt } = initiatorReadSynack(synack);
 
-  const longMessage = new Uint8Array(65535 - 15);
+  const longMessage = new Uint8Array(65_535 - 15);
   longMessage.fill(0x42);
 
   t.throws(() => initiatorEncrypt(longMessage), {
@@ -156,7 +156,7 @@ test('decryption fails when message is too long', async t => {
   );
   initiatorReadSynack(synack);
 
-  const longMessage = new Uint8Array(65536);
+  const longMessage = new Uint8Array(65_536);
 
   t.throws(() => responderDecrypt(longMessage), {
     message: /message exceeds maximum length for decryption/,
@@ -170,7 +170,7 @@ test('encoding versions are validated at construction', async t => {
       makeOcapnSessionCryptography({
         wasmModule,
         getRandomValues,
-        supportedEncodings: [65536],
+        supportedEncodings: [65_536],
       }).asInitiator(),
     {
       message: /encoding versions beyond 65535/,

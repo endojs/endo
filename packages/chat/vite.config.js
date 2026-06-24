@@ -10,7 +10,7 @@ export default defineConfig({
   base: './',
   resolve: {
     alias: {
-      // `@endo/endo-fs` reaches `node:crypto` through its content-
+      // `@endo/platform/fs/extended` reaches `node:crypto` through its content-
       // addressed snapshot helper. The file explorer never
       // materialises snapshots, so a small browser stand-in keeps
       // the bundle buildable without pulling a Node polyfill.
@@ -31,5 +31,11 @@ export default defineConfig({
   server: {
     port: process.env.VITE_PORT ? Number(process.env.VITE_PORT) : 5173,
     strictPort: false,
+    // Allow access through a reverse proxy (e.g. `tailscale serve`) that
+    // forwards the tailnet hostname. Defaults to any *.ts.net MagicDNS host;
+    // override with a comma-separated VITE_ALLOWED_HOSTS.
+    allowedHosts: process.env.VITE_ALLOWED_HOSTS
+      ? process.env.VITE_ALLOWED_HOSTS.split(',')
+      : ['.ts.net'],
   },
 });

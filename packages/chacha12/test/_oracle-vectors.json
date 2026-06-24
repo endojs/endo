@@ -1,0 +1,293 @@
+{
+  "_format": "ChaCha12 cross-implementation oracle vectors. Each entry's `keystream` was produced by every implementation in `sources`; the consensus value was emitted by all reporting implementations byte-for-byte. The fixture is consumed by `oracle-vectors.test.js` to assert that @endo/chacha12 matches the cross-implementation consensus.",
+  "_implementations_surveyed": [
+    {
+      "name": "rustcrypto",
+      "description": "RustCrypto chacha20 crate (ChaCha12)"
+    },
+    {
+      "name": "c2-chacha",
+      "description": "c2-chacha crate (DJB ChaCha12, IETF-mapped)"
+    },
+    {
+      "name": "rand_chacha",
+      "description": "rand_chacha::ChaCha12Rng"
+    },
+    {
+      "name": "noble",
+      "description": "@noble/ciphers chacha12"
+    },
+    {
+      "name": "python-pure",
+      "description": "Pure-Python ChaCha12 (RFC 7539 transcription)"
+    },
+    {
+      "name": "c-djb-ref",
+      "description": "DJB eSTREAM reference C (rounds=12)"
+    },
+    {
+      "name": "js-rfc",
+      "description": "Independent BigInt JS ChaCha12 (RFC 7539 transcription)"
+    }
+  ],
+  "vectors": [
+    {
+      "id": "key01-counter0-1024",
+      "description": "Key = 0x01 repeated 32 times, zero nonce, 16 blocks",
+      "key_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 1024,
+      "keystream": "3301e8d7e754db2cf57b0a4ca73f253c7053ad2bc5398777ba039b258e59ad9dff0e2c7652187dadf95a37b6c44327c0d2bab5ba3820f0f8984fbf706fa435493b713e9f2aff1b587314ba32d65b90fdfb58a4b4783b18c099ef2a95397c437561852b146623529e0e5b5c50643672d7c9a2ccf923c5d1f0232a5d9b23e23afbb9b5d59725d3540ce7c27429a3a6f9420cc9da7c283be186c0bd86e80dbb31a81aaa2b345435e07c804eb505ab7bfe1b773977c7fede39f346c1c65d07f2fa476d5f4727a0d7dc43cc60243faadbb5c2ad49af2703a79835734cee1c4d9062c81f946a021a7d79ff75ebfe1f1e2303a6f871a1fbcc9bdfbec9f5e8256d255b391a0941f6e071c94c23b0bdecc5cbdf648a2c4df9e3ef35a6c2d733865466e92a091ffc4e9959faadc705de2b6e8ac1730b6b7e62ac19b50be5060ec25fa09c08d831c379064fdd6e25e030247feb7cc91fb15f4b6c7177ace92db6990c13e4af55f2792958aa069497657c706a990093daf76f99485b139cad931b2f2acb03e5fb8f78e031a19e2e5e2418afaf8e3760b9b3b2a441d63bb2689060160ec9c169dd7189d8f1dd527db5711cbee12256aed18215a748e20b3f959328279d2582e8a19f2b0c11c4cfd1ee5a3cb8bcfb45492f3f5f0ef40a55748ca8e56c40b9fb56e98d0ede23e135dc405aa0807e3d966fa4cb3ec15affdf1a66ababa5d4965a1d6e121b588627e963ddc53dbb8dcb4b3aebe364db14dd60ee687f9dcf73a27bd6e80c3433c054a121fc874e20b1b1fd2fb51648372a35c416f3f85153813c1f1164cb1666102491554187f831f08e58618f1d5e6cf860acbcf850192d0b3a6b6eab8b55c768b74558187aeb9f65e80fa9ada342dd7ced9d2ca531484a2d4cdc66e12c3bcf7666c3f171733ec4b7d7a20b90270cdabcb315f9a46197e89c56cd79b9f2a259eaabd0d4b7de3a12e3864bae7e2c8185cf3a57d93a94f1d0fe4c82291a9d4a44b64986bcde41529c6d0bd1bde75d96b4eba77a06c97d13fe03899668533f3953d002fea69209cfb41ff91ea75a493f629aa139e9188fd21118f86603ddc3bcd1369fe67375d8ba71e614fd5b460ef4368f4f4131f49ad1bc8e0197e992221722e8104b5841b3ba03aa3b25773545c2e15cc1c4b3512c231396169d191fabd082c9babb5b0f2169b02ba888629f426993bf08a767ca12f2fa69185b81a4ea2a6ee17bfa9896f5ccc87fa61a2dd19a5edb5a7a94bbb21b2e2938f41f7ead8ace1ae0f4ef1e3d39be28530b99e4b909f5ec3e3f4c18ced5f34a0c68c0cc09d08be93601c1eb14be263048dcad833867971b675389b48afd2719a8cf3803b131a0a9839b0ae2de8b55dcd7d79a8b56d870d81ceb644020f6e0260ffd9f66501166cc89f0e6064163eb573f5c8be38e49dd0a3251600e474c0177d228d9c2",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "keyff-counter0-128",
+      "description": "Key = 0xff repeated, zero nonce, 2 blocks",
+      "key_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 128,
+      "keystream": "8635f9eed93699b5dd0c471dacc22bf1978aaeda48345d2c646ad8bd3cd6a52d58082168f1d2de099a170d5f5cb2de4b6de731471428491592941c2ff9f2f95bc155dedbd1b24ad6b9cdf21bcc8e2864128b9737c3657b43ddeb451d73ba8979184c0b8f07ae43a790c40842457a790f90547d345edf64fdaae303dbf1daf920",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "rotating-counter-mid-64",
+      "description": "Same key, counter at 2^31 (mid-range block boundary)",
+      "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 2147483648,
+      "length": 64,
+      "keystream": "77b29cc6e5ee769976e81430717297fd1501436b94fa96b6ef6d320e3dc7f85c60102f8485defe4fe89c965ae7630d01583c34cbfcfaad48b376d7794c0a7784",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "rotating-counter-near-max-64",
+      "description": "Same key, counter at 2^32-2 (last block-pair before the u32 wrap)",
+      "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 4294967294,
+      "length": 64,
+      "keystream": "dd3b525fd2385c76b625428bb6738f6ad00d337a7302b56d100704fc9eef06d35360d1430f8e5a2aee679833224e2e06069c9dabd555f21a634d5dd4ee843e2f",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "rotating-counter0-4097",
+      "description": "Rotating key, zero nonce, 4097 bytes (cross multiple blocks with non-aligned tail)",
+      "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 4097,
+      "keystream": "f231f9ffd17ac65e4405f325d7e940aa4913601fc2be46bce9c3cac3d91a1a365940b308c2857c9f29d6e2548528d49a612b1b0ae6765d16e585aefb463688796cfa9aa0833b72e0db5c15523dd18346358e0ceb2e1b6448049d30327eee851622c65ea358aab7d50d49d2d9151bebc0d9d4261f48cc6c657f8a2b3ce7e08f88fe769153ca48a6f44c778ee379c8783d035da5d9969d22db0209962b74d41715b335ddd9bc9c6d374448c3be176d97871118fef03017bf1702201e35cccdf04145678a22ab58e907ab41780ba4675d0750688c7c3b06579e180c27629b33827be633b89bd5039035393a9866cbb09f00135c36fa5794f5457938255a2166624ba56ae9567476535db047d1da0440e9ade94e5f467f2df0f3316491d53fce2cc01f48ff77045d0ee5b50cd511940450536fec7b831c322fd0329960b6d1dc076381899a71c45a8b21d3f0a9fadd36c29bac5633a38dd34f413f0c11b422e60996013940a2272bd662f7184825d8c846dfcb566bff6c37336e1cf72548df0a999c9652a94e769d480fbbe917843684e8b8b710031bd9762d222779f117e0294e97830a91900b1526fd1960dccc2249f8e8ea5bd4079f975b4ca5babdab4a885c305eea95a692f7ef2ddeac8886c5a247c5a00d798213155a354d19247f53e632a5349deb7f1f14736c39e3343387430114c1d9006188cdb005aa1684d79057206d1d8e28722967dd66c9e006a1dfabd3b8a4a9b66b2cec6a342adb2856e04c95e6dc3f9b6d838a8221ebbe1450d0115c07270244988471357e4c92acdad15c2587443e14af47955eac7bd46c0e9095818263508adf8107734e40c3fc4a6959cbf8532ff1187cb9152276aec18e52b344f99f4d4f11575fcd25a9f34757d6dbb6f89219cffcbea045272376f1838d3c1b5da88f8c6ffaaf4eaae5d4b9aba9992fb89c53f4f9a48d36432823283b4245d2bae058e88b7373eec3a93a5daef4530fcb7376579aec91e53379af2deef83c8f1a6f5c8bd414bb68de5b33bb409328c618086cc4af3ff6ac3980ce7466209735a3e8b843bbfdbde046cce2112ae3d83a56e9a0ee93c8a08ee6b05ba2fda207493596b9a6022ebf9fd90888124afe0124037adff4a6868533153cfe3667be8d8f1ac19ec9d87953965a61d1f4dfe71910536c24dc226becbbc1251acbf40f5ae006e344a18ee8febf3502982c31da1bdfac4eb35f00fcad7d6362ce5b38574078b5dc90d29dc516d688df192e35031a82d9feb4bfef5714294039ffa607776c89ddfaa956627868f5bef8abd01260ed9c5660867171f2e200f91e3068ed8ba862e505c7cbbd1e77f551352edfb019974c40272b790ef99c04dc48049ad7b57246967725b8955faaf8c438c02719baabeb06c698f754b4a412c82c2f8fd2692b5831e117e5a931ce30ed7a6c8bb6b912b8a431b3fe797a9a77e49016f8560be90f46fedf16a65230b65bdd1bc434ce02cba8c5e88664316ce874c9af436d3f3d3948ed63ff210577ec11c7142fb1e0ab89955c4452e06d03ec5876ef00d45a39286fa621aa6f382f8c0f20b15fc9a7e480e749b5b4aa0ff7ed11a2c23af39ed394f7d318fd1df0131c4358bf3c1db53f349d55c62e76249e17a4154b9ea5f1f3b008c07e5b4f871ce2d327b97b031f2c27dcb77b1c7ca3d188c8c51d1991b3776b6e31ec4a276afe06e6c6668e8ae9d3fb8efc26e5448b03955951de4fd3f5a12d76924fbb73f4fc3753b44748b1bf429a3227e15fd0b60635cf297fb1532f1d35e2ba2f6734169f777d382e818d46782123c81860d9a342b37231df71807eb444e5be0745a7979b81fab4705747e719c87d38a9941b6081d1ecd2594233ea6eb850c08b222124a3c60be6dfaf92b3cb29775398322894385ce1de3d33b2b4b2f9661dcfb5f8e0b7a85aefa0f9c410de95d8e3ac4278a23667ac04bc3118057931cec53b386082988f329ed10dbce64bc55ff8b6337078b55fa9d7448b62c1279e401b09e8f8faf1efdaeb58b4e6e837be6349e7f7bfce252f1fb0232769c7495dfe91cbcdeabe8a83b7817a6aa0366492c4f15ac5215b0489cc1ad279d511be35ae96cf61ee7cdaade83a54860cb8c69765b1357c144ed704947ee13c74e46e9ef19bcf0a6e3fbd6a8ffc3748b6dbcacace7442b43b1f39dde1c94977b84e98c74b5b11611f6fed3b79c74c187c792e9aa0ede5912a501479bf40b7bb5e2ff4b0d15023d295c3b2d23660dcf28a9d7575a6686fb7b9f1262d075054130052d7fc5db41ce2217dad497a69a423d198de2b580146d20c29a16975ff792ca4d3980920141886cafcb53513949f5f51049d2b21ea96a1d3df3db66972369c36ee24195a96d01579a45e7dcd2cebea0eecefd5b90aeabe66ca77578537c192f92e3e4e4434f420f7bd761f0bfd30717bd2f4624f117373f39088afe396f8eadffbacefdf5d77306632376b8e2694d5d4498302a16fa4dc371d06bf7bfa1881e2bca953664f1162eb50191c7ad56be8e943c25ceeebb48dc9afd19731533c58fa0f9239b414847c30b1812a0de601cfc38ff650b989dd72a12f518a9388168418315e65917926b8880480387cff9152a36c335031e67882dc4a509bb374f7651543473e29553813f17b2782c1ab3e7bf7bd5bc95546e211b1ea7e55f016c7d2ff4c07a552f999735f5f4a494776d7595fd8ecce30888ac11a994c8d99b7ce93f039fcbf4cfae391c50ef8de6547b95073d775496972d99397d9d13f95999e3a3f54ee6bf80d45d63d9a2c5a8407196584f99f86a8c3cd5876113ee3a598d71f282f1e69cfe0d6cd00464bf5d3e1eee92daf26a73a236348b460668daaf908b5ebe0c9ef9e7fc1ba447b9bcd6aa55b4bf3dd0ab5221b8a405c1b49678b7cf9341438e79fa098751d9564669e7b245134f540f7c1bf818d929876f80006d299650ec9da00b9550d2467d42fbeb0720495ddf4eca9070e75b9ea8dc4f655dbf3ae51b465e01986d68998678205ceeec8115ce7fa29912480e4dcd8ae6a1d862d274b7fdb718a7559127e9d9b8040854e77d0ea5d9d8d8eb020135517f339d541c46e5c546c5477b33eebef13a028e56a336c4452ab28f5eae4aa73982ca44b5d967b1a04a9a02c50b83fc284131498a8d622c09860d216fe515ef409ef5cf180d1dd9fd08f6dab9da270092bf6d7a465d9074a9d2df97abd43ca062b98fcae7a8374df1c310b3bbea42e4cd7a64c91a9627c48028125d2ece9c98ffb7328cd6d1c34c720af8ab5150e17f9d4b05957662c097651a8919c74d20996404a5b2cf61eaa96013fe4c6e7d05bd7ba9566681bfb92783718a902a8965867e54157c01c5bc813d5f191e59f7e62997790c150e2706777f15766556954b347910fd801a132644d72fbe4a0fcd969060b77431daf8c0ea5c26e9c564338ae259ff91a4755f36d76ca6822aabd204a50a1cfa72f27186aa13f211f049d88c50acf3601923054dc50e74a4e5ad4d82fa0c6cc92b83725ec6cd4a790e1ce84224558a3be69a3bacd22ab763325d7cd68c9351c70ff833a1c6d2120fbef050b86e95b6490d82082e98a1af3c20cd75e0c72f25395cdb72ebbc3333cc4575aa7471c405ebbe0657659adf209b27ebfeb36e3793571152af912f7b490ba930ae2f4994af445fd4efb15f406f0eb38d1d7512d833389ce99c6b529dcd437e421ae0340daf12b5168ecc8ae8d5ebd71e59443e66b12d4c21e4ace65688c9b68aa93f9eb2e2956d47c1f904356766afca75875008f5c94e4d3ee45159357b8f66c34bfd70e53a85d43008084effaecea0c36fe71b1a9c841746abef58b0cc1bcc84666e11c29e84c0dae3e4c385403201b7768ad52e2bb6fc909ed1009de167d73000677c9dcfbacb33fa92c48db6eaddc0eca65c14ed29599562ab8d61a4e7aa4db7985941c96ff8e02a287fbbad158c289d33137c1cd9a1ee8f6e09b29130b36b586c578ee93ad677b2e38d62a44e657db114dd22ed37a586e33a34e81c0565f187438be836e40d14168efd48c79d5cc9e6b0f6b74231e11797048ef622ee79c1faf128ce22964577407468537442a825c4fdf06402873d38fc2766165ae5b4b059f358d84cc2c2b4a2ebb400ccf817aa87a91bee0de1549e51d54a1a2c91599f42b947154e7a366ea7d3f6e3265768cb31a562f9fdd1df14ce4ed4d84c6f774e60d4e69d1a77642d8768ad04e5291c0915af40a0f94afdd5e5470904b32eeda21818b675be4d155eba076b68252da856a3e6144d73644db128c369e2dd4f23e767ba9cc12d6ab46b4aadc520db0bb5cbb474d63cab106921d736c49f22c58faff78e3d2a13d17dd54fcf10d12b37d30de9292d8ec2eafcc53eafdb5f6de419397da5e28e0adeb7418b38e1d86a3e07c174303c7088a57c1058df48643d23bb23f62d9bd1aed8b3ff3b83a0bdd5d819b0e85abf816dd1d33567aa079a636fec909f1d0de3af050462cb1ea5d4f273a5c11f6dcaca2e2d1c20673a461e551fba417b5a5206394f9afef1ee5c483447526ad2db21141cee5db258871b1280013ac3a52d33da0822de914514cbc851e0451042cb27f0dc004c392016767b5e16b9ff493de53fa1e12b4acc9eea5f4ef1aa685e9798e6fe435e0f8ed0a1c1cc3059ba1b8f5d0925c6a26a0c08372e7e356d70a978434e0f3145a4f161e7c5a9f7f7641b77e9f482f70a12a1e144b25645044d12e1358c4bef4602c9fc9e8f114b310f9bf9e8cfbdab547a8e0e6cdac3aff89c8e6147b1f6ea194258fd07ce7d2adcbb5fdfbf754df27c1151752f509ccaf71169c25817a179cbbad6ca7bac2be6cf1f41b01ab9252b5329ef061d4ef34fe64d1b2ed1e1a0a4fe0ab783f60857520ffdb2c782c54d7fdb5a36894a37c6871179004d57675031892ec0d01b851ec35b641bf1539ae65bb4c4e2392f79be098f1231f3cf8416bc4ec1bc39e73ae78a82c6099b3375039097f4eff2cb9fba27344dd87cadb951cc2f1678cc321d51c74d3f5b84c8c2890c4e944a1b9dd940b04ded3aa9f73e509f2dc7743f2b54e7eef09affc3f440f13730d584925cd19bcedcd0c9b2d30f16b057771af3ab597e22421ceb2fc2fd107e25d4d7a775040e9df7fc013802c2cbd7cb23252e0b0ee4367d322f119b6eb85b44fe2f8f04a9c7372d7cae2daf78cbf2cfb2e88edf24215306e6bc823132778e29094fdabfae2d7d087fe74f776a6953187b19b2437d40022602a50e5cf3c4ed6fec6729ff5a2e63ef0a4ae752423ec793f518d697be4c29e4418e5acc20e6de3daf89b6759c17b380e27201dc78c278126c0e545cb14a66801d19aad1899e3e464a9e3dc004448e2bd8c5873af3ca5e598a9039a47edb98680135c6eef08498057468f50c2b1f06cd7599c5c1c4302e5ee591caa97d27f809fee20e32502989781738029549f620501169c0e4822d646a70d17389071c6e32d72293aa1e6ded0ff2f9e6a9c44a52e1213f5c2c676035fb3097d8d7d28c54cebc8169334bfe81a30ef8a5656254fb42132acf4fa0cb78d032419fb72919685165ebfa3518cb2968acc3a3879359e522058d9887c559c6e3f361f2c817b3391ac7704c31fa8cc6f0c0327776951092707c46171fa31627724a5dbd708cdb7b1c657320fc5db5da96351cecbab764ba7bc9d64223e324e2ecc7afc52a0482675cc3b84d18fea1213001c9d461509cf10337016f5027079b7c276a857e4d6981b95421a6a3ef6eeb3fb6ed156f3cf9fa95bedbfd34ba1182ec5b773631daa597f",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "rotating-counter0-64",
+      "description": "Key = 0x00 0x01 0x02 ... 0x1f, zero nonce, one block",
+      "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 64,
+      "keystream": "f231f9ffd17ac65e4405f325d7e940aa4913601fc2be46bce9c3cac3d91a1a365940b308c2857c9f29d6e2548528d49a612b1b0ae6765d16e585aefb46368879",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "rotating-nonce-counter1-256",
+      "description": "Rotating key + non-zero IETF nonce, counter 1, 4 blocks",
+      "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce_hex": "010203040506070809000a0b",
+      "counter": 1,
+      "length": 256,
+      "keystream": "653a01a000e30fb0eafb628a2a68c659f41b9f51998da89373a0e64c213a6412446cbac83db66d67ac70296c47b8c5ee0698e9647f72d42a4792d1450d082c0ee54c071d536e82462330c5248a360669c9ef4b026257987f8b278aeb22ab071eb108a147358cf29a3014d14fe046feb43cf528cd2091c963b540f981669385ddc790645a8da24005e37b71c092f20e69ce8a514eeebb16ff7a04a2a224cda0353d75e794697c1566d59cdefa8ef763e25418cd1592d923dbecf0dff9afa75994bf2a5f36fe837acd32337c22ed2733f0803f60e5e86ea211bee24d4834e8680e2aef45934ada643b531da37abbd6be86a884c1b39ea61a9346b4ab3a2b974a1a",
+      "sources": [
+        "c-djb-ref",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "tc1-128",
+      "description": "All-zero key/nonce, counter 0, two blocks contiguous",
+      "key_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 128,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC1 blocks 0+1",
+      "keystream": "9bf49a6a0755f953811fce125f2683d50429c3bb49e074147e0089a52eae155f0564f879d27ae3c02ce82834acfa8c793a629f2ca0de6919610be82f411326be0bd58841203e74fe86fc71338ce0173dc628ebb719bdcbcc151585214cc089b442258dcda14cf111c602b8971b8cc843e91e46ca905151c02744a6b017e69316",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "tc1-block0",
+      "description": "All-zero key, all-zero nonce, counter 0, one block",
+      "key_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC1 block 0",
+      "keystream": "9bf49a6a0755f953811fce125f2683d50429c3bb49e074147e0089a52eae155f0564f879d27ae3c02ce82834acfa8c793a629f2ca0de6919610be82f411326be",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "tc1-block1",
+      "description": "All-zero key, all-zero nonce, counter 1, one block",
+      "key_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 1,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC1 block 1",
+      "keystream": "0bd58841203e74fe86fc71338ce0173dc628ebb719bdcbcc151585214cc089b442258dcda14cf111c602b8971b8cc843e91e46ca905151c02744a6b017e69316",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "tc4-block0",
+      "description": "All-ones key, all-ones IV (DJB IV maps to trailing 8 bytes of IETF nonce)",
+      "key_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "nonce_hex": "00000000ffffffffffffffff",
+      "counter": 0,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC4 block 0",
+      "keystream": "04bf88dae8e47a228fa47b7e6379434ba664a7d28f4dab84e5f8b464add20c3acaa69c5ab221a23a57eb5f345c96f4d1322d0a2ff7a9cd43401cd536639a615a",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "tc4-block1",
+      "description": "All-ones key, all-ones IV, counter 1",
+      "key_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "nonce_hex": "00000000ffffffffffffffff",
+      "counter": 1,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC4 block 1",
+      "keystream": "5c9429b55ca3c1b55354559669a154aca46cd761c41ab8ace385363b95675f068e18db5a673c11291bd4187892a9a3a33514f3712b26c13026103298ed76bc9a",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "tc8-block0",
+      "description": "Random key, random IV (TC8)",
+      "key_hex": "c46ec1b18ce8a878725a37e780dfb7351f68ed2e194c79fbc6aebee1a667975d",
+      "nonce_hex": "000000001ada31d5cf688221",
+      "counter": 0,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC8 block 0",
+      "keystream": "1482072784bc6d06b4e73bdc118bc0103c7976786ca918e06986aa251f7e9cc1b2749a0a16ee83b4242d2e99b08d7c20092b80bc466c87283b61b1b39d0ffbab",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    },
+    {
+      "id": "tc8-block1",
+      "description": "Random key, random IV (TC8), counter 1",
+      "key_hex": "c46ec1b18ce8a878725a37e780dfb7351f68ed2e194c79fbc6aebee1a667975d",
+      "nonce_hex": "000000001ada31d5cf688221",
+      "counter": 1,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC8 block 1",
+      "keystream": "d94b116bc1ebdb329b9e4f620db695544a8e3d9b68473d0c975a46ad966ed631e42aff530ad5eac7d8047adfa1e5113c91f3e3b883f1d189ac1c8fe07ba5a42b",
+      "sources": [
+        "c-djb-ref",
+        "c2-chacha",
+        "js-rfc",
+        "noble",
+        "python-pure",
+        "rand_chacha",
+        "rustcrypto"
+      ]
+    }
+  ]
+}

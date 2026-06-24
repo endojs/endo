@@ -9,11 +9,13 @@ import crypto from 'crypto';
 import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
-import { makeReaderRef } from '@endo/daemon';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { E } from '@endo/far';
 import { withEndoAgent } from '../context.js';
 import { parseOptionalPetNamePath } from '../pet-name.js';
 import { randomHex16 } from '../random.js';
+
+/** @import { PassableBytesReader } from '@endo/exo-stream' */
 
 export const makeCommand = async ({
   filePath,
@@ -44,8 +46,12 @@ export const makeCommand = async ({
   }
 
   const resultPath = parseOptionalPetNamePath(resultName);
+  // A slash-delimited powers name references powers nested in a
+  // directory; the parent directory must already exist (as with
+  // `mkdir`, `store`, and `mv`).
+  const powersPath = parseOptionalPetNamePath(powersName);
 
-  /** @type {import('@endo/eventual-send').FarRef<import('@endo/stream').Reader<string>> | undefined} */
+  /** @type {PassableBytesReader | undefined} */
   let archiveReaderRef;
   /** @type {string | undefined} */
   let temporaryArchiveName;
@@ -64,29 +70,39 @@ export const makeCommand = async ({
       moduleLocation,
       { parserForLanguage: sourceParserForLanguage },
     );
-    archiveReaderRef = makeReaderRef([archiveBytes]);
+    archiveReaderRef = bytesReaderFromIterator([archiveBytes]);
   }
+
+  // A slash-delimited archive name references (or stores) the source
+  // archive nested in a directory; the parent directory must already
+  // exist (as with `mkdir`, `store`, and `mv`).
+  const archivePath = parseOptionalPetNamePath(archiveName);
 
   await withEndoAgent(agentNames, { os, process }, async ({ agent }) => {
     await null;
     // Prepare an archive, with the given name.
     if (archiveReaderRef !== undefined) {
-      await E(agent).storeBlob(archiveReaderRef, archiveName);
+      await E(agent).storeBlob(archiveReaderRef, archivePath);
     }
+
+    // A slash-delimited worker name references a worker nested in a
+    // directory; the parent directory must already exist (as with
+    // `mkdir`, `store`, and `mv`).
+    const workerPath = parseOptionalPetNamePath(workerName);
 
     let resultP;
     if (importPath !== undefined) {
       // makeUnconfined is unconditionally Node-scoped; default to
       // the host's @node worker when no other worker is named.
-      const unconfinedWorkerName = workerName ?? '@node';
+      const unconfinedWorkerName = workerPath ?? '@node';
       resultP = E(agent).makeUnconfined(
         unconfinedWorkerName,
         url.pathToFileURL(path.resolve(importPath)).href,
-        { powersName, resultName: resultPath, env },
+        { powersName: powersPath, resultName: resultPath, env },
       );
     } else {
-      resultP = E(agent).makeArchive(workerName, archiveName, {
-        powersName,
+      resultP = E(agent).makeArchive(workerPath, archivePath, {
+        powersName: powersPath,
         resultName: resultPath,
         env,
       });

@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-05-18 |
-| **Updated** | 2026-05-20 |
+| **Updated** | 2026-05-29 |
 | **Author** | 0xPatrick (prompted) |
-| **Status** | Proposed |
+| **Status** | Proposed (Phases 0-5 + bulk-archive landed via #364/#365/#367, hardening via #371) |
 
 > **Read in order.**
 > This is doc 2 of 3.
@@ -626,6 +626,8 @@ Remote repository interaction is still required for an agent MVP; it is specifie
 - No raw git command passthrough; no public config mutation.
 - No push, pull, fetch, clone, remote mutation, or credential helpers (those live separately on [daemon-git-remotes](daemon-git-remotes.md)).
 - No hooks, aliases, external diff, fsmonitor, textconv, custom filters, merge drivers, or signing helpers unless a future explicit capability design authorizes them.
+  Repo-local executable filter / merge-driver config is verified absent before each mutating worktree operation (`add`, `restore`, `commit`, branch create / rename / delete / switch, `detach`, `switch`, `merge`, `rebase`, and the worktree-touching `stash*` verbs).
+  Read-only inspection methods (`status`, `diff`, `log`, `show`, `revParse`, `branches`, `currentBranch`, `stashList`, `stashShow`, `tree`) dispatch straight to the backend and do not re-check, because they cannot invoke a filter or merge driver in the first place.
 - No accepting arbitrary host paths; all path-bearing operations consume `EndoMountEntry` values from the same worktree mount.
 
 ### Read-Only and Snapshot Interactions
@@ -761,6 +763,27 @@ Complete the required phases from [daemon-mount-capabilities](daemon-mount-capab
 5. Retire path-configured wrappers after the capability path is exercised in real workflows.
 6. Land the structured-shape phase (Phase 7 of the Implementation Plan) alongside `*Text` siblings; migrate in-tree consumers to the structured shapes.
 
+## Implementation Progress and Notes
+
+This section records how the design is realized in shipped code.
+It is not part of the normative design.
+
+### Shipped
+
+- **#364** (`feat(daemon): Git capability over EndoMount`) — Phases 1-5 of the Implementation Plan: `GitBackend` contract and `git` formula, local inspection surface (`status`, `diff`, `log`, `show`, `revParse`), local mutation surface (`add`, `restore`, `commit`, branch operations), integration workflows (`merge`, `rebase`, `stash*`), and the read surface (`tree(ref)`, `readOnly()`).
+  The native backend ships as `NativeGitBackend` with the hardening envelope from Design Decision 4.
+- **#367** (`feat(daemon): archive immutable Git trees`) — the bulk-tree-data-plane optimization named in § Bulk Tree Data Plane.
+  Adds an `archiveTar()` method to the immutable-tree exo that streams `git archive --format=tar` of the tree's commit, plus a daemon-side tar parser and a pull-integration fast path that uses it when a remote-tree reference advertises `archiveTar`.
+  The advertisement is detected at runtime: remote trees that do not implement it continue to use the existing per-entry checkin path, so the bulk path is a strict optimization.
+  The tar parser obeys the authority and validation rules in § Bulk Tree Data Plane: archive entry names are treated as untrusted input (absolute paths, `..`, NUL bytes, duplicate entries, and unsupported modes are rejected), and extraction is performed by trusted code into CAS formulas without giving the guest a destination path.
+- **#371** (`fix(daemon): correctness and authority-boundary fixes for the git capability`) — correctness and authority-boundary hardening on the shipped `Git` surface.
+
+### Forward-design notes
+
+- The pin algorithm's caching/throttling (Design Decision 7 § Verification cadence and caching surface) is licensed forward-design, deferred: it is a backend-private optimization the contract permits but no shipped code has taken up.
+
+Fix, test-coverage, and legibility follow-ups on the shipped trio code (issue #378) are tracked there, not here.
+
 ## Open Questions
 
 This trio's open-question debt has been resolved into the Design Decisions below.
@@ -822,6 +845,12 @@ No open questions remain on this document; revisit if real implementation surfac
 
    **Re-pinning** is a host-side operation: the host can re-derive `Git` with a refreshed pin.
    Guests cannot mutate the pin under any path, including the unborn-to-non-empty transition above.
+
+   **Verification cadence and caching surface.**
+   The contract above runs the pin algorithm — `git rev-parse --git-common-dir --git-path config --git-path HEAD`, a read of `<common-dir>/config`, and `git rev-list --max-count=1 HEAD` (or the `EMPTY`-sentinel path for unborn repos) — on every operation, before the operation dispatches to the backend.
+   That per-operation cost is a concern in hot loops where a guest fans out many small reads (`status` per file in a watcher, `log` across a directory of pet-named worktrees, repeated `revParse` in a UI refresh).
+   Caching or throttling the verification — for example, an mtime/inode short-circuit on `<common-dir>/config`, a TTL-bounded memoization keyed on the canonical pin tuple, or an invalidation hook tied to host-side re-pin operations — is permitted as a backend-private optimization on the same contract as Design Decision 10 (Bulk reads as a backend data plane): callers cannot observe which strategy was used except through latency, and the fail-closed semantics above are preserved regardless of cache state.
+   Adding the caching/throttling itself is **out of scope for this PR**; the optimization is licenced here so the future implementer and reviewers see the cadence concern was acknowledged at the surface that introduces the pin.
 8. **Read-only worktree mounts permit inspection + immutable trees + `worktree.snapshot()`; reject everything else.**
    A read-only `Git` can be obtained two ways and the two paths produce the same authority shape (see § Read-only construction paths):
    - **Writable→readOnly path:** `await E(git).readOnly()` returns a read-only attenuation of a `Git` constructed from a writable mount.

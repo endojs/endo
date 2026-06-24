@@ -1,5 +1,30 @@
 # @endo/daemon
 
+## 3.0.0
+
+### Major Changes
+
+- [#3204](https://github.com/endojs/endo/pull/3204) [`291e224`](https://github.com/endojs/endo/commit/291e2241bdb25ce10045f2f972496b4ffe43dd05) Thanks [@gibson042](https://github.com/gibson042)! - Detect truncation of Unix domain socket paths
+
+### Patch Changes
+
+- [#3171](https://github.com/endojs/endo/pull/3171) [`c372670`](https://github.com/endojs/endo/commit/c372670c6ff21771b37b2c11b9f82552eed7a94f) Thanks [@turadg](https://github.com/turadg)! - TypeScript 6 conformance: public types in `types.d.ts` are now more precise.
+  - `Context.thisDiesIfThatDies` and `thatDiesIfThisDies` parameters tightened from `string` to `FormulaIdentifier` (a branded string type).
+  - `RemoteControl.accept`/`connect` and `RemoteControlState.accept`/`connect` take `remoteGateway: ERef<EndoGateway>` (was `Promise<EndoGateway>`); `RemoteControl.connect` now returns `ERef<EndoGateway>` (was `Promise<EndoGateway>`); `RemoteControlState.connect` returns `{ state; remoteGateway: ERef<EndoGateway> }`.
+  - `EndoInspector` generic type parameter renamed from `Record` to `RecordT` to avoid shadowing the built-in `Record` utility type; `lookup` and `list` now use method syntax so that `EndoInspector<'some literal'>` remains assignable to `EndoInspector<string>` under `strictFunctionTypes`.
+
+  TypeScript consumers implementing or calling these interfaces may need to update their types accordingly.
+
+- Updated dependencies [[`ad7a177`](https://github.com/endojs/endo/commit/ad7a177e84b08c74526ceb9b0ea15f3c81c06158), [`7325bbe`](https://github.com/endojs/endo/commit/7325bbe15f481275da6d5faf7445cc16b72ada82), [`7325bbe`](https://github.com/endojs/endo/commit/7325bbe15f481275da6d5faf7445cc16b72ada82), [`f2aa55a`](https://github.com/endojs/endo/commit/f2aa55a7d0ab3abfa7279e3973277faa7cdd791f), [`69ca27c`](https://github.com/endojs/endo/commit/69ca27c20c39101e9fa622876d9e3ba71ef2b3d6), [`fa0b6a9`](https://github.com/endojs/endo/commit/fa0b6a9ad57c0791b314d233b7962ca860977216), [`69ca27c`](https://github.com/endojs/endo/commit/69ca27c20c39101e9fa622876d9e3ba71ef2b3d6), [`dd45f4a`](https://github.com/endojs/endo/commit/dd45f4a7ffcf9f8d6fb3aa23a5d22fe00beef8e8), [`45d06cd`](https://github.com/endojs/endo/commit/45d06cd1624241b371c3ccc2076138c42ee7bd80), [`67ed1ce`](https://github.com/endojs/endo/commit/67ed1ce31b70126201756f7a3a54e1450a709665), [`459347b`](https://github.com/endojs/endo/commit/459347b34b8b5d5adfac9def8cee035b6cfa42d7), [`75253ad`](https://github.com/endojs/endo/commit/75253ad65745c308e3171d0345860c5b36d9c5e4)]:
+  - @endo/hex@1.1.0
+  - @endo/base64@1.1.0
+  - ses@2.1.0
+  - @endo/captp@4.5.1
+  - @endo/compartment-mapper@2.2.0
+  - @endo/bytes@1.0.0
+  - @endo/marshal@1.10.0
+  - @endo/patterns@1.9.1
+
 ## 2.5.3
 
 ### Patch Changes

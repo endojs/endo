@@ -1,6 +1,6 @@
 // @ts-check
 
-// The shim is consumed at runtime by `@endo/endo-fs` via the Vite
+// The shim is consumed at runtime by `@endo/platform/fs/extended` via the Vite
 // `node:crypto` alias (see `vite.config.js`). These tests pin the
 // digest output against canonical SHA-256 vectors and assert the
 // shape `node:crypto` callers depend on: indexable bytes plus a

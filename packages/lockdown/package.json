@@ -17,8 +17,7 @@
     "test": "exit 0",
     "test:xs": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "eslint '**/*.js'",
-    "postpack": "git clean -fX -e node_modules/"
+    "lint": "eslint ."
   },
   "dependencies": {
     "ses": "workspace:^"
@@ -39,7 +38,7 @@
     "url": "git+https://github.com/endojs/endo.git",
     "directory": "packages/lockdown"
   },
-  "author": "Agoric",
+  "author": "Endo contributors",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

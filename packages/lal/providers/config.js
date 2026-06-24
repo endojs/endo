@@ -31,7 +31,9 @@ const defaultModels = {
   anthropic: 'claude-sonnet-4-6-20250514',
   gemini: 'gemini-2.5-pro',
   'openai-compatible': 'qwen3',
-  ollama: 'qwen3',
+  // Temporary default until the subagent creation wizard ships and can guide
+  // users to select a model explicitly.
+  ollama: 'qwen3.6',
 };
 harden(defaultModels);
 
@@ -43,17 +45,17 @@ harden(defaultModels);
  */
 export const getDefaultModelForHost = baseURL => {
   const kind = detectProviderKind(baseURL);
-  return defaultModels[kind] || 'qwen3';
+  return defaultModels[kind] || 'qwen3.6';
 };
 harden(getDefaultModelForHost);
 
 /**
  * Resolve the model name, applying provider-specific defaults when
- * no explicit model is given.  When the explicit model is the
- * generic fallback `'qwen3'` but the provider has its own default,
- * upgrade to the provider-specific model so that users who
- * configured before provider detection was added get the right
- * model automatically.
+ * no explicit model is given.
+ * When the explicit model is one of the generic fallback placeholders
+ * (`'qwen3'` or `'qwen3.6'`) but the provider has its own default,
+ * upgrade to the provider-specific model so that users who configured
+ * before provider detection was added get the right model automatically.
  *
  * @param {string} baseURL
  * @param {string} [explicitModel]
@@ -61,7 +63,11 @@ harden(getDefaultModelForHost);
  */
 export const resolveModelForHost = (baseURL, explicitModel) => {
   const providerDefault = getDefaultModelForHost(baseURL);
-  if (!explicitModel || explicitModel === 'qwen3') {
+  if (
+    !explicitModel ||
+    explicitModel === 'qwen3' ||
+    explicitModel === 'qwen3.6'
+  ) {
     return providerDefault;
   }
   return explicitModel;

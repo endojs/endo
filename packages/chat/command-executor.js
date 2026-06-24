@@ -537,19 +537,19 @@ export const createCommandExecutor = ({
                 relaxed: {
                   burstLimit: 20,
                   sustainedRate: 30,
-                  lockoutDurationMs: 30000,
+                  lockoutDurationMs: 30_000,
                   postLockoutPct: 50,
                 },
                 moderate: {
                   burstLimit: 10,
                   sustainedRate: 10,
-                  lockoutDurationMs: 60000,
+                  lockoutDurationMs: 60_000,
                   postLockoutPct: 50,
                 },
                 strict: {
                   burstLimit: 5,
                   sustainedRate: 3,
-                  lockoutDurationMs: 120000,
+                  lockoutDurationMs: 120_000,
                   postLockoutPct: 70,
                 },
               };
@@ -606,18 +606,28 @@ export const createCommandExecutor = ({
             `[Chat] Accepting invitation for "${guestName}" from ${String(locator).slice(0, 40)}...`,
           );
           const accepted = E(powers).accept(String(locator), String(guestName));
+          /** @type {ReturnType<typeof setTimeout>} */
+          let timeoutId;
           const timeout = new Promise((_, reject) => {
-            setTimeout(
+            timeoutId = setTimeout(
               () =>
                 reject(
                   new Error(
-                    `Accept timed out after 60s. Ensure both nodes have networking enabled (/network or /network-libp2p).`,
+                    `Accept timed out after 60s. Ensure both nodes have networking enabled (/network or /network-iroh).`,
                   ),
                 ),
               60_000,
             );
           });
-          await Promise.race([accepted, timeout]);
+          try {
+            await Promise.race([accepted, timeout]);
+          } finally {
+            // Clear the timeout as soon as the race settles. Otherwise the
+            // pending 60s timer keeps the event loop alive long after accept
+            // resolves — which stalls AVA's worker exit and hangs CI even
+            // though every test has passed.
+            clearTimeout(timeoutId);
+          }
           console.log(`[Chat] Invitation accepted for "${guestName}"`);
           return {
             success: true,
@@ -688,41 +698,36 @@ export const createCommandExecutor = ({
           };
         }
 
-        case 'network-libp2p': {
+        case 'network-iroh': {
           const effectiveModulePath =
             String(params.modulePath || '') ||
             // @ts-ignore Vite injects this at build time
-            (import.meta.env?.LIBP2P_PATH ?? '');
+            (import.meta.env?.IROH_PATH ?? '');
 
           if (!effectiveModulePath) {
             return {
               success: false,
               message:
-                'Module path required. Provide the file:// URL to libp2p.js',
+                'Module path required. Provide the file:// URL to iroh.js',
             };
           }
 
           console.log(
-            `[Chat] /network-libp2p: loading module ${effectiveModulePath}`,
+            `[Chat] /network-iroh: loading module ${effectiveModulePath}`,
           );
-          // The libp2p module self-configures (bootstraps into the public
-          // IPFS DHT and discovers relays automatically) so there is no
+          // The iroh module self-configures (binds an in-memory endpoint and
+          // resolves peers through iroh discovery and relays) so there is no
           // request/resolve step like the TCP network.
           await E(powers).makeUnconfined(undefined, effectiveModulePath, {
             powersName: '@agent',
-            resultName: 'network-service-libp2p',
-            workerTrustedShims: [
-              '@libp2p/webrtc',
-              './shims/async-generator-return.js',
-            ],
+            resultName: 'network-service-iroh',
           });
-          console.log(`[Chat] /network-libp2p: moving to NETS.libp2p`);
-          await E(powers).move(['network-service-libp2p'], ['@nets', 'libp2p']);
-          console.log(`[Chat] /network-libp2p: libp2p network ready`);
+          console.log(`[Chat] /network-iroh: moving to @nets/iroh`);
+          await E(powers).move(['network-service-iroh'], ['@nets', 'iroh']);
+          console.log(`[Chat] /network-iroh: iroh network ready`);
           return {
             success: true,
-            message:
-              'libp2p network started (relay discovery may still be in progress)',
+            message: 'iroh network started',
           };
         }
 

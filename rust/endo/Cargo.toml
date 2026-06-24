@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+endo_iroh = { path = "../endo_iroh" }
 hex = "0.4"
 libc = "0.2"
 rusqlite = { version = "0.31", features = ["bundled"] }

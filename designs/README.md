@@ -1,23 +1,77 @@
 # Endo Design Documents
 
-*Last updated: 2026-05-20 (daemon mount and git capability plans added — three new design docs revised per design-panel review: structured-result-shape migration deferred to Phase 7, `tree(ref)` and `readOnly()` both live on the `Git` cap, `NativeGitBackend` hardening envelope split off the essential `GitBackend` contract, `EndoMountBacking` pinned to a hidden Exo facet, credential-injection mechanism named, native git pinned to >=2.30, restart-mid-operation tests added, open-question debt reduced from 20 to 2; landed on top of the same-day forge-gap-analysis Reference design and the same-day full grooming pass that reconciled milestone-totals, added the 2026-05-20 calibration round, re-projected the Summary by Milestone and Gantt, and refreshed Progress-as-of; itself landed on top of the 2026-05-19 status-only sweep that reconciled Status fields with shipped state on `llm`, M½ project-hygiene milestone extracted from M1, endopi raft added, PR #302 consolidation absorbed, and patterns-diagnostic-feedback added)*
+*Last updated: 2026-06-15 (targeted post-event M2 closure: M2 (Project Hygiene) flipped to Complete on `llm` since turborepo is in place (PR #121 merged), `break-dev-dependency-cycles` is dissolved on `llm` (all five `@endo/<pkg>-test` sibling packages exist; combined dep+devDep SCC count is 0; self-loop count is 0); the residual upstream-ferry work on PR #235 against master is M2-orthogonal — the cycle is broken on the project branch and the substrate noise it produced is gone. Layered on the 2026-06-03 milestone renumbering pass per maintainer directive on PR #400 review: resequence to integer numbers starting at 1, with no later milestone depending on an earlier one, prioritizing work entrained by the hosted-Gateway-service north star and deferring work that is not. Old → new mapping: M0 → M1 (Complete), M½ → M2 (Complete), M1 → M3 (Remote Access & Coding Capabilities, the gateway substrate), M2 → M4 (Networking), M7 → M5 (Public Hosting & Billing), Milestone B → M6 (MCP Bridge Hosting), M3 → M7 (Weblets & Integrations), Milestone A → M8 (Peer App Sharing), M4 → M9 (UX & Tooling), M5 → M10 (Confinement & Ecosystem), M6 → M11 (Rust Daemon `endor`). Layered on the 2026-06-02 compound pass: (a) MCP-bridge rebucket that added the **Milestone B: MCP Bridge Hosting** cross-cutting cut (since renumbered to M6) and the hosted-Gateway public-hosting bucket (M7, now M5), raised `endo-gateway-mcp` as a Strategic Early Item (now M6 in its own right), and named the gateway-package implementation stack PRs #343, #388–#397 (phases 1–9 landed) under what is now M3; and (b) daemon-worker-import-from-mount decomposed into a four-layer stack per kriskowal CHANGES_REQUESTED on `endojs/endo-but-for-bots#358` (the original 1164-line monolith repurposed as the integration layer; three new sibling designs land alongside as `registry-capability`, `mvs-resolver`, `snapshot-mapper`; existing slug preserved). On the 2026-06-01 pass that added the Peer App Sharing cut (`app-sharing-milestone` + `familiar-deep-link-invitations` + `endo-app-sharing` + `familiar-app-ui-hosting`; now M8). On the 2026-05-22 monolithic `daemon-worker-import-from-mount` landing (sibling of `daemon-make-archive` § Phase 7 that ties `compartment-mapper.importLocation` to a `package.json`-rooted `EndoMount` source and the Rust `endor-npm-registry-proxy` + Go-like MVS resolver exposed as an `EndoRegistry` / `@registry` daemon capability). On the 2026-05-20 mount and git capability plans (three new design docs revised per design-panel review: structured-result-shape migration deferred to Phase 7, `tree(ref)` and `readOnly()` both live on the `Git` cap, `NativeGitBackend` hardening envelope split off the essential `GitBackend` contract, `EndoMountBacking` pinned to a hidden Exo facet, credential-injection mechanism named, native git pinned to >=2.30, restart-mid-operation tests added, open-question debt reduced from 20 to 2; landed on top of the same-day forge-gap-analysis Reference design and the same-day full grooming pass that reconciled milestone-totals, added the 2026-05-20 calibration round, re-projected the Summary by Milestone and Gantt, and refreshed Progress-as-of). On the 2026-05-19 status-only sweep that reconciled Status fields with shipped state on `llm`, the project-hygiene milestone (now M2) extracted from the gateway substrate, endopi raft added, PR #302 consolidation absorbed, and patterns-diagnostic-feedback added)*
 
 *Recently added or revised:
+[chat-inventory-create-menu](chat-inventory-create-menu.md) (added
+2026-06-02, revised 2026-06-08; `+` button at the bottom of the
+inventory in Chat opens a pop-over menu listing whole-cloth item
+types (filesystem mount, scratch space, passable value, structured
+value, new agent); the new-agent flow is a three-pane wizard for
+harness selection (Lal / Fae / Genie, surfaced as transitional
+until the unified harness lands), inference-source selection
+(provider by name, URL hidden; auto-detect for Ollama with model
+discovery and download, API-key paste for Anthropic / OpenAI /
+OpenRouter, "Ollama Remote" disclosure for a remote daemon, OAuth
+deferred to endopi § Phases 3-4), and endowment selection over the
+nine-row daemon-capability-bank roster (today: `@fs` mount cap
+shippable; the other eight as documented placeholders); subsumes
+endo-gateway-mcp's `+ Add agent` Chat affordance as the parent
+flow; revised 2026-06-08 to reflect the maintainer's directive
+that Chat absorbs the provisioning entry point: lal-fae's
+daemon-side substrate persists, but provisioning moves into Chat
+via the root host agent pet store, the `@root` endowment, and a
+sibling `chat-inventory-encrypted-formulas` design for credential
+storage),
+[registry-capability](registry-capability.md) (added 2026-06-02;
+layer 1 of 4 in the daemon-worker importLocation stack: `EndoRegistry`
+capability shape, `@registry` host special name, snapshot-vs-live-read
+contract, and the two-backend roadmap (JS reference impl ships first,
+Rust drop-in deferred)),
+[mvs-resolver](mvs-resolver.md) (added 2026-06-02; layer 2 of 4:
+Go-like Minimum Version Selection adapted to JS package versioning,
+the resolution-path question (eager single-pass, no per-import
+roundtrips), and the lockfile-out-of-scope stance with a sketch of
+how lockfile honoring slots in as a constraint pass),
+[snapshot-mapper](snapshot-mapper.md) (added 2026-06-02; layer 3 of 4:
+`mapSnapshot` in `packages/daemon/`, `makeMountReadPowers`, the
+compartment-mapper archive-precedent layout of top-level
+`compartment-map.json` plus peer directories named by package, and the
+npm-shape <-> compartment-map-shape translation table),
+[daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
+(added 2026-05-22, revised 2026-06-02; restructured into layer 4 of 4
+(integration layer) after kriskowal CHANGES_REQUESTED on #358; the
+original 1164-line monolith is repurposed; this layer carries
+`makeFromPackage` host method, `makeFromMount` dispatcher, worker
+dispatch body, CLI shape, XS bridging, and the architecture diagram
+that stitches the three preceding layers),
+[daemon-git-next-steps](daemon-git-next-steps.md) (added 2026-05-27,
+reframed 2026-05-29, slimmed 2026-06-03 to its forward-looking kernel;
+the version-controlled filesystem loop milestone
+roadmap over the canonical git trio — the north-star agent loop
+(provide workspace → read/list/edit → status/diff → commit → pull/push
+→ inspect history via `filesystemAt(ref)`) and an explicit
+content/versioning/network/historical-read/bulk-storage layer split.
+The genuinely-future work is now `- [ ]` items: the worked end-to-end
+bot-fork reference flow, the `provideGitClone` bootstrap + identity
+boundary (→ a future `daemon-git-clone.md`), and the
+`tree(ref)`/`filesystemAt(ref)` reconciliation into one canonical
+vocabulary (a focused edit to `daemon-git-capability`). The agent-tools
+layer is deferred to #416; shipped-code follow-ups live in issue #378),
+[daemon-git-capability](daemon-git-capability.md) (added 2026-05-18,
+revised 2026-05-29; implementation progress section reads the trio as
+shipped (Phases 0-5 + bulk-archive via #364/#365/#367), keeps the
+pin-algorithm caching forward-design note, and points the fix/test/
+legibility follow-ups to issue #378),
+[daemon-git-remotes](daemon-git-remotes.md) (added 2026-05-18, revised
+2026-05-29; implementation progress section reads #365 + #368 as shipped,
+keeps the `LC_ALL=C` and porcelain-flag-gating design spec and the
+`setUrl` / Windows-port forward-design, and points the fix/test/
+legibility follow-ups to issue #378),
 [daemon-mount-capabilities](daemon-mount-capabilities.md) (added
 2026-05-18, revised 2026-05-20; concrete completion plan for
 `EndoMount`, mount-scoped entry descriptors as values, snapshotting,
 and trusted physical-backing provenance as a hidden Exo facet),
-[daemon-git-capability](daemon-git-capability.md) (added 2026-05-18,
-revised 2026-05-20; revised git design over `EndoMount` /
-`EndoMountFile`; `tree(ref)` for historical reads and `readOnly()`
-for attenuation both live on the `Git` cap; `NativeGitBackend`
-hardening envelope split off the essential `GitBackend` contract;
-structured result shapes deferred to Phase 7),
-[daemon-git-remotes](daemon-git-remotes.md) (added 2026-05-18, revised
-2026-05-20; MVP remote-git companion for fetch, pull, push, bounded HTTPS
-transport, phase-conditional endpoint policy (formula-owned in Phase 1;
-controller-owned once Phase 5 lands), and non-extractable
-credentials with a `GIT_ASKPASS`-fed-by-anonymous-pipe injection mechanism),
 [patterns-diagnostic-feedback](patterns-diagnostic-feedback.md) (added
 2026-05-19, revised 2026-05-20; opt-in
 `@endo/patterns/explain-mismatch.js` submodule with a Rust-compiler-style
@@ -48,7 +102,7 @@ devDep SCC; follow-up to PR #121; Cuts 2-4 merged via PRs #209, #210,
 revision under `endo http` subcommand tree),
 [endo-gateway](endo-gateway.md) (added 2026-05-10; per-host system-service
 HTTP virtual host for OCapN, lifts hosting out of per-user Daemon; closes
-issue #173, unblocks PR #134; raised to M1 per `#134` directive
+issue #173, unblocks PR #134; raised to M3 (was M1, pre-renumbering) per `#134` directive
 2026-05-13),
 [retention-path-notation](retention-path-notation.md) (added 2026-05-10;
 PR #151 row-format unblocker; sibling of
@@ -71,6 +125,7 @@ LLM-agent stack).*
 
 | Design | Created | Updated | Status |
 |--------|---------|---------|--------|
+| [endo-fs-backend-seam](endo-fs-backend-seam.md) | 2026-05-28 | 2026-05-28 | **Complete** |
 | [chat-color-schemes](chat-color-schemes.md) | 2026-02-26 | 2026-02-26 | **Complete** |
 | [cli-store-verb-text-modes](cli-store-verb-text-modes.md) | 2026-05-08 | 2026-05-08 | Proposed |
 | [cli-edit-verb](cli-edit-verb.md) | 2026-05-08 | 2026-05-08 | Proposed |
@@ -87,6 +142,7 @@ LLM-agent stack).*
 | [chat-slot-slash-commands](chat-slot-slash-commands.md) | 2026-04-23 | 2026-05-06 | Proposed |
 | [chat-view-edit-commands](chat-view-edit-commands.md) | 2026-03-21 | 2026-05-19 | **Complete** |
 | [chat-edit-message-ui](chat-edit-message-ui.md) | 2026-05-05 | 2026-05-05 | Not Started |
+| [chat-inventory-create-menu](chat-inventory-create-menu.md) | 2026-06-02 | 2026-06-14 | Not Started |
 | [chat-reply-chain-visualization](chat-reply-chain-visualization.md) | 2026-02-23 | 2026-02-28 | Deprecated |
 | [chat-spaces-home](chat-spaces-home.md) | 2026-03-02 | 2026-03-02 | **Complete** |
 | [chat-spaces-gutter](chat-spaces-gutter.md) | 2026-02-21 | 2026-02-26 | **Complete** |
@@ -100,13 +156,21 @@ LLM-agent stack).*
 | [daemon-checkin-checkout](daemon-checkin-checkout.md) | 2026-03-17 | 2026-05-19 | **Complete** |
 | [daemon-capability-filesystem](daemon-capability-filesystem.md) | 2026-02-15 | 2026-05-19 | Reference |
 | [daemon-content-store-gc](daemon-content-store-gc.md) | 2026-03-20 | 2026-05-08 | **Complete** |
-| [daemon-git-capability](daemon-git-capability.md) | 2026-05-18 | 2026-05-20 | Proposed |
-| [daemon-git-remotes](daemon-git-remotes.md) | 2026-05-18 | 2026-05-21 | Proposed |
+| [daemon-git-capability](daemon-git-capability.md) | 2026-05-18 | 2026-05-29 | Proposed |
+| [daemon-git-remotes](daemon-git-remotes.md) | 2026-05-18 | 2026-05-29 | Proposed |
+| [daemon-git-next-steps](daemon-git-next-steps.md) | 2026-05-27 | 2026-06-03 | Proposed |
+| [endo-fs-from-git](endo-fs-from-git.md) | 2026-05-28 | 2026-05-28 | In Progress |
 | [daemon-message-streaming](daemon-message-streaming.md) | 2026-03-26 | 2026-05-19 | In Progress (PR #287) |
-| [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-05-19 | In Progress |
-| [daemon-mount-capabilities](daemon-mount-capabilities.md) | 2026-05-18 | 2026-05-20 | Proposed |
+| [daemon-mount](daemon-mount.md) | 2026-03-20 | 2026-05-27 | In Progress |
+| [daemon-mount-capabilities](daemon-mount-capabilities.md) | 2026-05-18 | 2026-05-27 | **Complete** |
+| [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md) | 2026-05-22 | 2026-06-02 | Proposed |
+| [registry-capability](registry-capability.md) | 2026-06-02 | 2026-06-02 | Proposed |
+| [mvs-resolver](mvs-resolver.md) | 2026-06-02 | 2026-06-02 | Proposed |
+| [snapshot-mapper](snapshot-mapper.md) | 2026-06-02 | 2026-06-02 | Proposed |
 | [filesystem-watchers](filesystem-watchers.md) | 2026-05-07 | 2026-05-07 | Not Started |
 | [platform-fs](platform-fs.md) | 2026-03-18 | 2026-05-19 | **Complete** |
+| [fs-interface-reconciliation](fs-interface-reconciliation.md) | 2026-06-18 | 2026-06-19 | In Progress |
+| [fs-interface-consolidation](fs-interface-consolidation.md) | 2026-06-18 | 2026-06-19 | In Progress |
 | [daemon-capability-persona](daemon-capability-persona.md) | 2026-02-16 | 2026-02-24 | Not Started |
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | 2026-03-07 | 2026-04-29 | **Complete** |
 | [daemon-retention-paths](daemon-retention-paths.md) | 2026-04-30 | 2026-05-19 | In Progress (PR #284) |
@@ -161,7 +225,7 @@ LLM-agent stack).*
 | [familiar-gateway-migration](familiar-gateway-migration.md) | 2026-02-14 | 2026-02-26 | **Complete** |
 | [familiar-localhttp-protocol](familiar-localhttp-protocol.md) | 2026-02-24 | 2026-02-25 | In Progress (partially implemented) |
 | [familiar-unified-weblet-server](familiar-unified-weblet-server.md) | 2026-02-14 | 2026-05-06 | In Progress |
-| [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-02-24 | Not Started |
+| [formula-inspector](formula-inspector.md) | 2026-02-14 | 2026-06-13 | In Progress |
 | [gateway-bearer-token-auth](gateway-bearer-token-auth.md) | 2026-03-02 | 2026-03-06 | **Implemented** |
 | [hardened-text-codecs-shim](hardened-text-codecs-shim.md) | 2026-05-04 | 2026-05-04 | Not Started |
 | [hardened-url-shim](hardened-url-shim.md) | 2026-05-04 | 2026-05-04 | Not Started |
@@ -184,20 +248,26 @@ LLM-agent stack).*
 | [patterns-diagnostic-feedback](patterns-diagnostic-feedback.md) | 2026-05-19 | 2026-05-20 | Proposed |
 | [base64-native-fallthrough](base64-native-fallthrough.md) | 2026-04-23 | 2026-05-18 | **Complete** |
 | [ci-no-npm-lifecycle](ci-no-npm-lifecycle.md) | 2026-04-23 | 2026-05-18 | **Complete** |
-| [break-dev-dependency-cycles](break-dev-dependency-cycles.md) | 2026-05-11 | 2026-05-18 | In Progress |
+| [break-dev-dependency-cycles](break-dev-dependency-cycles.md) | 2026-05-11 | 2026-06-15 | **Complete** (on `llm`) |
 | [cli-http-client](cli-http-client.md) | 2026-05-09 | 2026-05-09 | Proposed (PR #144 design revision) |
 | [endor-bus-tui](endor-bus-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [endor-tui](endor-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [hex-package](hex-package.md) | 2026-04-23 | 2026-05-18 | **Complete** |
 | [endo-bytes](endo-bytes.md) | 2026-05-08 | 2026-05-10 | Implemented |
 | [endo-gateway](endo-gateway.md) | 2026-05-10 | 2026-05-10 | Proposed |
+| [endo-gateway-mcp](endo-gateway-mcp.md) | 2026-05-29 | 2026-05-29 | Not Started |
+| [agent-tools-mount-fs-tools](agent-tools-mount-fs-tools.md) | 2026-06-01 | 2026-06-01 | Not Started |
 | [unhandled-rejection-display](unhandled-rejection-display.md) | 2026-05-10 | 2026-05-18 | **Complete** |
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [namehub-interface-unification](namehub-interface-unification.md) | 2026-05-07 | 2026-05-07 | Proposed |
 | [forge-gap-analysis](forge-gap-analysis.md) | 2026-05-20 | 2026-05-20 | Reference (exploratory) |
+| [app-sharing-milestone](app-sharing-milestone.md) | 2026-06-01 | 2026-06-01 | Proposed |
+| [familiar-deep-link-invitations](familiar-deep-link-invitations.md) | 2026-06-01 | 2026-06-01 | Proposed |
+| [endo-app-sharing](endo-app-sharing.md) | 2026-06-01 | 2026-06-01 | Proposed |
+| [familiar-app-ui-hosting](familiar-app-ui-hosting.md) | 2026-06-01 | 2026-06-01 | Proposed |
 
-**Totals:** 39 Complete/Implemented, 18 In Progress, 36 Not Started, 20 Proposed, 2 Active, 7 Reference, 2 Deprecated, 1 Superseded (125 designs). Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in this pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 16 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, and the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`).
+**Totals:** 42 Complete/Implemented, 21 In Progress, 38 Not Started, 28 Proposed, 2 Active, 7 Reference, 2 Deprecated, 1 Superseded (141 designs). 2026-06-19 recounts the summary table (the prose totals had drifted four designs low — `137/18/29` → the recounted `141/21/28` across designs/In Progress/Proposed — and folds in the `fs-interface-consolidation` progress below). 2026-06-18 adds `fs-interface-consolidation` (In Progress), the sequenced follow-up that reduces overlap across the fs/name-hub guards once `fs-interface-reconciliation` aligned their names; all five phases have now landed — C2 shared records, C3/C4 daemon read-surface convergence (including the cross-surface mount unification and the blob range-I/O alignment), C1 EndoNameHub+EndoDirectory unification, and C5 dead-guard removal. The early "retire `BlobRef`" framing was reversed: `BlobRef` is the richest blob shape, so the daemon/lite blobs aligned **up** to its `getInfo`/`fetch` range-I/O surface (the shared `rangeReadMethodGuards` / `ReadableBlobRangeInterface`) and every public hash accessor moved to base64. The 2026-06-15 pass flips `break-dev-dependency-cycles` from In Progress to Complete (on `llm`) on the strength of cycle-graph verification (combined dep+devDep SCC count is 0; self-loop count is 0). 2026-05-27 adds `daemon-git-next-steps` (Proposed) as the forward-looking roadmap over the canonical git trio. Refreshed 2026-06-02 by the daemon-worker-import-from-mount decomposition: three new Proposed designs (`registry-capability`, `mvs-resolver`, `snapshot-mapper`) land as siblings of the repurposed integration-layer doc. The 2026-06-01 pass adds the **Peer App Sharing** milestone (formerly "Milestone A"; now Milestone 8 after the 2026-06-03 renumbering pass) including `app-sharing-milestone` and its three new Proposed designs (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); see "Milestone 8: Peer App Sharing" below. Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in that pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 17 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`, and `daemon-git-next-steps` (added 2026-05-27)), plus the endo-gateway-mcp (Not Started) entry added 2026-05-29, the `daemon-worker-import-from-mount` (Proposed) entry added 2026-05-22, and the three layer-split designs from the 2026-06-02 refresh.
 
 ## Roadmap
 
@@ -302,10 +372,15 @@ flowchart TD
         cvedit[chat-view-edit-commands<br/><i>COMPLETE</i>]
         cemui[chat-edit-message-ui]
         cliedit[cli-edit-verb]
+        finsp[formula-inspector]
+        invgt[inventory-grouping-by-type]
         dcmd --> cpend
         dmount --> cvedit
         dmount --> cliedit
         dmstream[daemon-message-streaming<br/><i>IN PROGRESS</i>] --> cemui
+        invgt --> finsp
+        cicmenu[chat-inventory-create-menu]
+        dmount --> cicmenu
         cscheme[chat-color-schemes<br/><i>COMPLETE</i>]
         cspace[chat-per-space-color-scheme<br/><i>COMPLETE</i>]
         chc[chat-high-contrast-mode<br/><i>COMPLETE</i>]
@@ -321,16 +396,27 @@ flowchart TD
         dmcap[daemon-mount-capabilities]
         dgit[daemon-git-capability]
         dgitremote[daemon-git-remotes]
+        dgitnext[daemon-git-next-steps]
         dfsw[filesystem-watchers]
         dcsgc[daemon-content-store-gc]
         dpers[daemon-capability-persona]
         dbank[daemon-capability-bank]
         icancel[inventory-cancel-and-liveness]
+        dmkar[daemon-make-archive<br/><i>IN PROGRESS</i>]
+        dwimp[daemon-worker-import-from-mount<br/><i>integration layer</i>]
+        dwicap[registry-capability]
+        dwimvs[mvs-resolver]
+        dwisnap[snapshot-mapper]
+        ernpm[endor-npm-registry-proxy<br/><i>IN PROGRESS</i>]
+        ercas[daemon-cas-management<br/><i>IN PROGRESS</i>]
+        errun[endor-run-expanded<br/><i>IN PROGRESS</i>]
         pfs --> dfs
         pfs --> dmount
         dmount --> dmcap
         dmcap --> dgit
         dgit --> dgitremote
+        dgit --> dgitnext
+        dgitremote --> dgitnext
         pfs --> dci
         pfs --> dfsw
         dmount --> dfsw
@@ -342,12 +428,54 @@ flowchart TD
         dfs --> dbank
         dpers --> dbank
         dbank --> icancel
+        dwicap --> dwimvs
+        dwicap --> dwisnap
+        dwimvs --> dwisnap
+        dwicap --> dwimp
+        dwimvs --> dwimp
+        dwisnap --> dwimp
+        dmount --> dwicap
+        dmcap --> dwicap
+        dmkar --> dwicap
+        ernpm -.-> dwicap
+        errun -.-> dwimp
+        ercas --> dwicap
+    end
+
+    subgraph App Sharing Cut
+        aship[app-sharing-milestone<br/><i>PROPOSED</i>]
+        adeep[familiar-deep-link-invitations<br/><i>PROPOSED</i>]
+        ashare[endo-app-sharing<br/><i>PROPOSED</i>]
+        auihost[familiar-app-ui-hosting<br/><i>PROPOSED</i>]
+        onoise --> adeep
+        dnet --> adeep
+        adeep --> aship
+        exozip --> ashare
+        dci --> ashare
+        dapp --> auihost
+        fweb --> auihost
+        fchat --> auihost
+        ashare --> auihost
+        auihost --> aship
+        fbund --> aship
     end
 ```
 
 ### Milestones
 
-#### Milestone 0: Downloadable AI Agent Experience
+Milestones are numbered in approach order: M1 first, M11 last. Each
+milestone's dependencies all live in earlier milestones (a finer-grained
+bucketing was introduced in the 2026-06-03 renumbering pass per
+maintainer directive on PR #400 to satisfy this invariant). Work that
+is entrained by the **hosted-Gateway-service north star** sequences
+earlier; work not entrained by that north star defers to later
+milestones. The 2026-06-02 cross-cutting cuts (Peer App Sharing,
+formerly "Milestone A"; MCP Bridge Hosting, formerly "Milestone B")
+are now numbered as ordinary milestones (M8 and M6 respectively).
+
+#### Milestone 1: Downloadable AI Agent Experience
+
+(Was **Milestone 0** before the 2026-06-03 renumbering pass.)
 
 **Goal:** A Familiar application suitable for use on at least one
 platform that folks can download and use to interact with an agent using
@@ -373,24 +501,26 @@ was 3-4 days for the final item; revised to 0 remaining.
 
 ---
 
-#### Milestone ½: Project Hygiene
+#### Milestone 2: Project Hygiene
+
+(Was **Milestone ½** before the 2026-06-03 renumbering pass.)
 
 **Goal:** Build-system and shared-library hygiene that does not deliver
 user-facing capability on its own but unblocks (or cleans the substrate
-for) the capability work in Milestone 1. Extracted from M1 on 2026-05-14
-once it became clear that several rows in M1's table satisfied the
-two-question criterion: (a) not user-facing capability, and (b) prereq
-or substrate-cleanup for M1 capability work. Surfacing them as a
-separate bucket lets M1's "Remote Access and Coding Capabilities"
-exit-criterion remain readable as a capability list rather than a
-capability-plus-hygiene mix.
+for) the capability work in Milestone 3 (formerly M1). Extracted from
+M1 (now M3) on 2026-05-14 once it became clear that several rows in
+that table satisfied the two-question criterion: (a) not user-facing
+capability, and (b) prereq or substrate-cleanup for the next milestone's
+capability work. Surfacing them as a separate bucket lets M3's "Remote
+Access and Coding Capabilities" exit-criterion remain readable as a
+capability list rather than a capability-plus-hygiene mix.
 
 | Design | Status | Notes |
 |--------|--------|-------|
 | ~~endo-bytes~~ | **Implemented** | New `@endo/bytes` package for portable `Uint8Array` helpers (`concatBytes`, `bytesEqual`, `bytesFromText`, `bytesToText`); retires duplicates in `cli`, `ocapn`, and `daemon` (PR #142); follow-up `bytesToImmutable`/`bytesFromImmutable` in 94ffbd401; ocapn refactor in PR #223; buffer-utils inlining in PR #227 |
 | ~~chat-playwright-smoke~~ | **Complete** | Build-and-load smoke for the Chat bundle in the `browser-tests` job; PRs #91 (design), #94 (impl), #95+#104 (harden/import fixes) |
 | ~~hex-package~~ | **Complete** | `@endo/hex` ponyfill shipped; consumer migration landed via `kriskowal-hex` follow-ups; synthetic `@endo/hex-test` lands Cut 2 of break-dev-dependency-cycles (PR #211) |
-| break-dev-dependency-cycles | In Progress | Synthetic test-package factoring to retire the workspace devDep SCC; Cut 2 (`@endo/hex-test`, PR #211), Cut 3 (`@endo/zip` devDep delete, PR #209) and Cut 4 (`@endo/harden-test`, PR #210) merged; Cut 5 (`@endo/eventual-send-test`, PR #247) open; Cut 1 (`@endo/ses-test`, the largest, PR #235) open against master |
+| ~~break-dev-dependency-cycles~~ | **Complete** (on `llm`) | Synthetic test-package factoring retires the workspace devDep SCC on `llm`: Cut 2 (`@endo/hex-test`, PR #211), Cut 3 (`@endo/zip` devDep delete, PR #209), Cut 4 (`@endo/harden-test`, PR #210), Cut 5 (`@endo/eventual-send-test`, PR #247), and Cut 1 (`@endo/ses-test`, PR #261) have all landed on `llm`. Verified 2026-06-15: combined dep+devDep SCC count is 0; self-loop count is 0; `scripts/check-dependency-cycles.sh 0` passes. The upstream-ferry mirror PR #235 against master is the master-side mirror of the same cuts and is M2-orthogonal — the cycle is broken on the project branch and the substrate noise is gone |
 | ~~ci-no-npm-lifecycle~~ | **Complete** | `.yarnrc.yml` pins `enableScripts: false` and CI installs with `yarn install --immutable`; PR #126 merged 2026-05-15 (master-base mirror staged as PR #250) |
 | ~~base64-native-fallthrough~~ | **Complete** | `@endo/base64` dispatches to `Uint8Array.fromBase64` / `toBase64` when available; landed on `llm` via `actual/master` merge (commit `7325bbe15`, from `endojs/endo#3216`) |
 
@@ -401,17 +531,22 @@ is dissolved so turbo's `^build` form prints no cycle warning. The CI
 posture is hardened against npm lifecycle scripts. The Chat bundle has
 a build-and-load smoke gate. None of these are user-visible features
 on their own; together they remove substrate noise that otherwise
-accompanies every M1 capability commit.
+accompanies every M3 capability commit.
 
-**Estimated duration (1 dev):** ~3-5 days remaining (the 2026-05-19
-status sweep moved `ci-no-npm-lifecycle`, `hex-package`, and
-`base64-native-fallthrough` to Complete; only Cut 1 (`@endo/ses-test`,
-PR #235) and Cut 5 (`@endo/eventual-send-test`, PR #247) of
-`break-dev-dependency-cycles` remain).
+**Status:** **Complete** on `llm` as of 2026-06-15. All six rows above
+are Complete or Implemented on the project branch. The remaining
+upstream-ferry effort (PR #235 mirroring the cuts to master) is
+tracked separately and is not a blocker for M2's exit criterion on
+`llm`.
 
 ---
 
-#### Milestone 1: Remote Access and Coding Capabilities
+#### Milestone 3: Remote Access and Coding Capabilities
+
+(Was **Milestone 1** before the 2026-06-03 renumbering pass. The
+gateway-package implementation stack and the MCP-bridge endpoint live
+here because they are the substrate the hosted-Gateway-service north
+star is built on.)
 
 **Goal:** Self-host a daemon with Docker, remote control it via local
 Familiar or hosted Chat with bearer token auth. Claw-like coding
@@ -420,7 +555,8 @@ capabilities available to agents.
 | Design | Status | Notes |
 |--------|--------|-------|
 | ~~gateway-bearer-token-auth~~ | **Implemented** | Agent ID as bearer token, rate limiting, CIDR filtering |
-| endo-gateway | Proposed | Per-host system-service HTTP virtual host for OCapN; lifts hosting out of per-user Daemon; closes issue #173, unblocks PR #134. Raised to M1 per kriskowal directive on `#134#issuecomment-4444987124` (2026-05-13) |
+| endo-gateway | Proposed | Per-host system-service HTTP virtual host for OCapN; lifts hosting out of per-user Daemon; closes issue #173, unblocks PR #134. Raised to M3 (was M1, pre-renumbering) per kriskowal directive on `#134#issuecomment-4444987124` (2026-05-13). **Implementation in flight as the gateway-package stack:** overarching design PR [#343](https://github.com/endojs/endo-but-for-bots/pull/343); phases [#388](https://github.com/endojs/endo-but-for-bots/pull/388) UDS bootstrap, [#389](https://github.com/endojs/endo-but-for-bots/pull/389) admin, [#392](https://github.com/endojs/endo-but-for-bots/pull/392) `/ocapn-cbor-np` WS, [#393](https://github.com/endojs/endo-but-for-bots/pull/393) relay policy, [#394](https://github.com/endojs/endo-but-for-bots/pull/394) Git-HTTP, [#395](https://github.com/endojs/endo-but-for-bots/pull/395) AppsNameHub, [#396](https://github.com/endojs/endo-but-for-bots/pull/396) ResourceLedger, [#397](https://github.com/endojs/endo-but-for-bots/pull/397) Familiar-bundled fallback all open. **Phase 10 (Feature 9 HTTPS proxy compat) and Phase 11 (Feature 10 OS packaging) pending.** The gateway substrate for the M6 MCP Bridge Hosting milestone. |
+| endo-gateway-mcp | Not Started | MCP JSON-RPC termination on the gateway; bearer-token → formula-id → Endo agent tools. Design merged today (PR [#376](https://github.com/endojs/endo-but-for-bots/pull/376)). Strategic-early for the MCP-bridge milestone (M6): the gateway-as-MCP-bridge endpoint, gated on gateway-package phases 2/7/8 (UDS bootstrap, AppsNameHub, ResourceLedger) but not on phases 10/11. |
 | daemon-docker-selfhost | Not Started | Dockerfile, state persistence, network exposure, Chat hosting |
 | daemon-agent-tools | Not Started | Filesystem, shell, git tools backed by capabilities |
 | ~~platform-fs~~ | **Complete** | `@endo/platform/fs` — shared types, content store, tree adapters; landed on `llm` (initial commit `e0dda06fb` + PR #122 review cycle fixups) |
@@ -428,8 +564,13 @@ capabilities available to agents.
 | ~~daemon-content-store-gc~~ | **Complete** | Content-store pruning and scratch-mount directory cleanup at GC time; landed in PR #99 |
 | daemon-mount | In Progress | Phases 1-3, 5 on `llm` (commit `e22f71327`); symlink confinement, 20 integration tests; Phase 4 (sub-mounts, snapshot) in PR #135 open, mount extensions in PR #127 open, `followNameChanges` in PR #277 open |
 | daemon-mount-capabilities | Proposed | Complete `EndoMount`: snapshot bridge, mount-scoped descriptors, `makeFile` sibling, entry overloads on `has`/`stat`/`lookup`, trusted backing provenance |
+| daemon-worker-import-from-mount | Proposed | **Integration layer** of a four-layer stack (decomposed 2026-06-02 per kriskowal CHANGES_REQUESTED on #358). `makeFromPackage(mountName)` daemon-worker entry that runs a `package.json`-rooted `EndoMount` through `compartment-mapper.importLocation`; this layer carries `makeFromMount` dispatcher, worker dispatch body, CLI shape, XS bridging, architecture diagram. Sibling of `daemon-make-archive` § Phase 7 (`makeFromTree` for `compartment-map.json`-rooted trees) |
+| registry-capability | Proposed | Layer 1 of 4. `EndoRegistry` capability shape, `@registry` host special name, snapshot-vs-live-read contract, two-backend roadmap (JS reference impl ships first, Rust drop-in deferred to Phase 5). Required `registry` slot on `HostFormula` with one-shot upgrade pass for already-formulated hosts (the `@node` migration precedent) |
+| mvs-resolver | Proposed | Layer 2 of 4. JS reference implementation of Go-like Minimum Version Selection adapted to npm versioning (greatest mentioned minor per major; major-version coexistence admitted). Eager single-pass resolution shape (no per-import bus roundtrips). Lockfile honoring deferred as a follow-up constraint pass |
+| snapshot-mapper | Proposed | Layer 3 of 4. `mapSnapshot` lane in `packages/daemon/` that translates `(RegistryResolution, EndoMount)` into a `CompartmentMap` via `compartment-mapper`'s package-descriptor walker (one new extension point in `compartment-mapper`). `makeMountReadPowers` and the compartment-mapper archive-precedent layout (top-level `compartment-map.json` plus peer directories named by package; `<name>@<version>/` for registry-resolved entries, bare `<name>/` for workspace members) |
 | daemon-git-capability | Proposed | Revised git design over `EndoMount` / `EndoMountEntry`; `tree(ref)` and `readOnly()` both live on the `Git` cap |
 | daemon-git-remotes | Proposed | MVP remote-git companion: fetch / pull / push composed from local `Git`, bounded HTTPS transport, endpoint policy, and credential caps |
+| daemon-git-next-steps | Proposed | The version-controlled filesystem loop milestone over the canonical trio: north-star agent loop (provide workspace → read/list/edit → status/diff → commit → pull/push → inspect history via `filesystemAt(ref)`) and the content/versioning/network/historical-read/bulk-storage layer split. Open `- [ ]` work: worked bot-fork reference flow, `provideGitClone` + identity boundary (→ `daemon-git-clone.md`), `tree(ref)`/`filesystemAt(ref)` reconciliation. Agent-tools layer deferred to #416 |
 | filesystem-watchers | Not Started | `EndoMount.followNameChanges` parity with `EndoDirectory`; Node `fs.watch` adapter on `FilePowers` |
 | daemon-locator-terminology | Not Started | Clean locator API; unblocked |
 | daemon-rename-to-manager | Not Started | Rename `daemon.js`/`Daemon`/`MignonicPowers` to `manager.js`/`Manager`/`WorkerPowers` to align JS with Rust `endor` nomenclature |
@@ -451,7 +592,12 @@ home profile. Agents have scheduled execution and confined outbound HTTP.
 
 ---
 
-#### Milestone 2: Networking
+#### Milestone 4: Networking
+
+(Was **Milestone 2** before the 2026-06-03 renumbering pass. Networking
+precedes the public-hosting and MCP-bridge milestones because
+`daemon-agent-network-identity` is the keypair side that gateway
+identity bonding (M5) and the MCP-bridge cut (M6) build on.)
 
 **Goal:** Secure peer connections via OCapN-Noise, locator format
 finalized.
@@ -475,7 +621,145 @@ keypairs.
 
 ---
 
-#### Milestone 3: Weblets and Integrations
+#### Milestone 5: Public Hosting and Billing
+
+(Was **Milestone 7** before the 2026-06-03 renumbering pass. Pulled
+earlier in the sequence because the hosted-Gateway-service north star
+is what this milestone delivers; its dependencies on `gateway-package`
+(M3) and `daemon-agent-network-identity` (M4) are all earlier.)
+
+Originally created 2026-06-02 as part of the MCP-bridge rebucket
+pass. The designs below are either in review (the AWS stack) or are
+named gaps that need fresh design work (OAuth bonding, key
+recovery/rotation, Stripe adapter). This milestone is the home for
+designs about **operating the gateway as a hosted service**, distinct
+from M3's "build the gateway package and ship a self-host story".
+
+| Design | Status | Notes |
+|--------|--------|-------|
+| gateway-package | Proposed | Overarching `@endo/gateway` package design; PR [#343](https://github.com/endojs/endo-but-for-bots/pull/343) open. **Home milestone is M3 (counted there for effort accounting); listed here as the substrate this milestone is built on.** |
+| gateway-packaging-ci | Proposed | CI workflow that builds and signs OS package artifacts; PR [#356](https://github.com/endojs/endo-but-for-bots/pull/356) stacked sibling |
+| gateway-aws-deployment | Proposed | AWS deployment automation (EC2 + ALB + Packer AMI + Terraform); PR #356 stacked sibling |
+| gateway-aws-attuned | Proposed | AWS-native substitutes for five gateway subsystems (S3 CAS, DynamoDB state, Nitro Enclave key custody, Route53 routing, control-plane/data-plane fleet split); PR #356 stacked sibling |
+| gateway-oauth-bonding *(gap)* | — | **Design gap.** Bond an OAuth identity (Google, GitHub, Microsoft) to a public-key identity so a user can sign in with an external account. Distinct from [endoclaw-oauth](endoclaw-oauth.md) (agent-side OAuth client, in M7) and [endopi-provider-registry-and-oauth](endopi-provider-registry-and-oauth.md) (LLM-provider OAuth). |
+| gateway-key-recovery *(gap)* | — | **Design gap.** Operator-side bearer-token re-issue conditioned on OAuth-proof-of-identity; narrower than [endo-gateway.md](endo-gateway.md) Open Question 1 (Pass-Invariant-Eq) which stays open as the broader follow-up of [daemon-agent-network-identity](daemon-agent-network-identity.md). |
+| gateway-stripe-adapter *(gap)* | — | **Design gap.** Reference adapter for the `verifyPaymentProof` power Phase 8 (PR [#396](https://github.com/endojs/endo-but-for-bots/pull/396)) injected. Webhook signature validation, Stripe-API integration, idempotency, refund handling. May be small enough to live as implementation rather than design, but a short design note pinning the wire shape and failure modes reduces drift risk; recommended as a design file. |
+| gateway-resource-classes *(gap, may fold into stripe-adapter)* | — | **Design gap.** Phase 8 (PR #396) names compute (computrons), storage, network, and inference (cogitrons) as the resource classes; the per-class measurement surfaces (what counts as a computron, how cogitrons map to upstream provider tokens, how network bytes are counted across HTTP / WS / OCapN) need per-class spec text. Likely folds into `gateway-stripe-adapter` unless the metering becomes its own work. |
+
+**Exit criterion:** A user signs into a hosted gateway via OAuth,
+purchases tokens via Stripe, drives Endo agents via MCP from an
+external client (Claude Desktop, Cursor), and recovers their
+identity if they lose their bearer token. The MCP-bridge milestone
+(M6) is the sequenced path to this exit criterion.
+
+**Estimated duration (1 dev):** 4-6 weeks for the three new designs
+(OAuth bonding, key recovery, Stripe adapter) plus the implementation
+for each; the gateway-package, packaging-ci, and AWS stack designs are
+counted under M3 (gateway-package) or counted-once here (the AWS
+stack sits here because it is hosted-service work, not self-host
+work). Add the merge cadence of PRs #343 and #356 to this estimate;
+both are stacked-PR designs whose merge is gated on review-queue
+drain.
+
+---
+
+#### Milestone 6: MCP Bridge Hosting
+
+(Was **Milestone B** (cross-cutting cut) before the 2026-06-03
+renumbering pass. Now an ordinary numbered milestone in approach
+order; its former "cut sequencing" is preserved as the P0-P4 phase
+plan in its slice table, but its constituent slices have homes in M3
+(gateway substrate) and M5 (public hosting and billing). M6 itself
+owns the MCP-specific work: the `endo-gateway-mcp` design's
+implementation (`/mcp` adapter, `@endo/agent-tools` extraction,
+bearer-token-to-agent routing) and the end-to-end smoke that proves
+the MCP-client-to-Endo-agent round-trip.)
+
+**Goal:** A hosted Endo Gateway that an external LLM client (Claude
+Desktop, Cursor, OpenAI-compatible) reaches over MCP JSON-RPC and uses
+to drive an Endo agent's tools. The shortest route from today's state
+to this end-to-end shape, sequenced as a slice plan spanning M3
+(gateway substrate), M5 (public hosting and billing), and M6's own
+MCP-termination work.
+
+The shortest-route order is **P0 gateway implementation completion
+(M3) → P1 MCP termination (M6) → P2 AWS hosting (M5) → P3 Stripe
+billing (M5) → P4 OAuth bonding + key recovery (M5)**.
+
+| Slice | Home | Status | Notes |
+|-------|------|--------|-------|
+| **P0**: Gateway implementation stack | M3 | In Progress | 9 of 11 phases open today (PR [#343](https://github.com/endojs/endo-but-for-bots/pull/343) overarching design + PRs [#388](https://github.com/endojs/endo-but-for-bots/pull/388) UDS bootstrap, [#389](https://github.com/endojs/endo-but-for-bots/pull/389) admin, [#392](https://github.com/endojs/endo-but-for-bots/pull/392) `/ocapn-cbor-np` WS, [#393](https://github.com/endojs/endo-but-for-bots/pull/393) relay policy, [#394](https://github.com/endojs/endo-but-for-bots/pull/394) Git-HTTP, [#395](https://github.com/endojs/endo-but-for-bots/pull/395) AppsNameHub, [#396](https://github.com/endojs/endo-but-for-bots/pull/396) ResourceLedger, [#397](https://github.com/endojs/endo-but-for-bots/pull/397) Familiar-bundled fallback). Phase 10 (Feature 9 HTTPS proxy compat) and Phase 11 (Feature 10 OS packaging) pending; **shortest-route blocker on P2.** |
+| **P0 gap**: Gateway HTTP listener wire-up | M3 | Gap | The `make({...})` factory in `gateway-package` Phase 1 binds a listener; the on-wire path through the new package is exercised by phases #392 / #394 in unit tests but not yet by an end-to-end smoke covering `Host` header → AppsNameHub → user-daemon. Track as a Phase-1 followup PR or roll into Phase 11 (OS packaging) where end-to-end has to work anyway. |
+| **P1**: MCP JSON-RPC termination | M6 | Not Started | Design merged today as [endo-gateway-mcp](endo-gateway-mcp.md) (PR [#376](https://github.com/endojs/endo-but-for-bots/pull/376)). Phased: extract `@endo/agent-tools` (refactor `packages/lal/agent.js`) → bearer-token table + `publishAgent` → `/mcp` adapter and SSE → Chat-side affordances. **P1 is gated on M3 gateway-package phases 2 (UDS bootstrap), 7 (admin / AppsNameHub), and 8 (ResourceLedger) but not on 10 or 11.** |
+| **P2**: AWS hosting (deployment) | M5 | In Review | [gateway-aws-deployment](gateway-aws-deployment.md) + [gateway-aws-attuned](gateway-aws-attuned.md) + [gateway-packaging-ci](gateway-packaging-ci.md) open as PR [#356](https://github.com/endojs/endo-but-for-bots/pull/356), stacked on PR #343. P2 stands the AWS-deployed gateway up; the AWS-attuned variant (S3 CAS, DynamoDB state, Nitro Enclave key custody, Route53 routing) is a later substitution. |
+| **P3**: Stripe billing | M5 | Gap | Phase 8 (PR #396) lands the `ResourceLedger.purchaseTokens(tokens, proof)` contract with an injected `verifyPaymentProof` power; the Stripe-specific adapter (the verifier that the embedder supplies) is **not yet designed**. Out-of-band: the resource taxonomy needs the computron / cogitron / storage / network class split surfaced in the design. |
+| **P4 gap**: OAuth bonding to public-key identity | M5 | Gap | Today the agent's 256-bit formula identifier ([gateway-bearer-token-auth](gateway-bearer-token-auth.md)) is the bearer; there is no design for bonding that identity to an OAuth identity provider (Google, GitHub, Microsoft) so a user can sign in with an external account and recover or rotate the underlying key. Distinct from [endoclaw-oauth](endoclaw-oauth.md) (agent-uses-OAuth-as-credential-capability, in M7) and [endopi-provider-registry-and-oauth](endopi-provider-registry-and-oauth.md) (LLM-provider OAuth). |
+| **P4 gap**: Key recovery / rotation | M5 | Gap | [endo-gateway.md](endo-gateway.md) Open Question 1 (Pass-Invariant-Eq) names this as a deferred follow-up of [daemon-agent-network-identity](daemon-agent-network-identity.md). For the MCP-bridge use case the recovery shape is narrower than Eq preservation: an operator-side path that re-issues a fresh formula-identifier bearer when the user proves OAuth identity ownership, and a deprecation window for the old bearer. |
+
+The phases admit parallelism: P1 (MCP) and P2 (AWS) are independent
+once M3 gateway-package phases 2, 7, 8 land; P3 (Stripe) is
+independent of P1 and P2. P4 (OAuth + rotation) is the only slice
+that materially extends the user-identity model and is the one most
+likely to spawn design churn; sequencing it last keeps the rest of
+the milestone from being held by its design cycle.
+
+**The three named design gaps each need a design file before the
+implementation slice can be claimed** (all housed in M5 since they
+are hosted-service work, not MCP-termination work):
+
+1. `gateway-oauth-bonding.md` (new, M5): the OAuth-to-formula-id
+   bonding shape, the user-facing flow, and the daemon-side
+   persistence model for bonded identities. References
+   [daemon-agent-network-identity](daemon-agent-network-identity.md)
+   for the Ed25519 keypair side, [endoclaw-oauth](endoclaw-oauth.md)
+   for the OAuth client mechanism (the agent-side credential
+   capability is the right substrate to reuse), and
+   [gateway-bearer-token-auth](gateway-bearer-token-auth.md) for the
+   bearer-token model the bonding decorates.
+2. `gateway-key-recovery.md` (new, M5): operator-side bearer-token
+   re-issue conditioned on OAuth-proof-of-identity, deprecation
+   window for the old bearer, and the audit-log shape. Narrower than
+   the Pass-Invariant-Eq follow-up in [endo-gateway.md](endo-gateway.md)
+   Open Question 1; that question stays open as the broader story.
+3. `gateway-stripe-adapter.md` (new, M5) or
+   rationale-as-implementation-only: the `verifyPaymentProof`
+   interface from PR #396 is processor-agnostic; the Stripe adapter
+   (webhook signature validation, Stripe-API integration,
+   idempotency, refund handling) may be small enough to live as
+   implementation rather than design, but a short design note
+   recording the wire shape and the failure modes reduces the risk
+   of the implementation drifting. Recommended as a design file to
+   align with the team's standing preference for
+   wire-shapes-pinned-before-code.
+
+**Exit criterion:** A user signs into a hosted Endo Gateway via
+OAuth, the gateway provisions an Endo agent for them (or bonds to
+their existing key via key recovery), the user purchases compute /
+storage / network / inference tokens via Stripe, configures their
+MCP client (Claude Desktop, etc.) with the agent's bearer token +
+the gateway's `/mcp` URL, and the MCP client successfully calls the
+agent's tools.
+
+**Estimated added effort (M6's own MCP-termination work):** ~2 weeks
+per phase plan in [endo-gateway-mcp](endo-gateway-mcp.md). The wider
+shortest-route cut spans ~6-9 weeks across M3's P0 remainder
+(gateway phases 10 and 11, ~2-3 weeks), M5's P3 Stripe adapter
+design + implementation (~1 week), and M5's P4 OAuth bonding + key
+recovery designs (~2 weeks design + implementation TBD). M5's P2 AWS
+hosting is gated on the merge cadence of PRs #343 and #356, not on
+fresh design effort.
+
+---
+
+#### Milestone 7: Weblets and Integrations
+
+(Was **Milestone 3** before the 2026-06-03 renumbering pass. Moved
+later in the sequence because most of its rows -- weblet hosting,
+agent-side OAuth, proactive messages, notifications, voice -- are not
+entrained by the hosted-Gateway-service north star; they are
+self-host/Familiar-experience capabilities that defer behind the
+gateway substrate (M3), networking (M4), public hosting (M5), and MCP
+bridge (M6).)
 
 **Goal:** Weblet hosting in Familiar and daemon. OAuth-based external
 service integrations. Proactive agent behavior. Webhooks for event-driven
@@ -505,7 +789,65 @@ webhook events.
 
 ---
 
-#### Milestone 4: UX Polish and Agent Tooling
+#### Milestone 8: Peer App Sharing
+
+(Was **Milestone A** (cross-cutting cut) before the 2026-06-03
+renumbering pass. Now an ordinary numbered milestone in approach
+order; its phased plan (P0 installer → P1 deep-link → P2 app +
+sandboxed UI → P3 clone) is preserved as the sequencing inside the
+milestone. Its dependencies on networking (M4: ocapn-noise,
+daemon-agent-network-identity) and weblet substrate (M7:
+exo-zip-package, daemon-checkin-checkout, familiar-unified-weblet-server,
+familiar-chat-weblet-hosting, daemon-weblet-application) all live in
+earlier milestones, so the dependency invariant is satisfied.)
+
+**Goal:** An end-to-end "make a thing, send it to a friend, they run
+it" milestone. Two people install Familiar, become peers by clicking
+an `endo://` link (confirmation screen + naming), and share runnable
+apps (endo-fs source + endo-fs-exec) either as a live remote
+reference or as an independent clone, with the app's UI hosted in a
+partial sandbox.
+
+See [app-sharing-milestone](app-sharing-milestone.md) for the
+verified current-state analysis and phased plan (P0 installer → P1
+deep-link → P2 app + sandboxed UI → P3 clone).
+
+| Design | Status | Pillar | Notes |
+|--------|--------|--------|-------|
+| app-sharing-milestone | Proposed | — | Milestone roadmap doc; verified current state + P0-P3 plan |
+| familiar-deep-link-invitations | Proposed | 2 — connect peers | New: `endo://` capture in shell → Chat confirm + naming modal → `host.accept` (daemon `invite`/`accept` already Complete) |
+| endo-app-sharing | Proposed | 3 — make & share apps | New: app handle (source + exec + ui + `cloneable`); cross-daemon clone as a single streamed tree-archive into a pluggable durable backing (default zip) vs remote reference — no per-blob hashing |
+| familiar-app-ui-hosting | Proposed | 3 — sandboxed UI | New: app UI manifest + sandbox tiers (`isolated`/`connected`/`trusted`) over the weblet substrate |
+| ~~familiar-electron-shell~~ | **Complete** | 1 — distributable | The shell being distributed (counted under M1) |
+| ~~familiar-daemon-bundling~~ | **Complete** | 1 — distributable | Bundled daemon/Node in the artifact (counted under M1) |
+| `familiar-release.md` (MVR plan) | Proposed | 1 — distributable | **Owns Pillar 1.** PR [#231](https://github.com/endojs/endo-but-for-bots/pull/231) (issue #229): G1-G16, **macOS-arm64-first**; P0 adopts it rather than running a competing plan. G-item PRs: [#318](https://github.com/endojs/endo-but-for-bots/pull/318) [#321](https://github.com/endojs/endo-but-for-bots/pull/321) [#319](https://github.com/endojs/endo-but-for-bots/pull/319) [#316](https://github.com/endojs/endo-but-for-bots/pull/316) [#320](https://github.com/endojs/endo-but-for-bots/pull/320) [#323](https://github.com/endojs/endo-but-for-bots/pull/323) [#324](https://github.com/endojs/endo-but-for-bots/pull/324) [#322](https://github.com/endojs/endo-but-for-bots/pull/322) [#317](https://github.com/endojs/endo-but-for-bots/pull/317) [#360](https://github.com/endojs/endo-but-for-bots/pull/360) |
+| ~~ocapn-noise-network~~ | **Complete** | 2 — connect peers | Secure transport peers connect over (counted under M4); daemon-to-daemon [#340](https://github.com/endojs/endo-but-for-bots/pull/340) |
+| daemon-agent-network-identity | Not Started | 2 — connect peers | Per-agent keypairs behind the locator node key; soft prereq (counted under M4). In-flight as `ocapn-daemon-integration` [#138](https://github.com/endojs/endo-but-for-bots/pull/138)/[#262](https://github.com/endojs/endo-but-for-bots/pull/262); locator v2 [#178](https://github.com/endojs/endo-but-for-bots/pull/178) |
+| exo-zip-package | Proposed | 3 — make & share apps | Durable zip backing for clones; in-flight as exo-zip/exo-unzip [#160](https://github.com/endojs/endo-but-for-bots/pull/160) (counted under M7) |
+| ~~daemon-checkin-checkout~~ | **Complete** | 3 — make & share apps | Local serialisation the clone generalises (counted under M7) |
+| familiar-unified-weblet-server | In Progress | 3 — sandboxed UI | Virtual-host serving for app UIs (counted under M7) |
+| familiar-chat-weblet-hosting | Not Started | 3 — sandboxed UI | In-Chat iframe pane + chrome/guest barrier (counted under M7) |
+| daemon-weblet-application | Not Started | 3 — sandboxed UI | Serve readable-tree files + powers over CapTP (counted under M7) |
+
+**Exit criterion:** A non-developer installs a signed Familiar build,
+clicks an `endo://` invite from a friend, confirms and names that
+peer, then receives a shared app — opening it either as a live remote
+reference or, when the author marked it cloneable, as their own
+independent copy — with the app's UI running in a partial sandbox.
+
+**Estimated added effort (the three new designs; existing
+constituents counted under their home milestones):** ~2-3 weeks, plus
+the P0 release-hardening track (signing/notarization/auto-update/
+Windows-CI) which is operational rather than a design item.
+
+---
+
+#### Milestone 9: UX Polish and Agent Tooling
+
+(Was **Milestone 4** before the 2026-06-03 renumbering pass. Defers
+behind the gateway substrate and the peer-sharing milestone because
+UX polish work is not entrained by the hosted-Gateway-service north
+star.)
 
 **Goal:** Polished Chat experience, developer observability.
 
@@ -518,12 +860,13 @@ webhook events.
 | inventory-cancel-and-liveness | Not Started | Cancel button with liveness indicator, coalesced watcher protocol |
 | inventory-grouping-by-type | Not Started | UI grouping, collapsible sections |
 | inventory-drag-and-drop | Not Started | HTML5 DnD handlers |
-| formula-inspector | Not Started | New panel, daemon API exposure (retention-paths surface factored out into `daemon-retention-paths`) |
+| formula-inspector | In Progress | Single Chat surface: a Value modal back face reached via `F` key, modal-header gear icon, or directly from inventory-row gear icon; back face is read-only at this stage. Host-only `getFormula(identifier)` daemon method (replaces `@info` name hub); `endo inspect` CLI; promise-formula view subscribes and integrates with error-tracing. Consolidates the earlier `chat-value-modal-formula-view` proposal. Daemon and CLI cuts shipping in `endojs/endo-but-for-bots#440`; chat-side cut deferred (chat-package shape impasse). |
 | workers-panel | Not Started | Metrics, sparklines (retention-paths section factored out into `daemon-retention-paths`) |
 | daemon-retention-paths | In Progress | Host-only `listRetentionPaths` / `followRetentionPaths`, `endo paths` CLI, Chat paths panel; Phase 1 forwarded as PR #284 (open) |
 | retention-path-notation | Reference | Notation + bulk-collection sketch captured for reference; not a forward-looking proposal |
 | ~~chat-view-edit-commands~~ | **Complete** | `/view` (alias `/cat`) and `/edit` blob commands shipped in `packages/chat/command-registry.js` with the Monaco-backed viewer/editor at `packages/chat/blob-viewer.js`; landed via direct-to-`llm` commit `ae2b074ac` plus typography / language-mode refinements |
 | chat-edit-message-ui | Not Started | `/edit` slash command, `e` focus shortcut, hover pencil for editing previously sent messages; revision-history panel |
+| chat-inventory-create-menu | Not Started | `+` button at the top of the inventory; pop-over menu to create whole-cloth inventory items (mounts, scratch spaces, passable / structured values, agents); three-pane wizard for the new-agent flow (harness, inference source by name with Ollama-model discovery and download, endowments over the nine-row capability-bank roster); subsumes `endo-gateway-mcp`'s `+ Add agent` Chat-UI affordance; provisioning entry point migrates from the daemon into Chat via the root host agent pet store, the `@root` endowment, and a sibling encrypted-formula-store design |
 | lal-transcript-memory-management | Not Started | Durable transcript nodes outliving dismissed messages |
 | patterns-diagnostic-feedback | Proposed | Opt-in `@endo/patterns/explain-mismatch.js` submodule; non-throwing `explainMismatch({ specimen, pattern, format? })` (mirrors `matches`'s boolean shape) returns a rendered diagnostic string or `undefined`; compact line-per-mismatch default (sized for AI-agent token economy) or opt-in Rust-compiler-style expanded form; zero cost to the production matcher path (submodule appears nowhere on its import graph) |
 | namehub-interface-unification | Proposed | Interface refactor so `EndoMount` and `NameHub` share a `ReadableNameHubInterface`; deferred companion to `filesystem-watchers` |
@@ -537,7 +880,12 @@ inline cancel. Agent transcript memory is bounded.
 
 ---
 
-#### Milestone 5: Capability Confinement and Ecosystem
+#### Milestone 10: Capability Confinement and Ecosystem
+
+(Was **Milestone 5** before the 2026-06-03 renumbering pass. Defers
+further behind the gateway substrate because process sandboxing,
+browser automation, and channel bridges are not on the critical path
+to a hosted Gateway service.)
 
 **Goal:** Full capability bank for AI agent confinement. Browser
 automation. Channel bridges to external messaging platforms. Plugin
@@ -562,7 +910,11 @@ Agents reachable from external messaging platforms via channel bridges.
 
 ---
 
-#### Milestone 6: Rust Daemon (`endor`)
+#### Milestone 11: Rust Daemon (`endor`)
+
+(Was **Milestone 6** before the 2026-06-03 renumbering pass. Stays
+last in the sequence: research-heavy Rust port that does not feed the
+hosted-Gateway-service north star.)
 
 **Goal:** Begin the Rust re-implementation of the Endo daemon, targeting
 a terminal-first experience.
@@ -784,89 +1136,111 @@ Recalibrated on 2026-03-02 using observed velocity from 15 active work days
 
 #### Per-Design Estimates
 
+Milestone column uses the post-2026-06-03 renumbering (M1-M11 in
+approach order). Items previously bucketed as "0", "½", "A", or "B"
+have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
+5 → 10, 6 → 11, 7 → 5, A → 8, B → 6.
+
 | Design | Size | Estimate | Milestone | Notes |
 |--------|------|----------|-----------|-------|
-| ~~daemon-256-bit-identifiers~~ | — | — | 0 | ✅ Complete (1 day actual) |
-| ~~daemon-form-request~~ | — | — | 0 | ✅ Complete (5 days actual) |
-| ~~daemon-value-message~~ | — | — | 0 | ✅ Complete |
-| ~~lal-reply-chain-transcripts~~ | — | — | 0 | ✅ Complete (phases 1-4; phase 5 deferred) |
-| ~~familiar-daemon-bundling~~ | — | — | 0 | ✅ Complete |
-| ~~lal-fae-form-provisioning~~ | — | — | 0 | ✅ Complete (inbox replay handles restart) |
-| ~~familiar-bundled-agents~~ | — | — | 0 | ✅ Complete (inline provisioning in daemon-node.js) |
-| ~~gateway-bearer-token-auth~~ | — | — | 1 | ✅ Implemented |
-| endo-gateway | L | 1.5-3 weeks | 1 | Per-host system-service HTTP virtual host for OCapN; lifts hosting out of per-user Daemon; closes issue #173, unblocks PR #134. Raised to M1 per kriskowal directive on `#134#issuecomment-4444987124` (2026-05-13). Size set at L pending per-phase backfill |
-| daemon-docker-selfhost | S-M | 3 days | 1 | Dockerfile, entrypoint, compose; PR #134 forwarded under bot, awaiting review |
-| daemon-agent-tools | M-L | 1.5 weeks | 1 | Shell, git, fs tool wrappers; PR #130 forwarded under bot |
-| ~~platform-fs~~ | S-M | — | 1 | ✅ Complete; `@endo/platform` package landed on `llm` (commit `e0dda06fb`); PR #122 carried review-cycle fixups |
-| daemon-capability-filesystem | L | — | 1 | Reference sketch; narrower mount slice ships via daemon-mount |
-| ~~daemon-content-store-gc~~ | S | — | 1 | ✅ Complete (PR #99, ~2 days actual vs 1 day estimate) |
-| daemon-mount | M-L | 1.5 weeks | 1 | Mount exo, symlink confinement; Phase 4 in PR #135 forwarded under bot |
-| ~~filesystem-watchers~~ (design) | S | — | 1 | ✅ Design merged (PR #115); implementation TBD |
-| daemon-locator-terminology | S | 1 day | 1 | locator.js + host.js changes |
-| daemon-rename-to-manager | S | 1 day | 1 | Mechanical rename; design merged (PR #85); implementation TBD |
-| endoclaw-timer | S-M | 3 days | 1 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
-| ~~daemon-guest-eval-simplification~~ | — | — | 1 | ✅ Implemented (PR #92, ~2 hours actual; well under 1-day estimate) |
-| endoclaw-network-fetch | S-M | 3 days | 1 | HttpClient with origin allowlist, rate/size limits; references [`trust-on-first-bind`](trust-on-first-bind.md) for the TOFU policy adapter |
-| ~~ci-no-npm-lifecycle~~ | S | — | ½ | ✅ Complete (PR #126 merged 2026-05-15) |
-| ~~chat-playwright-smoke~~ | S | — | ½ | ✅ Complete (PRs #91 design, #94 impl, #95+#104 fix; ~16 hours total) |
-| ~~base64-native-fallthrough~~ | S | — | ½ | ✅ Complete (via `actual/master` merge, commit `7325bbe15` from `endojs/endo#3216`) |
-| ~~hex-package~~ | S-M | — | ½ | ✅ Complete (`@endo/hex` shipped; synthetic `@endo/hex-test` lands as Cut 2 of break-dev-dependency-cycles, PR #211) |
-| ~~endo-bytes~~ | S | — | ½ | ✅ Implemented (PR #142): `@endo/bytes` with `concatBytes`, `bytesEqual`, `bytesFromText`, `bytesToText`; follow-up `bytesToImmutable`/`bytesFromImmutable` and ocapn buffer-utils consolidation (PR #227) |
-| break-dev-dependency-cycles | M | 3 days | ½ | Synthetic test-package factoring to retire workspace devDep SCC; Cuts 2-4 merged (PRs #209, #210, #211); Cut 5 (PR #247) and Cut 1 (largest, PR #235) open |
+| ~~daemon-256-bit-identifiers~~ | — | — | 1 | ✅ Complete (1 day actual) |
+| ~~daemon-form-request~~ | — | — | 1 | ✅ Complete (5 days actual) |
+| ~~daemon-value-message~~ | — | — | 1 | ✅ Complete |
+| ~~lal-reply-chain-transcripts~~ | — | — | 1 | ✅ Complete (phases 1-4; phase 5 deferred) |
+| ~~familiar-daemon-bundling~~ | — | — | 1 | ✅ Complete |
+| ~~lal-fae-form-provisioning~~ | — | — | 1 | ✅ Complete (inbox replay handles restart) |
+| ~~familiar-bundled-agents~~ | — | — | 1 | ✅ Complete (inline provisioning in daemon-node.js) |
+| ~~gateway-bearer-token-auth~~ | — | — | 3 | ✅ Implemented |
+| endo-gateway | L | 1.5-3 weeks | 3 | Per-host system-service HTTP virtual host for OCapN; lifts hosting out of per-user Daemon; closes issue #173, unblocks PR #134. Raised to M3 (was M1, pre-renumbering) per kriskowal directive on `#134#issuecomment-4444987124` (2026-05-13). Size set at L pending per-phase backfill |
+| daemon-docker-selfhost | S-M | 3 days | 3 | Dockerfile, entrypoint, compose; PR #134 forwarded under bot, awaiting review |
+| daemon-agent-tools | M-L | 1.5 weeks | 3 | Shell, git, fs tool wrappers; PR #130 forwarded under bot |
+| ~~platform-fs~~ | S-M | — | 3 | ✅ Complete; `@endo/platform` package landed on `llm` (commit `e0dda06fb`); PR #122 carried review-cycle fixups |
+| daemon-capability-filesystem | L | — | 3 | Reference sketch; narrower mount slice ships via daemon-mount |
+| ~~daemon-content-store-gc~~ | S | — | 3 | ✅ Complete (PR #99, ~2 days actual vs 1 day estimate) |
+| daemon-mount | M-L | 1.5 weeks | 3 | Mount exo, symlink confinement; Phase 4 in PR #135 forwarded under bot |
+| daemon-worker-import-from-mount | S-M | 3-4 days | 3 | **Integration layer** of the four-layer stack (decomposed 2026-06-02). `makeFromPackage` host method + `makeFromMount` dispatcher + CLI `endo run <mount>` / `endo make <mount>` + XS bridging deferral. Driven by the three preceding layers (`registry-capability`, `mvs-resolver`, `snapshot-mapper`); first cut limited to MVS; lockfile honoring deferred. Does not depend on the Rust subsystem (separate lane). |
+| registry-capability | S-M | 3 days | 3 | Layer 1 of 4. `EndoRegistry` exo + `@registry` host special name + `HostFormula.registry` migration pass. Structured `@endo/errors` failure surface. JS reference backend default; Rust drop-in deferred to Phase 5 |
+| mvs-resolver | S-M | 3-4 days | 3 | Layer 2 of 4. JS reference MVS algorithm, eager single-pass resolution producing `RegistryResolution` (content-addressed `resolutionHash`). Multi-major coexistence under distinct `<name>@<version>` keys. Lockfile follow-up tracked as constraint-pass insertion point |
+| snapshot-mapper | M | 4-5 days | 3 | Layer 3 of 4. `packages/daemon/src/map-snapshot.js` + `packages/daemon/src/worker-import.js` (`makeMountReadPowers`) + small extension point in `packages/compartment-mapper` for the archive-precedent peer-directory layout. The one cross-package change in the four-layer stack |
+| ~~filesystem-watchers~~ (design) | S | — | 3 | ✅ Design merged (PR #115); implementation TBD |
+| daemon-locator-terminology | S | 1 day | 3 | locator.js + host.js changes |
+| daemon-rename-to-manager | S | 1 day | 3 | Mechanical rename; design merged (PR #85); implementation TBD |
+| endoclaw-timer | S-M | 3 days | 3 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
+| ~~daemon-guest-eval-simplification~~ | — | — | 3 | ✅ Implemented (PR #92, ~2 hours actual; well under 1-day estimate) |
+| endoclaw-network-fetch | S-M | 3 days | 3 | HttpClient with origin allowlist, rate/size limits; references [`trust-on-first-bind`](trust-on-first-bind.md) for the TOFU policy adapter |
+| ~~ci-no-npm-lifecycle~~ | S | — | 2 | ✅ Complete (PR #126 merged 2026-05-15) |
+| ~~chat-playwright-smoke~~ | S | — | 2 | ✅ Complete (PRs #91 design, #94 impl, #95+#104 fix; ~16 hours total) |
+| ~~base64-native-fallthrough~~ | S | — | 2 | ✅ Complete (via `actual/master` merge, commit `7325bbe15` from `endojs/endo#3216`) |
+| ~~hex-package~~ | S-M | — | 2 | ✅ Complete (`@endo/hex` shipped; synthetic `@endo/hex-test` lands as Cut 2 of break-dev-dependency-cycles, PR #211) |
+| ~~endo-bytes~~ | S | — | 2 | ✅ Implemented (PR #142): `@endo/bytes` with `concatBytes`, `bytesEqual`, `bytesFromText`, `bytesToText`; follow-up `bytesToImmutable`/`bytesFromImmutable` and ocapn buffer-utils consolidation (PR #227) |
+| ~~break-dev-dependency-cycles~~ | M | — | 2 | ✅ Complete on `llm` (all five cut packages exist; SCC count is 0). Cut 1 PR #261, Cut 2 PR #211, Cut 3 PR #209, Cut 4 PR #210, Cut 5 PR #247. PR #235 against master is the upstream-ferry mirror, M2-orthogonal |
 | ~~unhandled-rejection-display~~ | S | — | — | ✅ Complete (out-of-milestone diagnostic; PR #187 closes #171). CapTP `CTP_DISCONNECT.reason` now renders structured Error reasons rather than empty `{}` |
-| ocapn-network-transport-separation | M-L | 1.5 weeks | 2 | Architectural refactor (M-L bumped 1.2x) |
-| ocapn-tcp-for-test-extraction | S-M | 3 days | 2 | Code relocation |
-| ocapn-tcp-syrups-framing | S-M | 3 days | 2 | `@endo/syrups` package, new `tcp+syrups` netlayer; design merged (PR #108); impl PR #109 open |
-| ~~syrups~~ | — | — | 2 | Consolidated into `ocapn-tcp-syrups-framing` (PR 29); see [`syrups.md`](syrups.md) |
-| cbors | S-M | 3 days | 2 | New `@endo/cbors` package; design merged with syrups in PR #86 |
-| ocapn-noise-cryptographic-review | S | 1 day | 2 | External review coordination |
-| daemon-agent-network-identity | S-M | 3 days | 2 | Network registration, locator construction |
-| ~~ocapn-noise-network~~ | L | — | 2 | ✅ Complete (PR #137 consolidates stacked PRs #111/#112/#113; merged 2026-05-08) |
-| familiar-unified-weblet-server | M | 3 days | 3 | Web-server restructuring; design revised in PR #100 |
-| familiar-chat-weblet-hosting | M | 4-5 days | 3 | Iframe hosting, guest profiles (1.2x bump) |
-| ~~daemon-checkin-checkout~~ | S-M | — | 3 | ✅ Complete (`endo ci`/`co` shipped on llm; zip-archive interchange tracked separately under exo-zip-package) |
-| cli-edit-verb | S-M | 3 days | 3 | `endo edit` with hashline parser, anchor validator, splice; CLI-side, no daemon surface change |
-| daemon-weblet-application | M | 4-5 days | 3 | Formula types, gateway serving (1.2x bump) |
-| exo-zip-package | S | 1-2 days | 3 | `@endo/exo-zip` adapter: in-memory ZIP as `ReadableTree` exo; PR #128 reshape blocker |
-| endoclaw-oauth | S-M | 3 days | 3 | Credential proxy exo, token injection |
-| endoclaw-proactive-messages | S | 1 day | 3 | Pattern doc: Timer + data caps + send() |
-| endoclaw-notifications | S | 1 day | 3 | Electron Notification API, rate-limited exo; needs daemon↔Electron bridge |
-| endoclaw-webhooks | S-M | 3 days | 3 | Gateway webhook routes → inbox messages |
-| endoclaw-voice | S | 1-2 days | 3 | Web Speech API in Chat UI |
-| ~~chat-reply-chain-visualization~~ | — | — | 4 | Deprecated (superseded by chat-focus-message) |
-| chat-pending-commands | S-M | 3 days | 4 | Pending region, unlocked command bar (UI only); PR #133 forwarded under bot |
-| chat-slot-slash-commands | M | 4-5 days | 4 | Slot-level verb registry, transient-pin extension of `formulateEval`, shared slot-input component (1.2x bump) |
-| daemon-commands-as-messages | M-L | 1.5 weeks | 4 | New message type, self-delivery, result replies, Chat rendering |
-| inventory-cancel-and-liveness | M | 4-5 days | 4 | Cancel button, indicator states, coalesced watcher exo + daemon hooks |
-| inventory-grouping-by-type | S | 1-2 days | 4 | UI grouping |
-| inventory-drag-and-drop | S-M | 3 days | 4 | HTML5 DnD; PR #131 forwarded under bot |
-| formula-inspector | M | 4-5 days | 4 | New panel, daemon API |
-| workers-panel | M | 4-6 days | 4 | Metrics, sparklines |
-| daemon-retention-paths | M-L | 1.5 weeks | 4 | Snapshot + subscription daemon API, CLI verb, Chat paths panel; Phase 1 in PR #284 (open) |
-| retention-path-notation | — | — | 4 | Reference; notation + bulk-collection sketch captured for future reference |
-| ~~chat-view-edit-commands~~ | M | — | 4 | ✅ Complete (direct-to-`llm` commit `ae2b074ac` "Blob view and edit" + refinements; `/view` (alias `/cat`) and `/edit` shipped) |
-| chat-edit-message-ui | S-M | 3 days | 4 | `/edit` command, `e` focus shortcut, hover pencil; design merged (PR #88); daemon impl in PR #125 forwarded under bot |
-| lal-transcript-memory-management | S | 1 day | 4 | Durable message-to-node mapping, broken chain detection |
-| patterns-diagnostic-feedback | S-M | 2-3 days | 4 | New submodule `@endo/patterns/explain-mismatch.js`: internal tracing recursion (non-throwing, reuses `matchHelpers` in place) + dual-format renderer (compact default, expanded opt-in) folded into a single `explainMismatch({ specimen, pattern, format? })` returning a rendered string (~600 lines incl. tests). Single-PR deliverable. Production `@endo/patterns` matcher path unchanged. |
-| namehub-interface-unification | S | 1-2 days | 4 | Introduce `ReadableNameHubInterface`; refactor `MountInterface` and inventory-component dispatch; defers mount-entry locator question |
-| ~~daemon-os-sandbox-plugin~~ | — | — | 5 | Superseded by `endo-posix-sandbox` |
-| endo-posix-sandbox | L-XL | 6-10 weeks remaining | 5 | Phases 0-1 shipped (bwrap on Linux); Phase 2 (podman) and Phase 3 (nested slices) in flight; Phases 1.5, 4, 6 ahead. Per-phase estimates pending PLAN backfill |
-| daemon-capability-persona | S-M | 3 days | 5 | Handle extension, epithet tracking |
-| daemon-capability-bank | XL | 4-6 weeks | 5 | Integrates all capabilities (XL bumped 1.3x as conservative pending data) |
-| endoclaw-browser | M-L | 1.5 weeks | 5 | Playwright-backed, origin-confined; smallest cut in PR #106 |
-| endoclaw-channel-bridges | M | 4-5 days | 5 | Vercel `chat` SDK adapters |
-| endoclaw-skill-registry | S-M | 3 days | 5 | Skills directory with capability declarations; PR #105 open |
-| endor-tui | XL | 5-8 weeks | 6 | Rust TUI: ratatui/crossterm, concept-map of every Chat component, XS `mxDebug` debugger integration (XL bumped 1.3x) |
-| endor-bus-tui | XL | 4-7 weeks | 6 | Bus-verb spec, XS handle API, Exo/CapTP wrapper; cross-worker layout composition (XL bumped 1.3x) |
+| ocapn-network-transport-separation | M-L | 1.5 weeks | 4 | Architectural refactor (M-L bumped 1.2x) |
+| ocapn-tcp-for-test-extraction | S-M | 3 days | 4 | Code relocation |
+| ocapn-tcp-syrups-framing | S-M | 3 days | 4 | `@endo/syrups` package, new `tcp+syrups` netlayer; design merged (PR #108); impl PR #109 open |
+| ~~syrups~~ | — | — | 4 | Consolidated into `ocapn-tcp-syrups-framing` (PR 29); see [`syrups.md`](syrups.md) |
+| cbors | S-M | 3 days | 4 | New `@endo/cbors` package; design merged with syrups in PR #86 |
+| ocapn-noise-cryptographic-review | S | 1 day | 4 | External review coordination |
+| daemon-agent-network-identity | S-M | 3 days | 4 | Network registration, locator construction |
+| ~~ocapn-noise-network~~ | L | — | 4 | ✅ Complete (PR #137 consolidates stacked PRs #111/#112/#113; merged 2026-05-08) |
+| gateway-package | L | — | 5 | Overarching `@endo/gateway` package design (counted under M3 for effort; listed in M5 as the substrate it operates as a hosted service); PR [#343](https://github.com/endojs/endo-but-for-bots/pull/343) open |
+| gateway-packaging-ci | S-M | 3 days | 5 | CI workflow that builds and signs OS package artifacts; PR [#356](https://github.com/endojs/endo-but-for-bots/pull/356) stacked sibling |
+| gateway-aws-deployment | M | 4-5 days | 5 | AWS deployment automation; PR #356 stacked sibling |
+| gateway-aws-attuned | M-L | 1.5 weeks | 5 | AWS-native substitutes for five gateway subsystems; PR #356 stacked sibling |
+| gateway-oauth-bonding *(gap)* | M | 4-5 days | 5 | Design gap; OAuth-to-formula-id bonding (referenced by M6 P4 slice) |
+| gateway-key-recovery *(gap)* | S-M | 3 days | 5 | Design gap; operator-side bearer-token re-issue (referenced by M6 P4 slice) |
+| gateway-stripe-adapter *(gap)* | S-M | 3 days | 5 | Design gap; reference adapter for `verifyPaymentProof` (referenced by M6 P3 slice) |
+| endo-gateway-mcp | M | ~2 weeks | 6 | MCP JSON-RPC termination; counted under M6 as the MCP-bridge milestone's own work. Design merged today (PR [#376](https://github.com/endojs/endo-but-for-bots/pull/376)) |
+| familiar-unified-weblet-server | M | 3 days | 7 | Web-server restructuring; design revised in PR #100 |
+| familiar-chat-weblet-hosting | M | 4-5 days | 7 | Iframe hosting, guest profiles (1.2x bump) |
+| ~~daemon-checkin-checkout~~ | S-M | — | 7 | ✅ Complete (`endo ci`/`co` shipped on llm; zip-archive interchange tracked separately under exo-zip-package) |
+| cli-edit-verb | S-M | 3 days | 7 | `endo edit` with hashline parser, anchor validator, splice; CLI-side, no daemon surface change |
+| daemon-weblet-application | M | 4-5 days | 7 | Formula types, gateway serving (1.2x bump) |
+| exo-zip-package | S | 1-2 days | 7 | `@endo/exo-zip` adapter: in-memory ZIP as `ReadableTree` exo; PR #128 reshape blocker |
+| endoclaw-oauth | S-M | 3 days | 7 | Credential proxy exo, token injection (agent-side OAuth; distinct from gateway-oauth-bonding in M5) |
+| endoclaw-proactive-messages | S | 1 day | 7 | Pattern doc: Timer + data caps + send() |
+| endoclaw-notifications | S | 1 day | 7 | Electron Notification API, rate-limited exo; needs daemon↔Electron bridge |
+| endoclaw-webhooks | S-M | 3 days | 7 | Gateway webhook routes → inbox messages |
+| endoclaw-voice | S | 1-2 days | 7 | Web Speech API in Chat UI |
+| ~~chat-reply-chain-visualization~~ | — | — | 9 | Deprecated (superseded by chat-focus-message) |
+| chat-pending-commands | S-M | 3 days | 9 | Pending region, unlocked command bar (UI only); PR #133 forwarded under bot |
+| chat-slot-slash-commands | M | 4-5 days | 9 | Slot-level verb registry, transient-pin extension of `formulateEval`, shared slot-input component (1.2x bump) |
+| daemon-commands-as-messages | M-L | 1.5 weeks | 9 | New message type, self-delivery, result replies, Chat rendering |
+| inventory-cancel-and-liveness | M | 4-5 days | 9 | Cancel button, indicator states, coalesced watcher exo + daemon hooks |
+| inventory-grouping-by-type | S | 1-2 days | 9 | UI grouping |
+| inventory-drag-and-drop | S-M | 3 days | 9 | HTML5 DnD; PR #131 forwarded under bot |
+| formula-inspector | M | 4-5 days | 9 | Single Chat surface (Value modal back face, gear icon flip plus direct inventory-row entry, read-only at this stage); host-only `getFormula(identifier)` daemon method (removes `@info`); `endo inspect` CLI; promise-formula view with error-tracing integration |
+| workers-panel | M | 4-6 days | 9 | Metrics, sparklines |
+| daemon-retention-paths | M-L | 1.5 weeks | 9 | Snapshot + subscription daemon API, CLI verb, Chat paths panel; Phase 1 in PR #284 (open) |
+| retention-path-notation | — | — | 9 | Reference; notation + bulk-collection sketch captured for future reference |
+| ~~chat-view-edit-commands~~ | M | — | 9 | ✅ Complete (direct-to-`llm` commit `ae2b074ac` "Blob view and edit" + refinements; `/view` (alias `/cat`) and `/edit` shipped) |
+| chat-edit-message-ui | S-M | 3 days | 9 | `/edit` command, `e` focus shortcut, hover pencil; design merged (PR #88); daemon impl in PR #125 forwarded under bot |
+| chat-inventory-create-menu | M-L | 1.5 weeks | 9 | Inventory header `+`, pop-over menu, five item-type modals (mount, scratch, passable, structured, agent), three-pane new-agent wizard (harness / inference source / endowments); Phase 1-3 cover the simpler items, Phases 4-5 cover the agent wizard and endowment delivery, Phase 6 picks up OAuth providers when `endopi-provider-registry-and-oauth` § Phases 3-4 land |
+| lal-transcript-memory-management | S | 1 day | 9 | Durable message-to-node mapping, broken chain detection |
+| patterns-diagnostic-feedback | S-M | 2-3 days | 9 | New submodule `@endo/patterns/explain-mismatch.js`: internal tracing recursion (non-throwing, reuses `matchHelpers` in place) + dual-format renderer (compact default, expanded opt-in) folded into a single `explainMismatch({ specimen, pattern, format? })` returning a rendered string (~600 lines incl. tests). Single-PR deliverable. Production `@endo/patterns` matcher path unchanged. |
+| namehub-interface-unification | S | 1-2 days | 9 | Introduce `ReadableNameHubInterface`; refactor `MountInterface` and inventory-component dispatch; defers mount-entry locator question |
+| ~~daemon-os-sandbox-plugin~~ | — | — | 10 | Superseded by `endo-posix-sandbox` |
+| endo-posix-sandbox | L-XL | 6-10 weeks remaining | 10 | Phases 0-1 shipped (bwrap on Linux); Phase 2 (podman) and Phase 3 (nested slices) in flight; Phases 1.5, 4, 6 ahead. Per-phase estimates pending PLAN backfill |
+| daemon-capability-persona | S-M | 3 days | 10 | Handle extension, epithet tracking |
+| daemon-capability-bank | XL | 4-6 weeks | 10 | Integrates all capabilities (XL bumped 1.3x as conservative pending data) |
+| endoclaw-browser | M-L | 1.5 weeks | 10 | Playwright-backed, origin-confined; smallest cut in PR #106 |
+| endoclaw-channel-bridges | M | 4-5 days | 10 | Vercel `chat` SDK adapters |
+| endoclaw-skill-registry | S-M | 3 days | 10 | Skills directory with capability declarations; PR #105 open |
+| endor-tui | XL | 5-8 weeks | 11 | Rust TUI: ratatui/crossterm, concept-map of every Chat component, XS `mxDebug` debugger integration (XL bumped 1.3x) |
+| endor-bus-tui | XL | 4-7 weeks | 11 | Bus-verb spec, XS handle API, Exo/CapTP wrapper; cross-worker layout composition (XL bumped 1.3x) |
 | endopi | Reference | — | — | Comparative analysis of the pi agent harness against endo; spins out the endopi-* gap-closing designs below |
-| endopi-edit-tool | S-M | 3 days | 1 | LLM-friendly oldText/newText edit primitive on `File` capability; reuses [cli-edit-verb](cli-edit-verb.md)'s diff helpers |
-| endopi-jsonl-transcript-format | S-M | 3 days | 1 | On-disk JSONL projection of the Lal transcript graph; satisfies endoclaw § *Persistence and Memory*'s "Pi-compatible jsonl files" directive |
-| endopi-provider-registry-and-oauth | M | 4-5 days | 1 | Registry shape for LLM providers; subscription OAuth (Claude Pro, ChatGPT Plus, Copilot); cross-provider handoff. Partially satisfied today: `packages/genie` ships `pi-ai`'s full registry plus an ollama adaptor; remaining scope is OAuth + cross-provider handoff + Lal-vs-Genie consolidation. |
-| endopi-iterative-compaction | S-M | 3 days | 4 | Auto-compaction algorithm matching Pi's released shape; substrate for [lal-transcript-memory-management](lal-transcript-memory-management.md). Partially satisfied today: `packages/genie`'s observer/reflector subagent pair is a working iterative compactor. |
-| endopi-skills-markdown-format | S-M | 3 days | 5 | On-disk SKILL.md format (agentskills.io); paired with [endoclaw-skill-registry](endoclaw-skill-registry.md) |
-| endopi-prompt-templates | S | 1-2 days | 4 | Reusable user-prompt scaffolds with `{{var}}` expansion; shares skills' discovery walker |
-| endopi-stdio-rpc-bridge | M | 4-5 days | 1 | LF-delimited JSONL RPC for embedding the Lal/Fae agent in another process; short-term shape before `endor-bus-tui` |
-| endopi-extension-package-manifest | S-M | 3 days | 5 | `package.json` `endo` keyword bundling guests + skills + prompts + providers in one install |
+| endopi-edit-tool | S-M | 3 days | 3 | LLM-friendly oldText/newText edit primitive on `File` capability; reuses [cli-edit-verb](cli-edit-verb.md)'s diff helpers |
+| endopi-jsonl-transcript-format | S-M | 3 days | 3 | On-disk JSONL projection of the Lal transcript graph; satisfies endoclaw § *Persistence and Memory*'s "Pi-compatible jsonl files" directive |
+| endopi-provider-registry-and-oauth | M | 4-5 days | 3 | Registry shape for LLM providers; subscription OAuth (Claude Pro, ChatGPT Plus, Copilot); cross-provider handoff. Partially satisfied today: `packages/genie` ships `pi-ai`'s full registry plus an ollama adaptor; remaining scope is OAuth + cross-provider handoff + Lal-vs-Genie consolidation. |
+| endopi-iterative-compaction | S-M | 3 days | 9 | Auto-compaction algorithm matching Pi's released shape; substrate for [lal-transcript-memory-management](lal-transcript-memory-management.md). Partially satisfied today: `packages/genie`'s observer/reflector subagent pair is a working iterative compactor. |
+| endopi-skills-markdown-format | S-M | 3 days | 10 | On-disk SKILL.md format (agentskills.io); paired with [endoclaw-skill-registry](endoclaw-skill-registry.md) |
+| endopi-prompt-templates | S | 1-2 days | 9 | Reusable user-prompt scaffolds with `{{var}}` expansion; shares skills' discovery walker |
+| endopi-stdio-rpc-bridge | M | 4-5 days | 3 | LF-delimited JSONL RPC for embedding the Lal/Fae agent in another process; short-term shape before `endor-bus-tui` |
+| endopi-extension-package-manifest | S-M | 3 days | 10 | `package.json` `endo` keyword bundling guests + skills + prompts + providers in one install |
+| app-sharing-milestone | — | — | 8 | Roadmap doc; no implementation of its own (reference for the P0-P3 sequencing) |
+| familiar-deep-link-invitations | S-M | 3 days | 8 | `endo://` capture in shell + Chat confirm/naming modal; daemon `invite`/`accept` already Complete |
+| endo-app-sharing | M | 4-5 days | 8 | App handle + cross-daemon `endo clone` (hash-verified) vs remote reference (1.2x bump) |
+| familiar-app-ui-hosting | M | 4-5 days | 8 | App UI manifest + sandbox tiers over the existing weblet substrate (1.2x bump) |
 
 #### Summary by Milestone
 
@@ -880,15 +1254,18 @@ date of this pass.
 
 | Milestone | Items remaining | Effort Estimate | Plus Review Queue (current rate) |
 |-----------|-----------------|-----------------|----------------------------------|
-| M0: AI Agent Experience | 0 | **Complete** | — |
-| M½: Project Hygiene | 1 (`break-dev-dependency-cycles`: Cut 1 PR #235, Cut 5 PR #247 open) | 3-5 days | 2-3 weeks |
-| M1: Remote Access & Tools | 10 (`endo-gateway`, `daemon-docker-selfhost`, `daemon-agent-tools`, `daemon-mount`, `filesystem-watchers`, `daemon-locator-terminology`, `daemon-rename-to-manager`, `daemon-xs-worker-snapshot`, `endoclaw-timer`, `endoclaw-network-fetch`) | 8-10 weeks | 10-12 weeks |
-| M2: Networking | 6 (`ocapn-network-transport-separation`, `ocapn-tcp-for-test-extraction`, `ocapn-tcp-syrups-framing`, `cbors`, `ocapn-noise-cryptographic-review`, `daemon-agent-network-identity`) | 4-5 weeks | 5-7 weeks |
-| M3: Weblets & Integrations | 11 (`familiar-unified-weblet-server`, `familiar-chat-weblet-hosting`, `cli-store-verb-text-modes`, `cli-edit-verb`, `daemon-weblet-application`, `exo-zip-package`, `endoclaw-oauth`, `endoclaw-proactive-messages`, `endoclaw-notifications`, `endoclaw-webhooks`, `endoclaw-voice`) | 6-8 weeks | 8-11 weeks |
-| M4: UX & Tooling | 12 (`chat-pending-commands`, `chat-slot-slash-commands`, `daemon-commands-as-messages`, `inventory-cancel-and-liveness`, `inventory-grouping-by-type`, `inventory-drag-and-drop`, `formula-inspector`, `workers-panel`, `daemon-retention-paths`, `chat-edit-message-ui`, `lal-transcript-memory-management`, `namehub-interface-unification`) | 8-11 weeks | 10-13 weeks |
-| M5: Confinement & Ecosystem | 6 (`endo-posix-sandbox`, `daemon-capability-persona`, `daemon-capability-bank`, `endoclaw-browser`, `endoclaw-channel-bridges`, `endoclaw-skill-registry`) | 14-20 weeks | 16-22 weeks |
-| M6: Rust Daemon (`endor`) | 2 (`endor-tui`, `endor-bus-tui`) | 12-17 weeks | 14-19 weeks |
-| **Total remaining** | **48** | **~52-71 weeks** | **~63-86 weeks** |
+| M1: AI Agent Experience (was M0) | 0 | **Complete** | — |
+| M2: Project Hygiene (was M½) | 0 | **Complete** | — |
+| M3: Remote Access & Tools (was M1) | 14 (`endo-gateway`, `daemon-docker-selfhost`, `daemon-agent-tools`, `daemon-mount`, `daemon-worker-import-from-mount`, `registry-capability`, `mvs-resolver`, `snapshot-mapper`, `filesystem-watchers`, `daemon-locator-terminology`, `daemon-rename-to-manager`, `daemon-xs-worker-snapshot`, `endoclaw-timer`, `endoclaw-network-fetch`) | 8-11 weeks | 10-13 weeks |
+| M4: Networking (was M2) | 6 (`ocapn-network-transport-separation`, `ocapn-tcp-for-test-extraction`, `ocapn-tcp-syrups-framing`, `cbors`, `ocapn-noise-cryptographic-review`, `daemon-agent-network-identity`) | 4-5 weeks | 5-7 weeks |
+| M5: Public Hosting & Billing (was M7) | 4 in-flight on PR #356 stack (`gateway-package` counted under M3; `gateway-packaging-ci`, `gateway-aws-deployment`, `gateway-aws-attuned` counted here) + 3 design gaps (`gateway-oauth-bonding`, `gateway-key-recovery`, `gateway-stripe-adapter`) | 4-6 weeks design + impl | merge cadence of PRs #343 and #356 |
+| M6: MCP Bridge Hosting (was Milestone B) | 1 net-new (`endo-gateway-mcp` impl); cross-milestone slices in M3 (P0) and M5 (P2/P3/P4 gaps) | ~2 weeks own work + ~6-9 weeks across P0-P4 | gated by M3 gateway-package phases 2/7/8 merge cadence |
+| M7: Weblets & Integrations (was M3) | 11 (`familiar-unified-weblet-server`, `familiar-chat-weblet-hosting`, `cli-store-verb-text-modes`, `cli-edit-verb`, `daemon-weblet-application`, `exo-zip-package`, `endoclaw-oauth`, `endoclaw-proactive-messages`, `endoclaw-notifications`, `endoclaw-webhooks`, `endoclaw-voice`) | 6-8 weeks | 8-11 weeks |
+| M8: Peer App Sharing (was Milestone A) | 3 net-new (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); existing constituents counted under M3/M4/M7 | 2-3 weeks | 3-5 weeks |
+| M9: UX & Tooling (was M4) | 13 (`chat-pending-commands`, `chat-slot-slash-commands`, `daemon-commands-as-messages`, `inventory-cancel-and-liveness`, `inventory-grouping-by-type`, `inventory-drag-and-drop`, `formula-inspector`, `workers-panel`, `daemon-retention-paths`, `chat-edit-message-ui`, `chat-inventory-create-menu`, `lal-transcript-memory-management`, `namehub-interface-unification`) | 9-12 weeks | 11-14 weeks |
+| M10: Confinement & Ecosystem (was M5) | 6 (`endo-posix-sandbox`, `daemon-capability-persona`, `daemon-capability-bank`, `endoclaw-browser`, `endoclaw-channel-bridges`, `endoclaw-skill-registry`) | 14-20 weeks | 16-22 weeks |
+| M11: Rust Daemon (`endor`) (was M6) | 2 (`endor-tui`, `endor-bus-tui`) | 12-17 weeks | 14-19 weeks |
+| **Total remaining** | **55** + 7 M5 rows (4 in-flight + 3 design gaps) + 1 M6 own-work row | **~56-76 weeks** + M5 4-6 weeks + M6 ~2 weeks | **~68-92 weeks** |
 
 The 2026-05-20 reconciliation corrects a counting gap in the prior
 snapshot's narrative: M1, M3, and M4 had absorbed new rows since the
@@ -910,68 +1287,174 @@ gantt
     title Endo Roadmap (1 Developer)
     dateFormat YYYY-MM-DD
 
-    section Milestone 0
-    AI Agent Experience           :done, m0, 2026-02-15, 2026-03-05
-
-    section Milestone ½
-    Project Hygiene               :mhalf, 2026-05-20, 1w
-
     section Milestone 1
-    Remote Access & Tools         :m1, after mhalf, 10w
+    AI Agent Experience           :done, m1, 2026-02-15, 2026-03-05
 
     section Milestone 2
-    Networking                    :m2, after m1, 5w
+    Project Hygiene               :done, m2, 2026-05-20, 2026-06-15
 
     section Milestone 3
-    Weblets & Integrations        :m3, after m2, 8w
+    Remote Access & Tools         :m3, after m2, 10w
 
     section Milestone 4
-    UX & Tooling                  :m4, after m3, 11w
+    Networking                    :m4, after m3, 5w
 
     section Milestone 5
-    Confinement & Ecosystem       :m5, after m4, 20w
+    Public Hosting & Billing      :m5, after m4, 6w
 
     section Milestone 6
-    Rust Daemon (endor)           :m6, after m5, 17w
+    MCP Bridge Hosting            :m6, after m5, 2w
+
+    section Milestone 7
+    Weblets & Integrations        :m7, after m6, 8w
+
+    section Milestone 8
+    Peer App Sharing              :m8, after m7, 3w
+
+    section Milestone 9
+    UX & Tooling                  :m9, after m8, 11w
+
+    section Milestone 10
+    Confinement & Ecosystem       :m10, after m9, 20w
+
+    section Milestone 11
+    Rust Daemon (endor)           :m11, after m10, 17w
 ```
 
 Durations below are the recalibrated effort-side ranges (multiplying by
 the per-size ratios from the 2026-05-20 calibration round).
 Add ~2 weeks per milestone if the current review-queue depth persists.
-M½ runs in parallel with the early phase of M1 in practice (it is build-
-system and library substrate); the table treats it as a separate row
-for accounting, but the calendar overlap means M1's target date does
-not shift materially once M½'s remaining item lands.
-The Gantt anchors M½ to today (2026-05-20) since the M0-to-M½ chain
+M2 (Project Hygiene, was M½) runs in parallel with the early phase of
+M3 in practice (it is build-system and library substrate); the table
+treats it as a separate row for accounting, but the calendar overlap
+means M3's target date does not shift materially once M2's remaining
+item lands.
+The Gantt anchors M2 to today (2026-05-20) since the M1-to-M2 chain
 slipped relative to the original 2026-03-06 anchor; cumulative target
 dates project from that anchor at the upper-bound effort.
 
 | Milestone | Duration | Cumulative | Target Date |
 |-----------|----------|------------|-------------|
-| M0: AI Agent Experience | 18 days (actual) | **Complete** | March 5, 2026 |
-| M½: Project Hygiene | 3-5 days remaining | 3-5 days | Late May 2026 |
-| M1: Remote Access & Tools | 8-10 weeks | 8-10 weeks | Late July to early August 2026 |
-| M2: Networking | 4-5 weeks | 12-15 weeks | Late August to mid September 2026 |
-| M3: Weblets & Integrations | 6-8 weeks | 18-23 weeks | Late October to early November 2026 |
-| M4: UX & Tooling | 8-11 weeks | 26-34 weeks | Mid December 2026 to mid January 2027 |
-| M5: Confinement & Ecosystem | 14-20 weeks | 40-54 weeks | Mid March to early May 2027 |
-| M6: Rust Daemon (`endor`) | 12-17 weeks | 52-71 weeks | Q3 to Q4 2027 |
+| M1: AI Agent Experience (was M0) | 18 days (actual) | **Complete** | March 5, 2026 |
+| M2: Project Hygiene (was M½) | **Complete** | — | 2026-06-15 |
+| M3: Remote Access & Tools (was M1) | 8-10 weeks | 8-10 weeks | Late July to early August 2026 |
+| M4: Networking (was M2) | 4-5 weeks | 12-15 weeks | Late August to mid September 2026 |
+| M5: Public Hosting & Billing (was M7) | 4-6 weeks (designs + impl) + AWS-stack merge cadence | 16-21 weeks | Late September to mid November 2026 (gated by M3 gateway-package merge cadence and PRs #343 / #356) |
+| M6: MCP Bridge Hosting (was Milestone B) | ~2 weeks own work | 18-23 weeks | Mid October to late November 2026 (gated by M3 gateway-package phases 2/7/8 merge cadence) |
+| M7: Weblets & Integrations (was M3) | 6-8 weeks | 24-31 weeks | Mid December 2026 to mid January 2027 |
+| M8: Peer App Sharing (was Milestone A) | 2-3 weeks | 26-34 weeks | Late December 2026 to early February 2027 |
+| M9: UX & Tooling (was M4) | 9-12 weeks | 35-46 weeks | Mid February to mid April 2027 |
+| M10: Confinement & Ecosystem (was M5) | 14-20 weeks | 49-66 weeks | Late May to early September 2027 |
+| M11: Rust Daemon (`endor`) (was M6) | 12-17 weeks | 61-83 weeks | Q3 to Q4 2027 (research-heavy; may run in parallel) |
 
-*Milestones 3 and 4 are less order-dependent and can be interleaved.
-Milestones 0, ½, 1, and 2 form the critical path. Weblets prioritized
-over UX polish (swapped 2026-03-06).
-M6 (Rust `endor`) is research-heavy and may run in parallel to later
-chat/UX milestones once basic host scaffolding is in place.*
+*M3 and M7 (weblets) are less order-dependent and can be interleaved
+once their respective dependencies have landed; the M5/M6 hosted-Gateway
+work sequences before M7 because the hosted-Gateway-service north star
+drives priority. M1, M2, M3, and M4 form the critical path to the
+hosted-Gateway substrate. Weblets prioritized over UX polish (swapped
+2026-03-06).
+M11 (Rust `endor`) is research-heavy and may run in parallel to later
+chat/UX milestones once basic host scaffolding is in place.
+M5 and M6 (Public Hosting + MCP Bridge) used to be decoupled from the
+critical path; under the 2026-06-03 renumbering they are pulled onto
+it explicitly because the hosted-Gateway-service is the north star.*
 
 ### Strategic Early Items
 
-Two EndoClaw capabilities are surfaced before the last two milestones
-because they are foundational rather than features:
+Three items are surfaced before their natural milestone (each pulled
+into M3, the gateway substrate milestone) because they are
+foundational rather than features. Under the 2026-06-03 renumbering,
+`endo-gateway-mcp` is no longer listed here because the MCP-bridge
+work has its own milestone (M6) and the design proper lives there;
+the two surviving Strategic-Early items are core M3 capabilities that
+pre-empt later milestones.
 
 | Design | Milestone | Rationale |
 |--------|-----------|-----------|
-| endoclaw-timer | M1 | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
-| endoclaw-network-fetch | M1 | **Foundation for all external access.** M1 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
+| endoclaw-timer | M3 (was M1) | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
+| endoclaw-network-fetch | M3 (was M1) | **Foundation for all external access.** M3 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. |
+
+**Progress as of 2026-06-15 (targeted post-event M2 closure):** The
+maintainer's 2026-06-15 directive asked to verify M2 completion on
+`llm` (turborepo + cycle elimination). Verified: turborepo is in
+place (PR #121 merged; `turbo.json` covers `build`/`lint`/`test`
+tasks; `package.json` scripts use `turbo run` indirectly through the
+build chain); `break-dev-dependency-cycles` is dissolved on `llm`
+(all five `@endo/<pkg>-test` cut packages present: `ses-test`,
+`hex-test`, `harden-test`, `eventual-send-test`, plus the `zip`
+devDep cleanup; running the cycle detector's graph extraction over
+`packages/*/package.json` shows 0 SCCs with more than one member
+and 0 self-loops across both prod-only and prod+dev dependency
+sets — `scripts/check-dependency-cycles.sh 0` would pass). M2 row
+flips to **Complete** in this pass. The upstream-ferry mirror PR
+#235 on master remains open as a separate ferry task; that work is
+M2-orthogonal because the cycle is already broken on the project
+branch. The 2026-06-15 pass is targeted (one row's status flip, one
+summary recount); no velocity recalibration, no roadmap
+re-projection. Bulletin regen runs in parallel via the journal's
+`README.md`.
+
+**Progress as of 2026-06-03 (milestone renumbering pass per maintainer
+directive on PR #400):** The maintainer asked for the milestones to
+be resequenced starting at 1, incrementing by whole numbers, with
+the rule that no dependency of an earlier milestone appears in a
+later milestone, and with hosted-Gateway-service work pulled forward
+ahead of work not entrained by that north star. The renumbering
+maps: M0 → M1 (Complete), M½ → M2 (Complete), M1 → M3 (the gateway
+substrate), M2 → M4 (Networking, contains the keypair side that M5
+OAuth bonding builds on), M7 → M5 (Public Hosting and Billing), the
+old cross-cutting "Milestone B" (MCP Bridge Hosting) → M6 (now a
+numbered milestone whose own work is the MCP termination on the
+gateway, with constituent slices distributed across M3 and M5), M3 →
+M7 (Weblets and Integrations: agent-side OAuth, weblets, proactive
+messages -- not entrained by the gateway north star), the old
+cross-cutting "Milestone A" (Peer App Sharing) → M8 (depends on
+networking M4 and weblets M7), M4 → M9 (UX Polish), M5 → M10
+(Confinement), M6 → M11 (Rust Daemon). The cuts dissolve as
+top-level "cross-cutting" sections; their phased plans survive as
+the slice tables inside M6 (was Milestone B) and M8 (was
+Milestone A). The Strategic Early Items list drops
+`endo-gateway-mcp` because M6 is now the MCP-bridge milestone in its
+own right.
+
+**Progress as of 2026-06-02 (full grooming pass: MCP-bridge rebucket):**
+The maintainer directive (carried over to the 2026-06-03 renumbering
+pass) asked for a rebucket and reprioritize pass that emphasizes the
+shortest route to a gateway that can serve as an MCP bridge to Endo
+agents, with hosting tentatively on AWS, Stripe integration for
+token purchase (computrons / cogitrons / storage / network), and
+user identity by public key with OAuth bonding plus key recovery /
+rotation. This pass added the MCP Bridge Hosting milestone (then
+called Milestone B; now M6) as a cross-cutting cut sequencing slices
+across M1 (then), M3 (then), and a new public-hosting M7 (then; now
+M5); raised `endo-gateway-mcp` to Strategic Early Items in M1 (then;
+now folded into M6 directly); named the gateway-package
+implementation stack PRs
+[#343](https://github.com/endojs/endo-but-for-bots/pull/343),
+[#388](https://github.com/endojs/endo-but-for-bots/pull/388)-[#397](https://github.com/endojs/endo-but-for-bots/pull/397)
+in the gateway row (9 of 11 phases open today); and introduced the
+Public Hosting and Billing milestone as the home for the AWS stack
+(PR [#356](https://github.com/endojs/endo-but-for-bots/pull/356))
+and three named design gaps:
+`gateway-oauth-bonding.md`, `gateway-key-recovery.md`, and
+`gateway-stripe-adapter.md` (plus a likely fold-in for
+`gateway-resource-classes.md`). The carry-forward state since the
+2026-05-20 grooming pass: PR #345 `@endo/cancel` merged; PR #376
+`endo-gateway-mcp` design merged; the gateway-package stack
+(phases 1-9 of 11) opened as PRs #343 / #388-#397; the AWS stack
+opened as PR #356 stacked on #343; the 2026-06-01 pass added the
+Peer App Sharing milestone cut (then Milestone A; now M8). No
+per-design status flips this pass beyond the MCP, gateway-package,
+and AWS-stack rows; the rebucket is structural rather than
+status-reconciling. Open questions for the maintainer surface as a
+separate journal `message` entry tagged `GROOM-OPEN-QUESTIONS` per
+`skills/groom-open-questions/SKILL.md`.
+
+(The two progress paragraphs below predate the 2026-06-03 renumbering
+pass; their milestone references use the pre-renumbering numbering
+(M0, M½, M1, M2, M3, M4, M5, M6, M7, Milestone A, Milestone B). See
+the 2026-06-03 progress paragraph above for the post-renumbering
+mapping.)
 
 **Progress as of 2026-05-20 (full grooming pass):** 39 of 118 designs
 complete/implemented, 18 in progress, 47 active backlog rows remaining

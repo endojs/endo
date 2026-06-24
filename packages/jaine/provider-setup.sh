@@ -20,7 +20,10 @@ if [ ! -f "$ENV_FILE" ]; then
   fi
 fi
 
-set -a; source "$ENV_FILE"; set +a
+set -a
+# shellcheck source=/dev/null  # dynamic source path is intentional
+source "$ENV_FILE"
+set +a
 
 ENDO="${ENDO:-$(dirname "$0")/../cli/bin/endo}"
 

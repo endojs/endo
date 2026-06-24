@@ -43,7 +43,7 @@ test('render number', t => {
 });
 
 test('render large number with formatting', t => {
-  const result = render(1234567);
+  const result = render(1_234_567);
   t.is(result.className, 'number');
   // Should have locale-specific formatting
   t.true(result.innerText.includes('1'));

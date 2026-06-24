@@ -6,21 +6,24 @@
 
 import { E } from '@endo/far';
 import harden from '@endo/harden';
+import { fileExplorerComponent } from '@endo/space-file-explorer';
 import { channelComponent } from './channel-component.js';
 import { forumComponent } from './forum-component.js';
 import { outlinerComponent } from './outliner-component.js';
 import { createChannelHeader } from './channel-header.js';
 import { inboxComponent } from './inbox-component.js';
-import { inventoryComponent } from './inventory-component.js';
+import { inventoryComponent } from './inventory/inventory.js';
+import { channelListComponent } from './channel-list.js';
 import { chatBarComponent } from './chat-bar-component.js';
 import { valueComponent } from './value-component.js';
 import { createSpacesGutter } from './spaces-gutter.js';
 import { inventoryGraphComponent } from './inventory-graph-component.js';
 import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
-import { fileExplorerComponent } from './file-explorer-component.js';
+import { flootComponent } from './floot-component.js';
 import { createShareModal } from './share-modal.js';
 import { microblogComponent } from './microblog-component.js';
+import { idFromLocator } from './locator.js';
 
 const template = `
 <div id="spaces-gutter"></div>
@@ -304,6 +307,17 @@ const bodyComponent = (
     );
   }
 
+  if (activeSpaceInfo && activeSpaceInfo.mode === 'floot') {
+    return flootComponent(
+      $parent,
+      rootPowers,
+      profilePath,
+      onProfileChange,
+      activeSpaceInfo.audioPath,
+      activeSpaceInfo.ttsPath,
+    );
+  }
+
   /** @type {{ dispose: () => void } | null} */
   let chatBarRef = null;
 
@@ -473,18 +487,29 @@ const bodyComponent = (
       /** @type {unknown} */
       let currentChannelRef = null;
 
-      // Wrap showValue so channel token clicks resolve the value
-      // via lookupById before displaying, matching inbox behavior.
+      // Wrap showValue so channel token clicks resolve the value via
+      // lookupByLocator before displaying, matching inbox behavior. Channel
+      // attachments are delivered as endo:// locators, not bare ids.
       const channelShowValue = async (
         /** @type {unknown} */ value,
-        /** @type {string | undefined} */ id,
+        /** @type {string | undefined} */ locator,
         /** @type {string[] | undefined} */ petNamePath,
       ) => {
-        if (value === undefined && id) {
+        // showValue's id arg feeds reverseIdentify, which expects a bare
+        // formula id; derive it from the locator for name display.
+        let id = locator;
+        if (locator) {
+          try {
+            id = idFromLocator(locator);
+          } catch {
+            // Leave id as the locator if it can't be parsed.
+          }
+        }
+        if (value === undefined && locator) {
           try {
             const resolved = await E(
               /** @type {ERef<EndoHost>} */ (resolvedPowers),
-            ).lookupById(id);
+            ).lookupByLocator(locator);
             showValue(resolved, id, petNamePath);
           } catch {
             // Fall back to showing with undefined value
@@ -781,6 +806,11 @@ const bodyComponent = (
        * rebuilding the entire page.
        * @param {string} channelPetName
        */
+      // Handle to the standalone channel list (set when it mounts, below), used
+      // to update the active highlight when the user switches channels.
+      /** @type {{ setActiveChannel: (name: string | null) => void } | null} */
+      let channelListAPI = null;
+
       const switchChannel = channelPetName => {
         if (!activeSpaceInfo || activeSpaceInfo.mode !== 'channel') {
           return;
@@ -1042,10 +1072,9 @@ const bodyComponent = (
             window.reportError(err);
           });
 
-        // Update active highlight in inventory
-        const $activeItems = $pets.querySelectorAll('.active-channel');
-        for (const $item of $activeItems) {
-          $item.classList.remove('active-channel');
+        // Update the channel list's active highlight live.
+        if (channelListAPI) {
+          channelListAPI.setActiveChannel(channelPetName);
         }
       };
 
@@ -1071,101 +1100,94 @@ const bodyComponent = (
         });
       }
 
-      inventoryComponent(
-        $pets,
-        $profileBar,
-        /** @type {ERef<EndoHost>} */ (resolvedPowers),
-        {
-          showValue,
-          onSelectConversation: isChannelMode
-            ? undefined
-            : (petName, formulaId) => {
-                onConversationChange({ petName, id: formulaId });
-              },
-          activeConversationPetName: activeConversation
-            ? activeConversation.petName
-            : null,
-          channelMode: isChannelMode || false,
-          onSelectChannel: isChannelMode ? switchChannel : undefined,
-          activeChannelPetName: isChannelMode
-            ? activeSpaceInfo.channelPetName || null
-            : null,
-          channelOrder: isChannelMode
-            ? activeSpaceInfo.channelOrder
-            : undefined,
-          onChannelReorder: isChannelMode
-            ? order => {
-                const spaceId = spacesGutterAPI.getActiveSpaceId();
-                if (spaceId && spaceId !== 'home') {
-                  spacesGutterAPI
-                    .updateSpace(spaceId, { channelOrder: order })
-                    .catch(
-                      /** @param {Error} err */ err => {
-                        console.warn('Failed to persist channel order:', err);
-                      },
-                    );
-                }
-              }
-            : undefined,
-          bookmarks: isChannelMode ? activeSpaceInfo.bookmarks : undefined,
-          onSelectBookmark: isChannelMode
-            ? (channelPetName, threadKey) => {
-                switchChannel(channelPetName);
-                // Focus on the thread after channel loads
-                // The channelAPI.focusOnNode is set after the view renders
-                requestAnimationFrame(() => {
-                  setTimeout(() => {
-                    const api = /** @type {any} */ ($messages).channelAPI;
-                    if (api && api.focusOnNode) {
-                      api.focusOnNode(threadKey);
-                    }
-                  }, 500);
-                });
-              }
-            : undefined,
-          onRemoveBookmark: isChannelMode
-            ? bm => {
-                const spaceId = spacesGutterAPI.getActiveSpaceId();
-                if (!spaceId || spaceId === 'home') return;
-                const existing = activeSpaceInfo.bookmarks || [];
-                const updated = existing.filter(
-                  b =>
-                    !(
-                      b.key === bm.key && b.channelPetName === bm.channelPetName
-                    ),
-                );
-                activeSpaceInfo.bookmarks = updated;
+      if (isChannelMode) {
+        // Channels render as their own standalone component (channel-list.js),
+        // entirely separate from the inventory. Channel creation lives in the
+        // New Space modal. Retitle the panel to "Channels".
+        const $title = $pets.querySelector('.inventory-title');
+        if ($title) $title.textContent = 'Channels';
+        channelListAPI = channelListComponent(
+          $petList,
+          /** @type {ERef<EndoHost>} */ (resolvedPowers),
+          {
+            onSelectChannel: switchChannel,
+            activeChannelPetName: activeSpaceInfo.channelPetName || null,
+            channelOrder: activeSpaceInfo.channelOrder,
+            onChannelReorder: order => {
+              const spaceId = spacesGutterAPI.getActiveSpaceId();
+              if (spaceId && spaceId !== 'home') {
                 spacesGutterAPI
-                  .updateSpace(spaceId, { bookmarks: updated })
+                  .updateSpace(spaceId, { channelOrder: order })
                   .catch(
                     /** @param {Error} err */ err => {
-                      console.warn('Failed to remove bookmark:', err);
+                      console.warn('Failed to persist channel order:', err);
                     },
                   );
               }
-            : undefined,
-          viewMode: isChannelMode
-            ? activeSpaceInfo.viewMode || 'chat'
-            : undefined,
-          onViewModeChange: isChannelMode
-            ? mode => {
-                activeSpaceInfo.viewMode = mode;
-                const spaceId = spacesGutterAPI.getActiveSpaceId();
-                if (spaceId && spaceId !== 'home') {
-                  spacesGutterAPI
-                    .updateSpace(spaceId, { viewMode: mode })
-                    .catch(
-                      /** @param {Error} err */ err => {
-                        console.warn('Failed to persist view mode:', err);
-                      },
-                    );
-                }
-                // Re-render with new view mode
-                switchChannel(activeSpaceInfo.channelPetName || '');
+            },
+            bookmarks: activeSpaceInfo.bookmarks,
+            onSelectBookmark: (channelPetName, threadKey) => {
+              switchChannel(channelPetName);
+              // Focus on the thread after channel loads. The
+              // channelAPI.focusOnNode is set after the view renders.
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  const api = /** @type {any} */ ($messages).channelAPI;
+                  if (api && api.focusOnNode) {
+                    api.focusOnNode(threadKey);
+                  }
+                }, 500);
+              });
+            },
+            onRemoveBookmark: bm => {
+              const spaceId = spacesGutterAPI.getActiveSpaceId();
+              if (!spaceId || spaceId === 'home') return;
+              const existing = activeSpaceInfo.bookmarks || [];
+              const updated = existing.filter(
+                b =>
+                  !(b.key === bm.key && b.channelPetName === bm.channelPetName),
+              );
+              activeSpaceInfo.bookmarks = updated;
+              spacesGutterAPI
+                .updateSpace(spaceId, { bookmarks: updated })
+                .catch(
+                  /** @param {Error} err */ err => {
+                    console.warn('Failed to remove bookmark:', err);
+                  },
+                );
+            },
+            viewMode: activeSpaceInfo.viewMode || 'chat',
+            onViewModeChange: mode => {
+              activeSpaceInfo.viewMode = mode;
+              const spaceId = spacesGutterAPI.getActiveSpaceId();
+              if (spaceId && spaceId !== 'home') {
+                spacesGutterAPI.updateSpace(spaceId, { viewMode: mode }).catch(
+                  /** @param {Error} err */ err => {
+                    console.warn('Failed to persist view mode:', err);
+                  },
+                );
               }
-            : undefined,
-        },
-      ).catch(window.reportError);
+              // Re-render with new view mode
+              switchChannel(activeSpaceInfo.channelPetName || '');
+            },
+          },
+        );
+      } else {
+        inventoryComponent(
+          $pets,
+          $profileBar,
+          /** @type {ERef<EndoHost>} */ (resolvedPowers),
+          {
+            showValue,
+            onSelectConversation: (petName, formulaId) => {
+              onConversationChange({ petName, id: formulaId });
+            },
+            activeConversationPetName: activeConversation
+              ? activeConversation.petName
+              : null,
+          },
+        ).catch(window.reportError);
+      }
 
       // Add collapsible inbox section to sidebar when in channel mode
       if (isChannelMode) {
@@ -1763,13 +1785,15 @@ const bodyComponent = (
 
 /**
  * @typedef {object} ActiveSpaceInfo
- * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files'} mode
+ * @property {'inbox' | 'channel' | 'whylip' | 'graph' | 'peers' | 'files' | 'floot'} mode
  * @property {string} [channelPetName]
  * @property {string} [proposedName]
  * @property {string} [whylipSystemPrompt]
  * @property {'chat' | 'forum' | 'outliner'} [viewMode] - channel view mode (default: 'chat')
  * @property {string[]} [channelOrder] - persisted channel display order
  * @property {Array<{key: string, channelPetName: string, label: string}>} [bookmarks] - bookmarked threads
+ * @property {string[]} [audioPath] - pet-name path to an audio object (floot mic input)
+ * @property {string[]} [ttsPath] - pet-name path to a text-to-speech object (floot spoken replies)
  */
 
 /**

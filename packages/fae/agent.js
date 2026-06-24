@@ -5,7 +5,7 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { passableAsJustin, makeMarshal } from '@endo/marshal';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { createProvider } from '@endo/lal/providers/index.js';
 import {
   makeConversationTree,
@@ -22,6 +22,8 @@ import {
   makeAdoptTool,
   makeSendTool,
   makeReplyTool,
+  makeEditMessageTool,
+  makeMessageHistoryTool,
   makeListMessagesTool,
   makeDismissTool,
   makeExecTool,
@@ -228,6 +230,8 @@ export const spawnWorkerLoop = async (
   );
   localTools.set('listMessages', makeListMessagesTool(powers));
   localTools.set('dismiss', makeDismissTool(powers));
+  localTools.set('editMessage', makeEditMessageTool(powers));
+  localTools.set('messageHistory', makeMessageHistoryTool(powers));
   localTools.set('exec', makeExecTool(powers));
   localTools.set('readChannel', makeReadChannelTool(powers));
 
@@ -429,7 +433,18 @@ export const spawnWorkerLoop = async (
     // than branching from the root (which would lose all context).
     let lastLeafId = await rootNodeIdP;
 
-    const messageIterator = makeRefIterator(E(powers).followMessages());
+    /**
+     * Track inbound message numbers we have already processed.  Re-emission
+     * of the same number indicates the sender called daemon `editMessage`:
+     * a partial submission settling, or an amendment of an already-settled
+     * message.  We do not rerun the agentic loop for such re-emissions;
+     * the agent can call `messageHistory(n)` to retrieve the prior text
+     * if it needs to reason about the change.
+     * @type {Set<bigint>}
+     */
+    const seenInboundNumbers = new Set();
+
+    const messageIterator = iterateReader(E(powers).followMessages());
     while (true) {
       const nextMessage = messageIterator.next();
       const raced = cancelledSignal
@@ -456,10 +471,34 @@ export const spawnWorkerLoop = async (
         type,
         strings,
         names,
+        done: messageDone = true,
       } = /** @type {any} */ (message);
 
       if (fromId !== selfLocator) {
         const { messageId, replyTo } = /** @type {any} */ (message);
+
+        // Skip partial (in-flight) submissions: wait until the sender
+        // marks the message done before spinning up an LLM turn.
+        if (messageDone === false) {
+          console.log(
+            `[fae] Message #${number} is not yet done; deferring until settled`,
+          );
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+
+        // Re-emission of a previously-processed number means the sender
+        // edited a settled message.  Do not start a new turn; the
+        // history is available via the messageHistory tool.
+        if (seenInboundNumbers.has(number)) {
+          console.log(
+            `[fae] Message #${number} was edited after settlement; ` +
+              `not rerunning. Use messageHistory(${number}) for the prior text.`,
+          );
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        seenInboundNumbers.add(number);
 
         await rootNodeIdP;
 

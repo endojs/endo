@@ -1,8 +1,12 @@
 // @ts-check
+/* eslint-disable no-continue */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-import { makeRefIterator } from './ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+
+import { Fragment, h, renderConfined } from './setup-preact-container.js';
+
 import { createChannelState } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
 import {
@@ -10,8 +14,39 @@ import {
   computeNodeContent,
   isEffectivelyDeleted,
 } from './edit-queue.js';
+import { relativeTime, timeFormatter } from './time-formatters.js';
+import { prepareTextWithPlaceholders } from './markdown-render.js';
+import { markdownToVnodes } from './markdown-vnodes.js';
 
 /** @import { ChannelMessage } from './channel-utils.js' */
+
+// Forum view — a threaded (tree) message view, migrated from imperative DOM to
+// a confined Preact component rendered through a single `renderConfined`.
+//
+// THE HOST-NODE BRIDGE PATTERN (mirrors microblog-component.js). The tree
+// structure (forum-view container, forum-node wrappers, depth/chain/collapsed
+// classes, reply indicators, message bodies, timestamps, action bars, collapse
+// handles, "edited by" attribution) renders confined as `h()` vnodes. Three
+// pieces remain imperative DOM produced by reused helpers that are NOT
+// view-migration targets:
+//   - author chips (`channel-utils` profile popup — positions a portal, mutates
+//     `nameMap`, re-renders sibling chips by DOM query),
+//   - react buttons and react pills (`react-utils` — a `document.body` react
+//     picker portal, nested sub-reacts, contextmenu handlers).
+// Live DOM (with listeners) cannot enter a confined vnode tree — `renderConfined`
+// strips refs and real nodes. So the chrome renders empty ANCHOR slots
+// (`data-author-anchor` / `data-react-btn-anchor` / `data-react-pills-anchor`)
+// and, after each confined render, the controller re-parents the imperative
+// nodes into their anchors.
+//
+// Message bodies use the vnode path (`markdownToVnodes`) instead of the
+// string-returning `renderMarkdown`/`.innerHTML`, mirroring the inbox and
+// microblog migrations.
+//
+// The substrate-agnostic tree logic (visible-children resolution respecting
+// reparenting, subtree recency, active-chain computation, recursive subtree
+// collection) and the followMessages consumer loop are reused VERBATIM from the
+// imperative version; only view construction became Preact.
 
 /**
  * Render the forum (threaded tree) message view.
@@ -36,8 +71,8 @@ import {
  * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply]
  * @param {(info: { number: string, authorName: string, preview: string }) => void} [options.onThreadOpen]
  * @param {() => void} [options.onThreadClose]
- * @param {(heritageChain: import('./channel-utils.js').ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork heritage chain to new channel
- * @param {(heritageChain: import('./channel-utils.js').ChannelMessage[], previewText: string) => void} [options.onShare] - Open share modal for a message
+ * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork] - Fork heritage chain to new channel
+ * @param {(heritageChain: ChannelMessage[], previewText: string) => void} [options.onShare] - Open share modal for a message
  */
 export const forumComponent = async (
   $parent,
@@ -48,7 +83,9 @@ export const forumComponent = async (
     personaId,
     ownMemberId,
     onReply,
+    // eslint-disable-next-line no-unused-vars
     onThreadOpen,
+    // eslint-disable-next-line no-unused-vars
     onThreadClose,
     onFork,
     onShare,
@@ -86,14 +123,23 @@ export const forumComponent = async (
     $parent,
   });
 
-  const { messageIndex, replyChildren } = state;
+  const {
+    messageIndex,
+    replyChildren,
+    nameMap,
+    getMemberInfo,
+    memberCache,
+    profilePopup,
+    saveNameMap,
+    updateAuthorChips,
+  } = state;
 
   // Shared react system
   const reactSystem = createReactSystem({
     channel,
     ownMemberId,
-    nameMap: state.nameMap,
-    getMemberInfo: state.getMemberInfo,
+    nameMap,
+    getMemberInfo,
   });
 
   /** @type {Set<string>} */
@@ -120,6 +166,8 @@ export const forumComponent = async (
    * @type {string[]}
    */
   const rootKeys = [];
+
+  // ---- Substrate-agnostic tree logic (reused verbatim) ----
 
   /**
    * Get the visible (non-modifier) children of a parent, respecting
@@ -242,30 +290,15 @@ export const forumComponent = async (
     return chain;
   };
 
-  /**
-   * The forum view container element, created once.
-   * @type {HTMLElement}
-   */
-  const $forumView = document.createElement('div');
-  $forumView.className = 'forum-view';
-  if ($end) {
-    $parent.insertBefore($forumView, $end);
-  } else {
-    $parent.appendChild($forumView);
-  }
-
-  /** @type {import('./channel-utils.js').CreateMessageOptions} */
-  const msgOpts = { ownMemberId, onReply, showValue, onFork, onShare };
-
   /* eslint-disable no-use-before-define */
 
   /**
-   * Render a subtree recursively, collecting entries for batch DOM creation.
+   * Render a subtree recursively, collecting entries for batch rendering.
    * Only includes visible (non-modifier, non-deleted) nodes.
    * @param {string} key
    * @param {number} depth
    * @param {Set<string>} activeChain
-   * @returns {Array<{ key: string, depth: number, isChain: boolean, isCollapsed: boolean, children: string[], message: ChannelMessage, childResults: Array<any> }>}
+   * @returns {Array<{ key: string, depth: number, isChain: boolean, isCollapsed: boolean, children: string[], message: ChannelMessage }>}
    */
   const collectSubtree = (key, depth, activeChain) => {
     const entry = messageIndex.get(key);
@@ -282,7 +315,7 @@ export const forumComponent = async (
     const children = getVisibleChildren(key);
     const isCollapsed = collapsedNodes.has(key) && children.length > 0;
 
-    /** @type {Array<any>} */
+    /** @type {Array<{ key: string, depth: number, isChain: boolean, isCollapsed: boolean, children: string[], message: ChannelMessage }>} */
     const results = [
       {
         key,
@@ -291,7 +324,6 @@ export const forumComponent = async (
         isCollapsed,
         children,
         message: entry.message,
-        childResults: [],
       },
     ];
 
@@ -315,116 +347,519 @@ export const forumComponent = async (
     return results;
   };
 
+  /* eslint-enable no-use-before-define */
+
+  // ---- Dedicated confined mount ----
+
+  // The forum view container element, created once and inserted before the
+  // scroll anchor so switchChannel's cleanup (which clears `$parent`) still
+  // works and siblings (the `$end` anchor) are never reconciled away.
+  const $forumView = document.createElement('div');
+  $forumView.className = 'forum-view';
+  if ($end) {
+    $parent.insertBefore($forumView, $end);
+  } else {
+    $parent.appendChild($forumView);
+  }
+  const isLive = () => $forumView.isConnected;
+
+  // ---- View (confined Preact vnodes) ----
+
   /**
-   * Build DOM nodes for a flat list of subtree entries.
-   * Uses effective content (applying edits) and shows "edited by" attribution.
-   * @param {Array<{ key: string, depth: number, isChain: boolean, isCollapsed: boolean, children: string[], message: ChannelMessage }>} entries
-   * @param {DocumentFragment} frag
+   * Render a message body as vnodes with interactive token chips. Mirrors the
+   * imperative body construction in `createMessageElement`, but emits vnodes
+   * (no `.innerHTML`).
+   * @param {ChannelMessage} message
+   * @returns {import('preact').VNode}
    */
-  const buildSubtreeDOM = async (entries, frag) => {
-    // Compute effective content for each entry
-    const effectiveContents = entries.map(e =>
-      computeNodeContent(e.key, messageIndex, replyChildren, blockedMemberIds),
+  const Body = message => {
+    const messageNames = /** @type {string[]} */ (
+      /** @type {any} */ (message).names ||
+        /** @type {any} */ (message).edgeNames ||
+        []
     );
 
-    // Build all message elements in parallel.
-    // Skip the reply indicator when a message appears directly below its
-    // parent in the tree — the nesting already provides that context.
-    const msgElements = await Promise.all(
-      entries.map((e, i) => {
-        const ec = effectiveContents[i];
-        // Use effective content if the node has been edited
-        const effectiveMessage = ec.editedByMemberId
-          ? { ...e.message, strings: ec.strings, names: ec.names, ids: ec.ids }
-          : e.message;
+    if (!message.strings || message.strings.length === 0) {
+      return h('span', { class: 'message-body' });
+    }
 
+    const textWithPlaceholders = prepareTextWithPlaceholders(message.strings);
+
+    /** @type {import('./markdown-vnodes.js').RenderToken} */
+    const renderToken = index => {
+      const edgeName = messageNames[index];
+      if (edgeName === undefined) return null;
+      return h(
+        'span',
+        {
+          key: `chip-${index}`,
+          class: 'token',
+          tabindex: 0,
+          role: 'button',
+          title: 'Open value',
+          onClick: () => {
+            if (message.ids && message.ids[index]) {
+              showValue(undefined, message.ids[index], [edgeName]);
+            }
+          },
+        },
+        `@${edgeName}`,
+      );
+    };
+
+    const { nodes, placeholderCount } = markdownToVnodes(textWithPlaceholders, {
+      renderToken,
+    });
+    // Attachments without an inline placeholder slot (e.g. one text string and
+    // one attached value) are appended at the end rather than dropped.
+    const extraChips = [];
+    for (let i = placeholderCount; i < messageNames.length; i += 1) {
+      const chip = renderToken(i);
+      if (chip) extraChips.push(' ', chip);
+    }
+    return h('span', { class: 'message-body' }, ...nodes, ...extraChips);
+  };
+
+  /**
+   * An author chip anchor — the imperative author node is re-parented here
+   * after render.
+   * @param {object} props
+   * @param {string} props.memberId
+   */
+  const AuthorAnchor = ({ memberId }) =>
+    h('span', { 'data-author-anchor': memberId });
+
+  /**
+   * The reply indicator shown above a message whose parent is not directly
+   * above it in the tree. Mirrors `createMessageElement`'s reply indicator.
+   * @param {object} props
+   * @param {ChannelMessage} props.message
+   */
+  const ReplyIndicator = ({ message }) => {
+    const parentData = message.replyTo
+      ? messageIndex.get(message.replyTo)
+      : undefined;
+    if (!parentData) {
+      return h(
+        'div',
+        { class: 'reply-indicator' },
+        `↩ Message #${message.replyTo}`,
+      );
+    }
+    const parentMsg = parentData.message;
+    const parentPreview = parentMsg.strings.join('').substring(0, 60);
+    // The author name uses the assigned nickname when present, falling back to
+    // the proposed name (warmed into memberCache by the message loop), then to
+    // the raw member id.
+    const parentCached = memberCache.get(parentMsg.memberId);
+    const parentAuthor =
+      nameMap.get(parentMsg.memberId) ||
+      (parentCached ? parentCached.proposedName : parentMsg.memberId);
+    return h(
+      'div',
+      { class: 'reply-indicator' },
+      h('span', { class: 'reply-indicator-icon' }, '↩'),
+      h('span', { class: 'reply-indicator-author' }, parentAuthor),
+      h('span', { class: 'reply-indicator-preview' }, parentPreview),
+    );
+  };
+
+  /**
+   * The hover action bar (reply + react anchor + fork/share menu).
+   * @param {object} props
+   * @param {string} props.messageKey
+   * @param {ChannelMessage} props.message
+   */
+  const ActionBar = ({ messageKey, message }) => {
+    return h(
+      'div',
+      { class: 'message-actions' },
+      // Reply button
+      onReply
+        ? h(
+            'button',
+            {
+              class: 'message-action-btn',
+              title: 'Reply',
+              onClick: () => {
+                const preview = message.strings.join('').substring(0, 60);
+                getMemberInfo(message.memberId)
+                  .then(info => {
+                    const authorName = info
+                      ? info.proposedName
+                      : message.memberId;
+                    onReply({
+                      number: message.number,
+                      memberId: message.memberId,
+                      authorName,
+                      preview,
+                    });
+                  })
+                  .catch(() => {});
+              },
+            },
+            '↩',
+          )
+        : null,
+      // React button (imperative host node, bridged via anchor)
+      h('span', { 'data-react-btn-anchor': messageKey }),
+      // Fork action
+      onFork
+        ? h(
+            'button',
+            {
+              class: 'message-action-btn',
+              title: 'Fork to Channel',
+              onClick: () => {
+                const chain = getHeritageChain(messageKey);
+                const preview =
+                  message.strings.join('').substring(0, 40) || 'Forked note';
+                onFork(chain, preview).catch(window.reportError);
+              },
+            },
+            '⑂',
+          )
+        : null,
+      // Share action
+      onShare
+        ? h(
+            'button',
+            {
+              class: 'message-action-btn',
+              title: 'Share…',
+              onClick: () => {
+                const chain = getHeritageChain(messageKey);
+                const preview =
+                  message.strings.join('').substring(0, 60) || 'Shared message';
+                onShare(chain, preview);
+              },
+            },
+            '⇗',
+          )
+        : null,
+    );
+  };
+
+  /**
+   * Get heritage chain for a message key (root-to-message path).
+   * @param {string} key
+   * @returns {ChannelMessage[]}
+   */
+  const getHeritageChain = key => {
+    /** @type {ChannelMessage[]} */
+    const chain = [];
+    let current = key;
+    while (current) {
+      const entry = messageIndex.get(current);
+      if (!entry) break;
+      chain.unshift(entry.message);
+      current = entry.message.replyTo;
+    }
+    return chain;
+  };
+
+  /**
+   * Render one forum tree node from a collected entry. Mirrors the imperative
+   * `forum-node` construction: depth/chain/collapsed classes, the message
+   * wrapper (reply indicator + message bubble), "edited by" attribution, and
+   * the collapse handle.
+   * @param {object} props
+   * @param {{ key: string, depth: number, isChain: boolean, isCollapsed: boolean, children: string[], message: ChannelMessage }} props.entry
+   * @param {boolean} props.parentIsDirectlyAbove
+   */
+  const ForumNode = ({ entry, parentIsDirectlyAbove }) => {
+    const { key, depth, isChain, isCollapsed, children, message } = entry;
+
+    // Apply effective (edit/delete-resolved) content over the message fields.
+    const ec = computeNodeContent(
+      key,
+      messageIndex,
+      replyChildren,
+      blockedMemberIds,
+    );
+    const effectiveMessage = ec.editedByMemberId
+      ? /** @type {ChannelMessage} */ ({
+          ...message,
+          strings: ec.strings,
+          names: ec.names,
+          ids: ec.ids,
+        })
+      : message;
+
+    const isOwn = ownMemberId !== undefined && message.memberId === ownMemberId;
+    const date = new Date(message.date);
+
+    // node-level classes
+    const nodeClasses = ['forum-node', `depth-${Math.min(depth, 5)}`];
+    if (isChain) nodeClasses.push('chain-member');
+    if (isCollapsed) nodeClasses.push('collapsed');
+
+    // The message bubble: timestamp controls, author anchor, body, action bar.
+    const $message = h(
+      'div',
+      {
+        class: isOwn ? 'message received own-message' : 'message received',
+        'data-message-id': String(message.number),
+      },
+      h(
+        'div',
+        { class: 'timestamp-controls' },
+        h('span', { class: 'timestamp-num' }, `#${message.number}`),
+        h(
+          'time',
+          { class: 'message-time', title: relativeTime(date) },
+          timeFormatter.format(date),
+        ),
+      ),
+      h(AuthorAnchor, { memberId: message.memberId }),
+      ' ',
+      Body(effectiveMessage),
+      h(ActionBar, { messageKey: key, message }),
+    );
+
+    // The reply indicator is skipped when the message appears directly below
+    // its parent in the tree — the nesting already provides that context.
+    const showReplyIndicator =
+      message.replyTo !== undefined && !parentIsDirectlyAbove;
+
+    const children2 = [
+      showReplyIndicator ? h(ReplyIndicator, { message }) : null,
+      $message,
+    ];
+
+    const $wrapper = h('div', { class: 'message-wrapper' }, ...children2);
+
+    // "edited by" attribution
+    let $edited = null;
+    if (ec.editedByMemberId) {
+      const editorName =
+        nameMap.get(ec.editedByMemberId) || ec.editedByMemberId;
+      const editorCount = ec.editorMemberIds.length;
+      const editCount = ec.editQueue.filter(eq => !eq.deleted).length;
+      $edited = h(
+        'div',
+        {
+          class: 'forum-edited-by',
+          title: `${editCount} edit${editCount === 1 ? '' : 's'}`,
+        },
+        editorCount <= 1
+          ? `edited by ${editorName}`
+          : `edited by ${editorCount} people`,
+      );
+    }
+
+    // collapse handle
+    let $handle = null;
+    if (children.length > 0) {
+      const count = countVisibleDescendants(key);
+      const label = `${count} ${count === 1 ? 'reply' : 'replies'} ${
+        isCollapsed ? '▶' : '▼'
+      }`;
+      $handle = h(
+        'div',
+        {
+          class: 'forum-collapse-handle',
+          onClick: () => {
+            if (collapsedNodes.has(key)) {
+              collapsedNodes.delete(key);
+            } else {
+              collapsedNodes.add(key);
+            }
+            rerender();
+          },
+        },
+        label,
+      );
+    }
+
+    return h(
+      'div',
+      {
+        class: nodeClasses.join(' '),
+        'data-msg-key': key,
+      },
+      $wrapper,
+      // React pills (imperative host node, bridged via anchor)
+      h('span', { 'data-react-pills-anchor': key }),
+      $edited,
+      $handle,
+    );
+  };
+
+  /**
+   * The whole forum tree: roots sorted by subtree recency (most recent last),
+   * each expanded to a flat list of visible nodes.
+   */
+  const Forum = () => {
+    // Get effective root keys (visible, non-deleted, respecting reparenting)
+    const effectiveRoots = getVisibleChildren(undefined).filter(
+      k =>
+        !isEffectivelyDeleted(k, messageIndex, replyChildren, blockedMemberIds),
+    );
+
+    // Recompute recency for all roots
+    for (const key of effectiveRoots) {
+      computeSubtreeRecency(key);
+    }
+
+    // Sort roots by subtree recency (most recent last)
+    const sortedRoots = [...effectiveRoots].sort((a, b) => {
+      const ra = computeSubtreeRecency(a);
+      const rb = computeSubtreeRecency(b);
+      if (ra < rb) return -1;
+      if (ra > rb) return 1;
+      return 0;
+    });
+
+    // Collect all entries, then render in one flat batch (matching the
+    // imperative `forum-view` flat-append structure).
+    /** @type {Array<{ key: string, depth: number, isChain: boolean, isCollapsed: boolean, children: string[], message: ChannelMessage }>} */
+    const allEntries = [];
+    for (const rootKey of sortedRoots) {
+      const activeChain = computeActiveChain(rootKey);
+      const subtreeEntries = collectSubtree(rootKey, 0, activeChain);
+      for (const entry of subtreeEntries) {
+        allEntries.push(entry);
+      }
+    }
+
+    return h(
+      Fragment,
+      null,
+      ...allEntries.map((entry, i) => {
         const parentIsDirectlyAbove =
           i > 0 &&
-          e.message.replyTo !== undefined &&
-          e.message.replyTo === entries[i - 1].key;
-        return state.createMessageElement(
-          /** @type {ChannelMessage} */ (effectiveMessage),
-          {
-            ...msgOpts,
-            skipReplyIndicator: parentIsDirectlyAbove,
-          },
-        );
+          entry.message.replyTo !== undefined &&
+          entry.message.replyTo === allEntries[i - 1].key;
+        return h(ForumNode, {
+          key: entry.key,
+          entry,
+          parentIsDirectlyAbove,
+        });
       }),
     );
+  };
 
-    for (let i = 0; i < entries.length; i += 1) {
-      const { key, depth, isChain, isCollapsed, children } = entries[i];
-      const ec = effectiveContents[i];
-      const $node = document.createElement('div');
-      $node.className = 'forum-node';
-      $node.classList.add(`depth-${Math.min(depth, 5)}`);
-      if (isChain) $node.classList.add('chain-member');
-      if (isCollapsed) $node.classList.add('collapsed');
-      $node.dataset.msgKey = key;
+  // ---- Imperative host-node helpers (bridged into anchors after each render) ----
 
-      $node.appendChild(msgElements[i]);
+  /**
+   * Create a clickable author element (imperative DOM) with profile popup.
+   * Mirrors the author chip built inline by `createMessageElement`.
+   * @param {string} memberId
+   * @returns {HTMLElement}
+   */
+  const createAuthorEl = memberId => {
+    const $author = document.createElement('span');
+    $author.className = 'channel-author';
+    $author.dataset.memberId = memberId;
 
-      // React button: inject into the message's action bar
-      {
-        const $msgEl = msgElements[i].querySelector('.message');
-        let $actions = $msgEl && $msgEl.querySelector('.message-actions');
-        if ($msgEl && !$actions) {
-          $actions = document.createElement('div');
-          $actions.className = 'message-actions';
-          $msgEl.appendChild($actions);
+    const assigned = nameMap.get(memberId);
+    if (assigned) {
+      $author.textContent = assigned;
+      $author.classList.add('named');
+    } else {
+      $author.textContent = memberId;
+    }
+
+    getMemberInfo(memberId)
+      .then(info => {
+        if (!info) return;
+        const authorProposedName = info.proposedName;
+        const pedigree = info.pedigree || [];
+        const pedigreeMemberIds = info.pedigreeMemberIds || [];
+        $author.dataset.proposedName = authorProposedName;
+        const current = nameMap.get(memberId);
+        if (!current) {
+          $author.textContent = `“${authorProposedName}”`;
         }
-        if ($actions) {
-          $actions.appendChild(reactSystem.createReactButton(key));
-        }
-      }
-
-      // React pills
-      {
-        const $pills = reactSystem.buildReactsContainer(key);
-        if ($pills) $node.appendChild($pills);
-      }
-
-      // Show "edited by" attribution when the node has been edited
-      if (ec.editedByMemberId) {
-        const $edited = document.createElement('div');
-        $edited.className = 'forum-edited-by';
-        const editorName =
-          state.nameMap.get(ec.editedByMemberId) || ec.editedByMemberId;
-        const editorCount = ec.editorMemberIds.length;
-        if (editorCount <= 1) {
-          $edited.textContent = `edited by ${editorName}`;
-        } else {
-          $edited.textContent = `edited by ${editorCount} people`;
-        }
-        const editCount = ec.editQueue.filter(eq => !eq.deleted).length;
-        $edited.title = `${editCount} edit${editCount === 1 ? '' : 's'}`;
-        $node.appendChild($edited);
-      }
-
-      if (children.length > 0) {
-        const $handle = document.createElement('div');
-        $handle.className = 'forum-collapse-handle';
-        const count = countVisibleDescendants(key);
-        if (isCollapsed) {
-          $handle.textContent = `${count} ${count === 1 ? 'reply' : 'replies'} \u25B6`;
-        } else {
-          $handle.textContent = `${count} ${count === 1 ? 'reply' : 'replies'} \u25BC`;
-        }
-        $handle.addEventListener('click', e => {
+        $author.title =
+          pedigree.length > 0
+            ? `Invited by: ${pedigree
+                .map((name, i) => {
+                  const mid = pedigreeMemberIds[i];
+                  const namedMid = mid && nameMap.get(mid);
+                  return namedMid || `“${name}”`;
+                })
+                .join(' → ')}`
+            : 'Channel creator';
+        $author.addEventListener('click', e => {
           e.stopPropagation();
-          if (collapsedNodes.has(key)) {
-            collapsedNodes.delete(key);
-          } else {
-            collapsedNodes.add(key);
-          }
-          renderForum();
+          profilePopup.show({
+            proposedName: authorProposedName,
+            pedigree,
+            pedigreeMemberIds,
+            nameMap,
+            yourName: nameMap.get(memberId),
+            onAssignName: name => {
+              nameMap.set(memberId, name);
+              saveNameMap();
+              updateAuthorChips(memberId);
+            },
+            anchorElement: $author,
+          });
         });
-        $node.appendChild($handle);
-      }
+      })
+      .catch(() => {});
 
-      frag.appendChild($node);
+    return $author;
+  };
+
+  // ---- Host-node bridging ----
+
+  // Cache imperative react-button nodes (one stable node per message key) so
+  // they survive confined re-renders rather than re-binding listeners each time.
+  /** @type {Map<string, HTMLElement>} */
+  const reactButtonNodes = new Map();
+
+  /**
+   * After each confined render, re-parent the imperative host nodes into their
+   * freshly rendered anchors.
+   */
+  const bridgeHostNodes = () => {
+    // Author chips — re-create per anchor so each node has its own chip element,
+    // as the original did.
+    const authorAnchors = $forumView.querySelectorAll('[data-author-anchor]');
+    for (const $anchor of authorAnchors) {
+      const el = /** @type {HTMLElement} */ (/** @type {unknown} */ ($anchor));
+      if (el.firstChild) continue;
+      const memberId = el.getAttribute('data-author-anchor') || '';
+      el.appendChild(createAuthorEl(memberId));
+    }
+
+    // React buttons — one per message key (stable, reusable node).
+    const reactBtnAnchors = $forumView.querySelectorAll(
+      '[data-react-btn-anchor]',
+    );
+    for (const $anchor of reactBtnAnchors) {
+      const el = /** @type {HTMLElement} */ (/** @type {unknown} */ ($anchor));
+      if (el.firstChild) continue;
+      const key = el.getAttribute('data-react-btn-anchor') || '';
+      let $btn = reactButtonNodes.get(key);
+      if (!$btn) {
+        $btn = reactSystem.createReactButton(key);
+        reactButtonNodes.set(key, $btn);
+      } else if ($btn.parentElement) {
+        $btn.parentElement.removeChild($btn);
+      }
+      el.appendChild($btn);
+    }
+
+    // React pills — rebuilt each render from current react state (cheap, and the
+    // react picker portal lives on document.body, so the pills carry no
+    // long-lived listeners that must survive).
+    const pillAnchors = $forumView.querySelectorAll(
+      '[data-react-pills-anchor]',
+    );
+    for (const $anchor of pillAnchors) {
+      const el = /** @type {HTMLElement} */ (/** @type {unknown} */ ($anchor));
+      const key = el.getAttribute('data-react-pills-anchor') || '';
+      const $pills = reactSystem.buildReactsContainer(key);
+      if (el.firstChild) el.textContent = '';
+      if ($pills) el.appendChild($pills);
     }
   };
+
+  // ---- Render orchestration ----
 
   /** Guard against concurrent renders. */
   let rendering = false;
@@ -432,76 +867,49 @@ export const forumComponent = async (
   let pendingRender = false;
 
   /**
-   * Re-render the entire forum view.
+   * Render the confined forum tree, then bridge the imperative host nodes.
+   * `renderConfined` is synchronous, so anchors exist when bridging runs.
+   * A re-entrancy guard preserves the imperative version's "coalesce a render
+   * requested while one is running" behavior.
    */
-  const renderForum = async () => {
+  const rerender = () => {
     if (rendering) {
       pendingRender = true;
       return;
     }
     rendering = true;
     try {
-      // Get effective root keys (visible, non-deleted, respecting reparenting)
-      const effectiveRoots = getVisibleChildren(undefined).filter(
-        k =>
-          !isEffectivelyDeleted(
-            k,
-            messageIndex,
-            replyChildren,
-            blockedMemberIds,
-          ),
-      );
-
-      // Recompute recency for all roots
-      for (const key of effectiveRoots) {
-        computeSubtreeRecency(key);
-      }
-
-      // Sort roots by subtree recency (most recent last)
-      const sortedRoots = [...effectiveRoots].sort((a, b) => {
-        const ra = computeSubtreeRecency(a);
-        const rb = computeSubtreeRecency(b);
-        if (ra < rb) return -1;
-        if (ra > rb) return 1;
-        return 0;
-      });
-
-      // Collect all entries synchronously, then build DOM in one batch
-      /** @type {Array<{ key: string, depth: number, isChain: boolean, isCollapsed: boolean, children: string[], message: ChannelMessage }>} */
-      const allEntries = [];
-      for (const rootKey of sortedRoots) {
-        const activeChain = computeActiveChain(rootKey);
-        const subtreeEntries = collectSubtree(rootKey, 0, activeChain);
-        for (const entry of subtreeEntries) {
-          allEntries.push(entry);
-        }
-      }
-
-      const frag = document.createDocumentFragment();
-      await buildSubtreeDOM(allEntries, frag);
-
-      $forumView.innerHTML = '';
-      $forumView.appendChild(frag);
+      renderConfined(h(Forum, null), $forumView);
+      bridgeHostNodes();
     } finally {
       rendering = false;
       if (pendingRender) {
         pendingRender = false;
-        renderForum();
+        rerender();
       }
     }
   };
 
-  /* eslint-enable no-use-before-define */
-
-  // Expose a control API matching channelComponent's interface.
+  // Expose a control API matching channelComponent's interface, hung off the
+  // parent exactly where the imperative version put it.
   let disposed = false;
   /** @type {AsyncIterableIterator<unknown> | null} */
   let activeIterator = null;
+  /**
+   * Batch incoming messages during initial load. Declared here so `dispose`
+   * can cancel a pending initial render that would otherwise fire (and scroll)
+   * against a torn-down container.
+   */
+  let batchTimer = 0;
   /** @type {{ closeThread: () => boolean, dispose: () => void }} */
   const channelAPI = harden({
     closeThread: () => false,
     dispose: () => {
       disposed = true;
+      if (batchTimer) {
+        clearTimeout(batchTimer);
+        batchTimer = 0;
+      }
       if (activeIterator) {
         activeIterator.return();
       }
@@ -526,18 +934,19 @@ export const forumComponent = async (
     }
     throw err;
   }
-  const messageIterator = makeRefIterator(messagesRef);
+  const messageIterator = iterateReader(messagesRef, {
+    // Prefetch a window of messages so the backlog streams without a
+    // round-trip acknowledgement per message.
+    buffer: 64,
+  });
   activeIterator = messageIterator;
-
-  /** Batch incoming messages during initial load. */
-  let batchTimer = 0;
 
   // Schedule an initial render after the first batch arrives.
   batchTimer = setTimeout(() => {
-    renderForum().then(() => {
-      $parent.scrollTo(0, $parent.scrollHeight);
-      batchTimer = 0;
-    });
+    batchTimer = 0;
+    if (disposed) return;
+    rerender();
+    $parent.scrollTo(0, $parent.scrollHeight);
   }, 200);
 
   for await (const message of messageIterator) {
@@ -545,14 +954,9 @@ export const forumComponent = async (
     const typedMessage = /** @type {ChannelMessage} */ (message);
     const msgKey = String(typedMessage.number);
 
-    // Create a placeholder element for the message index (will be replaced
-    // during render). The forum re-renders the full tree on each update,
-    // so we just need the data in messageIndex.
-    const $placeholder = document.createElement('div');
-    messageIndex.set(msgKey, {
-      message: typedMessage,
-      $element: $placeholder,
-    });
+    // Record the message in the index. The forum re-renders the full tree on
+    // each update, so we just need the data in messageIndex.
+    messageIndex.set(msgKey, { message: typedMessage });
 
     // Track reacts
     reactSystem.processReactMessage(typedMessage, msgKey);
@@ -597,19 +1001,27 @@ export const forumComponent = async (
       rootKeys.push(msgKey);
     }
 
+    // Warm the member cache before rendering so the reply indicator's
+    // synchronous read resolves to the proposed name rather than the raw
+    // member id on first paint.
+    await getMemberInfo(typedMessage.memberId);
+    if (typedMessage.replyTo) {
+      const parentData = messageIndex.get(typedMessage.replyTo);
+      if (parentData) await getMemberInfo(parentData.message.memberId);
+    }
+
     // During initial batch, debounce renders
     if (batchTimer) {
       clearTimeout(batchTimer);
       batchTimer = setTimeout(() => {
-        renderForum().then(() => {
-          $parent.scrollTo(0, $parent.scrollHeight);
-          batchTimer = 0;
-        });
+        batchTimer = 0;
+        if (disposed) return;
+        rerender();
+        $parent.scrollTo(0, $parent.scrollHeight);
       }, 50);
-    } else {
+    } else if (isLive()) {
       // After initial load, render incrementally
-      // eslint-disable-next-line no-await-in-loop
-      await renderForum();
+      rerender();
       scrollToBottom();
     }
   }

@@ -5,6 +5,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { M } from '@endo/patterns';
 
 import { spawn as nodeSpawn } from 'node:child_process';
@@ -241,11 +242,8 @@ const drainReader = async reader => {
   await null;
   /** @type {Uint8Array[]} */
   const chunks = [];
-  for (;;) {
-    // eslint-disable-next-line no-await-in-loop
-    const { done, value } = await E(reader).next();
-    if (done) break;
-    chunks.push(value);
+  for await (const chunk of iterateBytesReader(reader)) {
+    chunks.push(chunk);
   }
   return Buffer.concat(chunks.map(c => Buffer.from(c)));
 };

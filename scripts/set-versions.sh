@@ -6,15 +6,13 @@ set -ueo pipefail
 # dependencies, it uses the version from the map.
 # This is useful for consistent bulk updates over all packages.
 
-DIR=$(dirname -- "${BASH_SOURCE[0]}")
-
 VERSIONSHASH=$(git hash-object -w --stdin)
 
 (
   echo package.json
   npm query .workspace |
   jq -r '.[].location | "\(.)/package.json"'
-) | while read PACKAGEJSON; do
+) | while read -r PACKAGEJSON; do
   PACKAGEJSONHASH=$(
     jq --slurpfile versions <(git cat-file blob "$VERSIONSHASH") '
       def update(name): if .[name] then {

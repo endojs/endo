@@ -5,16 +5,18 @@ import { makeExo } from '@endo/exo';
 import { E } from '@endo/eventual-send';
 import harden from '@endo/harden';
 import { M } from '@endo/patterns';
+import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 
 /**
  * @import { FarRef } from '@endo/eventual-send'
  */
 
 // Interface guards for browser-side Exos, matching the daemon's
-// ReadableBlob / ReadableTree / AsyncIterator protocols.
+// ReadableBlob / ReadableTree protocols (new exo-stream wire shape).
 
 const BrowserBlobInterface = M.interface('ReadableBlob', {
-  streamBase64: M.call().returns(M.remotable()),
+  streamBase64: M.call(M.any()).returns(M.promise()),
   text: M.call().returns(M.promise()),
   json: M.call().returns(M.promise()),
 });
@@ -26,13 +28,6 @@ const BrowserTreeInterface = M.interface('ReadableTree', {
   lookup: M.call(M.or(M.string(), M.arrayOf(M.string()))).returns(M.promise()),
 });
 harden(BrowserTreeInterface);
-
-const BrowserAsyncIteratorInterface = M.interface('AsyncIterator', {
-  next: M.call().returns(M.promise()),
-  return: M.call().optional(M.any()).returns(M.promise()),
-  throw: M.call().optional(M.any()).returns(M.promise()),
-});
-harden(BrowserAsyncIteratorInterface);
 
 /**
  * Encode a Uint8Array to a base64 string using the browser's built-in APIs.
@@ -49,30 +44,17 @@ const toBase64 = bytes => {
 };
 
 /**
- * Decode a base64 string to a Uint8Array using the browser's built-in APIs.
- *
- * @param {string} base64
- * @returns {Uint8Array}
- */
-const fromBase64 = base64 => {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-};
-
-/**
  * Wrap a browser FileSystemFileHandle as an Exo ReadableBlob.
- * The daemon calls `streamBase64()` over CapTP to read file content.
+ * The daemon calls `streamBase64(synPromise)` over CapTP to read file
+ * content using the new exo-stream wire protocol.
  *
  * @param {FileSystemFileHandle} fileHandle
  * @returns {FarRef<unknown>}
  */
 const makeBrowserBlob = fileHandle =>
   makeExo('ReadableBlob', BrowserBlobInterface, {
-    streamBase64() {
+    /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
+    streamBase64(synPromise) {
       /** @type {ReadableStreamDefaultReader<Uint8Array> | undefined} */
       let reader;
       const getReader = async () => {
@@ -82,24 +64,21 @@ const makeBrowserBlob = fileHandle =>
         }
         return reader;
       };
-      return makeExo('AsyncIterator', BrowserAsyncIteratorInterface, {
-        async next() {
-          const r = await getReader();
-          const { value, done } = await r.read();
-          if (done) {
-            return harden({ value: undefined, done: true });
+      /** @type {AsyncGenerator<string>} */
+      const base64Iterator = (async function* iter() {
+        try {
+          for (;;) {
+            const r = await getReader();
+            const { value, done } = await r.read();
+            if (done) return;
+            yield toBase64(value);
           }
-          return harden({ value: toBase64(value), done: false });
-        },
-        async return() {
+        } finally {
           if (reader) reader.releaseLock();
-          return harden({ value: undefined, done: true });
-        },
-        async throw() {
-          if (reader) reader.releaseLock();
-          return harden({ value: undefined, done: true });
-        },
-      });
+        }
+      })();
+      const pump = makeReaderPump(base64Iterator);
+      return pump(/** @type {any} */ (synPromise));
     },
     async text() {
       const file = await fileHandle.getFile();
@@ -234,18 +213,16 @@ export const checkoutToDirectory = async (tree, rootHandle, options = {}) => {
         });
         await walk(child, childDir);
       } else {
-        // It's a readable-blob. Stream its base64 content.
-        const iteratorRef = E(child).streamBase64();
+        // It's a readable-blob. Stream its content via iterateBytesReader.
         const fileHandle = await parentHandle.getFileHandle(name, {
           create: true,
         });
         const writable = await fileHandle.createWritable();
         try {
-          let result = await E(iteratorRef).next();
-          while (!result.done) {
-            const bytes = fromBase64(/** @type {string} */ (result.value));
+          for await (const bytes of iterateBytesReader(
+            /** @type {any} */ (child),
+          )) {
             await writable.write(bytes);
-            result = await E(iteratorRef).next();
           }
         } finally {
           await writable.close();

@@ -1,0 +1,135 @@
+{
+  "_format": {
+    "description": "ChaCha12 oracle test vector specification. Each entry describes one (key, nonce, counter, length) tuple to be evaluated against multiple independent ChaCha12 implementations; the consensus keystream is captured in _oracle-vectors.json. The IV layout is IETF (RFC 7539 / 8439): a 12-byte nonce paired with a 32-bit counter at state[12]. Some test vectors mirror the DJB-IV vectors from draft-strombergson-chacha-test-vectors-01: those vectors use a 64-bit DJB IV which we map to the trailing 8 bytes of an IETF 12-byte nonce (leading 4 bytes zero), at counter = 0 the two layouts coincide.",
+    "fields": {
+      "id": "stable identifier (string)",
+      "description": "human description",
+      "key_hex": "32-byte ChaCha key as 64-char hex",
+      "nonce_hex": "12-byte IETF nonce as 24-char hex",
+      "counter": "u32 initial block counter",
+      "length": "number of keystream bytes to emit",
+      "rfc_provenance": "optional reference vector this matches (informational)"
+    }
+  },
+  "vectors": [
+    {
+      "id": "tc1-block0",
+      "description": "All-zero key, all-zero nonce, counter 0, one block",
+      "key_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC1 block 0"
+    },
+    {
+      "id": "tc1-block1",
+      "description": "All-zero key, all-zero nonce, counter 1, one block",
+      "key_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 1,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC1 block 1"
+    },
+    {
+      "id": "tc1-128",
+      "description": "All-zero key/nonce, counter 0, two blocks contiguous",
+      "key_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 128,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC1 blocks 0+1"
+    },
+    {
+      "id": "tc4-block0",
+      "description": "All-ones key, all-ones IV (DJB IV maps to trailing 8 bytes of IETF nonce)",
+      "key_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "nonce_hex": "00000000ffffffffffffffff",
+      "counter": 0,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC4 block 0"
+    },
+    {
+      "id": "tc4-block1",
+      "description": "All-ones key, all-ones IV, counter 1",
+      "key_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "nonce_hex": "00000000ffffffffffffffff",
+      "counter": 1,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC4 block 1"
+    },
+    {
+      "id": "tc8-block0",
+      "description": "Random key, random IV (TC8)",
+      "key_hex": "c46ec1b18ce8a878725a37e780dfb7351f68ed2e194c79fbc6aebee1a667975d",
+      "nonce_hex": "000000001ada31d5cf688221",
+      "counter": 0,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC8 block 0"
+    },
+    {
+      "id": "tc8-block1",
+      "description": "Random key, random IV (TC8), counter 1",
+      "key_hex": "c46ec1b18ce8a878725a37e780dfb7351f68ed2e194c79fbc6aebee1a667975d",
+      "nonce_hex": "000000001ada31d5cf688221",
+      "counter": 1,
+      "length": 64,
+      "rfc_provenance": "draft-strombergson-chacha-test-vectors-01 TC8 block 1"
+    },
+    {
+      "id": "key01-counter0-1024",
+      "description": "Key = 0x01 repeated 32 times, zero nonce, 16 blocks",
+      "key_hex": "0101010101010101010101010101010101010101010101010101010101010101",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 1024
+    },
+    {
+      "id": "keyff-counter0-128",
+      "description": "Key = 0xff repeated, zero nonce, 2 blocks",
+      "key_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 128
+    },
+    {
+      "id": "rotating-counter0-64",
+      "description": "Key = 0x00 0x01 0x02 ... 0x1f, zero nonce, one block",
+      "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 64
+    },
+    {
+      "id": "rotating-counter-mid-64",
+      "description": "Same key, counter at 2^31 (mid-range block boundary)",
+      "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 2147483648,
+      "length": 64
+    },
+    {
+      "id": "rotating-counter-near-max-64",
+      "description": "Same key, counter at 2^32-2 (last block-pair before the u32 wrap)",
+      "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 4294967294,
+      "length": 64
+    },
+    {
+      "id": "rotating-nonce-counter1-256",
+      "description": "Rotating key + non-zero IETF nonce, counter 1, 4 blocks",
+      "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce_hex": "010203040506070809000a0b",
+      "counter": 1,
+      "length": 256
+    },
+    {
+      "id": "rotating-counter0-4097",
+      "description": "Rotating key, zero nonce, 4097 bytes (cross multiple blocks with non-aligned tail)",
+      "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "nonce_hex": "000000000000000000000000",
+      "counter": 0,
+      "length": 4097
+    }
+  ]
+}

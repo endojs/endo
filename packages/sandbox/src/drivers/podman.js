@@ -45,7 +45,7 @@ import { DEFAULT_PATH } from './path.js';
 export const ENDO_SANDBOX_PREFIX = 'endo-sandbox-';
 harden(ENDO_SANDBOX_PREFIX);
 
-const DEFAULT_KILL_GRACE_MS = 5_000;
+const DEFAULT_KILL_GRACE_MS = 5000;
 const DEFAULT_STOP_GRACE_S = 5;
 
 /**

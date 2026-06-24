@@ -27,7 +27,7 @@ import {
  */
 
 const CANVAS_HEIGHT = 140;
-const SIM_DURATION_MS = 30000;
+const SIM_DURATION_MS = 30_000;
 
 /** @type {Scenario[]} */
 const scenarios = [
@@ -73,7 +73,7 @@ const scenarios = [
     label: 'Casual',
     messageTimes: () => {
       // A few messages spread casually
-      return [0, 2000, 5000, 8000, 15000, 20000, 25000];
+      return [0, 2000, 5000, 8000, 15_000, 20_000, 25_000];
     },
   },
 ];

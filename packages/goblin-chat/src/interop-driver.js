@@ -36,7 +36,7 @@ const InteropObserverI = M.interface('InteropObserver', {
   'user-left': M.call(M.any()).returns(),
 });
 
-const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 /**
  * @typedef {(line: string) => void} InteropLog

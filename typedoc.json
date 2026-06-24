@@ -1,29 +1,24 @@
 {
-  "entryPoints": [
-    "packages/*"
-  ],
+  "entryPoints": ["packages/*"],
   "projectDocuments": [
     "README.md",
     "docs/get-started.md",
     "docs/guide.md",
     "docs/message-passing.md",
+    "docs/spackle.md",
     "docs/reference.md",
     "docs/lockdown.md",
     "docs/errors.md",
     "docs/bugs.md"
   ],
-  "categoryOrder": [
-    "Guides",
-    "Reference",
-    "*",
-    "Annex"
-  ],
+  "categoryOrder": ["Guides", "Reference", "*", "Annex"],
   "exclude": [
     "**/tmp/**",
     "**/dist/**",
     "**/node_modules/**",
+    "packages/chacha12-fast-check-test",
     "packages/chat",
-    "packages/chat-network-view",
+    "packages/space-peers",
     "packages/cjs-module-analyzer",
     "packages/cli",
     "packages/compartment-mapper",
@@ -37,7 +32,7 @@
     "packages/genie",
     "packages/harden-test",
     "packages/hex-test",
-    "packages/inventory-graph",
+    "packages/space-inventory-graph",
     "packages/ses-test",
     "packages/jaine",
     "packages/hardened262",
@@ -48,18 +43,19 @@
     "packages/ocapn",
     "packages/ocapn-noise",
     "packages/platform",
+    "packages/preact-container",
     "packages/relay-server",
     "packages/skel",
     "packages/stream-types-test",
     "packages/syrup",
     "packages/test262-runner/",
     "packages/where",
-    "packages/whylip",
+    "packages/space-whylip",
+    "packages/monaco-wrapper",
+    "packages/space-file-explorer",
     "api-docs/"
   ],
-  "plugin": [
-    "typedoc-plugin-mermaid"
-  ],
+  "plugin": ["typedoc-plugin-mermaid"],
   "name": "Endo",
   "titleLink": "https://endojs.org",
   "entryPointStrategy": "packages",

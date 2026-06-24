@@ -2,7 +2,7 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-import { makeRefIterator } from './ref-iterator.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { createChannelState, createMessageMenu } from './channel-utils.js';
 import { createReactSystem } from './react-utils.js';
 import {
@@ -233,7 +233,7 @@ export const outlinerComponent = async (
   // Subscribe once to followNameChanges for shared pet names
   if (powers) {
     (async () => {
-      for await (const change of makeRefIterator(
+      for await (const change of iterateReader(
         E(/** @type {ERef<EndoHost>} */ (powers)).followNameChanges(),
       )) {
         if (disposed) break;
@@ -1607,7 +1607,7 @@ export const outlinerComponent = async (
       const typedPowers = /** @type {ERef<EndoHost>} */ (powers);
       activeTokenComponent = tokenAutocompleteComponent($text, $menu, {
         E,
-        makeRefIterator,
+        iterateReader,
         powers: typedPowers,
         externalPetNames: sharedPetNames,
       });
@@ -2912,7 +2912,7 @@ export const outlinerComponent = async (
     }
     throw err;
   }
-  const messageIterator = makeRefIterator(messagesRef);
+  const messageIterator = iterateReader(messagesRef);
   activeIterator = messageIterator;
 
   /** Batch incoming messages during initial load. */

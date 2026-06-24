@@ -77,13 +77,15 @@ test('encode integer 256', t => {
 });
 
 test('encode integer 65535', t => {
-  const { hex, diagnostic } = encode(w => w.writeInteger(65535n));
+  const { hex, diagnostic } = encode(w => w.writeInteger(65_535n));
   t.is(hex, 'c242ffff');
   t.is(diagnostic, "2(h'ffff')");
 });
 
 test('encode large integer', t => {
-  const { hex, diagnostic } = encode(w => w.writeInteger(0x123456789abcdef0n));
+  const { hex, diagnostic } = encode(w =>
+    w.writeInteger(0x1234_5678_9abc_def0n),
+  );
   t.is(hex, 'c248123456789abcdef0');
   t.is(diagnostic, "2(h'123456789abcdef0')");
 });

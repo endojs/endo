@@ -85,6 +85,9 @@ api-docs
 # ts build cache
 *.tsbuildinfo
 
+# pack-all output
+/dist/
+
 # ignore all declarations and mappings, but allow the "*.types.d{m,c,t}s"
 # convention below to make it easier to track new declaration files as needed
 *.d.ts*
@@ -103,6 +106,9 @@ api-docs
 !packages/daemon/src/bus-xs-host-globals.d.ts
 !packages/daemon/src/types.d.ts
 !packages/daemon/types.d.ts
+!packages/endo-fs/types.d.ts
+!packages/git/types.d.ts
+!packages/exo-git/types.d.ts
 !packages/eventual-send/src/exports.d.ts
 !packages/eventual-send/src/types.d.ts
 !packages/exo/src/types.d.ts
@@ -112,6 +118,8 @@ api-docs
 !packages/lp32/types.d.ts
 !packages/pass-style/src/types.d.ts
 !packages/patterns/types-index.d.ts
+!packages/preact-container/src/renderer.d.ts
+!packages/preact-container/src/compartment.d.ts
 !packages/sandbox/src/types.d.ts
 !packages/ses/src/reporting-types.d.ts
 !packages/ses/types.d.ts
@@ -124,3 +132,4 @@ api-docs
 # Test/runtime scratch directories (daemon state, sqlite, worker logs)
 packages/*/tmp/
 packages/*/test/tmp/
+.turbo/

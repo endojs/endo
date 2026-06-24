@@ -3,6 +3,7 @@ import type { ERef } from '@endo/eventual-send';
 import type { FarRef } from '@endo/far';
 import type { CapTPOptions } from '@endo/captp';
 import type { Reader, Writer, Stream } from '@endo/stream';
+import type { PassableBytesReader, StreamNode } from '@endo/exo-stream';
 
 // Branded string types for pet names and special names
 declare const PetNameBrand: unique symbol;
@@ -224,12 +225,251 @@ type ScratchMountFormula = {
   readOnly: boolean;
 };
 
+export type GitFormula = {
+  type: 'git';
+  mountId: FormulaIdentifier;
+};
+
+export type GitCredentialFormula = {
+  type: 'git-credential';
+  kind: 'bearer' | 'basic';
+  audience: string;
+};
+
+export type GitRemoteFormula = {
+  type: 'git-remote';
+  gitId: FormulaIdentifier;
+  credentialId?: FormulaIdentifier;
+  name: string;
+  policy: {
+    url: string;
+    allowedDirections: Array<'fetch' | 'push'>;
+    fetchRefspecs: string[];
+    pushRefspecs: string[];
+    allowedBranches?: string[];
+    allowForcePush?: boolean;
+    allowTags?: boolean;
+    allowDelete?: boolean;
+    allowLocalFileTransport?: boolean;
+  };
+  revoked?: boolean;
+};
+
+// Public Git capability surface.  These types describe the inputs and
+// outputs of the `Git` exo's methods (see `src/interfaces.js` for the
+// runtime guard and `src/git.js` for the implementation); they are part
+// of the package's public API and live here rather than in `src/git.js`
+// so downstream consumers can reach them without importing implementation
+// modules.
+
+export type GitRef = {
+  name: string;
+  kind: 'branch' | 'tag' | 'commit' | 'detached';
+  oid?: string;
+};
+
+export type GitCommit = {
+  oid: string;
+  summary: string;
+  author?: string;
+  committedAt?: number;
+};
+
+export type GitIndexStatus =
+  | 'clean'
+  | 'added'
+  | 'modified'
+  | 'deleted'
+  | 'renamed'
+  | 'copied'
+  | 'conflicted';
+
+export type GitWorktreeStatus =
+  | 'clean'
+  | 'modified'
+  | 'deleted'
+  | 'untracked'
+  | 'ignored'
+  | 'conflicted';
+
+export type GitStatusEntry = {
+  /**
+   * An `EndoMountEntry` for the path.  The entry is the authority-bearing
+   * reference; `path` is presentation data only.
+   */
+  entry: EndoMountEntry;
+  path: string;
+  index: GitIndexStatus;
+  worktree: GitWorktreeStatus;
+  /**
+   * Present when a live worktree object currently exists for the path.
+   * A writable `Git` mints the node through the writable worktree mount
+   * (an `EndoMount` sub-mount or `EndoMountFile`); a read-only `Git`
+   * mints it through the structural read-only worktree view, so the
+   * node is then a `ReadableTreeView` or `ReadableBlobView`.  The wider
+   * union keeps the read-only case from type-checking a `writeText`
+   * that would reject at runtime.
+   */
+  node?: EndoMount | EndoMountFile | ReadableTreeView | ReadableBlobView;
+  renamedFrom?: string;
+};
+
+export type GitDiffOptions = {
+  cached?: boolean;
+  base?: GitRef | string;
+  head?: GitRef | string;
+  entries?: EndoMountEntry[];
+  paths?: string[];
+};
+
+export type GitLogOptions = {
+  /** `git log -n <count>` / `--max-count=<count>`.  Positive integer. */
+  maxCount?: number;
+  /** Branch, tag, oid, or any commit-ish git itself accepts. */
+  ref?: GitRef | string;
+  /**
+   * `git log --since=<approxidate>`.  Accepts the same approxidate
+   * forms git itself parses (`"2 weeks ago"`, `"2026-01-01"`, an RFC
+   * 3339 timestamp).
+   */
+  since?: string;
+  /**
+   * `git log --until=<approxidate>`.  Same accepted forms as `since`.
+   */
+  until?: string;
+};
+
+export type GitRestoreOptions = {
+  /**
+   * Restore from the index (default: false, which restores from the
+   * worktree).
+   */
+  staged?: boolean;
+};
+
+export type GitCreateBranchOptions = {
+  /** Revision at which to create the branch. */
+  startPoint?: string;
+  /** Switch to the new branch after creation. */
+  switchAfterCreate?: boolean;
+};
+
+export type GitDeleteBranchOptions = {
+  /** Pass `-D` instead of `-d`. */
+  force?: boolean;
+};
+
+export type GitMergeOptions = {
+  /** Pass `--ff-only`. */
+  fastForwardOnly?: boolean;
+  /** Pass `--no-ff`. */
+  noFastForward?: boolean;
+};
+
+export type GitRebaseInput = {
+  /**
+   * The backend throws when this is missing or any other value, so the
+   * boundary accepts the unconstrained shape that the public Git exo's
+   * runtime guard admits.
+   */
+  mode?: 'start' | 'continue' | 'abort' | 'skip';
+  /** Required when `mode === 'start'`. */
+  upstream?: string;
+};
+
+export type GitStashPushOptions = {
+  message?: string;
+  entries?: EndoMountEntry[];
+  paths?: string[];
+  includeUntracked?: boolean;
+};
+
+/**
+ * Public `Git` capability surface, minted by `EndoHost.provideGit` and
+ * `DaemonCore.formulateGit`.  The implementation lives in
+ * `src/git.js` (the `makeGit` factory) and the runtime guard is the
+ * `GitInterface` exo in `src/interfaces.js`.
+ *
+ * The capability is a thin wrapper over a `GitBackend` (today
+ * `NativeGitBackend`); path-bearing inputs are passed as
+ * `EndoMountEntry` values that the exo resolves to repo-relative
+ * paths before reaching the backend.  Mutation methods reject when
+ * the cap was obtained via `readOnly()` or derived from a read-only
+ * worktree mount.
+ */
+export interface EndoGit {
+  /**
+   * The worktree authority this cap carries.  A writable Git returns
+   * the writable `EndoMount`; a read-only Git returns a structural
+   * read-only `ReadableTree` view so the attenuated cap cannot hand a
+   * caller a writable worktree.
+   */
+  worktree(): Promise<EndoMount | ReadableTreeView>;
+  status(): Promise<GitStatusEntry[]>;
+  diff(options?: GitDiffOptions): Promise<string>;
+  log(options?: GitLogOptions): Promise<GitCommit[]>;
+  show(ref: GitRef | string): Promise<string>;
+  revParse(ref: GitRef | string): Promise<GitRef>;
+  add(entries: EndoMountEntry[]): Promise<void>;
+  restore(
+    entries: EndoMountEntry[],
+    options?: GitRestoreOptions,
+  ): Promise<void>;
+  commit(message: string): Promise<GitCommit>;
+  currentBranch(): Promise<GitRef | undefined>;
+  branches(): Promise<GitRef[]>;
+  createBranch(name: string, options?: GitCreateBranchOptions): Promise<GitRef>;
+  deleteBranch(name: string, options?: GitDeleteBranchOptions): Promise<void>;
+  renameBranch(from: string, to: string): Promise<void>;
+  switchBranch(name: string): Promise<void>;
+  detach(ref: GitRef | string): Promise<void>;
+  switch(ref: GitRef | string): Promise<void>;
+  merge(ref: GitRef | string, options?: GitMergeOptions): Promise<string>;
+  rebase(input: GitRebaseInput): Promise<string>;
+  stashPush(options?: GitStashPushOptions): Promise<string>;
+  stashList(): Promise<string[]>;
+  stashShow(index?: number): Promise<string>;
+  stashApply(index?: number): Promise<void>;
+  stashPop(index?: number): Promise<void>;
+  stashDrop(index?: number): Promise<void>;
+  /**
+   * Returns an `EndoGitTree`-shaped view of the given tree-ish; blob
+   * children expose a `ReadableBlob`-shaped surface.  The tree also
+   * exposes `archiveTar()` for streaming the immutable tree as a tar.
+   */
+  tree(ref: GitRef | string): Promise<EndoGitTree>;
+  /**
+   * Returns an `@endo/platform/fs/extended` `Filesystem` lazily backed by the git
+   * object database at the resolved tree of `ref`.  The Filesystem is
+   * immutable; mutating verbs throw `EACCES`.  See
+   * `designs/endo-fs-from-git.md`.
+   */
+  filesystemAt(ref: GitRef | string): Promise<unknown>;
+  /**
+   * Returns an attenuated `EndoGit` whose mutation methods reject.
+   * If this cap is already read-only, returns the same cap.
+   */
+  readOnly(): EndoGit;
+}
+
 export type MountDeferredTaskParams = {
   mountId: FormulaIdentifier;
 };
 
 export type ScratchMountDeferredTaskParams = {
   scratchMountId: FormulaIdentifier;
+};
+
+export type GitDeferredTaskParams = {
+  gitId: FormulaIdentifier;
+};
+
+export type GitCredentialDeferredTaskParams = {
+  gitCredentialId: FormulaIdentifier;
+};
+
+export type GitRemoteDeferredTaskParams = {
+  gitRemoteId: FormulaIdentifier;
 };
 
 type LookupFormula = {
@@ -321,6 +561,7 @@ type MessageFormula = {
   from: FormulaIdentifier;
   to: FormulaIdentifier;
   date: string;
+  done?: boolean;
   description?: string;
   promiseId?: FormulaIdentifier;
   resolverId?: FormulaIdentifier;
@@ -384,7 +625,7 @@ type InvitationFormula = {
   type: 'invitation';
   hostAgent: FormulaIdentifier;
   hostHandle: FormulaIdentifier;
-  guestName: PetName;
+  guestName: NameOrPath;
 };
 
 export type InvitationDeferredTaskParams = {
@@ -411,6 +652,9 @@ export type Formula =
   | ReadableTreeFormula
   | MountFormula
   | ScratchMountFormula
+  | GitFormula
+  | GitCredentialFormula
+  | GitRemoteFormula
   | LookupFormula
   | MakeUnconfinedFormula
   | MakeArchiveFormula
@@ -508,8 +752,16 @@ export interface Dismisser {
 export type StampedMessage = EnvelopedMessage & {
   number: bigint;
   date: string;
+  done: boolean;
   dismissed: Promise<void>;
   dismisser: ERef<Dismisser>;
+};
+
+export type MessageRevision = {
+  envelope: Message & { to: FormulaIdentifier; from: FormulaIdentifier };
+  done: boolean;
+  date: string;
+  timestamp: number;
 };
 
 export interface Invitation {
@@ -805,6 +1057,31 @@ export interface Mail {
     messageNumber: bigint,
     valueId: FormulaIdentifier,
   ): Promise<void>;
+  /**
+   * Replace the interior of a message the caller previously sent.
+   *
+   * Only the original sender may edit.  Edits keep the same message
+   * number, reply-to linkage, and dismissal state but replace the
+   * payload.  The prior revision is retained in history
+   * (see `messageHistory`).
+   *
+   * `options.done` (default `true`) flags whether the revision represents
+   * a partial submission (`false`) or a settled state (`true`).  Edits
+   * after a settled revision are still accepted and recorded.
+   */
+  editMessage(
+    messageNumber: bigint,
+    strings: Array<string>,
+    edgeNames: Array<string>,
+    petNamesOrPaths: Array<string | string[]>,
+    options?: { done?: boolean },
+  ): Promise<void>;
+  /**
+   * Return the ordered revision history of a message in the caller's
+   * inbox or outbox.  Oldest entry first.  The current message content is
+   * equivalent to the last entry's envelope.
+   */
+  messageHistory(messageNumber: bigint): Promise<Array<MessageRevision>>;
 }
 
 export type MakeMailbox = (args: {
@@ -824,20 +1101,195 @@ export type RequestFn = (
 ) => Promise<unknown>;
 
 export interface EndoReadable {
-  sha256(): string;
-  streamBase64(): FarRef<Reader<string>>;
+  streamBase64(
+    synPromise: ERef<StreamNode<Passable, Passable>>,
+  ): Promise<StreamNode<string, undefined>>;
   text(): Promise<string>;
   json(): Promise<unknown>;
+  getInfo(): Promise<BlobInfo>;
+  fetch(offset: bigint, length: bigint): Promise<PassableBytesReader>;
+  help(method?: string): string;
 }
+
+export interface EndoReadableTree {
+  sha256(): string;
+  getInfo(): Promise<BlobInfo>;
+  has(...pathSegments: string[]): Promise<boolean>;
+  list(...pathSegments: string[]): Promise<string[]>;
+  lookup(path: string | string[]): Promise<EndoReadableTree | EndoReadable>;
+  help(method?: string): string;
+}
+
+/**
+ * File metadata, aligned with the extended `Stat` shape from
+ * `@endo/platform/fs/extended` (size: bigint, mtime/atime: bigint nanoseconds
+ * since epoch). `kind` is additive — the mount stats a *path*, which may be a
+ * file or directory, where the extended engine relies on the cap type. See
+ * designs/fs-interface-consolidation.md.
+ */
+export type EndoMountStat = {
+  kind: 'file' | 'directory' | 'symlink';
+  size: bigint;
+  mtime: bigint;
+  atime: bigint;
+};
+
+export interface EndoMountEntry {
+  segments(): string[];
+  displayPath(): string;
+  child(name: string): EndoMountEntry;
+  help(method?: string): string;
+}
+
+/**
+ * The `{ algorithm, hash, size }` content-address triple returned by a rich
+ * blob's `getInfo()`. `hash` is base64; `algorithm` is `'sha256'`.
+ */
+export type BlobInfo = {
+  algorithm: string;
+  hash: string;
+  size: bigint;
+};
+
+/**
+ * Structural `ReadableBlob` view exposed by `EndoMountFile.readOnly()`.
+ * Mirrors the rich `ReadableBlob` (range I/O) from `@endo/platform/fs`: a
+ * write-disabled face over a live file.
+ */
+export interface ReadableBlobView {
+  streamBase64(
+    synPromise: ERef<StreamNode<Passable, Passable>>,
+  ): Promise<StreamNode<string, undefined>>;
+  text(): Promise<string>;
+  json(): Promise<unknown>;
+  getInfo(): Promise<BlobInfo>;
+  fetch(offset: bigint, length: bigint): Promise<PassableBytesReader>;
+  help(method?: string): string;
+}
+
+/**
+ * Structural `ReadableTree` view exposed by `EndoMount.readOnly()`.
+ * Mirrors `ReadableTree` from `@endo/platform/fs`; `lookup` recursively
+ * returns either another `ReadableTreeView` or a `ReadableBlobView`.
+ */
+export interface ReadableTreeView {
+  has(...pathSegments: string[]): Promise<boolean>;
+  list(...pathSegments: string[]): Promise<string[]>;
+  lookup(path: string | string[]): Promise<ReadableTreeView | ReadableBlobView>;
+  help(method?: string): string;
+}
+
+export interface EndoGitTree {
+  archiveTar(): PassableBytesReader;
+  archiveLossless(): Promise<boolean>;
+  has(...pathSegments: string[]): Promise<boolean>;
+  list(...pathSegments: string[]): Promise<string[]>;
+  lookup(path: string | string[]): Promise<EndoGitTree | EndoReadable>;
+}
+
+/**
+ * `EndoMountFile` is a daemon-local specialization of the platform
+ * `File` contract.  Mount-specific surface (`stat`, `snapshot`,
+ * `writeText` / `append` / `writeBytes` that throw on read-only) is
+ * additive; `readOnly()` narrows to a structural `ReadableBlob` view.
+ */
+export interface EndoMountFile {
+  text(): Promise<string>;
+  streamBase64(
+    synPromise: ERef<StreamNode<Passable, Passable>>,
+  ): Promise<StreamNode<string, undefined>>;
+  json(): Promise<unknown>;
+  getInfo(): Promise<BlobInfo>;
+  fetch(offset: bigint, length: bigint): Promise<PassableBytesReader>;
+  writeText(content: string): Promise<void>;
+  append(content: string): Promise<void>;
+  writeBytes(readableRef: ERef<PassableBytesReader>): Promise<void>;
+  stat(): Promise<EndoMountStat>;
+  snapshot(): Promise<FarRef<EndoReadable>>;
+  readOnly(): ReadableBlobView;
+  help(method?: string): string;
+}
+
+/**
+ * `EndoMount` is a daemon-local specialization of the platform
+ * `Directory` contract.  Overlapping methods (`has`, `list`, `lookup`,
+ * `write`, `remove`, `move`, `copy`, `makeDirectory`, `snapshot`) match
+ * the platform shapes; mount-specific extensions (`entry`, `stat`,
+ * `displayPath`, `readText`, `maybeReadText`, `writeText`, `makeFile`)
+ * are additive; `readOnly()` narrows to a structural `ReadableTree`
+ * view.
+ */
+export interface EndoMount {
+  has(...pathSegments: string[]): Promise<boolean>;
+  has(entry: EndoMountEntry): Promise<boolean>;
+  list(...pathSegments: string[]): Promise<string[]>;
+  lookup(
+    path: string | string[] | EndoMountEntry,
+  ): Promise<EndoMount | EndoMountFile>;
+  /**
+   * The `ReadableNameHub` lookup-or-undefined primitive: resolve `path`
+   * and return its handle, or `undefined` when the path is absent or
+   * escapes confinement.
+   */
+  maybeLookup(
+    path: string | string[] | EndoMountEntry,
+  ): Promise<EndoMount | EndoMountFile | undefined>;
+  /**
+   * Part of the name-hub contract, but a live change feed requires a
+   * filesystem watcher behind the mount (filesystem-watchers.md), which is
+   * not yet implemented; throws ENOSYS until then.
+   */
+  followNameChanges(): never;
+  /**
+   * Confined sub-root: returns a sub-mount whose own confinement root is
+   * the target directory, so `..` cannot escape it. The transient,
+   * in-session counterpart to `provideSubMount`.
+   */
+  subView(path: string | string[] | EndoMountEntry): Promise<EndoMount>;
+  write(
+    path: string | string[] | EndoMountEntry,
+    value: unknown,
+  ): Promise<void>;
+  copy(
+    from: string | string[] | EndoMountEntry,
+    to: string | string[] | EndoMountEntry,
+  ): Promise<void>;
+  entry(path: string | string[]): EndoMountEntry;
+  stat(
+    path: string | string[] | EndoMountEntry,
+  ): Promise<EndoMountStat | undefined>;
+  readText(path: string | string[] | EndoMountEntry): Promise<string>;
+  maybeReadText(
+    path: string | string[] | EndoMountEntry,
+  ): Promise<string | undefined>;
+  writeText(
+    path: string | string[] | EndoMountEntry,
+    content: string,
+  ): Promise<void>;
+  makeDirectory(path: string | string[] | EndoMountEntry): Promise<EndoMount>;
+  makeFile(
+    path: string | string[] | EndoMountEntry,
+    content?: string,
+  ): Promise<void>;
+  remove(path: string | string[] | EndoMountEntry): Promise<void>;
+  move(
+    from: string | string[] | EndoMountEntry,
+    to: string | string[] | EndoMountEntry,
+  ): Promise<void>;
+  readOnly(): ReadableTreeView;
+  snapshot(): Promise<unknown>;
+  help(method?: string): string;
+}
+
 export interface EndoWorker {}
 
 export type MakeHostOrGuestOptions = {
-  agentName?: string;
+  agentName?: string | string[];
   introducedNames?: Record<string, string>;
 };
 
 export type MakeCapletOptions = {
-  powersName?: string;
+  powersName?: string | string[];
   resultName?: string | string[];
   env?: Record<string, string>;
   workerTrustedShims?: string[];
@@ -852,8 +1304,9 @@ export interface EndoGateway {
   followRetentionSet: (
     peerNodeNumber: string,
   ) => Promise<
-    FarRef<
-      AsyncIterableIterator<import('./retention-accumulator.js').RetentionDelta>
+    import('@endo/exo-stream').PassableReader<
+      import('./retention-accumulator.js').RetentionDelta,
+      undefined
     >
   >;
 }
@@ -893,6 +1346,8 @@ export interface EndoAgent extends EndoDirectory {
   send: Mail['send'];
   sendValue: Mail['sendValue'];
   deliver: Mail['deliver'];
+  editMessage: Mail['editMessage'];
+  messageHistory: Mail['messageHistory'];
   /**
    * @param id The formula identifier to look up.
    * @returns The pet names for the given formula identifier.
@@ -903,12 +1358,17 @@ export interface EndoAgent extends EndoDirectory {
    * @returns The value for the given formula identifier.
    */
   lookupById(id: string): Promise<unknown>;
+  /**
+   * @param locator The `endo://` locator to look up.
+   * @returns The value for the given locator.
+   */
+  lookupByLocator(locator: string): Promise<unknown>;
 }
 
 export interface EndoGuest extends EndoAgent {
   /** Evaluate code directly in a worker, constrained by reachable capabilities. */
   evaluate(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     source: string,
     codeNames: Array<string>,
     petNamesOrPaths: Array<string | string[]>,
@@ -924,7 +1384,7 @@ export interface EndoGuest extends EndoAgent {
     fields: FormField[],
   ): Promise<void>;
   storeBlob(
-    readerRef: ERef<AsyncIterableIterator<string>>,
+    readerRef: ERef<PassableBytesReader>,
     petName?: string | string[],
   ): Promise<unknown>;
   storeValue<T extends Passable>(
@@ -944,7 +1404,7 @@ export interface EndoHost extends EndoAgent {
     fields: FormField[],
   ): Promise<void>;
   storeBlob(
-    readerRef: ERef<AsyncIterableIterator<string>>,
+    readerRef: ERef<PassableBytesReader>,
     petName: string | string[],
   ): Promise<FarRef<EndoReadable>>;
   storeValue<T extends Passable>(
@@ -956,38 +1416,113 @@ export interface EndoHost extends EndoAgent {
     path: string,
     petName: string | string[],
     opts?: { readOnly?: boolean },
+  ): Promise<EndoMount>;
+  provideScratchMount(petName: string | string[]): Promise<EndoMount>;
+  provideGit(mountCap: EndoMount, petName: string | string[]): Promise<EndoGit>;
+  /**
+   * Mint a `GitRemote` capability bound to `gitCap`, persist its
+   * formula, and bind it to `petName`.  The remote enforces the
+   * supplied policy (allowed directions, refspecs, force-push, etc.)
+   * against every operation.  Host-only; not exposed to guests.  The
+   * guest holds the returned exo (which exposes `fetch`/`pull`/`push`
+   * and `inspect()`); the controller surface
+   * (`getGitRemoteController`) lives on the host side and stays
+   * within `EndoHost`.
+   */
+  provideGitRemote(
+    gitCap: unknown,
+    petName: string | string[],
+    opts: {
+      name: string;
+      url: string;
+      allowedDirections?: Array<'fetch' | 'push'>;
+      fetchRefspecs?: string[];
+      pushRefspecs?: string[];
+      allowedBranches?: string[];
+      allowForcePush?: boolean;
+      allowTags?: boolean;
+      allowDelete?: boolean;
+      allowLocalFileTransport?: boolean;
+      credential?: unknown;
+    },
   ): Promise<unknown>;
-  provideScratchMount(petName: string | string[]): Promise<unknown>;
+  /**
+   * Mint a bearer-token `GitCredential` capability scoped to
+   * `audience` (a URL origin) and bind it to `petName`.  Material
+   * lives in a daemon-process-local map; daemon restart routes the
+   * cap through `makeUnavailableGitCredential` (durable identity,
+   * ephemeral material).  Host-only; not exposed to guests.  Guests
+   * receive only the `audience()` view of the resulting capability.
+   */
+  provideBearerCredential(
+    petName: string | string[],
+    options: { audience: string; token: string },
+  ): Promise<unknown>;
+  /**
+   * Mint a basic-auth `GitCredential` capability scoped to `audience`
+   * and bind it to `petName`.  Same material-residency contract as
+   * `provideBearerCredential`: host-only, daemon-process-local
+   * material, audience-gated transport use.
+   */
+  provideBasicCredential(
+    petName: string | string[],
+    options: { audience: string; username: string; password: string },
+  ): Promise<unknown>;
+  /**
+   * Privileged accessor: return the host-side controller paired with
+   * a daemon-minted `GitCredential` exo.  The controller exposes
+   * `inspect`, `rotate`, `revoke`, and `audit`; the guest-held
+   * credential exposes only `audience()`.  Host-only; not exposed to
+   * guests.  Returns `undefined` for spoof / fake credentials that
+   * did not pass through `provideBearerCredential` or
+   * `provideBasicCredential`.
+   */
+  getGitCredentialController(credential: unknown): Promise<unknown>;
+  /**
+   * Privileged accessor: return the host-side controller paired with
+   * a daemon-minted `GitRemote` exo.  The controller exposes policy
+   * setters (`setAllowedDirections`, `setFetchRefspecs`,
+   * `setPushRefspecs`, ...), `revoke`, and `audit`.  Host-only; not
+   * exposed to guests.  Returns `undefined` for spoof / fake remotes
+   * that did not pass through `provideGitRemote`.
+   */
+  getGitRemoteController(remote: unknown): Promise<unknown>;
+  /**
+   * Privileged bridge from a daemon-minted top-level Mount cap to its
+   * host filesystem path. EndoHost is a fully privileged authority;
+   * callers that should not learn host paths must receive an
+   * attenuated guest or narrower powers object instead.
+   */
   provideHostPath(cap: unknown): Promise<string>;
   provideGuest(
-    petName?: string,
+    petName?: string | string[],
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoGuest>;
   provideHost(
-    petName?: string,
+    petName?: string | string[],
     opts?: MakeHostOrGuestOptions,
   ): Promise<EndoHost>;
   makeDirectory(petNamePath: string | string[]): Promise<EndoDirectory>;
   provideWorker(petNamePath: string | string[]): Promise<EndoWorker>;
   evaluate(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     source: string,
     codeNames: Array<string>,
     petNamesOrPaths: Array<string | string[]>,
     resultName?: string | string[],
   ): Promise<unknown>;
   makeUnconfined(
-    workerName: string | undefined,
+    workerName: string | string[] | undefined,
     specifier: string,
     options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeArchive(
-    workerPetName: string | undefined,
-    archiveName: string,
+    workerPetName: string | string[] | undefined,
+    archiveName: string | string[],
     options?: MakeCapletOptions,
   ): Promise<unknown>;
   makeFromTree(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     treeName: string | string[],
     options?: MakeCapletOptions,
   ): Promise<unknown>;
@@ -999,7 +1534,7 @@ export interface EndoHost extends EndoAgent {
    */
   stageTree(
     treeName: string | string[],
-    scratchPetName: string,
+    scratchPetName: string | string[],
   ): Promise<unknown>;
   /**
    * Stage a readable tree (ReadableTree or Mount) into an internal
@@ -1008,7 +1543,7 @@ export interface EndoHost extends EndoAgent {
    * Supports native Node modules (unlike {@link makeFromTree}).
    */
   makeUnconfinedFromTree(
-    workerPetName: string | undefined,
+    workerPetName: string | string[] | undefined,
     treeName: string | string[],
     options?: MakeCapletOptions & { entry?: string },
   ): Promise<unknown>;
@@ -1020,9 +1555,12 @@ export interface EndoHost extends EndoAgent {
   addPeerInfo(peerInfo: PeerInfo): Promise<void>;
   listKnownPeers(): Promise<PeerInfo[]>;
   followPeerChanges(): AsyncGenerator<PetStoreNameChange, undefined, undefined>;
-  makeChannel(petName: string, proposedName: string): Promise<EndoChannel>;
+  makeChannel(
+    petName: string | string[],
+    proposedName: string,
+  ): Promise<EndoChannel>;
   makeTimer(
-    petName: string,
+    petName: string | string[],
     intervalMs: number,
     label?: string,
   ): Promise<unknown>;
@@ -1033,12 +1571,15 @@ export interface EndoHost extends EndoAgent {
     locator: string,
     petNameOrPath: string | string[],
   ): Promise<void>;
-  invite(guestName: string): Promise<Invitation>;
-  accept(invitationLocator: string, guestName: string): Promise<void>;
+  invite(guestName: string | string[]): Promise<Invitation>;
+  accept(
+    invitationLocator: string,
+    guestName: string | string[],
+  ): Promise<void>;
   endow(
     messageNumber: bigint,
     bindings: Record<string, string | string[]>,
-    workerName?: string,
+    workerName?: string | string[],
     resultName?: string | string[],
   ): Promise<void>;
   submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
@@ -1220,9 +1761,16 @@ export type FilePowers = {
   makeFileReader: (path: string) => Reader<Uint8Array>;
   makeFileWriter: (path: string) => Writer<Uint8Array>;
   writeFileText: (path: string, text: string) => Promise<void>;
+  appendFileText: (path: string, text: string) => Promise<void>;
   readFileText: (path: string) => Promise<string>;
   readFileBytes: (path: string) => Promise<Uint8Array>;
   readFile: (path: string) => Promise<Uint8Array>;
+  readFileRange: (
+    path: string,
+    offset: number,
+    length: number,
+  ) => Promise<Uint8Array>;
+  sha256: (path: string) => Promise<string>;
   maybeReadFile: (path: string) => Promise<Uint8Array | undefined>;
   maybeReadFileText: (path: string) => Promise<string | undefined>;
   readDirectory: (path: string) => Promise<Array<string>>;
@@ -1232,6 +1780,17 @@ export type FilePowers = {
   removeDirectory: (path: string) => Promise<void>;
   renamePath: (source: string, target: string) => Promise<void>;
   realPath: (path: string) => Promise<string>;
+  // Optional: only the XS-backed powers surface readLink today; the
+  // Node powers omit it. Declared here so the XS factory's return value
+  // structurally satisfies FilePowers without an excess-property error.
+  readLink?: (path: string) => Promise<string | undefined>;
+  pathIdentity: (path: string) => Promise<string>;
+  statPath: (path: string) => Promise<{
+    kind: 'file' | 'directory' | 'symlink';
+    size: bigint;
+    mtime: bigint;
+    atime: bigint;
+  }>;
   isDirectory: (path: string) => Promise<boolean>;
   exists: (path: string) => Promise<boolean>;
 };
@@ -1464,6 +2023,7 @@ type FormulateNumberedHostParams = {
 
 export type FormulaValueTypes = {
   directory: EndoDirectory;
+  mount: EndoMount;
   network: EndoNetwork;
   peer: EndoGateway;
   'pet-store': PetStore;
@@ -1648,7 +2208,7 @@ export interface DaemonCore {
   ) => FormulateResult<EndoPeer>;
 
   formulateReadableBlob: (
-    readerRef: ERef<AsyncIterableIterator<string>>,
+    readerRef: ERef<PassableBytesReader>,
     deferredTasks: DeferredTasks<ReadableBlobDeferredTaskParams>,
   ) => FormulateResult<FarRef<EndoReadable>>;
 
@@ -1661,17 +2221,37 @@ export interface DaemonCore {
     mountPath: string,
     readOnly: boolean,
     deferredTasks: DeferredTasks<MountDeferredTaskParams>,
-  ) => FormulateResult<unknown>;
+  ) => FormulateResult<EndoMount>;
 
   formulateScratchMount: (
     readOnly: boolean,
     deferredTasks: DeferredTasks<ScratchMountDeferredTaskParams>,
+  ) => FormulateResult<EndoMount>;
+
+  formulateGit: (
+    mountId: FormulaIdentifier,
+    deferredTasks: DeferredTasks<GitDeferredTaskParams>,
+  ) => FormulateResult<EndoGit>;
+
+  formulateGitCredential: (
+    kind: GitCredentialFormula['kind'],
+    audience: string,
+    material: Record<string, string>,
+    deferredTasks: DeferredTasks<GitCredentialDeferredTaskParams>,
+  ) => FormulateResult<unknown>;
+
+  formulateGitRemote: (
+    gitId: FormulaIdentifier,
+    credentialId: FormulaIdentifier | undefined,
+    name: string,
+    policy: GitRemoteFormula['policy'],
+    deferredTasks: DeferredTasks<GitRemoteDeferredTaskParams>,
   ) => FormulateResult<unknown>;
 
   formulateInvitation: (
     hostAgentId: FormulaIdentifier,
     hostHandleId: FormulaIdentifier,
-    guestName: PetName,
+    guestName: NameOrPath,
     deferredTasks: DeferredTasks<InvitationDeferredTaskParams>,
   ) => FormulateResult<Invitation>;
 

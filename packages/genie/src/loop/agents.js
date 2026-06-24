@@ -1,7 +1,7 @@
 // @ts-check
 
-/** @import { Agent as PiAgent } from '@mariozechner/pi-agent-core' */
-/** @import { Api, Model } from '@mariozechner/pi-ai' */
+/** @import { Agent as PiAgent } from '@earendil-works/pi-agent-core' */
+/** @import { Api, Model } from '@earendil-works/pi-ai' */
 /** @import { Observer } from '../observer/index.js' */
 /** @import { Reflector } from '../reflector/index.js' */
 /** @import { GenieTools } from '../tools/registry.js' */

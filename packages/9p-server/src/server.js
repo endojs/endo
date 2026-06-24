@@ -2,7 +2,7 @@
 /* global Buffer */
 /* eslint-disable no-await-in-loop, no-bitwise */
 //
-// 9P2000.L server backed by an `@endo/endo-fs` `Filesystem` cap.
+// 9P2000.L server backed by an `@endo/platform/fs/extended` `Filesystem` cap.
 //
 // fid model: each fid holds a Node cap (Directory or File) plus an
 // ancestry stack `[{ parent: Directory, name: string }, ...]` for
@@ -44,9 +44,9 @@ import { E as ERRNO, QT, S, T, GETATTR_BASIC } from './types.js';
 
 const VERSION_9P2000_L = '9P2000.L';
 const MIN_MSIZE = 4096;
-const DEFAULT_MSIZE = 131072;
+const DEFAULT_MSIZE = 131_072;
 
-const MASK_U32 = 0xffffffffn;
+const MASK_U32 = 0xffff_ffffn;
 const MASK_U64 = (1n << 64n) - 1n;
 
 /**
@@ -58,6 +58,8 @@ const MASK_U64 = (1n << 64n) - 1n;
  *   back to the FS root. Used for `..` walks and the (parent,
  *   name) bookkeeping Tunlinkat / Trenameat need.
  * @property {boolean} open
+ * @property {boolean} [readable]      open mode allows Tread (File)
+ * @property {boolean} [writable]      open mode allows Twrite (File)
  * @property {any} [openFile]          endo-fs OpenFile cap (File open)
  * @property {any} [cursor]            endo-fs Cursor cap (Directory open)
  * @property {Array<{ name: string, qid: any }>} [dirBuffer]
@@ -126,6 +128,21 @@ export const serveConnection = ({
 
   let closed = false;
 
+  // Close any open handle a fid holds — a File's OpenFile and/or a
+  // Directory's Cursor — so the backing FS releases resources promptly
+  // instead of waiting for the dropped cap to be GC'd. Best-effort.
+  /** @param {Fid} f */
+  const closeFidHandles = f => {
+    const ps = [];
+    if (f.openFile) {
+      ps.push(Promise.resolve(E(f.openFile).close()).catch(() => {}));
+    }
+    if (f.cursor) {
+      ps.push(Promise.resolve(E(f.cursor).close()).catch(() => {}));
+    }
+    return Promise.all(ps);
+  };
+
   const close = () => {
     // Idempotent. `'error'` and `'close'` can both fire (an
     // error usually triggers a subsequent close), and `dispatch`
@@ -135,15 +152,12 @@ export const serveConnection = ({
     socket.removeListener('error', close);
     socket.removeListener('close', close);
     socket.removeListener('data', onData);
-    // Best-effort close of every fid's open handle so the
-    // underlying FS doesn't leak `FileHandle`s when a client
-    // disconnects without `Tclunk`-ing each fid. We fire the
-    // closes in parallel and ignore failures; the connection is
-    // already going away.
+    // Best-effort close of every fid's open handle (OpenFile and/or
+    // Cursor) so the underlying FS doesn't leak handles when a client
+    // disconnects without `Tclunk`-ing each fid. We fire the closes in
+    // parallel and ignore failures; the connection is already going away.
     for (const f of fids.values()) {
-      if (f.openFile) {
-        Promise.resolve(E(f.openFile).close()).catch(() => {});
-      }
+      closeFidHandles(f);
     }
     fids.clear();
     socket.destroy();
@@ -380,6 +394,10 @@ export const serveConnection = ({
 
     const src = fids.get(fid);
     if (!src) return sendError(tag, ERRNO.EBADF);
+    // 9P forbids walking from a fid already opened for I/O. Enforcing it
+    // is also what stops a `Twalk(fid, fid, …)` from silently
+    // overwriting (and leaking) an open fid's OpenFile / cursor.
+    if (src.open) return sendError(tag, ERRNO.EBADF);
 
     // Build the pipelined chain. `steps[i]` describes the i-th
     // step's resulting cap + qid promise + new ancestry. Caps
@@ -501,6 +519,8 @@ export const serveConnection = ({
         f.dirBuffer = [];
         f.dirBufferDone = false;
         f.open = true;
+        f.readable = true;
+        f.writable = false;
       } else {
         // POSIX-style flag bits: O_RDWR=0o2, O_WRONLY=0o1, O_RDONLY=0o0.
         const oflag = flags & 0o3;
@@ -518,13 +538,18 @@ export const serveConnection = ({
         );
         f.openFile = oh;
         f.open = true;
+        f.readable = wantRead;
+        f.writable = wantWrite;
       }
     } catch (e) {
       return sendError(tag, errnoOf(e));
     }
     const w = makeWriter(13 + 4);
     writeQid(w, qidToWire(f.qid));
-    w.u32(0); // iounit = use msize - 24
+    // iounit: the max bytes the client may Tread/Twrite in one frame.
+    // The onWrite/onRead clamps cap at `msize - header`; advertise that
+    // rather than 0 ("just use msize") so the client sizes I/O to fit.
+    w.u32(Math.max(0, msize - 24));
     send(wrapMessage(T.Rlopen, tag, w.finish()));
     return undefined;
   };
@@ -550,6 +575,10 @@ export const serveConnection = ({
       return sendError(tag, ERRNO.EISDIR);
     }
     if (!f.openFile) return sendError(tag, ERRNO.EBADF);
+    // Reading a fid not opened for read is EBADF (matches read(2) on an
+    // O_WRONLY fd), enforced at the protocol layer rather than relying on
+    // the backend OpenFile to reject it.
+    if (!f.readable) return sendError(tag, ERRNO.EBADF);
     try {
       const reader = await E(f.openFile).read(offset, BigInt(count));
       const chunks = [];
@@ -561,6 +590,10 @@ export const serveConnection = ({
       // (`makeBytesReaderFromBytes` yields the whole slice in one
       // chunk, so this is almost always single-frame).
       for await (const chunk of iterateBytesReader(reader, { buffer: 1 })) {
+        // Stop pulling from the FS if the connection was torn down
+        // mid-read (cancellation / disconnect) instead of draining a
+        // potentially large read against a dead socket.
+        if (closed) return undefined;
         chunks.push(chunk);
         total += chunk.length;
         if (total >= want) break;
@@ -583,14 +616,7 @@ export const serveConnection = ({
     const fid = r.u32();
     const f = fids.get(fid);
     if (f) {
-      // Best-effort close of any open handle.
-      if (f.openFile) {
-        try {
-          await E(f.openFile).close();
-        } catch {
-          // ignore
-        }
-      }
+      await closeFidHandles(f);
       fids.delete(fid);
     }
     sendEmpty(tag, T.Rclunk);
@@ -599,20 +625,27 @@ export const serveConnection = ({
 
   const onGetattr = async (/** @type {number} */ tag, r) => {
     const fid = r.u32();
-    r.u64(); // request_mask (we always return basic stat)
+    const requestMask = /** @type {bigint} */ (r.u64());
     const f = fids.get(fid);
     if (!f) return sendError(tag, ERRNO.EBADF);
     try {
       const attrs = await E(f.cap).getAttrs();
       const w = makeWriter(160);
-      w.u64(GETATTR_BASIC);
+      // st_result_mask: report only the basic fields the client actually
+      // requested (we can fill the whole basic set; the kernel uses the
+      // intersection). Returning more than asked is tolerated, but
+      // honouring the mask is the conformant answer.
+      w.u64(GETATTR_BASIC & requestMask);
       writeQid(w, qidToWire(f.qid));
       const isDir = f.qid.type === 'directory';
       const mode = (isDir ? S.IFDIR : S.IFREG) | (isDir ? 0o755 : 0o644);
       w.u32(mode);
       w.u32(1000); // uid — base FS has no concept; default for guest mount.
       w.u32(1000); // gid
-      w.u64(1n); // nlink
+      // nlink: directories have >= 2 (`.` plus the parent's entry);
+      // reporting 1 confuses `find`'s link-count traversal optimisation.
+      // The base FS exposes no real link count, so synthesise 2/1.
+      w.u64(isDir ? 2n : 1n); // nlink
       w.u64(0n); // rdev
       w.u64(BigInt(attrs.size ?? 0n));
       w.u64(4096n); // blksize
@@ -650,6 +683,8 @@ export const serveConnection = ({
     // rather than one-per-entry.
     const reader = await E(f.cursor).stream();
     for await (const entry of iterateReader(reader, { buffer: 64 })) {
+      // Abandon the drain if the connection was torn down mid-listing.
+      if (closed) return;
       f.dirBuffer.push(/** @type {{ name: string, qid: any }} */ (entry));
     }
     f.dirBufferDone = true;
@@ -698,7 +733,12 @@ export const serveConnection = ({
     while (i < entries.length) {
       const { name, qid } = entries[i];
       const size = offSize(name);
-      if (written + size > count) break;
+      // Always emit at least the first entry at `offset`, even if it
+      // alone exceeds the requested count: returning zero entries would
+      // make the kernel re-request the same cookie forever. (The writer
+      // grows as needed; under the negotiated msize floor a single entry
+      // always fits anyway.)
+      if (written > 0 && written + size > count) break;
       writeQid(w, qidToWire(qid));
       w.u64(BigInt(i + 1)); // next offset cookie
       w.u8(qid.type === 'directory' ? 4 : 8); // DT_DIR | DT_REG
@@ -726,7 +766,7 @@ export const serveConnection = ({
     const totalBlocks = BigInt(stats.totalBytes ?? 0n) / blockSize;
     const freeBlocks = BigInt(stats.freeBytes ?? 0n) / blockSize;
     const w = makeWriter(48);
-    w.u32(0x01021997); // V9FS_MAGIC
+    w.u32(0x0102_1997); // V9FS_MAGIC
     w.u32(Number(blockSize));
     w.u64(totalBlocks);
     w.u64(freeBlocks);
@@ -742,28 +782,35 @@ export const serveConnection = ({
   const onLcreate = async (/** @type {number} */ tag, r) => {
     const fid = r.u32();
     const name = r.str();
-    r.u32(); // flags
+    const flags = r.u32();
     r.u32(); // mode
     r.u32(); // gid
+    const oflag = flags & 0o3;
+    const newReadable = oflag === 0 || oflag === 0o2;
+    const newWritable = oflag === 0o1 || oflag === 0o2;
     const f = fids.get(fid);
     if (!f) return sendError(tag, ERRNO.EBADF);
     if (f.qid.type !== 'directory') return sendError(tag, ERRNO.ENOTDIR);
     try {
-      // Pipeline create + lookup + getQid into one CapTP batch.
-      // create returns an OpenFile (we keep it on the fid);
-      // lookup returns the File cap (so we can take its qid);
-      // getQid runs against the lookup-result promise. All three
-      // CTP_CALLs reach the wire before any reply.
-      const ohP = E(f.cap).create(name, harden({}));
+      // create() makes the new directory entry and returns an OpenFile
+      // we keep on the fid. Await it before looking the child up:
+      // dispatching lookup(name) concurrently in the same batch races
+      // backends whose create writes the entry only after an await
+      // (e.g. node-fs), so the same-turn lookup can ENOENT even though
+      // the file was created — the in-memory backend registers entries
+      // eagerly, which is why this only surfaced on a disk-backed
+      // mount. Once create resolves the entry exists, so lookup +
+      // getQid still pipeline into one further round-trip.
+      const oh = await E(f.cap).create(name, harden({}));
       const childCapP = E(f.cap).lookup(name);
-      const childQidP = E(childCapP).getQid();
-      const [oh, childCap, childQid] = await Promise.all([
-        ohP,
+      const [childCap, childQid] = await Promise.all([
         childCapP,
-        childQidP,
+        E(childCapP).getQid(),
       ]);
       // Replace fid: 9P semantics put newly-created file at the
-      // original fid. Ancestry extends.
+      // original fid. Ancestry extends. If the directory fid was open
+      // (carries a Cursor), close it first so the listing isn't leaked.
+      await closeFidHandles(f);
       const newAncestry = [{ parent: f.cap, name }, ...f.ancestry];
       fids.set(fid, {
         cap: childCap,
@@ -771,10 +818,12 @@ export const serveConnection = ({
         ancestry: newAncestry,
         open: true,
         openFile: oh,
+        readable: newReadable,
+        writable: newWritable,
       });
       const w = makeWriter(17);
       writeQid(w, qidToWire(childQid));
-      w.u32(0);
+      w.u32(Math.max(0, msize - 24)); // iounit (see onLopen)
       send(wrapMessage(T.Rlcreate, tag, w.finish()));
     } catch (e) {
       return sendError(tag, errnoOf(e));
@@ -804,6 +853,9 @@ export const serveConnection = ({
     if (!f || !f.open) return sendError(tag, ERRNO.EBADF);
     if (f.qid.type === 'directory') return sendError(tag, ERRNO.EISDIR);
     if (!f.openFile) return sendError(tag, ERRNO.EBADF);
+    // Writing a fid not opened for write is EBADF (matches write(2) on an
+    // O_RDONLY fd).
+    if (!f.writable) return sendError(tag, ERRNO.EBADF);
     try {
       const writer = await E(f.openFile).write(offset);
       // `buffer: 1` lets us push the one chunk this Twrite carries

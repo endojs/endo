@@ -2,6 +2,10 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
+import { encodeBase64 } from '@endo/base64';
+import { decodeHex } from '@endo/hex';
+
+import { byteLengthOfReader } from './reader-byte-length.js';
 
 /** @import { SnapshotStore, SnapshotTree } from './types.js' */
 
@@ -17,7 +21,7 @@ import { E } from '@endo/far';
  * @param {string} sha256
  */
 export const snapshotTreeMethods = (store, sha256) => {
-  const { json } = store.fetch(sha256);
+  const { json, makeFileReader, size } = store.fetch(sha256);
   /** @type {Promise<Array<[string, string, string]>> | undefined} */
   let entriesPromise;
 
@@ -42,7 +46,22 @@ export const snapshotTreeMethods = (store, sha256) => {
   };
 
   return harden({
-    sha256: () => sha256,
+    // `sha256()` returns the digest as **base64** (the canonical public hash
+    // encoding). The hex form is the internal content-store address (and the
+    // encoding of the child references in the manifest); callers that need hex
+    // convert at the callsite.
+    sha256: () => encodeBase64(decodeHex(sha256)),
+    // `getInfo()` is the uniform content-address identity accessor, matching
+    // the blob/live-blob shape so generic code can read a content hash off any
+    // blob *or* tree via `getInfo().hash`. `size` is the byte length of the
+    // tree's own manifest (the content-addressed object), not the recursive
+    // total of its files.
+    getInfo: async () =>
+      harden({
+        algorithm: 'sha256',
+        hash: encodeBase64(decodeHex(sha256)),
+        size: size ? await size() : await byteLengthOfReader(makeFileReader),
+      }),
     /**
      * @param {...string} petNamePath
      */
@@ -99,6 +118,11 @@ export const snapshotTreeMethods = (store, sha256) => {
         /** @type {any} */ (child),
       );
     },
+    /** @param {string} [method] */
+    help: method =>
+      method === undefined
+        ? 'SnapshotTree: immutable content-addressed directory snapshot (sha256, getInfo, has, list, lookup).'
+        : `No documentation for method ${method}.`,
   });
 };
 harden(snapshotTreeMethods);

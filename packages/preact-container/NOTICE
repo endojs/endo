@@ -1,0 +1,8 @@
+@endo/preact-container
+Copyright 2024 Endo Contributors
+
+This product includes software derived from the `preact/secure` and
+`preact/compartment` add-ons proposed in
+https://github.com/kumavis/preact/pull/1, which were originally published
+under the MIT license. That code was authored by kumavis and is
+relicensed here under the Apache License, Version 2.0, by the author.

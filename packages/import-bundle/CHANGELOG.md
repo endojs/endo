@@ -1,5 +1,34 @@
 # @endo/import-bundle
 
+## 1.7.0
+
+### Minor Changes
+
+- [#2422](https://github.com/endojs/endo/pull/2422) [`fe6be07`](https://github.com/endojs/endo/commit/fe6be074317c8afedc28139683e148a952377062) Thanks [@kriskowal](https://github.com/kriskowal)! - Add support for host module exits in bundled compartments.
+
+  `ses` exports a new `StrictModuleDescriptor` type that consists only of the
+  `NamespaceModuleDescriptor` and `SourceModuleDescriptor` shapes mutually
+  supported by SES and XS.
+
+  `compartment-mapper` lets arbitrary module descriptors pass through
+  `importHook` when no policy is in effect for that edge (the
+  policy-enforcement runtime was previously limited to virtual module sources).
+  It also implicitly treats any module specifier with a URL-scheme prefix
+  (like `node:fs`) as an exit module when bundling, removing the need for an
+  additional bundler flag in the common case.
+
+  `import-bundle` threads the `importHook` option through to the underlying
+  compartment so that bundled applications can route exits to host-provided
+  implementations at import time.
+  Host-provided modules must be hardened and pure to avoid being a
+  side-channel or man-in-the-middle attack surface between guests.
+
+### Patch Changes
+
+- Updated dependencies [[`d5e2498`](https://github.com/endojs/endo/commit/d5e2498260b4cd899b1929b5273aaa65929cea36), [`889be5e`](https://github.com/endojs/endo/commit/889be5eda934c439e97df81104d35945c4f519e2), [`fe6be07`](https://github.com/endojs/endo/commit/fe6be074317c8afedc28139683e148a952377062)]:
+  - @endo/compartment-mapper@2.3.0
+  - ses@2.2.0
+
 ## 1.6.1
 
 ### Patch Changes

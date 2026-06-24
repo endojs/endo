@@ -12,7 +12,10 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 1
 fi
 
-set -a; source "$ENV_FILE"; set +a
+set -a
+# shellcheck source=/dev/null  # dynamic source path is intentional
+source "$ENV_FILE"
+set +a
 
 endo run --UNCONFINED submit-provider.js --powers @agent \
   -E PROVIDER_NAME="${PROVIDER_NAME:-default}" \

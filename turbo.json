@@ -12,6 +12,10 @@
     "test": {
       "dependsOn": ["build", "^build"],
       "outputs": []
+    },
+    "test:c8": {
+      "dependsOn": ["build", "^build"],
+      "outputs": []
     }
   }
 }

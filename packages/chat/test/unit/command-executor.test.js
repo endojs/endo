@@ -10,15 +10,12 @@ import test from 'ava';
 import { Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { createCommandExecutor } from '../../command-executor.js';
 
 const MockTreeI = M.interface('MockTree', {
   list: M.call().returns(M.any()),
   lookup: M.call(M.string()).returns(M.any()),
-});
-
-const MockBlobI = M.interface('MockBlob', {
-  streamBase64: M.call().returns(M.any()),
 });
 
 /**
@@ -808,24 +805,16 @@ test('execute ci alias works like checkin', async t => {
 test('execute checkout command looks up tree and writes to directory', async t => {
   const calls = [];
 
-  // Mock a remote tree that the daemon would return
+  // Mock a remote tree that the daemon would return. The blob is a
+  // PassableBytesReader (new exo-stream protocol) wrapping an empty byte
+  // stream; checkoutToDirectory consumes it via iterateBytesReader.
   const mockRemoteTree = makeExo('MockTree', MockTreeI, {
     list: async () => ['hello.txt'],
     lookup: async () =>
-      makeExo('MockBlob', MockBlobI, {
-        streamBase64: () =>
-          Far('MockIterator', {
-            async next() {
-              return { value: undefined, done: true };
-            },
-            async return() {
-              return { value: undefined, done: true };
-            },
-            async throw() {
-              return { value: undefined, done: true };
-            },
-          }),
-      }),
+      bytesReaderFromIterator(
+        // eslint-disable-next-line no-empty-function
+        (async function* emptyBytes() {})(),
+      ),
   });
 
   const powers = /** @type {ERef<EndoHost>} */ (

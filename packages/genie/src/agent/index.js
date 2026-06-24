@@ -11,16 +11,16 @@
  * - Error handling and retry
  * - Streaming interface for tool execution
  *
- * Powered by @mariozechner/pi-agent-core for LLM interaction and tool dispatch.
+ * Powered by @earendil-works/pi-agent-core for LLM interaction and tool dispatch.
  */
 
-/** @import { AgentTool, AgentToolResult, AgentEvent } from '@mariozechner/pi-agent-core' */
-/** @import { Api, KnownProvider, Model, Provider } from '@mariozechner/pi-ai' */
+/** @import { AgentTool, AgentToolResult, AgentEvent } from '@earendil-works/pi-agent-core' */
+/** @import { Api, KnownProvider, Model, Provider } from '@earendil-works/pi-ai' */
 
 import harden from '@endo/harden';
 
-import { Agent as PiAgent } from '@mariozechner/pi-agent-core';
-import { getModel, getProviders } from '@mariozechner/pi-ai';
+import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
+import { getModel, getProviders } from '@earendil-works/pi-ai';
 
 import buildSystemPrompt from '../system/index.js';
 import { estimateTokens } from '../utils/tokens.js';
@@ -98,7 +98,7 @@ async function buildOllamaModel(id) {
   const api = 'openai-completions';
 
   // TODO discover this from ollama's model show endpoint
-  const contextWindow = 32768;
+  const contextWindow = 32_768;
 
   // TODO determine this based on a "reserved for response" proportion of the context window.
   const maxTokens = 8192;

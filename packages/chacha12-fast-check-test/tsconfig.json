@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.eslint-base.json",
+  "compilerOptions": {
+    // skipLibCheck works around a fast-check@4 packaging bug: the shipped
+    // d.ts uses `readonly value!: T` which TS rejects with TS1255
+    // ("definite assignment assertion not permitted in this context").
+    // Scoped to this package because fast-check is its only consumer.
+    "skipLibCheck": true
+  },
+  "include": [
+    "*.js",
+    "*.ts",
+    "src",
+    "test"
+  ]
+}

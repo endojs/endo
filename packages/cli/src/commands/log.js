@@ -254,7 +254,7 @@ const printAllLogs = async statePath => {
 export const log = async ({ follow, ping, all }) =>
   withInterrupt(async ({ cancelled }) => {
     await null;
-    const logCheckIntervalMs = ping !== undefined ? Number(ping) : 5_000;
+    const logCheckIntervalMs = ping !== undefined ? Number(ping) : 5000;
 
     const { username, homedir } = os.userInfo();
     const temp = os.tmpdir();

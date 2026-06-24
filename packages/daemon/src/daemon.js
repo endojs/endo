@@ -9,14 +9,29 @@ import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
 import { ZipWriter } from '@endo/zip/writer.js';
+import { encodeBase64 } from '@endo/base64';
+import { mapReader } from '@endo/stream';
 import { bytesFromText } from '@endo/bytes/from-string.js';
 import { bytesToText } from '@endo/bytes/to-string.js';
 import {
   checkinTree as platformCheckinTree,
   snapshotTreeMethods,
 } from '@endo/platform/fs/lite';
-import { makeRefReader, makeRefIterator } from './ref-reader.js';
-import { makeIteratorRef, makeReaderRef } from './reader-ref.js';
+import { toSafeNumber } from '@endo/platform/fs/extended/shared/helpers.js';
+import { makeNativeGitBackend } from '@endo/git';
+import {
+  makeBasicCredential,
+  makeBearerCredential,
+  makeGit,
+  makeGitRemote,
+  makeUnavailableGitCredential,
+} from '@endo/exo-git';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
+import { checkinTarTree } from './tar-checkin.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
@@ -64,7 +79,7 @@ import {
   makeHelp,
   readableTreeHelp,
 } from './help-text.js';
-import { makeMount } from './mount.js';
+import { getMountBacking, lineageOf, makeMount } from './mount.js';
 
 // Sorted:
 import {
@@ -85,7 +100,41 @@ import {
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
+/** @import { ArchiveTreeMethods } from './tar-checkin.js' */
+/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGit, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
+
+/**
+ * @typedef {{ kind: 'bearer', token: string } | { kind: 'basic', username: string, password: string }} GitCredentialMaterial
+ */
+
+/**
+ * The daemon's content store always surfaces the optional `size` / `readRange`
+ * members of `ReadableBlob` (its backing is the on-disk sha256 store), so its
+ * `fetch` result can be treated as having them present — unlike the shared
+ * `ReadableBlob` type, where they are optional for stores that lack range I/O.
+ *
+ * @typedef {import('@endo/platform/fs/lite/types').ReadableBlob & {
+ *   size: () => Promise<bigint>,
+ *   readRange: (offset: number, length: number) => Promise<Uint8Array>,
+ * }} RangeReadableBlob
+ */
+
+/**
+ * Wrap a byte range as a `PassableBytesReader`, the CapTP-passable bytes
+ * stream `BlobRef.fetch` returns. Empty ranges yield a reader that is
+ * immediately done. Mirrors the extended layer's `makeBytesReaderFromBytes`.
+ *
+ * @param {Uint8Array} bytes
+ */
+const bytesFromRange = bytes => {
+  function* generator() {
+    if (bytes.length > 0) {
+      yield bytes;
+    }
+  }
+  return bytesReaderFromIterator(generator());
+};
+harden(bytesFromRange);
 
 /**
  * Creates a delayed promise that can be cancelled.
@@ -606,6 +655,18 @@ const makeDaemonCore = async (
         return [];
       case 'scratch-mount':
         return [];
+      case 'git':
+        return [['mount', formula.mountId]];
+      case 'git-credential':
+        return [];
+      case 'git-remote': {
+        /** @type {Array<[string, FormulaIdentifier]>} */
+        const deps = [['git', formula.gitId]];
+        if (formula.credentialId !== undefined) {
+          deps.push(['credential', formula.credentialId]);
+        }
+        return deps;
+      }
       case 'pet-inspector':
         return [['petStore', formula.petStore]];
       case 'directory':
@@ -671,6 +732,9 @@ const makeDaemonCore = async (
       const formula = collectedFormulas.get(id);
       if (formula !== undefined) {
         const { number: collectedNumber, node: collectedNode } = parseId(id);
+        if (formula.type === 'git-credential') {
+          gitCredentialMaterialForId.delete(id);
+        }
         formulaForId.delete(id);
         formulaChangeTopic.publisher.next(
           harden({ remove: collectedNumber, node: collectedNode }),
@@ -948,6 +1012,40 @@ const makeDaemonCore = async (
 
   /** @type {WeakMap<object, FormulaIdentifier>} */
   const agentIdForHandle = new WeakMap();
+  /** @type {Map<FormulaIdentifier, GitCredentialMaterial>} */
+  const gitCredentialMaterialForId = new Map();
+
+  /**
+   * @param {FormulaIdentifier} id
+   * @param {'bearer' | 'basic'} kind
+   * @param {Record<string, unknown>} material
+   */
+  const rememberGitCredentialMaterial = (id, kind, material) => {
+    if (kind === 'bearer' && typeof material.token === 'string') {
+      gitCredentialMaterialForId.set(
+        id,
+        harden({ kind, token: material.token }),
+      );
+      return;
+    }
+    if (
+      kind === 'basic' &&
+      typeof material.username === 'string' &&
+      typeof material.password === 'string'
+    ) {
+      gitCredentialMaterialForId.set(
+        id,
+        harden({
+          kind,
+          username: material.username,
+          password: material.password,
+        }),
+      );
+      return;
+    }
+    gitCredentialMaterialForId.delete(id);
+  };
+  harden(rememberGitCredentialMaterial);
 
   // The following are functions that manage that state.
 
@@ -1197,7 +1295,7 @@ const makeDaemonCore = async (
      * Subsequent deltas are batched over microtasks.
      *
      * @param {string} peerNodeNumber
-     * @returns {Promise<FarRef<AsyncIterableIterator<import('./retention-accumulator.js').RetentionDelta>>>}
+     * @returns {Promise<import('@endo/exo-stream').PassableReader<import('./retention-accumulator.js').RetentionDelta, undefined>>}
      */
     followRetentionSet: async peerNodeNumber => {
       const snapshot =
@@ -1219,7 +1317,9 @@ const makeDaemonCore = async (
         }
       })();
 
-      return makeIteratorRef(accumulator.subscribe());
+      return /** @type {any} */ (
+        readerFromIterator(/** @type {any} */ (accumulator.subscribe()))
+      );
     },
   });
 
@@ -1257,7 +1357,11 @@ const makeDaemonCore = async (
           : undefined;
 
         let isFirst = true;
-        for await (const delta of makeRefIterator(/** @type {any} */ (iter))) {
+        for await (const rawDelta of iterateReader(/** @type {any} */ (iter))) {
+          const delta =
+            /** @type {import('./retention-accumulator.js').RetentionDelta} */ (
+              /** @type {any} */ (rawDelta)
+            );
           if (isFirst) {
             // First delta is the full snapshot.
             persistencePowers.replaceRetention(remoteNodeId, delta.add);
@@ -1410,16 +1514,52 @@ const makeDaemonCore = async (
   /**
    * @param {string} sha256
    */
-  const makeReadableBlob = sha256 =>
-    makeExo(
+  const makeReadableBlob = sha256 => {
+    const { makeFileReader, text, json, size, readRange } =
+      /** @type {RangeReadableBlob} */ (contentStore.fetch(sha256));
+    return makeExo(
       `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
       /** @type {any} */ ({
-        sha256: () => sha256,
-        ...contentStore.fetch(sha256),
+        /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
+        streamBase64(synPromise) {
+          const pump = makeReaderPump(
+            mapReader(makeFileReader(), encodeBase64),
+          );
+          return pump(/** @type {any} */ (synPromise));
+        },
+        text,
+        json,
+        // Range-I/O surface (aligns with the extended `BlobRef`): the
+        // `{ algorithm, hash, size }` triple in one round-trip, then a
+        // windowed `fetch`. `hash` is base64 to match `BlobRef.getInfo`
+        // (this `EndoBlob` cap no longer carries a hex `sha256()` accessor;
+        // the hex spelling lives only in the internal content-store address).
+        async getInfo() {
+          return harden({
+            algorithm: 'sha256',
+            hash: encodeBase64(fromHex(sha256)),
+            size: await size(),
+          });
+        },
+        /**
+         * @param {bigint} offset
+         * @param {bigint} length
+         */
+        async fetch(offset, length) {
+          // Validate at the bigint→Number boundary (same `toSafeNumber`
+          // the extended `BlobRef.fetch` uses) so negative or out-of-range
+          // windows throw `EINVAL` rather than silently losing precision.
+          const bytes = await readRange(
+            toSafeNumber(offset, 'offset'),
+            toSafeNumber(length, 'length'),
+          );
+          return bytesFromRange(bytes);
+        },
         help: makeHelp(blobHelp),
       }),
     );
+  };
 
   /**
    * @param {string} sha256
@@ -1433,6 +1573,24 @@ const makeDaemonCore = async (
         help: makeHelp(readableTreeHelp),
       }),
     );
+
+  /**
+   * @param {object} tree
+   */
+  const snapshotMountTree = async tree => {
+    const { sha256 } = await platformCheckinTree(tree, contentStore);
+    return makeReadableTree(sha256);
+  };
+
+  /**
+   * @param {string} filePath
+   */
+  const snapshotMountFile = async filePath => {
+    const sha256 = await contentStore.store(
+      filePowers.makeFileReader(filePath),
+    );
+    return makeReadableBlob(sha256);
+  };
 
   /**
    * @param {FormulaIdentifier} workerId
@@ -1733,15 +1891,43 @@ const makeDaemonCore = async (
       digester.update(bytes);
       return digester.digestHex();
     })();
+    const info = harden({
+      algorithm: 'sha256',
+      hash: encodeBase64(fromHex(sha256Hex)),
+      size: BigInt(bytes.length),
+    });
     return makeExo(
       'TransientBlob',
       BlobInterface,
       /** @type {any} */ ({
         help: () => 'Transient in-memory blob',
-        sha256: () => sha256Hex,
-        streamBase64: () => makeReaderRef([bytes]),
+        /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
+        streamBase64(synPromise) {
+          const pump = makeReaderPump(
+            mapReader(
+              /** @type {any} */ ([bytes][Symbol.iterator]()),
+              encodeBase64,
+            ),
+          );
+          return pump(/** @type {any} */ (synPromise));
+        },
         text: async () => bytesToText(bytes),
         json: async () => JSON.parse(bytesToText(bytes)),
+        getInfo: () => info,
+        /**
+         * @param {bigint} offset
+         * @param {bigint} length
+         */
+        fetch: async (offset, length) => {
+          const off = toSafeNumber(offset, 'offset');
+          const len = toSafeNumber(length, 'length');
+          const end = Math.min(off + len, bytes.length);
+          const slice =
+            off >= bytes.length || len <= 0
+              ? new Uint8Array(0)
+              : bytes.subarray(off, end);
+          return bytesFromRange(slice);
+        },
       }),
     );
   };
@@ -2178,12 +2364,12 @@ const makeDaemonCore = async (
             locate,
             reverseLocate,
             followLocatorNameChanges: locator =>
-              makeIteratorRef(followLocatorNameChanges(locator)),
+              readerFromIterator(followLocatorNameChanges(locator)),
             list,
             listIdentifiers,
             listLocators,
             followNameChanges: (...petNamePath) =>
-              makeIteratorRef(followNameChanges(...petNamePath)),
+              readerFromIterator(followNameChanges(...petNamePath)),
             lookup,
             maybeLookup,
             reverseLookup,
@@ -2555,12 +2741,12 @@ const makeDaemonCore = async (
             locate,
             reverseLocate,
             followLocatorNameChanges: locator =>
-              makeIteratorRef(followLocatorNameChanges(locator)),
+              readerFromIterator(followLocatorNameChanges(locator)),
             list,
             listIdentifiers,
             listLocators,
             followNameChanges: (...petNamePath) =>
-              makeIteratorRef(followNameChanges(...petNamePath)),
+              readerFromIterator(followNameChanges(...petNamePath)),
             lookup,
             maybeLookup,
             reverseLookup,
@@ -2601,7 +2787,13 @@ const makeDaemonCore = async (
       if (!isDir) {
         throw new Error(`Mount path is not a directory: ${q(mountPath)}`);
       }
-      return makeMount({ rootPath: mountPath, readOnly, filePowers });
+      return makeMount({
+        rootPath: mountPath,
+        readOnly,
+        filePowers,
+        snapshotTree: snapshotMountTree,
+        snapshotFile: snapshotMountFile,
+      });
     },
     'scratch-mount': async ({ readOnly }, _context, _id, formulaNumber) => {
       const rootPath = filePowers.joinPath(
@@ -2610,7 +2802,139 @@ const makeDaemonCore = async (
         /** @type {string} */ (formulaNumber),
       );
       await filePowers.makePath(rootPath);
-      return makeMount({ rootPath, readOnly, filePowers });
+      return makeMount({
+        rootPath,
+        readOnly,
+        filePowers,
+        snapshotTree: snapshotMountTree,
+        snapshotFile: snapshotMountFile,
+      });
+    },
+    git: async ({ mountId }, context) => {
+      context.thisDiesIfThatDies(mountId);
+      const mount = await provide(mountId);
+      const backing = getMountBacking(mount);
+      if (!backing) {
+        throw makeError(
+          X`Git formula's mountId ${q(mountId)} does not name a daemon-minted mount`,
+        );
+      }
+      if (backing.kind !== 'physical') {
+        throw makeError(
+          X`Git requires a physical mount, got ${q(backing.kind)}`,
+        );
+      }
+      if (backing.physicalRoot !== backing.currentDir) {
+        throw makeError(
+          X`Git requires the mount root, not a sub-mount; received ${q(backing.currentDir)} under root ${q(backing.physicalRoot)}`,
+        );
+      }
+      const gitMetadataPath = filePowers.joinPath(backing.physicalRoot, '.git');
+      if (!(await filePowers.exists(gitMetadataPath))) {
+        throw makeError(
+          X`Mount root ${q(backing.physicalRoot)} is not a git worktree (no .git entry at root)`,
+        );
+      }
+      const backend = makeNativeGitBackend({
+        repoRoot: backing.physicalRoot,
+      });
+      await backend.assertRepositoryRoot();
+      return makeGit({
+        // `provide(mountId)` returns a union of cap types; the
+        // `getMountBacking` check above guarantees an `EndoMount`,
+        // but TS can't narrow through it.
+        // eslint-disable-next-line object-shorthand
+        mount: /** @type {object} */ (mount),
+        backend,
+        readOnly: backing.readOnly,
+        lineageOf,
+      });
+    },
+    'git-credential': ({ kind, audience }, _context, id) => {
+      const material = gitCredentialMaterialForId.get(id);
+      const onRotate = rotated =>
+        rememberGitCredentialMaterial(
+          id,
+          kind,
+          /** @type {Record<string, unknown>} */ (rotated),
+        );
+      const onRevoke = () => gitCredentialMaterialForId.delete(id);
+      if (kind === 'bearer' && material?.kind === 'bearer') {
+        return makeBearerCredential({
+          audience,
+          token: material.token,
+          onRotate,
+          onRevoke,
+        });
+      }
+      if (kind === 'basic' && material?.kind === 'basic') {
+        return makeBasicCredential({
+          audience,
+          username: material.username,
+          password: material.password,
+          onRotate,
+          onRevoke,
+        });
+      }
+      return makeUnavailableGitCredential({
+        kind,
+        audience,
+        onRotate,
+        onRevoke,
+      });
+    },
+    'git-remote': async (formula, context, id) => {
+      const { gitId, credentialId, name, policy, revoked = false } = formula;
+      let currentFormula = formula;
+      const persistGitRemoteState = async ({
+        policy: nextPolicy,
+        revoked: nextRevoked,
+      }) => {
+        await withFormulaGraphLock(async () => {
+          const { number: formulaNumber, node: formulaNode } = parseId(id);
+          const latestFormula = formulaForId.get(id) ?? currentFormula;
+          if (latestFormula.type !== 'git-remote') {
+            throw makeError(
+              X`GitRemote controller cannot update non-remote formula ${q(id)}`,
+            );
+          }
+          const nextFormula = harden({
+            ...latestFormula,
+            policy: nextPolicy,
+            revoked: nextRevoked,
+          });
+          await persistencePowers.writeFormula(
+            formulaNumber,
+            formulaNode,
+            nextFormula,
+          );
+          formulaForId.set(id, nextFormula);
+          currentFormula = nextFormula;
+        });
+      };
+      context.thisDiesIfThatDies(gitId);
+      if (credentialId !== undefined) {
+        context.thisDiesIfThatDies(credentialId);
+      }
+      const git = await provide(gitId);
+      const credential =
+        credentialId === undefined ? undefined : await provide(credentialId);
+      const { remote } = makeGitRemote({
+        // `provide(gitId)` returns a union; `makeGitRemote` accepts a
+        // bare `object` and asserts the shape internally.
+        // eslint-disable-next-line object-shorthand
+        git: /** @type {object} */ (git),
+        // eslint-disable-next-line object-shorthand
+        credential:
+          credential === undefined
+            ? undefined
+            : /** @type {object} */ (credential),
+        name,
+        policy,
+        revoked,
+        onStateChange: persistGitRemoteState,
+      });
+      return remote;
     },
     lookup: ({ hub, path }, context) =>
       makeLookup(
@@ -2971,6 +3295,7 @@ const makeDaemonCore = async (
             lookup: disallowedFn,
             maybeLookup: disallowedSyncFn,
             lookupById: disallowedFn,
+            lookupByLocator: disallowedFn,
             reverseLookup: disallowedFn,
             storeIdentifier: disallowedFn,
             storeLocator: disallowedFn,
@@ -3000,6 +3325,8 @@ const makeDaemonCore = async (
             submit: disallowedFn,
             sendValue: disallowedFn,
             deliver: disallowedSyncFn,
+            editMessage: disallowedFn,
+            messageHistory: disallowedFn,
           })
         )
       );
@@ -3064,10 +3391,10 @@ const makeDaemonCore = async (
         id,
         hostAgentId,
         hostHandleId,
-        /** @type {import('./types.js').PetName} */ (guestName),
+        /** @type {import('./types.js').NameOrPath} */ (guestName),
       ),
     timer: async ({ intervalMs, label: timerLabel }, context) => {
-      const interval = Number(intervalMs) || 60000;
+      const interval = Number(intervalMs) || 60_000;
       let tickCount = 0;
       /** @type {Array<{ callback: object, context: string }>} */
       const subscribers = [];
@@ -3351,7 +3678,13 @@ const makeDaemonCore = async (
           await randomHex256()
         );
         const contentSha256 = await contentStore.store(
-          makeRefReader(readerRef),
+          // Use a higher string length limit to accommodate large
+          // payloads like bundles. 10MB base64 ~= 7.5MB binary.
+          // `iterateBytesReader` returns the iterator synchronously; the
+          // store consumes it, so no `await` here.
+          iterateBytesReader(readerRef, {
+            stringLengthLimit: 10_000_000,
+          }),
         );
 
         await deferredTasks.execute({
@@ -3374,7 +3707,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateMount']} */
   const formulateMount = async (mountPath, readOnly, deferredTasks) => {
-    return /** @type {FormulateResult<unknown>} */ (
+    return /** @type {FormulateResult<EndoMount>} */ (
       withFormulaGraphLock(async () => {
         await null;
         const formulaNumber = /** @type {FormulaNumber} */ (
@@ -3402,7 +3735,7 @@ const makeDaemonCore = async (
 
   /** @type {DaemonCore['formulateScratchMount']} */
   const formulateScratchMount = async (readOnly, deferredTasks) => {
-    return /** @type {FormulateResult<unknown>} */ (
+    return /** @type {FormulateResult<EndoMount>} */ (
       withFormulaGraphLock(async () => {
         await null;
         const formulaNumber = /** @type {FormulaNumber} */ (
@@ -3427,17 +3760,153 @@ const makeDaemonCore = async (
     );
   };
 
+  /** @type {DaemonCore['formulateGit']} */
+  const formulateGit = async (mountId, deferredTasks) => {
+    return /** @type {FormulateResult<EndoGit>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          gitId: formatId({
+            number: formulaNumber,
+            node: localNodeNumber,
+          }),
+        });
+
+        /** @type {import('./types.js').GitFormula} */
+        const formula = harden({
+          type: 'git',
+          mountId,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateGitCredential']} */
+  const formulateGitCredential = async (
+    kind,
+    audience,
+    material,
+    deferredTasks,
+  ) => {
+    /** @type {GitCredentialMaterial} */
+    let storedMaterial;
+    if (kind === 'bearer' && typeof material.token === 'string') {
+      storedMaterial = harden({ kind, token: material.token });
+    } else if (
+      kind === 'basic' &&
+      typeof material.username === 'string' &&
+      typeof material.password === 'string'
+    ) {
+      storedMaterial = harden({
+        kind,
+        username: material.username,
+        password: material.password,
+      });
+    } else {
+      throw makeError(
+        X`Git credential material does not match kind ${q(kind)}`,
+      );
+    }
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+        const gitCredentialId = formatId({
+          number: formulaNumber,
+          node: localNodeNumber,
+        });
+
+        await deferredTasks.execute({ gitCredentialId });
+        gitCredentialMaterialForId.set(gitCredentialId, storedMaterial);
+
+        /** @type {import('./types.js').GitCredentialFormula} */
+        const formula = harden({
+          type: 'git-credential',
+          kind,
+          audience,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateGitRemote']} */
+  const formulateGitRemote = async (
+    gitId,
+    credentialId,
+    name,
+    policy,
+    deferredTasks,
+  ) => {
+    return /** @type {FormulateResult<unknown>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          gitRemoteId: formatId({
+            number: formulaNumber,
+            node: localNodeNumber,
+          }),
+        });
+
+        /** @type {import('./types.js').GitRemoteFormula} */
+        const formula = harden({
+          type: 'git-remote',
+          gitId,
+          ...(credentialId === undefined ? {} : { credentialId }),
+          name,
+          policy,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
   /** @type {DaemonCore['checkinTree']} */
   const checkinTree = async (remoteTree, deferredTasks) => {
     return /** @type {FormulateResult<unknown>} */ (
       withFormulaGraphLock(async () => {
         await null;
 
-        // Walk the remote tree and store all content via the platform adapter.
-        const { sha256: treeSha256 } = await platformCheckinTree(
-          remoteTree,
-          contentStore,
-        );
+        const archiveTree =
+          /** @type {import('@endo/far').ERef<ArchiveTreeMethods>} */ (
+            remoteTree
+          );
+        const methods =
+          // eslint-disable-next-line no-underscore-dangle
+          await E(archiveTree)
+            .__getMethodNames__()
+            .catch(() => /** @type {string[]} */ ([]));
+        // `git archive` is not a lossless tree source: it honors a
+        // committed `.gitattributes` `export-ignore` (omitting matching
+        // tracked files) and flattens gitlinks / submodule commits to
+        // empty directories. Take the fast archive path only when the
+        // tree reports itself archive-lossless; otherwise fall back to
+        // the per-entry `ls-tree`/`cat-file` walk, which mirrors the
+        // committed tree exactly and fails loudly on gitlinks.
+        const useArchive =
+          methods.includes('archiveTar') &&
+          (!methods.includes('archiveLossless') ||
+            (await E(archiveTree).archiveLossless()));
+        const treeSha256 = useArchive
+          ? await checkinTarTree(
+              await E(archiveTree).archiveTar(),
+              contentStore,
+            )
+          : (await platformCheckinTree(remoteTree, contentStore)).sha256;
 
         const formulaNumber = /** @type {FormulaNumber} */ (
           await randomHex256()
@@ -3464,7 +3933,7 @@ const makeDaemonCore = async (
   /**
    * @param {FormulaIdentifier} hostAgentId
    * @param {FormulaIdentifier} hostHandleId
-   * @param {PetName} guestName
+   * @param {NameOrPath} guestName
    * @param {DeferredTasks<InvitationDeferredTaskParams>} deferredTasks
    */
   const formulateInvitation = async (
@@ -4782,7 +5251,15 @@ const makeDaemonCore = async (
           console.log(
             `Endo daemon peer node ${nodeId.slice(0, 8)} connection disposed`,
           );
-          dropLiveValue(context.id);
+          // Cancel the peer formula's context so the formula-lifecycle
+          // machinery tears down and drops all dependent remote presences
+          // via thisDiesIfThatDies.  The next use of any remote presence
+          // reincarnates the peer formula and re-dials from scratch.
+          // dropLiveValue alone was insufficient: it removed the peer from
+          // the live-value cache but left the formula context alive, so
+          // dependent remote presences were not revoked and the stale
+          // currentGatewayP prevented re-dial on subsequent use.
+          context.cancel(new Error('peer connection lost'));
         },
       );
     };
@@ -4862,6 +5339,20 @@ const makeDaemonCore = async (
     // If crossed-hellos accept bias abandons our dial, retry once.
     // The state machine should now be in `accepted` state, and the
     // retry will return the already-accepted gateway without dialing.
+    //
+    // TODO(option-a-simplification): After the dispose-callback change
+    // to context.cancel (Option A), the peer formula's context is
+    // cancelled on any connection loss.  That means this formula
+    // instance is torn down before it could ever see a second
+    // connection.  The `isAbandonError` predicate and the resilient-dial
+    // retry inside `resilientDial` are therefore unreachable for any
+    // post-connect abandon.  They remain for the initial-dial crossed-
+    // hellos case (where the state machine rejects our outgoing dial
+    // while accepting an inbound one, producing an abandon error before
+    // the first successful connection).  A follow-up can simplify by
+    // removing the `isAbandonError` catch in `ResilientPeerGateway.
+    // provide` and collapsing `currentGatewayP` to a plain `dialAttempt`
+    // call.
     const isAbandonError = err =>
       err &&
       typeof err.message === 'string' &&
@@ -4886,12 +5377,14 @@ const makeDaemonCore = async (
       }
     };
 
-    // Return a facade gateway whose `provide` method consults the
-    // current state of the remote-control on each call.  If the
-    // current connection is lost mid-flight (e.g., due to crossed
-    // hellos accept bias switching to a different TCP), subsequent
-    // `provide` calls will go through whatever connection the
-    // remote-control currently holds.
+    // TODO(option-a-simplification): After the dispose-callback change,
+    // the peer formula is destroyed on any connection loss, so this
+    // formula instance never sees a post-connect re-dial.  The
+    // `currentGatewayP` one-shot promise is still used for the initial
+    // connection (including the retention-set follower below) but the
+    // re-dial path in `ResilientPeerGateway.provide` is now unreachable.
+    // A follow-up can drop the ResilientPeerGateway wrapper and inline
+    // the single `dialAttempt()` call directly.
     const currentGatewayP = resilientDial();
 
     // Follow retention set changes in the background once connected.
@@ -4905,7 +5398,11 @@ const makeDaemonCore = async (
           : undefined;
 
         let isFirst = true;
-        for await (const delta of makeRefIterator(/** @type {any} */ (iter))) {
+        for await (const rawDelta of iterateReader(/** @type {any} */ (iter))) {
+          const delta =
+            /** @type {import('./retention-accumulator.js').RetentionDelta} */ (
+              /** @type {any} */ (rawDelta)
+            );
           if (isFirst) {
             persistencePowers.replaceRetention(nodeId, delta.add);
             if (peerAgentIdStr !== undefined) {
@@ -4969,6 +5466,15 @@ const makeDaemonCore = async (
           // Try with the current gateway; on failure, re-dial and try
           // once more.  This handles the case where the initial dial
           // succeeded but the connection was later abandoned.
+          //
+          // TODO(option-a-simplification): The isAbandonError catch
+          // below is now unreachable for post-connect errors.  After
+          // the dispose-callback change (Option A), any connection loss
+          // cancels the peer formula's context, so this formula instance
+          // is torn down before `provide` could be called after a loss.
+          // The catch arm was the "retry within the existing formula
+          // instance" path; it is superseded by reincarnation.  A
+          // follow-up can remove the catch arm entirely.
           try {
             const gateway = await currentGatewayP;
             return await E(gateway).provide(requestedId);
@@ -4991,10 +5497,15 @@ const makeDaemonCore = async (
    * @param {FormulaIdentifier} id
    * @param {FormulaIdentifier} hostAgentId
    * @param {FormulaIdentifier} hostHandleId
-   * @param {import('./types.js').PetName} guestName
+   * @param {import('./types.js').NameOrPath} guestName
    */
   const makeInvitation = async (id, hostAgentId, hostHandleId, guestName) => {
     const hostAgent = /** @type {EndoHost} */ (await provide(hostAgentId));
+    // The invitation persists the name (or directory path) the redeemed
+    // guest should be stored under.  The durable mail-delivery name takes
+    // the full path; the pin and label use the leaf pet name.
+    const guestNamePath = namePathFrom(guestName);
+    const guestLeaf = guestNamePath[guestNamePath.length - 1];
 
     const locate = async () => {
       const { node, addresses } = await hostAgent.getPeerInfo();
@@ -5071,7 +5582,7 @@ const makeDaemonCore = async (
         hostAgentId,
         hostHandleId,
         guestTasks,
-        `guest:${guestName}`,
+        `guest:${guestLeaf}`,
       );
 
       // Look up the local guest's handle from its formula so we can
@@ -5083,7 +5594,7 @@ const makeDaemonCore = async (
 
       // Name the guest handle inside @pins so it persists.
       await E(hostAgent).storeIdentifier(
-        /** @type {NamePath} */ (['@pins', `guest-${guestName}`]),
+        /** @type {NamePath} */ (['@pins', `guest-${guestLeaf}`]),
         localGuestFormula.handle,
       );
       await unpinTransient(localGuestFormula.handle);
@@ -5092,10 +5603,7 @@ const makeDaemonCore = async (
       // Use storeLocator so the directory properly internalizes the
       // remote formula identifier for peer resolution.
       const guestHandleLocatorStr = formatLocator(guestHandleId, 'remote');
-      await E(hostAgent).storeLocator(
-        /** @type {NamePath} */ ([guestName]),
-        guestHandleLocatorStr,
-      );
+      await E(hostAgent).storeLocator(guestNamePath, guestHandleLocatorStr);
 
       // Return the remote guest's public key for retention tracking.
       return harden({ guestPublicKey: guestDaemonNode });
@@ -5311,6 +5819,9 @@ const makeDaemonCore = async (
     checkinTree,
     formulateMount,
     formulateScratchMount,
+    formulateGit,
+    formulateGitCredential,
+    formulateGitRemote,
     formulateInvitation,
     formulateDirectoryForStore,
     getPeerIdForNodeIdentifier,

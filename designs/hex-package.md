@@ -364,7 +364,7 @@ These are listed for completeness; `@endo/hex` does **not** replace them.
 | `packages/daemon/src/cidr.js` line 79 | Parse IPv6 group (`parseInt(group, 16)`). Not a byte-array, four-digit groups. |
 | `packages/zip/src/format-reader.js` line 354 | Error diagnostic: `bitFlag.toString(16)`. |
 | `packages/genie/src/dom-parser/tokenizer.js` line 80 | HTML numeric character reference `&#xABCD;` code-point parse. |
-| `packages/whylip/src/hooks/useConversation.js` line 52 | JSON escape `\\uXXXX` code-point parse. |
+| `packages/space-whylip/src/hooks/useConversation.js` line 52 | JSON escape `\\uXXXX` code-point parse. |
 | `packages/fae/test/whylip-json-encoding.test.js` line 73 | Same. |
 | `packages/ses/test/tame-nan-sidechannel.test.js` line 30 | `BigInt.toString(16)` for debugging. |
 

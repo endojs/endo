@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-05-18 |
-| **Updated** | 2026-05-21 |
+| **Updated** | 2026-05-29 |
 | **Author** | 0xPatrick (prompted) |
-| **Status** | Proposed |
+| **Status** | Proposed (Phases 1-5 landed via #365; fd-pipe askpass landed via #368) |
 
 > **Read in order.**
 > This is doc 3 of 3.
@@ -280,6 +280,11 @@ interface GitRemoteController {
 
 The controller can narrow or widen policy after creation.
 The guest-held `GitRemote` cannot.
+
+The controller surface above intentionally does **not** include a `setUrl(newUrl)` method.
+Adding one is plausible forward-design (rotating an `origin` from `https://github.com/org/repo` to a successor URL without re-issuing the bundle), but it interacts with construction-time-captured locals in the remote's closure: the URL, the audience-derived `requiresCredential` flag, and the bound `credentialRecord` are early-bound at construction.
+A future `setUrl` must re-anchor those locals (re-run the audience-match against the new URL, re-validate the new origin against the granted transport, and either reject the change or atomically refresh the captured credential reference) or it will silently leave the in-memory state divergent from the policy.
+Until the use case surfaces, the operator's path to changing a remote's URL is `revoke()` plus `provideGitRemote(...)` with the new URL — a discrete identity boundary the audit log will record explicitly.
 
 ## Capability Construction
 
@@ -587,10 +592,18 @@ That means:
 
 - a daemon-shipped `GIT_ASKPASS` helper binary, exec'd by `git` and fed the credential through an anonymous pipe whose read-end fd is inherited by the helper (the secret is passed via fd-pointer, never via argv or process env);
 - `GIT_TERMINAL_PROMPT=0` so a missed askpass does not hang waiting for a TTY;
+- `LC_ALL=C` on the subprocess env so askpass prompts and porcelain output are routed against a stable English locale (the askpass helper's prompt-routing regex assumes English `"Username"` / `"Password"` strings; a localized git would otherwise route the wrong response);
 - sanitized git environment that drops `GIT_*_HELPER`, `GIT_PROXY_COMMAND`, and other credential / process-shell vectors;
 - repo config and ambient-credential-helper suppression (`-c credential.helper=` empties the ambient helper list for the invocation; the daemon-shipped `GIT_ASKPASS` above remains the controlled injection path);
 - explicit remote URL supplied from controller state, written into the invocation as a positional argument never derived from a guest input;
 - no shell interpolation; argv-array spawn only.
+
+**Porcelain-output parser robustness.**
+The native backend parses git's `push --porcelain` output to populate `GitPushResult.updatedRefs`.
+The current parser treats every line with a recognized leading flag character as an update record, and defaults an unknown flag to `'updated'`.
+The defensible posture is to gate the parser on the documented flag alphabet (`'*=  +-!'` per `git-push`'s porcelain documentation) before treating the line as an update record, and to surface a structured warning (preserving the raw flag in the audit-log entry) when an unknown flag arrives.
+This defends the parser against future git-cli format drift without silently mis-classifying a refusal as an update.
+Forward-defense; not a current correctness gap.
 
 These two concerns are orthogonal and should not be conflated.
 A **secret manager** answers *where durable secret authority lives*: a daemon-owned (or external) capability that holds, rotates, and revokes credentials across restarts and across multiple repos.
@@ -600,6 +613,12 @@ Until then, Phase 1 ships the askpass envelope on its own and treats bank-backed
 
 The safe target for credential injection is: **no secret in argv, in process environment, in formula state, in inspect output, in logs, or in any persisted or durable temp file.**
 The askpass-fed-by-anonymous-pipe mechanism above is the only path that meets that bar for the basic (username/password) case.
+
+**Portability.**
+The anonymous-pipe / fd-inheritance path is POSIX-specific.
+A Windows port of the askpass transport would need to substitute a named pipe (or another in-process IPC primitive available on Windows) for the fd-3 inheritance pattern.
+The capability contract is portable; the transport primitive is not.
+This is licenced as forward-design work and is out of scope for the HTTPS MVP — the daemon ships POSIX-only today, so the askpass implementation can use POSIX-only primitives without immediate cross-platform constraint.
 
 For bearer-token HTTPS remotes, native git also supports `http.extraHeader`.
 Passing the header through `-c "http.extraHeader=Authorization: Bearer ..."` leaks the token to `/proc/*/cmdline` (and is the standard reason public guides warn against the flag).
@@ -736,6 +755,20 @@ The public `GitRemote` contract should survive those swaps.
 - guest-provided URLs are never accepted by call-time methods;
 - backend never falls back to ambient SSH or shell.
 - remote packfile transport is only started after endpoint, direction, ref, and credential policy checks pass.
+
+## Implementation Progress and Notes
+
+This section records how the design is realized in shipped code.
+It is not part of the normative design.
+
+### Shipped
+
+- **#365** (`feat(daemon): GitRemote capability composing Git + transport + credentials`) — Phases 1-5 of the Implementation Plan: `GitRemote` + credential types (`BearerCredential`, `BasicCredential`), the `git-remote` formula bound to a local `Git`, HTTPS bearer/basic credential injection, `fetch` / `pull` / branch-limited `push`, in-flight revoke fencing on `fetch` and `pull`, audit-log on the controller, and the `GitRemoteController` + `GitCredentialController` surface for post-construction policy updates and revocation.
+- **#368** (`feat(daemon): use fd askpass for Git credentials`) — the design-compliant fd-pipe askpass helper described in § Initial Backend ("a daemon-shipped `GIT_ASKPASS` helper binary, exec'd by `git` and fed the credential through an anonymous pipe whose read-end fd is inherited by the helper").
+  The daemon-shipped helper lives at `packages/daemon/src/git-askpass-helper.cjs`, exec'd by `git` and reading from fd 3; the fd number (`ENDO_GIT_ASKPASS_FD`) is the only credential-related value reaching the child env, so the secret never appears in argv, the process env, `/proc/<git>/environ`, or a temp file.
+  The anonymous-pipe transport has no socket to keep open, so the askpass-socket-lifetime narrowing is structurally satisfied; the OS-user-account boundary (`mkdtemp` 0o700 parent directory) remains the trust model.
+
+Fix, test-coverage, and legibility follow-ups on the shipped trio code (issue #378) are tracked there, not here.
 
 ## Relationship to Existing Git Designs
 

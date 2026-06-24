@@ -1,5 +1,5 @@
 // @ts-check
-/* global process, fetch */
+/* global process */
 /* eslint-disable no-continue */
 // endo run --UNCONFINED setup.js --powers @agent
 // Defaults to local Ollama. Override with env vars:
@@ -8,28 +8,11 @@
 //   ENDO_LLM_AUTH_TOKEN=sk-ant-...
 
 import { E } from '@endo/eventual-send';
-import { makeRefIterator } from '@endo/daemon/ref-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+
+import { chooseModel, fetchAvailableModels } from './model-detect.js';
 
 const lalSpecifier = new URL('agent.js', import.meta.url).href;
-
-/**
- * Probe whether the Ollama API is reachable.
- *
- * @param {string} host - The API base URL.
- * @returns {Promise<boolean>}
- */
-const isOllamaReachable = async host => {
-  try {
-    // Ollama's /v1/models endpoint is lightweight.
-    const modelsUrl = host.replace(/\/v1\/?$/, '/v1/models');
-    const response = await fetch(modelsUrl, {
-      signal: AbortSignal.timeout(3000),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-};
 
 /**
  * Provision the setup-lal guest and launch the agent caplet.
@@ -65,28 +48,48 @@ export const main = async agent => {
     env.ENDO_LLM_HOST || env.ENDO_LLM_MODEL || env.ENDO_LLM_AUTH_TOKEN;
 
   const host = env.ENDO_LLM_HOST || 'http://localhost:11434/v1';
-  const model = env.ENDO_LLM_MODEL || 'qwen3';
+  // Temporary default until the subagent creation wizard ships; the probe
+  // below upgrades it to an actually-installed model when one is found.
+  const defaultModel = env.ENDO_LLM_MODEL || 'qwen3.6';
   const authToken = env.ENDO_LLM_AUTH_TOKEN || 'ollama';
   const name = env.ENDO_LLM_NAME || 'lal';
 
+  let model = defaultModel;
+
   if (!hasExplicitConfig) {
-    const ollamaUp = await isOllamaReachable(host);
-    if (!ollamaUp) {
+    const available = await fetchAvailableModels(host);
+    if (available === null) {
       console.log(
         'Lal provisioned. No ENDO_LLM_ env vars set and Ollama is ' +
           'not reachable — leaving form for manual submission.',
       );
       return;
     }
+    const chosen = chooseModel(available, defaultModel);
+    if (chosen === undefined) {
+      console.log(
+        'Lal provisioned. Ollama is reachable but advertises no models — ' +
+          'leaving form for manual submission.',
+      );
+      return;
+    }
+    if (chosen !== defaultModel) {
+      console.log(
+        `Default model ${defaultModel} not installed — using ${chosen} ` +
+          'from the available models.',
+      );
+    }
+    model = chosen;
     console.log('Ollama is reachable — auto-submitting defaults.');
   }
 
   const selfLocator = await E(agent).locate('@self');
-  const messages = makeRefIterator(E(agent).followMessages());
+  const messages = iterateReader(E(agent).followMessages());
 
   console.log('Watching inbox for form from setup-lal...');
 
-  for await (const message of messages) {
+  for await (const rawMessage of messages) {
+    const message = /** @type {any} */ (rawMessage);
     if (message.type !== 'form' || message.from === selfLocator) {
       continue;
     }

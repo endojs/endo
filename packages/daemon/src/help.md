@@ -540,20 +540,29 @@ Example: writeText(["my-mount", "output.txt"], "hello")
 
 Blobs store binary content with a content-addressed hash.
 Use text() to read as a string, json() to parse as JSON,
-or streamBase64() for streaming access.
+streamBase64() for streaming access, or getInfo()/fetch()
+for the content-addressed range-I/O surface.
 
 ## help(methodName?) -> string
 
 Get documentation for this interface or a specific method.
 
-## sha256() -> string
+## getInfo() -> Promise<{ algorithm, hash, size }>
 
-Get the SHA-256 hash of the blob content.
-This is the content address used for storage.
+The content-addressed identity of the blob in one round-trip:
+algorithm ("sha256"), hash (base64), and size (bigint bytes).
+Lets a caller consult a local content store before fetching.
 
-## streamBase64() -> AsyncIterator<string>
+## fetch(offset, length) -> Promise<PassableBytesReader>
 
-Stream the blob content as base64-encoded chunks.
+Read the byte range [offset, offset + length) without
+streaming the whole blob. offset and length are bigints;
+the range is clamped at end-of-content.
+
+## streamBase64(syndicationPromise) -> Promise
+
+Stream the blob content as base64 chunks, driven by the
+syndication promise (the reader-pump flow-control protocol).
 Use for large files to avoid loading everything into memory.
 
 ## text() -> Promise<string>
@@ -619,13 +628,25 @@ peerInfo: { node: string, addresses: string[] }
 
 # ReadableTree - A read-only tree of files and subdirectories.
 
-An immutable directory: entries cannot be added, removed, or modified.
-lookup() returns EndoReadable values for files and nested ReadableTree
-values for subdirectories.
+An immutable, content-addressed directory: entries cannot be added, removed,
+or modified. lookup() returns EndoReadable values for files and nested
+ReadableTree values for subdirectories. Its identity is available via sha256()
+or, uniformly with blobs, via getInfo().
 
 ## help(methodName?) -> string
 
 Get documentation for this interface or a specific method.
+
+## sha256() -> string
+
+The content address of the tree's manifest, as base64.
+
+## getInfo() -> Promise<{ algorithm, hash, size }>
+
+The content-addressed identity of the tree in one round-trip: algorithm
+("sha256"), hash (base64, the same value as sha256()), and size (the byte
+length of the tree's own manifest). The uniform identity accessor shared with
+blobs, so generic code can read a content hash off any blob or tree.
 
 ## has(...names) -> Promise<boolean>
 
@@ -658,10 +679,10 @@ the root are invisible. Use readOnly() for an attenuated view.
 
 Get documentation for this interface or a specific method.
 
-## has(...pathSegments) -> Promise<boolean>
+## has(...pathSegments | entry) -> Promise<boolean>
 
 Check if a path exists within the mount.
-Each argument is one path segment: has("dir", "file.txt").
+Either pass path segments (has("dir", "file.txt")) or a single EndoMountEntry.
 
 ## list(...pathSegments) -> Promise<string[]>
 
@@ -705,33 +726,76 @@ Rename an entry within the mount.
 from: string | string[] — Source name or path segments.
 to: string | string[] — Destination name or path segments.
 
-## makeDirectory(path) -> Promise<void>
+## makeDirectory(path) -> Promise<EndoMount>
 
-Create a directory (and missing parents).
-path: string | string[] — Name or path segments.
+Create a directory (and missing parents) at the given path; returns a sub-mount.
+path: string | string[] | EndoMountEntry — Name, path segments, or mount entry.
 
-## readOnly() -> EndoMount
+## makeFile(path, content?) -> Promise<void>
 
-Returns a read-only view of this mount.
+Create a file at the given path, with optional initial text content.
+path: string | string[] | EndoMountEntry — Name, path segments, or mount entry.
+content: string (optional) — Initial text content. An existing file is truncated when content is provided. For binary content, use `write(path, readableBlob)`.
+
+## write(path, value) -> Promise<void>
+
+Materialize a ReadableBlob or ReadableTree at the given path.
+path: string | string[] | EndoMountEntry — Name, path segments, or mount entry.
+value: ReadableBlob | ReadableTree — Source remotable; blobs are written as bytes, trees recurse.
+
+## copy(from, to) -> Promise<void>
+
+Copy a node within the mount.
+from: string | string[] | EndoMountEntry — Source name, path segments, or mount entry.
+to: string | string[] | EndoMountEntry — Destination name, path segments, or mount entry.
+Both endpoints are confinement-checked.
+
+## stat(path) -> Promise<EndoMountStat | undefined>
+
+Query metadata for a path within the mount.
+path: string | string[] | EndoMountEntry — Name, path segments, or mount entry.
+Returns undefined when the path is missing or escapes the mount.
+
+## readOnly() -> ReadableTree
+
+Returns a structural ReadableTree view (has, list, lookup) of this mount.
+Mount-specific extensions (entry, stat, readText, makeFile) are not on the view.
 
 ## snapshot() -> Promise<SnapshotTree>
 
 Capture current state as an immutable readable-tree.
-(Not yet implemented.)
 
 # EndoMountFile - A file within a mounted directory.
+
+A live, host-backed file. Read it with text() / json() / streamBase64(),
+inspect and range-read it with getInfo() / fetch(), write it with
+writeText() / append() / writeBytes(), or snapshot() it into the content
+store. stat() returns the bigint-nanosecond metadata record.
 
 ## help(methodName?) -> string
 
 Get documentation for this interface or a specific method.
 
+## getInfo() -> Promise<{ algorithm, hash, size }>
+
+The content-addressed identity of the file's current bytes in one
+round-trip: algorithm ("sha256"), hash (base64), and size (bigint).
+Recomputed each call, since the live file may change.
+
+## fetch(offset, length) -> Promise<PassableBytesReader>
+
+Read the byte range [offset, offset + length) of the live file without
+streaming the whole thing. offset and length are bigints; the range is
+clamped at end-of-content.
+
 ## text() -> Promise<string>
 
 Read the file content as a UTF-8 string.
 
-## streamBase64() -> AsyncIterator<string>
+## streamBase64(syndicationPromise) -> Promise
 
-Stream the file content as base64 chunks.
+Stream the file content as base64 chunks, driven by the syndication
+promise (the reader-pump flow-control protocol).
 
 ## json() -> Promise<any>
 
@@ -741,10 +805,16 @@ Read and parse the file as JSON.
 
 Write a string to the file. Throws if read-only.
 
+## append(content) -> Promise<void>
+
+Append a string to the file. Throws if read-only.
+
 ## writeBytes(readableRef) -> Promise<void>
 
 Write bytes from an async iterator. Throws if read-only.
 
-## readOnly() -> EndoMountFile
+## readOnly() -> ReadableBlob
 
-Returns a read-only view of this file.
+Returns a structural ReadableBlob view (text, json, streamBase64, getInfo,
+fetch) of this file. The view is a write-disabled face over the live file,
+not a snapshot. Mount-specific extensions (stat, snapshot) are not on it.

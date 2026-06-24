@@ -1,13 +1,17 @@
 // @ts-nocheck - Component test with happy-dom
 
-import 'ses';
-import '@endo/eventual-send/shim.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
-import { createDOM, createInputElements, tick } from '../helpers/dom-setup.js';
-import { makeRefIterator } from '../../ref-iterator.js';
+import {
+  createDOM,
+  createInputElements,
+  tick,
+  waitFor,
+} from '../helpers/dom-setup.js';
 import { tokenAutocompleteComponent } from '../../token-autocomplete.js';
 
 const { document: testDocument, window: testWindow } = createDOM();
@@ -103,11 +107,13 @@ const setup = async (names = ['alice', 'bob', 'charlie']) => {
 
   const api = tokenAutocompleteComponent($input, $menu, {
     E,
-    makeRefIterator,
+    iterateReader,
     powers,
   });
 
-  // Let followNameChanges populate the pet names list
+  // Let followNameChanges populate the pet names list. Kept as a fixed tick:
+  // the populated list has no observable signal until a token is typed, so there
+  // is nothing to poll for at setup time.
   await tick(50);
 
   // Focus and set initial cursor
@@ -129,7 +135,7 @@ const setup = async (names = ['alice', 'bob', 'charlie']) => {
 test.serial('typing @ opens autocomplete menu', async t => {
   const { $input, $menu } = await setup();
   typeInto($input, '@');
-  await tick(10);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length === 3);
 
   t.true($menu.classList.contains('visible'), 'menu should be visible');
   const items = $menu.querySelectorAll('.token-menu-item');
@@ -139,12 +145,12 @@ test.serial('typing @ opens autocomplete menu', async t => {
 test.serial('Escape closes menu and leaves literal @', async t => {
   const { $input, $menu } = await setup();
   typeInto($input, '@');
-  await tick(10);
+  await waitFor(() => $menu.classList.contains('visible'));
 
   t.true($menu.classList.contains('visible'), 'menu opens');
 
   press($input, 'Escape');
-  await tick(10);
+  await waitFor(() => !$menu.classList.contains('visible'));
 
   t.false($menu.classList.contains('visible'), 'menu closes');
   // The literal @ should remain in the input
@@ -160,7 +166,9 @@ test.serial(
 
     // Type @ to open menu
     typeInto($input, '@');
-    await tick(10);
+    await waitFor(
+      () => $menu.querySelectorAll('.token-menu-item').length === 4,
+    );
 
     t.true($menu.classList.contains('visible'), 'menu visible after first @');
     let items = $menu.querySelectorAll('.token-menu-item');
@@ -168,7 +176,9 @@ test.serial(
 
     // Type second @ — should filter to @-prefixed names
     typeInto($input, '@');
-    await tick(10);
+    await waitFor(
+      () => $menu.querySelectorAll('.token-menu-item').length === 2,
+    );
 
     t.true(
       $menu.classList.contains('visible'),
@@ -196,7 +206,7 @@ test.serial('typing @@s filters to special names matching @s', async t => {
   typeInto($input, '@');
   typeInto($input, '@');
   typeInto($input, 's');
-  await tick(10);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length === 1);
 
   t.true($menu.classList.contains('visible'), 'menu visible');
   const items = $menu.querySelectorAll('.token-menu-item');
@@ -211,7 +221,7 @@ test.serial('@-prefixed names match when typed without @@', async t => {
   typeInto($input, '@');
   typeInto($input, 's');
   typeInto($input, 'e');
-  await tick(10);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length === 1);
 
   t.true($menu.classList.contains('visible'), 'menu visible');
   const items = $menu.querySelectorAll('.token-menu-item');
@@ -225,7 +235,7 @@ test.serial('@-prefixed names do not get double @ prefix in menu', async t => {
   const { $input, $menu } = await setup(['@self', 'alice']);
 
   typeInto($input, '@');
-  await tick(10);
+  await waitFor(() => $menu.querySelectorAll('.token-menu-item').length === 2);
 
   const items = $menu.querySelectorAll('.token-menu-item');
   t.is(items.length, 2, 'both names shown');

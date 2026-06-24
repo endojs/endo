@@ -3,7 +3,7 @@ import fs from 'fs';
 import os from 'os';
 
 import { makeNodeReader } from '@endo/stream-node';
-import { makeReaderRef } from '@endo/daemon';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { concatBytes } from '@endo/bytes/concat.js';
 import { bytesToText } from '@endo/bytes/to-string.js';
 import { E } from '@endo/far';
@@ -76,12 +76,12 @@ export const store = async ({
       await E(agent).storeValue(JSON.parse(text), parsedName);
     } else if (storeStdin !== undefined) {
       const reader = makeNodeReader(process.stdin);
-      const readerRef = makeReaderRef(reader);
+      const readerRef = bytesReaderFromIterator(reader);
       await E(agent).storeBlob(readerRef, parsedName);
     } else if (storePath !== undefined) {
       const nodeReadStream = fs.createReadStream(storePath);
       const reader = makeNodeReader(nodeReadStream);
-      const readerRef = makeReaderRef(reader);
+      const readerRef = bytesReaderFromIterator(reader);
       await E(agent).storeBlob(readerRef, parsedName);
     }
   });

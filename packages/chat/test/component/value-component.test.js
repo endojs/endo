@@ -1,0 +1,261 @@
+// @ts-nocheck - Component test with happy-dom
+
+/* global globalThis */
+/* eslint-disable no-underscore-dangle */
+
+import '@endo/init/debug.js';
+
+import { register } from 'node:module';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { dirname, resolve as resolvePath } from 'node:path';
+
+import test from 'ava';
+import { Far } from '@endo/far';
+import { createDOM, tick } from '../helpers/dom-setup.js';
+
+// value-component transitively imports `markdown-preview.js`, which imports
+// `@endo/monaco-wrapper` (for `colorize`). Monaco cannot run under happy-dom and
+// `monaco-editor` is not installed here, so redirect the `monaco-wrapper`
+// specifier to the shared stub via a Node loader registered BEFORE
+// value-component is dynamically imported. This exercises the confined value
+// content + actions, the blob preview as vnodes, and the host-node chrome —
+// everything except real Monaco.
+
+const here = dirname(fileURLToPath(import.meta.url));
+const stubUrl = pathToFileURL(
+  resolvePath(here, '../helpers/monaco-wrapper-stub.js'),
+).href;
+
+register(
+  new URL(
+    `data:text/javascript,${encodeURIComponent(`
+      const stubUrl = ${JSON.stringify(stubUrl)};
+      export async function resolve(specifier, context, nextResolve) {
+        if (specifier === '@endo/monaco-wrapper' || specifier.endsWith('/monaco-wrapper.js') || specifier === './monaco-wrapper.js') {
+          return { url: stubUrl, shortCircuit: true };
+        }
+        return nextResolve(specifier, context);
+      }
+    `)}`,
+  ),
+);
+
+// Dynamically imported AFTER the loader is registered so the transitive
+// `@endo/monaco-wrapper` import resolves to the stub.
+const { valueComponent } = await import('../../value-component.js');
+
+const { document: testDocument } = createDOM();
+
+// renderConfined defers with requestAnimationFrame; dom-setup stubs setTimeout
+// but not rAF, so provide a setTimeout-backed shim as a real browser would.
+if (typeof globalThis.requestAnimationFrame !== 'function') {
+  globalThis.requestAnimationFrame = fn =>
+    globalThis.setTimeout(() => fn(0), 0);
+  globalThis.cancelAnimationFrame = id => globalThis.clearTimeout(id);
+}
+
+/**
+ * Poll until `predicate()` is true (or a timeout elapses, in which case the
+ * caller's assertion reports the real difference). Preact effect flushes and the
+ * async value pipeline (reverseIdentify / text) race a fixed delay on slower CI
+ * runners, so poll the actual condition instead.
+ *
+ * @param {() => boolean} predicate
+ * @param {{ timeout?: number, step?: number }} [opts]
+ */
+const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
+  const start = Date.now();
+  while (!predicate()) {
+    if (Date.now() - start > timeout) return;
+    // eslint-disable-next-line no-await-in-loop
+    await tick(step);
+  }
+};
+
+/**
+ * Build the value modal chrome exactly as chat.js's template does, plus a fake
+ * `powers` whose calls are recorded.
+ *
+ * @param {object} [opts]
+ * @param {(id: string) => Promise<string[]> | string[]} [opts.reverseIdentify]
+ */
+const setup = ({ reverseIdentify = async () => [] } = {}) => {
+  testDocument.body.innerHTML = '';
+
+  const $parent = testDocument.createElement('div');
+  $parent.innerHTML = `
+    <div id="value-frame" class="frame">
+      <div id="value-window" class="window">
+        <div class="value-header">
+          <span id="value-title" class="value-title">Value</span>
+          <select id="value-type"><option value="unknown">unknown</option></select>
+        </div>
+        <div id="value-value"></div>
+        <div class="value-actions">
+          <div id="value-actions-container"></div>
+          <button id="value-enter-profile" style="display: none;">Enter Profile</button>
+          <button id="value-close">Close</button>
+        </div>
+      </div>
+    </div>
+  `;
+  testDocument.body.appendChild($parent);
+
+  /** @type {Array<{ method: string, args: unknown[] }>} */
+  const calls = [];
+
+  const powers = Far('MockPowers', {
+    async reverseIdentify(id) {
+      calls.push({ method: 'reverseIdentify', args: [id] });
+      return reverseIdentify(id);
+    },
+    async move(from, to) {
+      calls.push({ method: 'move', args: [from, to] });
+    },
+    async storeValue(value, path) {
+      calls.push({ method: 'storeValue', args: [value, path] });
+    },
+    async adopt(number, edgeName, path) {
+      calls.push({ method: 'adopt', args: [number, edgeName, path] });
+    },
+  });
+
+  let dismissed = 0;
+  const api = valueComponent($parent, powers, {
+    dismissValue: () => {
+      dismissed += 1;
+    },
+    enterProfile: async () => {},
+  });
+
+  return {
+    $parent,
+    api,
+    calls,
+    getDismissed: () => dismissed,
+    $value: $parent.querySelector('#value-value'),
+    $actions: $parent.querySelector('#value-actions-container'),
+    $title: $parent.querySelector('#value-title'),
+  };
+};
+
+test.serial(
+  'focusValue renders a number as a .number span (vnodes, not innerHTML)',
+  async t => {
+    const { $value, api } = setup();
+    t.teardown(() => api.blurValue());
+
+    await api.focusValue(42);
+    await waitFor(() => !!$value.querySelector('.number'));
+
+    const $number = $value.querySelector('.number');
+    t.truthy($number, 'number renders as a .number span');
+    t.is($number.tagName, 'SPAN');
+    t.is($number.textContent, '42');
+  },
+);
+
+test.serial('focusValue renders a string as a quoted .string span', async t => {
+  const { $value, api } = setup();
+  t.teardown(() => api.blurValue());
+
+  await api.focusValue('hello');
+  await waitFor(() => !!$value.querySelector('.string'));
+
+  const $string = $value.querySelector('.string');
+  t.truthy($string, 'string renders as a .string span');
+  // value-vnodes quotes strings via JSON.stringify, mirroring value-render.
+  t.is($string.textContent, '"hello"');
+});
+
+test.serial('focusValue renders an array as nested .entries spans', async t => {
+  const { $value, api } = setup();
+  t.teardown(() => api.blurValue());
+
+  await api.focusValue(harden([1, 2, 3]));
+  await waitFor(() => !!$value.querySelector('.entries'));
+
+  const $entries = $value.querySelector('.entries');
+  t.truthy($entries, 'array renders an .entries container span');
+  const numbers = $value.querySelectorAll('.number');
+  t.is(numbers.length, 3, 'each element is its own .number span');
+  const text = $value.textContent;
+  t.true(text.includes('[') && text.includes(']'), 'brackets render as text');
+});
+
+test.serial(
+  'focusValue shows a "Save as:" action for an unnamed plain value, and Save stores it',
+  async t => {
+    const { $actions, api, calls } = setup();
+    t.teardown(() => api.blurValue());
+
+    // No id, no petNamePath, plain passable -> "Save as:" name action.
+    await api.focusValue(harden({ a: 1 }));
+    await waitFor(() => !!$actions.querySelector('.value-name-input'));
+
+    const $input = $actions.querySelector('.value-name-input');
+    t.truthy($input, 'name input rendered');
+    t.is(
+      $actions.querySelector('.value-name-form label').textContent,
+      'Save as:',
+      'label reflects the save action',
+    );
+
+    // A copy button renders for plain passables.
+    t.truthy(
+      $actions.querySelector('.value-copy-button'),
+      'copy button present for plain passable',
+    );
+
+    // Type a name and submit by clicking the Save button.
+    $input.value = 'my/value';
+    $input.dispatchEvent(new globalThis.Event('input', { bubbles: true }));
+    await waitFor(() => $input.value === 'my/value');
+
+    $actions
+      .querySelector('.value-name-form button')
+      .dispatchEvent(new globalThis.Event('click', { bubbles: true }));
+
+    await waitFor(() => calls.some(c => c.method === 'storeValue'));
+    const storeCall = calls.find(c => c.method === 'storeValue');
+    t.truthy(storeCall, 'storeValue invoked');
+    t.deepEqual(storeCall.args[1], ['my', 'value'], 'path split on /');
+  },
+);
+
+test.serial(
+  'focusValue resolves pet names into .token chips in the title',
+  async t => {
+    const { $title, api } = setup({
+      reverseIdentify: async () => ['alice', 'alice'],
+    });
+    t.teardown(() => api.blurValue());
+
+    await api.focusValue('x', 'some-id');
+    await waitFor(() => !!$title.querySelector('.token'));
+
+    const tokens = $title.querySelectorAll('.token');
+    t.is(tokens.length, 1, 'duplicate pet names de-duplicated to one chip');
+    t.is($title.querySelector('.token b').textContent, '@alice');
+  },
+);
+
+test.serial('Close button clears the value content and dismisses', async t => {
+  const { $parent, $value, api, getDismissed } = setup();
+  t.teardown(() => api.blurValue());
+
+  await api.focusValue(7);
+  await waitFor(() => !!$value.querySelector('.number'));
+
+  $parent
+    .querySelector('#value-close')
+    .dispatchEvent(new globalThis.Event('click', { bubbles: true }));
+
+  await waitFor(() => !$value.querySelector('.number'));
+  t.falsy($value.querySelector('.number'), 'value content unmounted');
+  t.is(getDismissed(), 1, 'dismissValue called once');
+});
+
+test.after(() => {
+  testDocument.body.innerHTML = '';
+});

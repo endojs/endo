@@ -3,7 +3,7 @@
 /* eslint-disable import/order, no-await-in-loop */
 
 /**
- * 9P server tests against an `@endo/endo-fs` in-memory backing
+ * 9P server tests against an `@endo/platform/fs/extended` in-memory backing
  * (F14 — bridge integration).
  *
  * Sets up an in-memory `Filesystem`, spawns the 9P bridge on a
@@ -18,10 +18,13 @@ import path from 'node:path';
 import os from 'node:os';
 import { mkdtemp, rm } from 'node:fs/promises';
 
-import { E } from '@endo/far';
+import { E, Far } from '@endo/far';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
-import { makeInMemoryFilesystem } from '@endo/endo-fs/src/in-memory.js';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+
+import { makeInMemoryFilesystem } from '@endo/platform/fs/extended/in-memory.js';
+import { makeNodeFilesystem } from '@endo/platform/fs/extended/node-fs.js';
 
 import { makeFsBridge9p } from '../src/fs-bridge.js';
 import {
@@ -67,6 +70,61 @@ const setupBridge = async t => {
   t.teardown(() => E(bridge).stop());
 
   return { fs, socketPath };
+};
+
+/**
+ * Serve a real disk-backed (node-fs) Filesystem on a fresh UDS. The
+ * in-memory backing registers new entries eagerly, which masks the
+ * Tlcreate create-vs-lookup race; node-fs writes the entry after an
+ * await, so it exercises the real-mount path.
+ *
+ * @param {import('ava').ExecutionContext<any>} t
+ */
+const setupNodeFsBridge = async t => {
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), 'claude-9p-nodefs-'));
+  t.teardown(() => rm(rootDir, { recursive: true, force: true }));
+  const fs = makeNodeFilesystem({ rootPath: rootDir });
+
+  const sockDir = await mkdtemp(path.join(os.tmpdir(), 'claude-9p-sock-'));
+  t.teardown(() => rm(sockDir, { recursive: true, force: true }));
+  const socketPath = path.join(sockDir, '9p.sock');
+
+  const bridge = makeFsBridge9p({ fs, socketPath });
+  await E(bridge).start();
+  t.teardown(() => E(bridge).stop());
+
+  return { fs, rootDir, socketPath };
+};
+
+/**
+ * A minimal `Filesystem` whose `Directory.create()` makes the new entry
+ * visible to `lookup()` only *after* its own promise resolves — exactly
+ * how node-fs behaves (the backend writes the dir entry after an internal
+ * await). This makes the Tlcreate create-vs-lookup race *deterministic*:
+ * a server that dispatches `lookup(name)` concurrently with `create(name)`
+ * sees ENOENT, while one that awaits `create` first sees the entry. Only
+ * the surface the Tattach → Twalk(clone) → Tlcreate path touches is
+ * implemented.
+ */
+const makeRaceFs = () => {
+  /** @type {Map<string, any>} */
+  const entries = new Map();
+  const dirQid = { type: 'directory', pathId: 0n, version: 0n };
+  const fileQid = { type: 'file', pathId: 7n, version: 0n };
+  const root = Far('RaceDir', {
+    getQid: () => dirQid,
+    async create(_name) {
+      await null; // entry is written only after this resolves
+      entries.set(_name, Far('RaceFile', { getQid: () => fileQid }));
+      return Far('RaceOpenFile', { close: async () => {} });
+    },
+    async lookup(name) {
+      const child = entries.get(name);
+      if (!child) throw Error('ENOENT: not found');
+      return child;
+    },
+  });
+  return Far('RaceFilesystem', { root: () => root });
 };
 
 /**
@@ -153,7 +211,7 @@ const attach = async (c, fid) => {
   // Tattach: u32 fid, u32 afid, str uname, str aname, u32 n_uname
   const w = makeWriter();
   w.u32(fid);
-  w.u32(0xffffffff);
+  w.u32(0xffff_ffff);
   w.str('');
   w.str('');
   w.u32(0);
@@ -203,10 +261,10 @@ const treaddir = async (c, fid, offset, count) => {
   return c.recv();
 };
 
-const tgetattr = async (c, fid) => {
+const tgetattr = async (c, fid, mask = 0x7ffn) => {
   const w = makeWriter();
   w.u32(fid);
-  w.u64(0x7ffn);
+  w.u64(mask);
   c.send(T.Tgetattr, 6, w.finish());
   return c.recv();
 };
@@ -258,7 +316,34 @@ const tunlinkat = async (c, dfid, name) => {
   return c.recv();
 };
 
-test('Tversion negotiates 9P2000.L', async t => {
+const trenameat = async (c, oldDirFid, oldName, newDirFid, newName) => {
+  const w = makeWriter();
+  w.u32(oldDirFid);
+  w.str(oldName);
+  w.u32(newDirFid);
+  w.str(newName);
+  c.send(T.Trenameat, 12, w.finish());
+  return c.recv();
+};
+
+// Tsetattr with only ATTR_SIZE set — i.e. ftruncate(fid, size).
+const tsetattrSize = async (c, fid, size) => {
+  const w = makeWriter();
+  w.u32(fid);
+  w.u32(0x8); // valid = ATTR_SIZE
+  w.u32(0); // mode
+  w.u32(0); // uid
+  w.u32(0); // gid
+  w.u64(size);
+  w.u64(0n); // atime_sec
+  w.u64(0n); // atime_nsec
+  w.u64(0n); // mtime_sec
+  w.u64(0n); // mtime_nsec
+  c.send(T.Tsetattr, 13, w.finish());
+  return c.recv();
+};
+
+test.serial('Tversion negotiates 9P2000.L', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   const { msize, version } = await negotiate(c);
@@ -266,7 +351,7 @@ test('Tversion negotiates 9P2000.L', async t => {
   t.true(msize >= 4096);
 });
 
-test('Tattach returns the root qid', async t => {
+test.serial('Tattach returns the root qid', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -274,7 +359,7 @@ test('Tattach returns the root qid', async t => {
   t.is(qid.type, QT.DIR);
 });
 
-test('Twalk to /greet.txt yields a file qid', async t => {
+test.serial('Twalk to /greet.txt yields a file qid', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -287,7 +372,7 @@ test('Twalk to /greet.txt yields a file qid', async t => {
   t.is(qid.type, QT.FILE);
 });
 
-test('Twalk + Tlopen + Tread round-trips file content', async t => {
+test.serial('Twalk + Tlopen + Tread round-trips file content', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -303,7 +388,114 @@ test('Twalk + Tlopen + Tread round-trips file content', async t => {
   t.is(bytes.toString('utf8'), 'hello');
 });
 
-test('Twalk pipelined chain walks /sub/inner.txt', async t => {
+test.serial('Twrite to a read-only fid is EBADF', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, ['greet.txt']);
+  await lopen(c, 2, 0); // O_RDONLY
+  const wr = await twrite(c, 2, 0n, Buffer.from('nope'));
+  t.is(wr.type, T.Rlerror);
+  t.is(makeReader(wr.payload).u32(), ERRNO.EBADF);
+});
+
+test.serial('Tread from a write-only fid is EBADF', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, ['greet.txt']);
+  await lopen(c, 2, 1); // O_WRONLY
+  const rd = await tread(c, 2, 0n, 16);
+  t.is(rd.type, T.Rlerror);
+  t.is(makeReader(rd.payload).u32(), ERRNO.EBADF);
+});
+
+test.serial('Twalk from an open fid is rejected (EBADF)', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, ['sub']); // fid 2 = /sub (directory)
+  await lopen(c, 2, 0); // open it
+  const wrep = await walk(c, 2, 3, ['inner.txt']); // walk from the open fid
+  t.is(wrep.type, T.Rlerror);
+  t.is(makeReader(wrep.payload).u32(), ERRNO.EBADF);
+});
+
+test.serial('Tlopen advertises a nonzero iounit (msize - 24)', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  const { msize } = await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, ['greet.txt']);
+  const open = await lopen(c, 2, 0);
+  t.is(open.type, T.Rlopen);
+  const r = makeReader(open.payload);
+  readQid(r); // qid (13 bytes)
+  t.is(r.u32(), msize - 24);
+});
+
+test.serial('Tclunk closes an open directory cursor', async t => {
+  const closes = { n: 0 };
+  const dirQid = { type: 'directory', pathId: 0n, version: 0n };
+  const cursor = Far('FakeCursor', {
+    close: async () => {
+      closes.n += 1;
+    },
+  });
+  const dir = Far('FakeDir', {
+    getQid: () => dirQid,
+    list: async () => cursor,
+  });
+  const fs = Far('FakeFs', { root: () => dir });
+
+  const tmp = await mkdtemp(path.join(os.tmpdir(), 'claude-9p-curclose-'));
+  t.teardown(() => rm(tmp, { recursive: true, force: true }));
+  const socketPath = path.join(tmp, '9p.sock');
+  const bridge = makeFsBridge9p({ fs, socketPath });
+  await E(bridge).start();
+  t.teardown(() => E(bridge).stop());
+
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  t.is((await lopen(c, 1, 0)).type, T.Rlopen); // open root dir → cursor
+  t.is((await tclunk(c, 1)).type, T.Rclunk);
+  t.is(closes.n, 1, 'cursor.close() invoked on Tclunk');
+});
+
+test.serial('Tgetattr st_result_mask honours the requested mask', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, ['greet.txt']);
+  // Request only P9_GETATTR_SIZE (0x200); the reply's valid mask should
+  // be the intersection with what we provide, not the full basic set.
+  const ga = await tgetattr(c, 2, 0x200n);
+  t.is(ga.type, T.Rgetattr);
+  t.is(makeReader(ga.payload).u64(), 0x200n);
+});
+
+test.serial('Tgetattr reports nlink >= 2 for a directory', async t => {
+  const { socketPath } = await setupBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1); // root directory, fid 1
+  const ga = await tgetattr(c, 1);
+  t.is(ga.type, T.Rgetattr);
+  const r = makeReader(ga.payload);
+  r.u64(); // valid mask
+  readQid(r); // qid
+  r.u32(); // mode
+  r.u32(); // uid
+  r.u32(); // gid
+  t.is(r.u64(), 2n); // nlink
+});
+
+test.serial('Twalk pipelined chain walks /sub/inner.txt', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -318,7 +510,7 @@ test('Twalk pipelined chain walks /sub/inner.txt', async t => {
   t.is(q2.type, QT.FILE);
 });
 
-test('Twalk to a missing name returns ENOENT', async t => {
+test.serial('Twalk to a missing name returns ENOENT', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -329,26 +521,29 @@ test('Twalk to a missing name returns ENOENT', async t => {
   t.is(r.u32(), ERRNO.ENOENT);
 });
 
-test('Twalk partial success: ["sub", "missing"] returns one qid + no newfid', async t => {
-  const { socketPath } = await setupBridge(t);
-  const c = await setupClient(t, socketPath);
-  await negotiate(c);
-  await attach(c, 1);
-  const rep = await walk(c, 1, 2, ['sub', 'missing']);
-  t.is(rep.type, T.Rwalk);
-  const r = makeReader(rep.payload);
-  t.is(r.u16(), 1);
-  const q1 = readQid(r);
-  t.is(q1.type, QT.DIR);
-  // newfid=2 should NOT have been set; a subsequent Tgetattr on it
-  // is EBADF.
-  const ga = await tgetattr(c, 2);
-  t.is(ga.type, T.Rlerror);
-  const rr = makeReader(ga.payload);
-  t.is(rr.u32(), ERRNO.EBADF);
-});
+test.serial(
+  'Twalk partial success: ["sub", "missing"] returns one qid + no newfid',
+  async t => {
+    const { socketPath } = await setupBridge(t);
+    const c = await setupClient(t, socketPath);
+    await negotiate(c);
+    await attach(c, 1);
+    const rep = await walk(c, 1, 2, ['sub', 'missing']);
+    t.is(rep.type, T.Rwalk);
+    const r = makeReader(rep.payload);
+    t.is(r.u16(), 1);
+    const q1 = readQid(r);
+    t.is(q1.type, QT.DIR);
+    // newfid=2 should NOT have been set; a subsequent Tgetattr on it
+    // is EBADF.
+    const ga = await tgetattr(c, 2);
+    t.is(ga.type, T.Rlerror);
+    const rr = makeReader(ga.payload);
+    t.is(rr.u32(), ERRNO.EBADF);
+  },
+);
 
-test('Treaddir yields entries', async t => {
+test.serial('Treaddir yields entries', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -372,7 +567,7 @@ test('Treaddir yields entries', async t => {
   t.true(names.has('sub'));
 });
 
-test('Tlcreate + Twrite + Tread round-trips writes', async t => {
+test.serial('Tlcreate + Twrite + Tread round-trips writes', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -393,7 +588,168 @@ test('Tlcreate + Twrite + Tread round-trips writes', async t => {
   t.is(r.take(count).toString('utf8'), 'written via 9P');
 });
 
-test('Tmkdir + Twalk + Tunlinkat lifecycle', async t => {
+test.serial(
+  'Tlcreate on a disk-backed (node-fs) FS creates without ENOENT (regression)',
+  async t => {
+    // `echo x > newfile.txt` on a real mount is O_CREAT|O_WRONLY|O_TRUNC
+    // on a missing path → a single Tlcreate. Before the onLcreate fix,
+    // the same-batch lookup(name) raced create(name) on node-fs (whose
+    // create writes the entry after an await), so the server returned
+    // Rlerror(ENOENT) even though the 0-byte file landed on disk. The
+    // in-memory backend masks this, so the regression test must use
+    // node-fs.
+    const { rootDir, socketPath } = await setupNodeFsBridge(t);
+    const c = await setupClient(t, socketPath);
+    await negotiate(c);
+    await attach(c, 1);
+    await walk(c, 1, 2, []); // clone root to fid 2
+    const create = await tlcreate(c, 2, 'newfile.txt');
+    t.is(create.type, T.Rlcreate, 'Tlcreate must return Rlcreate, not Rlerror');
+    t.true(
+      existsSync(path.join(rootDir, 'newfile.txt')),
+      'file exists on disk',
+    );
+  },
+);
+
+test.serial(
+  'Tlcreate awaits create before lookup (deterministic race regression)',
+  async t => {
+    // Unlike the node-fs test above (which leans on real disk timing),
+    // makeRaceFs exposes the new entry only after create() resolves, so
+    // the race is deterministic on every machine: with the fix (await
+    // create, then lookup) this is Rlcreate; reverting to a concurrent
+    // create+lookup batch yields ENOENT here every time.
+    const fs = makeRaceFs();
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'claude-9p-race-'));
+    t.teardown(() => rm(dir, { recursive: true, force: true }));
+    const socketPath = path.join(dir, '9p.sock');
+    const bridge = makeFsBridge9p({ fs, socketPath });
+    await E(bridge).start();
+    t.teardown(() => E(bridge).stop());
+
+    const c = await setupClient(t, socketPath);
+    await negotiate(c);
+    await attach(c, 1);
+    await walk(c, 1, 2, []); // clone root to fid 2
+    const create = await tlcreate(c, 2, 'newfile.txt');
+    t.is(create.type, T.Rlcreate);
+  },
+);
+
+// The in-memory backing registers mutations eagerly and is the only one
+// the rest of this file exercises; the Tlcreate race showed that hides
+// real-backend bugs. This block re-runs the mutating ops against a
+// disk-backed (node-fs) Filesystem to catch sibling regressions.
+
+test.serial(
+  'node-fs: Tlcreate + Twrite + reopen + Tread round-trips on disk',
+  async t => {
+    const { rootDir, socketPath } = await setupNodeFsBridge(t);
+    const c = await setupClient(t, socketPath);
+    await negotiate(c);
+    await attach(c, 1);
+    await walk(c, 1, 2, []); // clone root to fid 2
+    t.is((await tlcreate(c, 2, 'f.txt')).type, T.Rlcreate);
+    t.is((await twrite(c, 2, 0n, Buffer.from('on disk'))).type, T.Rwrite);
+    // Reopen via a fresh walk from root so we read through a new fid.
+    t.is((await walk(c, 1, 3, ['f.txt'])).type, T.Rwalk);
+    t.is((await lopen(c, 3, 0)).type, T.Rlopen);
+    const rd = await tread(c, 3, 0n, 4096);
+    t.is(rd.type, T.Rread);
+    const r = makeReader(rd.payload);
+    t.is(r.take(r.u32()).toString('utf8'), 'on disk');
+    t.is(readFileSync(path.join(rootDir, 'f.txt'), 'utf8'), 'on disk');
+  },
+);
+
+test.serial(
+  'node-fs: Tmkdir creates a directory reachable by Twalk',
+  async t => {
+    const { rootDir, socketPath } = await setupNodeFsBridge(t);
+    const c = await setupClient(t, socketPath);
+    await negotiate(c);
+    await attach(c, 1);
+    const mk = await tmkdir(c, 1, 'd');
+    t.is(mk.type, T.Rmkdir);
+    const w = await walk(c, 1, 2, ['d']);
+    t.is(w.type, T.Rwalk);
+    const r = makeReader(w.payload);
+    t.is(r.u16(), 1);
+    t.is(readQid(r).type, QT.DIR);
+    t.true(existsSync(path.join(rootDir, 'd')));
+  },
+);
+
+test.serial('node-fs: Trenameat moves a file', async t => {
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, []);
+  t.is((await tlcreate(c, 2, 'old.txt')).type, T.Rlcreate);
+  t.is((await trenameat(c, 1, 'old.txt', 1, 'new.txt')).type, T.Rrenameat);
+  t.is((await walk(c, 1, 3, ['new.txt'])).type, T.Rwalk);
+  t.is((await walk(c, 1, 4, ['old.txt'])).type, T.Rlerror);
+  t.false(existsSync(path.join(rootDir, 'old.txt')));
+  t.true(existsSync(path.join(rootDir, 'new.txt')));
+});
+
+test.serial('node-fs: Tunlinkat removes a file', async t => {
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, []);
+  t.is((await tlcreate(c, 2, 'doomed.txt')).type, T.Rlcreate);
+  t.is((await tunlinkat(c, 1, 'doomed.txt')).type, T.Runlinkat);
+  const w = await walk(c, 1, 3, ['doomed.txt']);
+  t.is(w.type, T.Rlerror);
+  t.is(makeReader(w.payload).u32(), ERRNO.ENOENT);
+  t.false(existsSync(path.join(rootDir, 'doomed.txt')));
+});
+
+test.serial('node-fs: Tsetattr truncates a file (ftruncate)', async t => {
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  await walk(c, 1, 2, []);
+  t.is((await tlcreate(c, 2, 'trunc.txt')).type, T.Rlcreate);
+  t.is((await twrite(c, 2, 0n, Buffer.from('hello world'))).type, T.Rwrite);
+  t.is((await tsetattrSize(c, 2, 5n)).type, T.Rsetattr);
+  const ga = await tgetattr(c, 2);
+  t.is(ga.type, T.Rgetattr);
+  t.is(readFileSync(path.join(rootDir, 'trunc.txt'), 'utf8'), 'hello');
+});
+
+test.serial('node-fs: Treaddir lists entries from disk', async t => {
+  const { rootDir, socketPath } = await setupNodeFsBridge(t);
+  // Seed the directory on disk (node-fs reads the backing live) so
+  // readdir reflects real backing content, not just bytes written
+  // through the bridge.
+  writeFileSync(path.join(rootDir, 'alpha.txt'), 'a');
+  mkdirSync(path.join(rootDir, 'beta'));
+  const c = await setupClient(t, socketPath);
+  await negotiate(c);
+  await attach(c, 1);
+  t.is((await lopen(c, 1, 0)).type, T.Rlopen);
+  const rep = await treaddir(c, 1, 0n, 4096);
+  t.is(rep.type, T.Rreaddir);
+  const r = makeReader(rep.payload);
+  r.u32(); // total bytes
+  const names = new Set();
+  while (r.remaining() > 0) {
+    readQid(r);
+    r.u64();
+    r.u8();
+    names.add(r.str());
+  }
+  t.true(names.has('alpha.txt'));
+  t.true(names.has('beta'));
+});
+
+test.serial('Tmkdir + Twalk + Tunlinkat lifecycle', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -413,7 +769,7 @@ test('Tmkdir + Twalk + Tunlinkat lifecycle', async t => {
   t.is(r.u32(), ERRNO.ENOENT);
 });
 
-test('Tgetattr returns file size + reasonable mode bits', async t => {
+test.serial('Tgetattr returns file size + reasonable mode bits', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -433,7 +789,7 @@ test('Tgetattr returns file size + reasonable mode bits', async t => {
   t.is(size, 5n); // "hello"
 });
 
-test('Tclunk frees a fid; subsequent ops EBADF', async t => {
+test.serial('Tclunk frees a fid; subsequent ops EBADF', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -446,7 +802,7 @@ test('Tclunk frees a fid; subsequent ops EBADF', async t => {
   t.is(r.u32(), ERRNO.EBADF);
 });
 
-test('Twalk with `..` from root stays at root', async t => {
+test.serial('Twalk with `..` from root stays at root', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);
@@ -459,7 +815,7 @@ test('Twalk with `..` from root stays at root', async t => {
   t.is(q.type, QT.DIR);
 });
 
-test('Twalk with `..` from sub returns to root', async t => {
+test.serial('Twalk with `..` from sub returns to root', async t => {
   const { socketPath } = await setupBridge(t);
   const c = await setupClient(t, socketPath);
   await negotiate(c);

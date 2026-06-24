@@ -1,5 +1,16 @@
 # @endo/cli
 
+## 2.3.13
+
+### Patch Changes
+
+- Updated dependencies [[`ad7a177`](https://github.com/endojs/endo/commit/ad7a177e84b08c74526ceb9b0ea15f3c81c06158), [`7309d69`](https://github.com/endojs/endo/commit/7309d6933a87aea7616b8bee6460763c7543e658), [`7325bbe`](https://github.com/endojs/endo/commit/7325bbe15f481275da6d5faf7445cc16b72ada82), [`b845f85`](https://github.com/endojs/endo/commit/b845f857ab60643c362a7904615825031923d95b), [`c372670`](https://github.com/endojs/endo/commit/c372670c6ff21771b37b2c11b9f82552eed7a94f), [`291e224`](https://github.com/endojs/endo/commit/291e2241bdb25ce10045f2f972496b4ffe43dd05), [`dd45f4a`](https://github.com/endojs/endo/commit/dd45f4a7ffcf9f8d6fb3aa23a5d22fe00beef8e8), [`45d06cd`](https://github.com/endojs/endo/commit/45d06cd1624241b371c3ccc2076138c42ee7bd80)]:
+  - @endo/hex@1.1.0
+  - @endo/bundle-source@4.3.1
+  - @endo/daemon@3.0.0
+  - @endo/bytes@1.0.0
+  - @endo/patterns@1.9.1
+
 ## 2.3.12
 
 ### Patch Changes

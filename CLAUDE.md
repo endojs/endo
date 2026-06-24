@@ -197,3 +197,10 @@ Running the following before pushing avoids the churn:
 - Workspace dependencies use `"workspace:^"` version specifiers.
 - Each package has its own `tsconfig.json` and `tsconfig.build.json`.
 - No copyright headers in source files; license is declared in `package.json`.
+
+## Pull Requests
+
+- When merging a pull request, **rebase** (rebase-and-merge) by default.
+- Do **not** squash-merge, and do not create a merge commit, unless the
+  pull request author explicitly asks for that method.
+- If the intended merge method is unclear, confirm it before merging.

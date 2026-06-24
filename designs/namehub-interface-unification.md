@@ -187,7 +187,7 @@ contract.
    make sense after the unification design picks an answer for
    what a "locator for a mount entry" is.
 
-5. **`packages/whylip`, `packages/lal`, `packages/jaine`,
+5. **`packages/space-whylip`, `packages/lal`, `packages/jaine`,
    `packages/fae`, `packages/genie`** (numerous):
    these are agent setup and routing modules.
    They use `identify` / `locate` / `reverseLocate` against the

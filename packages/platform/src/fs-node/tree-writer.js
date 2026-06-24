@@ -41,6 +41,10 @@ export const makeTreeWriter = dirPath => {
           recursive: true,
         });
       },
+      help: method =>
+        method === undefined
+          ? 'TreeWriter: writes blobs and directories into a host directory tree.'
+          : `No documentation for method ${method}.`,
     }),
   );
 };

@@ -3,12 +3,129 @@
 
 /** @import { FilePowers } from './types.js' */
 
-import { q } from '@endo/errors';
+import { E } from '@endo/far';
+import { makeError, q, X } from '@endo/errors';
 import { makeExo } from '@endo/exo';
+import { encodeBase64 } from '@endo/base64';
+import { mapReader } from '@endo/stream';
+import {
+  ReadableBlobRangeInterface,
+  ReadableTreeInterface,
+} from '@endo/platform/fs/lite';
+import { toSafeNumber } from '@endo/platform/fs/extended/shared/helpers.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 
+import { fromHex } from './hex.js';
 import { mountHelp, mountFileHelp, makeHelp } from './help-text.js';
-import { MountInterface, MountFileInterface } from './interfaces.js';
-import { makeIteratorRef } from './reader-ref.js';
+import {
+  MountEntryInterface,
+  MountFileInterface,
+  MountInterface,
+} from './interfaces.js';
+
+const mountEntryRecords = new WeakMap();
+const mountRecords = new WeakMap();
+
+/**
+ * Wrap a byte range as a `PassableBytesReader` (what `fetch` returns). An empty
+ * range yields a reader that is immediately done.
+ *
+ * @param {Uint8Array} bytes
+ */
+const bytesFromRange = bytes => {
+  function* generator() {
+    if (bytes.length > 0) {
+      yield bytes;
+    }
+  }
+  return bytesReaderFromIterator(generator());
+};
+harden(bytesFromRange);
+
+// Monotonic suffix for the scratch path `write()` streams a blob into
+// before atomically renaming it onto the target.  The counter alone is
+// guessable: a caller who can predict `${target}.${N}.tmp` could plant a
+// file there ahead of the write, and `makeFileWriter` (open with `'w'`)
+// would truncate it.  Confinement bounds the damage to the caller's own
+// mount, but a write should never clobber an unrelated pre-existing file.
+// The counter is therefore paired with an unpredictable random suffix
+// (the same `Math.random` entropy `host.js` uses for scratch labels) and
+// a probe-before-use collision check, so the scratch name lands on a free
+// path.  It does not (and need not) make concurrent writes to the *same*
+// target safe — that race predates this module and is the caller's
+// responsibility.
+let writeScratchCounter = 0;
+
+/**
+ * Pick a scratch path that is a sibling of `target` and does not collide
+ * with any existing file.  The name is unpredictable (random suffix) so a
+ * caller cannot pre-plant a file at the path the write will truncate, and
+ * the `exists` probe rejects the astronomically unlikely random collision
+ * by drawing again.  Returning a sibling keeps the final `renamePath`
+ * atomic (same directory, same filesystem).
+ *
+ * @param {string} target
+ * @param {FilePowers} filePowers
+ * @returns {Promise<string>}
+ */
+const reserveScratchPath = async (target, filePowers) => {
+  await null;
+  for (;;) {
+    writeScratchCounter += 1;
+    // eslint-disable-next-line no-bitwise
+    const random = (Math.floor(Math.random() * 0xffff_ffff) >>> 0).toString(16);
+    const scratch = `${target}.${writeScratchCounter}.${random}.tmp`;
+    // eslint-disable-next-line no-await-in-loop
+    if (!(await filePowers.exists(scratch))) {
+      return scratch;
+    }
+  }
+};
+harden(reserveScratchPath);
+
+/**
+ * Returns the daemon-private lineage sentinel for a mount or mount entry.
+ *
+ * @param {unknown} value
+ * @returns {object | undefined}
+ */
+export const lineageOf = value => {
+  const key = /** @type {object} */ (value);
+  return mountEntryRecords.get(key)?.rootId || mountRecords.get(key)?.rootId;
+};
+harden(lineageOf);
+
+/**
+ * Host-private accessor for daemon-minted physical mount backing.
+ *
+ * @param {unknown} mount
+ * @returns {{ kind: 'physical', physicalRoot: string, currentDir: string, readOnly: boolean } | undefined}
+ */
+export const getMountBacking = mount => {
+  const record = mountRecords.get(/** @type {object} */ (mount));
+  if (record === undefined) {
+    return undefined;
+  }
+  return harden({
+    kind: /** @type {'physical'} */ ('physical'),
+    physicalRoot: record.confinementRoot,
+    currentDir: record.currentDir,
+    readOnly: record.readOnly,
+  });
+};
+harden(getMountBacking);
+
+/**
+ * Host-private accessor for daemon-minted mount entry paths.
+ *
+ * @param {unknown} entry
+ * @returns {string | undefined}
+ */
+export const getEntryPhysicalPath = entry =>
+  mountEntryRecords.get(/** @type {object} */ (entry))?.physicalPath;
+harden(getEntryPhysicalPath);
 
 /**
  * Validate a single path segment.
@@ -34,6 +151,30 @@ const assertValidSegment = segment => {
   }
 };
 harden(assertValidSegment);
+
+/**
+ * Validate a child name advertised by a remote ReadableTree. Unlike
+ * path arguments, tree child names are literal directory entries, so
+ * "." and ".." must not be interpreted.
+ *
+ * Delegates to `assertValidSegment` (above) for the type, empty-string,
+ * and separator-character checks (`/`, `\`, `\0`), and adds the
+ * tree-specific `.`/`..` reject on top.  Exported so callers that walk
+ * a remote ReadableTree from outside this module (e.g.
+ * `host.js`'s `materializeTree`) share one validator rather than
+ * maintaining a freestanding twin.  Runs check-before-trust on names
+ * arriving from a remote ReadableTree before any filesystem
+ * materialisation.
+ *
+ * @param {string} name
+ */
+export const assertValidTreeEntryName = name => {
+  assertValidSegment(name);
+  if (name === '.' || name === '..') {
+    throw new Error(`Tree entry name must not be "." or "..": ${q(name)}`);
+  }
+};
+harden(assertValidTreeEntryName);
 
 /**
  * Resolve path segments relative to a current directory, clamped to a
@@ -67,6 +208,53 @@ const resolveSegments = (currentDir, confinementRoot, segments, filePowers) => {
 harden(resolveSegments);
 
 /**
+ * Normalize path segments against a mount-relative base, clamping '..' at root.
+ *
+ * @param {string[]} baseSegments
+ * @param {string[]} segments
+ * @returns {string[]}
+ */
+const normalizeSegments = (baseSegments, segments) => {
+  const normalized = [...baseSegments];
+  for (const segment of segments) {
+    if (segment === '.') {
+      // skip
+    } else if (segment === '..') {
+      normalized.pop();
+    } else {
+      assertValidSegment(segment);
+      normalized.push(segment);
+    }
+  }
+  return normalized;
+};
+harden(normalizeSegments);
+
+/**
+ * Render an absolute host path as a path relative to the mount root. Error
+ * messages reach whoever holds the mount capability — typically a guest — and
+ * must never disclose the host's filesystem layout. `resolveSegments` clamps
+ * `..` at the root, so a resolved path always sits lexically under
+ * `confinementRoot`; the fallback exists only so a future caller that breaks
+ * that invariant still cannot leak the absolute path.
+ *
+ * @param {string} candidatePath
+ * @param {string} confinementRoot
+ * @returns {string}
+ */
+const relativeToRoot = (candidatePath, confinementRoot) => {
+  if (candidatePath === confinementRoot) {
+    return '/';
+  }
+  const prefix = `${confinementRoot}/`;
+  if (candidatePath.startsWith(prefix)) {
+    return `/${candidatePath.slice(prefix.length)}`;
+  }
+  return '/';
+};
+harden(relativeToRoot);
+
+/**
  * Assert that a resolved path is contained within the confinement root.
  *
  * @param {string} candidatePath
@@ -79,12 +267,16 @@ const assertConfined = async (candidatePath, confinementRoot, filePowers) => {
     resolved = await filePowers.realPath(candidatePath);
   } catch {
     throw new Error(
-      `Path does not exist and cannot be verified: ${q(candidatePath)}`,
+      `ENOENT: path does not exist and cannot be verified: ${q(
+        relativeToRoot(candidatePath, confinementRoot),
+      )}`,
     );
   }
   const rootResolved = await filePowers.realPath(confinementRoot);
   if (resolved !== rootResolved && !resolved.startsWith(`${rootResolved}/`)) {
-    throw new Error(`Path escapes mount root: ${q(candidatePath)}`);
+    throw new Error(
+      `EACCES: path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`,
+    );
   }
 };
 harden(assertConfined);
@@ -112,16 +304,20 @@ const assertConfinedOrAncestor = async (
         resolved !== rootResolved &&
         !resolved.startsWith(`${rootResolved}/`)
       ) {
-        throw new Error(`Path escapes mount root: ${q(candidatePath)}`);
+        throw new Error(
+          `EACCES: path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`,
+        );
       }
       return;
     } catch (/** @type {any} */ e) {
-      if (e.message && e.message.startsWith('Path escapes')) {
+      if (e.message && e.message.includes('escapes mount root')) {
         throw e;
       }
       const parent = filePowers.joinPath(check, '..');
       if (parent === check) {
-        throw new Error(`Path escapes mount root: ${q(candidatePath)}`);
+        throw new Error(
+          `EACCES: path escapes mount root: ${q(relativeToRoot(candidatePath, confinementRoot))}`,
+        );
       }
       check = parent;
     }
@@ -149,12 +345,59 @@ const isConfinedPath = async (candidatePath, confinementRoot, filePowers) => {
 harden(isConfinedPath);
 
 /**
+ * Resolve a path to its symlink-free physical form even when the path
+ * does not yet exist.  `realPath` only resolves an existing path, so this
+ * walks up to the deepest existing ancestor, resolves *that*, and
+ * re-appends the not-yet-existing tail.  Any symlink in an existing
+ * component of `candidatePath` is followed; trailing components that do
+ * not exist are appended verbatim (they cannot be symlinks because they
+ * are not present).  Used by `copy()` to compare the *physical* target
+ * against the source so a symlinked destination cannot re-enter the
+ * source tree past the logical-segment descendant guard.
+ *
+ * @param {string} candidatePath
+ * @param {FilePowers} filePowers
+ * @returns {Promise<string>}
+ */
+const resolvePhysicalPath = async (candidatePath, filePowers) => {
+  await null;
+  /** @type {string[]} */
+  const tail = [];
+  let check = candidatePath;
+  for (;;) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const resolved = await filePowers.realPath(check);
+      return tail.length === 0
+        ? resolved
+        : filePowers.joinPath(resolved, ...tail);
+    } catch {
+      const parent = filePowers.joinPath(check, '..');
+      if (parent === check) {
+        // Reached the filesystem root without resolving; fall back to the
+        // unresolved path joined onto the root.
+        return filePowers.joinPath(check, ...tail);
+      }
+      // The last segment of `check` is the non-existing tail component.
+      const base = check.slice(parent.length).replace(/^\/+/, '');
+      tail.unshift(base);
+      check = parent;
+    }
+  }
+};
+harden(resolvePhysicalPath);
+
+/**
  * @typedef {object} MountContext
  * @property {string} currentDir
+ * @property {string[]} currentSegments
  * @property {string} confinementRoot
+ * @property {object} rootId
  * @property {boolean} readOnly
  * @property {FilePowers} filePowers
  * @property {string} description
+ * @property {(tree: object) => Promise<object>} [snapshotTree]
+ * @property {(path: string) => Promise<object>} [snapshotFile]
  */
 
 /**
@@ -164,8 +407,17 @@ harden(isConfinedPath);
  * @returns {object}
  */
 const makeMountExo = ctx => {
-  const { currentDir, confinementRoot, readOnly, filePowers, description } =
-    ctx;
+  const {
+    currentDir,
+    currentSegments,
+    confinementRoot,
+    rootId,
+    readOnly,
+    filePowers,
+    description,
+    snapshotTree,
+    snapshotFile,
+  } = ctx;
 
   const assertWritable = () => {
     if (readOnly) {
@@ -180,17 +432,155 @@ const makeMountExo = ctx => {
   const resolve = segments =>
     resolveSegments(currentDir, confinementRoot, segments, filePowers);
 
+  /**
+   * Resolve mount-root-relative segments.
+   *
+   * @param {string[]} segments
+   */
+  const resolveFromRoot = segments =>
+    resolveSegments(confinementRoot, confinementRoot, segments, filePowers);
+
+  /**
+   * @param {string | string[] | object} pathArg
+   * @returns {string[]}
+   */
+  const segmentsFromPathArg = pathArg => {
+    if (Array.isArray(pathArg)) {
+      return normalizeSegments(currentSegments, pathArg);
+    }
+    if (typeof pathArg === 'object' && pathArg !== null) {
+      const record = mountEntryRecords.get(pathArg);
+      if (record === undefined) {
+        throw new Error('Path argument is not a daemon-minted mount entry');
+      }
+      if (record.rootId !== rootId) {
+        throw new Error('Mount entry belongs to a different mount root');
+      }
+      return record.segments;
+    }
+    if (typeof pathArg !== 'string') {
+      throw new Error(`Path must be a string, array, or mount entry`);
+    }
+    return normalizeSegments(currentSegments, [pathArg]);
+  };
+
+  /**
+   * `entry()` is the one mount API where a string is a slash-joined
+   * selector rather than a single name.  Other path-bearing convenience
+   * methods keep their existing single-name string compatibility.
+   *
+   * @param {string | string[]} pathArg
+   * @returns {string[]}
+   */
+  const segmentsFromEntryPathArg = pathArg => {
+    if (Array.isArray(pathArg)) {
+      return normalizeSegments(currentSegments, pathArg);
+    }
+    if (typeof pathArg !== 'string') {
+      throw new Error('entry() path must be a string or array');
+    }
+    return normalizeSegments(currentSegments, pathArg.split('/'));
+  };
+
+  /**
+   * Distinguish a single `has(entry)` call from variadic
+   * `has(...segments)`.  The dispatch layers two contracts:
+   *
+   * 1. A single non-null object argument is treated as an entry value;
+   *    `segmentsFromPathArg` validates the entry's mount-root
+   *    provenance (or rejects a non-entry object) and returns its
+   *    segments.  The `args[0] !== null` guard here keeps `null` from
+   *    falling into this branch — `segmentsFromPathArg` would reject
+   *    `null` on its own (`typeof null === 'object'`), but the explicit
+   *    guard makes the dispatch read as "string-or-entry-not-null"
+   *    rather than relying on the downstream throw for shape.
+   * 2. Otherwise every argument must be a string; the array is
+   *    normalised as a path-segment sequence relative to the current
+   *    directory.
+   *
+   * The two cases are mutually exclusive at the boundary, so an
+   * accidental call like `has(null)` reaches the loop's
+   * `typeof arg !== 'string'` reject rather than the entry branch.
+   *
+   * @param {Array<string | object>} args
+   * @returns {string[]}
+   */
+  const segmentsFromHasArgs = args => {
+    if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
+      return segmentsFromPathArg(args[0]);
+    }
+    for (const arg of args) {
+      if (typeof arg !== 'string') {
+        throw new Error('has() path segments must be strings');
+      }
+    }
+    return normalizeSegments(currentSegments, /** @type {string[]} */ (args));
+  };
+
+  /**
+   * @param {string | string[] | object} pathArg
+   */
+  const resolvePathArg = pathArg =>
+    resolveFromRoot(segmentsFromPathArg(pathArg));
+
+  /**
+   * @param {string} target
+   * @param {string[]} targetSegments
+   */
+  const openExisting = async (target, targetSegments) => {
+    await assertConfined(target, confinementRoot, filePowers);
+    const isDir = await filePowers.isDirectory(target);
+    if (isDir) {
+      return makeMountExo({
+        ...ctx,
+        currentDir: target,
+        currentSegments: targetSegments,
+        description: `Subdirectory of ${description}`,
+      });
+    }
+    return makeMountFileExo(
+      target,
+      readOnly,
+      filePowers,
+      confinementRoot,
+      snapshotFile,
+    );
+  };
+
+  /**
+   * @param {string[]} segments
+   */
+  const makeEntryRecord = segments =>
+    harden({
+      rootId,
+      segments,
+      physicalPath: resolveFromRoot(segments),
+    });
+
+  /**
+   * @param {string[]} segments
+   */
+  const makeEntry = segments => {
+    const entry = makeMountEntryExo({
+      ...ctx,
+      entrySegments: segments,
+    });
+    mountEntryRecords.set(entry, makeEntryRecord(segments));
+    return entry;
+  };
+
   const help = makeHelp(mountHelp);
 
-  return makeExo('EndoMount', MountInterface, {
+  const exo = makeExo('EndoMount', MountInterface, {
     help,
 
-    async has(...pathSegments) {
+    async has(...args) {
       await null;
+      const pathSegments = segmentsFromHasArgs(args);
       if (pathSegments.length === 0) {
         return true;
       }
-      const target = resolve(pathSegments);
+      const target = resolveFromRoot(pathSegments);
       const pathExists = await filePowers.exists(target);
       if (!pathExists) {
         return false;
@@ -216,34 +606,141 @@ const makeMountExo = ctx => {
 
     async lookup(pathArg) {
       await null;
-      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
-      const target = resolve(segments);
-      await assertConfined(target, confinementRoot, filePowers);
+      const segments = segmentsFromPathArg(pathArg);
+      return openExisting(resolveFromRoot(segments), segments);
+    },
 
-      const isDir = await filePowers.isDirectory(target);
-      if (isDir) {
-        return makeMountExo({
-          ...ctx,
-          currentDir: target,
-          description: `Subdirectory of ${description}`,
-        });
+    // The `ReadableNameHub` lookup-or-undefined primitive: resolve `pathArg`
+    // and return its handle, or `undefined` when the path is absent (or
+    // escapes confinement). Mirrors `maybeReadText`'s broad catch — any
+    // resolution failure yields `undefined` rather than throwing.
+    async maybeLookup(pathArg) {
+      await null;
+      const segments = segmentsFromPathArg(pathArg);
+      try {
+        return await openExisting(resolveFromRoot(segments), segments);
+      } catch {
+        return undefined;
       }
+    },
 
-      return makeMountFileExo(target, readOnly, filePowers, confinementRoot);
+    // Part of the name-hub contract, but a live change feed needs a
+    // filesystem watcher behind the mount (filesystem-watchers.md), which is
+    // not yet implemented. Throw an explicit ENOSYS-style error rather than
+    // being silently absent, so callers get a clear signal that the surface
+    // exists but is not wired yet.
+    followNameChanges() {
+      throw makeError(
+        X`ENOSYS: followNameChanges is not yet supported on EndoMount; a filesystem watcher (see filesystem-watchers.md) is required to emit name changes`,
+      );
+    },
+
+    async subView(pathArg) {
+      await null;
+      const segments = segmentsFromPathArg(pathArg);
+      const target = resolveFromRoot(segments);
+      await assertConfined(target, confinementRoot, filePowers);
+      if (!(await filePowers.isDirectory(target))) {
+        throw new Error(
+          `ENOTDIR: subView target is not a directory: ${q(
+            relativeToRoot(target, confinementRoot),
+          )}`,
+        );
+      }
+      // A genuine confinement shift: the sub-view's own `confinementRoot`
+      // is `target`, so `..` clamps at the sub-view root and cannot reach
+      // the parent mount's siblings or root. This is unlike a `lookup`
+      // sub-handle, which deliberately inherits the mount's
+      // `confinementRoot` for in-mount navigation. For a *persisted*
+      // sub-root, use `provideSubMount` (a new formula); `subView` is the
+      // transient, in-session attenuator.
+      //
+      // Mint a FRESH `rootId` so the sub-view is its own identity domain:
+      // a `mountEntry` minted by the parent (whose `segments` are
+      // parent-root-relative) is rejected by `segmentsFromPathArg`'s
+      // `record.rootId !== rootId` check rather than being silently
+      // re-based against the sub-view root. Entries minted *by* the
+      // sub-view capture this new id (via the new exo's closure) and keep
+      // working.
+      return makeMountExo({
+        ...ctx,
+        currentDir: target,
+        currentSegments: [],
+        confinementRoot: target,
+        rootId: harden({}),
+        description: `Subview of ${description}`,
+      });
+    },
+
+    entry(pathArg) {
+      return makeEntry(segmentsFromEntryPathArg(pathArg));
+    },
+
+    async makeDirectory(pathArg) {
+      await null;
+      assertWritable();
+      const segments = segmentsFromPathArg(pathArg);
+      const target = resolveFromRoot(segments);
+      await assertConfinedOrAncestor(target, confinementRoot, filePowers);
+      await filePowers.makePath(target);
+      // Return a sub-mount handle on the freshly-made path so the
+      // method satisfies `Directory.makeDirectory(path):
+      // Promise<Directory>`.  Existing callers that ignore the
+      // return value are source-compatible.
+      return openExisting(target, segments);
+    },
+
+    async makeFile(pathArg, content) {
+      await null;
+      assertWritable();
+      const target = resolvePathArg(pathArg);
+      await assertConfinedOrAncestor(target, confinementRoot, filePowers);
+      const parent = filePowers.joinPath(target, '..');
+      await filePowers.makePath(parent);
+      if (await filePowers.isDirectory(target)) {
+        throw new Error('Path is a directory');
+      }
+      if (content === undefined) {
+        if (!(await filePowers.exists(target))) {
+          await filePowers.writeFileText(target, '');
+        }
+        return;
+      }
+      if (typeof content === 'string') {
+        await filePowers.writeFileText(target, content);
+        return;
+      }
+      // Binary content is supplied via `write(path, readableBlob)` /
+      // `copy(from, to)` rather than `makeFile`: mutable typed arrays
+      // are rejected at the exo boundary, so a `Uint8Array` argument
+      // cannot reach this method through CapTP. Callers that hold raw
+      // bytes wrap them in a `ReadableBlob` and use `write()`.
+      throw new Error(
+        'makeFile content must be a string (use write() with a ReadableBlob for binary content)',
+      );
+    },
+
+    async stat(pathArg) {
+      await null;
+      const target = resolvePathArg(pathArg);
+      try {
+        await assertConfined(target, confinementRoot, filePowers);
+        return filePowers.statPath(target);
+      } catch {
+        return undefined;
+      }
     },
 
     async readText(pathArg) {
       await null;
-      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
-      const target = resolve(segments);
+      const target = resolvePathArg(pathArg);
       await assertConfined(target, confinementRoot, filePowers);
       return filePowers.readFileText(target);
     },
 
     async maybeReadText(pathArg) {
       await null;
-      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
-      const target = resolve(segments);
+      const target = resolvePathArg(pathArg);
       try {
         await assertConfined(target, confinementRoot, filePowers);
         return await filePowers.readFileText(target);
@@ -255,8 +752,7 @@ const makeMountExo = ctx => {
     async writeText(pathArg, content) {
       await null;
       assertWritable();
-      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
-      const target = resolve(segments);
+      const target = resolvePathArg(pathArg);
       await assertConfinedOrAncestor(target, confinementRoot, filePowers);
       const parent = filePowers.joinPath(target, '..');
       await filePowers.makePath(parent);
@@ -266,8 +762,7 @@ const makeMountExo = ctx => {
     async remove(pathArg) {
       await null;
       assertWritable();
-      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
-      const target = resolve(segments);
+      const target = resolvePathArg(pathArg);
       await assertConfined(target, confinementRoot, filePowers);
       await filePowers.removePath(target);
     },
@@ -275,39 +770,243 @@ const makeMountExo = ctx => {
     async move(fromArg, toArg) {
       await null;
       assertWritable();
-      const from = resolve(typeof fromArg === 'string' ? [fromArg] : fromArg);
-      const to = resolve(typeof toArg === 'string' ? [toArg] : toArg);
+      const from = resolvePathArg(fromArg);
+      const to = resolvePathArg(toArg);
       await assertConfined(from, confinementRoot, filePowers);
       await assertConfinedOrAncestor(to, confinementRoot, filePowers);
       await filePowers.renamePath(from, to);
     },
 
-    async makeDirectory(pathArg) {
-      await null;
-      assertWritable();
-      const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
-      const target = resolve(segments);
-      await assertConfinedOrAncestor(target, confinementRoot, filePowers);
-      await filePowers.makePath(target);
-    },
-
     readOnly() {
-      if (readOnly) {
-        return this; // eslint-disable-line no-invalid-this
-      }
-      return makeMountExo({
-        ...ctx,
-        readOnly: true,
-        description: `Read-only view of ${description}`,
-      });
+      // Structural narrowing: return a ReadableTree view, not an
+      // EndoMount.  Mount-specific extensions (`entry`, `stat`,
+      // `displayPath`, `readText`, `makeFile`) are removed from the
+      // read-only surface; callers that need them keep a reference
+      // to the un-attenuated mount.
+      const readOnlyMount = readOnly
+        ? this.self // eslint-disable-line no-invalid-this
+        : makeMountExo({
+            ...ctx,
+            readOnly: true,
+            description: `Read-only view of ${description}`,
+          });
+      return makeReadableTreeView(readOnlyMount);
     },
 
     async snapshot() {
-      throw new Error('snapshot() is not yet implemented');
+      if (snapshotTree === undefined) {
+        throw new Error('snapshot() is not available for this mount');
+      }
+      return snapshotTree(this.self); // eslint-disable-line no-invalid-this
+    },
+
+    async write(pathArg, value) {
+      await null;
+      assertWritable();
+      const segments = segmentsFromPathArg(pathArg);
+      const target = resolveFromRoot(segments);
+      await assertConfinedOrAncestor(target, confinementRoot, filePowers);
+      const parent = filePowers.joinPath(target, '..');
+      await filePowers.makePath(parent);
+      // Detect blob-vs-tree by method names, the same shape-test
+      // `checkinTree` uses.  A `streamBase64`-bearing remotable is
+      // materialised through bytes; a `list`-bearing remotable is
+      // materialised recursively.
+      // eslint-disable-next-line no-underscore-dangle
+      const methods = await E(value).__getMethodNames__();
+      if (methods.includes('streamBase64')) {
+        if (await filePowers.isDirectory(target)) {
+          throw new Error('Path is a directory');
+        }
+        // Stream into a sibling scratch file, then atomically rename it
+        // onto the target.  Opening the writer directly on `target`
+        // would truncate it the instant the stream opens — before the
+        // source has been read.  When the source *is* the target (a live
+        // `copy(name, name)` or `write(name, lookup(name))`), that
+        // truncate destroys the very bytes the reader is about to stream,
+        // leaving the target empty.  Routing through a scratch file means
+        // the target is replaced only once the full source has been read.
+        const scratch = await reserveScratchPath(target, filePowers);
+        const writer = filePowers.makeFileWriter(scratch);
+        try {
+          for await (const bytes of iterateBytesReader(value)) {
+            // eslint-disable-next-line no-await-in-loop
+            await writer.next(bytes);
+          }
+          await writer.return(undefined);
+        } catch (error) {
+          // Make a best effort to flush and discard the partial scratch
+          // file so a failed write leaves no debris in the mount.
+          await writer.return(undefined).catch(() => {});
+          await filePowers.removePath(scratch).catch(() => {});
+          throw error;
+        }
+        await filePowers.renamePath(scratch, target);
+        return;
+      }
+      if (methods.includes('list')) {
+        await filePowers.makePath(target);
+        const names = await E(value).list();
+        for (const name of names) {
+          assertValidTreeEntryName(name);
+          // eslint-disable-next-line no-await-in-loop
+          const child = await E(value).lookup(name);
+          // eslint-disable-next-line no-await-in-loop
+          await this.self.write([...segments, name], child); // eslint-disable-line no-invalid-this
+        }
+        return;
+      }
+      throw new Error(
+        'write() value must be a ReadableBlob or ReadableTree (no streamBase64 or list method)',
+      );
+    },
+
+    async copy(fromArg, toArg) {
+      await null;
+      assertWritable();
+      const fromSegments = segmentsFromPathArg(fromArg);
+      const from = resolveFromRoot(fromSegments);
+      await assertConfined(from, confinementRoot, filePowers);
+      // Reject copying a tree into its own descendant.  `write()`
+      // materialises the destination directory before enumerating the
+      // *live* source listing, so a destination strictly below the
+      // source (e.g. copy(['dir'], ['dir', 'copy'])) would see the
+      // freshly created child, recurse into it, create its child, and
+      // loop until the filesystem is exhausted.  The first check is a
+      // segment-prefix test on the resolved paths: `to` is a descendant
+      // of `from` when `from`'s segments are a strict prefix of `to`'s.
+      const toSegments = segmentsFromPathArg(toArg);
+      const to = resolveFromRoot(toSegments);
+      const rejectDescendant = () => {
+        throw new Error(
+          `Cannot copy ${q(relativeToRoot(from, confinementRoot))} into its own descendant ${q(relativeToRoot(to, confinementRoot))}`,
+        );
+      };
+      if (
+        toSegments.length > fromSegments.length &&
+        fromSegments.every((segment, i) => segment === toSegments[i])
+      ) {
+        rejectDescendant();
+      }
+      // The logical-segment test above is blind to symlinks: a `to` whose
+      // segments are not a prefix of `from`'s can still resolve *under*
+      // `from` when an intermediate `to` component is a symlink back into
+      // the source (e.g. `to = ['link', 'x']` where `link` -> the source
+      // tree).  Re-run the descendant test on the symlink-resolved
+      // physical paths so a symlinked re-entry cannot slip past.  Both
+      // operands resolve from the same confinement root, so a shared
+      // physical prefix is a genuine ancestor relationship, not a
+      // coincidence of a common mount root above the confinement.
+      const fromPhysical = await resolvePhysicalPath(from, filePowers);
+      const toPhysical = await resolvePhysicalPath(to, filePowers);
+      if (toPhysical.startsWith(`${fromPhysical}/`)) {
+        rejectDescendant();
+      }
+      const source = await openExisting(from, fromSegments);
+      await this.self.write(toArg, source); // eslint-disable-line no-invalid-this
+    },
+  });
+
+  mountRecords.set(
+    exo,
+    harden({ rootId, currentDir, confinementRoot, readOnly }),
+  );
+  return exo;
+};
+harden(makeMountExo);
+
+/**
+ * Structural-narrowing view exposing only the `ReadableTree` surface
+ * (`has`, `list`, `lookup`) over a read-only mount.  Mount-specific
+ * extensions are not present on this Exo; the read-only surface is
+ * deliberately the platform contract, not the daemon's superset.
+ *
+ * @param {object} readOnlyMount - An EndoMount whose `readOnly` flag is true.
+ * @returns {object}
+ */
+const makeReadableTreeView = readOnlyMount => {
+  const view = makeExo('EndoMountReadableTree', ReadableTreeInterface, {
+    async has(...pathSegments) {
+      return E(readOnlyMount).has(...pathSegments);
+    },
+    async list(...pathSegments) {
+      return E(readOnlyMount).list(...pathSegments);
+    },
+    async lookup(pathArg) {
+      const result = await E(readOnlyMount).lookup(pathArg);
+      // The underlying mount returns either a sub-mount (an
+      // EndoMount) or a mount file.  Either way it is already
+      // read-only because the parent mount is; we wrap it in the
+      // structural view so descendants surface the platform shape
+      // too.
+      // eslint-disable-next-line no-underscore-dangle
+      const methods = await E(result).__getMethodNames__();
+      if (methods.includes('list')) {
+        return makeReadableTreeView(result);
+      }
+      return makeReadableBlobView(result);
+    },
+    help(method) {
+      return method === undefined
+        ? 'EndoMountReadableTree: read-only ReadableTree view over a mount.'
+        : `No documentation for method ${q(method)}.`;
+    },
+  });
+  const record = mountRecords.get(readOnlyMount);
+  if (record !== undefined) {
+    mountRecords.set(view, harden({ ...record, readOnly: true }));
+  }
+  return view;
+};
+harden(makeReadableTreeView);
+
+/**
+ * Create a mount-scoped logical entry descriptor.  Entries are values
+ * with no observational authority and no handle-minting authority of
+ * their own — those operations live on `EndoMount` and accept the
+ * entry as the path-bearing argument.
+ *
+ * @param {MountContext & { entrySegments: string[] }} ctx
+ * @returns {object}
+ */
+const makeMountEntryExo = ctx => {
+  const { entrySegments, rootId } = ctx;
+
+  const help = makeHelp({});
+
+  return makeExo('EndoMountEntry', MountEntryInterface, {
+    help,
+    segments() {
+      return harden([...entrySegments]);
+    },
+    displayPath() {
+      return entrySegments.length === 0 ? '.' : entrySegments.join('/');
+    },
+    child(name) {
+      assertValidSegment(name);
+      const childSegments = [...entrySegments, name];
+      const child = makeMountEntryExo({
+        ...ctx,
+        entrySegments: childSegments,
+      });
+      mountEntryRecords.set(
+        child,
+        harden({
+          rootId,
+          segments: childSegments,
+          physicalPath: resolveSegments(
+            ctx.confinementRoot,
+            ctx.confinementRoot,
+            childSegments,
+            ctx.filePowers,
+          ),
+        }),
+      );
+      return child;
     },
   });
 };
-harden(makeMountExo);
+harden(makeMountEntryExo);
 
 /**
  * Create a transient file exo for a file within a mount.
@@ -316,9 +1015,16 @@ harden(makeMountExo);
  * @param {boolean} readOnly
  * @param {FilePowers} filePowers
  * @param {string} confinementRoot
+ * @param {(path: string) => Promise<object>} [snapshotFile]
  * @returns {object}
  */
-const makeMountFileExo = (filePath, readOnly, filePowers, confinementRoot) => {
+const makeMountFileExo = (
+  filePath,
+  readOnly,
+  filePowers,
+  confinementRoot,
+  snapshotFile = undefined,
+) => {
   const assertWritable = () => {
     if (readOnly) {
       throw new Error('Mount is read-only');
@@ -336,13 +1042,34 @@ const makeMountFileExo = (filePath, readOnly, filePowers, confinementRoot) => {
       return filePowers.readFileText(filePath);
     },
 
-    streamBase64() {
-      const reader = filePowers.makeFileReader(filePath);
-      return makeIteratorRef(reader);
+    /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
+    streamBase64(synPromise) {
+      /** @returns {AsyncGenerator<Uint8Array>} */
+      const readConfined = async function* readConfinedFile() {
+        await assertConfined(filePath, confinementRoot, filePowers);
+        const reader = filePowers.makeFileReader(filePath);
+        try {
+          for (;;) {
+            // eslint-disable-next-line no-await-in-loop
+            const result = await reader.next();
+            if (result.done) {
+              return;
+            }
+            yield result.value;
+          }
+        } finally {
+          if (reader.return !== undefined) {
+            await reader.return(undefined);
+          }
+        }
+      };
+      const pump = makeReaderPump(mapReader(readConfined(), encodeBase64));
+      return pump(/** @type {any} */ (synPromise));
     },
 
     async json() {
       await null;
+      await assertConfined(filePath, confinementRoot, filePowers);
       const text = await filePowers.readFileText(filePath);
       return JSON.parse(text);
     },
@@ -354,28 +1081,145 @@ const makeMountFileExo = (filePath, readOnly, filePowers, confinementRoot) => {
       await filePowers.writeFileText(filePath, content);
     },
 
+    async append(content) {
+      await null;
+      assertWritable();
+      await assertConfined(filePath, confinementRoot, filePowers);
+      await filePowers.appendFileText(filePath, content);
+    },
+
     async writeBytes(readableRef) {
       await null;
       assertWritable();
       await assertConfined(filePath, confinementRoot, filePowers);
       const writer = filePowers.makeFileWriter(filePath);
-      const iterator = /** @type {AsyncIterator<Uint8Array>} */ (readableRef);
-      for (;;) {
-        // eslint-disable-next-line no-await-in-loop
-        const { done, value } = await iterator.next();
-        if (done) break;
+      for await (const value of iterateBytesReader(
+        /** @type {any} */ (readableRef),
+      )) {
         // eslint-disable-next-line no-await-in-loop
         await writer.next(value);
       }
       await writer.return(undefined);
     },
 
+    async stat() {
+      await null;
+      await assertConfined(filePath, confinementRoot, filePowers);
+      return filePowers.statPath(filePath);
+    },
+
+    // `getInfo` / `fetch` are the rich `BlobRef` range-I/O surface over the
+    // *live* file (this is a read-only face, not a snapshot — the content can
+    // still change underneath and is observed on each call). `getInfo` returns
+    // the `{ algorithm, hash, size }` triple of the current bytes (hash base64,
+    // matching `BlobRef`); `fetch` is a windowed read.
+    //
+    // The hash and size are read with one concurrent `Promise.all` to keep the
+    // window minimal, but a fully atomic snapshot would require a single
+    // combined hash+size host primitive (the XS host hashes by *path*, not over
+    // an in-memory buffer, so there is no portable read-bytes-once path). A
+    // concurrent writer mutating the file between the two reads can therefore
+    // yield a hash and size from adjacent instants; callers needing a stable
+    // identity should `snapshot()` (content-addressed, immutable) rather than
+    // reading a live face. See designs/fs-interface-consolidation.md § C4.
+    async getInfo() {
+      await null;
+      await assertConfined(filePath, confinementRoot, filePowers);
+      const [hashHex, fileStat] = await Promise.all([
+        filePowers.sha256(filePath),
+        filePowers.statPath(filePath),
+      ]);
+      return harden({
+        algorithm: 'sha256',
+        hash: encodeBase64(fromHex(hashHex)),
+        size: fileStat.size,
+      });
+    },
+
+    /**
+     * @param {bigint} offset
+     * @param {bigint} length
+     */
+    async fetch(offset, length) {
+      await null;
+      await assertConfined(filePath, confinementRoot, filePowers);
+      // Validate at the bigint→Number boundary (same `toSafeNumber` the
+      // extended `BlobRef.fetch` uses) so negative or out-of-range windows
+      // throw `EINVAL` rather than silently losing precision in `fs.read`.
+      const bytes = await filePowers.readFileRange(
+        filePath,
+        toSafeNumber(offset, 'offset'),
+        toSafeNumber(length, 'length'),
+      );
+      return bytesFromRange(bytes);
+    },
+
+    async snapshot() {
+      if (snapshotFile === undefined) {
+        throw new Error('snapshot() is not available for this mount file');
+      }
+      await assertConfined(filePath, confinementRoot, filePowers);
+      return snapshotFile(filePath);
+    },
+
     readOnly() {
-      return makeMountFileExo(filePath, true, filePowers, confinementRoot);
+      // Structural narrowing: return a ReadableBlob view, not an
+      // EndoMountFile.  Mount-specific surface (`stat`, `snapshot`)
+      // is removed; callers that need it keep a reference to the
+      // un-attenuated mount file.
+      const readOnlyFile = makeMountFileExo(
+        filePath,
+        true,
+        filePowers,
+        confinementRoot,
+        snapshotFile,
+      );
+      return makeReadableBlobView(readOnlyFile);
     },
   });
 };
 harden(makeMountFileExo);
+
+/**
+ * Structural-narrowing view exposing the read-only `ReadableBlob` surface
+ * (`streamBase64`, `text`, `json`) plus the rich range-I/O surface (`getInfo`,
+ * `fetch`) over a read-only mount file. This is a write-disabled *face* over a
+ * live file — it delegates to the underlying file, so content changes are
+ * observed; it just cannot be written through.
+ *
+ * @param {object} readOnlyFile - An EndoMountFile whose `readOnly` is true.
+ * @returns {object}
+ */
+const makeReadableBlobView = readOnlyFile => {
+  return makeExo('EndoMountReadableBlob', ReadableBlobRangeInterface, {
+    /** @param {import('@endo/eventual-send').ERef<any>} synPromise */
+    async streamBase64(synPromise) {
+      return E(readOnlyFile).streamBase64(synPromise);
+    },
+    async text() {
+      return E(readOnlyFile).text();
+    },
+    async json() {
+      return E(readOnlyFile).json();
+    },
+    async getInfo() {
+      return E(readOnlyFile).getInfo();
+    },
+    /**
+     * @param {bigint} offset
+     * @param {bigint} length
+     */
+    async fetch(offset, length) {
+      return E(readOnlyFile).fetch(offset, length);
+    },
+    help(method) {
+      return method === undefined
+        ? 'EndoMountReadableBlob: read-only ReadableBlob view over a live mount file (text, json, streamBase64, getInfo, fetch).'
+        : `No documentation for method ${q(method)}.`;
+    },
+  });
+};
+harden(makeReadableBlobView);
 
 /**
  * Create a mount exo backed by a filesystem directory.
@@ -384,17 +1228,29 @@ harden(makeMountFileExo);
  * @param {string} opts.rootPath
  * @param {boolean} opts.readOnly
  * @param {FilePowers} opts.filePowers
+ * @param {(tree: object) => Promise<object>} [opts.snapshotTree]
+ * @param {(path: string) => Promise<object>} [opts.snapshotFile]
  * @returns {object}
  */
-export const makeMount = ({ rootPath, readOnly, filePowers }) => {
+export const makeMount = ({
+  rootPath,
+  readOnly,
+  filePowers,
+  snapshotTree = undefined,
+  snapshotFile = undefined,
+}) => {
   const prefix = readOnly ? 'Read-only mount' : 'Mount';
   /** @type {MountContext} */
   const ctx = {
     currentDir: rootPath,
+    currentSegments: harden([]),
     confinementRoot: rootPath,
+    rootId: harden({}),
     readOnly,
     filePowers,
     description: `${prefix} at ${rootPath}`,
+    snapshotTree,
+    snapshotFile,
   };
 
   return makeMountExo(ctx);

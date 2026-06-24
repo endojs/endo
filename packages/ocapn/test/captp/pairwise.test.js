@@ -50,7 +50,7 @@ test('makeSlot - creates object slot with remote flag', t => {
 });
 
 test('makeSlot - handles large position values', t => {
-  const slot = makeSlot('o', true, 9007199254740991n);
+  const slot = makeSlot('o', true, 9_007_199_254_740_991n);
   t.is(slot, /** @type {any} */ ('o+9007199254740991'));
 });
 
@@ -96,7 +96,7 @@ test('parseSlot - parses large position values', t => {
   t.deepEqual(result, {
     type: 'o',
     isLocal: true,
-    position: 9007199254740991n,
+    position: 9_007_199_254_740_991n,
   });
 });
 

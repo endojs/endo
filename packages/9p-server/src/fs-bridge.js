@@ -14,7 +14,7 @@ const BridgeInterface = M.interface('FsBridge9p', {
 });
 
 /**
- * Bridge an `@endo/endo-fs` `Filesystem` capability to a 9P2000.L
+ * Bridge an `@endo/platform/fs/extended` `Filesystem` capability to a 9P2000.L
  * UDS endpoint. Anyone speaking 9P over a Unix domain socket — QEMU
  * with `-chardev socket,server=off`, Linux v9fs with `mount -t 9p`,
  * `diod`, etc. — can connect and traverse the FS the cap projects.
@@ -28,7 +28,7 @@ const BridgeInterface = M.interface('FsBridge9p', {
  * the `lookup` that produced its parent cap so the discovery
  * shares the walk's round-trip — `getQid()` is sync on the
  * responder but costs one RTT across CapTP if issued separately
- * (`@endo/endo-fs/DESIGN.md` §4.10). `src/server.js` has the 9P
+ * (`@endo/platform/fs/extended/DESIGN.md` §4.10). `src/server.js` has the 9P
  * message → cap call mapping.
  *
  * Cancellation: callers may pass a `cancelled` promise. Its
@@ -104,6 +104,16 @@ export const makeFsBridge9p = ({
       // 0600: the 9P bridge exposes the full authority of the FS
       // capability projected through it. Anyone who can connect can
       // exercise that authority; restrict to the owning UID only.
+      //
+      // There is a small window between `listen()` creating the socket
+      // (at the process umask) and this `chmod`. The atomic fix would be
+      // a restrictive umask across the bind, but `process.umask()` is
+      // unsupported in worker threads (where bridges may run), so we
+      // narrow exposure two other ways instead: callers place the socket
+      // in a private dir (`mount-caplet.js` prefers `XDG_RUNTIME_DIR`,
+      // which is 0700), and the socket name is unpredictable, so a local
+      // user can't pre-position to connect during the window even on the
+      // world-writable `os.tmpdir()` fallback.
       await chmod(socketPath, 0o600);
     },
 

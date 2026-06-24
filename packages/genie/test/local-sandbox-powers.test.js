@@ -300,6 +300,43 @@ test('Mount.lookup allows a symlink whose target stays inside the mount root', a
   t.deepEqual(entries, ['hello.txt']);
 });
 
+test('Mount.maybeLookup returns the cap for a present path and undefined for an absent one', async t => {
+  const { makeMountCapForPath, dispose } = makeLocalSandboxPowers();
+  t.teardown(dispose);
+
+  const workspaceDir = mkdtempSync(join(tmpdir(), 'genie-local-test-ml-'));
+  t.teardown(() => fs.rm(workspaceDir, { recursive: true, force: true }));
+  await fs.writeFile(join(workspaceDir, 'present.txt'), 'hi');
+
+  const mount = /** @type {any} */ (makeMountCapForPath(workspaceDir));
+  const file = await E(mount).maybeLookup('present.txt');
+  t.not(file, undefined);
+  t.is(await E(file).text(), 'hi');
+  // Absent path yields undefined rather than throwing.
+  t.is(await E(mount).maybeLookup('missing.txt'), undefined);
+});
+
+test('Mount.maybeLookup confines a symlink escape to undefined (no host-fs leak)', async t => {
+  const { makeMountCapForPath, dispose } = makeLocalSandboxPowers();
+  t.teardown(dispose);
+
+  // Same escape geometry as the `lookup` symlink-rejection test, but
+  // exercised through `maybeLookup`: the out-of-root rejection that
+  // `lookup` throws must surface as `undefined` here (lookup-or-absent),
+  // never as the leaked sibling cap.
+  const tmp = mkdtempSync(join(tmpdir(), 'genie-local-test-ml-escape-'));
+  t.teardown(() => fs.rm(tmp, { recursive: true, force: true }));
+  const workspaceDir = join(tmp, 'ws');
+  const siblingDir = join(tmp, 'sibling');
+  await fs.mkdir(workspaceDir);
+  await fs.mkdir(siblingDir);
+  await fs.writeFile(join(siblingDir, 'secret.txt'), 'must not leak');
+  await fs.symlink(siblingDir, join(workspaceDir, 'escape'));
+
+  const mount = /** @type {any} */ (makeMountCapForPath(workspaceDir));
+  t.is(await E(mount).maybeLookup('escape'), undefined);
+});
+
 test('provideHostPath rejects sub-Mounts minted by Mount.lookup', async t => {
   // Composition of saboteur findings 1 and 2: if `lookup` returned a
   // sub-Mount and `provideHostPath` accepted it, an attacker could

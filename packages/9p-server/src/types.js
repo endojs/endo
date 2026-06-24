@@ -103,10 +103,10 @@ export const E = harden({
 
 // File mode bits (POSIX)
 export const S = harden({
-  IFREG: 0o0100000,
-  IFDIR: 0o0040000,
-  IFLNK: 0o0120000,
-  IFMT: 0o0170000,
+  IFREG: 0o010_0000,
+  IFDIR: 0o004_0000,
+  IFLNK: 0o012_0000,
+  IFMT: 0o017_0000,
 });
 
 export const GETATTR_BASIC = 0x7ffn; // valid bits set for a basic stat reply

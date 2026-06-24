@@ -25,7 +25,7 @@ async function openEvalModal(page: Page) {
   // Or the modal might open directly depending on mode
 
   // Wait for Monaco iframe to load
-  await page.waitForSelector('iframe[src*="monaco"]', { timeout: 15000 });
+  await page.waitForSelector('iframe[src*="monaco"]', { timeout: 15_000 });
 }
 
 // Helper to get the Monaco iframe

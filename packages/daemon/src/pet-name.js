@@ -150,3 +150,21 @@ export const namePathFrom = nameOrPath => {
   assertNamePath(path);
   return /** @type {NamePath} */ (path);
 };
+
+/**
+ * Coerces a name or path to a validated **pet-name path**: a name path
+ * whose final segment is a pet name (the others may be any name). This is
+ * the canonical validator for a store target — a place a new value is
+ * named — combining {@link namePathFrom} (coerce + validate each segment)
+ * with {@link assertPetNamePath} (require a pet-name leaf). Returns the
+ * full path, the prefix path (all but the last segment), and the final
+ * pet name.
+ *
+ * Use {@link namePathFrom} instead when the leaf may be a special name
+ * (e.g. resolving an existing `@main` worker or `@agent` powers).
+ *
+ * @param {string | string[]} nameOrPath
+ * @returns {{ namePath: NamePath, prefixPath: NamePath, petName: PetName }}
+ */
+export const petNamePathFrom = nameOrPath =>
+  assertPetNamePath(namePathFrom(nameOrPath));

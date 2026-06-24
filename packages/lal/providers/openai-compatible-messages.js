@@ -1,6 +1,25 @@
 // @ts-check
 
-/** @import { ChatMessage } from '../agent.types.js' */
+/**
+ * @typedef {object} ChatToolCall
+ * @property {string} [id]
+ * @property {{ name: string, arguments: Record<string, unknown> | string }} function
+ */
+
+/**
+ * Minimal message shape consumed by `toOpenAICompatibleMessages`. Inlined
+ * here because the broader `ChatMessage` type that used to live in
+ * `../agent.types.js` was removed when the agent harness migrated to
+ * pi-agent-core; the OpenAI-compatible providers in this directory still
+ * use this normalization for downstream consumers.
+ *
+ * @typedef {object} ChatMessage
+ * @property {'system' | 'user' | 'assistant' | 'tool'} role
+ * @property {string | null} [content]
+ * @property {ChatToolCall[]} [tool_calls]
+ * @property {string} [tool_call_id]
+ */
+
 /** @import { ChatCompletionMessageParam } from 'openai/resources/chat/completions' */
 
 /**

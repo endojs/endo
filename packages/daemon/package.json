@@ -1,6 +1,6 @@
 {
   "name": "@endo/daemon",
-  "version": "2.5.3",
+  "version": "3.0.0",
   "private": true,
   "description": "Endo daemon",
   "keywords": [
@@ -27,17 +27,16 @@
       "types": "./types.d.ts",
       "default": "./index.js"
     },
-    "./ref-reader.js": "./ref-reader.js",
-    "./reader-ref.js": "./reader-ref.js",
     "./locator.js": "./locator.js",
     "./pet-name.js": "./src/pet-name.js",
+    "./type-guards.js": "./src/type-guards.js",
     "./src/interfaces.js": "./src/interfaces.js",
+    "./src/mount.js": "./src/mount.js",
+    "./src/daemon-node-powers.js": "./src/daemon-node-powers.js",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
-    "postpack": "git clean -fX -e node_modules/",
     "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
@@ -53,8 +52,6 @@
     "test:supervisors": "yarn test:go && yarn test:rust"
   },
   "dependencies": {
-    "@chainsafe/libp2p-noise": "^16.1.3",
-    "@chainsafe/libp2p-yamux": "^7.0.4",
     "@endo/base64": "workspace:^",
     "@endo/bytes": "workspace:^",
     "@endo/captp": "workspace:^",
@@ -62,8 +59,10 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
+    "@endo/exo-git": "workspace:^",
     "@endo/exo-stream": "workspace:^",
     "@endo/far": "workspace:^",
+    "@endo/git": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/hex": "workspace:^",
     "@endo/import-bundle": "workspace:^",
@@ -76,23 +75,15 @@
     "@endo/relay-server": "workspace:^",
     "@endo/stream": "workspace:^",
     "@endo/stream-node": "workspace:^",
+    "@endo/tar": "workspace:^",
     "@endo/where": "workspace:^",
     "@endo/zip": "workspace:^",
-    "@libp2p/autonat": "^3.0.10",
-    "@libp2p/bootstrap": "^11.0.47",
-    "@libp2p/circuit-relay-v2": "^3.2.24",
-    "@libp2p/crypto": "^5.1.8",
-    "@libp2p/dcutr": "^3.0.10",
-    "@libp2p/identify": "^3.0.39",
-    "@libp2p/kad-dht": "14.2.15",
-    "@libp2p/ping": "^2.0.37",
-    "@libp2p/webrtc": "^5.2.24",
-    "@libp2p/websockets": "^9.2.19",
-    "@multiformats/multiaddr": "^12.4.4",
     "better-sqlite3": "^11.0.0",
-    "libp2p": "^2.10.0",
     "ses": "workspace:^",
     "ws": "^8.13.0"
+  },
+  "optionalDependencies": {
+    "@number0/iroh": "^1.0.0"
   },
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",

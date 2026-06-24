@@ -1,13 +1,17 @@
 // @ts-check
 
 export {
-  AsyncIteratorInterface,
+  readableBlobMethodGuards,
+  readableTreeMethodGuards,
+  readableNameHubMethodGuards,
+  directoryFileMethodGuards,
+  getInfoMethodGuard,
+  rangeReadMethodGuards,
   ReadableBlobInterface,
+  ReadableBlobRangeInterface,
   SnapshotBlobInterface,
   ReadableTreeInterface,
   SnapshotTreeInterface,
-  ContentStoreInterface,
-  SnapshotStoreInterface,
   TreeWriterInterface,
   FileInterface,
   DirectoryInterface,
@@ -18,5 +22,3 @@ export { snapshotTreeMethods } from './snapshot-tree.js';
 export { makeSnapshotStore } from './snapshot-store.js';
 export { checkinTree } from './checkin.js';
 export { checkoutTree } from './checkout.js';
-export { makeRefReader, makeRefIterator } from './ref-reader.js';
-export { makeReaderRef, makeIteratorRef, asyncIterate } from './reader-ref.js';

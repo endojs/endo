@@ -1,13 +1,12 @@
 // @ts-nocheck - Component test with happy-dom
 /* global globalThis */
-/* eslint-disable no-await-in-loop */
 
-import 'ses';
-import '@endo/eventual-send/shim.js';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
-import { createDOM, tick } from '../helpers/dom-setup.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
+import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
 
 import { outlinerComponent } from '../../outliner-component.js';
 
@@ -75,7 +74,7 @@ const makeMockChannel = ({ name = 'test-channel' } = {}) => {
       return 'member-1';
     },
     followMessages() {
-      return messagesIterator;
+      return readerFromIterator(messagesIterator);
     },
     post(...args) {
       postCalls.push(args);
@@ -214,6 +213,13 @@ const directChildren = (parent, className) => {
 };
 
 /**
+ * Disposers for components mounted by `setup`, drained in `afterEach`.
+ *
+ * @type {Array<() => void>}
+ */
+const mountedDisposals = [];
+
+/**
  * Set up a fresh outliner component for testing.
  * Returns helpers for pushing messages and inspecting the DOM.
  */
@@ -256,23 +262,31 @@ const setup = async () => {
     onBookmark: undefined,
   });
 
-  // Wait for async setup (getProposedName, getMember, followMessages)
-  await tick(50);
+  // Wait for async setup (getProposedName, getMember, followMessages) by polling
+  // for the control API rather than racing a fixed delay on a loaded CI runner.
+  await waitFor(() => !!$parent.channelAPI);
+
+  // Dispose the component after the test so its `for await` consumer loop and
+  // timers stop before the shared DOM is torn down.
+  mountedDisposals.push(() => {
+    const api = /** @type {any} */ ($parent).channelAPI;
+    if (api) api.dispose();
+  });
 
   /**
-   * Push messages and wait for them to render.
-   * Pushes all messages rapidly, then waits for the batch render.
+   * Push messages and wait for them all to render as committed nodes. Polling
+   * the rendered `[data-key]` nodes is robust against the batch debounce, where
+   * a fixed delay races the render on a loaded runner.
    *
    * @param {unknown[]} msgs
    */
   const pushAll = async msgs => {
     for (const msg of msgs) {
       pushMessage(msg);
-      // Small tick to allow for-await-of to consume each message
-      await tick(10);
     }
-    // Wait for batch timer (50ms) + rendering
-    await tick(300);
+    await waitFor(() =>
+      msgs.every(msg => !!$parent.querySelector(`[data-key="${msg.number}"]`)),
+    );
   };
 
   return {
@@ -283,7 +297,14 @@ const setup = async () => {
   };
 };
 
-test.afterEach(() => {
+test.afterEach(async () => {
+  while (mountedDisposals.length > 0) {
+    const dispose = /** @type {() => void} */ (mountedDisposals.pop());
+    dispose();
+  }
+  // Let the iterator's return() and pending timers settle (macrotask) before
+  // detaching the DOM, matching forum.test.js.
+  await tick(0);
   testDocument.body.innerHTML = '';
 });
 
@@ -323,8 +344,12 @@ test.serial(
     });
     $msg2Text.dispatchEvent(enterEvent);
 
-    // Wait for requestAnimationFrame to fire
-    await tick(50);
+    // Poll for the draft to be inserted (it appears via requestAnimationFrame)
+    // rather than racing a fixed delay.
+    await waitFor(() => {
+      const $children = directChild($msg2Node, 'outliner-children');
+      return !!$children && !!directChild($children, 'outliner-draft');
+    });
 
     restoreSelection();
 
@@ -386,7 +411,14 @@ test.serial(
     });
     $msg2Text.dispatchEvent(enterEvent);
 
-    await tick(50);
+    // Poll for the sibling draft to land in message 1's children.
+    await waitFor(() => {
+      const $m1 = $parent.querySelector('[data-key="1"]');
+      const $children = $m1 && directChild($m1, 'outliner-children');
+      return (
+        !!$children && directChildren($children, 'outliner-draft').length === 1
+      );
+    });
 
     restoreSelection();
 
@@ -436,7 +468,11 @@ test.serial(
     });
     $msg1Text.dispatchEvent(enterEvent);
 
-    await tick(50);
+    // Poll for the child draft to land in the root's children.
+    await waitFor(() => {
+      const $children = directChild($msg1Node, 'outliner-children');
+      return !!$children && !!directChild($children, 'outliner-draft');
+    });
 
     restoreSelection();
 
