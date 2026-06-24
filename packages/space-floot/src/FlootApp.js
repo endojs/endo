@@ -122,7 +122,10 @@ export const FlootApp = ({ controller }) => {
     // Skip the modal only when there is nothing to choose — a single preset and
     // no model alternatives. Multiple models alone still warrant the picker.
     if (presets.length <= 1 && models.length <= 1) {
-      controller.newSession(presets[0] ? presets[0].id : undefined);
+      controller.newSession(
+        presets[0] ? presets[0].id : undefined,
+        models[0] ? models[0].id : undefined,
+      );
       setDrawerOpen(false);
     } else {
       setModalOpen(true);
