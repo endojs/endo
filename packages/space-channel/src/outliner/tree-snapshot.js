@@ -46,6 +46,20 @@ import {
  */
 
 /**
+ * One react pill's summary for a node. Plain data projected from the host
+ * `reactSystem` (`reactsForKey`, react-utils.js): the emoji, how many members
+ * reacted with it, and whether the viewer is one of them (drives the
+ * `react-pill-own` class and the toggle direction). The confined `Reacts` row
+ * consumes this; toggling routes back to the controller which posts
+ * `react`/`redact-react`.
+ *
+ * @typedef {object} SnapshotReact
+ * @property {string} emoji - The reaction emoji.
+ * @property {number} count - Number of members who reacted with this emoji.
+ * @property {boolean} mine - Whether the viewer reacted with this emoji.
+ */
+
+/**
  * One node in the outliner render model. Primitives + nested data only — this
  * is the Phase-2 interface a confined `OutlinerNode` will receive as props, so
  * it deliberately carries NO DOM, callbacks, or object identity used as effect
@@ -70,6 +84,8 @@ import {
  *   `undefined` when unedited.
  * @property {boolean} isDraft - Whether this is an uncommitted draft node.
  * @property {boolean} editing - Whether the user is actively editing this node.
+ * @property {SnapshotReact[]} reacts - React pill summaries for this node
+ *   (empty when no reacts; projected from the host `reactSystem`).
  * @property {OutlinerSnapshotNode[]} children - Nested child nodes (empty when
  *   none or when collapsed-and-omitted is desired; see `includeCollapsed`).
  */
@@ -118,6 +134,9 @@ const badgesForReplyType = replyType => {
  * @property {string | undefined} editingKey - Key the user is actively editing.
  * @property {Map<string, DraftNode>} drafts - Active drafts by id (appended to
  *   their parent's children, matching the imperative DOM).
+ * @property {(key: string) => SnapshotReact[]} [reactsForKey] - Project a
+ *   node's react pill summaries from the host `reactSystem` (powers/`E()` stay
+ *   controller-side). Optional: absent → no reacts.
  */
 
 /**
@@ -141,6 +160,7 @@ const buildCommittedNode = (
 ) => {
   const entry = store.messageIndex.get(key);
   const replyType = entry ? entry.message.replyType : undefined;
+  const reacts = view.reactsForKey ? view.reactsForKey(key) : [];
   return harden({
     key,
     depth,
@@ -158,6 +178,7 @@ const buildCommittedNode = (
     editedBy: effective.editedByMemberId,
     isDraft: false,
     editing: view.editingKey === key,
+    reacts: harden([...reacts]),
     children: [],
   });
 };
@@ -186,6 +207,7 @@ const buildDraftNode = (view, draft, depth) =>
     editedBy: undefined,
     isDraft: true,
     editing: view.editingKey === draft.draftId,
+    reacts: harden([]),
     children: [],
   });
 

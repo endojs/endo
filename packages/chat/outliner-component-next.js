@@ -7,13 +7,21 @@
 /** @import { SnapshotViewState, OutlinerSnapshotNode } from '@endo/space-channel/outliner/tree-snapshot.js' */
 /** @import { EditableLine, LineContent, EnterIntent } from '@endo/space-channel/outliner/editable-line.js' */
 /** @import { DraftStore, DraftNode, ParsedContent } from '@endo/space-channel/outliner/controller-intents.js' */
-/** @import { OutlinerCallbacks, BreadcrumbItem } from '@endo/space-channel/outliner/outliner-structure.js' */
+/** @import { OutlinerCallbacks, BreadcrumbItem, SlashMenuState, ProfilePopupState, EditHistoryState, PopupCallbacks } from '@endo/space-channel/outliner/outliner-structure.js' */
+/** @import { SnapshotReact } from '@endo/space-channel/outliner/tree-snapshot.js' */
+/** @import { SlashCommand } from '@endo/space-channel/outliner/slash-commands.js' */
+/** @import { TokenAutocompleteAPI } from '@endo/chat-kit/token-autocomplete.js' */
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
-import { isVisibleReplyType } from '@endo/space-channel/edit-queue.js';
+import { tokenAutocompleteComponent } from '@endo/chat-kit/token-autocomplete.js';
+import {
+  computeNodeContent,
+  isVisibleReplyType,
+} from '@endo/space-channel/edit-queue.js';
+import { createReactSystem } from '@endo/space-channel/react-utils.js';
 import {
   getEffectiveParent,
   getEffectiveSortOrder,
@@ -29,6 +37,7 @@ import {
   postMove,
 } from '@endo/space-channel/outliner/controller-intents.js';
 import { makeEditableLine } from '@endo/space-channel/outliner/editable-line.js';
+import { filterSlashCommands } from '@endo/space-channel/outliner/slash-commands.js';
 import { OutlinerRoot } from '@endo/space-channel/outliner/outliner-structure.js';
 
 import { h, renderConfined, unmount } from './setup-preact-container.js';
@@ -162,8 +171,22 @@ harden(lineContentToParsed);
  *   queries stay controller-side, never enter the confined tree).
  * @param {object} [options]
  * @param {ERef<EndoHost>} [options.powers] - Host powers; controller-only (§5).
+ * @param {string} [options.ownMemberId] - The viewer's member id (drives the
+ *   react-pill `mine` flag).
  * @param {(info: import('@endo/space-channel/outliner/controller-intents.js').MentionNotify) => void} [options.onMentionNotify]
  *   Post-commit hook fired when a posted edit/draft carries at-mentions (§5).
+ * @param {(info: { number: bigint, memberId: string, authorName: string, preview: string }) => void} [options.onReply]
+ *   Reply action: open the chat bar targeting a node (§5).
+ * @param {(heritageChain: ChannelMessage[], previewText: string) => Promise<void>} [options.onFork]
+ *   Fork action: fork a node's heritage into a new channel (payload computed
+ *   controller-side via `getHeritageChain`, §5).
+ * @param {(heritageChain: ChannelMessage[], previewText: string) => void} [options.onShare]
+ *   Share action (payload via `getHeritageChain`, §5).
+ * @param {(key: string, preview: string) => void} [options.onBookmark]
+ *   Bookmark action.
+ * @param {typeof tokenAutocompleteComponent} [options.tokenAutocompleteFactory]
+ *   Injectable token-autocomplete factory (defaults to the real
+ *   `tokenAutocompleteComponent`); a seam for tests to spy attach/detach.
  * @returns {Promise<{ dispose: () => void }>}
  */
 export const outlinerComponentNext = async (
@@ -215,6 +238,8 @@ export const outlinerComponentNext = async (
     focusedKey: undefined,
     editingKey: undefined,
     drafts: draftStore.drafts,
+    // eslint-disable-next-line no-use-before-define
+    reactsForKey: key => reactsForKey(key),
   };
 
   // ---- Author-name resolution (controller-side; powers never enter the tree) ----
@@ -246,6 +271,152 @@ export const outlinerComponentNext = async (
       .catch(() => {
         pendingNames.delete(memberId);
       });
+  };
+
+  /**
+   * Fetch the full member info (proposed name + pedigree) for the profile popup
+   * and the react system. Mirrors the `getMemberInfo` of `createChannelState`
+   * (channel-utils.js) — powers/`E()` stay controller-side (§5).
+   *
+   * @param {string} memberId
+   * @returns {Promise<{ proposedName: string, pedigree: string[], pedigreeMemberIds: string[] } | undefined>}
+   */
+  const getMemberInfo = memberId =>
+    Promise.resolve(
+      E(/** @type {ChannelRef} */ (channel)).getMember(memberId),
+    ).then(info =>
+      info
+        ? {
+            proposedName: info.proposedName,
+            pedigree: info.pedigree || [],
+            pedigreeMemberIds: info.pedigreeMemberIds || [],
+          }
+        : undefined,
+    );
+
+  // ---- React system (host-side; `E()` / picker DOM stay out of the tree) ----
+  // The react system tracks `react`/`redact-react` messages and owns the
+  // emoji picker DOM. The confined tree only ever sees the projected
+  // `SnapshotReact[]` summary; toggling a pill routes back through
+  // `onToggleReact` to a `post(..., 'react'|'redact-react')`.
+  const reactSystem = createReactSystem({
+    channel,
+    ownMemberId: options.ownMemberId,
+    nameMap,
+    getMemberInfo,
+  });
+
+  /**
+   * Project a node's react pills into the plain `SnapshotReact[]` the confined
+   * `Reacts` row consumes. Reads the host `reactSystem.reactsForKey` map (no
+   * `E()`); the viewer's own reactions drive `mine`.
+   *
+   * @param {string} key
+   * @returns {SnapshotReact[]}
+   */
+  const reactsForKey = key => {
+    const reacts = reactSystem.reactsForKey.get(key);
+    if (!reacts || reacts.size === 0) return [];
+    const myId = options.ownMemberId || '';
+    /** @type {SnapshotReact[]} */
+    const out = [];
+    for (const [emoji, members] of reacts) {
+      out.push({ emoji, count: members.size, mine: members.has(myId) });
+    }
+    return out;
+  };
+
+  // ---- Slash-menu / popup view state (controller-owned, passed as props) ----
+  /** @type {SlashMenuState | null} */
+  let slashMenu = null;
+  /** @type {ProfilePopupState | null} */
+  let profilePopup = null;
+  /** @type {EditHistoryState | null} */
+  let editHistory = null;
+
+  // ---- Token autocomplete (host controller onto the island's real $text) ----
+  // The autocomplete component is itself a host controller over a
+  // contentEditable input + a dropdown `$menu`; it mounts onto the focused
+  // line's real `$text` (the island's `$node`) — never onto the confined tree.
+  // Only one is active at a time, attached on line focus and torn down on blur
+  // / focus-change / dispose. Mirrors outliner-component.js:1494/1525.
+
+  /** @type {string[]} Shared pet names fed to every autocomplete instance. */
+  const sharedPetNames = [];
+  // Subscribe once to followNameChanges so the autocomplete dropdown can offer
+  // the host's pet names (powers stay controller-side, §5).
+  /** @type {{ return?: () => unknown } | undefined} */
+  let nameChangesIterator;
+  if (options.powers) {
+    const powers = options.powers;
+    (async () => {
+      const changesRef = await E(powers).followNameChanges();
+      const it = iterateReader(
+        /** @type {Parameters<typeof iterateReader>[0]} */ (
+          /** @type {unknown} */ (changesRef)
+        ),
+      );
+      nameChangesIterator = it;
+      for await (const change of it) {
+        const c = /** @type {{ add?: string, remove?: string }} */ (change);
+        if (c.add !== undefined) {
+          sharedPetNames.push(c.add);
+          sharedPetNames.sort();
+        } else if (c.remove !== undefined) {
+          const idx = sharedPetNames.indexOf(c.remove);
+          if (idx !== -1) sharedPetNames.splice(idx, 1);
+        }
+      }
+    })().catch(() => {});
+  }
+
+  /** @type {TokenAutocompleteAPI | null} */
+  let activeTokenComponent = null;
+  /** @type {HTMLElement | null} */
+  let activeTokenMenu = null;
+  /** @type {string | null} */
+  let activeTokenKey = null;
+
+  /** Tear down the active token autocomplete instance, if any. */
+  const detachTokenAutocomplete = () => {
+    if (activeTokenMenu) {
+      activeTokenMenu.remove();
+    }
+    activeTokenMenu = null;
+    activeTokenComponent = null;
+    activeTokenKey = null;
+  };
+
+  /**
+   * Attach token autocomplete to the focused line's real `$text`. The dropdown
+   * `$menu` is appended to the line's `$node` (host-owned), never into the
+   * confined tree. Replaces any previous instance.
+   *
+   * @param {string} key
+   */
+  const attachTokenAutocomplete = key => {
+    if (!options.powers) return;
+    if (activeTokenKey === key && activeTokenComponent) return;
+    detachTokenAutocomplete();
+    const line = lines.get(key);
+    if (!line) return;
+    const $menu = document.createElement('div');
+    $menu.className = 'token-menu';
+    line.$node.appendChild($menu);
+    activeTokenMenu = $menu;
+    activeTokenKey = key;
+    const typedIterateReader =
+      /** @type {(ref: unknown) => AsyncIterable<unknown>} */ (
+        /** @type {unknown} */ (iterateReader)
+      );
+    const factory =
+      options.tokenAutocompleteFactory || tokenAutocompleteComponent;
+    activeTokenComponent = factory(line.$node, $menu, {
+      E,
+      iterateReader: typedIterateReader,
+      powers: /** @type {ERef<EndoHost>} */ (options.powers),
+      externalPetNames: sharedPetNames,
+    });
   };
 
   // ---- Editable-line island map (one persistent host line per node) ----
@@ -347,6 +518,13 @@ export const outlinerComponentNext = async (
   const onLineCommit = (key, parsed) => {
     // Blur ends editing; the snapshot's `editing` flag clears on the next render.
     if (view.editingKey === key) view.editingKey = undefined;
+    // Blur detaches the token autocomplete attached to this line and closes any
+    // slash menu (mirrors the blur teardown, outliner-component.js:1525).
+    if (activeTokenKey === key) detachTokenAutocomplete();
+    if (slashMenu && slashMenu.key === key) {
+      slashMenu = null;
+      syncSlashOpen(undefined);
+    }
     if (isDraftKey(key)) {
       commitDraft(key, parsed);
     } else {
@@ -660,6 +838,130 @@ export const outlinerComponentNext = async (
       view.selectedNodes.clear();
       scheduleRender();
     }
+    // Attach token autocomplete onto the focused line's real `$text`, exactly
+    // as channel/forum do (outliner-component.js:1494).
+    attachTokenAutocomplete(key);
+  };
+
+  // ---- Slash menu (island caret ↔ controller state coordination) ----
+  // The island detects a `/query` trigger from its OWN caret and reports the
+  // query string; the controller holds the `slashMenu` view state and renders
+  // the confined `SlashMenu`. While the menu is open, the controller tells the
+  // line (`setSlashOpen(true)`) to route nav keys to `onLineSlashNav` rather
+  // than acting on them itself. No island scrapes sibling DOM.
+
+  /**
+   * Reflect the controller's slash-menu open/closed state onto a line so its
+   * keydown routes nav keys while the menu is up. Mirrors `isSlashMenuVisible`
+   * gating in `handleSlashMenuKeydown` (outliner-component.js:1666).
+   *
+   * @param {string | undefined} openKey - The key whose menu is open, if any.
+   */
+  const syncSlashOpen = openKey => {
+    for (const [key, line] of lines) {
+      line.setSlashOpen(key === openKey);
+    }
+  };
+
+  /**
+   * Island input reported a slash trigger. Open / update / close the menu for
+   * this draft. Only drafts get a slash menu (the original only wires it on
+   * draft lines, outliner-component.js:1947); a committed line reports `null`.
+   * Mirrors `checkSlashTrigger` (outliner-component.js:1709).
+   *
+   * @param {string} key
+   * @param {string | null} query
+   */
+  const onLineSlashQuery = (key, query) => {
+    if (query === null || !isDraftKey(key)) {
+      if (slashMenu && slashMenu.key === key) {
+        slashMenu = null;
+        syncSlashOpen(undefined);
+        scheduleRender();
+      }
+      return;
+    }
+    // A trigger is active: filter; if nothing matches, hide (matching the
+    // original's `filtered.length === 0` hide, outliner-component.js:1604).
+    if (filterSlashCommands(query).length === 0) {
+      if (slashMenu && slashMenu.key === key) {
+        slashMenu = null;
+        syncSlashOpen(undefined);
+        scheduleRender();
+      }
+      return;
+    }
+    const selectedIndex =
+      slashMenu && slashMenu.key === key ? slashMenu.selectedIndex : 0;
+    slashMenu = { key, query, selectedIndex };
+    syncSlashOpen(key);
+    scheduleRender();
+  };
+
+  /**
+   * Apply a chosen slash command to a draft: set its `replyType`, clear the
+   * line's slash text, and close the menu. Mirrors `applySlashCommand`
+   * (outliner-component.js:1564).
+   *
+   * @param {string} key
+   * @param {SlashCommand} cmd
+   */
+  const onSlashSelect = (key, cmd) => {
+    const draft = draftStore.getDraft(key);
+    if (draft) {
+      draft.replyType = cmd.replyType;
+      draft.text = '';
+    }
+    const line = lines.get(key);
+    if (line) line.clearSlashText();
+    editBuffers.delete(key);
+    slashMenu = null;
+    syncSlashOpen(undefined);
+    scheduleRender();
+  };
+
+  /**
+   * Close the slash menu (backdrop click or island Escape). The draft keeps its
+   * text; only the menu goes away.
+   *
+   * @param {string} key
+   */
+  const onSlashDismiss = key => {
+    if (slashMenu && slashMenu.key === key) {
+      slashMenu = null;
+      syncSlashOpen(undefined);
+      scheduleRender();
+    }
+  };
+
+  /**
+   * Island routed a nav key while the slash menu is open. Mirrors the
+   * ArrowUp/Down/Enter/Tab/Escape handling of `handleSlashMenuKeydown`
+   * (outliner-component.js:1674): move the highlighted index, apply the
+   * highlighted command, or cancel.
+   *
+   * @param {string} key
+   * @param {'up' | 'down' | 'select' | 'cancel'} action
+   */
+  const onLineSlashNav = (key, action) => {
+    if (!slashMenu || slashMenu.key !== key) return;
+    const filtered = filterSlashCommands(slashMenu.query);
+    if (action === 'cancel') {
+      onSlashDismiss(key);
+      return;
+    }
+    if (action === 'select') {
+      const cmd = filtered[slashMenu.selectedIndex];
+      if (cmd) onSlashSelect(key, cmd);
+      return;
+    }
+    const delta = action === 'down' ? 1 : -1;
+    const nextIndex = Math.max(
+      0,
+      Math.min(slashMenu.selectedIndex + delta, filtered.length - 1),
+    );
+    slashMenu = { ...slashMenu, selectedIndex: nextIndex };
+    scheduleRender();
   };
 
   /**
@@ -736,6 +1038,8 @@ export const outlinerComponentNext = async (
             onIndent: onLineIndent,
             onDedent: onLineDedent,
             onCaretArrow: onLineCaretArrow,
+            onSlashQuery: onLineSlashQuery,
+            onSlashNav: onLineSlashNav,
           }),
         );
       } else if (!node.isDraft && !isEditingLine(key)) {
@@ -761,10 +1065,172 @@ export const outlinerComponentNext = async (
     }
   };
 
+  // ---- Per-node action handlers (the §4 `NodeActions` seam) ----
+  // Each resolves any data payload controller-side (heritage chain, preview,
+  // author name) before invoking the external `options.*` callback; the
+  // confined tree only ever passes a `key`.
+
+  /** @param {string} key */
+  const previewOf = key => {
+    const node = lastSnapshotByKey.get(key);
+    return node ? node.effective.strings.join('').slice(0, 60) : '';
+  };
+
+  /** @param {string} key */
+  const onActionReply = key => {
+    if (!options.onReply) return;
+    const entry = store.messageIndex.get(key);
+    if (!entry) return;
+    const { message } = entry;
+    const preview = previewOf(key);
+    getMemberInfo(message.memberId)
+      .then(info => {
+        options.onReply &&
+          options.onReply({
+            number: message.number,
+            memberId: message.memberId,
+            authorName: info ? info.proposedName : message.memberId,
+            preview,
+          });
+      })
+      .catch(() => {});
+  };
+
+  /** @param {string} key */
+  const onActionFork = key => {
+    if (!options.onFork) return;
+    const chain = getHeritageChain(store, key);
+    const preview = previewOf(key) || 'Forked note';
+    Promise.resolve(options.onFork(chain, preview)).catch(() => {});
+  };
+
+  /** @param {string} key */
+  const onActionShare = key => {
+    if (!options.onShare) return;
+    const chain = getHeritageChain(store, key);
+    const preview = previewOf(key) || 'Shared note';
+    options.onShare(chain, preview);
+  };
+
+  /** @param {string} key */
+  const onActionBookmark = key => {
+    if (!options.onBookmark) return;
+    options.onBookmark(key, previewOf(key) || 'Bookmarked thread');
+  };
+
+  /** @param {string} key */
+  const onActionDelete = key => {
+    const entry = store.messageIndex.get(key);
+    if (entry) {
+      postDeletion({ channel, replyTo: String(entry.message.number) });
+    }
+  };
+
+  /**
+   * Open the react picker for a node. The picker is host-side
+   * (`reactSystem.showReactPicker`, react-utils.js:665); it anchors near the
+   * node's re-parented line.
+   *
+   * @param {string} key
+   */
+  const onActionReact = key => {
+    const line = lines.get(key);
+    if (line) reactSystem.showReactPicker(line.$node, key);
+  };
+
+  /**
+   * Toggle a react pill: post `react` / `redact-react` for `emoji` on `key`.
+   * Mirrors the pill click handler (react-utils.js:574). The optimistic update
+   * happens when the echo arrives through `processReactMessage`.
+   *
+   * @param {string} key
+   * @param {string} emoji
+   * @param {boolean} mine
+   */
+  const onToggleReact = (key, emoji, mine) => {
+    const type = mine ? 'redact-react' : 'react';
+    E(/** @type {ChannelRef} */ (channel))
+      .post([emoji], [], [], key, [], type)
+      .catch(() => {});
+  };
+
+  // ---- Profile / edit-history popup handlers ----
+
+  /**
+   * Open the author profile popup. Resolves the member's pedigree host-side
+   * (powers never enter the confined tree, §5) and sets the popup state.
+   * Mirrors `createAuthorSpan`'s click → `profilePopup.show`
+   * (outliner-component.js:1370).
+   *
+   * @param {string} memberId
+   */
+  const onAuthorClick = memberId => {
+    getMemberInfo(memberId)
+      .then(info => {
+        if (!info) return;
+        profilePopup = {
+          memberId,
+          proposedName: info.proposedName,
+          pedigree: info.pedigree,
+          pedigreeMemberIds: info.pedigreeMemberIds,
+          yourName: nameMap.get(memberId),
+        };
+        scheduleRender();
+      })
+      .catch(() => {});
+  };
+
+  /**
+   * Open the edit-history popup for a node. Resolves the edit queue from the
+   * effective content and author-name-resolves each editor (the confined popup
+   * receives only plain rows). Mirrors `showEditHistory`
+   * (outliner-component.js:1241).
+   *
+   * @param {string} key
+   */
+  const onShowHistory = key => {
+    const effective = computeNodeContent(
+      key,
+      store.messageIndex,
+      store.replyChildren,
+      store.blockedMemberIds,
+    );
+    if (!effective || effective.editQueue.length === 0) return;
+    editHistory = {
+      key,
+      entries: effective.editQueue.map(entry => ({
+        memberId: entry.memberId,
+        memberName: resolveName(entry.memberId) || `Member ${entry.memberId}`,
+        date: new Date(entry.date).toLocaleString(),
+        deleted: entry.deleted,
+        text: entry.strings.join(''),
+      })),
+    };
+    // Prime any unresolved editor names so a re-render fills them in.
+    for (const entry of effective.editQueue) {
+      requestName(entry.memberId);
+    }
+    scheduleRender();
+  };
+
+  /** @type {PopupCallbacks} */
+  const popupCallbacks = harden({
+    onCloseProfile: () => {
+      profilePopup = null;
+      scheduleRender();
+    },
+    onCloseHistory: () => {
+      editHistory = null;
+      scheduleRender();
+    },
+    onAssignName: (memberId, name) => {
+      nameMap.set(memberId, name);
+      profilePopup = null;
+      scheduleRender();
+    },
+  });
+
   // ---- Confined callbacks (the §4 seam) ----
-  // Read-affecting handlers are wired now; keyboard / draft / action / DnD
-  // handlers are Phases 3–5 and intentionally absent (the confined tree treats
-  // an absent callback as inert).
   /** @type {OutlinerCallbacks} */
   const callbacks = harden({
     onToggleCollapse: key => {
@@ -780,8 +1246,17 @@ export const outlinerComponentNext = async (
       scheduleRender();
       $parent.scrollTo(0, 0);
     },
-    // TODO(Phase 4): onAuthorClick (profile popup), onShowHistory (edit
-    // history), onReply/onReact/onFork/onShare/onBookmark/onDelete (actions).
+    onAuthorClick,
+    onShowHistory,
+    onReply: onActionReply,
+    onReact: onActionReact,
+    onFork: options.onFork ? onActionFork : undefined,
+    onShare: options.onShare ? onActionShare : undefined,
+    onBookmark: options.onBookmark ? onActionBookmark : undefined,
+    onDelete: onActionDelete,
+    onToggleReact,
+    onSlashSelect,
+    onSlashDismiss,
   });
 
   /**
@@ -838,6 +1313,13 @@ export const outlinerComponentNext = async (
     lastSnapshotByKey = byKey;
 
     reconcileLines(byKey);
+    // Plain-record view of the address book for the confined profile popup's
+    // pedigree rendering (the host `Map` never enters the tree).
+    /** @type {Record<string, string>} */
+    const assignedNames = {};
+    for (const [memberId, name] of nameMap) {
+      assignedNames[memberId] = name;
+    }
     renderConfined(
       h(OutlinerRoot, {
         snapshot,
@@ -845,6 +1327,11 @@ export const outlinerComponentNext = async (
         breadcrumb: computeBreadcrumb(),
         resolveName,
         callbacks,
+        slashMenu,
+        profilePopup,
+        editHistory,
+        assignedNames,
+        popupCallbacks,
       }),
       $mount,
     );
@@ -874,6 +1361,16 @@ export const outlinerComponentNext = async (
       if (disposed) break;
       const msg = /** @type {ChannelMessage} */ (message);
       ingestMessage(store, msg);
+      // Route react / redact-react into the host react system so the projected
+      // `reactsForKey` summary updates (outliner-component.js:1195 / §1).
+      if (msg.replyType === 'react' || msg.replyType === 'redact-react') {
+        reactSystem.processReactMessage(
+          /** @type {import('@endo/space-channel/react-utils.js').ReactMessage} */ (
+            /** @type {unknown} */ (msg)
+          ),
+          String(msg.number),
+        );
+      }
       // Dedup an echoed draft: a visible message that matches a pending draft's
       // parent + text removes that draft so it does not double-render alongside
       // its committed echo. Mirrors `matchPendingDraft` (outliner-component.js:
@@ -905,6 +1402,10 @@ export const outlinerComponentNext = async (
       if (activeIterator && activeIterator.return) {
         activeIterator.return();
       }
+      if (nameChangesIterator && nameChangesIterator.return) {
+        nameChangesIterator.return();
+      }
+      detachTokenAutocomplete();
       for (const line of lines.values()) {
         line.dispose();
       }

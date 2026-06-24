@@ -33,6 +33,7 @@
     "./outliner/editable-line.js": "./src/outliner/editable-line.js",
     "./outliner/outliner-root.js": "./src/outliner/outliner-root.js",
     "./outliner/outliner-structure.js": "./src/outliner/outliner-structure.js",
+    "./outliner/slash-commands.js": "./src/outliner/slash-commands.js",
     "./outliner/tree-snapshot.js": "./src/outliner/tree-snapshot.js",
     "./outliner/tree-source.js": "./src/outliner/tree-source.js",
     "./package.json": "./package.json",

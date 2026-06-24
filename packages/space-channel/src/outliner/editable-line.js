@@ -169,8 +169,29 @@ harden(readCaret);
  */
 
 /**
+ * Detect a slash-command trigger at the start of the line. Mirrors
+ * `checkSlashTrigger` (outliner-component.js:1709): if the (left-trimmed) text
+ * starts with `/`, the query is the remainder after the slash; otherwise there
+ * is no trigger. We only fire the trigger off the leading run (the chip-free
+ * prefix), matching the original which read `$text.textContent`.
+ *
+ * @param {HTMLElement} $node
+ * @returns {string | null} The query (text after `/`), or `null` when no
+ *   trigger is active.
+ */
+const detectSlashQuery = $node => {
+  const text = ($node.textContent || '').trimStart();
+  if (text.startsWith('/')) {
+    return text.slice(1);
+  }
+  return null;
+};
+harden(detectSlashQuery);
+
+/**
  * @typedef {object} EditableLine
  * @property {HTMLElement} $node - The persistent host-owned editable element.
+ *   This is also the `$text` the controller attaches token autocomplete onto.
  * @property {(arg?: boolean | { atEnd?: boolean, column?: number }) => void} requestFocus -
  *   Focus the line and place the caret. Pass a boolean (`true` = end, the
  *   default; `false` = start) or `{ atEnd, column }`. When a `column` is given
@@ -180,6 +201,14 @@ harden(readCaret);
  *   content in place (for an effective-content change underneath an UNEDITED
  *   line). The controller must NOT call this on the line being edited; doing so
  *   would clobber the caret (the `editingKey` guard enforces this).
+ * @property {(open: boolean) => void} setSlashOpen - Tell the island whether the
+ *   controller's slash menu is currently open for THIS line. While open, the
+ *   island routes ArrowUp/Down/Enter/Tab/Escape to `onSlashNav` (early-return)
+ *   instead of its own keyboard intents — the island still owns the caret, the
+ *   controller owns the menu state (§ slash menu coordination).
+ * @property {() => void} clearSlashText - Clear the line's text (used after a
+ *   slash command is applied; mirrors `applySlashCommand`'s
+ *   `$text.textContent = ''`, outliner-component.js:1571) and refocus.
  * @property {() => void} dispose - Detach and tear down the line's listeners.
  */
 
@@ -222,6 +251,18 @@ harden(readCaret);
  *   Fired on ArrowUp at the line start / ArrowDown at the line end
  *   (`preventDefault`); the controller moves the caret to the neighbor it
  *   computes from the snapshot. Otherwise the arrow moves natively.
+ * @param {(key: string, query: string | null) => void} [options.onSlashQuery] -
+ *   Fired on `input` (and `focus`) with the slash-command query (text after a
+ *   leading `/`), or `null` when no trigger is active. The controller holds the
+ *   confined slash-menu state; the island only detects the trigger string from
+ *   its own caret (it never scrapes sibling DOM). Mirrors `checkSlashTrigger`
+ *   (outliner-component.js:1709).
+ * @param {(key: string, action: 'up' | 'down' | 'select' | 'cancel') => void} [options.onSlashNav] -
+ *   Fired while the slash menu is open (after `setSlashOpen(true)`) for the
+ *   navigation keys (ArrowUp/Down → move, Enter/Tab → select, Escape → cancel);
+ *   `preventDefault` is called and the island's own keyboard intents are
+ *   skipped. Mirrors the early-return of `handleSlashMenuKeydown`
+ *   (outliner-component.js:1665).
  * @returns {EditableLine}
  */
 export const makeEditableLine = ({
@@ -236,6 +277,8 @@ export const makeEditableLine = ({
   onIndent,
   onDedent,
   onCaretArrow,
+  onSlashQuery,
+  onSlashNav,
 }) => {
   const $node = document.createElement('div');
   $node.className = 'outliner-text';
@@ -248,6 +291,17 @@ export const makeEditableLine = ({
   // the DOM is mid-mutation and the keystrokes belong to the IME. Tracked from
   // the real composition events on the host-owned node.
   let composing = false;
+  // Whether the controller's slash menu is open for this line. While open, the
+  // island routes the navigation keys to `onSlashNav` instead of acting on
+  // them itself (the original `handleSlashMenuKeydown` early-return).
+  let slashOpen = false;
+
+  // Detect + emit the slash-command trigger. The island only reports the query
+  // string; the controller owns the menu. Shared by `input` and `focus`.
+  const emitSlashQuery = () => {
+    if (onSlashQuery) onSlashQuery(key, detectSlashQuery($node));
+  };
+
   const handleCompositionStart = () => {
     composing = true;
   };
@@ -255,14 +309,17 @@ export const makeEditableLine = ({
     composing = false;
     // A composition just finished; surface the now-stable content.
     if (onInput) onInput(key, parseContent($node));
+    emitSlashQuery();
   };
 
   const handleFocus = () => {
     if (onFocus) onFocus(key);
+    emitSlashQuery();
   };
   const handleInput = () => {
     if (composing) return;
     if (onInput) onInput(key, parseContent($node));
+    emitSlashQuery();
   };
   const handleBlur = () => {
     if (composing) return;
@@ -275,6 +332,33 @@ export const makeEditableLine = ({
     // navigate its own candidate list (`e.isComposing` covers the keydown that
     // ends a composition, which `compositionend` has not yet cleared).
     if (composing || e.isComposing) return;
+
+    // Slash menu open: route the navigation keys to the controller and skip the
+    // island's own intents (the `handleSlashMenuKeydown` early-return,
+    // outliner-component.js:1665). The island still owns the caret; the
+    // controller owns the menu state.
+    if (slashOpen && onSlashNav) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        onSlashNav(key, 'down');
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        onSlashNav(key, 'up');
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        onSlashNav(key, 'select');
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onSlashNav(key, 'cancel');
+        return;
+      }
+    }
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -382,6 +466,19 @@ export const makeEditableLine = ({
     renderContent($node, content);
   };
 
+  /** @param {boolean} open */
+  const setSlashOpen = open => {
+    slashOpen = open;
+  };
+
+  // Clear the line's text after a slash command is applied, then refocus so the
+  // user keeps typing into an empty line. Mirrors `applySlashCommand`
+  // (outliner-component.js:1571): `$text.textContent = ''; $text.focus();`.
+  const clearSlashText = () => {
+    renderContent($node, { strings: [''], names: [] });
+    requestFocus(true);
+  };
+
   const dispose = () => {
     $node.removeEventListener('focus', handleFocus);
     $node.removeEventListener('input', handleInput);
@@ -404,7 +501,9 @@ export const makeEditableLine = ({
   // proxy). The methods are hardened individually; the host owns this handle.
   harden(requestFocus);
   harden(update);
+  harden(setSlashOpen);
+  harden(clearSlashText);
   harden(dispose);
-  return { $node, requestFocus, update, dispose };
+  return { $node, requestFocus, update, setSlashOpen, clearSlashText, dispose };
 };
 harden(makeEditableLine);

@@ -3,8 +3,13 @@
 import harden from '@endo/harden';
 
 import { h } from 'preact';
+import { useState } from 'preact/hooks';
 
-/** @import { OutlinerSnapshotNode, SnapshotBadge } from './tree-snapshot.js' */
+import { filterSlashCommands } from './slash-commands.js';
+
+/** @import { OutlinerSnapshotNode, SnapshotBadge, SnapshotReact } from './tree-snapshot.js' */
+/** @import { SlashCommand } from './slash-commands.js' */
+/** @import { EditQueueEntry } from '../edit-queue.js' */
 
 // Phase-2 confined STRUCTURE tree for the outliner migration. This is the full
 // `OutlinerRoot` of design §4: it consumes the Phase-1 `OutlinerSnapshotNode`
@@ -39,15 +44,78 @@ import { h } from 'preact';
  * @property {(key: string | undefined) => void} [onFocusNode] - Focus-mode
  *   breadcrumb navigation (`undefined` = home / all).
  * @property {(memberId: string) => void} [onAuthorClick] - Open the author
- *   profile popup (real popup is host-side; Phase 4).
+ *   profile popup (real data resolved host-side; §5).
  * @property {(key: string) => void} [onShowHistory] - Open the edit-history
- *   popup for a node (host-side; Phase 4).
- * @property {(key: string) => void} [onReply] - Reply action (Phase 4).
- * @property {(key: string) => void} [onReact] - React action (Phase 4).
- * @property {(key: string) => void} [onFork] - Fork action (Phase 4).
- * @property {(key: string) => void} [onShare] - Share action (Phase 4).
- * @property {(key: string) => void} [onBookmark] - Bookmark action (Phase 4).
- * @property {(key: string) => void} [onDelete] - Delete action (Phase 4).
+ *   popup for a node (edit queue resolved host-side).
+ * @property {(key: string) => void} [onReply] - Reply action: the controller
+ *   resolves the author name and calls `options.onReply`.
+ * @property {(key: string) => void} [onReact] - Open the react picker for a
+ *   node (the picker is host-side, `reactSystem.showReactPicker`).
+ * @property {(key: string) => void} [onFork] - Fork action: controller computes
+ *   `getHeritageChain(key)` and calls `options.onFork`.
+ * @property {(key: string) => void} [onShare] - Share action: controller
+ *   computes `getHeritageChain(key)` and calls `options.onShare`.
+ * @property {(key: string) => void} [onBookmark] - Bookmark action: controller
+ *   computes a preview and calls `options.onBookmark`.
+ * @property {(key: string) => void} [onDelete] - Delete action → `postDeletion`.
+ * @property {(key: string, emoji: string, mine: boolean) => void} [onToggleReact]
+ *   - Toggle a react pill: `post(...,'redact-react')` when `mine`, else
+ *   `post(...,'react')`.
+ * @property {(key: string, action: 'up' | 'down' | 'select' | 'cancel') => void} [onSlashNav]
+ *   - Slash-menu keyboard navigation routed from the island while the menu is
+ *   open (move selection / apply / dismiss).
+ * @property {(key: string, cmd: SlashCommand) => void} [onSlashSelect] - Apply a
+ *   slash command picked by mouse (sets the draft's replyType, clears the text).
+ * @property {(key: string) => void} [onSlashDismiss] - Dismiss the slash menu
+ *   (backdrop click).
+ */
+
+/**
+ * The confined slash-menu view state for the active draft, held by the
+ * controller and passed down as a prop. `null` (or absent) means no menu.
+ *
+ * @typedef {object} SlashMenuState
+ * @property {string} key - The draft key the menu is anchored to.
+ * @property {string} query - The current query (text after `/`).
+ * @property {number} selectedIndex - Highlighted command index (into the
+ *   FILTERED list).
+ */
+
+/**
+ * Profile-popup data resolved host-side (member info from `getMember` /
+ * `reverseLocate`) and passed to the confined `ProfilePopup` as a prop. `null`
+ * (or absent) means no popup. Mirrors the imperative `profilePopup.show(...)`
+ * payload (outliner-component.js:1372).
+ *
+ * @typedef {object} ProfilePopupState
+ * @property {string} memberId
+ * @property {string} proposedName
+ * @property {string[]} pedigree
+ * @property {string[]} [pedigreeMemberIds]
+ * @property {string | undefined} yourName - The viewer's assigned name, if any.
+ */
+
+/**
+ * Edit-history popup data resolved host-side (the `editQueue` from
+ * `computeNodeContent`) and passed to the confined `EditHistoryPopup`. `null`
+ * (or absent) means no popup. Mirrors `showEditHistory`
+ * (outliner-component.js:1241).
+ *
+ * @typedef {object} EditHistoryState
+ * @property {string} key - The node whose history this is.
+ * @property {Array<{ memberId: string, memberName: string, date: string, deleted: boolean, text: string }>} entries
+ *   - One row per edit (already author-name-resolved + content-joined).
+ */
+
+/**
+ * Popup callbacks the confined popups raise. Separate from `OutlinerCallbacks`
+ * because they belong to the root-level popup overlay, not per-node rows.
+ *
+ * @typedef {object} PopupCallbacks
+ * @property {() => void} [onCloseProfile] - Dismiss the profile popup.
+ * @property {(memberId: string, name: string) => void} [onAssignName] - Assign a
+ *   pet name to a member (host saves it + re-renders).
+ * @property {() => void} [onCloseHistory] - Dismiss the edit-history popup.
  */
 
 /**
@@ -232,20 +300,78 @@ harden(NodeMeta);
 /**
  * Row action buttons (Reply / React / Fork / Share / Bookmark / Focus /
  * Delete). Mirrors the action buttons + three-dot menu of `createCommittedNode`
- * (outliner-component.js:2202). Phase 2 renders the buttons but the real
- * handlers (and the menu / heritage-chain payloads) land in Phase 4; the
- * callbacks are optional so a button without a handler simply renders inert.
+ * (outliner-component.js:2202): a Reply button, a React button, and a three-dot
+ * menu whose items (Fork / Share / Bookmark / Focus / Delete) are gated on the
+ * presence of the corresponding callback exactly as the original gates them on
+ * `options.onFork`/`onShare`/`onBookmark`. The menu is opened by the three-dot
+ * button and dismissed via an in-tree backdrop (§7 — no `document` listeners);
+ * its open/closed state is confined component state (`useState`), keyed by
+ * remount on `nodeKey` so it never leaks across nodes.
  *
  * @param {object} props
  * @param {string} props.nodeKey
  * @param {OutlinerCallbacks} props.callbacks
  */
 const NodeActions = ({ nodeKey, callbacks }) => {
-  // Phase-2 placeholder: a single actions container. Real per-action buttons,
-  // the three-dot menu, and the React pill button are Phase-4 work; this keeps
-  // the row DOM shape (an `outliner-node-actions` slot) stable for the CSS and
-  // for the next phase to fill in.
-  const { onReply } = callbacks;
+  const {
+    onReply,
+    onReact,
+    onFork,
+    onShare,
+    onBookmark,
+    onFocusNode,
+    onDelete,
+  } = callbacks;
+
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  /** @type {Array<{ label: string, icon: string, className: string, handler: () => void }>} */
+  const menuItems = [];
+  if (onFork) {
+    menuItems.push({
+      label: 'Fork to Channel',
+      icon: '⑂',
+      className: 'outliner-menu-fork',
+      handler: () => onFork(nodeKey),
+    });
+  }
+  if (onShare) {
+    menuItems.push({
+      label: 'Share…',
+      icon: '⇗',
+      className: 'outliner-menu-share',
+      handler: () => onShare(nodeKey),
+    });
+  }
+  if (onBookmark) {
+    menuItems.push({
+      label: 'Bookmark',
+      icon: '★',
+      className: 'outliner-menu-bookmark',
+      handler: () => onBookmark(nodeKey),
+    });
+  }
+  // Focus + Delete are always present (mirrors the original which pushes them
+  // unconditionally), routed through the focus / delete callbacks.
+  menuItems.push({
+    label: 'Focus',
+    icon: '⌖',
+    className: 'outliner-menu-focus',
+    handler: () => onFocusNode && onFocusNode(nodeKey),
+  });
+  menuItems.push({
+    label: 'Delete',
+    icon: '✗',
+    className: 'outliner-menu-delete',
+    handler: () => onDelete && onDelete(nodeKey),
+  });
+
+  /** @param {() => void} handler */
+  const runItem = handler => {
+    setMenuOpen(false);
+    handler();
+  };
+
   return h(
     'span',
     { class: 'outliner-node-actions' },
@@ -261,9 +387,392 @@ const NodeActions = ({ nodeKey, callbacks }) => {
           '↩',
         )
       : null,
+    onReact
+      ? h(
+          'button',
+          {
+            class: 'react-button',
+            type: 'button',
+            title: 'React',
+            onClick: () => onReact(nodeKey),
+          },
+          '😀',
+        )
+      : null,
+    h(
+      'span',
+      { class: 'message-menu outliner-node-menu' },
+      h(
+        'button',
+        {
+          class: 'message-menu-button',
+          type: 'button',
+          title: 'More',
+          onClick: () => setMenuOpen(open => !open),
+        },
+        '⋯',
+      ),
+      menuOpen
+        ? h(
+            'span',
+            {
+              class: 'outliner-node-menu-popup-wrap',
+              style: 'display: contents',
+            },
+            // In-tree backdrop dismissal (§7): a sibling backdrop whose click
+            // closes the menu, instead of an ambient `document` listener.
+            h('div', {
+              class: 'message-menu-backdrop',
+              onClick: () => setMenuOpen(false),
+            }),
+            h(
+              'div',
+              { class: 'message-menu-dropdown' },
+              menuItems.map(item =>
+                h(
+                  'button',
+                  {
+                    key: item.label,
+                    class: `message-menu-item ${item.className}`,
+                    type: 'button',
+                    onClick: () => runItem(item.handler),
+                  },
+                  h('span', { class: 'message-menu-icon' }, item.icon),
+                  item.label,
+                ),
+              ),
+            ),
+          )
+        : null,
+    ),
   );
 };
 harden(NodeActions);
+
+/**
+ * The slash-command menu for a draft (design §4 `SlashMenu`). Renders the
+ * filtered {@link SlashCommand} list with the highlighted row, mirroring
+ * `showSlashMenu` (outliner-component.js:1599): each row is an
+ * `outliner-slash-item` with a type badge and a description, and the selected
+ * row carries `selected`. Picking a row (mousedown, to beat the editable line's
+ * blur) calls `onSlashSelect`. Dismissed via an in-tree backdrop (§7).
+ *
+ * Authority-free: filtering is the pure `filterSlashCommands`; the highlighted
+ * index and query are primitives from the controller's `SlashMenuState`.
+ *
+ * @param {object} props
+ * @param {string} props.nodeKey - The draft key the menu is anchored to.
+ * @param {string} props.query - Text after the `/`.
+ * @param {number} props.selectedIndex - Highlighted row (into the filtered list).
+ * @param {(key: string, cmd: SlashCommand) => void} [props.onSelect]
+ * @param {(key: string) => void} [props.onDismiss]
+ */
+const SlashMenu = ({ nodeKey, query, selectedIndex, onSelect, onDismiss }) => {
+  const filtered = filterSlashCommands(query);
+  if (filtered.length === 0) {
+    return null;
+  }
+  const clamped = Math.max(0, Math.min(selectedIndex, filtered.length - 1));
+  return h(
+    'span',
+    { class: 'outliner-slash-menu-wrap', style: 'display: contents' },
+    h('div', {
+      class: 'outliner-slash-backdrop',
+      onClick: () => onDismiss && onDismiss(nodeKey),
+    }),
+    h(
+      'div',
+      { class: 'outliner-slash-menu' },
+      filtered.map((cmd, i) =>
+        h(
+          'div',
+          {
+            key: cmd.command,
+            class:
+              i === clamped
+                ? 'outliner-slash-item selected'
+                : 'outliner-slash-item',
+            // `mousedown` (not click) so the selection lands before the
+            // editable line blurs and commits, matching the original
+            // (outliner-component.js:1644).
+            onMouseDown: e => {
+              e.preventDefault();
+              if (onSelect) onSelect(nodeKey, cmd);
+            },
+          },
+          h(
+            'span',
+            { class: `outliner-badge ${cmd.badgeClassName}` },
+            cmd.label,
+          ),
+          h('span', { class: 'outliner-slash-desc' }, cmd.description),
+        ),
+      ),
+    ),
+  );
+};
+harden(SlashMenu);
+
+/**
+ * React pills row (design §4 `Reacts`). Mirrors `buildReactsContainer` /
+ * `buildReactPill` (react-utils.js:620/547): a `react-pills` container of
+ * `react-pill` buttons, with `react-pill-own` on the viewer's own reactions and
+ * a `emoji count` label when more than one member reacted. Toggling a pill
+ * calls `onToggleReact`, which the controller turns into a `react` /
+ * `redact-react` post. Sub-reacts and the hover member list (which need
+ * `E()`/async name resolution) stay host-side and are out of scope for the
+ * confined row.
+ *
+ * @param {object} props
+ * @param {string} props.nodeKey
+ * @param {SnapshotReact[]} props.reacts
+ * @param {(key: string, emoji: string, mine: boolean) => void} [props.onToggleReact]
+ */
+const Reacts = ({ nodeKey, reacts, onToggleReact }) => {
+  if (!reacts || reacts.length === 0) {
+    return null;
+  }
+  return h(
+    'span',
+    { class: 'react-pills' },
+    reacts.map(react =>
+      h(
+        'span',
+        { key: react.emoji, class: 'react-pill-wrapper' },
+        h(
+          'button',
+          {
+            class: react.mine ? 'react-pill react-pill-own' : 'react-pill',
+            type: 'button',
+            title: `${react.emoji} (${react.count})`,
+            onClick: () =>
+              onToggleReact && onToggleReact(nodeKey, react.emoji, react.mine),
+          },
+          react.count > 1 ? `${react.emoji} ${react.count}` : react.emoji,
+        ),
+      ),
+    ),
+  );
+};
+harden(Reacts);
+
+/**
+ * One pedigree entry of the profile popup. Prefers the viewer's assigned name
+ * (rendered `named`); falls back to the proposed name in scare quotes. Mirrors
+ * `renderPedigreeName` (profile-popup.js:54) but reads names from a plain
+ * `assignedNames` record (no `Map` enters the confined tree).
+ *
+ * @param {string} name
+ * @param {number} index
+ * @param {string[] | undefined} pedigreeMemberIds
+ * @param {Record<string, string>} assignedNames
+ */
+const renderPedigreeName = (name, index, pedigreeMemberIds, assignedNames) => {
+  const memberId = pedigreeMemberIds && pedigreeMemberIds[index];
+  const assigned = memberId ? assignedNames[memberId] : undefined;
+  if (assigned) {
+    return h(
+      'span',
+      { class: 'pedigree-name named', title: `Proposed: “${name}”` },
+      assigned,
+    );
+  }
+  return h('span', { class: 'pedigree-name' }, `“${name}”`);
+};
+harden(renderPedigreeName);
+
+/**
+ * Confined author profile popup. Mirrors `profile-popup.js`'s `ProfilePopup`
+ * (the migrated confined popup) but is rendered inline in the outliner tree
+ * with its data supplied as a prop (resolved host-side from `getMember` /
+ * `reverseLocate`, §5). Dismisses via an in-tree backdrop and an Escape handler
+ * on a `display: contents` wrapper — no ambient `document` listeners (§7). The
+ * assign-name field is a controlled input (confined handlers see only a frozen
+ * `SafeEvent`).
+ *
+ * @param {object} props
+ * @param {ProfilePopupState} props.data
+ * @param {Record<string, string>} props.assignedNames - memberId → assigned name
+ *   (plain record; the confined tree never sees the host `Map`).
+ * @param {() => void} props.onClose
+ * @param {(memberId: string, name: string) => void} [props.onAssignName]
+ */
+const ProfilePopup = ({ data, assignedNames, onClose, onAssignName }) => {
+  const { memberId, proposedName, pedigree, pedigreeMemberIds, yourName } =
+    data;
+  const [nameValue, setNameValue] = useState(yourName || '');
+
+  const submitName = () => {
+    const name = nameValue.trim();
+    if (name) {
+      if (onAssignName) onAssignName(memberId, name);
+      onClose();
+    }
+  };
+
+  /** @type {Array<import('preact').VNode | string>} */
+  const chainParts = [];
+  if (pedigree.length === 0) {
+    chainParts.push(
+      h('span', { class: 'pedigree-creator' }, 'Channel Creator'),
+    );
+  } else {
+    pedigree.forEach((name, index) => {
+      chainParts.push(
+        renderPedigreeName(name, index, pedigreeMemberIds, assignedNames),
+      );
+      chainParts.push(h('span', { class: 'pedigree-arrow' }, ' → '));
+    });
+    chainParts.push(
+      h('span', { class: 'pedigree-name pedigree-self' }, `“${proposedName}”`),
+    );
+  }
+
+  return h(
+    'div',
+    {
+      style: 'display: contents',
+      /** @param {{ key?: string }} e */
+      onKeyDown: e => {
+        if (e.key === 'Escape') onClose();
+      },
+    },
+    h('div', { class: 'profile-popup-backdrop', onClick: onClose }),
+    h(
+      'div',
+      { class: 'profile-popup' },
+      h(
+        'div',
+        { class: 'profile-popup-header' },
+        h('span', { class: 'profile-proposed-name' }, `“${proposedName}”`),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'profile-popup-close',
+            title: 'Close',
+            onClick: onClose,
+          },
+          '×',
+        ),
+      ),
+      h(
+        'div',
+        { class: 'profile-popup-body' },
+        h(
+          'div',
+          { class: 'profile-popup-field' },
+          h('label', null, 'Your Name for Them'),
+          h('input', {
+            type: 'text',
+            class: 'profile-assign-name',
+            placeholder: 'Assign a pet name…',
+            value: nameValue,
+            autofocus: true,
+            /** @param {{ target: { value: string } }} e */
+            onInput: e => setNameValue(e.target.value),
+            /** @param {{ key?: string, preventDefault: () => void }} e */
+            onKeyDown: e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                submitName();
+              }
+            },
+          }),
+        ),
+        h(
+          'div',
+          { class: 'profile-popup-field' },
+          h('label', null, 'Invitation Chain'),
+          h('div', { class: 'pedigree-chain' }, ...chainParts),
+        ),
+      ),
+      h(
+        'div',
+        { class: 'profile-popup-actions' },
+        h(
+          'button',
+          { type: 'button', class: 'profile-save-btn', onClick: submitName },
+          'Save Name',
+        ),
+      ),
+    ),
+  );
+};
+harden(ProfilePopup);
+
+/**
+ * Confined edit-history popup. Mirrors `showEditHistory`
+ * (outliner-component.js:1241): a header with the edit count + close button and
+ * a list of `outliner-edit-history-entry` rows (author name + relative date +
+ * a "reverted" tag for deleted edits, then the content). The entries are
+ * already author-name-resolved + date-formatted host-side. Dismisses via an
+ * in-tree backdrop + Escape on a `display: contents` wrapper (§7).
+ *
+ * @param {object} props
+ * @param {EditHistoryState} props.data
+ * @param {() => void} props.onClose
+ */
+const EditHistoryPopup = ({ data, onClose }) =>
+  h(
+    'div',
+    {
+      style: 'display: contents',
+      /** @param {{ key?: string }} e */
+      onKeyDown: e => {
+        if (e.key === 'Escape') onClose();
+      },
+    },
+    h('div', { class: 'outliner-edit-history-backdrop', onClick: onClose }),
+    h(
+      'div',
+      { class: 'outliner-edit-history' },
+      h(
+        'div',
+        { class: 'outliner-edit-history-header' },
+        `Edit History (${data.entries.length})`,
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'outliner-edit-history-close',
+            onClick: onClose,
+          },
+          '×',
+        ),
+      ),
+      h(
+        'div',
+        { class: 'outliner-edit-history-list' },
+        data.entries.map((entry, i) =>
+          h(
+            'div',
+            {
+              key: `${i}`,
+              class: entry.deleted
+                ? 'outliner-edit-history-entry outliner-edit-deleted'
+                : 'outliner-edit-history-entry',
+            },
+            h(
+              'div',
+              { class: 'outliner-edit-history-meta' },
+              h('span', { class: 'outliner-author named' }, entry.memberName),
+              ` · ${entry.date}`,
+              entry.deleted
+                ? h(
+                    'span',
+                    { class: 'outliner-edit-history-deleted-tag' },
+                    'reverted',
+                  )
+                : null,
+            ),
+            h('div', { class: 'outliner-edit-history-content' }, entry.text),
+          ),
+        ),
+      ),
+    ),
+  );
+harden(EditHistoryPopup);
 
 /**
  * One outliner node and its subtree. Mirrors `createCommittedNode`
@@ -282,8 +791,10 @@ harden(NodeActions);
  * @param {(memberId: string) => string} props.resolveName - Member id → display
  *   name (resolved controller-side; powers never enter the confined tree, §5).
  * @param {OutlinerCallbacks} props.callbacks
+ * @param {SlashMenuState | null} [props.slashMenu] - The active slash-menu state
+ *   (only one node at a time); the menu renders on the node whose `key` matches.
  */
-const OutlinerNode = ({ node, resolveName, callbacks }) => {
+const OutlinerNode = ({ node, resolveName, callbacks, slashMenu }) => {
   const nodeClass = [
     'outliner-node',
     node.isDraft && 'outliner-draft',
@@ -307,6 +818,19 @@ const OutlinerNode = ({ node, resolveName, callbacks }) => {
     'data-line-anchor': node.key,
   });
 
+  // Slash menu: rendered on the draft whose key matches the controller's active
+  // slash-menu state. The island owns the caret; the menu is a confined sibling.
+  const slash =
+    slashMenu && slashMenu.key === node.key
+      ? h(SlashMenu, {
+          nodeKey: node.key,
+          query: slashMenu.query,
+          selectedIndex: slashMenu.selectedIndex,
+          onSelect: callbacks.onSlashSelect,
+          onDismiss: callbacks.onSlashDismiss,
+        })
+      : null;
+
   const row = h(
     'div',
     { class: 'outliner-node-row' },
@@ -318,7 +842,17 @@ const OutlinerNode = ({ node, resolveName, callbacks }) => {
     }),
     node.badges.map((badge, i) => h(NodeBadge, { key: `badge-${i}`, badge })),
     anchor,
+    // React pills sit on the row (mirrors `renderReactsOnElement`, which
+    // appends `.react-pills` onto `$row`, react-utils.js:638).
+    node.isDraft
+      ? null
+      : h(Reacts, {
+          nodeKey: node.key,
+          reacts: node.reacts,
+          onToggleReact: callbacks.onToggleReact,
+        }),
     h(NodeActions, { nodeKey: node.key, callbacks }),
+    slash,
   );
 
   // Drafts carry no author/edited meta (mirrors `createDraft`, which omits the
@@ -353,6 +887,7 @@ const OutlinerNode = ({ node, resolveName, callbacks }) => {
           node: child,
           resolveName,
           callbacks,
+          slashMenu,
         }),
       ),
     ),
@@ -376,6 +911,12 @@ harden(OutlinerNode);
  *   display name; defaults to a `Member <id>` fallback.
  * @param {OutlinerCallbacks} [props.callbacks] - Host callbacks (optional so the
  *   tree renders before Phases 3–5 wire them).
+ * @param {SlashMenuState | null} [props.slashMenu] - Active slash-menu state.
+ * @param {ProfilePopupState | null} [props.profilePopup] - Active profile popup.
+ * @param {EditHistoryState | null} [props.editHistory] - Active edit-history popup.
+ * @param {Record<string, string>} [props.assignedNames] - memberId → assigned
+ *   name (plain record for the profile popup's pedigree rendering).
+ * @param {PopupCallbacks} [props.popupCallbacks] - Popup dismiss / assign-name.
  */
 export const OutlinerRoot = ({
   snapshot,
@@ -383,10 +924,17 @@ export const OutlinerRoot = ({
   breadcrumb,
   resolveName,
   callbacks,
+  slashMenu,
+  profilePopup,
+  editHistory,
+  assignedNames,
+  popupCallbacks,
 }) => {
   const resolve = resolveName || (memberId => `Member ${memberId}`);
   /** @type {OutlinerCallbacks} */
   const cb = callbacks || harden({});
+  /** @type {PopupCallbacks} */
+  const pcb = popupCallbacks || harden({});
   return h(
     'div',
     { class: 'outliner-root' },
@@ -402,8 +950,23 @@ export const OutlinerRoot = ({
         node,
         resolveName: resolve,
         callbacks: cb,
+        slashMenu: slashMenu || null,
       }),
     ),
+    profilePopup
+      ? h(ProfilePopup, {
+          data: profilePopup,
+          assignedNames: assignedNames || harden({}),
+          onClose: () => pcb.onCloseProfile && pcb.onCloseProfile(),
+          onAssignName: pcb.onAssignName,
+        })
+      : null,
+    editHistory
+      ? h(EditHistoryPopup, {
+          data: editHistory,
+          onClose: () => pcb.onCloseHistory && pcb.onCloseHistory(),
+        })
+      : null,
   );
 };
 harden(OutlinerRoot);
