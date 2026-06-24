@@ -41,7 +41,12 @@ import { E } from '@endo/far';
  * @property {string} draftId
  * @property {string} text
  * @property {string | undefined} parentKey
- * @property {string | undefined} afterKey
+ * @property {string | undefined} afterKey - Render the draft right AFTER this
+ *   committed sibling key (used by Enter-at-end "new sibling below").
+ * @property {string | undefined} [beforeKey] - Render the draft right BEFORE
+ *   this committed sibling key (used by Enter-at-start "peer before"). Takes
+ *   precedence over `afterKey` when both are set, mirroring `createDraft`
+ *   (outliner-component.js:2371).
  * @property {string | undefined} replyType
  */
 
@@ -257,9 +262,10 @@ export const makeDraftStore = () => {
    *
    * @param {string | undefined} parentKey
    * @param {string} [afterKey]
+   * @param {string} [beforeKey]
    * @returns {DraftNode}
    */
-  const createDraft = (parentKey, afterKey) => {
+  const createDraft = (parentKey, afterKey, beforeKey) => {
     draftCounter += 1;
     const draftId = `draft-${draftCounter}`;
     /** @type {DraftNode} */
@@ -268,6 +274,7 @@ export const makeDraftStore = () => {
       text: '',
       parentKey,
       afterKey,
+      beforeKey,
       replyType: undefined,
     };
     drafts.set(draftId, draft);
@@ -326,7 +333,7 @@ harden(makeDraftStore);
 /**
  * @typedef {object} DraftStore
  * @property {Map<string, DraftNode>} drafts
- * @property {(parentKey: string | undefined, afterKey?: string) => DraftNode} createDraft
+ * @property {(parentKey: string | undefined, afterKey?: string, beforeKey?: string) => DraftNode} createDraft
  * @property {(draftId: string) => DraftNode | undefined} getDraft
  * @property {(draftId: string) => void} removeDraft
  * @property {(message: { replyTo?: string, strings: string[] }, isPending: (draft: DraftNode) => boolean) => string | undefined} matchPendingDraft

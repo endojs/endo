@@ -190,6 +190,40 @@ const buildDraftNode = (view, draft, depth) =>
   });
 
 /**
+ * Insert draft nodes into an already-built list of committed-children snapshot
+ * nodes, honoring each draft's `beforeKey` / `afterKey` (else appended at the
+ * end). Mirrors the imperative `createDraft` DOM insert (outliner-component.js:
+ * 2371): `beforeKey` wins over `afterKey`; an unplaceable target falls back to
+ * append. Mutates `children` in place.
+ *
+ * @param {SnapshotViewState} view
+ * @param {OutlinerSnapshotNode[]} children
+ * @param {DraftNode[]} drafts
+ * @param {number} depth
+ */
+const interleaveDrafts = (view, children, drafts, depth) => {
+  for (const draft of drafts) {
+    const draftNode = buildDraftNode(view, draft, depth);
+    if (draft.beforeKey) {
+      const at = children.findIndex(c => c.key === draft.beforeKey);
+      if (at !== -1) {
+        children.splice(at, 0, draftNode);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+    } else if (draft.afterKey) {
+      const at = children.findIndex(c => c.key === draft.afterKey);
+      if (at !== -1) {
+        children.splice(at + 1, 0, draftNode);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+    }
+    children.push(draftNode);
+  }
+};
+
+/**
  * Recursively build the snapshot subtree rooted at `key`.
  *
  * @param {TreeStore} store
@@ -238,11 +272,7 @@ const buildSubtree = (
     );
     if (childNode) children.push(childNode);
   }
-  // Append any drafts parented under this node (drafts render after committed
-  // children, mirroring the imperative DOM, outliner-component.js:968).
-  for (const draft of draftsByParent.get(key) || []) {
-    children.push(buildDraftNode(view, draft, depth + 1));
-  }
+  interleaveDrafts(view, children, draftsByParent.get(key) || [], depth + 1);
 
   return harden({ ...node, children: harden(children) });
 };
@@ -306,9 +336,7 @@ export const buildTreeSnapshot = (store, view) => {
       if (node) roots.push(node);
     }
     // Root-level drafts.
-    for (const draft of draftsByParent.get(undefined) || []) {
-      roots.push(buildDraftNode(view, draft, 0));
-    }
+    interleaveDrafts(view, roots, draftsByParent.get(undefined) || [], 0);
   }
 
   return harden(roots);

@@ -108,10 +108,78 @@ const parseContent = $text => {
 harden(parseContent);
 
 /**
+ * The caret position within a line, computed island-side from the real
+ * Selection/Range. Mirrors `getCursorPosition` (outliner-component.js:407).
+ *
+ * @typedef {object} CaretPosition
+ * @property {number} position - Caret text offset from the start of the line.
+ * @property {boolean} atStart - Whether the caret is at offset 0.
+ * @property {boolean} atEnd - Whether the caret is at (or past) the last offset.
+ */
+
+/**
+ * Read the caret position inside `$node` from the real Selection/Range API.
+ * Legitimate here because this node is host-owned, never confined; the booleans
+ * are the only thing that crosses the seam. Mirrors `getCursorPosition`
+ * (outliner-component.js:407): if the selection is missing or anchored outside
+ * the line we treat the caret as both at the start AND the end (the original's
+ * conservative default), so a blurred line never spuriously triggers a
+ * cross-node arrow.
+ *
+ * @param {HTMLElement} $node
+ * @returns {CaretPosition}
+ */
+const readCaret = $node => {
+  const selection =
+    typeof window !== 'undefined' && typeof window.getSelection === 'function'
+      ? window.getSelection()
+      : null;
+  if (
+    !selection ||
+    selection.rangeCount === 0 ||
+    typeof document.createRange !== 'function' ||
+    !$node.contains(/** @type {Node} */ (selection.anchorNode))
+  ) {
+    return { position: 0, atStart: true, atEnd: true };
+  }
+  const range = document.createRange();
+  range.selectNodeContents($node);
+  range.setEnd(
+    /** @type {Node} */ (selection.anchorNode),
+    selection.anchorOffset,
+  );
+  const position = range.toString().length;
+  const textLength = ($node.textContent || '').length;
+  return {
+    position,
+    atStart: position === 0,
+    atEnd: position >= textLength,
+  };
+};
+harden(readCaret);
+
+/**
+ * The intent payload raised on Enter. Booleans are computed island-side from
+ * the real caret; `parsed` is the structured content (never DOM).
+ *
+ * @typedef {object} EnterIntent
+ * @property {boolean} atStart - Caret at the start of the line.
+ * @property {boolean} atEnd - Caret at the end of the line.
+ * @property {LineContent} parsed - Parsed structured content.
+ */
+
+/**
  * @typedef {object} EditableLine
  * @property {HTMLElement} $node - The persistent host-owned editable element.
- * @property {(atEnd?: boolean) => void} requestFocus - Focus the line, placing
- *   the caret at the end when `atEnd` (default), else at the start.
+ * @property {(arg?: boolean | { atEnd?: boolean, column?: number }) => void} requestFocus -
+ *   Focus the line and place the caret. Pass a boolean (`true` = end, the
+ *   default; `false` = start) or `{ atEnd, column }`. When a `column` is given
+ *   the caret is placed at that text offset (clamped to the line length); this
+ *   is how a cross-node arrow lands the caret near the same column.
+ * @property {(content: LineContent) => void} update - Re-render the line's
+ *   content in place (for an effective-content change underneath an UNEDITED
+ *   line). The controller must NOT call this on the line being edited; doing so
+ *   would clobber the caret (the `editingKey` guard enforces this).
  * @property {() => void} dispose - Detach and tear down the line's listeners.
  */
 
@@ -119,21 +187,55 @@ harden(parseContent);
  * Create a persistent host-owned editable line. The returned `$node` is the
  * node the controller re-parents into a confined `[data-line-anchor]` slot.
  *
+ * The keyboard handler computes STRUCTURED intent island-side (from the real
+ * Selection/caret — legitimate here, this node is host code) and raises the OUT
+ * callbacks; it NEVER mutates sibling nodes or reaches another line's DOM. The
+ * controller is the only authority on document order, so cross-node caret
+ * movement (Up/Down at an edge) is reported as `onCaretArrow` and the controller
+ * routes `requestFocus` to the neighbor it computes from the snapshot (§3.4).
+ *
  * @param {object} options
  * @param {string} options.key - The node key this line belongs to (mirrored
  *   onto the node as `data-key` so the controller can match anchors).
  * @param {LineContent} options.initialContent - Initial `{ strings, names }`.
+ * @param {boolean} [options.isDraft] - Whether this line backs a draft node;
+ *   drives the Backspace-on-empty semantics (a draft is removed even when it is
+ *   the only/last line, a committed node fires the delete intent).
+ * @param {(key: string) => void} [options.onFocus] - Fired on `focus`; the
+ *   controller marks this the `editingKey` and clears the selection (§3.4.3).
  * @param {(key: string, parsed: LineContent) => void} [options.onInput] - Fired
- *   on every `input` event with the freshly parsed content.
+ *   on every `input` event with the freshly parsed content (suppressed mid-IME).
  * @param {(key: string, parsed: LineContent) => void} [options.onCommit] -
- *   Fired on `blur` with the parsed content (the edit-commit seam).
+ *   Fired on `blur` with the parsed content (the edit-commit seam; suppressed
+ *   mid-IME).
+ * @param {(key: string, intent: EnterIntent) => void} [options.onEnter] - Fired
+ *   on Enter (without Shift); `preventDefault` is called. The controller decides
+ *   child-draft (atEnd) vs before-sibling-draft (atStart).
+ * @param {(key: string) => void} [options.onBackspaceEmpty] - Fired on Backspace
+ *   when the line is empty (`preventDefault` is called). Committed → delete;
+ *   draft → remove. The controller focuses the previous visible line.
+ * @param {(key: string) => void} [options.onIndent] - Fired on Tab
+ *   (`preventDefault`); the controller reparents under the previous sibling.
+ * @param {(key: string) => void} [options.onDedent] - Fired on Shift+Tab
+ *   (`preventDefault`); the controller reparents to the grandparent level.
+ * @param {(key: string, dir: 'up' | 'down', info: { column: number }) => void} [options.onCaretArrow] -
+ *   Fired on ArrowUp at the line start / ArrowDown at the line end
+ *   (`preventDefault`); the controller moves the caret to the neighbor it
+ *   computes from the snapshot. Otherwise the arrow moves natively.
  * @returns {EditableLine}
  */
 export const makeEditableLine = ({
   key,
   initialContent,
+  isDraft = false,
+  onFocus,
   onInput,
   onCommit,
+  onEnter,
+  onBackspaceEmpty,
+  onIndent,
+  onDedent,
+  onCaretArrow,
 }) => {
   const $node = document.createElement('div');
   $node.className = 'outliner-text';
@@ -141,44 +243,168 @@ export const makeEditableLine = ({
   $node.dataset.key = key;
   renderContent($node, initialContent);
 
+  // IME / composition guard (§7): while the user is composing (e.g. an IME
+  // candidate window is open) we must not parse, commit, or act on keydown —
+  // the DOM is mid-mutation and the keystrokes belong to the IME. Tracked from
+  // the real composition events on the host-owned node.
+  let composing = false;
+  const handleCompositionStart = () => {
+    composing = true;
+  };
+  const handleCompositionEnd = () => {
+    composing = false;
+    // A composition just finished; surface the now-stable content.
+    if (onInput) onInput(key, parseContent($node));
+  };
+
+  const handleFocus = () => {
+    if (onFocus) onFocus(key);
+  };
   const handleInput = () => {
+    if (composing) return;
     if (onInput) onInput(key, parseContent($node));
   };
   const handleBlur = () => {
+    if (composing) return;
     if (onCommit) onCommit(key, parseContent($node));
   };
 
+  /** @param {KeyboardEvent} e */
+  const handleKeydown = e => {
+    // Never act mid-composition: an IME may emit Enter/Backspace/arrows to
+    // navigate its own candidate list (`e.isComposing` covers the keydown that
+    // ends a composition, which `compositionend` has not yet cleared).
+    if (composing || e.isComposing) return;
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const { atStart, atEnd } = readCaret($node);
+      if (onEnter) {
+        onEnter(key, { atStart, atEnd, parsed: parseContent($node) });
+      }
+      return;
+    }
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        if (onDedent) onDedent(key);
+      } else if (onIndent) {
+        onIndent(key);
+      }
+      return;
+    }
+
+    if (e.key === 'Backspace') {
+      // Backspace deletes the node only when the line is empty; a non-empty
+      // line falls through to the native character delete. Matches the original
+      // committed (1790) and draft (2121) handlers, which key off
+      // `$text.textContent === ''`.
+      if (($node.textContent || '') === '') {
+        e.preventDefault();
+        if (onBackspaceEmpty) onBackspaceEmpty(key);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      const { atStart, position } = readCaret($node);
+      if (atStart) {
+        e.preventDefault();
+        if (onCaretArrow) onCaretArrow(key, 'up', { column: position });
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      const { atEnd, position } = readCaret($node);
+      if (atEnd) {
+        e.preventDefault();
+        if (onCaretArrow) onCaretArrow(key, 'down', { column: position });
+      }
+    }
+  };
+
+  $node.addEventListener('focus', handleFocus);
   $node.addEventListener('input', handleInput);
   $node.addEventListener('blur', handleBlur);
+  $node.addEventListener('keydown', handleKeydown);
+  $node.addEventListener('compositionstart', handleCompositionStart);
+  $node.addEventListener('compositionend', handleCompositionEnd);
 
-  /** @param {boolean} [atEnd] */
-  const requestFocus = (atEnd = true) => {
+  /**
+   * Place the caret inside the line. Pass `true`/`false` for end/start, or
+   * `{ atEnd, column }` to land at a specific text offset (used by cross-node
+   * arrow routing). Caret placement uses the real Selection/Range API —
+   * legitimate here because this node is host-owned, never confined.
+   *
+   * @param {boolean | { atEnd?: boolean, column?: number }} [arg]
+   */
+  const requestFocus = (arg = true) => {
     $node.focus();
-    // Caret placement uses the real Selection/Range API — legitimate here
-    // because this node is host-owned, never confined.
     const selection =
-      typeof getSelection === 'function' ? getSelection() : null;
+      typeof window !== 'undefined' && typeof window.getSelection === 'function'
+        ? window.getSelection()
+        : null;
     if (!selection || typeof document.createRange !== 'function') return;
+
+    const opts = typeof arg === 'boolean' ? { atEnd: arg } : arg;
     const range = document.createRange();
     range.selectNodeContents($node);
-    range.collapse(!atEnd);
+
+    if (typeof opts.column === 'number') {
+      // Land near the requested column. happy-dom's Range cannot resolve an
+      // arbitrary offset into the right text node, so guard and fall back to a
+      // collapse on failure; a real browser places the caret at the column.
+      const textLength = ($node.textContent || '').length;
+      const target = Math.max(0, Math.min(opts.column, textLength));
+      try {
+        const firstChild = $node.firstChild;
+        if (firstChild && firstChild.nodeType === Node.TEXT_NODE) {
+          range.setStart(firstChild, target);
+          range.collapse(true);
+        } else {
+          range.collapse(true);
+        }
+      } catch {
+        range.collapse(true);
+      }
+    } else {
+      range.collapse(!opts.atEnd);
+    }
+
     selection.removeAllRanges();
     selection.addRange(range);
   };
 
+  /** @param {LineContent} content */
+  const update = content => {
+    renderContent($node, content);
+  };
+
   const dispose = () => {
+    $node.removeEventListener('focus', handleFocus);
     $node.removeEventListener('input', handleInput);
     $node.removeEventListener('blur', handleBlur);
+    $node.removeEventListener('keydown', handleKeydown);
+    $node.removeEventListener('compositionstart', handleCompositionStart);
+    $node.removeEventListener('compositionend', handleCompositionEnd);
     if ($node.parentElement) {
       $node.parentElement.removeChild($node);
     }
   };
 
+  // `isDraft` is currently advisory metadata for the controller; the empty-line
+  // Backspace semantics differ only controller-side (remove draft vs post
+  // deletion), so the island raises the same `onBackspaceEmpty` either way.
+  void isDraft;
+
   // NOT `harden`-ed: the returned handle carries the live `$node` DOM element,
   // and deep-freezing a host DOM node throws (it is a non-extensible host
   // proxy). The methods are hardened individually; the host owns this handle.
   harden(requestFocus);
+  harden(update);
   harden(dispose);
-  return { $node, requestFocus, dispose };
+  return { $node, requestFocus, update, dispose };
 };
 harden(makeEditableLine);
