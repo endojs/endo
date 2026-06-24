@@ -23,14 +23,7 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./index.js",
-  "module": "./index.js",
-  "types": "./types.d.ts",
   "exports": {
-    ".": {
-      "types": "./types.d.ts",
-      "default": "./index.js"
-    },
     "./change-topic.js": {
       "types": "./change-topic.d.ts",
       "default": "./change-topic.js"
@@ -42,10 +35,6 @@
     "./pub-sub.js": {
       "types": "./pub-sub.d.ts",
       "default": "./pub-sub.js"
-    },
-    "./cancel-kit.js": {
-      "types": "./cancel-kit.d.ts",
-      "default": "./cancel-kit.js"
     },
     "./null-queue.js": {
       "types": "./null-queue.d.ts",

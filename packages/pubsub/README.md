@@ -38,7 +38,7 @@ This is the same primitive `@endo/stream` introduced in commit `cbbd57c03`
 the primitive into a sibling.
 
 ```js
-import { makePubSub } from '@endo/pubsub';
+import { makePubSub } from '@endo/pubsub/pub-sub.js';
 
 const { pub, sub } = makePubSub();
 const a = sub();
@@ -56,7 +56,7 @@ await b.get(); // 2
 spring as a `Reader<TValue, TReturn>`.
 
 ```js
-import { makeChangeTopic } from '@endo/pubsub';
+import { makeChangeTopic } from '@endo/pubsub/change-topic.js';
 
 const { publisher, subscribe } = makeChangeTopic();
 const early = subscribe();
@@ -84,7 +84,7 @@ A slow subscriber that misses several publishes sees only the latest when it
 next drains.
 
 ```js
-import { makeLatestTopic } from '@endo/pubsub';
+import { makeLatestTopic } from '@endo/pubsub/latest-topic.js';
 
 const { publisher, subscribe } = makeLatestTopic();
 const a = subscribe();
@@ -113,12 +113,13 @@ terminal disposition on its first `next()` call without blocking.
 
 ## Cancellation
 
-`makeCancelKit` returns a small cancellation primitive used to terminate a
-consumer-driven iteration without disturbing the topic itself or peer
-subscribers.
+`@endo/pubsub` does not ship its own cancellation primitive.
+Pair it with [`@endo/cancel`](../cancel/README.md)'s `makeCancelKit` to
+terminate a consumer-driven iteration without disturbing the topic itself or
+peer subscribers.
 
 ```js
-import { makeCancelKit } from '@endo/pubsub';
+import { makeCancelKit } from '@endo/cancel';
 
 const { cancel, cancelled } = makeCancelKit();
 // ... later

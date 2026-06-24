@@ -9,5 +9,7 @@
   retention policy.
 - `makePubSub` exposes the underlying sink + spring primitive for callers who
   want to compose their own topic shapes.
-- `makeCancelKit` provides a small `{ cancel, cancelled }` cancellation
-  primitive.
+- Each tool is published as its own subpath export (no barrel module); import
+  the specific module a dependent needs.
+- Cancellation is provided by [`@endo/cancel`](../cancel/README.md) rather than
+  a bundled primitive.
