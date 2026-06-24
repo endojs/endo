@@ -21,9 +21,17 @@
       "types": "./types-index.d.ts",
       "default": "./types-index.js"
     },
+    "./pi": {
+      "types": "./pi.d.ts",
+      "default": "./src/pi.js"
+    },
     "./tool.js": {
       "types": "./tool.d.ts",
       "default": "./src/tool.js"
+    },
+    "./src/pi.js": {
+      "types": "./src/pi.d.ts",
+      "default": "./src/pi.js"
     },
     "./git-tool.js": {
       "types": "./git-tool.d.ts",
@@ -77,6 +85,8 @@
     "@endo/platform": "workspace:^"
   },
   "devDependencies": {
+    "@earendil-works/pi-agent-core": "^0.79.0",
+    "@earendil-works/pi-ai": "^0.79.0",
     "@endo/daemon": "workspace:^",
     "@endo/git": "workspace:^",
     "@endo/init": "workspace:^",
@@ -85,6 +95,18 @@
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
     "typescript": "catalog:dev"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-agent-core": "^0.79.0",
+    "@earendil-works/pi-ai": "^0.79.0"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-agent-core": {
+      "optional": true
+    },
+    "@earendil-works/pi-ai": {
+      "optional": true
+    }
   },
   "eslintConfig": {
     "extends": [
