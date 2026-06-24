@@ -25,7 +25,7 @@ import { inventoryGraphComponent } from './inventory-graph-component.js';
 import { whylipComponent } from './whylip-component.js';
 import { peersComponent } from './peers-component.js';
 import { flootComponent } from './floot-component.js';
-import { createShareModal } from './share-modal.js';
+import { createShareModal } from '@endo/space-channel/share-modal.js';
 import {
   renderProfileBar,
   mountMentionNotifyArea,

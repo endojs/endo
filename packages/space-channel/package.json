@@ -39,6 +39,7 @@
     "./outliner/tree-source.js": "./src/outliner/tree-source.js",
     "./package.json": "./package.json",
     "./profile-popup.js": "./src/profile-popup.js",
+    "./share-modal.js": "./src/share-modal.js",
     "./react-utils.js": "./src/react-utils.js"
   },
   "scripts": {

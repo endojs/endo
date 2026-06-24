@@ -16,6 +16,11 @@ export { createChannelState, createMessageMenu } from './src/channel-utils.js';
 // the host shell into the channel package.
 export { createChannelHeader } from './src/channel-header.js';
 
+// The share modal: forks a channel message's heritage chain into a new channel.
+// Channel-specific (operates on ChannelMessage), so it lives with the channel
+// package; opened from the channel bodies' `onShare` callback.
+export { createShareModal } from './src/share-modal.js';
+
 // Phase-0 outliner-confinement spike: the confined structure root and the
 // host-side editable-line island. Pure structure (`OutlinerRoot`) is the
 // confined half; `makeEditableLine` is host code the controller re-parents into
