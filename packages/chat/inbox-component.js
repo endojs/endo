@@ -77,9 +77,14 @@ export const inboxComponent = async (
       conversationId,
       conversationPetName,
       // The confined view is authority-free over ambient globals; the trusted
-      // host supplies the error sink. `reportError` surfaces background failures
-      // (e.g. a rejected `reject`) to the platform's unhandled-error handler.
+      // host supplies them. `reportError` surfaces background failures (e.g. a
+      // rejected `reject`) to the platform's unhandled-error handler;
+      // `writeClipboard` is the platform clipboard for deep copy controls; and
+      // `afterPaint` is `requestAnimationFrame`, used to defer a scroll until
+      // after Preact flushes a new envelope.
       reportError: error => window.reportError(error),
+      writeClipboard: text => navigator.clipboard.writeText(text),
+      afterPaint: cb => requestAnimationFrame(cb),
     }),
     $mount,
   );

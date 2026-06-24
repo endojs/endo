@@ -11,16 +11,16 @@ import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { h } from 'preact';
 import { useEffect, useReducer, useState } from 'preact/hooks';
 
+import { DropMenu } from './drop-menu.js';
+import { ItemActions } from './item-actions.js';
+import { ItemDisclosure } from './item-disclosure.js';
+import { ItemLabel } from './item-label.js';
 import {
   CONVERSABLE_TYPES,
   HUB_TYPES,
   NON_EXPANDABLE_TYPES,
   makeStaticTreePowers,
 } from './tree-source.js';
-import { DropMenu } from './drop-menu.js';
-import { ItemActions } from './item-actions.js';
-import { ItemDisclosure } from './item-disclosure.js';
-import { ItemLabel } from './item-label.js';
 
 // MIME used to carry the dragged item's absolute pet-name path (JSON).
 const ENDO_PETNAME_MIME = 'application/x-endo-petname';

@@ -1019,9 +1019,11 @@ deferred and recorded here.
 
 3. **Reaching outside the component's own subtree with document-wide DOM ops**
    where local Preact state already exists.
-   - `inventory/inventory.js:78-86` (`clearAllDropTargets` sweeps
-     `document.querySelectorAll('.drop-target')` from an event handler; drop
-     state is already Preact state).
+   - `inventory/inventory.js` (`clearAllDropTargets` swept
+     `document.querySelectorAll('.drop-target')` from an event handler) —
+     **done.** The inventory moved into `@endo/space-chat`; the sweep is now an
+     injected `clearDropHighlights` callback supplied by the host wrapper
+     (`chat/inventory-component.js`), so the confined tree holds no `document`.
    - `petname-path-autocomplete.js:291-302` (document-wide focusable scan to
      advance focus).
 
@@ -1060,8 +1062,12 @@ cleanup (authority-free leaves), not a sandbox fix. Two classes, both **done**:
   it uses a `ClipboardContext` (verified to propagate through `renderConfined`)
   defaulting to the platform clipboard at module scope; the component consumes
   it via `useContext`. The peers effect's `window.reportError` sinks became
-  `console.error`. (The inbox CopyButtons — `TimestampLine`/`FormFieldRow` —
-  remain, deferred with the inbox.)
+  `console.error`. The inbox CopyButtons (`TimestampLine`/`FormFieldRow`) now do
+  the same: `InboxRoot` installs a `ClipboardContext.Provider` with a
+  host-supplied `writeClipboard`, and the context default is an ambient-free
+  fallback (no `navigator`). Its background-error and scroll-deferral reaches
+  were likewise threaded as host props (`reportError`, `afterPaint`), so
+  `@endo/space-chat`'s confined tree holds no ambient host globals.
 - **`document` click/keydown dismiss listeners.** Replaced with declarative,
   in-tree dismissal: a full-screen backdrop element (`onClick` closes) for
   outside-click, made focusable (`tabindex`/`autofocus`, both sanitizer
@@ -1077,8 +1083,9 @@ in a confined component.
 
 Still **forced-by-renderer** (need a `@endo/preact-container` "narrow ref"
 affordance, not a rewrite): scroll geometry in `inbox`/`debugger-panel`, the
-Dialog focus query, the `Viewer` splitter pointer-drag, and the inventory
-drag-highlight sweep.
+Dialog focus query, and the `Viewer` splitter pointer-drag. (The inventory
+drag-highlight sweep is no longer in this class — it became a host-injected
+`clearDropHighlights` callback when inventory moved to `@endo/space-chat`.)
 
 ### Standouts
 

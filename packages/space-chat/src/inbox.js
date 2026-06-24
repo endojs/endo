@@ -137,12 +137,16 @@ harden(messagesReducer);
 /**
  * Clipboard capability, injected via context so the deep leaf copy controls
  * (`TimestampLine`, `FormFieldRow`) never reach the ambient `navigator`.
- * Defaults to the platform clipboard; a host can override it with a Provider.
+ * `InboxRoot` installs a Provider with the host-supplied `writeClipboard`; the
+ * default is an ambient-free fallback that should never be reached (a missing
+ * Provider is a host wiring bug, not a reason to grab `navigator`).
  *
  * @type {import('preact').Context<(text: string) => Promise<void>>}
  */
-const ClipboardContext = createContext(text =>
-  navigator.clipboard.writeText(text),
+const ClipboardContext = createContext(
+  /** @type {(text: string) => Promise<void>} */ (
+    () => Promise.reject(new Error('clipboard capability not provided by host'))
+  ),
 );
 
 /**
@@ -1352,6 +1356,13 @@ harden(toInboxMessage);
  * @param {(error: unknown) => void} props.reportError - Host-supplied sink for
  *   background errors (e.g. a failed `reject`), so this confined component never
  *   reaches for the ambient `reportError` global.
+ * @param {(text: string) => Promise<void>} props.writeClipboard -
+ *   Host-supplied clipboard writer, provided to deep leaf copy controls via
+ *   context so they never reach the ambient `navigator.clipboard`.
+ * @param {(cb: () => void) => void} props.afterPaint - Host-supplied
+ *   post-paint deferral (wraps `requestAnimationFrame`), so the confined view
+ *   can wait for Preact to flush before asking the host to scroll without
+ *   holding ambient frame-timing authority.
  */
 export const InboxRoot = ({
   powers,
@@ -1363,6 +1374,8 @@ export const InboxRoot = ({
   conversationId,
   conversationPetName,
   reportError,
+  writeClipboard,
+  afterPaint,
 }) => {
   const [messages, dispatch] = useReducer(
     messagesReducer,
@@ -1472,8 +1485,10 @@ export const InboxRoot = ({
         }
 
         // Defer the scroll until after Preact has flushed the new envelope.
+        // `afterPaint` is the host's `requestAnimationFrame`; the confined view
+        // holds no ambient frame-timing authority of its own.
         if (wasAtEnd) {
-          requestAnimationFrame(() => {
+          afterPaint(() => {
             if (!disposed()) scrollToBottom();
           });
         }
@@ -1492,8 +1507,8 @@ export const InboxRoot = ({
   }, [powers, conversationId, conversationPetName]);
 
   return h(
-    Fragment,
-    null,
+    ClipboardContext.Provider,
+    { value: writeClipboard },
     messages.map(message =>
       h(MessageEnvelope, {
         key: String(message.number),
