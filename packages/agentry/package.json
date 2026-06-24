@@ -1,0 +1,90 @@
+{
+  "name": "@endo/agentry",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared infrastructure for building agentic harnesses across endo packages",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/agentry#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/agentry"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.js",
+      "default": "./src/index.js"
+    },
+    "./harness": {
+      "types": "./src/harness/index.js",
+      "default": "./src/harness/index.js"
+    },
+    "./define-agent": {
+      "types": "./src/define-agent.js",
+      "default": "./src/define-agent.js"
+    },
+    "./execute": {
+      "types": "./src/execute/index.js",
+      "default": "./src/execute/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc",
+    "prepack": "exit 0",
+    "test": "ava"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "^0.79.0",
+    "@earendil-works/pi-ai": "^0.79.0",
+    "@endo/agent-tools": "workspace:^",
+    "@endo/exo-git": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/marshal": "workspace:^",
+    "@endo/pass-style": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/daemon": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
+    "@endo/git": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/lockdown": "workspace:^",
+    "@endo/platform": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev",
+    "typescript": "catalog:dev"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  }
+}
