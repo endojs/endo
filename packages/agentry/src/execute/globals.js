@@ -5,6 +5,13 @@
 
 const IDENTIFIER_RE = /^[A-Za-z_$][0-9A-Za-z_$]*$/;
 
+// `E` is always injected into the code-mode compartment as the eventual-send
+// operator (see `makeCodeModeEndowments` in execute/preset.js and the
+// `declare const E;` line `makeCodeModeSystemPrompt` emits). A global named `E`
+// would collide with it; reject it by name rather than letting the injected `E`
+// silently win at endowment-merge time.
+const RESERVED_GLOBAL_NAMES = harden(['E']);
+
 /**
  * @param {unknown} value
  * @returns {value is string | string[]}
@@ -20,11 +27,21 @@ const isResultName = value =>
  * introspects a live capability via `E(cap).__getMethodNames__()` rather than
  * reading a hand-maintained type blob.
  *
+ * Global names must be unique and must not collide with a reserved binding
+ * (`E`). A duplicate or reserved name is a misconfiguration — the well-known
+ * `workspace` / `git` globals are pushed before `namedPowers` in
+ * `makeCodeModeGlobals`, and the injected `E` is spread first in
+ * `makeCodeModeEndowments`, so a collision would otherwise let the earlier
+ * binding silently win while `formatGlobalDeclarations` emitted a duplicate
+ * `declare const` line into the prompt. Throw instead, so the author learns
+ * their power was shadowed rather than getting a silently powerless binding.
+ *
  * @param {CodeModeGlobal[]} globals
  * @returns {CodeModeGlobal[]}
  */
-export const normalizeGlobals = globals =>
-  harden(
+export const normalizeGlobals = globals => {
+  const seen = new Set();
+  return harden(
     globals.map(global => {
       const { name, petName = name, description } = global;
       if (!IDENTIFIER_RE.test(name)) {
@@ -32,12 +49,22 @@ export const normalizeGlobals = globals =>
           `code-mode global name must be a JS identifier: ${name}`,
         );
       }
+      if (RESERVED_GLOBAL_NAMES.includes(name)) {
+        throw new Error(
+          `code-mode global name "${name}" is reserved and cannot be used`,
+        );
+      }
+      if (seen.has(name)) {
+        throw new Error(`code-mode global name "${name}" is declared twice`);
+      }
+      seen.add(name);
       if (!isResultName(petName)) {
         throw new Error(`code-mode global "${name}" has invalid petName`);
       }
       return harden({ name, petName, description });
     }),
   );
+};
 harden(normalizeGlobals);
 
 /**

@@ -96,6 +96,51 @@ test('normalizeGlobals defaults petName to name and accepts a petName path', t =
   t.deepEqual(normalized[1].petName, ['x', 'y']);
 });
 
+test('normalizeGlobals throws on a duplicate global name rather than silently dropping it', t => {
+  // The well-known `git` global is pushed before namedPowers in
+  // makeCodeModeGlobals; a namedPower also named `git` would, without this
+  // guard, be silently shadowed by the well-known binding at endowment-merge
+  // time. Reject the collision so the author learns their power was shadowed.
+  t.throws(
+    () =>
+      normalizeGlobals(
+        harden([
+          { name: 'git', description: 'well-known git' },
+          { name: 'git', description: 'colliding named power' },
+        ]),
+      ),
+    { message: /code-mode global name "git" is declared twice/ },
+  );
+});
+
+test('normalizeGlobals throws on a global named E (collides with the injected eventual-send)', t => {
+  // `E` is always endowed into the code-mode compartment; a global named `E`
+  // would be shadowed by the injected binding (spread first) rather than win.
+  t.throws(
+    () => normalizeGlobals(harden([{ name: 'E', description: 'oops' }])),
+    {
+      message: /code-mode global name "E" is reserved and cannot be used/,
+    },
+  );
+});
+
+test('makeCodeModeAgent throws when a namedPower collides with the well-known git binding', t => {
+  // End-to-end: a configured git power plus a namedPower named `git` must be
+  // rejected at agent-construction time, not silently resolve to the
+  // well-known git capability.
+  t.throws(
+    () =>
+      makeCodeModeAgent({
+        model: fauxModel,
+        powers: {
+          git: Far('G', {}),
+          namedPowers: [{ name: 'git', petName: 'other', description: 'h' }],
+        },
+      }),
+    { message: /code-mode global name "git" is declared twice/ },
+  );
+});
+
 test('makeExecuteTool.invoke forwards validated args plus normalized globals', async t => {
   /** @type {any} */
   let captured;
