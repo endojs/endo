@@ -1,6 +1,6 @@
 // End-to-end: spin a real Endo daemon, load this package as an
 // unconfined formula via `make-unconfined`, and drive the returned
-// BashProcess exo's exo-stream stdio across the daemon/worker CapTP
+// ShellProcess exo's exo-stream stdio across the daemon/worker CapTP
 // boundary.
 //
 // Daemon tests are serial because each forks a full daemon process and
@@ -21,7 +21,7 @@ import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
 const dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
-const bashModuleHref = url.pathToFileURL(
+const shellModuleHref = url.pathToFileURL(
   path.join(dirname, '..', 'src', 'index.js'),
 ).href;
 
@@ -40,7 +40,7 @@ const makeConfig = () => {
     cachePath: path.join(base, 'cache'),
     sockPath:
       process.platform === 'win32'
-        ? `\\\\?\\pipe\\endo-bash-${tag}.sock`
+        ? `\\\\?\\pipe\\endo-host-shell-${tag}.sock`
         : path.join(base, 'endo.sock'),
     address: '127.0.0.1:0',
     pets: new Map(),
@@ -93,13 +93,13 @@ const readAll = async readerRef => {
   return textDecoder.decode(out);
 };
 
-test.serial('bash formula streams stdout and resolves exit', async t => {
+test.serial('host-shell formula streams stdout and resolves exit', async t => {
   t.timeout(90_000);
   const { host } = await prepareHost(t);
 
-  const proc = await E(host).makeUnconfined('@node', bashModuleHref, {
+  const proc = await E(host).makeUnconfined('@node', shellModuleHref, {
     powersName: '@none',
-    env: { command: 'echo hello-from-formula' },
+    env: { command: 'echo', args: JSON.stringify(['hello-from-formula']) },
     resultName: 'greeter',
   });
 
@@ -108,11 +108,11 @@ test.serial('bash formula streams stdout and resolves exit', async t => {
   t.deepEqual(await E(proc).exit(), { code: 0, signal: null });
 });
 
-test.serial('bash formula round-trips stdin to stdout', async t => {
+test.serial('host-shell formula round-trips stdin to stdout', async t => {
   t.timeout(90_000);
   const { host } = await prepareHost(t);
 
-  const proc = await E(host).makeUnconfined('@node', bashModuleHref, {
+  const proc = await E(host).makeUnconfined('@node', shellModuleHref, {
     powersName: '@none',
     env: { command: 'cat' },
     resultName: 'echoer',
@@ -128,13 +128,16 @@ test.serial('bash formula round-trips stdin to stdout', async t => {
   t.is((await E(proc).exit()).code, 0);
 });
 
-test.serial('bash formula reports a non-zero exit code', async t => {
+test.serial('host-shell formula reports a non-zero exit code', async t => {
   t.timeout(90_000);
   const { host } = await prepareHost(t);
 
-  const proc = await E(host).makeUnconfined('@node', bashModuleHref, {
+  const proc = await E(host).makeUnconfined('@node', shellModuleHref, {
     powersName: '@none',
-    env: { command: 'echo to-stderr 1>&2; exit 7' },
+    env: {
+      command: 'echo to-stderr 1>&2; exit 7',
+      shell: 'true',
+    },
     resultName: 'failer',
   });
 

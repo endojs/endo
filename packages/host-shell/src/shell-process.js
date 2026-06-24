@@ -12,51 +12,60 @@ import { bytesWriterFromIterator } from '@endo/exo-stream/bytes-writer-from-iter
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 
-import { BashProcessInterface } from './interfaces.js';
+import { ShellProcessInterface } from './interfaces.js';
 
-/** @import { BashProcess, ExitStatus, MakeBashProcessOptions } from '../types.js' */
+/** @import { ShellProcess, ExitStatus, MakeShellProcessOptions } from '../types.js' */
 
-// Pre-synchronize this many byte chunks across CapTP per the user's
-// request, trading round-trips for buffering on a high-latency link.
-// Applied symmetrically to stdin, stdout, and stderr on the responder
-// (this) side.
+// Pre-synchronize this many byte chunks across CapTP, trading round-trips
+// for buffering on a high-latency link.  Applied symmetrically to stdin,
+// stdout, and stderr on the responder (this) side.
 const STREAM_BUFFER = 64;
 
 /**
- * Spawn `shell -c command` and surface its stdio as exo-stream byte
+ * Run a single host command and surface its stdio as exo-stream byte
  * streams plus a terminal-status promise.  This is the Node-side,
  * platform-specific core; the package's unconfined `make` entry is a
  * thin wrapper that reads its arguments from the formula `env`.
+ *
+ * By default the command is spawned with a **structured argv** and no
+ * shell — `command` is the executable and `args` are passed verbatim, so
+ * argument values cannot inject extra commands.  Pass `shell: true` (or a
+ * shell path) only when shell features such as pipelines, redirection, or
+ * `&&` chaining are actually needed; that re-introduces the injection
+ * surface and is therefore opt-in.
  *
  * The child's stdio pipes have a single producer / consumer each, so the
  * three stream accessors are memoized: `stdout()` always returns the
  * same `PassableBytesReader`, never a fresh drain of the same pipe.
  *
- * @param {MakeBashProcessOptions} options
- * @returns {BashProcess}
+ * @param {MakeShellProcessOptions} options
+ * @returns {ShellProcess}
  */
-export const makeBashProcess = options => {
+export const makeShellProcess = options => {
   const {
     command,
-    args,
+    args = [],
     cwd,
     env: childEnv,
-    shell = 'bash',
+    shell = false,
     context,
   } = options;
 
   if (typeof command !== 'string' || command.length === 0) {
-    throw makeError(X`bash process requires a non-empty command, got ${q(command)}`);
+    throw makeError(
+      X`host-shell requires a non-empty command, got ${q(command)}`,
+    );
+  }
+  if (!Array.isArray(args) || args.some(arg => typeof arg !== 'string')) {
+    throw makeError(X`host-shell args must be an array of strings`);
   }
 
-  // With explicit `args`, run the executable directly (no shell parsing);
-  // otherwise interpret `command` as a shell script via `shell -c`.
-  const [file, argv] =
-    args === undefined ? [shell, ['-c', command]] : [command, [...args]];
-
-  const child = spawn(file, argv, {
+  const child = spawn(command, [...args], {
     cwd,
     env: childEnv,
+    // false (default): structured argv, no shell, no injection.
+    // true / path: opt-in shell interpretation for pipelines & chaining.
+    shell,
     // Distinct pipes for all three stdio streams so each can be bridged
     // independently over CapTP.
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -98,7 +107,7 @@ export const makeBashProcess = options => {
   // to fail loudly if that ever regresses.
   const { stdin: childStdin, stdout: childStdout, stderr: childStderr } = child;
   if (childStdin === null || childStdout === null || childStderr === null) {
-    throw makeError(X`bash process stdio pipes were not available`);
+    throw makeError(X`host-shell stdio pipes were not available`);
   }
 
   const stdinWriter = bytesWriterFromIterator(makeNodeWriter(childStdin), {
@@ -111,7 +120,7 @@ export const makeBashProcess = options => {
     buffer: STREAM_BUFFER,
   });
 
-  return makeExo('BashProcess', BashProcessInterface, {
+  return makeExo('ShellProcess', ShellProcessInterface, {
     /**
      * The process's standard input as an exo-stream byte writer.  Drain
      * it from the initiator with `iterateBytesWriter`; `return()` closes
@@ -166,16 +175,65 @@ export const makeBashProcess = options => {
     },
 
     help() {
-      return 'A running shell command. stdin() is an exo-stream byte writer; stdout() and stderr() are exo-stream byte readers; exit() resolves { code, signal }; kill(signal?) signals the process.';
+      return 'A running host process. stdin() is an exo-stream byte writer; stdout() and stderr() are exo-stream byte readers; exit() resolves { code, signal }; kill(signal?) signals the process.';
     },
   });
 };
-harden(makeBashProcess);
+harden(makeShellProcess);
+
+/**
+ * Parse the optional JSON `args` field from a formula `env` into a
+ * structured argv.  A formula `env` is a flat `Record<string, string>`,
+ * so the argument vector is carried as a JSON array of strings.
+ *
+ * @param {string | undefined} value
+ * @returns {string[] | undefined}
+ */
+export const parseArgs = value => {
+  if (value === undefined) {
+    return undefined;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch (error) {
+    throw makeError(
+      X`host-shell env.args must be a JSON array: ${q(
+        /** @type {Error} */ (error).message,
+      )}`,
+    );
+  }
+  if (!Array.isArray(parsed) || parsed.some(arg => typeof arg !== 'string')) {
+    throw makeError(X`host-shell env.args must be a JSON array of strings`);
+  }
+  return parsed;
+};
+harden(parseArgs);
+
+/**
+ * Parse the optional `shell` field from a formula `env`.  Absent or
+ * `'false'` means a structured argv with no shell; `'true'` enables the
+ * default shell; any other string names the shell executable to use.
+ *
+ * @param {string | undefined} value
+ * @returns {boolean | string}
+ */
+export const parseShell = value => {
+  if (value === undefined || value === 'false') {
+    return false;
+  }
+  if (value === 'true') {
+    return true;
+  }
+  return value;
+};
+harden(parseShell);
 
 /**
  * Parse the optional JSON `processEnv` field from a formula `env`.  A
  * formula `env` is a flat `Record<string, string>`, so a richer child
- * environment is carried as a JSON-encoded object.
+ * environment is carried as a JSON-encoded object, merged onto the
+ * worker's own environment.
  *
  * @param {string | undefined} value
  * @returns {Record<string, string> | undefined}
@@ -189,7 +247,7 @@ export const parseProcessEnv = value => {
     parsed = JSON.parse(value);
   } catch (error) {
     throw makeError(
-      X`@endo/bash env.processEnv must be a JSON object: ${q(
+      X`host-shell env.processEnv must be a JSON object: ${q(
         /** @type {Error} */ (error).message,
       )}`,
     );
@@ -201,7 +259,7 @@ export const parseProcessEnv = value => {
     Object.values(parsed).some(entry => typeof entry !== 'string')
   ) {
     throw makeError(
-      X`@endo/bash env.processEnv must be a JSON object of string values`,
+      X`host-shell env.processEnv must be a JSON object of string values`,
     );
   }
   return { ...process.env, ...parsed };

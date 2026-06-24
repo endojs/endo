@@ -3,28 +3,46 @@
 
 import { makeError, q, X } from '@endo/errors';
 
-import { makeBashProcess, parseProcessEnv } from './bash-process.js';
+import {
+  makeShellProcess,
+  parseArgs,
+  parseProcessEnv,
+  parseShell,
+} from './shell-process.js';
 
-export { makeBashProcess, parseProcessEnv } from './bash-process.js';
-export { BashProcessInterface } from './interfaces.js';
+export {
+  makeShellProcess,
+  parseArgs,
+  parseShell,
+  parseProcessEnv,
+} from './shell-process.js';
+export { ShellProcessInterface } from './interfaces.js';
 
-/** @import { BashProcess } from '../types.js' */
+/** @import { ShellProcess } from '../types.js' */
 
 /**
  * Unconfined Endo formula entry point.  The daemon's `make-unconfined`
  * formula loads this module by file URL in a Node worker and calls
- * `make(powers, context, { env })`.
+ * `make(powers, context, { env })`.  Each formula instance is bound to
+ * one specific command, captured in its `env`, and re-runs that command
+ * whenever the formula is (re)incarnated.
  *
- * The shell command is read from the formula `env`:
+ * The command is read from the formula `env`:
  *
- * - `env.command` (required): the script run as `bash -c <command>`.
+ * - `env.command` (required): the executable to run.  With no `env.shell`
+ *   this is spawned directly with a structured argv (no shell, so
+ *   argument values cannot inject extra commands).
+ * - `env.args` (optional): a JSON array of string arguments.
+ * - `env.shell` (optional): `'true'` to run `command` through the default
+ *   shell (enabling pipelines / redirection / `&&` chaining), or a path
+ *   to name a specific shell.  Omitted or `'false'` keeps the safe,
+ *   shell-free structured argv.
  * - `env.cwd` (optional): the child's working directory.
- * - `env.shell` (optional): the shell executable, default `bash`.
  * - `env.processEnv` (optional): a JSON object of additional environment
  *   variables, merged onto the worker's own environment.  When omitted,
  *   the child inherits the worker's environment unchanged.
  *
- * The returned {@link BashProcess} exo exposes the child's stdio as
+ * The returned {@link ShellProcess} exo exposes the child's stdio as
  * exo-stream byte streams (`stdin` / `stdout` / `stderr`, each buffered
  * 64) and an `exit` promise carrying the terminal `{ code, signal }`.
  *
@@ -33,21 +51,22 @@ export { BashProcessInterface } from './interfaces.js';
  * @param {unknown} context - Formula context; its cancellation tears
  *   down the child process.
  * @param {{ env?: Record<string, string> }} [options]
- * @returns {BashProcess}
+ * @returns {ShellProcess}
  */
 export const make = (powers, context, { env = {} } = {}) => {
-  const { command, cwd, shell, processEnv } = env;
+  const { command, args, shell, cwd, processEnv } = env;
   if (typeof command !== 'string' || command.length === 0) {
     throw makeError(
-      X`@endo/bash requires a non-empty "command" in the formula env, got ${q(
+      X`@endo/host-shell requires a non-empty "command" in the formula env, got ${q(
         command,
       )}`,
     );
   }
-  return makeBashProcess({
+  return makeShellProcess({
     command,
+    args: parseArgs(args),
+    shell: parseShell(shell),
     cwd,
-    shell,
     env: parseProcessEnv(processEnv),
     context,
   });

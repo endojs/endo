@@ -1,12 +1,12 @@
 {
-  "name": "@endo/bash",
+  "name": "@endo/host-shell",
   "version": "0.0.0",
   "private": true,
-  "description": "Unconfined Endo formula that runs a shell command with `bash -c`, exposing its stdin / stdout / stderr as exo-stream byte streams and resolving its exit status.  Platform-specific (requires a POSIX `bash`); pair with the daemon's `make-unconfined` formula type.",
+  "description": "Unconfined Endo formula that runs a single host command and surfaces its stdin / stdout / stderr as exo-stream byte streams plus an exit status.  Defaults to a structured argv (no shell, no injection); shell interpretation is opt-in.  Platform-specific (spawns a host subprocess); pair with the daemon's `make-unconfined` formula type.",
   "keywords": [
     "endo",
     "exo",
-    "bash",
+    "shell",
     "stream",
     "subprocess"
   ],
@@ -15,7 +15,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/bash"
+    "directory": "packages/host-shell"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
@@ -28,9 +28,9 @@
       "types": "./types.d.ts",
       "default": "./src/index.js"
     },
-    "./src/bash-process.js": {
+    "./src/shell-process.js": {
       "types": "./types.d.ts",
-      "default": "./src/bash-process.js"
+      "default": "./src/shell-process.js"
     },
     "./src/interfaces.js": {
       "types": "./types.d.ts",

@@ -3,16 +3,17 @@
 import { M } from '@endo/patterns';
 
 /**
- * Interface guard for the {@link BashProcess} exo returned by the bash
- * formula.  The three stream accessors return exo-stream byte-stream
- * references (a `PassableBytesWriter` for stdin, `PassableBytesReader`s
- * for stdout / stderr); `exit` resolves the process's terminal status.
+ * Interface guard for the {@link ShellProcess} exo returned by the
+ * host-shell formula.  The three stream accessors return exo-stream
+ * byte-stream references (a `PassableBytesWriter` for stdin,
+ * `PassableBytesReader`s for stdout / stderr); `exit` resolves the
+ * process's terminal status.
  *
  * Stream accessors are idempotent — each returns the same cached
  * reference every call, because a child's stdio pipe has a single
  * consumer / producer.
  */
-export const BashProcessInterface = M.interface('BashProcess', {
+export const ShellProcessInterface = M.interface('ShellProcess', {
   // The remote initiator drains these with @endo/exo-stream's
   // iterateBytesReader / iterateBytesWriter.
   stdin: M.call().returns(M.remotable('PassableBytesWriter')),
@@ -26,4 +27,4 @@ export const BashProcessInterface = M.interface('BashProcess', {
   pid: M.call().returns(M.opt(M.number())),
   help: M.call().returns(M.string()),
 });
-harden(BashProcessInterface);
+harden(ShellProcessInterface);

@@ -1,8 +1,7 @@
-# @endo/bash
+# @endo/host-shell
 
-An unconfined Endo formula that runs a shell command with `bash -c` and
-exposes its standard streams as [exo-stream](../exo-stream/README.md) byte
-streams.
+An unconfined Endo formula that runs a single host command and exposes its
+standard streams as [exo-stream](../exo-stream/README.md) byte streams.
 
 The command's `stdin` is a `PassableBytesWriter`, its `stdout` and
 `stderr` are `PassableBytesReader`s, and its terminal status
@@ -10,31 +9,42 @@ The command's `stdin` is a `PassableBytesWriter`, its `stdout` and
 Each stream is buffered 64 — sixty-four byte chunks are pre-synchronized
 across CapTP to trade round-trips for throughput on a high-latency link.
 
+Each formula instance is bound to **one specific command**, captured in
+its `env`, and re-runs that command whenever the formula is incarnated.
+
+By default the command runs with a **structured argv and no shell**: the
+`command` is the executable and `args` are passed verbatim, so argument
+values can never inject a second command. Shell features (pipelines,
+redirection, `&&` chaining) are available, but only when you opt in by
+setting `shell` — which re-introduces the injection surface and is
+therefore off by default.
+
 Because it shells out to a real subprocess, this package is
-platform-specific (it requires a POSIX `bash` on `PATH`) and **unconfined**:
-the daemon loads it through Node's module loader in a worker, outside the
-SES sandbox, where it can reach `node:child_process`.
+platform-specific (it spawns a host process) and **unconfined**: the
+daemon loads it through Node's module loader in a worker, outside the SES
+sandbox, where it can reach `node:child_process`.
 
 ## Usage as a formula
 
 The daemon's `make-unconfined` formula loads this module by file URL and
-invokes its `make(powers, context, { env })` entry point. The shell
-command is read from the formula `env`:
+invokes its `make(powers, context, { env })` entry point. The command is
+read from the formula `env`:
 
-| `env` key    | required | meaning                                                                 |
-| ------------ | -------- | ----------------------------------------------------------------------- |
-| `command`    | yes      | the script, run as `bash -c <command>`                                  |
-| `cwd`        | no       | the child's working directory                                           |
-| `shell`      | no       | the shell executable (default `bash`)                                   |
-| `processEnv` | no       | a JSON object of extra environment variables, merged onto the worker's |
+| `env` key    | required | meaning                                                                       |
+| ------------ | -------- | ----------------------------------------------------------------------------- |
+| `command`    | yes      | the executable to run (or, with `shell`, the shell script)                    |
+| `args`       | no       | a JSON array of string arguments                                              |
+| `shell`      | no       | `'true'` to run through the default shell, or a shell path; default no shell  |
+| `cwd`        | no       | the child's working directory                                                 |
+| `processEnv` | no       | a JSON object of extra environment variables, merged onto the worker's        |
 
 ```js
 import { E } from '@endo/far';
 
 // Load this package as an unconfined formula in the host's @node worker.
-const greeter = await E(host).makeUnconfined('@node', bashModuleHref, {
+const greeter = await E(host).makeUnconfined('@node', shellModuleHref, {
   powersName: '@none',
-  env: { command: 'echo hello' },
+  env: { command: 'echo', args: JSON.stringify(['hello']) },
   resultName: 'greeter',
 });
 
@@ -54,7 +64,7 @@ Writing to the process is symmetric, via `iterateBytesWriter`:
 ```js
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
-const proc = await E(host).makeUnconfined('@node', bashModuleHref, {
+const proc = await E(host).makeUnconfined('@node', shellModuleHref, {
   powersName: '@none',
   env: { command: 'cat' },
 });
@@ -63,7 +73,16 @@ await writer.next(new TextEncoder().encode('hello'));
 await writer.return(); // EOF on the child's stdin
 ```
 
-## The `BashProcess` interface
+To use a pipeline or chain, opt into a shell:
+
+```js
+await E(host).makeUnconfined('@node', shellModuleHref, {
+  powersName: '@none',
+  env: { command: 'grep foo log.txt | wc -l', shell: 'true' },
+});
+```
+
+## The `ShellProcess` interface
 
 | method            | returns                       | notes                                                  |
 | ----------------- | ----------------------------- | ------------------------------------------------------ |
@@ -84,14 +103,13 @@ The formula's context cancellation tears the child process down with
 
 ## Direct use
 
-The Node-side core is also exported for use outside the daemon:
+The Node-side core is also exported, both for use outside the daemon and
+as a building block for a "shell spawner" capability that mints a fresh
+`ShellProcess` per call:
 
 ```js
-import { makeBashProcess } from '@endo/bash';
+import { makeShellProcess } from '@endo/host-shell';
 
-const proc = makeBashProcess({ command: 'ls -la', cwd: '/tmp' });
+const proc = makeShellProcess({ command: 'ls', args: ['-la'], cwd: '/tmp' });
+const { code } = await proc.exit();
 ```
-
-`makeBashProcess` additionally accepts an `args` array; when present the
-`command` is executed directly with those arguments, bypassing shell
-interpretation.
