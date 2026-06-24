@@ -7,8 +7,7 @@ import { E } from '@endo/eventual-send';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { makeLocalTree } from '@endo/platform/fs/node';
 
-import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
-import { registerBuiltInApiProviders } from '@earendil-works/pi-ai';
+import { makePiAgent } from '@endo/agentry/harness';
 
 import { systemPrompt } from './prompts/system.js';
 import { tools } from './tools/index.js';
@@ -25,13 +24,15 @@ import { runInboxLoop } from './inbox-loop.js';
 /** @import { FarRef } from '@endo/eventual-send' */
 /** @import { GuestPowers, LalContext } from './agent.types.js' */
 
-// Register pi-ai's built-in API providers (anthropic, openai, google,
-// openrouter, mistral, deepseek, groq, xai, github-copilot, and ~20 others)
-// so getModel(provider, modelId) lookups succeed for any caller-supplied
-// "provider/modelId" string. Ollama is *not* in this registry; lal handles
-// "ollama/<id>" specially in `resolveWorkerModel` below by constructing a
-// custom Model that points at a local OpenAI-compatible Ollama endpoint.
-registerBuiltInApiProviders();
+// pi-ai's built-in API providers (anthropic, openai, google, openrouter,
+// mistral, deepseek, groq, xai, github-copilot, and ~20 others) are registered
+// lazily by the harness on first model resolution, so `getModel(provider,
+// modelId)` lookups succeed for any caller-supplied "provider/modelId" string
+// without an explicit registration call here: the worker's `resolveModel`
+// (re-exported from `@endo/agentry/harness`) self-registers before its first
+// registry lookup. Ollama is *not* in this registry; lal handles "ollama/<id>"
+// specially in `resolveModel` by constructing a custom Model that points at a
+// local OpenAI-compatible Ollama endpoint.
 
 // ============================================================================
 // Interface Definition
@@ -81,10 +82,13 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   }
 
   // Bind the tool dispatcher to this guest's powers, then build the
-  // AgentTool array pi-agent-core consumes directly. We construct the
-  // PiAgent in-line (rather than via a higher-level harness helper) so that
-  //   (a) we are free to seed `initialState.messages` from prior
-  //       transcripts when cross-restart continuity lands (see PR body),
+  // AgentTool array pi-agent-core consumes directly. We build the PiAgent via
+  // `@endo/agentry/harness`'s `makePiAgent` (which owns the shared
+  // `initialState` shape, the user/assistant/toolResult `convertToLlm` filter,
+  // the `reasoning ? 'medium' : 'off'` thinking default, and
+  // `toolExecution: 'sequential'`) so that
+  //   (a) we are free to seed `messages` from prior transcripts when
+  //       cross-restart continuity lands (see PR body),
   //   (b) we control the system prompt verbatim (no policy suffix or
   //       security-notes wrapping is applied), and
   //   (c) the per-tool parameter schema lives at the tool boundary,
@@ -97,23 +101,12 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   const resolvedModel = await resolveModel(model);
   const isOllama = resolvedModel.name?.startsWith('ollama/');
 
-  const piAgent = new PiAgent({
-    initialState: {
-      systemPrompt,
-      model: resolvedModel,
-      tools: agentTools,
-      messages: [],
-      thinkingLevel: resolvedModel.reasoning ? 'medium' : 'off',
-    },
-    convertToLlm: msgs =>
-      msgs.filter(
-        m =>
-          m.role === 'user' ||
-          m.role === 'assistant' ||
-          m.role === 'toolResult',
-      ),
-    toolExecution: 'sequential',
-    ...(isOllama ? { getApiKey: async _provider => getOllamaApiKey() } : {}),
+  const piAgent = makePiAgent({
+    systemPrompt,
+    model: resolvedModel,
+    tools: agentTools,
+    // Pass getApiKey only for Ollama, matching the prior conditional spread.
+    getApiKey: isOllama ? async _provider => getOllamaApiKey() : undefined,
   });
 
   /**

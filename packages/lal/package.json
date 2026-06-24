@@ -38,6 +38,7 @@
     "@anthropic-ai/sdk": "^0.95.1",
     "@earendil-works/pi-agent-core": "^0.79.0",
     "@earendil-works/pi-ai": "^0.79.0",
+    "@endo/agentry": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
