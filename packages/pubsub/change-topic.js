@@ -163,8 +163,63 @@ export const makeChangeTopic = () => {
       });
       return subscriber;
     }
+    // A subscriber created before termination iterates the shared linked list
+    // directly through `@endo/stream`'s reader. That reader is not sticky on
+    // its own: the publisher's `return`/`throw` puts exactly one terminal node,
+    // so once the reader has yielded it a further `next()` advances the cursor
+    // onto the still-unresolved tail promise and would block forever. Wrap the
+    // reader so the terminal disposition is captured on first delivery and
+    // replayed on every subsequent `next()`. This matches the synthesized
+    // late-subscriber branch above, `makeLatestTopic`, and the README's
+    // contract that "every subsequent call keeps returning the same terminal
+    // result."
     /** @type {Reader<TValue, TReturn>} */
-    const subscriber = makeStream(sub(), nullSink);
+    const innerSubscriber = makeStream(sub(), nullSink);
+    /** @type {{ kind: 'return', value: TReturn } | { kind: 'throw', error: Error } | undefined} */
+    let sealed;
+    /** @type {Reader<TValue, TReturn>} */
+    const subscriber = harden({
+      async next() {
+        await null;
+        if (sealed !== undefined) {
+          if (sealed.kind === 'return') {
+            return harden(
+              /** @type {IteratorResult<TValue, TReturn>} */ ({
+                value: sealed.value,
+                done: true,
+              }),
+            );
+          }
+          throw sealed.error;
+        }
+        try {
+          const result = await innerSubscriber.next();
+          if (result.done) {
+            sealed = freeze({
+              kind: /** @type {'return'} */ ('return'),
+              value: /** @type {TReturn} */ (result.value),
+            });
+          }
+          return result;
+        } catch (caughtError) {
+          const error = /** @type {Error} */ (caughtError);
+          sealed = freeze({
+            kind: /** @type {'throw'} */ ('throw'),
+            error,
+          });
+          throw error;
+        }
+      },
+      async return(value) {
+        return innerSubscriber.return(value);
+      },
+      async throw(error) {
+        return innerSubscriber.throw(error);
+      },
+      [Symbol.asyncIterator]() {
+        return subscriber;
+      },
+    });
     return subscriber;
   };
   return harden({ publisher, subscribe });

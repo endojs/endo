@@ -70,6 +70,35 @@ test('change-topic: publisher.throw rejects subscribers', async t => {
   await t.throwsAsync(reader.next(), { message: 'boom' });
 });
 
+test('change-topic: terminal is sticky for a live subscriber after return', async t => {
+  // Guards against the regression where a subscriber created before
+  // termination reads the terminal once and then blocks forever on the next
+  // read. The timeout fails fast rather than hanging until the global limit.
+  t.timeout(5000);
+  const { publisher, subscribe } = makeChangeTopic();
+  const reader = subscribe();
+  await publisher.next(1);
+  await publisher.return(undefined);
+  t.deepEqual(await reader.next(), { value: 1, done: false });
+  t.deepEqual(await reader.next(), { value: undefined, done: true });
+  // Repeated reads past the terminal keep returning the same terminal result.
+  t.deepEqual(await reader.next(), { value: undefined, done: true });
+  t.deepEqual(await reader.next(), { value: undefined, done: true });
+});
+
+test('change-topic: terminal is sticky for a live subscriber after throw', async t => {
+  t.timeout(5000);
+  const { publisher, subscribe } = makeChangeTopic();
+  const reader = subscribe();
+  await publisher.next(1);
+  await publisher.throw(Error('boom'));
+  t.deepEqual(await reader.next(), { value: 1, done: false });
+  await t.throwsAsync(reader.next(), { message: 'boom' });
+  // Repeated reads past the terminal keep rejecting with the same error.
+  await t.throwsAsync(reader.next(), { message: 'boom' });
+  await t.throwsAsync(reader.next(), { message: 'boom' });
+});
+
 test('change-topic: race-safe parallel publish and drain', async t => {
   const { publisher, subscribe } = makeChangeTopic();
   const reader = subscribe();
