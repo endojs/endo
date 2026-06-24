@@ -10,7 +10,7 @@ import { makeExo } from '@endo/exo';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { bytesWriterFromIterator } from '@endo/exo-stream/bytes-writer-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
-import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
+import { makeNodeWriter } from '@endo/stream-node';
 
 import { ShellProcessInterface } from './interfaces.js';
 
@@ -20,6 +20,101 @@ import { ShellProcessInterface } from './interfaces.js';
 // for buffering on a high-latency link.  Applied symmetrically to stdin,
 // stdout, and stderr on the responder (this) side.
 const STREAM_BUFFER = 64;
+
+// When the in-memory capture queue reaches this many chunks the source is
+// paused, so a slow remote consumer applies backpressure to the child
+// rather than letting an unbounded `yes`-style firehose grow the heap.
+const READ_HIGH_WATER_CHUNKS = 64;
+
+/**
+ * Adapt a Node readable (a child's stdout / stderr) to an
+ * `AsyncIterator<Uint8Array>` that **captures output from the moment the
+ * process starts**, not lazily when a consumer first pulls.
+ *
+ * A lazy adapter (e.g. `@endo/stream-node`'s `makeNodeReader`) only reads
+ * the pipe once the remote exo-stream consumer drives it.  A fast command
+ * such as `echo` produces its whole output and exits during the CapTP
+ * round-trip it takes the consumer to attach, and that buffered output is
+ * lost.  Attaching the `data` listener eagerly here moves every chunk into
+ * an in-memory queue at production time, so the consumer drains the queue
+ * whenever it attaches.  Backpressure is preserved by pausing the source
+ * once the queue is deep and resuming as the consumer catches up.
+ *
+ * @param {import('node:stream').Readable} source
+ * @returns {AsyncIterableIterator<Uint8Array>}
+ */
+const makeEagerByteReader = source => {
+  /** @type {Uint8Array[]} */
+  const queue = [];
+  let ended = false;
+  /** @type {Error | undefined} */
+  let failure;
+  /** @type {(() => void) | undefined} */
+  let wakeWaiter;
+
+  const wake = () => {
+    const resume = wakeWaiter;
+    wakeWaiter = undefined;
+    if (resume !== undefined) {
+      resume();
+    }
+  };
+
+  source.on('data', chunk => {
+    // Copy out of Node's pooled Buffer: `new Uint8Array(buffer)` clones the
+    // bytes into a fresh ArrayBuffer, so a later reuse of the pool cannot
+    // corrupt a queued chunk.
+    queue.push(new Uint8Array(/** @type {Buffer} */ (chunk)));
+    if (queue.length >= READ_HIGH_WATER_CHUNKS) {
+      source.pause();
+    }
+    wake();
+  });
+  source.once('end', () => {
+    ended = true;
+    wake();
+  });
+  source.once('error', error => {
+    failure = /** @type {Error} */ (error);
+    ended = true;
+    wake();
+  });
+
+  /** @type {AsyncIterableIterator<Uint8Array>} */
+  const reader = {
+    async next() {
+      for (;;) {
+        if (queue.length > 0) {
+          const value = /** @type {Uint8Array} */ (queue.shift());
+          if (queue.length < READ_HIGH_WATER_CHUNKS) {
+            source.resume();
+          }
+          return harden({ done: false, value });
+        }
+        if (failure !== undefined) {
+          throw failure;
+        }
+        if (ended) {
+          return harden({ done: true, value: undefined });
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(resolve => {
+          wakeWaiter = resolve;
+        });
+      }
+    },
+    async return() {
+      source.destroy();
+      ended = true;
+      return harden({ done: true, value: undefined });
+    },
+    [Symbol.asyncIterator]() {
+      return reader;
+    },
+  };
+  return reader;
+};
+harden(makeEagerByteReader);
 
 /**
  * Run a single host command and surface its stdio as exo-stream byte
@@ -113,12 +208,14 @@ export const makeShellProcess = options => {
   const stdinWriter = bytesWriterFromIterator(makeNodeWriter(childStdin), {
     buffer: STREAM_BUFFER,
   });
-  const stdoutReader = bytesReaderFromIterator(makeNodeReader(childStdout), {
-    buffer: STREAM_BUFFER,
-  });
-  const stderrReader = bytesReaderFromIterator(makeNodeReader(childStderr), {
-    buffer: STREAM_BUFFER,
-  });
+  const stdoutReader = bytesReaderFromIterator(
+    makeEagerByteReader(childStdout),
+    { buffer: STREAM_BUFFER },
+  );
+  const stderrReader = bytesReaderFromIterator(
+    makeEagerByteReader(childStderr),
+    { buffer: STREAM_BUFFER },
+  );
 
   return makeExo('ShellProcess', ShellProcessInterface, {
     /**
