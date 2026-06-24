@@ -19,7 +19,8 @@ export const ShellProcessInterface = M.interface('ShellProcess', {
   stdin: M.call().returns(M.remotable('PassableBytesWriter')),
   stdout: M.call().returns(M.remotable('PassableBytesReader')),
   stderr: M.call().returns(M.remotable('PassableBytesReader')),
-  // Resolves { code, signal } once the process and its stdio have closed.
+  // Resolves { code, signal } once the process has terminated, regardless
+  // of whether its stdio streams have been drained.
   exit: M.call().returns(M.promise()),
   // Send a POSIX signal (default SIGTERM); reports whether it was delivered.
   kill: M.call().optional(M.or(M.string(), M.number())).returns(M.boolean()),

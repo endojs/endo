@@ -30,13 +30,25 @@ The daemon's `make-unconfined` formula loads this module by file URL and
 invokes its `make(powers, context, { env })` entry point. The command is
 read from the formula `env`:
 
-| `env` key    | required | meaning                                                                       |
-| ------------ | -------- | ----------------------------------------------------------------------------- |
-| `command`    | yes      | the executable to run (or, with `shell`, the shell script)                    |
-| `args`       | no       | a JSON array of string arguments                                              |
-| `shell`      | no       | `'true'` to run through the default shell, or a shell path; default no shell  |
-| `cwd`        | no       | the child's working directory                                                 |
-| `processEnv` | no       | a JSON object of extra environment variables, merged onto the worker's        |
+| `env` key        | required | meaning                                                                          |
+| ---------------- | -------- | -------------------------------------------------------------------------------- |
+| `command`        | yes      | the executable to run (or, with `shell`, the shell script)                       |
+| `args`           | no       | a JSON array of string arguments                                                 |
+| `shell`          | no       | `'true'` to run through the default shell, or a shell path; default no shell     |
+| `cwd`            | no       | the child's working directory                                                    |
+| `processEnv`     | no       | a JSON object of extra environment variables, layered on the child's base env    |
+| `inheritEnv`     | no       | `'true'` to inherit the worker's full environment; default is a safe allowlist   |
+| `timeoutMs`      | no       | a positive integer; SIGTERM the child if it has not exited within this many ms   |
+| `maxOutputBytes` | no       | a positive integer; SIGTERM the child once combined stdout + stderr exceeds it   |
+
+### Environment
+
+By default the child inherits only a small allowlist of environment
+variables from the worker — `PATH`, `HOME`, locale, and scratch-directory
+variables — so daemon secrets (credential-helper tokens, `ENDO_*`, cloud
+keys) are **not** exposed to an arbitrary command. `processEnv` adds or
+overrides variables on top of that base. Set `inheritEnv: 'true'` only for
+trusted commands that genuinely need the worker's full environment.
 
 ```js
 import { E } from '@endo/far';
@@ -89,14 +101,22 @@ await E(host).makeUnconfined('@node', shellModuleHref, {
 | `stdin()`         | `PassableBytesWriter`         | `return()` closes (EOFs) the child's stdin             |
 | `stdout()`        | `PassableBytesReader`         | memoized — one consumer per pipe                       |
 | `stderr()`        | `PassableBytesReader`         | memoized                                               |
-| `exit()`          | `Promise<{ code, signal }>`   | resolves once the process and its stdio have closed    |
+| `exit()`          | `Promise<{ code, signal }>`   | resolves once the process terminates (see note below)  |
 | `kill(signal?)`   | `boolean`                     | default `SIGTERM`; reports whether the signal was sent |
 | `pid()`           | `number \| undefined`         | the OS process id                                      |
 | `help()`          | `string`                      |                                                        |
 
 On a normal exit `code` is the numeric exit status and `signal` is `null`;
 on a signalled termination `code` is `null` and `signal` is the signal
-name (e.g. `'SIGKILL'`).
+name (e.g. `'SIGKILL'`). `exit()` rejects if the process could not be
+spawned (e.g. the command was not found).
+
+`exit()` resolves when the **process** terminates, not when its stdio has
+fully drained, so an unread stream cannot wedge it. Captured output stays
+readable from the in-memory queue after `exit()` resolves. Note the
+converse: a stream you open but never drain applies backpressure and can
+block a chatty child from making progress (and so from exiting) — drain or
+`return()` every stream you open, or set `maxOutputBytes` as a hard cap.
 
 The formula's context cancellation tears the child process down with
 `SIGTERM`, so revoking the capability does not orphan a subprocess.

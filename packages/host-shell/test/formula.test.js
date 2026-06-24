@@ -152,3 +152,66 @@ test.serial('host-shell formula reports a non-zero exit code', async t => {
   t.is((await readAll(E(proc).stderr())).trim(), 'to-stderr');
   t.is((await E(proc).exit()).code, 7);
 });
+
+test.serial('host-shell formula preserves output read after exit', async t => {
+  t.timeout(90_000);
+  const { host } = await prepareHost(t);
+
+  const proc = /** @type {ShellProcess} */ (
+    await E(host).makeUnconfined('@node', shellModuleHref, {
+      powersName: '@none',
+      env: { command: 'echo', args: JSON.stringify(['read-after-exit']) },
+      resultName: 'late-reader',
+    })
+  );
+
+  // The eager-capture regression guard across CapTP: await exit first,
+  // then read.  A lazy reader would lose the output of this fast command
+  // during the attach round-trip.
+  t.deepEqual(await E(proc).exit(), { code: 0, signal: null });
+  t.is((await readAll(E(proc).stdout())).trim(), 'read-after-exit');
+});
+
+test.serial('host-shell formula does not shell-interpret args', async t => {
+  t.timeout(90_000);
+  const { host } = await prepareHost(t);
+
+  const proc = /** @type {ShellProcess} */ (
+    await E(host).makeUnconfined('@node', shellModuleHref, {
+      powersName: '@none',
+      env: { command: 'echo', args: JSON.stringify(['a; echo PWNED']) },
+      resultName: 'no-injection',
+    })
+  );
+
+  // With no shell the metacharacters are one literal argument to echo,
+  // never a second command, so the output is a single line.
+  const out = await readAll(E(proc).stdout());
+  t.is(out, 'a; echo PWNED\n');
+  t.is(out.split('\n').filter(Boolean).length, 1);
+});
+
+test.serial('host-shell formula withholds worker secrets', async t => {
+  t.timeout(90_000);
+  // Set before the daemon forks so the worker inherits it; the child
+  // must still not see it, because the env allowlist withholds it.
+  process.env.HOST_SHELL_DAEMON_SECRET = 'leaked';
+  t.teardown(() => {
+    delete process.env.HOST_SHELL_DAEMON_SECRET;
+  });
+  const { host } = await prepareHost(t);
+
+  const proc = /** @type {ShellProcess} */ (
+    await E(host).makeUnconfined('@node', shellModuleHref, {
+      powersName: '@none',
+      env: {
+        command: 'printenv',
+        args: JSON.stringify(['HOST_SHELL_DAEMON_SECRET']),
+      },
+      resultName: 'secret-probe',
+    })
+  );
+
+  t.is((await readAll(E(proc).stdout())).trim(), '');
+  t.is((await E(proc).exit()).code, 1);
+});

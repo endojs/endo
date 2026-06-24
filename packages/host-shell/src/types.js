@@ -29,8 +29,8 @@
  *   as an exo-stream byte reader.
  * @property {() => PassableBytesReader} stderr The child's standard error
  *   as an exo-stream byte reader.
- * @property {() => Promise<ExitStatus>} exit Resolves once the process and
- *   its stdio have closed.
+ * @property {() => Promise<ExitStatus>} exit Resolves once the process has
+ *   terminated, independent of whether its stdio has been drained.
  * @property {(signal?: string | number) => boolean} kill Deliver a POSIX
  *   signal (default SIGTERM); returns whether it was delivered.
  * @property {() => number | undefined} pid The OS process id, or undefined
@@ -45,12 +45,18 @@
  * @property {string[]} [args] A structured argument vector passed verbatim
  *   to the executable.
  * @property {string} [cwd] The child's working directory.
- * @property {Record<string, string>} [env] The child's environment;
- *   inherits the parent's when omitted.
+ * @property {Record<string, string>} [env] The child's complete
+ *   environment.  When omitted the child inherits the parent's; pass an
+ *   explicit object (e.g. from `buildChildEnv`) to withhold ambient
+ *   variables.
  * @property {boolean | string} [shell] `false` (default) spawns a
  *   structured argv with no shell.  `true` runs through the default shell;
  *   a string names a shell executable.  Enabling a shell re-introduces the
  *   injection surface.
+ * @property {number} [timeoutMs] Send SIGTERM if the child has not exited
+ *   within this many milliseconds.
+ * @property {number} [maxOutputBytes] Send SIGTERM once the child's
+ *   combined stdout + stderr exceeds this many bytes.
  * @property {unknown} [context] Formula context whose cancellation tears
  *   the child down.
  */

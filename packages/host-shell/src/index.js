@@ -4,17 +4,20 @@
 import { makeError, q, X } from '@endo/errors';
 
 import {
+  buildChildEnv,
   makeShellProcess,
   parseArgs,
-  parseProcessEnv,
+  parsePositiveInteger,
   parseShell,
 } from './shell-process.js';
 
 export {
+  buildChildEnv,
   makeShellProcess,
   parseArgs,
-  parseShell,
+  parsePositiveInteger,
   parseProcessEnv,
+  parseShell,
 } from './shell-process.js';
 export { ShellProcessInterface } from './interfaces.js';
 
@@ -39,8 +42,16 @@ export { ShellProcessInterface } from './interfaces.js';
  *   shell-free structured argv.
  * - `env.cwd` (optional): the child's working directory.
  * - `env.processEnv` (optional): a JSON object of additional environment
- *   variables, merged onto the worker's own environment.  When omitted,
- *   the child inherits the worker's environment unchanged.
+ *   variables, layered on top of the child's base environment.
+ * - `env.inheritEnv` (optional): `'true'` to give the child the worker's
+ *   full environment.  By default the child inherits only a small safe
+ *   allowlist (PATH, HOME, locale, scratch dirs), so daemon secrets are
+ *   not exposed to an arbitrary command.
+ * - `env.timeoutMs` (optional): a positive integer; the child is sent
+ *   SIGTERM if it has not exited within this many milliseconds.
+ * - `env.maxOutputBytes` (optional): a positive integer; the child is
+ *   sent SIGTERM once its combined stdout + stderr exceeds this many
+ *   bytes.
  *
  * The returned {@link ShellProcess} exo exposes the child's stdio as
  * exo-stream byte streams (`stdin` / `stdout` / `stderr`, each buffered
@@ -54,7 +65,16 @@ export { ShellProcessInterface } from './interfaces.js';
  * @returns {ShellProcess}
  */
 export const make = (powers, context, { env = {} } = {}) => {
-  const { command, args, shell, cwd, processEnv } = env;
+  const {
+    command,
+    args,
+    shell,
+    cwd,
+    processEnv,
+    inheritEnv,
+    timeoutMs,
+    maxOutputBytes,
+  } = env;
   if (typeof command !== 'string' || command.length === 0) {
     throw makeError(
       X`@endo/host-shell requires a non-empty "command" in the formula env, got ${q(
@@ -67,7 +87,9 @@ export const make = (powers, context, { env = {} } = {}) => {
     args: parseArgs(args),
     shell: parseShell(shell),
     cwd,
-    env: parseProcessEnv(processEnv),
+    env: buildChildEnv({ processEnv, inheritEnv }),
+    timeoutMs: parsePositiveInteger(timeoutMs, 'timeoutMs'),
+    maxOutputBytes: parsePositiveInteger(maxOutputBytes, 'maxOutputBytes'),
     context,
   });
 };

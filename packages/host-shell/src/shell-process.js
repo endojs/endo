@@ -3,6 +3,7 @@
 
 import { spawn } from 'node:child_process';
 import process from 'node:process';
+import { clearTimeout, setTimeout } from 'node:timers';
 
 import { makeError, q, X } from '@endo/errors';
 import { E } from '@endo/eventual-send';
@@ -27,6 +28,48 @@ const STREAM_BUFFER = 64;
 const READ_HIGH_WATER_CHUNKS = 64;
 
 /**
+ * Environment variables a spawned child inherits from the worker by
+ * default.  Everything else (daemon secrets, credential-helper tokens,
+ * `ENDO_*`, cloud keys) is withheld unless the caller opts into full
+ * inheritance with `inheritEnv`.  PATH must be present or `spawn` cannot
+ * resolve the executable at all; the rest give the child a usable locale
+ * and scratch space without leaking ambient configuration.
+ */
+const SAFE_ENV_KEYS = harden([
+  'PATH',
+  'HOME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'TERM',
+  'TMPDIR',
+  'TZ',
+  'USER',
+  'LOGNAME',
+  // Windows equivalents.
+  'SystemRoot',
+  'ComSpec',
+  'PATHEXT',
+  'WINDIR',
+  'TEMP',
+  'TMP',
+]);
+
+/**
+ * Reject NUL bytes at the boundary so a truncated value cannot reach the
+ * exec arguments the kernel actually sees.
+ *
+ * @param {string} value
+ * @param {string} field
+ */
+const requireNoNul = (value, field) => {
+  if (value.includes('\0')) {
+    throw makeError(X`host-shell ${q(field)} must not contain NUL bytes`);
+  }
+};
+harden(requireNoNul);
+
+/**
  * Adapt a Node readable (a child's stdout / stderr) to an
  * `AsyncIterator<Uint8Array>` that **captures output from the moment the
  * process starts**, not lazily when a consumer first pulls.
@@ -41,9 +84,11 @@ const READ_HIGH_WATER_CHUNKS = 64;
  * once the queue is deep and resuming as the consumer catches up.
  *
  * @param {import('node:stream').Readable} source
+ * @param {(byteLength: number) => void} [onBytes] - notified of each
+ *   captured chunk's length, so the caller can enforce an output cap.
  * @returns {AsyncIterableIterator<Uint8Array>}
  */
-const makeEagerByteReader = source => {
+const makeEagerByteReader = (source, onBytes) => {
   /** @type {Uint8Array[]} */
   const queue = [];
   let ended = false;
@@ -64,7 +109,11 @@ const makeEagerByteReader = source => {
     // Copy out of Node's pooled Buffer: `new Uint8Array(buffer)` clones the
     // bytes into a fresh ArrayBuffer, so a later reuse of the pool cannot
     // corrupt a queued chunk.
-    queue.push(new Uint8Array(/** @type {Buffer} */ (chunk)));
+    const bytes = new Uint8Array(/** @type {Buffer} */ (chunk));
+    queue.push(bytes);
+    if (onBytes !== undefined) {
+      onBytes(bytes.length);
+    }
     if (queue.length >= READ_HIGH_WATER_CHUNKS) {
       source.pause();
     }
@@ -133,6 +182,14 @@ harden(makeEagerByteReader);
  * three stream accessors are memoized: `stdout()` always returns the
  * same `PassableBytesReader`, never a fresh drain of the same pipe.
  *
+ * `exit()` resolves when the **process** terminates (Node's `'exit'`
+ * event), not when its stdio has fully drained (`'close'`).  Decoupling
+ * the two means a stdio stream the caller never consumes — or a pipe an
+ * orphaned grandchild keeps open — cannot wedge the exit-status promise.
+ * Captured output remains readable from the in-memory queue after exit.
+ * To avoid backpressuring (and so blocking) the child, drain or
+ * `return()` every stream you open; see `maxOutputBytes` for a hard cap.
+ *
  * @param {MakeShellProcessOptions} options
  * @returns {ShellProcess}
  */
@@ -144,6 +201,8 @@ export const makeShellProcess = options => {
     env: childEnv,
     shell = false,
     context,
+    timeoutMs,
+    maxOutputBytes,
   } = options;
 
   if (typeof command !== 'string' || command.length === 0) {
@@ -151,8 +210,18 @@ export const makeShellProcess = options => {
       X`host-shell requires a non-empty command, got ${q(command)}`,
     );
   }
+  requireNoNul(command, 'command');
   if (!Array.isArray(args) || args.some(arg => typeof arg !== 'string')) {
     throw makeError(X`host-shell args must be an array of strings`);
+  }
+  for (const arg of args) {
+    requireNoNul(arg, 'args entry');
+  }
+  if (cwd !== undefined) {
+    if (typeof cwd !== 'string') {
+      throw makeError(X`host-shell cwd must be a string, got ${q(cwd)}`);
+    }
+    requireNoNul(cwd, 'cwd');
   }
 
   const child = spawn(command, [...args], {
@@ -174,16 +243,60 @@ export const makeShellProcess = options => {
   exitKit.promise.catch(() => {});
 
   let settled = false;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let timer;
+  const disarmTimer = () => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+
+  // Best-effort SIGTERM that no-ops on an already-dead child, used by the
+  // timeout and output-cap guards (and reused for cancellation below).
+  const terminate = () => {
+    if (child.exitCode === null && !child.killed) {
+      child.kill('SIGTERM');
+    }
+  };
+
   child.once('error', error => {
     if (settled) return;
     settled = true;
+    disarmTimer();
     exitKit.reject(error);
   });
-  child.once('close', (code, signal) => {
+  // Resolve on 'exit' (process termination), not 'close' (all stdio
+  // drained): an unconsumed or orphan-held pipe must not block the status.
+  child.once('exit', (code, signal) => {
     if (settled) return;
     settled = true;
+    disarmTimer();
     exitKit.resolve(harden({ code, signal }));
   });
+
+  if (timeoutMs !== undefined) {
+    timer = setTimeout(terminate, timeoutMs);
+    // Don't let a pending timeout keep the worker's event loop alive.
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
+  }
+
+  // Enforce the optional total-output cap across stdout + stderr: a
+  // runaway producer is terminated rather than allowed to grow the heap
+  // (when a consumer is attached) or block on a full pipe (when not).
+  let outputBytes = 0;
+  /** @type {((byteLength: number) => void) | undefined} */
+  const onBytes =
+    maxOutputBytes === undefined
+      ? undefined
+      : byteLength => {
+          outputBytes += byteLength;
+          if (outputBytes > maxOutputBytes) {
+            terminate();
+          }
+        };
 
   // A worker formula is cancelled when its dependencies die or the host
   // revokes it; tear the child down rather than orphaning a subprocess.
@@ -193,9 +306,8 @@ export const makeShellProcess = options => {
     E(/** @type {{ whenCancelled: () => Promise<unknown> }} */ (context))
       .whenCancelled()
       .catch(() => {
-        if (child.exitCode === null && !child.killed) {
-          child.kill('SIGTERM');
-        }
+        disarmTimer();
+        terminate();
       });
   }
 
@@ -211,11 +323,11 @@ export const makeShellProcess = options => {
     buffer: STREAM_BUFFER,
   });
   const stdoutReader = bytesReaderFromIterator(
-    makeEagerByteReader(childStdout),
+    makeEagerByteReader(childStdout, onBytes),
     { buffer: STREAM_BUFFER },
   );
   const stderrReader = bytesReaderFromIterator(
-    makeEagerByteReader(childStderr),
+    makeEagerByteReader(childStderr, onBytes),
     { buffer: STREAM_BUFFER },
   );
 
@@ -245,10 +357,11 @@ export const makeShellProcess = options => {
     },
 
     /**
-     * Resolves once the process has exited and its stdio has closed.
-     * `code` is the numeric exit code (null if the process was killed by
-     * a signal); `signal` is the terminating signal name (null on a
-     * normal exit).  Rejects if the process could not be spawned.
+     * Resolves once the process has terminated (independent of whether
+     * its stdio streams have been drained).  `code` is the numeric exit
+     * code (null if the process was killed by a signal); `signal` is the
+     * terminating signal name (null on a normal exit).  Rejects if the
+     * process could not be spawned.
      *
      * @returns {Promise<ExitStatus>}
      */
@@ -276,7 +389,7 @@ export const makeShellProcess = options => {
     },
 
     help() {
-      return 'A running host process. stdin() is an exo-stream byte writer; stdout() and stderr() are exo-stream byte readers; exit() resolves { code, signal }; kill(signal?) signals the process.';
+      return 'A running host process. stdin() is an exo-stream byte writer; stdout() and stderr() are exo-stream byte readers; exit() resolves { code, signal } when the process terminates; kill(signal?) signals the process (default SIGTERM); pid() is the OS process id.';
     },
   });
 };
@@ -331,10 +444,11 @@ export const parseShell = value => {
 harden(parseShell);
 
 /**
- * Parse the optional JSON `processEnv` field from a formula `env`.  A
- * formula `env` is a flat `Record<string, string>`, so a richer child
- * environment is carried as a JSON-encoded object, merged onto the
- * worker's own environment.
+ * Parse the optional JSON `processEnv` field from a formula `env` into a
+ * flat object of override variables.  A formula `env` is itself a flat
+ * `Record<string, string>`, so a richer child environment is carried as
+ * a JSON-encoded object.  This only validates and parses; merging onto a
+ * base environment is {@link buildChildEnv}'s job.
  *
  * @param {string | undefined} value
  * @returns {Record<string, string> | undefined}
@@ -363,6 +477,72 @@ export const parseProcessEnv = value => {
       X`host-shell env.processEnv must be a JSON object of string values`,
     );
   }
-  return { ...process.env, ...parsed };
+  return parsed;
 };
 harden(parseProcessEnv);
+
+/**
+ * Build the child's environment from the worker's, returning a fresh,
+ * **extensible** plain object — deliberately not hardened, because Node's
+ * `spawn` writes coverage-injection variables (e.g. `NODE_V8_COVERAGE`)
+ * straight into the `env` object it is handed, which throws on a frozen
+ * one.  The object is ephemeral (consumed by the spawn, never stored), so
+ * leaving it unhardened widens no authority.
+ *
+ * By default the child inherits only {@link SAFE_ENV_KEYS} from the
+ * worker, so daemon secrets are not exposed to an arbitrary command.
+ * `inheritEnv` (`true` / `'true'`) opts into the full worker environment
+ * for trusted commands that need it.  Parsed `processEnv` overrides are
+ * layered on top of whichever base.
+ *
+ * @param {object} [options]
+ * @param {string} [options.processEnv] - JSON object of override variables.
+ * @param {boolean | string} [options.inheritEnv] - inherit the full
+ *   worker environment instead of the safe allowlist.
+ * @returns {Record<string, string>}
+ */
+export const buildChildEnv = ({ processEnv, inheritEnv } = {}) => {
+  const overrides = parseProcessEnv(processEnv);
+  const inherit = inheritEnv === true || inheritEnv === 'true';
+  /** @type {Record<string, string>} */
+  const base = {};
+  if (inherit) {
+    for (const [key, value] of Object.entries(process.env)) {
+      if (value !== undefined) {
+        base[key] = value;
+      }
+    }
+  } else {
+    for (const key of SAFE_ENV_KEYS) {
+      const value = process.env[key];
+      if (value !== undefined) {
+        base[key] = value;
+      }
+    }
+  }
+  return { ...base, ...overrides };
+};
+harden(buildChildEnv);
+
+/**
+ * Parse an optional positive-integer field (e.g. `timeoutMs`,
+ * `maxOutputBytes`) from a formula `env`.  Returns `undefined` when the
+ * field is absent.
+ *
+ * @param {string | undefined} value
+ * @param {string} field
+ * @returns {number | undefined}
+ */
+export const parsePositiveInteger = (value, field) => {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw makeError(
+      X`host-shell env.${field} must be a positive integer, got ${q(value)}`,
+    );
+  }
+  return parsed;
+};
+harden(parsePositiveInteger);
