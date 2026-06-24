@@ -9,7 +9,7 @@
 ## Summary
 
 This is **design 2 of 2** in a pair of competing plans for landing
-SturdyRef support in `@endo/pass-style` and threading sturdy refs
+SturdyRef support in `@endo/pass-style` and threading SturdyRefs
 through the daemon's pet-name-path surface.
 The sibling design (the `FinalizationRegistry` plan) lets workers
 hold SturdyRefs in their own JavaScript heap and uses GC observation
@@ -299,21 +299,21 @@ lifetimes when the worker explicitly asks.
 
 ### Pass-style integration
 
-#### A new pass-style category, `'sturdyRef'`
+#### A new pass-style category, `'sturdyref'`
 
-A sixth marker style, joining `'remotable'` and `'tagged'`.
+A new marker style, joining `'remotable'` and `'tagged'`.
 Construction is gated through a maker (`makeSturdyRef`) supplied by
 `@endo/pass-style`:
 
 ```js
 import { makeSturdyRef, passStyleOf } from '@endo/pass-style';
 const sturdyRef = makeSturdyRef(location);
-passStyleOf(sturdyRef); // 'sturdyRef'
+passStyleOf(sturdyRef); // 'sturdyref'
 ```
 
 A SturdyRef value has:
 
-- `[PASS_STYLE]: 'sturdyRef'` on a tag-record prototype, mirroring
+- `[PASS_STYLE]: 'sturdyref'` on a tag-record prototype, mirroring
   the way remotables work.
 - `[Symbol.toStringTag]: 'SturdyRef'`.
 - A non-enumerable `location` accessor returning the deep-frozen
@@ -327,7 +327,7 @@ The SturdyRef object on its own is not enough to mint a CapTP
 reference; the closely-held capability (next subsection) is.
 
 This shape composes with `makeExo` and pattern-matchers (`M.kind`
-gains an entry for `'sturdyRef'`) without surprise.
+gains an entry for `'sturdyref'`) without surprise.
 
 #### Helper: `SturdyRefHelper`
 
@@ -335,7 +335,7 @@ A new file `packages/pass-style/src/sturdyRef.js` adding:
 
 ```js
 export const SturdyRefHelper = harden({
-  styleName: 'sturdyRef',
+  styleName: 'sturdyref',
   canBeValid: (candidate, reject) => { /* tag-record check */ },
   assertValid: (candidate, passStyleOfRecur) => {
     // 1. tag-record is structurally a SturdyRef tag-record.
@@ -373,7 +373,7 @@ The mechanism is:
 
 - **On send (boxing).**
   The marshaler asks `passStyleOf(value)`.
-  When the answer is `'sturdyRef'`, the marshaler asks the
+  When the answer is `'sturdyref'`, the marshaler asks the
   layer's *sturdyref dispatcher* for a wire representation.
   For OCapN, the dispatcher inspects the locator and either
   emits the `ocapn-sturdyref` tagged record (peer + swiss-num)
@@ -473,12 +473,36 @@ The worker can use the SturdyRef inside that turn (it can call
 embed it in a copyRecord it returns) but cannot stash it in a
 module-scope variable and expect to find it later.
 
-Mechanically: the CapTP slot the worker received the SturdyRef on
-is *not* held open after the turn ends.
-`residence.js`'s `deleteExport(slot)` fires at end-of-turn for
-turn-scoped exports, which calls
-`residenceWatcher.release(...)` and drops the daemon's
-bookkeeping for that worker's hold on that SturdyRef.
+Mechanically, the bookkeeping unwinds through CapTP's existing
+distributed-GC path, not through a turn boundary.
+`residence.js` wraps the CapTP import/export tables so that the
+default `deleteExport(slot)` also calls `residenceWatcher.release(...)`
+(see `packages/daemon/src/residence.js`, the `makeCapTPImportExportTables`
+wrapper).
+But `deleteExport` is not fired by the end of a turn.
+It fires on `CTP_DROP`, when the *importing* (worker) side drops its
+last reference to the slot and CapTP propagates that drop back to the
+exporter (see `packages/captp/src/captp.js`, `CTP_DROP` around line 612
+and `releaseSlot` around line 438, whose comment reads "since GC told
+us we don't need them anymore").
+With `gcImports` enabled, that drop is driven by the worker VM's
+`FinalizationRegistry` collecting the worker-side presence (see
+`packages/captp/src/finalize.js`).
+There is no automatic end-of-turn export drop: a worker that stashes
+the SturdyRef in a module-scope variable keeps the slot (and so the
+daemon's `release` hook) alive until its own VM collects the value.
+
+This design therefore cannot rely on the slot dropping at turn end.
+Rule 1's "lives only for the duration of the current delivery's task"
+is a *contract* this design must enforce (the worker is told not to
+stash the SturdyRef across turns, and Rule 3's syscall is the
+sanctioned way to extend retention), not a property the CapTP slot
+lifecycle delivers for free.
+The consequence for the determinism claim is reconciled in
+*Composition with the maintainer's framing* and the open questions
+below: the **implicit** (non-explicitly-retained) path inherits
+worker-VM GC timing, and only the **explicit** `retain` / `release`
+path is GC-timing-independent.
 
 **Rule 2 (the daemon retains ephemerally on the worker's behalf).**
 When the daemon hands a SturdyRef to a worker, the daemon also
@@ -541,8 +565,24 @@ The "disadvantage of each" the maintainer warned about:
   `FinalizationRegistry` makes formula lifetime depend on
   worker-VM GC timing (nondeterministic, against the explicit-
   reachability design, discouraged under SES).
-  This design avoids it: the worker has no autonomous retention
-  mechanism, so there is no GC timing question.
+  This design narrows that dependence to the implicit path rather
+  than eliminating it.
+  For the **explicit** path (a worker that issues `retain` and holds
+  a numeric handle), formula lifetime is GC-timing-independent: the
+  handle is a daemon-side token and the `retained:` edge drops only
+  on an explicit `release` or worker termination.
+  For the **implicit** path (a worker that holds the SturdyRef value
+  across turns without a syscall), the slot drops on CapTP `CTP_DROP`,
+  which (with `gcImports`) is driven by the worker VM collecting its
+  presence (Rule 1).
+  So the implicit path inherits the same worker-VM-GC-timing
+  dependence the sibling design has; this design does not introduce
+  a `FinalizationRegistry` of its own, but it does ride the one CapTP
+  already uses for import GC.
+  The design's determinism advantage is real only for the explicit
+  retain/release path, and the contract that workers do not retain
+  implicitly across turns is what keeps the implicit path's timing out
+  of the picture (an enforced contract, not a free property).
 - The daemon disadvantage is that every retention requires an
   explicit name in the user's namespace, mutating the user's
   namespace just to express "this worker has a handle".
@@ -660,10 +700,20 @@ sequenceDiagram
     H-->>U: SturdyRef-or-presence (delivered via CapTP)
     Note over D,W: residence records retain(worker, formulaId, slot)
     Note over D: formulaGraph gains ephemeral:W:turn edge
-    Note over W: turn ends; slot is GC'd by deleteExport
+    Note over W: worker drops its reference; CapTP CTP_DROP fires deleteExport
     Note over D,W: residence release(worker, formulaId, slot)
     Note over D: formulaGraph drops ephemeral:W:turn edge
 ```
+
+The drop note above is the honest mechanism: the slot is released
+when the worker drops its reference and CapTP propagates `CTP_DROP`,
+not at a turn boundary.
+For a well-behaved worker that does not stash the SturdyRef, that
+drop happens soon after the turn, but the timing is worker-VM-GC
+driven (Rule 1 above).
+The `ephemeral:W:turn` edge models the *intended* turn-scoped
+lifetime; enforcing that lifetime against a misbehaving worker is the
+job of Rule 3's explicit syscall, not of the slot lifecycle.
 
 #### Cross-turn retention (syscall path)
 
@@ -716,7 +766,7 @@ chronological order but are not all in one PR.
 
 | Cut | Change | Risk |
 |---|---|---|
-| 1 | Add `'sturdyRef'` to `@endo/pass-style` with `SturdyRefHelper`, `makeSturdyRef`, and a passing test suite. No daemon change. `@endo/ocapn` continues to use its `tagged`-with-WeakMap shim; nothing else has to migrate yet. | Low. Internal-only addition. |
+| 1 | Add `'sturdyref'` to `@endo/pass-style` with `SturdyRefHelper`, `makeSturdyRef`, and a passing test suite. No daemon change. `@endo/ocapn` continues to use its `tagged`-with-WeakMap shim; nothing else has to migrate yet. | Low. Internal-only addition. |
 | 2 | `@endo/ocapn` migrates from `tagged`-with-WeakMap to the new pass-style category. `ocapnPassStyleOf` collapses to `passStyleOf`. Existing tests stay green. | Low. One package, well-covered. |
 | 3 | Daemon's existing pet-name-path-accepting methods grow the `M.or(M.petNamePath(), M.sturdyRef())` guard. Initially they reject `M.sturdyRef()` at the facet (returning a "not yet implemented" error), so the guard ships before the resolution does. | Low. Type-surface only. |
 | 4 | Daemon `revealSturdyRef` closely-held capability lands; the facets actually resolve SturdyRefs to formula identifiers and dispatch. Per-method tests prove `lookup`/`identify`/`locate`/`evaluate`/`makeUnconfined` all accept SturdyRefs. Existing pet-name-path-only callers are unaffected. | Medium. Touches every facet; per-method coverage matters. |
@@ -775,7 +825,7 @@ cross-turn retention.
 
 This is the central design payoff.
 The worker passes the SturdyRef as an argument; the facet
-recognises `passStyleOf === 'sturdyRef'`, resolves to a
+recognises `passStyleOf === 'sturdyref'`, resolves to a
 formula identifier, and dispatches.
 No swiss number ever crosses into the worker.
 
@@ -793,12 +843,18 @@ disadvantages of either approach while seeking each's virtue.
 
 - **Implicit retention (ocap-kernel virtue).**
   This design sources implicit retention from the *daemon's*
-  ephemeral retention, not from worker-VM GC.
+  ephemeral retention edge.
   For the common case (a worker is handed a SturdyRef in a
   turn and uses it in the same turn), no explicit retain/release
   is needed.
   The worker writes JS as if the daemon were holding the
   reference for it, because it is.
+  The honest caveat (see Rule 1): the *teardown* of that ephemeral
+  edge keys off the CapTP slot's `CTP_DROP`, which is worker-VM-GC
+  driven, so the implicit path's release timing is not deterministic.
+  The design relies on the contract that workers do not retain
+  implicitly across turns (and on Rule 3 for those that must) rather
+  than on a deterministic implicit teardown.
 - **Revocation-by-deletion (daemon virtue).**
   This design preserves it in full.
   Every retention edge is named (`pet:<name>`,
@@ -808,13 +864,19 @@ disadvantages of either approach while seeking each's virtue.
   The user mentions a worker as the retention root and the
   retention drops.
 
-The disadvantage of ocap-kernel that we explicitly *do not* take:
-formula lifetime never depends on JS GC timing.
-The retention edges are bookkeeping; the worker's heap is opaque
-to the daemon.
-A formula is collectable when no `formulaGraph` edge holds it,
-which is a determined-by-bookkeeping question, not a question
-about when the VM happens to run GC.
+The disadvantage of ocap-kernel that we narrow (not eliminate):
+dependence on JS GC timing.
+For an **explicitly retained** SturdyRef the `retained:<worker>:<handle>`
+edge is pure daemon-side bookkeeping, dropped only on `release` or
+worker termination, so its lifetime does not depend on when the VM
+runs GC.
+For an **implicitly held** SturdyRef the `ephemeral:<worker>:<turn>`
+edge drops when the CapTP slot drops, and (with `gcImports`) that drop
+is the worker VM collecting its presence, so the implicit path does
+depend on GC timing the same way the sibling design does.
+This design does not add a `FinalizationRegistry` of its own, but it
+does not escape CapTP's existing import-GC machinery for the implicit
+path; the determinism win is confined to the explicit path.
 
 The disadvantage of the daemon that we explicitly *do not* take:
 the user's pet-name namespace is not polluted by retention.
@@ -837,34 +899,40 @@ Concrete points where the two diverge:
 
 | Question | This design | Alternative (FinalizationRegistry) |
 |---|---|---|
-| Where does a worker hold a SturdyRef across turns? | The worker holds a numeric *handle*; the SturdyRef object itself is turn-scoped and `deleteExport`'d at end-of-turn. | The worker holds the SturdyRef object itself, in a module-scope variable, set, weakmap, or similar. |
+| Where does a worker hold a SturdyRef across turns? | The sanctioned way is a numeric *handle* from `retain`; the SturdyRef object itself is meant to be turn-scoped (its CapTP slot drops on `CTP_DROP` when the worker's VM collects it, not at a turn boundary). A worker that stashes the object instead keeps the slot alive, which is the implicit-path case below. | The worker holds the SturdyRef object itself, in a module-scope variable, set, weakmap, or similar. |
 | How does the daemon know the worker is still holding it? | The daemon's `formulaGraph` carries an explicit `retained:<worker>:<handle>` edge that the worker created via syscall. | The daemon registers the SturdyRef with a `FinalizationRegistry` on the worker side and observes the registry's drop callbacks over CapTP. |
-| How does the daemon know the worker no longer holds it? | The worker issues `release(handle)`, or the worker dies. | The worker's VM eventually GCs the SturdyRef and the registry callback fires (whenever the VM runs GC). |
-| How long is "between worker stops holding and daemon notices"? | Microseconds. Bounded by the syscall round-trip. | Indefinite. Bounded only by the worker VM's GC scheduling. |
+| How does the daemon know the worker no longer holds it? | Explicit path: the worker issues `release(handle)`, or the worker dies. Implicit path: CapTP `CTP_DROP` fires `deleteExport` when the worker VM collects the slot, same GC-driven signal the alternative uses. | The worker's VM eventually GCs the SturdyRef and the registry callback fires (whenever the VM runs GC). |
+| How long is "between worker stops holding and daemon notices"? | Explicit path: microseconds, bounded by the syscall round-trip. Implicit path: indefinite, bounded by the worker VM's GC scheduling (the same bound as the alternative). | Indefinite. Bounded only by the worker VM's GC scheduling. |
 | What does `listRetentionPaths` show? | Explicit edges keyed by `retained:<worker>:<handle>` and `ephemeral:<worker>:<turn>`. The user sees exactly what the worker explicitly retained. | An edge keyed by the worker. The "what does this worker hold" answer is approximate until the next GC pass. |
 | Cost of "no retention" code path | Zero. Workers that don't retain across turns issue no syscalls. | Each SturdyRef costs a FinalizationRegistry entry on creation, regardless of whether the worker keeps it. |
 | Cost of "retention" code path | One `retain` syscall, one eventual `release` syscall. | Zero explicit cost, paid back as GC observation overhead. |
 | Compatibility with `lockdown` discouragement of `FinalizationRegistry` | No `FinalizationRegistry` needed; the design works under arbitrary SES taming. | Requires `FinalizationRegistry` to be left available under `lockdown`, which is a posture this codebase has historically discouraged for determinism. |
-| What happens if the worker is buggy and forgets to release? | Retention edge persists until worker termination; the user can mention the worker as the retention root and revoke. The bug shows up as a retention path visible to the user. | Retention persists until the worker VM happens to GC; the user can mention the worker and revoke. The bug is invisible (looks like "the VM hasn't GC'd yet"). |
+| What happens if the worker is buggy and forgets to release? | The `retained:` edge persists until worker termination; the user can mention the worker as the retention root and revoke. The bug shows up as an explicit retention path visible to the user. (A worker that buggily stashes the object without `retain` instead lands on the implicit path, where the edge persists until the worker VM GCs, the same failure shape as the alternative.) | Retention persists until the worker VM happens to GC; the user can mention the worker and revoke. The bug is invisible (looks like "the VM hasn't GC'd yet"). |
 | What happens if the worker is buggy and releases the wrong handle? | The wrong handle's retention drops. The right one stays alive. Each handle is independent. | Not applicable. |
 | `endor` protocol surface added | Two new verbs (`retain`, `release`) plus their responses. | Likely a new verb for the FinalizationRegistry drop notification, depending on how the alternative is structured. |
 | Worker SDK surface added | A `syscall.retain(slot)` / `syscall.release(handle)` pair, exposed only to worker-side capability code. | None on the SDK; `FinalizationRegistry` is the surface. |
 | Reincarnation behaviour | Reincarnated worker starts with no handles; the worker's `provideGuest`-style boot code re-acquires whatever it needs. | Reincarnated worker re-registers SturdyRefs with the registry on boot; same shape, but the registry callbacks are the audit trail. |
-| Revocation lag | Bounded by syscall round-trip. | Bounded by worker GC. |
+| Revocation lag | Explicit path: bounded by syscall round-trip. Implicit path: bounded by worker GC, as in the alternative. | Bounded by worker GC. |
 | Posture | "The daemon owns retention; workers ask explicitly when they want extension." | "Workers own retention; the daemon observes via VM hooks." |
 
 The decision is therefore a posture choice between
 *explicit-and-narrow* (this design) and *implicit-and-wide* (the
 alternative).
-Both preserve the user's revocation-by-deletion agency; they
-differ in determinism and in whether `FinalizationRegistry` is
-in the dependency chain.
+Both preserve the user's revocation-by-deletion agency.
+They differ in whether this design *adds* a `FinalizationRegistry`
+(it does not) and in where the determinism win lands: this design buys
+GC-timing-independence only for the **explicit** retain/release path,
+while its implicit path rides CapTP's existing import-GC and so shares
+the alternative's GC-timing dependence.
+The honest comparison is "explicit path deterministic, implicit path
+GC-driven" against the alternative's "all paths GC-driven", not "no GC
+dependence anywhere".
 
 ## Test plan
 
 Pass-style:
 
-- `passStyleOf(makeSturdyRef(location)) === 'sturdyRef'`.
+- `passStyleOf(makeSturdyRef(location)) === 'sturdyref'`.
 - A SturdyRef survives `harden` and `passStyleOf` is idempotent.
 - A SturdyRef whose location is not a valid `OcapnLocation` fails
   `assertValid`.
@@ -975,10 +1043,36 @@ Retention surface:
   In the worker-VM-GC reading, that means worker-VM GC drives
   daemon-side release.
   This design rereads "collected" as "the CapTP slot is
-  `deleteExport`'d", which is end-of-turn for non-retained slots.
-  Is the rereading faithful to the framing?
-  (This is the central question the maintainer's response will
-  resolve.)
+  `deleteExport`'d".
+  Correction to an earlier draft of this design: `deleteExport` is
+  **not** an end-of-turn event.
+  It fires on CapTP `CTP_DROP`, when the importing (worker) side drops
+  its last reference to the slot, which (with `gcImports`) is the
+  worker VM collecting its presence (`packages/captp/src/captp.js`
+  `CTP_DROP` and `releaseSlot`; `packages/captp/src/finalize.js`).
+  So "collected" under this reread still bottoms out in worker-VM GC
+  for any reference the worker actually holds across turns; the reread
+  does not move the implicit path off GC timing, it only renames the
+  hook.
+  Two questions follow, both routed to the maintainer:
+  1. Is the reread faithful to the framing given that the implicit
+     path remains GC-timing-driven (the same property the maintainer
+     was trying to avoid)?
+  2. Given that the determinism advantage holds only for the explicit
+     `retain` / `release` path, does this design still beat the
+     sibling (#511) FinalizationRegistry plan, or does the residual
+     implicit-path GC dependence erase the margin?
+  (These are the central posture questions the maintainer's response
+  resolves; this design does not pre-decide them.)
+- Should the implicit ephemeral path be made deterministic to recover
+  the original determinism claim?
+  One option is for the daemon to **proactively** drop the export at a
+  defined boundary (an explicit per-turn `deleteExport` of
+  non-retained SturdyRef slots) rather than waiting for worker-VM GC.
+  That would restore turn-bounded teardown but changes the CapTP slot
+  lifecycle and is a larger mechanism change.
+  Flagged here as the natural follow-up; not specified in this design,
+  and out of scope for the current factual correction.
 
 ## Dependencies
 
