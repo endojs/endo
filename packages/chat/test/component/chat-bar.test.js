@@ -316,6 +316,98 @@ test.serial(
   },
 );
 
+test.serial(
+  'command-mode chrome (label / submit / error) renders confined',
+  async t => {
+    const ctx = await setupChatBar();
+
+    const $header = ctx.$parent.querySelector('.command-header');
+    const $footer = ctx.$parent.querySelector('.command-footer');
+    const $commandError = ctx.$parent.querySelector('#command-error');
+
+    // Enter command mode via the /mkdir popover row.
+    ctx.$menuButton.click();
+    const $row = await waitFor(() =>
+      ctx.$popover.querySelector('.command-popover-item[data-command="mkdir"]'),
+    );
+    $row.click();
+
+    await waitFor(() => ctx.$chatBar.classList.contains('command-mode'));
+    t.true(
+      ctx.$chatBar.classList.contains('command-mode'),
+      'command-mode class still toggles',
+    );
+
+    // The command label renders confined into a dedicated mount child of
+    // `.command-header` as a `.command-label` span — no imperative textContent.
+    const $label = await waitFor(() => {
+      const span = $header.querySelector('.command-label');
+      return span && span.textContent === 'Make Directory' ? span : null;
+    });
+    t.truthy($label, 'confined command label renders the command label');
+
+    // The submit button renders confined into `.command-footer`, labelled from
+    // the command's submitLabel, and starts disabled (the form is invalid).
+    const $submit = await waitFor(() => {
+      const btn = $footer.querySelector('button');
+      return btn && btn.textContent === 'Create' ? btn : null;
+    });
+    t.truthy($submit, 'confined submit button renders the submit label');
+    t.true(
+      $submit.disabled,
+      'submit button mirrors the authoritative invalid state (disabled)',
+    );
+    t.truthy(
+      $footer.querySelector('.command-cancel-footer'),
+      'confined cancel-footer button renders',
+    );
+
+    // The error region renders confined; it starts empty / hidden.
+    t.is($commandError.style.display, 'none', 'error bubble hidden when empty');
+
+    t.teardown(() => ctx.api.dispose());
+  },
+);
+
+test.serial(
+  'dispose unmounts the confined command-mode chrome mounts',
+  async t => {
+    const ctx = await setupChatBar();
+
+    const $header = ctx.$parent.querySelector('.command-header');
+    const $footer = ctx.$parent.querySelector('.command-footer');
+
+    ctx.$menuButton.click();
+    const $row = await waitFor(() =>
+      ctx.$popover.querySelector('.command-popover-item[data-command="mkdir"]'),
+    );
+    $row.click();
+
+    await waitFor(() => $header.querySelector('.command-label'));
+    await waitFor(() => $footer.querySelector('button'));
+    t.truthy($header.querySelector('.command-label'), 'chrome populated');
+    t.truthy($footer.querySelector('button'), 'footer populated');
+
+    ctx.api.dispose();
+
+    await waitFor(() => !$header.querySelector('.command-label'));
+    await waitFor(() => !$footer.querySelector('button'));
+
+    // unmount() tears down each confined chrome tree, leaving the host mount
+    // nodes empty.
+    t.is(
+      $header.querySelector('.command-label'),
+      null,
+      'command label removed after dispose',
+    );
+    t.is(
+      $footer.querySelector('button'),
+      null,
+      'submit/cancel buttons removed after dispose',
+    );
+  },
+);
+
 test.serial('dispose unmounts the confined modeline mount', async t => {
   const ctx = await setupChatBar();
 

@@ -36,7 +36,8 @@ import { createHelpModal } from './help-modal.js';
 import { isMac, modKey } from './platform-keys.js';
 
 // Command / compose bar, migrated from imperative DOM to confined Preact for the
-// two pieces that are genuinely views built from string `.innerHTML`:
+// three pieces that are genuinely views built from string `.innerHTML` /
+// imperative `textContent` / `disabled` / class writes:
 //
 //   1. THE MODELINE (`#chat-modeline`) — the per-mode keyboard-hint strip. Every
 //      `updateModeline` / `updateSendModeline` / `updateSelectingModeline` /
@@ -48,16 +49,29 @@ import { isMac, modKey } from './platform-keys.js';
 //   2. THE COMMAND POPOVER (`#chat-command-popover`) — the hamburger menu's
 //      category-grouped command list. It renders confined from the registry data
 //      plus an `onSelect` callback, into a DEDICATED mount child of the popover.
+//   3. THE COMMAND-MODE CHROME (`.command-header` / `.command-footer` /
+//      `#command-error`) — the active-command label, the submit/cancel footer
+//      buttons, and the error bubble. Previously driven by imperative
+//      `$commandLabel.textContent`, `$commandSubmitButton.textContent /
+//      .disabled / .classList`, and `$commandError.textContent`. It now renders
+//      confined as one `CommandChrome` component (sliced per region by a `region`
+//      prop) into DEDICATED mount children of the three host regions, driven by
+//      the `commandChromeController` setter-bridge. The submit button's
+//      `disabled` / spinner are Preact state DERIVED from the AUTHORITATIVE
+//      `commandSubmitting` / `commandValid` booleans held in the host closure —
+//      those booleans, never the confined node, are the source of truth for
+//      "can I submit?" (the inline-command-form host-closure pattern).
 //
-// Both keep the original class names verbatim so the existing CSS applies, and
-// neither uses `dangerouslySetInnerHTML` (the sanitizing renderer strips it).
+// All three keep the original class names verbatim so the existing CSS applies,
+// and none uses `dangerouslySetInnerHTML` (the sanitizing renderer strips it).
 //
 // EVERYTHING ELSE is irreducible trusted host work and stays imperative, exactly
 // as send-form keeps its contenteditable editing imperative: the `$chatBar`
-// class toggling, `$error` / `$commandError` `textContent`, the command-mode
-// chrome (`$commandLabel`, `$commandSubmitButton`), the focus-mode CSS-class
-// indentation applied to SHARED `#messages` envelopes (host DOM this component
-// does not own), the keyboard handlers, and the `MutationObserver`.
+// class toggling, the `$error` `textContent`, the `#command-error` container
+// visibility (its `:not(:empty)` rule cannot fire once a mount child lives
+// inside), the focus-mode CSS-class indentation applied to SHARED `#messages`
+// envelopes (host DOM this component does not own), the keyboard handlers, and
+// the `MutationObserver`.
 //
 // CHILD COMPOSITION is unchanged: send-form, command-selector, message-picker,
 // help-modal, inline-command-form, and the eval / define / endow / form-builder /
@@ -190,6 +204,105 @@ const CommandPopover = ({ sections, onSelect }) =>
 harden(CommandPopover);
 
 /**
+ * Plain-data view state for the command-mode chrome. All booleans are mirrors
+ * of the AUTHORITATIVE values held in the host closure — the component must
+ * never be read back as the source of truth for "can submit?".
+ *
+ * @typedef {object} CommandChromeState
+ * @property {string} commandLabel - The active command's display label.
+ * @property {string} submitLabel - The submit button's label.
+ * @property {boolean} submitting - Whether a command is in flight (spinner).
+ * @property {boolean} valid - Whether the inline form currently validates.
+ * @property {string} error - Command error text (empty hides the bubble).
+ */
+
+/**
+ * A mutable bridge between the imperative command-mode controller and the
+ * confined `CommandChrome` views. Each mounted region wires its `setState`
+ * setter into the shared `setters` set on mount; the host pushes a fresh state
+ * snapshot through `broadcast`, which fans out to every live region. The
+ * `onSubmit` / `onCancel` callbacks the confined buttons invoke are also held
+ * here so the host owns the behaviour. Intentionally NOT hardened — the
+ * components mutate `setters`.
+ *
+ * @typedef {object} CommandChromeController
+ * @property {Set<(state: CommandChromeState) => void>} setters
+ * @property {() => CommandChromeState} getState
+ * @property {() => void} onSubmit
+ * @property {() => void} onCancel
+ */
+
+/**
+ * One confined region of the command-mode chrome. `region` selects which slice
+ * of the shared `CommandChromeState` this mount renders, so a single component +
+ * controller drives the (physically separated) header, footer, and error host
+ * nodes:
+ *
+ *   • `header` — the `.command-label` span.
+ *   • `footer` — the submit button (label + spinner + disabled) and the
+ *     `.command-cancel-footer` button.
+ *   • `error`  — the `#command-error` text node.
+ *
+ * The submit button's `disabled` and `btn-spinner` are PREACT STATE derived
+ * from the mirrored `submitting` / `valid` booleans; the host never reads them
+ * back. Clicking submit/cancel routes through the controller's `onSubmit` /
+ * `onCancel`, which the host owns.
+ *
+ * @param {object} props
+ * @param {'header' | 'footer' | 'error'} props.region
+ * @param {CommandChromeController} props.controller
+ */
+const CommandChrome = ({ region, controller }) => {
+  const [state, setState] = useState(
+    /** @type {CommandChromeState} */ (controller.getState()),
+  );
+
+  useEffect(() => {
+    const setter = next => setState(next);
+    controller.setters.add(setter);
+    // A state pushed before this effect wired up is not lost: pull it now.
+    setState(controller.getState());
+    return () => {
+      controller.setters.delete(setter);
+    };
+  }, [controller]);
+
+  if (region === 'header') {
+    return h('span', { class: 'command-label' }, state.commandLabel);
+  }
+
+  if (region === 'error') {
+    return state.error || null;
+  }
+
+  // region === 'footer'
+  const submitDisabled = state.submitting || !state.valid;
+  return h(
+    Fragment,
+    null,
+    h(
+      'button',
+      {
+        class: state.submitting ? 'btn-spinner' : undefined,
+        disabled: submitDisabled,
+        onClick: () => controller.onSubmit(),
+      },
+      state.submitting ? '' : state.submitLabel,
+    ),
+    h(
+      'button',
+      {
+        class: 'command-cancel-footer',
+        title: 'Cancel (Esc)',
+        onClick: () => controller.onCancel(),
+      },
+      '×',
+    ),
+  );
+};
+harden(CommandChrome);
+
+/**
  * @param {HTMLElement} $parent
  * @param {ERef<EndoHost>} powers
  * @param {object} options
@@ -278,17 +391,11 @@ export const chatBarComponent = (
   const $inlineFormContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#inline-form-container')
   );
-  const $commandLabel = /** @type {HTMLElement} */ (
-    $parent.querySelector('#command-label')
+  const $commandHeader = /** @type {HTMLElement} */ (
+    $parent.querySelector('.command-header')
   );
-  const $commandCancel = /** @type {HTMLElement} */ (
-    $parent.querySelector('#command-cancel')
-  );
-  const $commandSubmitButton = /** @type {HTMLButtonElement} */ (
-    $parent.querySelector('#command-submit-button')
-  );
-  const $commandCancelFooter = /** @type {HTMLElement} */ (
-    $parent.querySelector('#command-cancel-footer')
+  const $commandFooter = /** @type {HTMLElement} */ (
+    $parent.querySelector('.command-footer')
   );
   const $messagesContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#messages')
@@ -473,7 +580,7 @@ export const chatBarComponent = (
       const message = error?.message || String(error) || 'Unknown error';
       // Use command error element in command mode, chat error otherwise
       if (mode === 'inline') {
-        $commandError.textContent = message;
+        setCommandError(message); // eslint-disable-line no-use-before-define
       } else {
         $error.textContent = message;
       }
@@ -722,21 +829,102 @@ export const chatBarComponent = (
   };
   document.addEventListener('click', onDocumentClick);
 
+  // ---- Confined command-mode chrome mounts ----
+  //
+  // The command-mode header label, submit/cancel footer buttons, and error
+  // bubble render confined into dedicated mount children of their host regions
+  // (`.command-header`, `.command-footer`, `#command-error`); one `CommandChrome`
+  // component slice per region, all driven by a single setter-bridge exactly
+  // like `modelineController`.
+  //
+  // THE AUTHORITATIVE STATE lives here in the host closure, NOT in the confined
+  // buttons. Under confinement the submit button's `disabled` / `btn-spinner`
+  // are Preact state we must never read back, so "can I submit?" reads route
+  // through `commandSubmitting` / `commandValid` below — the same "authoritative
+  // boolean in a host closure" pattern inline-command-form.js uses for `formData`
+  // / `disabled`. `commandSubmitting` mirrors the old `$chatBar.submitting` class
+  // + button spinner/disabled; `commandValid` mirrors the old read of
+  // `$commandSubmitButton.disabled` as the validity source of truth.
   let commandSubmitting = false;
+  let commandValid = false;
+  let currentCommandLabel = '';
+  let currentSubmitLabel = 'Execute';
+  let currentCommandError = '';
+
+  /** @type {CommandChromeController} */
+  const commandChromeController = {
+    setters: new Set(),
+    getState: () => ({
+      commandLabel: currentCommandLabel,
+      submitLabel: currentSubmitLabel,
+      submitting: commandSubmitting,
+      valid: commandValid,
+      error: currentCommandError,
+    }),
+    onSubmit: () => {
+      // eslint-disable-next-line no-use-before-define
+      void submitCurrentCommand();
+    },
+    onCancel: () => {
+      messagePicker.disable();
+      exitCommandMode(); // eslint-disable-line no-use-before-define
+    },
+  };
+
+  /** Push the current chrome snapshot into every live confined region. */
+  const pushCommandChrome = () => {
+    const state = commandChromeController.getState();
+    for (const setter of commandChromeController.setters) {
+      setter(state);
+    }
+  };
+
+  /** @param {string} message */
+  const setCommandError = message => {
+    currentCommandError = message;
+    // The host owns the error bubble's visibility (the CSS `:not(:empty)` rule
+    // can no longer fire now that `#command-error` always holds a mount child);
+    // the confined region owns the text it shows.
+    $commandError.style.display = message ? 'block' : 'none';
+    pushCommandChrome();
+  };
+
+  const $commandHeaderMount = document.createElement('div');
+  $commandHeader.replaceChildren($commandHeaderMount);
+  renderConfined(
+    h(CommandChrome, { region: 'header', controller: commandChromeController }),
+    $commandHeaderMount,
+  );
+
+  const $commandFooterMount = document.createElement('div');
+  $commandFooter.replaceChildren($commandFooterMount);
+  renderConfined(
+    h(CommandChrome, { region: 'footer', controller: commandChromeController }),
+    $commandFooterMount,
+  );
+
+  const $commandErrorMount = document.createElement('div');
+  $commandError.replaceChildren($commandErrorMount);
+  // The mount child makes `#command-error` permanently non-empty, so its
+  // `:not(:empty)` display rule can never fire; the host drives visibility
+  // directly via `setCommandError`, starting hidden.
+  $commandError.style.display = 'none';
+  renderConfined(
+    h(CommandChrome, { region: 'error', controller: commandChromeController }),
+    $commandErrorMount,
+  );
 
   const setCommandSubmitting = (/** @type {boolean} */ value) => {
     commandSubmitting = value;
     if (value) {
       $chatBar.classList.add('submitting');
-      $commandSubmitButton.classList.add('btn-spinner');
-      $commandSubmitButton.disabled = true;
       inlineForm.setDisabled(true); // eslint-disable-line no-use-before-define
     } else {
       $chatBar.classList.remove('submitting');
-      $commandSubmitButton.classList.remove('btn-spinner');
       inlineForm.setDisabled(false); // eslint-disable-line no-use-before-define
-      $commandSubmitButton.disabled = !inlineForm.isValid(); // eslint-disable-line no-use-before-define
+      commandValid = inlineForm.isValid(); // eslint-disable-line no-use-before-define
     }
+    pushCommandChrome();
   };
 
   /**
@@ -747,7 +935,7 @@ export const chatBarComponent = (
    */
   const executeWithSpinner = async (commandName, data) => {
     messagePicker.disable();
-    $commandError.textContent = '';
+    setCommandError('');
 
     if (commandName === 'enter') {
       const { hostName } = /** @type {{ hostName: string }} */ (data);
@@ -828,8 +1016,11 @@ export const chatBarComponent = (
       exitCommandMode(); // eslint-disable-line no-use-before-define
     },
     onValidityChange: isValid => {
+      // Keep the authoritative validity boolean fresh and mirror it into the
+      // confined submit button (its `disabled` is Preact state, never read back).
+      commandValid = isValid;
       if (!commandSubmitting) {
-        $commandSubmitButton.disabled = !isValid;
+        pushCommandChrome();
       }
     },
     onMessageNumberClick: () => {
@@ -908,9 +1099,12 @@ export const chatBarComponent = (
     mode = 'inline';
     currentCommand = commandName;
     $chatBar.classList.add('command-mode');
-    $commandLabel.textContent = command.label;
-    $commandSubmitButton.textContent = command.submitLabel || 'Execute';
-    $commandSubmitButton.disabled = true;
+    // Push the command's label / submit label into the confined chrome. The
+    // form starts invalid, so the submit button mirrors `disabled`.
+    currentCommandLabel = command.label;
+    currentSubmitLabel = command.submitLabel || 'Execute';
+    commandValid = false;
+    pushCommandChrome();
     updateModeline(commandName);
 
     inlineForm.setCommand(commandName, prefill);
@@ -960,7 +1154,7 @@ export const chatBarComponent = (
       sendForm.focus();
     }
     $error.textContent = '';
-    $commandError.textContent = '';
+    setCommandError('');
     updateHasContent();
   };
 
@@ -1587,24 +1781,18 @@ export const chatBarComponent = (
     hideDefineForm();
   });
 
-  // Command cancel button (header)
-  $commandCancel.addEventListener('click', () => {
-    exitCommandMode();
-  });
-
-  // Command cancel button (footer - far right)
-  $commandCancelFooter.addEventListener('click', () => {
-    exitCommandMode();
-  });
-
-  // Command submit button
-  $commandSubmitButton.addEventListener('click', async () => {
+  // The command cancel (header + footer) and submit buttons now live in the
+  // confined `CommandChrome`; their clicks route through the controller's
+  // `onCancel` (→ `exitCommandMode`) and `onSubmit` (→ here). Every "can I
+  // submit?" read goes through the authoritative host-closure booleans, never
+  // off the confined button's Preact `disabled`.
+  async function submitCurrentCommand() {
     if (commandSubmitting) return;
-    if (currentCommand && inlineForm.isValid()) {
+    if (currentCommand && commandValid) {
       const data = inlineForm.getData();
       await executeWithSpinner(currentCommand, data);
     }
-  });
+  }
 
   /**
    * Handle command selection.
@@ -1942,6 +2130,9 @@ export const chatBarComponent = (
       window.removeEventListener('keydown', onGlobalKeypressFocus);
       unmount($modelineMount);
       unmount($commandPopoverMount);
+      unmount($commandHeaderMount);
+      unmount($commandFooterMount);
+      unmount($commandErrorMount);
       sendForm.dispose();
     },
   });
