@@ -1592,9 +1592,7 @@ export const flootComponent = (
         E(factory)
           .listPresets()
           .catch(() => []),
-        E(factory)
-          .listModels()
-          .catch(() => []),
+        E(factory).listModels(),
       ]);
       presets = presetList;
       models = modelList;
