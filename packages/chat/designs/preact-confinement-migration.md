@@ -396,7 +396,7 @@ for the incoming imperative-Space PR — see "Deferred" above)
 | eval-form / blob-viewer / counter-proposal-form | ☑      | Done — Monaco forms on define-form's host-node editor pattern; blob-viewer moved its markdown preview to `markdownToVnodes`                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | microblog                                       | ☑      | Done — `microblog` viewMode body; confined Preact via `renderConfined`, `markdownToVnodes` bodies, host-node-bridged author/react chips                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | value-component                                 | ☑      | Done — value content via `valueToVnodes`, blob preview as a confined `BlobContent`; modal chrome stays host DOM                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| chat-bar-component                              | ☑      | Done (view regions) — modeline + command popover confined; the rest is irreducible imperative orchestration over shared `#messages` DOM                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| chat-bar-component                              | ☑      | Done — modeline, command popover, **and the command-mode chrome** (`#command-label`/submit/`#command-error` via a `CommandChrome` setter-bridge) all confined; the editable input stays the `send-form` host-node island; the rest is irreducible imperative orchestration over shared `#messages` DOM (focus-indentation + observer)                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | channel-component                               | ☑      | Done — Dan's body; host-node-controller pattern for `react-utils`/`channel-utils`/`profile-popup`; +sync-reply follow-up                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | channel-header                                  | ☑      | Done — menu/invite/members/attenuator confined; host-node-bridges the imperative `heat-simulation`                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | forum                                           | ☑      | Done — `forum` viewMode body; same pattern as microblog (a first attempt that only landed a test was reverted, then redone for real)                                                                                                                                                                                                                                                                                                                                                                                                                                        |
@@ -425,17 +425,28 @@ value/channel/channel-header/chat-bar bodies, and — now that the floot
 imperative-Space PR has landed and lifted their freeze — the **spaces gutter**
 and the **add-space modal** (the latter closing the one open HIGH XSS finding).
 
-Three migration targets remain, each its own focused effort:
+One migration target remains:
 
 - `@endo/space-inventory-graph`'s `graph.js` (~28 SVG `createElement`s) — **blocked
   first** on teaching the confined renderer to admit SVG tags/attributes (a
   `@endo/preact-container` feature addition with its own tests), then the graph
   view converts. Smallest and fully verifiable in-container.
-- `outliner` (~3003) — the largest body and the hardest: it is a `contentEditable`
-  collaborative editor with cursor/selection/range management and drag-and-drop,
-  which fights the refs-stripped confined renderer. Decompose into a contract +
-  parallel agents (the file-explorer approach), with the host owning the editable
-  DOM and the confined view rendering structure; **not** a one-shot.
+
+Both of the former hard targets are now **done**:
+
+- `outliner` (was ~3003 lines) — **converted** to confined Preact + a host-owned
+  editable-line island (anchor-slot re-parent), with the controller owning
+  document order for cross-node caret; the imperative implementation was deleted
+  and `chat.js` swapped. See
+  [`outliner-confinement-migration.md`](./outliner-confinement-migration.md).
+  (Caret position, drag geometry, and menu positioning still want real-browser
+  QA — happy-dom stubs `Selection`/rects.)
+- `chat-bar` — its last imperative view (the command-mode chrome) is now
+  confined via `CommandChrome`; everything else was already confined (modeline,
+  command popover, the `send-form` editable island, all command forms). The
+  residual imperative code is irreducible host glue over the shared `#messages`
+  DOM, by design.
+
 - `chat.js` (~1860) — stays the imperative trusted dispatch root by design (it
   calls `renderConfined` on the Preact bodies). Its discrete chrome regions
   (the profile breadcrumbs, the channel-invitations inbox section, and the
