@@ -14,9 +14,9 @@ import { tools } from './tools/index.js';
 import { makeExecuteTool, toAgentTool } from './tool-dispatch.js';
 import {
   resolveModelString,
-  setProviderApiKey,
   resolveModel,
-  getOllamaApiKey,
+  makeWorkerCredentials,
+  makeWorkerGetApiKey,
 } from './model-resolution.js';
 import { runRound } from './round-runner.js';
 import { runInboxLoop } from './inbox-loop.js';
@@ -77,9 +77,6 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   // single "provider/modelId" string instead; we keep accepting the legacy
   // LAL_* variables and translate them.
   const model = resolveModelString(workerEnv);
-  if (workerEnv.LAL_AUTH_TOKEN) {
-    setProviderApiKey(model, workerEnv.LAL_AUTH_TOKEN);
-  }
 
   // Bind the tool dispatcher to this guest's powers, then build the
   // AgentTool array pi-agent-core consumes directly. We build the PiAgent via
@@ -101,12 +98,23 @@ export const spawnWorkerLoop = async (powers, context, workerEnv) => {
   const resolvedModel = await resolveModel(model);
   const isOllama = resolvedModel.name?.startsWith('ollama/');
 
+  // The worker's API key is resolved through the read-only `Credentials` seam
+  // and handed to pi-agent-core via a `getApiKey` callback — no ambient-env
+  // mutation. An ollama model keeps the harmless 'ollama' sentinel; any other
+  // provider takes a pre-existing real `<PROVIDER>_API_KEY` over the worker's
+  // LAL_AUTH_TOKEN (see `makeWorkerGetApiKey`).
+  const credentials = makeWorkerCredentials();
+  const getApiKey = makeWorkerGetApiKey(
+    credentials,
+    workerEnv.LAL_AUTH_TOKEN,
+    isOllama,
+  );
+
   const piAgent = makePiAgent({
     systemPrompt,
     model: resolvedModel,
     tools: agentTools,
-    // Pass getApiKey only for Ollama, matching the prior conditional spread.
-    getApiKey: isOllama ? async _provider => getOllamaApiKey() : undefined,
+    getApiKey,
   });
 
   /**
