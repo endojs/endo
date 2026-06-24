@@ -1437,27 +1437,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/chat-kit@workspace:^, @endo/chat-kit@workspace:packages/chat-kit":
-  version: 0.0.0-use.local
-  resolution: "@endo/chat-kit@workspace:packages/chat-kit"
-  dependencies:
-    "@endo/daemon": "workspace:^"
-    "@endo/far": "workspace:^"
-    "@endo/harden": "workspace:^"
-    "@endo/markmdown": "workspace:^"
-    "@endo/pass-style": "workspace:^"
-    "@endo/preact-container": "workspace:^"
-    eslint: "catalog:dev"
-    preact: "npm:^10.29.2"
-  languageName: unknown
-  linkType: soft
-
 "@endo/chat@workspace:packages/chat":
   version: 0.0.0-use.local
   resolution: "@endo/chat@workspace:packages/chat"
   dependencies:
     "@endo/captp": "workspace:^"
-    "@endo/chat-kit": "workspace:^"
     "@endo/cli": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/eventual-send": "workspace:^"
@@ -1482,6 +1466,7 @@ __metadata:
     "@endo/space-inventory-graph": "workspace:^"
     "@endo/space-peers": "workspace:^"
     "@endo/space-whylip": "workspace:^"
+    "@endo/spaces-util": "workspace:^"
     "@endo/where": "workspace:^"
     "@playwright/test": "npm:^1.40.0"
     "@vitejs/plugin-react": "npm:^4.0.0"
@@ -2704,13 +2689,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/space-channel@workspace:packages/space-channel"
   dependencies:
-    "@endo/chat-kit": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/monaco-wrapper": "workspace:^"
     "@endo/preact-container": "workspace:^"
+    "@endo/spaces-util": "workspace:^"
     eslint: "catalog:dev"
     preact: "npm:^10.29.2"
   languageName: unknown
@@ -2720,11 +2705,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/space-chat@workspace:packages/space-chat"
   dependencies:
-    "@endo/chat-kit": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
+    "@endo/spaces-util": "workspace:^"
     eslint: "catalog:dev"
     preact: "npm:^10.29.2"
   languageName: unknown
@@ -2790,6 +2775,21 @@ __metadata:
     "@endo/conversation-tree": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
+    eslint: "catalog:dev"
+    preact: "npm:^10.29.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/spaces-util@workspace:^, @endo/spaces-util@workspace:packages/spaces-util":
+  version: 0.0.0-use.local
+  resolution: "@endo/spaces-util@workspace:packages/spaces-util"
+  dependencies:
+    "@endo/daemon": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/markmdown": "workspace:^"
+    "@endo/pass-style": "workspace:^"
+    "@endo/preact-container": "workspace:^"
     eslint: "catalog:dev"
     preact: "npm:^10.29.2"
   languageName: unknown
