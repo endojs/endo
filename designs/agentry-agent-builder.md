@@ -224,6 +224,50 @@ flowchart TD
    blocks but no preset bundles; `familiar` (or the #404 wizard) names the
    presets when it offers them to an operator.
 
+## Mapping pi's session tree to the daemon mail model
+
+Once `makeAgent` composes a pi loop (and lal already drives one since
+the pi harness merged in
+[#290](https://github.com/endojs/endo-but-for-bots/pull/290)), two
+encodings of conversation history coexist in one stack: pi's session
+tree is the agent's working memory, and the daemon mail model is the
+delivery and persistence layer.
+They map cleanly today, but nothing pinned the correspondence, so they
+could drift as the harness lands.
+This design pins it.
+
+| pi session tree | daemon mail model | the correspondence |
+|---|---|---|
+| `parentId` | `replyTo` (`packages/daemon/src/mail.js`) | the sole branch axis |
+| active leaf | a message's latest revision: `done: true` is settled, the last entry of `revisionsByNumber.get(messageNumber)` is the current envelope | which node is live |
+| `/fork`, `/clone` | `reply(messageNumber, ...)`, producing a sibling subtree, never `editMessage` | how a branch grows |
+
+The reply-to tree carried `messageId` / `replyTo` from the start, and
+the conversation-tree adapter (`packages/conversation-tree`) already
+bridges daemon `replyTo` to a tree node's `parentId`.
+What [#125](https://github.com/endojs/endo-but-for-bots/pull/125) added
+(`editMessage`, `messageHistory`, and the `done` flag, stored per
+message number in `revisionsByNumber`) is a *second, orthogonal* history
+axis: linear, per-message-number, layered on top of the reply-to tree.
+Nothing in the harness reconciled which revision was current when a
+reply branched off a node, which is exactly where the two axes could
+drift.
+
+**Invariant (the harness pins it).**
+The reply-to tree is the sole branch axis; the per-message revision log
+is strictly intra-node and never forks.
+`editMessage` settles a node in place (a streamed completion, an
+amendment): it keeps the message number, the `replyTo` linkage, and the
+dismissal state, and only appends a revision to `revisionsByNumber`.
+`reply` grows the tree (an alternative continuation, or the pi `/tree`
+edit-a-user-message case): it produces a sibling subtree under the
+chosen parent.
+A pi `/fork` or `/clone` is therefore always a `reply`, never an
+`editMessage`; a model amending its own streamed output is always an
+`editMessage`, never a `reply`.
+The corresponding UI decision (branch a user's edit rather than
+overwrite it) is tracked on #305.
+
 ## The `defineAgent` and `makeAgent` shapes
 
 ```ts
@@ -497,12 +541,24 @@ The same file tools, the same template, a different cap.
     queue mode, referencing pi's exact types, rather than being left at pi
     defaults.
 
+12. **The reply-to tree is the sole branch axis; the per-message revision
+    log never forks.**
+    pi's session tree and the daemon mail model are two encodings of one
+    conversation history, so the harness pins `parentId` to `replyTo` as
+    the only branch axis.
+    `reply` grows the tree (pi `/fork` / `/clone`); `editMessage` settles
+    a node in place (the #125 `revisionsByNumber` log), strictly
+    intra-node.
+    See § Mapping pi's session tree to the daemon mail model.
+
 ## Dependencies
 
 | Design | Relationship |
 |--------|--------------|
 | [endo-agent-tools](endo-agent-tools.md) | **Consumed.** Sibling. `defineAgent` selects its `makeTool` tools, uses its wire schemas, attenuates with its primitives, and runs its `coerceBigintArgs` (re-exported from `@endo/agentry/smallcaps`) via `prepareArguments`. |
 | [PR #297](https://github.com/endojs/endo-but-for-bots/pull/297) | **Confinement enabler.** Fixes the module-resolution bugs that prevented pi from loading through `@endo/compartment-mapper`'s `importLocation`, so `makeAgent` loads pi into a confined Endo `Compartment`. |
+| [PR #290](https://github.com/endojs/endo-but-for-bots/pull/290) | **The merged pi harness.** lal's loop now drives `@earendil-works/pi-agent-core`; `makeAgent` composes the same loop. The session-tree to mail mapping pins their correspondence (§ Mapping pi's session tree to the daemon mail model). |
+| [PR #125](https://github.com/endojs/endo-but-for-bots/pull/125) | **The revision-log axis.** Added `editMessage` / `messageHistory` / `done` (`revisionsByNumber` in `packages/daemon/src/mail.js`), the intra-node history axis the mapping invariant keeps from forking. |
 | [endo-gateway-mcp](endo-gateway-mcp.md) | The Gateway's MCP termination forwards the MCP `inputSchema` the builder fills to an external MCP client. |
 | [daemon-agent-tools](daemon-agent-tools.md) | The capability-scoped tool model. `defineAgent`'s `attenuate` config realizes the capability-scoping half; the dynamic-discovery half is deferred with fae-on-pi (Design Decision 10, Open Question 2). |
 | [endo-fs-backend-seam](endo-fs-backend-seam.md), [endo-fs-from-git](endo-fs-from-git.md) | The `Filesystem` substrate the builder wires into a harness for the #370 loop. |
