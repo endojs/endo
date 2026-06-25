@@ -37,9 +37,11 @@ read from the formula `env`:
 | `shell`          | no       | `'true'` to run through the default shell, or a shell path; default no shell     |
 | `cwd`            | no       | the child's working directory                                                    |
 | `processEnv`     | no       | a JSON object of extra environment variables, layered on the child's base env    |
+| `extraEnvKeys`   | no       | a JSON array of worker env var names to pass through (without full inherit)       |
 | `inheritEnv`     | no       | `'true'` to inherit the worker's full environment; default is a safe allowlist   |
-| `timeoutMs`      | no       | a positive integer; SIGTERM the child if it has not exited within this many ms   |
-| `maxOutputBytes` | no       | a positive integer; SIGTERM the child once combined stdout + stderr exceeds it   |
+| `timeoutMs`      | no       | a positive integer; terminate the child if it has not exited within this many ms |
+| `maxOutputBytes` | no       | a positive integer; terminate the child once combined stdout + stderr exceeds it |
+| `killGraceMs`    | no       | a positive integer; ms after SIGTERM before escalating to SIGKILL (default 5000) |
 
 ### Environment
 
@@ -47,8 +49,17 @@ By default the child inherits only a small allowlist of environment
 variables from the worker — `PATH`, `HOME`, locale, and scratch-directory
 variables — so daemon secrets (credential-helper tokens, `ENDO_*`, cloud
 keys) are **not** exposed to an arbitrary command. `processEnv` adds or
-overrides variables on top of that base. Set `inheritEnv: 'true'` only for
-trusted commands that genuinely need the worker's full environment.
+overrides variables on top of that base. To pass through a specific worker
+variable (e.g. `SSH_AUTH_SOCK`) without opening the whole environment, name
+it in `extraEnvKeys`. Set `inheritEnv: 'true'` only for trusted commands
+that genuinely need the worker's full environment.
+
+### Termination
+
+`timeoutMs` and `maxOutputBytes` terminate the child with `SIGTERM`, then
+escalate to `SIGKILL` after `killGraceMs` (default 5 s) if it has not
+exited — so a command that ignores or traps `SIGTERM` is still reaped.
+Context cancellation tears the child down the same way.
 
 ```js
 import { E } from '@endo/far';
@@ -118,8 +129,13 @@ converse: a stream you open but never drain applies backpressure and can
 block a chatty child from making progress (and so from exiting) — drain or
 `return()` every stream you open, or set `maxOutputBytes` as a hard cap.
 
+`stdin()` is the mirror image: once the child has exited, its stdin pipe is
+closed, so writing to the writer rejects (EPIPE) rather than blocking.
+Treat a write rejection after `exit()` as "the child is already gone".
+
 The formula's context cancellation tears the child process down with
-`SIGTERM`, so revoking the capability does not orphan a subprocess.
+`SIGTERM` (then `SIGKILL` after `killGraceMs`), so revoking the capability
+does not orphan a subprocess.
 
 ## Direct use
 

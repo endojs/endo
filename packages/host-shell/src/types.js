@@ -53,10 +53,13 @@
  *   structured argv with no shell.  `true` runs through the default shell;
  *   a string names a shell executable.  Enabling a shell re-introduces the
  *   injection surface.
- * @property {number} [timeoutMs] Send SIGTERM if the child has not exited
- *   within this many milliseconds.
- * @property {number} [maxOutputBytes] Send SIGTERM once the child's
+ * @property {number} [timeoutMs] Terminate the child (SIGTERM, then
+ *   SIGKILL after `killGraceMs`) if it has not exited within this many
+ *   milliseconds.
+ * @property {number} [maxOutputBytes] Terminate the child once its
  *   combined stdout + stderr exceeds this many bytes.
+ * @property {number} [killGraceMs] Milliseconds to wait after a SIGTERM
+ *   before escalating to SIGKILL (default 5000).
  * @property {unknown} [context] Formula context whose cancellation tears
  *   the child down.
  */

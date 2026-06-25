@@ -22,10 +22,17 @@ import { ShellProcessInterface } from './interfaces.js';
 // stdout, and stderr on the responder (this) side.
 const STREAM_BUFFER = 64;
 
-// When the in-memory capture queue reaches this many chunks the source is
-// paused, so a slow remote consumer applies backpressure to the child
-// rather than letting an unbounded `yes`-style firehose grow the heap.
-const READ_HIGH_WATER_CHUNKS = 64;
+// When the in-memory capture queue holds at least this many bytes the
+// source is paused, so a slow remote consumer applies backpressure to the
+// child rather than letting an unbounded `yes`-style firehose grow the
+// heap.  Gating on bytes (not chunk count) bounds the actual memory a
+// stalled stream can hold.
+const READ_HIGH_WATER_BYTES = 256 * 1024;
+
+// Grace period after a SIGTERM (from a timeout, output cap, or
+// cancellation) before escalating to SIGKILL, so a child that ignores or
+// traps SIGTERM is still reaped rather than hanging the formula forever.
+const KILL_GRACE_MS = 5000;
 
 /**
  * Environment variables a spawned child inherits from the worker by
@@ -91,6 +98,8 @@ harden(requireNoNul);
 const makeEagerByteReader = (source, onBytes) => {
   /** @type {Uint8Array[]} */
   const queue = [];
+  let queuedBytes = 0;
+  let paused = false;
   let ended = false;
   /** @type {Error | undefined} */
   let failure;
@@ -111,11 +120,13 @@ const makeEagerByteReader = (source, onBytes) => {
     // corrupt a queued chunk.
     const bytes = new Uint8Array(/** @type {Buffer} */ (chunk));
     queue.push(bytes);
+    queuedBytes += bytes.length;
     if (onBytes !== undefined) {
       onBytes(bytes.length);
     }
-    if (queue.length >= READ_HIGH_WATER_CHUNKS) {
+    if (queuedBytes >= READ_HIGH_WATER_BYTES && !paused) {
       source.pause();
+      paused = true;
     }
     wake();
   });
@@ -135,8 +146,10 @@ const makeEagerByteReader = (source, onBytes) => {
       for (;;) {
         if (queue.length > 0) {
           const value = /** @type {Uint8Array} */ (queue.shift());
-          if (queue.length < READ_HIGH_WATER_CHUNKS) {
+          queuedBytes -= value.length;
+          if (paused && queuedBytes < READ_HIGH_WATER_BYTES) {
             source.resume();
+            paused = false;
           }
           return harden({ done: false, value });
         }
@@ -203,6 +216,7 @@ export const makeShellProcess = options => {
     context,
     timeoutMs,
     maxOutputBytes,
+    killGraceMs = KILL_GRACE_MS,
   } = options;
 
   if (typeof command !== 'string' || command.length === 0) {
@@ -245,25 +259,46 @@ export const makeShellProcess = options => {
   let settled = false;
   /** @type {ReturnType<typeof setTimeout> | undefined} */
   let timer;
-  const disarmTimer = () => {
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let killTimer;
+  const disarmTimers = () => {
     if (timer !== undefined) {
       clearTimeout(timer);
       timer = undefined;
     }
+    if (killTimer !== undefined) {
+      clearTimeout(killTimer);
+      killTimer = undefined;
+    }
   };
 
-  // Best-effort SIGTERM that no-ops on an already-dead child, used by the
-  // timeout and output-cap guards (and reused for cancellation below).
+  // Terminate a still-running child: SIGTERM first, then escalate to
+  // SIGKILL after a grace period so a child that ignores or traps SIGTERM
+  // is still reaped rather than hanging the formula forever.  No-ops on an
+  // already-dead child.  Used by the timeout and output-cap guards and
+  // reused for cancellation below.
   const terminate = () => {
-    if (child.exitCode === null && !child.killed) {
-      child.kill('SIGTERM');
+    if (child.exitCode !== null || child.killed) {
+      return;
+    }
+    child.kill('SIGTERM');
+    if (killTimer === undefined) {
+      killTimer = setTimeout(() => {
+        if (child.exitCode === null) {
+          child.kill('SIGKILL');
+        }
+      }, killGraceMs);
+      // Don't let the escalation timer keep the worker's event loop alive.
+      if (typeof killTimer.unref === 'function') {
+        killTimer.unref();
+      }
     }
   };
 
   child.once('error', error => {
     if (settled) return;
     settled = true;
-    disarmTimer();
+    disarmTimers();
     exitKit.reject(error);
   });
   // Resolve on 'exit' (process termination), not 'close' (all stdio
@@ -271,7 +306,7 @@ export const makeShellProcess = options => {
   child.once('exit', (code, signal) => {
     if (settled) return;
     settled = true;
-    disarmTimer();
+    disarmTimers();
     exitKit.resolve(harden({ code, signal }));
   });
 
@@ -306,7 +341,6 @@ export const makeShellProcess = options => {
     E(/** @type {{ whenCancelled: () => Promise<unknown> }} */ (context))
       .whenCancelled()
       .catch(() => {
-        disarmTimer();
         terminate();
       });
   }
@@ -396,14 +430,15 @@ export const makeShellProcess = options => {
 harden(makeShellProcess);
 
 /**
- * Parse the optional JSON `args` field from a formula `env` into a
- * structured argv.  A formula `env` is a flat `Record<string, string>`,
- * so the argument vector is carried as a JSON array of strings.
+ * Parse an optional JSON-array-of-strings field from a formula `env`.  A
+ * formula `env` is a flat `Record<string, string>`, so a string vector is
+ * carried as a JSON array.
  *
  * @param {string | undefined} value
+ * @param {string} field - the `env` key, used in error messages.
  * @returns {string[] | undefined}
  */
-export const parseArgs = value => {
+const parseStringArray = (value, field) => {
   if (value === undefined) {
     return undefined;
   }
@@ -412,17 +447,37 @@ export const parseArgs = value => {
     parsed = JSON.parse(value);
   } catch (error) {
     throw makeError(
-      X`host-shell env.args must be a JSON array: ${q(
+      X`host-shell env.${field} must be a JSON array: ${q(
         /** @type {Error} */ (error).message,
       )}`,
     );
   }
-  if (!Array.isArray(parsed) || parsed.some(arg => typeof arg !== 'string')) {
-    throw makeError(X`host-shell env.args must be a JSON array of strings`);
+  if (!Array.isArray(parsed) || parsed.some(item => typeof item !== 'string')) {
+    throw makeError(X`host-shell env.${field} must be a JSON array of strings`);
   }
   return parsed;
 };
+harden(parseStringArray);
+
+/**
+ * Parse the optional JSON `args` field from a formula `env` into a
+ * structured argv.
+ *
+ * @param {string | undefined} value
+ * @returns {string[] | undefined}
+ */
+export const parseArgs = value => parseStringArray(value, 'args');
 harden(parseArgs);
+
+/**
+ * Parse the optional JSON `extraEnvKeys` field from a formula `env` into a
+ * list of worker env variable names to pass through to the child.
+ *
+ * @param {string | undefined} value
+ * @returns {string[] | undefined}
+ */
+export const parseEnvKeys = value => parseStringArray(value, 'extraEnvKeys');
+harden(parseEnvKeys);
 
 /**
  * Parse the optional `shell` field from a formula `env`.  Absent or
@@ -477,6 +532,12 @@ export const parseProcessEnv = value => {
       X`host-shell env.processEnv must be a JSON object of string values`,
     );
   }
+  // Screen for NUL here so a bad value fails with the structured boundary
+  // error rather than a raw `ERR_INVALID_ARG_VALUE` from `spawn`.
+  for (const [key, entry] of Object.entries(parsed)) {
+    requireNoNul(key, 'processEnv key');
+    requireNoNul(entry, 'processEnv value');
+  }
   return parsed;
 };
 harden(parseProcessEnv);
@@ -491,33 +552,42 @@ harden(parseProcessEnv);
  *
  * By default the child inherits only {@link SAFE_ENV_KEYS} from the
  * worker, so daemon secrets are not exposed to an arbitrary command.
- * `inheritEnv` (`true` / `'true'`) opts into the full worker environment
- * for trusted commands that need it.  Parsed `processEnv` overrides are
- * layered on top of whichever base.
+ * `extraEnvKeys` names additional worker variables to pass through (e.g.
+ * `SSH_AUTH_SOCK`, `XDG_*`) without opening the floodgates — the targeted
+ * alternative to `inheritEnv` (`true` / `'true'`), which inherits the full
+ * worker environment for trusted commands that need it.  Parsed
+ * `processEnv` overrides are layered on top of whichever base.
  *
  * @param {object} [options]
  * @param {string} [options.processEnv] - JSON object of override variables.
  * @param {boolean | string} [options.inheritEnv] - inherit the full
  *   worker environment instead of the safe allowlist.
+ * @param {string[]} [options.extraEnvKeys] - extra worker env keys to
+ *   allow through (ignored when `inheritEnv` is set).
  * @returns {Record<string, string>}
  */
-export const buildChildEnv = ({ processEnv, inheritEnv } = {}) => {
+export const buildChildEnv = ({
+  processEnv,
+  inheritEnv,
+  extraEnvKeys = [],
+} = {}) => {
   const overrides = parseProcessEnv(processEnv);
   const inherit = inheritEnv === true || inheritEnv === 'true';
+  if (inherit) {
+    // `process.env` values are always strings at runtime (absent keys are
+    // simply not enumerated), so the spread yields the extensible string
+    // record `spawn` expects; assert that at the boundary.
+    return /** @type {Record<string, string>} */ ({
+      ...process.env,
+      ...overrides,
+    });
+  }
   /** @type {Record<string, string>} */
   const base = {};
-  if (inherit) {
-    for (const [key, value] of Object.entries(process.env)) {
-      if (value !== undefined) {
-        base[key] = value;
-      }
-    }
-  } else {
-    for (const key of SAFE_ENV_KEYS) {
-      const value = process.env[key];
-      if (value !== undefined) {
-        base[key] = value;
-      }
+  for (const key of [...SAFE_ENV_KEYS, ...extraEnvKeys]) {
+    const value = process.env[key];
+    if (value !== undefined) {
+      base[key] = value;
     }
   }
   return { ...base, ...overrides };
@@ -537,8 +607,11 @@ export const parsePositiveInteger = (value, field) => {
   if (value === undefined) {
     return undefined;
   }
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
+  // Require plain decimal digits (no hex, exponent, sign, decimal point, or
+  // surrounding whitespace that `Number` would silently accept), then a
+  // safe positive integer (no precision loss above `MAX_SAFE_INTEGER`).
+  const parsed = /^[0-9]+$/.test(value) ? Number(value) : NaN;
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw makeError(
       X`host-shell env.${field} must be a positive integer, got ${q(value)}`,
     );

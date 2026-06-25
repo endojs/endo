@@ -28,4 +28,3 @@ export const ShellProcessInterface = M.interface('ShellProcess', {
   pid: M.call().returns(M.opt(M.number())),
   help: M.call().returns(M.string()),
 });
-harden(ShellProcessInterface);

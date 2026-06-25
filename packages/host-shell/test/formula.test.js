@@ -16,8 +16,9 @@ import process from 'process';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, purge, makeEndoClient } from '@endo/daemon';
-import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
+
+import { readAll } from './_helpers.js';
 
 /** @import { ShellProcess } from '../src/types.js' */
 
@@ -27,7 +28,6 @@ const shellModuleHref = url.pathToFileURL(
   path.join(dirname, '..', 'src', 'index.js'),
 ).href;
 
-const textDecoder = new TextDecoder();
 const textEncoder = new TextEncoder();
 
 let testCounter = 0;
@@ -72,27 +72,6 @@ const prepareHost = async t => {
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
   return { host, config };
-};
-
-/**
- * @param {any} readerRef
- * @returns {Promise<string>}
- */
-const readAll = async readerRef => {
-  /** @type {Uint8Array[]} */
-  const chunks = [];
-  let total = 0;
-  for await (const chunk of iterateBytesReader(readerRef, { buffer: 64 })) {
-    chunks.push(chunk);
-    total += chunk.length;
-  }
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return textDecoder.decode(out);
 };
 
 test.serial('host-shell formula streams stdout and resolves exit', async t => {

@@ -7,6 +7,7 @@ import {
   buildChildEnv,
   makeShellProcess,
   parseArgs,
+  parseEnvKeys,
   parsePositiveInteger,
   parseShell,
 } from './shell-process.js';
@@ -15,6 +16,7 @@ export {
   buildChildEnv,
   makeShellProcess,
   parseArgs,
+  parseEnvKeys,
   parsePositiveInteger,
   parseProcessEnv,
   parseShell,
@@ -43,15 +45,21 @@ export { ShellProcessInterface } from './interfaces.js';
  * - `env.cwd` (optional): the child's working directory.
  * - `env.processEnv` (optional): a JSON object of additional environment
  *   variables, layered on top of the child's base environment.
+ * - `env.extraEnvKeys` (optional): a JSON array of additional worker env
+ *   variable names to pass through to the child (e.g. `SSH_AUTH_SOCK`),
+ *   without inheriting the whole environment.
  * - `env.inheritEnv` (optional): `'true'` to give the child the worker's
  *   full environment.  By default the child inherits only a small safe
- *   allowlist (PATH, HOME, locale, scratch dirs), so daemon secrets are
- *   not exposed to an arbitrary command.
+ *   allowlist (PATH, HOME, locale, scratch dirs) plus `extraEnvKeys`, so
+ *   daemon secrets are not exposed to an arbitrary command.
  * - `env.timeoutMs` (optional): a positive integer; the child is sent
- *   SIGTERM if it has not exited within this many milliseconds.
+ *   SIGTERM (then SIGKILL after a grace period) if it has not exited
+ *   within this many milliseconds.
  * - `env.maxOutputBytes` (optional): a positive integer; the child is
  *   sent SIGTERM once its combined stdout + stderr exceeds this many
  *   bytes.
+ * - `env.killGraceMs` (optional): a positive integer; how long to wait
+ *   after a SIGTERM before escalating to SIGKILL (default 5000).
  *
  * The returned {@link ShellProcess} exo exposes the child's stdio as
  * exo-stream byte streams (`stdin` / `stdout` / `stderr`, each buffered
@@ -71,9 +79,11 @@ export const make = (powers, context, { env = {} } = {}) => {
     shell,
     cwd,
     processEnv,
+    extraEnvKeys,
     inheritEnv,
     timeoutMs,
     maxOutputBytes,
+    killGraceMs,
   } = env;
   if (typeof command !== 'string' || command.length === 0) {
     throw makeError(
@@ -87,9 +97,14 @@ export const make = (powers, context, { env = {} } = {}) => {
     args: parseArgs(args),
     shell: parseShell(shell),
     cwd,
-    env: buildChildEnv({ processEnv, inheritEnv }),
+    env: buildChildEnv({
+      processEnv,
+      inheritEnv,
+      extraEnvKeys: parseEnvKeys(extraEnvKeys),
+    }),
     timeoutMs: parsePositiveInteger(timeoutMs, 'timeoutMs'),
     maxOutputBytes: parsePositiveInteger(maxOutputBytes, 'maxOutputBytes'),
+    killGraceMs: parsePositiveInteger(killGraceMs, 'killGraceMs'),
     context,
   });
 };

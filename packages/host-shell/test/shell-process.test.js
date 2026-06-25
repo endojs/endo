@@ -6,7 +6,6 @@ import '@endo/init/debug.js';
 
 import process from 'node:process';
 import test from 'ava';
-import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
 import {
@@ -14,11 +13,12 @@ import {
   make,
   makeShellProcess,
   parseArgs,
+  parseEnvKeys,
   parsePositiveInteger,
   parseProcessEnv,
 } from '../src/index.js';
+import { readAll } from './_helpers.js';
 
-const textDecoder = new TextDecoder();
 const textEncoder = new TextEncoder();
 
 /**
@@ -46,29 +46,6 @@ const makeProcess = (t, env) => {
   const proc = make(undefined, undefined, { env });
   t.teardown(() => proc.kill('SIGKILL'));
   return proc;
-};
-
-/**
- * Drain an exo-stream byte reader to a single UTF-8 string.
- *
- * @param {any} readerRef
- * @returns {Promise<string>}
- */
-const readAll = async readerRef => {
-  /** @type {Uint8Array[]} */
-  const chunks = [];
-  let total = 0;
-  for await (const chunk of iterateBytesReader(readerRef, { buffer: 64 })) {
-    chunks.push(chunk);
-    total += chunk.length;
-  }
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return textDecoder.decode(out);
 };
 
 test('structured argv streams stdout and exit reports success', async t => {
@@ -327,12 +304,97 @@ test('parseProcessEnv validates a JSON object of strings', t => {
   });
 });
 
-test('parsePositiveInteger validates positive integers', t => {
+test('parsePositiveInteger validates positive integers strictly', t => {
   t.is(parsePositiveInteger(undefined, 'timeoutMs'), undefined);
   t.is(parsePositiveInteger('500', 'timeoutMs'), 500);
-  for (const bad of ['0', '-5', '1.5', 'abc', '']) {
+  t.is(parsePositiveInteger('1000000', 'timeoutMs'), 1_000_000);
+  // Rejects zero/negative/decimal/junk, and the lenient forms `Number`
+  // would otherwise accept (hex, exponent, whitespace), plus values that
+  // would lose precision above Number.MAX_SAFE_INTEGER.
+  for (const bad of [
+    '0',
+    '-5',
+    '1.5',
+    'abc',
+    '',
+    '0x10',
+    '1e3',
+    ' 5 ',
+    '9007199254740993',
+  ]) {
     t.throws(() => parsePositiveInteger(bad, 'timeoutMs'), {
       message: /positive integer/,
     });
   }
+});
+
+test('parseEnvKeys validates a JSON array of strings', t => {
+  t.is(parseEnvKeys(undefined), undefined);
+  t.deepEqual(parseEnvKeys(JSON.stringify(['A', 'B'])), ['A', 'B']);
+  t.throws(() => parseEnvKeys(JSON.stringify('A')), {
+    message: /extraEnvKeys.*JSON array of strings/,
+  });
+  t.throws(() => parseEnvKeys(JSON.stringify([1])), {
+    message: /extraEnvKeys.*JSON array of strings/,
+  });
+});
+
+test('processEnv rejects NUL bytes in keys and values', t => {
+  t.throws(() => parseProcessEnv(JSON.stringify({ A: 'a\0b' })), {
+    message: /NUL/,
+  });
+  t.throws(() => parseProcessEnv(JSON.stringify({ 'A\0B': 'x' })), {
+    message: /NUL/,
+  });
+});
+
+test('buildChildEnv passes through extraEnvKeys without full inherit', t => {
+  process.env.HOST_SHELL_EXTRA = 'shared';
+  t.teardown(() => {
+    delete process.env.HOST_SHELL_EXTRA;
+  });
+  t.is(
+    buildChildEnv({ extraEnvKeys: ['HOST_SHELL_EXTRA'] }).HOST_SHELL_EXTRA,
+    'shared',
+  );
+  // Not passed through unless explicitly named.
+  t.false('HOST_SHELL_EXTRA' in buildChildEnv());
+});
+
+test('extraEnvKeys reaches the child via the make entry', async t => {
+  process.env.HOST_SHELL_EXTRA = 'shared';
+  t.teardown(() => {
+    delete process.env.HOST_SHELL_EXTRA;
+  });
+  const proc = makeProcess(t, {
+    command: 'printenv',
+    args: JSON.stringify(['HOST_SHELL_EXTRA']),
+    extraEnvKeys: JSON.stringify(['HOST_SHELL_EXTRA']),
+  });
+  t.is((await readAll(proc.stdout())).trim(), 'shared');
+});
+
+test('a SIGTERM-trapping child is escalated to SIGKILL', async t => {
+  t.timeout(10_000);
+  // The child ignores SIGTERM, so the timeout's SIGTERM has no effect and
+  // the killGraceMs escalation must SIGKILL it.
+  const proc = makeProcess(t, {
+    command: 'sh',
+    args: JSON.stringify(['-c', 'trap "" TERM; while true; do sleep 1; done']),
+    timeoutMs: '200',
+    killGraceMs: '200',
+  });
+  t.is((await proc.exit()).signal, 'SIGKILL');
+});
+
+test('writing to stdin after the child exits is rejected', async t => {
+  t.timeout(10_000);
+  const proc = spawnProcess(t, { command: 'sh', args: ['-c', 'exit 0'] });
+  await proc.exit();
+  const writer = iterateBytesWriter(proc.stdin(), { buffer: 64 });
+  await t.throwsAsync(async () => {
+    await writer.next(textEncoder.encode('x'));
+    await writer.next(textEncoder.encode('y'));
+    await writer.return();
+  });
 });
