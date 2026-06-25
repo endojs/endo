@@ -23,6 +23,20 @@ daemon-side substrate persists, but provisioning moves into Chat
 via the root host agent pet store, the `@root` endowment, and a
 sibling `chat-inventory-encrypted-formulas` design for credential
 storage),
+[endo-agent-tools](endo-agent-tools.md) and
+[agentry-agent-builder](agentry-agent-builder.md) (added 2026-06-03,
+rewritten concise 2026-06-25 and reconciled with shipped code: the
+#416 pair. `@endo/agent-tools` specifies
+the method-guard tool record (now the canonical `ToolRecord`, with the
+`Filesystem` read tool reconciled onto it in #523) and the wire-schema
+contract, with one petstore the system of record at two granularities
+(per-call tool mode, per-session code mode); code mode's TypeScript
+declaration renderer landed in #524 (build-time codegen, gated against the
+guards). The consuming `@endo/agentry` `defineAgent` is the builder for
+building your own lal (dogfooded by reconstructing lal), capped at the
+eval-vs-optimize distinction the git code-mode eval harness draws; its core
+(single-call `defineAgent` plus the two code-mode presets) landed in #517,
+with the wider attenuation/wire/compaction surface still aspirational),
 [registry-capability](registry-capability.md) (added 2026-06-02;
 layer 1 of 4 in the daemon-worker importLocation stack: `EndoRegistry`
 capability shape, `@registry` host special name, snapshot-vs-live-read
@@ -192,7 +206,7 @@ LLM-agent stack).*
 | [daemon-make-archive](daemon-make-archive.md) | 2026-04-23 | 2026-04-24 | In Progress |
 | [daemon-form-request](daemon-form-request.md) | 2026-02-25 | 2026-03-02 | **Complete** |
 | [endoclaw](endoclaw.md) | 2026-03-03 | 2026-03-03 | Reference |
-| [endopi](endopi.md) | 2026-05-15 | 2026-05-15 | Reference |
+| [endopi](endopi.md) | 2026-05-15 | 2026-06-25 | Reference |
 | [endopi-edit-tool](endopi-edit-tool.md) | 2026-05-15 | 2026-05-15 | Proposed |
 | [endopi-jsonl-transcript-format](endopi-jsonl-transcript-format.md) | 2026-05-15 | 2026-05-15 | Proposed |
 | [endopi-provider-registry-and-oauth](endopi-provider-registry-and-oauth.md) | 2026-05-15 | 2026-05-15 | Proposed (partially satisfied by `packages/genie`) |
@@ -256,7 +270,9 @@ LLM-agent stack).*
 | [endo-bytes](endo-bytes.md) | 2026-05-08 | 2026-05-10 | Implemented |
 | [endo-gateway](endo-gateway.md) | 2026-05-10 | 2026-05-10 | Proposed |
 | [endo-gateway-mcp](endo-gateway-mcp.md) | 2026-05-29 | 2026-05-29 | Not Started |
-| [agent-tools-mount-fs-tools](agent-tools-mount-fs-tools.md) | 2026-06-01 | 2026-06-01 | Not Started |
+| [agent-tools-mount-fs-tools](agent-tools-mount-fs-tools.md) | 2026-06-01 | 2026-06-25 | Superseded |
+| [endo-agent-tools](endo-agent-tools.md) | 2026-06-03 | 2026-06-25 | In Progress |
+| [agentry-agent-builder](agentry-agent-builder.md) | 2026-06-03 | 2026-06-25 | In Progress |
 | [unhandled-rejection-display](unhandled-rejection-display.md) | 2026-05-10 | 2026-05-18 | **Complete** |
 | [weblet-next](weblet-next.md) | 2026-03-24 | 2026-03-24 | Reference |
 | [workers-panel](workers-panel.md) | 2026-02-14 | 2026-02-24 | Not Started |
@@ -267,7 +283,7 @@ LLM-agent stack).*
 | [endo-app-sharing](endo-app-sharing.md) | 2026-06-01 | 2026-06-01 | Proposed |
 | [familiar-app-ui-hosting](familiar-app-ui-hosting.md) | 2026-06-01 | 2026-06-01 | Proposed |
 
-**Totals:** 42 Complete/Implemented, 21 In Progress, 38 Not Started, 28 Proposed, 2 Active, 7 Reference, 2 Deprecated, 1 Superseded (141 designs). 2026-06-19 recounts the summary table (the prose totals had drifted four designs low — `137/18/29` → the recounted `141/21/28` across designs/In Progress/Proposed — and folds in the `fs-interface-consolidation` progress below). 2026-06-18 adds `fs-interface-consolidation` (In Progress), the sequenced follow-up that reduces overlap across the fs/name-hub guards once `fs-interface-reconciliation` aligned their names; all five phases have now landed — C2 shared records, C3/C4 daemon read-surface convergence (including the cross-surface mount unification and the blob range-I/O alignment), C1 EndoNameHub+EndoDirectory unification, and C5 dead-guard removal. The early "retire `BlobRef`" framing was reversed: `BlobRef` is the richest blob shape, so the daemon/lite blobs aligned **up** to its `getInfo`/`fetch` range-I/O surface (the shared `rangeReadMethodGuards` / `ReadableBlobRangeInterface`) and every public hash accessor moved to base64. The 2026-06-15 pass flips `break-dev-dependency-cycles` from In Progress to Complete (on `llm`) on the strength of cycle-graph verification (combined dep+devDep SCC count is 0; self-loop count is 0). 2026-05-27 adds `daemon-git-next-steps` (Proposed) as the forward-looking roadmap over the canonical git trio. Refreshed 2026-06-02 by the daemon-worker-import-from-mount decomposition: three new Proposed designs (`registry-capability`, `mvs-resolver`, `snapshot-mapper`) land as siblings of the repurposed integration-layer doc. The 2026-06-01 pass adds the **Peer App Sharing** milestone (formerly "Milestone A"; now Milestone 8 after the 2026-06-03 renumbering pass) including `app-sharing-milestone` and its three new Proposed designs (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); see "Milestone 8: Peer App Sharing" below. Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in that pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 17 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`, and `daemon-git-next-steps` (added 2026-05-27)), plus the endo-gateway-mcp (Not Started) entry added 2026-05-29, the `daemon-worker-import-from-mount` (Proposed) entry added 2026-05-22, and the three layer-split designs from the 2026-06-02 refresh.
+**Totals:** 42 Complete/Implemented, 23 In Progress, 37 Not Started, 28 Proposed, 2 Active, 7 Reference, 2 Deprecated, 2 Superseded (143 designs). 2026-06-25 adds the #416 pair: `endo-agent-tools` (In Progress, since #523 and #524 landed its first tools and the code-mode declaration renderer) and `agentry-agent-builder` (In Progress, its `defineAgent` builder core landed in #517; the extended surface is aspirational), and flips `agent-tools-mount-fs-tools` to Superseded (its raw-mount read tool is replaced by the canonical `ToolRecord` filesystem read tool). 2026-06-19 recounts the summary table (the prose totals had drifted four designs low — `137/18/29` → the recounted `141/21/28` across designs/In Progress/Proposed — and folds in the `fs-interface-consolidation` progress below). 2026-06-18 adds `fs-interface-consolidation` (In Progress), the sequenced follow-up that reduces overlap across the fs/name-hub guards once `fs-interface-reconciliation` aligned their names; all five phases have now landed — C2 shared records, C3/C4 daemon read-surface convergence (including the cross-surface mount unification and the blob range-I/O alignment), C1 EndoNameHub+EndoDirectory unification, and C5 dead-guard removal. The early "retire `BlobRef`" framing was reversed: `BlobRef` is the richest blob shape, so the daemon/lite blobs aligned **up** to its `getInfo`/`fetch` range-I/O surface (the shared `rangeReadMethodGuards` / `ReadableBlobRangeInterface`) and every public hash accessor moved to base64. The 2026-06-15 pass flips `break-dev-dependency-cycles` from In Progress to Complete (on `llm`) on the strength of cycle-graph verification (combined dep+devDep SCC count is 0; self-loop count is 0). 2026-05-27 adds `daemon-git-next-steps` (Proposed) as the forward-looking roadmap over the canonical git trio. Refreshed 2026-06-02 by the daemon-worker-import-from-mount decomposition: three new Proposed designs (`registry-capability`, `mvs-resolver`, `snapshot-mapper`) land as siblings of the repurposed integration-layer doc. The 2026-06-01 pass adds the **Peer App Sharing** milestone (formerly "Milestone A"; now Milestone 8 after the 2026-06-03 renumbering pass) including `app-sharing-milestone` and its three new Proposed designs (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); see "Milestone 8: Peer App Sharing" below. Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in that pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 17 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`, and `daemon-git-next-steps` (added 2026-05-27)), plus the endo-gateway-mcp (Not Started) entry added 2026-05-29, the `daemon-worker-import-from-mount` (Proposed) entry added 2026-05-22, and the three layer-split designs from the 2026-06-02 refresh.
 
 ## Roadmap
 
@@ -298,6 +314,8 @@ flowchart TD
         fagent[familiar-bundled-agents<br/><i>COMPLETE</i>]
         dtools[daemon-agent-tools]
         deval[daemon-guest-eval-simplification<br/><i>IMPLEMENTED</i>]
+        eat[endo-agent-tools]
+        eagentry[agentry-agent-builder]
         dform --> lalfp
         dval --> lalfp
         laltx --> lalfp
@@ -308,6 +326,8 @@ flowchart TD
         dtools --> deval
         dbank --> deval
         lalfp --> deval
+        dtools -.-> eat
+        eat --> eagentry
     end
 
     subgraph Familiar
@@ -559,6 +579,8 @@ capabilities available to agents.
 | endo-gateway-mcp | Not Started | MCP JSON-RPC termination on the gateway; bearer-token → formula-id → Endo agent tools. Design merged today (PR [#376](https://github.com/endojs/endo-but-for-bots/pull/376)). Strategic-early for the MCP-bridge milestone (M6): the gateway-as-MCP-bridge endpoint, gated on gateway-package phases 2/7/8 (UDS bootstrap, AppsNameHub, ResourceLedger) but not on phases 10/11. |
 | daemon-docker-selfhost | Not Started | Dockerfile, state persistence, network exposure, Chat hosting |
 | daemon-agent-tools | Not Started | Filesystem, shell, git tools backed by capabilities |
+| endo-agent-tools | In Progress | `@endo/agent-tools`: method-guard tools over a confined workspace. The canonical `ToolRecord` (`makeTool`), the confinement axis plus attenuation levers, the git authority tiers (read / write / push), and capability args as camelCase petnames resolved against the guest petstore via `E(powers).lookup`, bound host-side with `storeIdentifier` / `storeValue` (no opaque handle, no bespoke registry). `Filesystem`-targeted file tools over `@endo/platform/fs/extended` read the live worktree and history through one cap; #523 reconciled the FS read tool onto the canonical `ToolRecord`. One petstore is the system of record at two granularities (per-call tool mode, per-session code mode); petname-for-caps plus SmallCaps-for-data are complementary. Wire schemas are hand-authored and pinned to the live guard by a divergence gate; #524 shipped the code-mode TypeScript declaration renderer (build-time codegen, two paths, gated against the guards). Realizes the package `endo-gateway-mcp` named; supersedes [agent-tools-mount-fs-tools](agent-tools-mount-fs-tools.md). Sibling of `@endo/agentry`'s `defineAgent` builder ([agentry-agent-builder](agentry-agent-builder.md)) |
+| agentry-agent-builder | In Progress | `@endo/agentry` `defineAgent`: the agent builder that lets someone build their own lal (dogfooded by reconstructing lal itself). Core landed in #517: a single-call `defineAgent(config)` returning a maker function (the powerless definition is the maker's closure; calling the maker with a powers handle is the powered stage), a module in #308's optimizer and eval package, keeping the exo `define*`/`make*` spirit (no separate `makeAgent(template, powers)` export). Primary interaction mode is code-mode `execute` over petname-bound endowments (not a multi-interface cli/sdk/web export); discrete `arg0`-style tools are kept as a distinct second mode. Code-mode result rendering uses the real SmallCaps marshaller (`@endo/marshal`), not `JSON.stringify`. Shipped config is `{ model, instructions, tools, endow }`: `model` folds in the provider (profile string / `provider/modelId` / concrete pi-ai `Model`), `instructions` is the system prompt, and the credential key resolves through a `Credentials` seam (`makeEnvCredentials`) plus the `endow` hook. No `harness` abstraction (one pi loop via `@earendil-works/pi-agent-core` v0.79.0; code-mode guest code is confined in a fresh Endo Compartment per #297). #517 ships the two code-mode presets `makeCodeModeAgent` / `makeCodeModeGitLoopAgent` (`@endo/agentry/execute`), each wrapping `defineAgent({ model, instructions, tools: [toSmallcapsPiAgentTool(...)] })`. The symmetric SmallCaps Hilbert-Hotel decode (`coerceBigintArgs` plus `unescapeHilbertHotel` plus LLM-JSON fixups) lives in `@endo/agent-tools`'s `toSmallcapsPiAgentTool`. Aspirational (not in #517): declarative tool selection plus attenuation (functions-of-cap), define-time wire-schema derivation (`Tool.parameters` plus MCP `inputSchema`), a `compaction` selector (pi-default or genie's observer/reflector pair), `prompts.steering`, a `discovery` axis, and per-harness `define(Lal\|Genie)Agent` preset bundles (fae deprioritized, keeps its own loop). Capped at the eval-vs-optimize distinction the git code-mode eval harness draws. Drives the #404 wizard's Submit (which calls the maker); wires the `Filesystem` plus Git capabilities into the #370 loop |
 | ~~platform-fs~~ | **Complete** | `@endo/platform/fs` — shared types, content store, tree adapters; landed on `llm` (initial commit `e0dda06fb` + PR #122 review cycle fixups) |
 | daemon-capability-filesystem | Reference | `Dir`/`File` capabilities sketch retained as reference; narrower mount slice ships via daemon-mount |
 | ~~daemon-content-store-gc~~ | **Complete** | Content-store pruning and scratch-mount directory cleanup at GC time; landed in PR #99 |
@@ -1154,6 +1176,8 @@ have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
 | endo-gateway | L | 1.5-3 weeks | 3 | Per-host system-service HTTP virtual host for OCapN; lifts hosting out of per-user Daemon; closes issue #173, unblocks PR #134. Raised to M3 (was M1, pre-renumbering) per kriskowal directive on `#134#issuecomment-4444987124` (2026-05-13). Size set at L pending per-phase backfill |
 | daemon-docker-selfhost | S-M | 3 days | 3 | Dockerfile, entrypoint, compose; PR #134 forwarded under bot, awaiting review |
 | daemon-agent-tools | M-L | 1.5 weeks | 3 | Shell, git, fs tool wrappers; PR #130 forwarded under bot |
+| endo-agent-tools | M-L | 1.5-2 weeks | 3 | `@endo/agent-tools`: the canonical `ToolRecord` (`makeTool`, lifted from genie) plus hand-authored wire schemas pinned to the live guard by a divergence gate (the `Pattern → JSON Schema` deriver is tabled); `Filesystem`-targeted file tools over `@endo/platform/fs/extended` reading live worktree plus history uniformly. First tools landed (#523 FS read tool, git tools; #524 code-mode declaration renderer). Remaining bulk: the command-tool `Spawner` seam, the push tier, and across-turn cap persistence |
+| agentry-agent-builder | M | 4-5 days | 3 | `@endo/agentry` `defineAgent` builder: new module in #308's existing package. Composes selection/attenuation/wire-schemas/presets declaratively and binds the confined pi loop. Bulk is the config surface plus preset bundles plus the `prepareArguments` call site; the heavy lifting (tools, schemas) lives in `endo-agent-tools`. Depends on `endo-agent-tools` landing first |
 | ~~platform-fs~~ | S-M | — | 3 | ✅ Complete; `@endo/platform` package landed on `llm` (commit `e0dda06fb`); PR #122 carried review-cycle fixups |
 | daemon-capability-filesystem | L | — | 3 | Reference sketch; narrower mount slice ships via daemon-mount |
 | ~~daemon-content-store-gc~~ | S | — | 3 | ✅ Complete (PR #99, ~2 days actual vs 1 day estimate) |
@@ -1256,7 +1280,7 @@ date of this pass.
 |-----------|-----------------|-----------------|----------------------------------|
 | M1: AI Agent Experience (was M0) | 0 | **Complete** | — |
 | M2: Project Hygiene (was M½) | 0 | **Complete** | — |
-| M3: Remote Access & Tools (was M1) | 14 (`endo-gateway`, `daemon-docker-selfhost`, `daemon-agent-tools`, `daemon-mount`, `daemon-worker-import-from-mount`, `registry-capability`, `mvs-resolver`, `snapshot-mapper`, `filesystem-watchers`, `daemon-locator-terminology`, `daemon-rename-to-manager`, `daemon-xs-worker-snapshot`, `endoclaw-timer`, `endoclaw-network-fetch`) | 8-11 weeks | 10-13 weeks |
+| M3: Remote Access & Tools (was M1) | 16 (`endo-gateway`, `daemon-docker-selfhost`, `daemon-agent-tools`, `endo-agent-tools`, `agentry-agent-builder`, `daemon-mount`, `daemon-worker-import-from-mount`, `registry-capability`, `mvs-resolver`, `snapshot-mapper`, `filesystem-watchers`, `daemon-locator-terminology`, `daemon-rename-to-manager`, `daemon-xs-worker-snapshot`, `endoclaw-timer`, `endoclaw-network-fetch`) | 9-12 weeks | 11-14 weeks |
 | M4: Networking (was M2) | 6 (`ocapn-network-transport-separation`, `ocapn-tcp-for-test-extraction`, `ocapn-tcp-syrups-framing`, `cbors`, `ocapn-noise-cryptographic-review`, `daemon-agent-network-identity`) | 4-5 weeks | 5-7 weeks |
 | M5: Public Hosting & Billing (was M7) | 4 in-flight on PR #356 stack (`gateway-package` counted under M3; `gateway-packaging-ci`, `gateway-aws-deployment`, `gateway-aws-attuned` counted here) + 3 design gaps (`gateway-oauth-bonding`, `gateway-key-recovery`, `gateway-stripe-adapter`) | 4-6 weeks design + impl | merge cadence of PRs #343 and #356 |
 | M6: MCP Bridge Hosting (was Milestone B) | 1 net-new (`endo-gateway-mcp` impl); cross-milestone slices in M3 (P0) and M5 (P2/P3/P4 gaps) | ~2 weeks own work + ~6-9 weeks across P0-P4 | gated by M3 gateway-package phases 2/7/8 merge cadence |
@@ -1265,7 +1289,7 @@ date of this pass.
 | M9: UX & Tooling (was M4) | 13 (`chat-pending-commands`, `chat-slot-slash-commands`, `daemon-commands-as-messages`, `inventory-cancel-and-liveness`, `inventory-grouping-by-type`, `inventory-drag-and-drop`, `formula-inspector`, `workers-panel`, `daemon-retention-paths`, `chat-edit-message-ui`, `chat-inventory-create-menu`, `lal-transcript-memory-management`, `namehub-interface-unification`) | 9-12 weeks | 11-14 weeks |
 | M10: Confinement & Ecosystem (was M5) | 6 (`endo-posix-sandbox`, `daemon-capability-persona`, `daemon-capability-bank`, `endoclaw-browser`, `endoclaw-channel-bridges`, `endoclaw-skill-registry`) | 14-20 weeks | 16-22 weeks |
 | M11: Rust Daemon (`endor`) (was M6) | 2 (`endor-tui`, `endor-bus-tui`) | 12-17 weeks | 14-19 weeks |
-| **Total remaining** | **55** + 7 M5 rows (4 in-flight + 3 design gaps) + 1 M6 own-work row | **~56-76 weeks** + M5 4-6 weeks + M6 ~2 weeks | **~68-92 weeks** |
+| **Total remaining** | **57** + 7 M5 rows (4 in-flight + 3 design gaps) + 1 M6 own-work row | **~57-78 weeks** + M5 4-6 weeks + M6 ~2 weeks | **~69-94 weeks** |
 
 The 2026-05-20 reconciliation corrects a counting gap in the prior
 snapshot's narrative: M1, M3, and M4 had absorbed new rows since the
