@@ -67,26 +67,6 @@ export interface ToolRecord {
   invoke: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
-export interface ToolSchema {
-  type: 'function';
-  function: {
-    name: string;
-    description: string;
-    parameters: {
-      type: 'object';
-      properties: Record<string, unknown>;
-      required?: readonly string[];
-      additionalProperties?: boolean;
-    };
-  };
-}
-
-export interface MountReadToolRecord {
-  schema: () => ToolSchema;
-  execute: (args: Record<string, unknown>) => Promise<string>;
-  help: () => string;
-}
-
 export declare function makeTool(spec: ToolSpec): ToolRecord;
 
 export declare function makeGitTool(
@@ -104,4 +84,4 @@ export interface MountReadToolOptions {
 export declare function makeMountReadTool(
   fs: ERef<Filesystem>,
   opts?: MountReadToolOptions,
-): MountReadToolRecord;
+): ToolRecord;
