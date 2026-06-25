@@ -16,7 +16,7 @@ import { promisify as nodePromisify } from 'util';
 import { E, Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
-import { makePromiseKit } from '@endo/promise-kit';
+import { makeCancelKit } from '@endo/cancel';
 import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
@@ -435,10 +435,7 @@ const getConfigDirectoryName = (testTitle, testConfigIndex) => {
  * @param {boolean} [options.gcEnabled]
  */
 const prepareConfig = async (t, { gcEnabled = true } = {}) => {
-  const { reject: cancel, promise: cancelled } = makePromiseKit();
-  // Sink the rejection to prevent SES from treating the teardown rejection as
-  // unhandled. Consumers of `cancelled` attach their own .catch() handlers.
-  cancelled.catch(() => {});
+  const { cancelled, cancel } = makeCancelKit();
   const config = {
     ...makeConfig('tmp', getConfigDirectoryName(t.title, t.context.length)),
     gcEnabled,
@@ -1046,9 +1043,7 @@ testNeedsNodeWorker(
     const { cancelled, config } = await prepareConfig(t);
 
     const responderFinished = (async () => {
-      const { promise: followerCancelled, reject: cancelFollower } =
-        makePromiseKit();
-      cancelled.catch(cancelFollower);
+      const { cancelled: followerCancelled } = makeCancelKit(cancelled);
       const { host } = await makeHost(config, followerCancelled);
       await E(host).provideWorker(['user-worker']);
 
@@ -1114,9 +1109,7 @@ testNeedsNodeWorker('persist confined services and their requests', async t => {
   const { cancelled, config } = await prepareConfig(t);
 
   const responderFinished = (async () => {
-    const { promise: followerCancelled, reject: cancelFollower } =
-      makePromiseKit();
-    cancelled.catch(cancelFollower);
+    const { cancelled: followerCancelled } = makeCancelKit(cancelled);
     const { host } = await makeHost(config, followerCancelled);
     await E(host).provideWorker(['user-worker']);
 
