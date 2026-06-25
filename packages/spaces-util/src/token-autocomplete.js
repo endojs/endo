@@ -428,9 +428,10 @@ export const tokenAutocompleteComponent = (
 
     // Fetch sub-directory names
     try {
-      const target = /** @type {{ lookup: (...path: string[]) => unknown }} */ (
-        E(powers)
-      ).lookup(...pathPrefix);
+      const target =
+        /** @type {{ lookup: (path: string | string[]) => unknown }} */ (
+          E(powers)
+        ).lookup(pathPrefix);
       const namesP =
         /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
           E(target)
