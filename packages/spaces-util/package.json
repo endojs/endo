@@ -24,6 +24,7 @@
     ".": "./index.js",
     "./markdown-render.js": "./src/markdown-render.js",
     "./markdown-vnodes.js": "./src/markdown-vnodes.js",
+    "./code-fence.js": "./src/code-fence.js",
     "./value-vnodes.js": "./src/value-vnodes.js",
     "./value-component.js": "./src/value-component.js",
     "./value-render.js": "./src/value-render.js",

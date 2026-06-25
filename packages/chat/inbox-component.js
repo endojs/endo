@@ -5,6 +5,7 @@
 
 import harden from '@endo/harden';
 import { InboxRoot } from '@endo/space-chat';
+import { colorize } from '@endo/monaco-wrapper';
 
 import { h, renderConfined, unmount } from './setup-preact-container.js';
 
@@ -85,6 +86,11 @@ export const inboxComponent = async (
       reportError: error => window.reportError(error),
       writeClipboard: text => navigator.clipboard.writeText(text),
       afterPaint: cb => requestAnimationFrame(cb),
+      // `colorize` syntax-highlights markdown code fences. It is Monaco-backed
+      // (async, loads language grammars on demand); the confined view renders
+      // fences plain first and swaps in highlighted token vnodes when it
+      // resolves.
+      colorize: (code, language) => colorize(code, language),
     }),
     $mount,
   );

@@ -12,6 +12,8 @@ import {
 } from '@endo/spaces-util/time-formatters.js';
 import { prepareTextWithPlaceholders } from '@endo/spaces-util/markdown-render.js';
 import { markdownToVnodes } from '@endo/spaces-util/markdown-vnodes.js';
+import { colorize } from '@endo/monaco-wrapper';
+
 import {
   Fragment,
   h,
@@ -449,6 +451,7 @@ export const channelComponent = async (
 
     const { nodes, placeholderCount } = markdownToVnodes(textWithPlaceholders, {
       renderToken,
+      colorize,
     });
     // Attachments without an inline placeholder slot (e.g. one text string and
     // one attached value) are appended at the end rather than dropped.

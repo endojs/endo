@@ -150,6 +150,19 @@ const ClipboardContext = createContext(
 );
 
 /**
+ * Host-supplied async code colorizer (e.g. `@endo/monaco-wrapper`'s `colorize`)
+ * for syntax-highlighting markdown code fences. Optional: `undefined` when no
+ * host colorizer is wired, in which case fences render as plain source.
+ *
+ * @type {import('preact').Context<((code: string, language: string) => Promise<string>) | undefined>}
+ */
+const ColorizeContext = createContext(
+  /** @type {((code: string, language: string) => Promise<string>) | undefined} */ (
+    undefined
+  ),
+);
+
+/**
  * The collapsible timestamp tooltip: message number, dismiss button, and the
  * copyable time lines. Class names match the original imperative markup so the
  * existing CSS continues to apply.
@@ -486,8 +499,10 @@ const PackageBody = ({ message, powers, showValue, setError }) => {
   const nameParts = Array.isArray(names) ? names : [];
   const idParts = Array.isArray(ids) ? ids : [];
 
-  // TODO(inbox stage 3): Monaco `colorize` of code fences within the markdown
-  // (markdown-vnodes emits fences as plain `<pre class="md-code-fence">` text).
+  // The host supplies an async Monaco colorizer via context; markdown-vnodes
+  // renders code fences plain first, then swaps in highlighted token vnodes.
+  const colorize = useContext(ColorizeContext);
+
   const textWithPlaceholders = prepareTextWithPlaceholders(
     stringParts.map(String),
   );
@@ -510,7 +525,7 @@ const PackageBody = ({ message, powers, showValue, setError }) => {
 
   const { nodes, placeholderCount, firstBlockKind } = markdownToVnodes(
     textWithPlaceholders,
-    { renderToken },
+    { renderToken, colorize },
   );
 
   // Inject the sender chip into the first paragraph / heading; otherwise (code
@@ -1363,6 +1378,10 @@ harden(toInboxMessage);
  *   post-paint deferral (wraps `requestAnimationFrame`), so the confined view
  *   can wait for Preact to flush before asking the host to scroll without
  *   holding ambient frame-timing authority.
+ * @param {(code: string, language: string) => Promise<string>} [props.colorize]
+ *   - Host-supplied async code colorizer (e.g. `@endo/monaco-wrapper`'s
+ *   `colorize`), provided to markdown code fences via context. Optional; when
+ *   omitted, fences render as plain source.
  */
 export const InboxRoot = ({
   powers,
@@ -1376,6 +1395,7 @@ export const InboxRoot = ({
   reportError,
   writeClipboard,
   afterPaint,
+  colorize,
 }) => {
   const [messages, dispatch] = useReducer(
     messagesReducer,
@@ -1507,18 +1527,22 @@ export const InboxRoot = ({
   }, [powers, conversationId, conversationPetName]);
 
   return h(
-    ClipboardContext.Provider,
-    { value: writeClipboard },
-    messages.map(message =>
-      h(MessageEnvelope, {
-        key: String(message.number),
-        message,
-        powers,
-        showValue,
-        formDescriptions,
-        reportError,
-        isEdited: editedNumbers.has(String(message.number)),
-      }),
+    ColorizeContext.Provider,
+    { value: colorize },
+    h(
+      ClipboardContext.Provider,
+      { value: writeClipboard },
+      messages.map(message =>
+        h(MessageEnvelope, {
+          key: String(message.number),
+          message,
+          powers,
+          showValue,
+          formDescriptions,
+          reportError,
+          isEdited: editedNumbers.has(String(message.number)),
+        }),
+      ),
     ),
   );
 };

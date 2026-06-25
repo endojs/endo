@@ -50,6 +50,8 @@ import { parseBlocks } from '@endo/markmdown';
 
 import { Fragment, h } from 'preact';
 
+import { CodeFenceColorizer } from './code-fence.js';
+
 // The chip-placeholder character (Unicode private use area). Must match the
 // constant used by `prepareTextWithPlaceholders` in markdown-render.js. It is
 // module-private there, so it is duplicated here rather than imported; a drift
@@ -58,6 +60,13 @@ const PLACEHOLDER = '';
 
 /**
  * @typedef {(index: number) => VNode | null} RenderToken
+ */
+/**
+ * Host-supplied async code colorizer returning Monaco-style token HTML
+ * (e.g. `@endo/monaco-wrapper`'s `colorize`). Injected, never imported here, so
+ * the vnode renderer stays free of a Monaco dependency and Node-loadable.
+ *
+ * @typedef {(code: string, language: string) => Promise<string>} Colorize
  *   Called once per placeholder, left-to-right, to produce the chip vnode that
  *   replaces it. `index` is the zero-based placeholder ordinal.
  */
@@ -216,9 +225,10 @@ const renderInline = (tokens, renderToken, counter) => {
  * @param {Block[]} blocks
  * @param {RenderToken | undefined} renderToken
  * @param {{ next: number }} counter
+ * @param {Colorize} [colorize] - Optional async code-fence colorizer.
  * @returns {Array<VNode | null>}
  */
-const renderBlockList = (blocks, renderToken, counter) => {
+const renderBlockList = (blocks, renderToken, counter, colorize) => {
   /** @type {Array<VNode | null>} */
   const out = [];
   for (let b = 0; b < blocks.length; b += 1) {
@@ -256,23 +266,38 @@ const renderBlockList = (blocks, renderToken, counter) => {
       }
       case 'code-fence': {
         const content = typeof block.content === 'string' ? block.content : '';
-        // TODO(inbox stage 3): Monaco `colorize` the fence source instead of
-        // emitting it as plain text. Until then the raw source is the code
-        // element's text content (no dangerouslySetInnerHTML). Chip
-        // placeholders inside the fence are substituted (and the shared counter
-        // advanced) so chips after the fence keep the correct index, matching
-        // the imperative renderer.
+        // The raw source is the code element's text content (no
+        // dangerouslySetInnerHTML). Chip placeholders inside the fence are
+        // substituted (and the shared counter advanced) here, synchronously, so
+        // chips after the fence keep the correct index — matching the
+        // imperative renderer.
+        const plain = renderCodeContent(content, renderToken, counter);
+        const language = block.language;
+        // When a colorizer is supplied and the fence has a language, swap the
+        // code element's content for a `CodeFenceColorizer`, which renders this
+        // plain source immediately and asynchronously replaces it with Monaco
+        // token vnodes. Fences containing chip placeholders stay plain: token
+        // boundaries do not align with the interactive chips, and the counter
+        // has already advanced via `plain`. (Inlining the guard lets the type
+        // checker narrow `language`/`colorize` to defined inside the branch.)
         out.push(
           h(
             'pre',
             { class: 'md-code-fence', key },
-            block.language
-              ? h('span', { class: 'md-code-fence-language' }, block.language)
+            language
+              ? h('span', { class: 'md-code-fence-language' }, language)
               : null,
             h(
               'code',
-              block.language ? { class: `language-${block.language}` } : null,
-              ...renderCodeContent(content, renderToken, counter),
+              language ? { class: `language-${language}` } : null,
+              language && colorize && !content.includes(PLACEHOLDER)
+                ? h(CodeFenceColorizer, {
+                    content,
+                    language,
+                    colorize,
+                    fallback: plain,
+                  })
+                : plain,
             ),
           ),
         );
@@ -294,7 +319,12 @@ const renderBlockList = (blocks, renderToken, counter) => {
                   counter,
                 ),
                 ...(item.children && item.children.length > 0
-                  ? renderBlockList(item.children, renderToken, counter)
+                  ? renderBlockList(
+                      item.children,
+                      renderToken,
+                      counter,
+                      colorize,
+                    )
                   : []),
               ),
             ),
@@ -366,7 +396,12 @@ const renderBlockList = (blocks, renderToken, counter) => {
           h(
             'blockquote',
             { class: 'md-blockquote', key },
-            ...renderBlockList(block.children || [], renderToken, counter),
+            ...renderBlockList(
+              block.children || [],
+              renderToken,
+              counter,
+              colorize,
+            ),
           ),
         );
         break;
@@ -393,6 +428,9 @@ const renderBlockList = (blocks, renderToken, counter) => {
  * @param {string} text - Markdown text, possibly with placeholder characters.
  * @param {object} [options]
  * @param {RenderToken} [options.renderToken] - Chip substitution callback.
+ * @param {Colorize} [options.colorize] - Optional async colorizer for code
+ *   fences (e.g. `@endo/monaco-wrapper`'s `colorize`). When omitted, fences
+ *   render as plain source. Fences containing chip placeholders stay plain.
  * @returns {{
  *   nodes: Array<VNode | null>,
  *   placeholderCount: number,
@@ -400,10 +438,10 @@ const renderBlockList = (blocks, renderToken, counter) => {
  * }}
  */
 export const markdownToVnodes = (text, options = {}) => {
-  const { renderToken } = options;
+  const { renderToken, colorize } = options;
   const blocks = parseBlocks(text);
   const counter = { next: 0 };
-  const nodes = renderBlockList(blocks, renderToken, counter);
+  const nodes = renderBlockList(blocks, renderToken, counter, colorize);
 
   /** @type {'paragraph' | 'heading' | 'other' | 'none'} */
   let firstBlockKind = 'none';

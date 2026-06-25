@@ -387,7 +387,7 @@ for the incoming imperative-Space PR — see "Deferred" above)
 
 | Component                                       | Status | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ----------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| inbox-component                                 | ☑      | Done — the 1:1 recipient-filtered view; confined Preact in three stages (shell + 5 message types, markdown-vnodes + token chips, value-vnodes). Monaco colorize of code fences deferred.                                                                                                                                                                                                                                                                                                                                                                                    |
+| inbox-component                                 | ☑      | Done — the 1:1 recipient-filtered view; confined Preact in three stages (shell + 5 message types, markdown-vnodes + token chips, value-vnodes). Monaco colorize of code fences now lands as vnodes (`CodeFenceColorizer`, host-supplied `colorize` via context).                                                                                                                                                                                                                                                                                                                                                                                    |
 | edit-space-modal                                | ☑      | Done — confined Preact + reusable `IconSelector` (Batch B stage 1); scheme picker still host-embedded                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | send-form                                       | ☑      | Done — reply-context bar confined; composes heat-bar ☑ + token-autocomplete ☑ as host-node controllers                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | help-modal                                      | ☑      | Done — confined Preact leaf modal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -460,9 +460,19 @@ Both of the former hard targets are now **done**:
   `innerHTML` interpolation in the mention-notify path (covered by
   `test/component/chat-chrome.test.js`). The space-mode dispatch and top-level
   layout template remain imperative by design.
-- a standing follow-up: render Monaco-colorized code fences as vnodes
-  (tokenization rather than the `colorize` HTML string) in the inbox and
-  definition bodies.
+- **Done — Monaco-colorized code fences render as vnodes** under confinement.
+  `markdownToVnodes` takes an injected async `colorize`; for a fence with a
+  language (and no chip placeholders) the `<code>` content becomes a
+  `CodeFenceColorizer` (`@endo/spaces-util/code-fence.js`) that renders the
+  plain source immediately, then awaits `@endo/monaco-wrapper`'s `colorize`,
+  parses its token HTML into `<span class="mtk*">` vnodes
+  (`colorizedHtmlToVnodes` — a pure, DOM-free parser; the text is plain vnode
+  text, never `dangerouslySetInnerHTML`), and swaps them in. Any failure (no
+  colorizer, unknown language, Monaco load error, unparseable output) leaves the
+  plain source. Wired into the inbox (host-supplied via context) and the
+  channel/forum/microblog bodies (direct `colorize` import). The fence's literal
+  `<pre><code>` structure and synchronous chip-placeholder counter are unchanged,
+  so the existing markdown-vnodes tests pass as-is.
 
 ### Type-checking the extracted UI packages
 
