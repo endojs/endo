@@ -36,6 +36,9 @@ read from the formula `env`:
 | `args`           | no       | a JSON array of string arguments                                                 |
 | `shell`          | no       | `'true'` to run through the default shell, or a shell path; default no shell     |
 | `cwd`            | no       | the child's working directory                                                    |
+| `stdin`          | no       | `'pipe'` (default) or `'ignore'` (immediate EOF, no host buffering)              |
+| `stdout`         | no       | `'pipe'` (default) or `'ignore'` (discard to /dev/null, no host buffering)       |
+| `stderr`         | no       | `'pipe'` (default) or `'ignore'` (discard to /dev/null, no host buffering)       |
 | `processEnv`     | no       | a JSON object of extra environment variables, layered on the child's base env    |
 | `extraEnvKeys`   | no       | a JSON array of worker env var names to pass through (without full inherit)       |
 | `inheritEnv`     | no       | `'true'` to inherit the worker's full environment; default is a safe allowlist   |
@@ -132,6 +135,12 @@ block a chatty child from making progress (and so from exiting) — drain or
 `stdin()` is the mirror image: once the child has exited, its stdin pipe is
 closed, so writing to the writer rejects (EPIPE) rather than blocking.
 Treat a write rejection after `exit()` as "the child is already gone".
+
+If you know up front you don't want a stream, set `stdin`, `stdout`, or
+`stderr` to `'ignore'`. The fd is wired straight to the null device, so the
+host creates no pipe and buffers nothing, and the child never blocks on an
+unread stream (an `'ignore'`d stdin reads as immediate EOF). The matching
+accessor (`stdout()` etc.) then throws, because there is nothing to bridge.
 
 The formula's context cancellation tears the child process down with
 `SIGTERM` (then `SIGKILL` after `killGraceMs`), so revoking the capability

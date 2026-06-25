@@ -194,3 +194,26 @@ test.serial('host-shell formula withholds worker secrets', async t => {
   t.is((await readAll(E(proc).stdout())).trim(), '');
   t.is((await E(proc).exit()).code, 1);
 });
+
+test.serial("host-shell formula honors stdout:'ignore'", async t => {
+  t.timeout(90_000);
+  const { host } = await prepareHost(t);
+
+  const proc = /** @type {ShellProcess} */ (
+    await E(host).makeUnconfined('@node', shellModuleHref, {
+      powersName: '@none',
+      // Far past the host's buffer high-water; with 'ignore' the fd goes to
+      // the null device, so the child runs to completion without anyone
+      // draining stdout across CapTP.
+      env: {
+        command: 'seq',
+        args: JSON.stringify(['100000']),
+        stdout: 'ignore',
+      },
+      resultName: 'discarder',
+    })
+  );
+
+  t.is((await E(proc).exit()).code, 0);
+  await t.throwsAsync(E(proc).stdout(), { message: /stdout is not piped/ });
+});

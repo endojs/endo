@@ -195,13 +195,21 @@ harden(makeEagerByteReader);
  * three stream accessors are memoized: `stdout()` always returns the
  * same `PassableBytesReader`, never a fresh drain of the same pipe.
  *
+ * Each of `stdin` / `stdout` / `stderr` defaults to `'pipe'` (bridged over
+ * CapTP).  Set one to `'ignore'` when the caller is not interested: the fd
+ * is wired straight to the null device, so the host neither creates a pipe
+ * nor buffers anything, the child never blocks on an unread stream, and
+ * `'ignore'`d stdin gives the child an immediate EOF.  The matching
+ * accessor then throws, since there is nothing to bridge.
+ *
  * `exit()` resolves when the **process** terminates (Node's `'exit'`
  * event), not when its stdio has fully drained (`'close'`).  Decoupling
  * the two means a stdio stream the caller never consumes — or a pipe an
  * orphaned grandchild keeps open — cannot wedge the exit-status promise.
  * Captured output remains readable from the in-memory queue after exit.
  * To avoid backpressuring (and so blocking) the child, drain or
- * `return()` every stream you open; see `maxOutputBytes` for a hard cap.
+ * `return()` every stream you open, set `maxOutputBytes` as a hard cap,
+ * or mark streams you don't want as `'ignore'`.
  *
  * @param {MakeShellProcessOptions} options
  * @returns {ShellProcess}
@@ -217,6 +225,9 @@ export const makeShellProcess = options => {
     timeoutMs,
     maxOutputBytes,
     killGraceMs = KILL_GRACE_MS,
+    stdin = 'pipe',
+    stdout = 'pipe',
+    stderr = 'pipe',
   } = options;
 
   if (typeof command !== 'string' || command.length === 0) {
@@ -238,15 +249,19 @@ export const makeShellProcess = options => {
     requireNoNul(cwd, 'cwd');
   }
 
+  const stdinPiped = stdin === 'pipe';
+  const stdoutPiped = stdout === 'pipe';
+  const stderrPiped = stderr === 'pipe';
+
   const child = spawn(command, [...args], {
     cwd,
     env: childEnv,
     // false (default): structured argv, no shell, no injection.
     // true / path: opt-in shell interpretation for pipelines & chaining.
     shell,
-    // Distinct pipes for all three stdio streams so each can be bridged
-    // independently over CapTP.
-    stdio: ['pipe', 'pipe', 'pipe'],
+    // 'pipe' bridges the fd over CapTP; 'ignore' wires it to the null
+    // device so the host never buffers a stream the caller doesn't want.
+    stdio: [stdin, stdout, stderr],
   });
 
   /** @type {import('@endo/promise-kit').PromiseKit<ExitStatus>} */
@@ -345,48 +360,74 @@ export const makeShellProcess = options => {
       });
   }
 
-  // child.stdin / stdout / stderr are non-null because every fd was
-  // requested as a 'pipe' above; assert to satisfy the type checker and
-  // to fail loudly if that ever regresses.
+  // A 'pipe' fd is a stream on the child; an 'ignore' fd is null (it went
+  // to the null device).  Bridge only the piped streams; a piped fd that
+  // is unexpectedly null is a regression, so fail loudly.
   const { stdin: childStdin, stdout: childStdout, stderr: childStderr } = child;
-  if (childStdin === null || childStdout === null || childStderr === null) {
+  if (
+    (stdinPiped && childStdin === null) ||
+    (stdoutPiped && childStdout === null) ||
+    (stderrPiped && childStderr === null)
+  ) {
     throw makeError(X`host-shell stdio pipes were not available`);
   }
 
-  const stdinWriter = bytesWriterFromIterator(makeNodeWriter(childStdin), {
-    buffer: STREAM_BUFFER,
-  });
-  const stdoutReader = bytesReaderFromIterator(
-    makeEagerByteReader(childStdout, onBytes),
-    { buffer: STREAM_BUFFER },
-  );
-  const stderrReader = bytesReaderFromIterator(
-    makeEagerByteReader(childStderr, onBytes),
-    { buffer: STREAM_BUFFER },
-  );
+  const stdinWriter =
+    stdinPiped && childStdin !== null
+      ? bytesWriterFromIterator(makeNodeWriter(childStdin), {
+          buffer: STREAM_BUFFER,
+        })
+      : undefined;
+  const stdoutReader =
+    stdoutPiped && childStdout !== null
+      ? bytesReaderFromIterator(makeEagerByteReader(childStdout, onBytes), {
+          buffer: STREAM_BUFFER,
+        })
+      : undefined;
+  const stderrReader =
+    stderrPiped && childStderr !== null
+      ? bytesReaderFromIterator(makeEagerByteReader(childStderr, onBytes), {
+          buffer: STREAM_BUFFER,
+        })
+      : undefined;
 
   return makeExo('ShellProcess', ShellProcessInterface, {
     /**
      * The process's standard input as an exo-stream byte writer.  Drain
      * it from the initiator with `iterateBytesWriter`; `return()` closes
-     * (EOFs) the child's stdin.
+     * (EOFs) the child's stdin.  Throws if stdin was configured `'ignore'`.
      */
     stdin() {
+      if (stdinWriter === undefined) {
+        throw makeError(X`host-shell stdin is not piped (configured 'ignore')`);
+      }
       return stdinWriter;
     },
 
     /**
      * The process's standard output as an exo-stream byte reader.  Drain
-     * it from the initiator with `iterateBytesReader`.
+     * it from the initiator with `iterateBytesReader`.  Throws if stdout
+     * was configured `'ignore'`.
      */
     stdout() {
+      if (stdoutReader === undefined) {
+        throw makeError(
+          X`host-shell stdout is not piped (configured 'ignore')`,
+        );
+      }
       return stdoutReader;
     },
 
     /**
-     * The process's standard error as an exo-stream byte reader.
+     * The process's standard error as an exo-stream byte reader.  Throws
+     * if stderr was configured `'ignore'`.
      */
     stderr() {
+      if (stderrReader === undefined) {
+        throw makeError(
+          X`host-shell stderr is not piped (configured 'ignore')`,
+        );
+      }
       return stderrReader;
     },
 
@@ -497,6 +538,29 @@ export const parseShell = value => {
   return value;
 };
 harden(parseShell);
+
+/**
+ * Parse an optional stdio-disposition field (`stdin` / `stdout` /
+ * `stderr`) from a formula `env`.  Absent or `'pipe'` bridges the stream
+ * over CapTP; `'ignore'` wires the fd to the null device so the host does
+ * not buffer it.
+ *
+ * @param {string | undefined} value
+ * @param {string} field
+ * @returns {'pipe' | 'ignore'}
+ */
+export const parseStdio = (value, field) => {
+  if (value === undefined || value === 'pipe') {
+    return 'pipe';
+  }
+  if (value === 'ignore') {
+    return 'ignore';
+  }
+  throw makeError(
+    X`host-shell env.${field} must be 'pipe' or 'ignore', got ${q(value)}`,
+  );
+};
+harden(parseStdio);
 
 /**
  * Parse the optional JSON `processEnv` field from a formula `env` into a

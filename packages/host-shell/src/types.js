@@ -53,6 +53,15 @@
  *   structured argv with no shell.  `true` runs through the default shell;
  *   a string names a shell executable.  Enabling a shell re-introduces the
  *   injection surface.
+ * @property {'pipe' | 'ignore'} [stdin] `'pipe'` (default) bridges the
+ *   child's stdin; `'ignore'` gives the child an immediate EOF and makes
+ *   `stdin()` throw.
+ * @property {'pipe' | 'ignore'} [stdout] `'pipe'` (default) captures the
+ *   child's stdout; `'ignore'` discards it to the null device (no host
+ *   buffering) and makes `stdout()` throw.
+ * @property {'pipe' | 'ignore'} [stderr] `'pipe'` (default) captures the
+ *   child's stderr; `'ignore'` discards it to the null device (no host
+ *   buffering) and makes `stderr()` throw.
  * @property {number} [timeoutMs] Terminate the child (SIGTERM, then
  *   SIGKILL after `killGraceMs`) if it has not exited within this many
  *   milliseconds.

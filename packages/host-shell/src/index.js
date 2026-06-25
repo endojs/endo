@@ -10,6 +10,7 @@ import {
   parseEnvKeys,
   parsePositiveInteger,
   parseShell,
+  parseStdio,
 } from './shell-process.js';
 
 export {
@@ -20,6 +21,7 @@ export {
   parsePositiveInteger,
   parseProcessEnv,
   parseShell,
+  parseStdio,
 } from './shell-process.js';
 export { ShellProcessInterface } from './interfaces.js';
 
@@ -42,6 +44,10 @@ export { ShellProcessInterface } from './interfaces.js';
  *   shell (enabling pipelines / redirection / `&&` chaining), or a path
  *   to name a specific shell.  Omitted or `'false'` keeps the safe,
  *   shell-free structured argv.
+ * - `env.stdin` / `env.stdout` / `env.stderr` (optional): `'pipe'`
+ *   (default) bridges the stream over CapTP; `'ignore'` wires the fd to
+ *   the null device, so the host does not buffer a stream the caller does
+ *   not want (and `'ignore'`d stdin gives the child an immediate EOF).
  * - `env.cwd` (optional): the child's working directory.
  * - `env.processEnv` (optional): a JSON object of additional environment
  *   variables, layered on top of the child's base environment.
@@ -84,6 +90,9 @@ export const make = (powers, context, { env = {} } = {}) => {
     timeoutMs,
     maxOutputBytes,
     killGraceMs,
+    stdin,
+    stdout,
+    stderr,
   } = env;
   if (typeof command !== 'string' || command.length === 0) {
     throw makeError(
@@ -105,6 +114,9 @@ export const make = (powers, context, { env = {} } = {}) => {
     timeoutMs: parsePositiveInteger(timeoutMs, 'timeoutMs'),
     maxOutputBytes: parsePositiveInteger(maxOutputBytes, 'maxOutputBytes'),
     killGraceMs: parsePositiveInteger(killGraceMs, 'killGraceMs'),
+    stdin: parseStdio(stdin, 'stdin'),
+    stdout: parseStdio(stdout, 'stdout'),
+    stderr: parseStdio(stderr, 'stderr'),
     context,
   });
 };

@@ -16,6 +16,7 @@ import {
   parseEnvKeys,
   parsePositiveInteger,
   parseProcessEnv,
+  parseStdio,
 } from '../src/index.js';
 import { readAll } from './_helpers.js';
 
@@ -397,4 +398,57 @@ test('writing to stdin after the child exits is rejected', async t => {
     await writer.next(textEncoder.encode('y'));
     await writer.return();
   });
+});
+
+test('parseStdio validates the disposition', t => {
+  t.is(parseStdio(undefined, 'stdout'), 'pipe');
+  t.is(parseStdio('pipe', 'stdout'), 'pipe');
+  t.is(parseStdio('ignore', 'stdout'), 'ignore');
+  t.throws(() => parseStdio('inherit', 'stdout'), {
+    message: /must be 'pipe' or 'ignore'/,
+  });
+});
+
+test("stdout:'ignore' discards output without buffering or blocking", async t => {
+  t.timeout(10_000);
+  // `seq 100000` is far past the 256 KiB high-water; if stdout were piped
+  // and unread it would backpressure and the child could not exit.  With
+  // 'ignore' the fd goes to /dev/null, so the child runs to completion and
+  // exit() resolves even though nothing drains stdout.
+  const proc = spawnProcess(t, {
+    command: 'seq',
+    args: ['100000'],
+    stdout: 'ignore',
+  });
+  t.is((await proc.exit()).code, 0);
+  // The accessor reports that there is nothing to bridge.
+  t.throws(() => proc.stdout(), { message: /stdout is not piped/ });
+});
+
+test("stdin:'ignore' gives the child an immediate EOF", async t => {
+  t.timeout(10_000);
+  // `cat` with no stdin pipe reads the null device — immediate EOF — so it
+  // exits cleanly instead of waiting forever for input.
+  const proc = spawnProcess(t, { command: 'cat', stdin: 'ignore' });
+  t.is((await proc.exit()).code, 0);
+  t.is(await readAll(proc.stdout()), '');
+  t.throws(() => proc.stdin(), { message: /stdin is not piped/ });
+});
+
+test("the make entry honors stdout:'ignore'", async t => {
+  t.timeout(10_000);
+  const proc = makeProcess(t, {
+    command: 'seq',
+    args: JSON.stringify(['100000']),
+    stdout: 'ignore',
+  });
+  t.is((await proc.exit()).code, 0);
+  t.throws(() => proc.stdout(), { message: /stdout is not piped/ });
+});
+
+test('the make entry rejects an invalid stdio disposition', t => {
+  t.throws(
+    () => make(undefined, undefined, { env: { command: 'echo', stdout: 'x' } }),
+    { message: /must be 'pipe' or 'ignore'/ },
+  );
 });
