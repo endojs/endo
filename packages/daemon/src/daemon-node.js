@@ -14,7 +14,7 @@ import popen from 'child_process';
 import url from 'url';
 
 import { E } from '@endo/far';
-import { makePromiseKit } from '@endo/promise-kit';
+import { makeCancelKit } from '@endo/cancel';
 import { makeDaemon } from './daemon.js';
 import {
   makeFilePowers,
@@ -26,7 +26,6 @@ import { startWsGateway } from './ws-gateway.js';
 
 const fsp = { access: fs.promises.access };
 
-/** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config } from './types.js' */
 
 const args = process.argv.slice(2);
@@ -52,8 +51,7 @@ const config = {
 
 const { pid, kill } = process;
 
-const { promise: cancelled, reject: cancel } =
-  /** @type {PromiseKit<never>} */ (makePromiseKit());
+const { cancelled, cancel } = makeCancelKit();
 
 const networkPowers = makeNetworkPowers({ net, fsp });
 const filePowers = makeFilePowers({ fs, path });

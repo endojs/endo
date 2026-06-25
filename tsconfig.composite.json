@@ -18,6 +18,9 @@
       "path": "packages/cache-map/tsconfig.composite.json"
     },
     {
+      "path": "packages/cancel/tsconfig.composite.json"
+    },
+    {
       "path": "packages/captp/tsconfig.composite.json"
     },
     {
