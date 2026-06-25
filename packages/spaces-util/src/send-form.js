@@ -21,6 +21,7 @@ import { h } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { renderConfined, unmount } from '@endo/preact-container/renderer';
 import { tokenAutocompleteComponent } from './token-autocomplete.js';
+import { lookupPath } from './name-hub.js';
 
 import { makeLiveHeatEngine } from './heat-engine.js';
 import { makeCompositeHeatEngine } from './composite-heat-engine.js';
@@ -713,7 +714,7 @@ export const sendFormComponent = ({
         E(powers).identify(
           .../** @type {[string, ...string[]]} */ (petNamePath),
         ),
-        E(powers).lookup(petNamePath),
+        lookupPath(powers, petNamePath),
       ])
         .then(
           ([id, value]) => {

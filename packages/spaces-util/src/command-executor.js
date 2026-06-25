@@ -9,6 +9,7 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 
 import { makeBrowserTree, checkoutToDirectory } from './browser-tree.js';
+import { lookupPath } from './name-hub.js';
 
 /**
  * Structural shape of the channel exo ref the command executor talks to via
@@ -350,7 +351,7 @@ export const createCommandExecutor = ({
         case 'show': {
           const { petName } = params;
           const pathParts = String(petName).split('/');
-          const value = await E(powers).lookup(pathParts);
+          const value = await lookupPath(powers, pathParts);
           const id = await E(powers).identify(...pathParts);
           showValue(value, id, pathParts, undefined);
           return { success: true, value };
@@ -414,7 +415,7 @@ export const createCommandExecutor = ({
           // directory locate() omits it, producing a broken link.
           if (String(locator).includes('type=invitation')) {
             try {
-              const ref = await E(powers).lookup(pathParts);
+              const ref = await lookupPath(powers, pathParts);
               locator = await E(
                 /** @type {{ locate: () => Promise<string | undefined> }} */ (
                   ref
@@ -499,7 +500,7 @@ export const createCommandExecutor = ({
           if (typeof globalThis.showDirectoryPicker !== 'function') {
             throw new Error('Directory picker not available in this browser');
           }
-          const tree = await E(powers).lookup(petNamePath);
+          const tree = await lookupPath(powers, petNamePath);
           const destHandle = await globalThis.showDirectoryPicker({
             mode: 'readwrite',
           });

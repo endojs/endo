@@ -7,6 +7,7 @@ import harden from '@endo/harden';
 import { E } from '@endo/far';
 import { isSpecialName } from '@endo/daemon/pet-name.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
+import { lookupPath } from '@endo/spaces-util';
 
 import { h } from 'preact';
 import { useEffect, useReducer, useState } from 'preact/hooks';
@@ -186,7 +187,7 @@ const InventoryItem = ({
     const idP = E(powers).identify(
       .../** @type {[string, ...string[]]} */ (itemPath),
     );
-    const valueP = E(powers).lookup(itemPath);
+    const valueP = lookupPath(powers, itemPath);
     Promise.all([idP, valueP]).then(
       ([id, value]) => showValue(value, id, itemPath, undefined),
       reportError,
@@ -225,7 +226,7 @@ const InventoryItem = ({
     try {
       const target =
         /** @type {ERef<{ __getMethodNames__: () => string[], list?: () => string[], followNameChanges?: () => AsyncIterator<{ add?: string, remove?: string }> }>} */ (
-          await E(powers).lookup(itemPath)
+          await lookupPath(powers, itemPath)
         );
       // Detect capabilities via __getMethodNames__ to avoid CapTP noise.
       // eslint-disable-next-line no-underscore-dangle
@@ -250,7 +251,7 @@ const InventoryItem = ({
                 typeof subPathOrName === 'string'
                   ? [subPathOrName]
                   : subPathOrName;
-              return E(powers).lookup([...itemPath, ...subPath]);
+              return lookupPath(powers, [...itemPath, ...subPath]);
             },
             /** @param {string[]} subPath */
             remove: (...subPath) => {

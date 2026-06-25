@@ -21,5 +21,6 @@ export {
 } from './src/time-formatters.js';
 export { playChime } from './src/chime.js';
 export { assertValidLocator, idFromLocator } from './src/locator.js';
+export { lookupPath } from './src/name-hub.js';
 export { tokenAutocompleteComponent } from './src/token-autocomplete.js';
 export { chatBarComponent } from './src/chat-bar-component.js';
