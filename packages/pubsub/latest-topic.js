@@ -1,5 +1,4 @@
 // @ts-check
-/// <reference types="ses"/>
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { PromiseKit } from '@endo/promise-kit' */

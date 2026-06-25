@@ -1,5 +1,4 @@
 // @ts-check
-/// <reference types="ses"/>
 
 /** @import { AsyncSink, AsyncSpring } from '@endo/stream' */
 /** @import { PromiseKit } from '@endo/promise-kit' */

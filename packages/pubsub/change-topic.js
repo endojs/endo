@@ -1,5 +1,4 @@
 // @ts-check
-/// <reference types="ses"/>
 
 /** @import { Reader, Writer, AsyncSpring } from '@endo/stream' */
 
