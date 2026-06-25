@@ -73,8 +73,13 @@ The single import surface for the confine/render helpers is
   components; the imperative `file-explorer.js` was removed). `chat.js` is
   unchanged — `file-explorer-component.js` keeps the same mount signature.
 
-What remains are the **outliner body** and the `inventory-graph` SVG view
-(pending the renderer's SVG-tag support). `chat.js`'s discrete chrome regions
+The **outliner body has since landed** as confined Preact — the imperative
+~3003-line `outliner-component.js` was decomposed into a confined structure root
+plus a host-owned editable-line island (anchor-slot re-parenting) in
+`@endo/space-channel/src/outliner/`, and deleted; `chat.js` was swapped to the
+new wrapper (see `outliner-confinement-migration.md`). What remains is the
+`inventory-graph` SVG view (pending the renderer's SVG-tag support). `chat.js`'s
+discrete chrome regions
 have since landed as confined Preact ([`chat-chrome.js`](../chat-chrome.js)); its
 space-mode dispatch and top-level layout template stay imperative **by design**
 (the trusted root that calls `renderConfined`). `spaces-gutter` and
@@ -92,7 +97,7 @@ been converted to confined Preact:
 
 | Module                | Lines | Role                                                                                                                        |
 | --------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------- |
-| outliner-component    | 3003  | `outliner` viewMode body — held for the decompose-into-contract approach                                                    |
+| outliner-component    | 3003  | `outliner` viewMode body — **☑ done** (decomposed into confined structure root + host-owned editable-line island in `@endo/space-channel/src/outliner/`; imperative deleted) |
 | spaces-gutter         | —     | left space gutter — **☑ done** (confined `SpacesGutterView`; the floot imperative-Space PR landed, lifting the freeze)      |
 | heat-simulation       | 225   | heat animation; still imperative but host-node-bridged by the converted `channel-header` (not a primary target)             |
 | inventory-graph (pkg) | ~     | `@endo/space-inventory-graph/src/graph.js` SVG view — needs the renderer's `allowedTags`/`allowedAttrs` SVG extension first |
@@ -473,7 +478,8 @@ are **type-checked** (kept out of `tsconfig.json`'s exclude) but **not
 documented** (kept in `typedoc.json`'s exclude) — type-checking has value;
 generating API docs for an app shell or a UI bundle does not.
 
-Status by package (all chat-ecosystem packages are now type-checked):
+Status by package — **every space-family package is now type-checked**; none of
+them remain in `tsconfig.json`'s exclude:
 
 | Package             | Type-checked? | Notes                                                                                                       |
 | ------------------- | ------------- | --------------------------------------------------------------------------------------------------------- |
@@ -481,6 +487,14 @@ Status by package (all chat-ecosystem packages are now type-checked):
 | `@endo/chat`          | ☑ yes (no docs) | the host shell + mount wrappers + gutter + new-space modal; type-cleaned (~75 inline-`E()` casts) and re-admitted to the typecheck, kept out of typedoc docs |
 | `@endo/space-chat`  | ☑ yes         | `InboxRoot` plus the inventory tree — both confined Preact and already type-clean (re-admitted with no fixes) |
 | `@endo/space-channel` | ☑ yes       | re-admitted after a JSDoc/cast pass fixed its 51 checkJs errors (see below); also now home to `channel-header`, `heat-simulation`, and `share-modal` (channel-specific views moved out of `chat`, type-cleaned on the way in) |
+| `@endo/space-peers`   | ☑ yes (no docs) | `PeersView` (confined Preact); its chat-imported entry was already checked transitively, re-admitted from the exclude with no further fixes |
+| `@endo/space-inventory-graph` | ☑ yes (no docs) | `graph.js` SVG view (still imperative-DOM internally — a separate view-migration axis); type-cleaned via call-site `E()`/`dataset` casts, then re-admitted |
+| `@endo/space-file-explorer` | ☑ yes (no docs) | `FileExplorerApp` + `useFileExplorer` store hook; type-cleaned via a `makeMemoryCas` call-site cast, then re-admitted |
+| `@endo/space-whylip`  | ☑ yes (no docs) | `WhylipApp`; type-cleaned (a local `ConversationNode` typedef replaced an unresolvable `@endo/conversation-tree/types.js` `@import`), then re-admitted |
+
+The four previously-excluded packages (`space-peers`, `space-inventory-graph`,
+`space-file-explorer`, `space-whylip`) were re-admitted last; the full root
+`tsc --noEmit` — including their source and test files — is at **0 errors**.
 
 #### Chat view-component extraction (where each view lives)
 
@@ -515,9 +529,20 @@ existing inline-cast idioms) drove them to zero with no behavioral change except
 one genuine latent bug it surfaced: `E(powers).lookup(...name.split('/'))`
 spread a multi-segment token path as varargs into a single-arg `lookup`,
 silently dropping all but the first segment — now passed as an array.
-So the imperative→confined-Preact conversion of `outliner` is **no longer
-gated by, nor gating, the typecheck**; it is a pure architectural cleanup that
-can proceed on its own schedule.
+(The `outliner` conversion has since landed — see the tracker — so this is no
+longer a pending dependency.)
+
+**Fencing off the `lookup` footgun for good.** That bug is type-invisible by
+construction: the daemon types `lookup`'s single parameter as `string | string[]`,
+so both `lookup(...path)` (spread → only the first segment) and `lookup(path)`
+(the whole array) type-check, while sibling hub methods (`identify(...path)`,
+`has(...path)`) genuinely *are* variadic, making the spread habit easy to copy
+onto `lookup`. `@endo/spaces-util` now exports a `lookupPath(hub, path)` helper
+whose strict `string[]` parameter turns the spread into a compile error
+(`TS2556`) — the permissive daemon signature never could. The array-form lookups
+in `spaces-util` (command-executor, send-form, the three pet-name autocompletes)
+and `space-chat` (inventory) are routed through it, locking in the correct array
+form against regression.
 
 ## Blockers to every space being an exported component package
 
@@ -586,7 +611,7 @@ The blockers to the packaging axis, in rough order of how much they bite:
 | microblog-component | ☑ extracted        | now in `@endo/space-channel`                                                                                                                                                                                       |
 | forum-component     | ☑ extracted        | now in `@endo/space-channel`                                                                                                                                                                                       |
 | channel-component   | ☑ extracted        | now in `@endo/space-channel`                                                                                                                                                                                       |
-| outliner-component  | ☑ extracted        | now in `@endo/space-channel` (still imperative-DOM internally; view-migration is a separate axis)                                                                                                                  |
+| outliner-component  | ☑ extracted + converted | now confined Preact in `@endo/space-channel/src/outliner/` (structure root + host-owned editable-line island); imperative implementation deleted                                                              |
 | chat-bar-component  | no (hardest) ◐     | `dispose` now complete (the leaked global listeners are removed); remaining: queries `#chat-*` template DOM, observes the shared `#messages` container, owns a `contentEditable` input, composes the command forms |
 
 The already-packaged spaces (`space-file-explorer`, `-whylip`, `-peers`,
