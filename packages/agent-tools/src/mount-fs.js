@@ -3,10 +3,12 @@
 
 /** @import { ERef } from '@endo/far' */
 /** @import { File, Filesystem } from '@endo/platform/fs/extended' */
-/** @import { MountReadToolRecord, ToolSchema } from './types.js' */
+/** @import { ToolRecord } from './types.js' */
 
 import { E } from '@endo/far';
 import { walk, collectBytes } from '@endo/platform/fs/extended';
+
+import { makeTool } from './tool.js';
 
 /**
  * Default text-read truncation cap, in characters. A `maxChars` option of `0`
@@ -15,9 +17,30 @@ import { walk, collectBytes } from '@endo/platform/fs/extended';
 const DEFAULT_MAX_TEXT_CHARS = 50_000;
 
 /**
- * A read-only filesystem tool bound to an `@endo/platform/fs/extended` `Filesystem`
- * capability. Reads a single text file by root-relative path and returns
- * its UTF-8 contents.
+ * JSON Schema for the single `path` parameter the mount read tool advertises.
+ * Used verbatim as both the LLM `parameters` and the MCP `inputSchema` by
+ * `makeTool`.
+ */
+const mountReadTextParameters = harden({
+  type: 'object',
+  properties: {
+    path: {
+      type: 'string',
+      description: 'Mount-relative path to the file to read.',
+    },
+  },
+  required: ['path'],
+  additionalProperties: false,
+});
+
+/**
+ * A read-only filesystem tool bound to an `@endo/platform/fs/extended`
+ * `Filesystem` capability. Reads a single text file by root-relative path and
+ * returns its UTF-8 contents.
+ *
+ * Built through {@link makeTool}, so it emits a canonical `ToolRecord`
+ * (`name`/`description`/`parameters`/`inputSchema`/`invoke`) at parity with the
+ * git tools and flows through `toPiAgentTool` unchanged.
  *
  * The path is split into `Filesystem` segments and resolved by `walk`.
  * Confinement, symlink containment, and revocation are enforced by the
@@ -30,7 +53,7 @@ const DEFAULT_MAX_TEXT_CHARS = 50_000;
  *   before the result is truncated. Defaults to `DEFAULT_MAX_TEXT_CHARS`
  *   (50,000). A value of `0` disables the limit; the full file contents are
  *   returned untruncated.
- * @returns {MountReadToolRecord}
+ * @returns {ToolRecord}
  */
 export const makeMountReadTool = (fs, opts = {}) => {
   const { maxChars = DEFAULT_MAX_TEXT_CHARS } = opts;
@@ -39,31 +62,14 @@ export const makeMountReadTool = (fs, opts = {}) => {
   // byte to detect overflow past the cap. With the limit disabled, read the
   // whole file in one unbounded request.
   const readLength = limitDisabled ? undefined : BigInt(maxChars + 1);
-  /** @type {ToolSchema} */
-  const schema = harden({
-    type: 'function',
-    function: {
-      name: 'mountReadText',
-      description:
-        'Read a UTF-8 text file from the mounted project directory. ' +
-        'Path is relative to the mount root; "../" escapes are rejected.',
-      parameters: {
-        type: 'object',
-        properties: {
-          path: {
-            type: 'string',
-            description: 'Mount-relative path to the file to read.',
-          },
-        },
-        required: ['path'],
-        additionalProperties: false,
-      },
-    },
-  });
 
-  return harden({
-    schema: () => schema,
-    async execute(args) {
+  return makeTool({
+    name: 'mountReadText',
+    description:
+      'Read a UTF-8 text file from the mounted project directory. ' +
+      'Path is relative to the mount root; "../" escapes are rejected.',
+    parameters: mountReadTextParameters,
+    execute: async args => {
       for (const key of Object.keys(args)) {
         if (key !== 'path') {
           throw new Error(`unexpected mountReadText argument key "${key}"`);
@@ -93,8 +99,6 @@ export const makeMountReadTool = (fs, opts = {}) => {
       }
       return content;
     },
-    help: () =>
-      'Read a text file from the mounted project directory (read-only).',
   });
 };
 harden(makeMountReadTool);
