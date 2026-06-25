@@ -33,6 +33,10 @@
       "types": "./src/execute/index.js",
       "default": "./src/execute/index.js"
     },
+    "./eval": {
+      "types": "./src/eval/index.js",
+      "default": "./src/eval/index.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -43,7 +47,8 @@
     "lint:eslint": "eslint '**/*.js'",
     "lint:types": "tsc",
     "prepack": "exit 0",
-    "test": "ava"
+    "test": "ava",
+    "test:live": "ava --config ava-live.config.js"
   },
   "dependencies": {
     "@earendil-works/pi-agent-core": "^0.79.0",
@@ -85,7 +90,8 @@
   },
   "ava": {
     "files": [
-      "test/**/*.test.*"
+      "test/**/*.test.*",
+      "!test/eval-live.test.js"
     ],
     "timeout": "2m"
   }
