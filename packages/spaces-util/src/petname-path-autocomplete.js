@@ -10,6 +10,8 @@ import { Fragment, h } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { renderConfined, unmount } from '@endo/preact-container/renderer';
 
+import { lookupPath } from './name-hub.js';
+
 // TODO: The autocomplete dropdown menu may not appear visually inside the eval
 // form modal despite the component working correctly (suggestions are fetched
 // and filtered). Suspected z-index or overflow clipping: the menu gets the
@@ -252,10 +254,7 @@ export const petNamePathAutocomplete = ($input, $menu, { E, powers }) => {
       /** @type {unknown} */
       let target = powers;
       if (pathPrefix.length > 0) {
-        target =
-          /** @type {{ lookup: (path: string | string[]) => unknown }} */ (
-            E(powers)
-          ).lookup(pathPrefix);
+        target = lookupPath(powers, pathPrefix);
       }
       const namesP =
         /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (

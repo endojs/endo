@@ -10,6 +10,8 @@ import { Fragment, h } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { renderConfined, unmount } from '@endo/preact-container/renderer';
 
+import { lookupPath } from './name-hub.js';
+
 // Multi pet-name path autocomplete, migrated from imperative `innerHTML`/
 // `createElement` DOM to a confined Preact component rendered through a single
 // `renderConfined`.
@@ -362,10 +364,7 @@ export const petNamePathsAutocomplete = (
       /** @type {unknown} */
       let target = powers;
       if (pathPrefix.length > 0) {
-        target =
-          /** @type {{ lookup: (path: string | string[]) => unknown }} */ (
-            E(powers)
-          ).lookup(pathPrefix);
+        target = lookupPath(powers, pathPrefix);
       }
       const names =
         await /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (

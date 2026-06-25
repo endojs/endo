@@ -9,6 +9,8 @@ import harden from '@endo/harden';
 import { Fragment, h, renderConfined } from '@endo/preact-container/renderer';
 import { useEffect, useState } from 'preact/hooks';
 
+import { lookupPath } from './name-hub.js';
+
 // Token autocomplete, migrated from imperative `innerHTML`/`createElement` DOM
 // to a confined Preact component rendered through a single `renderConfined`.
 //
@@ -428,10 +430,7 @@ export const tokenAutocompleteComponent = (
 
     // Fetch sub-directory names
     try {
-      const target =
-        /** @type {{ lookup: (path: string | string[]) => unknown }} */ (
-          E(powers)
-        ).lookup(pathPrefix);
+      const target = lookupPath(powers, pathPrefix);
       const namesP =
         /** @type {{ list: () => Promise<AsyncIterable<string>> }} */ (
           E(target)
