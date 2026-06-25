@@ -147,7 +147,7 @@ export const {
   set: reflectSet,
 } = Reflect;
 
-export const { isArray, prototype: arrayPrototype } = Array;
+export const { isArray, prototype: arrayPrototype, from: ArrayFrom } = Array;
 export const { prototype: arrayBufferPrototype } = ArrayBuffer;
 export const { prototype: dataViewPrototype } = DataView;
 export const { prototype: mapPrototype } = Map;
