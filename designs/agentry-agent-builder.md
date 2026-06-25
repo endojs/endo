@@ -5,7 +5,31 @@
 | **Created** | 2026-06-03 |
 | **Updated** | 2026-06-25 |
 | **Author** | 0xpatrickdev (prompted) |
-| **Status** | Not Started |
+| **Status** | In Progress |
+
+## Status
+
+The core of this builder shipped in
+[#517](https://github.com/endojs/endo-but-for-bots/pull/517).
+`@endo/agentry` exports `defineAgent` and the code-mode presets
+(`makeCodeModeAgent`, `makeCodeModeGitLoopAgent`).
+The shipped shape differs from this design's first draft in two ways worth
+naming up front, because the rest of the document has been reconciled to the
+shipped surface:
+
+- **`defineAgent` is a single call, not the `defineAgent` / `makeAgent` pair
+  this design first proposed.** `defineAgent(config)` returns a **maker
+  function**; the powerless definition is the maker's closure, and calling the
+  maker with a powers handle is the powered stage. There is no separate
+  `makeAgent(template, powers)` export. See § The `defineAgent` shape.
+- **Provider selection folded into `model`, and the system prompt is
+  `instructions`.** The first draft's `provider: { source, model }` block and
+  `prompts: { system, steering }` are not the shipped config. The shipped config
+  is `{ model, instructions, tools, endow }`. See § The `defineAgent` shape.
+
+Several surfaces this design describes are **aspirational**: they are proposed,
+not in #517. They are collected in § Aspirational surface (not yet built) and
+are not described as shipped anywhere above that section.
 
 ## What is the Problem Being Solved?
 
@@ -37,38 +61,41 @@ builder whose configuration surface is wide enough that lal and genie each
 `defineAgent(...)` into their existing behavior rather than
 hand-assembling a harness.
 
-## `defineAgent` (powerless template) vs `makeAgent` (instance with powers)
+## `defineAgent`: one call, two stages
 
-The builder splits into two surfaces by the exo `define*` / `make*`
-convention ([exo-taxonomy](https://github.com/endojs/endo/blob/master/packages/exo/docs/exo-taxonomy.md)):
-every `define*` describes what all instances of a category share and
-returns a maker; every `make*` binds an instance to its specific state.
+The builder follows the exo `define*` / `make*` spirit
+([exo-taxonomy](https://github.com/endojs/endo/blob/master/packages/exo/docs/exo-taxonomy.md)):
+a powerless *definition* describes what all instances share, and a powered
+*make* binds an instance to its specific powers.
+As shipped in #517 the two stages live in **one call**, not two exports.
 
-| Call | Returns | Holds | Carries no |
+`defineAgent(config)` returns a **maker function**.
+The powerless definition (the resolved model, the system instructions, and the
+model-facing tool surface) is captured in the maker's closure and holds no
+caps.
+Calling the returned maker with a powers handle is the powered stage: it binds
+the granted `Filesystem`, the credential resolver, and the powered tool surface,
+and constructs the live pi-agent-core `Agent`.
+
+| Stage | Where it lives | Holds | Carries no |
 |---|---|---|---|
-| `defineAgent(template)` | `AgentTemplate` (powerless) | tool method guards, derived wire schemas, attenuation **policies** as functions-of-cap, prompts, compaction selector, `prepareArguments` pipeline, the pi entry point | caps (no `Filesystem`, no `Spawner`, no `authToken`, no confinement powers) |
-| `makeAgent(template, powers)` | runnable agent | the template **plus** the granted powers: the cap-backed `Filesystem`, the `Spawner`, the provider `authToken`, the `(fs, crypto, url)` read powers the loop loads pi through, and per-instance overrides | (nothing: this is the powerful surface) |
+| definition (powerless) | the maker's closure, produced by `defineAgent(config)` | the resolved `Model`, the `instructions` system prompt, and the powerless model-facing `toolSchemas` | caps (no `Filesystem`, no credential, no powered tool closure) |
+| make (powered) | calling the returned maker `(options?) => Agent` | the definition **plus** the granted powers: the powered tool closures, the `Credentials` seam, and the per-construction overrides | (nothing: this is the powerful stage) |
 
-So `defineAgent` is agent *definition*: a powerless template safe to
-share, persist, and re-instantiate.
-`makeAgent` is agent *creation*: it empowers that template into a runnable
-instance for one operator, one workspace, one provider key.
-A template can be `make`-d many times without re-deriving wire schemas,
-because everything that does not depend on powers is fixed at define time.
+So `defineAgent(config)` is agent *definition*: a powerless closure safe to
+hold and call many times.
+Calling its maker is agent *creation*: it empowers that definition into a
+runnable agent for one operator, one workspace, one credential set.
+A maker can be called many times to build many agents.
 
-`defineAgent` is where the wire schema becomes real **at define time**, so
-the schema does not depend on which `Filesystem` cap an instance will
-hold.
-Today genie and the eval-harness lal author matchers for runtime
-validation but punt the wire schema to
-`{ type: 'object', additionalProperties: true }`, so the model never sees
-the contract the harness enforces.
-The builder closes that punt at define time, and the derivation never has
-to re-run at instantiation.
-`makeAgent` is where the powers arrive: the granted `Filesystem` is
-threaded into the file tools through the attenuation policies, the
-`Spawner` into the command tools, the `authToken` into the provider, and
-the `(fs, crypto, url)` powers into the call that confines the pi loop.
+The model-facing tool surface (`toolSchemas`) is built from powerless
+placeholders, so a definition can advertise its tools before any power is
+granted.
+When the maker runs, the `endow` hook (when configured) derives the **powered**
+tool surface (closures bound to live powers) and a credential resolver from the
+powers handle, without the powerless stage ever holding a capability.
+The powered tools, the maker's optional `tools` override, or the powerless
+`toolSchemas` are then handed to the pi loop in that precedence order.
 
 ## Background
 
@@ -83,7 +110,8 @@ and eval harness exercise (see *Relationship to the eval and optimizer
 package* below).
 
 **The pi harness contract** (verified against `@earendil-works/pi-ai`
-v0.78.0).
+v0.79.0, the version `packages/agentry/package.json` pins as `^0.79.0` after
+[#422](https://github.com/endojs/endo-but-for-bots/pull/422)).
 The project was renamed from `@mariozechner/pi-ai` to
 `@earendil-works/pi-ai` plus `@earendil-works/pi-agent-core`.
 `@endo/agentry` targets the latest from the start; migrating genie off the
@@ -108,11 +136,11 @@ AgentTool extends Tool = {
 AgentToolResult = { content: (Text | Image)[]; details; terminate? };
 ```
 
-The builder produces `AgentTool` records in two phases.
-`defineAgent` fills `parameters` from the schema (at define time) and
-stages the `prepareArguments` pipeline on the recipe; `makeAgent` closes
-each tool's `execute` over the granted powers and binds the record to the
-confined pi loop.
+The builder produces `AgentTool` records in two stages.
+The definition fills `parameters` from the schema and stages the
+`prepareArguments` pipeline on the powerless tool surface; calling the maker
+closes each tool's `execute` over the granted powers (via the `endow` hook) and
+binds the record to the pi loop.
 
 ## Interaction mode: code mode is primary
 
@@ -134,99 +162,80 @@ granularities (per-session for code mode, per-call for discrete tools; see
 [endo-agent-tools](endo-agent-tools.md) § Capability arguments are
 petnames).
 
-## What `defineAgent` and `makeAgent` compose
+## What `defineAgent` composes
 
-The pipeline runs in two phases, separated at the moment powers arrive.
+The pipeline runs in two stages, separated at the moment powers arrive.
+The shipped composition (#517) is the model resolution, the system
+instructions, the model-facing tool surface, and the powered make call.
+The richer composers this design first sketched (declarative tool selection,
+attenuation policies, define-time wire-schema derivation, a `compaction`
+selector, per-package preset bundles) did **not** ship in #517 and are
+described in § Aspirational surface (not yet built).
 
 ```mermaid
 flowchart TD
-  subgraph define["define time (powerless)"]
-    cfg["defineAgent(template)"]
-    select["tool selection<br/>@endo/agent-tools makeTool + include groups"]
-    atten["attenuation policies<br/>(functions of cap, not caps)"]
-    wire["wire schemas<br/>Tool.parameters + MCP inputSchema"]
-    compact["compaction selector<br/>pi default | genie observer/reflector"]
-    template["AgentTemplate"]
+  subgraph define["definition (powerless closure)"]
+    cfg["defineAgent(config)"]
+    model["resolve model<br/>profile | provider/modelId | Model"]
+    instr["instructions<br/>(system prompt)"]
+    toolsurf["powerless tool surface<br/>(toolSchemas placeholders)"]
   end
-  subgraph make["make time (powers bind in)"]
-    mk["makeAgent(template, powers)"]
-    bindCaps["bind powers into policies<br/>Filesystem, Spawner, authToken"]
-    confine["confinement<br/>importLocation((fs,crypto,url), piEntry) per #297"]
-    loop["pi loop, confined"]
-    agent["runnable agent"]
+  subgraph make["make (calling the maker, powers bind in)"]
+    mk["maker(options?)"]
+    endow["endow(definition, options)<br/>powered tools + getApiKey"]
+    creds["Credentials seam<br/>resolve provider key"]
+    loop["pi-agent-core loop"]
+    agent["runnable Agent"]
   end
-  cfg --> select --> atten --> wire --> compact --> template
-  template --> mk
-  mk --> bindCaps --> confine --> loop --> agent
+  cfg --> model --> instr --> toolsurf
+  toolsurf --> mk
+  mk --> endow --> creds --> loop --> agent
 ```
 
-1. **The loop is the pi loop, confined by construction** *(make time)*.
+1. **The loop is the pi-agent-core loop.**
    There is no `harness` abstraction: the only loop is
-   `@earendil-works/pi-agent-core`, so the builder binds it directly.
-   What the builder adds is confinement.
-   Per [PR #297](https://github.com/endojs/endo-but-for-bots/pull/297)
-   `makeAgent` loads the pi loop into a fresh Endo `Compartment` via
-   `importLocation(makeReadPowers({ fs, crypto, url }), piEntry,
-   { globals })`, not via a top-level `import` into the surrounding worker
-   realm, so the loop runs confined rather than unconfined (the bar
-   `packages/genie/test/pi-confined-compat.test.js` pins).
-   `defineAgent` carries the pi entry point and the compartment-mapper
-   plumbing as a recipe; `makeAgent` supplies the powers and runs
-   `importLocation`.
+   `@earendil-works/pi-agent-core`, so the builder binds it directly through
+   `makePiAgent` and the maker returns the live `Agent`.
+   Confinement (loading pi into a fresh Endo `Compartment` via
+   `importLocation` per
+   [PR #297](https://github.com/endojs/endo-but-for-bots/pull/297)) is the
+   path the code-mode `execute` tool follows for the **guest code** it runs,
+   not a wrapper `defineAgent` puts around the pi loop itself.
 
-2. **Tool selection, at define time, from method guards alone**
-   *(method guards are powerless)*.
-   `@endo/agent-tools` tools are chosen by **include groups** lifted from
-   genie's registry (for example `['files', 'git', 'memory']`).
-   The selected tools are stored in the template by their method guards and
-   their behavior thunks-of-cap; the caps arrive at `makeAgent`.
+2. **Model resolution, in the definition.**
+   `defineAgent` resolves the `model` config into a concrete pi-ai `Model`:
+   a bare profile string (`'sonnet'`), a `"provider/modelId"` string
+   (`'anthropic/claude-...'`), a `{ provider, model, baseUrl, reasoning }`
+   profile object, or a concrete `Model` passed straight through.
+   Model resolution self-registers pi-ai's built-in providers on first use,
+   so a registry model resolves without any caller-side setup hook.
 
-3. **Attenuation policies, declared at define time, applied at make time.**
-   Each policy in the template is a **function-of-cap**; `makeAgent`
-   applies it to the granted power:
-   read-only is `fs => readOnly(fs)`; subtree is
-   `(fs, path) => fs.subroot(path)`; git-only is a command tool with a
-   network-git policy closure; exec is a command tool with
-   `rejectPatterns(DANGEROUS_PATTERNS)` whose `Spawner` routes through a
-   sandbox slice at make time.
+3. **Instructions, in the definition.**
+   The `instructions` config string is the system prompt; the definition
+   threads it into the pi loop as `systemPrompt`.
 
-4. **Wire schemas, at define time, once per template.**
-   `defineAgent` fills each selected tool's `Tool.parameters` (TypeBox
-   `TSchema`) and MCP `inputSchema`.
-   This is the one thing no current surface does: closing the
-   `additionalProperties: true` punt so the model sees the enforced
-   contract.
-   The schemas sit in the template; `makeAgent` does not re-derive per
-   instance.
+4. **Tool surface, powerless in the definition, powered at make.**
+   The definition captures the `tools` config as the powerless `toolSchemas`,
+   built from placeholders so a definition can advertise its tools before any
+   power is granted.
+   When the maker runs, the `endow(definition, options)` hook (when
+   configured) returns the **powered** tool closures bound to live powers,
+   plus an optional `getApiKey` resolver.
+   Tool precedence at make is explicit: a caller's `options.tools` override,
+   then the `endow` hook's tools, then the powerless `toolSchemas`.
 
-5. **Compaction, a config option, not a harness.**
-   pi-agent-core has its own default transcript compaction; genie layers an
-   **observer / reflector** pair on top, its one real loop-shaping
-   deviation from a bare pi loop.
-   This is a `compaction` config option (`'pi-default'` |
-   `'genie-observer-reflector'` | a custom compactor record), not a
-   selectable harness.
-   The `compaction` name is provisional: a more generic "mixins" framing
-   (one axis admitting any loop-shaping hook) is a future consideration,
-   kept as `compaction` for now to avoid churning a rename.
-
-6. **Builder-exported presets per package.**
-   The harnesses are reconstructed from `defineAgent` plus `makeAgent`,
-   each in its own package.
-   `lal` and `genie` each export a `define(Lal|Genie)Agent` that wraps
-   `defineAgent` with that harness's defaults (a powerless template) **and**
-   a `make(Lal|Genie)Agent(template, powers)` that wraps `makeAgent` with
-   its instantiation conventions.
-   `defineFaeAgent` is **deprioritized out of the first pass**: the
-   foreseeable path is not basing fae on pi (fae keeps its own loop; see
-   *fae vs pi* below).
-   `@endo/agentry` ships `defineAgent` / `makeAgent` and the building
-   blocks but no preset bundles; `familiar` (or the #404 wizard) names the
-   presets when it offers them to an operator.
+5. **Credentials, resolved at make.**
+   The provider API key is resolved through a `Credentials` seam, not a config
+   field.
+   The maker derives a pi-agent-core `getApiKey` hook from the supplied
+   `credentials` (or the `endow` hook's, or an explicit `getApiKey`), so the
+   powerless definition never holds a secret.
+   `makeEnvCredentials` is the default env-backed provider; swapping it for a
+   capability-scoped secret store is a local change at the seam.
 
 ## Mapping pi's session tree to the daemon mail model
 
-Once `makeAgent` composes a pi loop (and lal already drives one since
+Once the maker composes a pi loop (and lal already drives one since
 the pi harness merged in
 [#290](https://github.com/endojs/endo-but-for-bots/pull/290)), two
 encodings of conversation history coexist in one stack: pi's session
@@ -268,45 +277,80 @@ A pi `/fork` or `/clone` is therefore always a `reply`, never an
 The corresponding UI decision (branch a user's edit rather than
 overwrite it) is tracked on #305.
 
-## The `defineAgent` and `makeAgent` shapes
+## The `defineAgent` shape
+
+The shipped config is `{ model, instructions, tools, endow }`.
+`defineAgent(config)` returns a maker; calling the maker with a powers handle
+builds the live pi-agent-core `Agent`.
 
 ```ts
-// 1. define time: powerless template.
-const lalTemplate = defineAgent({
-  provider: { source, model },            // forwarded to pi's provider abstraction
-  tools: selectTools({
-    from: agentTools,                     // @endo/agent-tools
-    include: ['files', 'git', 'memory'],
-    attenuate: {
-      files: { readOnly: true },          // policy: fs => readOnly(fs)
-      git:   { policies: [noNetworkGit] },
-      exec:  { rejectPatterns: DANGEROUS_PATTERNS },
-    },
-  }),
-  wire: deriveWireSchemas(tools, descriptions),  // Tool.parameters + MCP inputSchema, once
-  prepareArguments: 'agentry/smallcaps',         // the symmetric SmallCaps decode pass
-  compaction: 'pi-default',                       // | 'genie-observer-reflector' | <record>
-  prompts: { system, steering },
-  discovery: 'static',                            // | 'petname-dir' (future)
+import { defineAgent } from '@endo/agentry';
+
+// 1. definition: powerless closure. No provider block, no prompts.system;
+//    the model carries the provider and `instructions` is the system prompt.
+const makeMyAgent = defineAgent({
+  model: 'sonnet',                        // profile id | "provider/modelId" | concrete pi-ai Model
+  instructions: 'You are a helpful agent.',
+  tools: [/* powerless model-facing AgentTools */],
+  endow(definition, options) {            // optional: derive powered tools + key from live powers
+    return { tools: powerBoundTools(options.powers), getApiKey };
+  },
 });
 
-// 2. make time: instantiate against an operator's powers. The same
-//    template can be `make`d many times without re-running the schemas.
-const agent = makeAgent(lalTemplate, {
-  workspace: workspaceFilesystemCap,      // applied through files.readOnly
-  spawner:   sandboxSpawner,              // applied through git.policies / exec
-  provider:  { authToken },               // threaded into the provider
-  confine:   { fs, crypto, url },         // makeReadPowers; used by importLocation
-});
-await agent.run({ task });
+// 2. make: call the maker with powers. The maker returns a pi-agent-core
+//    Agent directly; drive it with pi's Agent API. The same maker can be
+//    called many times to build many agents.
+const agent = makeMyAgent({ powers, credentials });
+await agent.prompt('Hello.');
+await agent.waitForIdle();
 ```
 
-There is no `preset` field on `defineAgent` and no `harness` field (the
-loop is always the confined pi loop).
-Each harness package exports two wrappers (one per phase) so the harness's
-name covers both define and make.
-`familiar` calls `define<Name>Agent` once at module load to produce the
-template, then `make<Name>Agent(template, powers)` per instance.
+The maker's options are `{ powers, credentials, tools, getApiKey, messages,
+streamFn, convertToLlm, thinkingLevel }`.
+There is no agentry-defined `agent.run({ task })` facade: the maker hands back
+pi-agent-core's `Agent`, so you use pi's run API (`prompt` / `waitForIdle`)
+directly.
+There is no `preset` field and no `harness` field (the loop is always
+pi-agent-core).
+There is no separate `makeAgent(template, powers)` export; the maker the
+definition returns is the make stage.
+
+### Code-mode presets
+
+Code mode is the primary interaction mode (§ Interaction mode: code mode is
+primary), and #517 ships it as two concrete presets exported from
+`@endo/agentry/execute`, each a thin specialization of `defineAgent`:
+
+```ts
+import { makeCodeModeAgent, makeCodeModeGitLoopAgent } from '@endo/agentry/execute';
+
+// makeCodeModeAgent: an agent whose sole tool is execute(js), evaluated in a
+// Compartment endowed with the configured lexical powers.
+const { agent } = makeCodeModeAgent({
+  model,
+  powers: { workspace, git, gitMode: 'readOnly' }, // or 'readWrite'
+});
+
+// makeCodeModeGitLoopAgent: a thin alias that wires a workspace Filesystem and
+// a git capability as the lexical powers and supplies the repository preamble.
+const gitAgent = makeCodeModeGitLoopAgent({ model, workspace, git });
+```
+
+Each preset builds the single execute tool with `makeExecuteTool`, wraps it as
+a pi-agent-core tool via `toSmallcapsPiAgentTool`, and calls
+`defineAgent({ model, instructions, tools: [...] })`.
+The lexical globals (`workspace`, `git`, and any configured `namedPowers`) are
+injected into the Compartment the guest code runs in; the model discovers a
+capability's method surface at runtime via `E(cap).__getMethodNames__()` rather
+than reading a checked-in declaration.
+`makeCodeModeAgent` returns the record
+`{ agent, globals, execute, systemPrompt, model }`;
+`makeCodeModeGitLoopAgent` returns the live `Agent` directly.
+
+The per-package preset bundles this design first proposed (each harness
+exporting its own `define<Name>Agent` / `make<Name>Agent` pair, reconstructing
+lal and genie) are **not** what shipped; the shipped presets are the two
+code-mode presets above. See § Aspirational surface (not yet built).
 
 ## The SmallCaps wire contract
 
@@ -321,8 +365,9 @@ range is escaped on encode by prefixing `!`, and the `!` is consumed on
 decode.
 
 The contract this design honors is therefore **symmetric and broader than
-bigints alone**, with the wire-shape naming in `@endo/agent-tools` and
-`prepareArguments` here as the two halves:
+bigints alone**, with both halves living in `@endo/agent-tools` today (the
+wire-shape naming and the inbound decode in `toSmallcapsPiAgentTool`), not in a
+define-time `prepareArguments` recipe assembled by `defineAgent`:
 
 | Direction | What it does |
 |---|---|
@@ -344,30 +389,36 @@ references it.
 
 The decode contract above is the inbound (model to args) half.
 The outbound half (rendering a code-mode `execute` result back to the
-model) uses lal's **real SmallCaps marshaller** for plain-data results,
-not `JSON.stringify`.
-lal already constructs one: `packages/lal/agent.js` builds a
-`makeMarshal(undefined, undefined, { serializeBodyFormat: 'smallcaps' })`
-and uses its `serialize` / `unserialize` for tool-call data.
+model) uses the **real SmallCaps marshaller** (`@endo/marshal`) for
+plain-data results, not `JSON.stringify`.
+This shipped in #517: plain-data completion values returned from `execute` are
+encoded for the model with the SmallCaps marshaller, so BigInts and other
+non-JSON-native passable values round-trip losslessly.
 The same marshaller round-trips bigints, `undefined`, symbols, and
-reserved-range strings through the Hilbert-Hotel encoding the inbound
-`prepareArguments` decodes, so a result the model reads back is in the same
-encoding the model emits.
+reserved-range strings through the Hilbert-Hotel encoding the inbound decode
+consumes, so a result the model reads back is in the same encoding the model
+emits.
 `JSON.stringify` cannot: it throws on a bigint and mangles the
 reserved-range and `undefined` cases, re-opening on the display side the
 ambiguity the inbound contract closes on the args side.
 Live caps in a result are *named* (a petname via `storeValue`), not
 marshalled.
 
-## The deriver call site (at define time)
+## The deriver call site (the discrete-tool path; aspirational)
 
-For each selected tool, at define time, `defineAgent` records a partial
-`AgentTool` recipe in the template (everything that does not depend on
-powers) and stores the `execute` thunk that closes over the powers
-`makeAgent` will supply.
+> This section describes the **discrete-tool** wire-derivation path, which is
+> **not** what `defineAgent` shipped in #517. The shipped code-mode presets
+> build a single `execute` tool and wrap it with `toSmallcapsPiAgentTool`
+> (in `@endo/agent-tools`), which is where the SmallCaps decode actually lives
+> today, not in a per-tool `prepareArguments` recipe assembled by `defineAgent`.
+> It is retained here as the design sketch for the second (discrete-tool) mode.
+
+For each selected discrete tool, the proposed builder would record a partial
+`AgentTool` recipe (everything that does not depend on powers) and store the
+`execute` thunk that closes over the powers the make stage supplies.
 
 ```ts
-// inside defineAgent: once per template per selected tool.
+// proposed: once per selected discrete tool, in the definition.
 const agentToolRecipe = {
   name: tool.name,
   label: tool.name,
@@ -378,9 +429,9 @@ const agentToolRecipe = {
     const b = unescapeHilbertHotel(a, tool.stringArgs);
     return fixupLlmJson(b);
   },
-  execute: powersBoundExecute(tool, /* makeAgent fills in: */ undefined),
+  execute: powersBoundExecute(tool, /* the make stage fills in: */ undefined),
 };
-// inside makeAgent: closes execute over the granted Filesystem, Spawner, ...
+// at make: closes execute over the granted Filesystem, Spawner, ...
 const agentTool = { ...agentToolRecipe, execute: powersBoundExecute(tool, powers) };
 ```
 
@@ -458,76 +509,133 @@ distinction, drawn by the git code-mode eval harness
 
 This is the line the builder is built up to: `defineAgent` produces the
 fixed agent an eval measures, and an optimizer (later) searches the space
-of templates with an eval as its objective.
+of definitions with an eval as its objective.
 Everything past that line (the prompt-search loop) is out of scope here.
 
 ## Connection to #404 and #370
 
-The #404 agent-creation wizard's three panes map onto the template and the
-powers: Pane 1 picks which harness's *template* is in play, Pane 2 supplies
-the provider *power* (authToken), Pane 3 supplies the endowment *powers*
+The #404 agent-creation wizard's three panes map onto the definition and the
+powers: Pane 1 picks which harness's *definition* is in play, Pane 2 supplies
+the provider *power* (credential), Pane 3 supplies the endowment *powers*
 (workspace `Filesystem`, sandbox `Spawner`).
-The wizard holds the per-harness template from module load and its
-**Submit drives `makeAgent`**, not `defineAgent`.
-Because the schemas live in the template, the wizard can preview the exact
-tool schemas the agent will see before Submit, without empowering any caps.
+The wizard holds the per-harness maker from module load and its
+**Submit calls the maker** (the powered stage), not `defineAgent` (which it
+called once at load to produce the maker).
 
 For #370, the version-controlled-filesystem loop, the substrate already
 reads the live worktree and history through the same `Filesystem` surface.
-The builder wires that substrate into a harness: a read-only-history agent
-is `makeAgent(template, { workspace: Git.filesystemAt(ref) })` with the
-template's `files.readOnly` policy; a live-worktree editing agent is
-`makeAgent(template, { workspace: mountAsFilesystem(mount) })` without it.
-The same file tools, the same template, a different cap.
+The builder wires that substrate in through the code-mode `workspace` /
+`git` powers: a read-only-history agent is
+`makeCodeModeGitLoopAgent({ model, workspace: Git.filesystemAt(ref), git, readOnlyGit: true })`;
+a live-worktree editing agent is the same call with a writable workspace and
+`readOnlyGit: false`.
+The same execute tool, the same maker, a different cap.
+
+## Aspirational surface (not yet built)
+
+The following capabilities are **proposed, not in #517**. They are this
+design's forward edge: the shipped `defineAgent` is deliberately narrow
+(`{ model, instructions, tools, endow }`), and each item below is a config or
+machinery addition that would extend it. None of them is described as shipped
+anywhere above. Where the shipped code has a seam the feature could plug into,
+that seam is named.
+
+- **Declarative tool attenuation.**
+  A `selectTools({ from, include, attenuate })` config with
+  `readOnly` / `subroot` / `rejectPatterns` levers (attenuation policies as
+  functions-of-cap: `fs => readOnly(fs)`, `(fs, path) => fs.subroot(path)`, an
+  exec command tool with `rejectPatterns(DANGEROUS_PATTERNS)`).
+  The shipped seam where this could plug in later is the `endow(definition,
+  options)` hook: it already derives the powered tool surface from live powers
+  at make time, so an attenuation layer would compose there.
+  (The code-mode preset today carries a coarser `gitMode: 'readOnly' |
+  'readWrite'` selector, enforced by the exo guard, not a declarative
+  per-tool attenuation config.)
+
+- **Define-time wire-schema derivation.**
+  A `deriveWireSchemas(...)` step that fills each selected tool's
+  `Tool.parameters` (TypeBox `TSchema`) and MCP `inputSchema` at define time,
+  closing the `additionalProperties: true` punt.
+  This is **not** built in agentry: wire schemas are presently hand-authored in
+  `@endo/agent-tools` and pinned to the live guard by a divergence gate, not
+  derived in `defineAgent`.
+
+- **A `compaction` option.**
+  A `compaction: 'pi-default' | 'genie-observer-reflector' | <record>` config
+  selecting genie's observer/reflector transcript-compaction pair over pi's
+  default.
+  There is **no seam for this in #517**; it is absent by the design-shift to
+  the narrow single-call config.
+
+- **`prompts.steering` (the steering prompt half).**
+  The shipped config carries only `instructions` (the system prompt).
+  A second `steering` prompt is proposed, not built.
+
+- **A discovery axis.**
+  A `discovery: 'static' | 'petname-dir'` config selecting how the agent
+  learns its tool set.
+  Proposed, not built; the code-mode preset's lexical powers are configured
+  statically.
 
 ## Design Decisions
 
 1. **`defineAgent` is a declarative builder, not a per-harness `agent.js`.**
-   Tool selection, attenuation policies, wire-derivation, and the recipe
-   for loop-binding are config, not hand-assembled wiring.
+   Model, instructions, and tool surface are config, not hand-assembled
+   wiring.
+   (Shipped #517. Declarative tool *selection* and *attenuation* are
+   aspirational; see § Aspirational surface.)
 
-2. **`defineAgent` is the powerless template; `makeAgent` is the powerful
-   instantiation.**
-   Following the exo `define*` / `make*` factorization.
-   The template carries only what all instances share and no powers;
-   `makeAgent(template, powers)` binds one operator's powers.
-   One template makes many instances cheaply.
+2. **`defineAgent` is a single call returning a maker, not a `defineAgent` /
+   `makeAgent` pair.**
+   Shipped as #517. The powerless definition is the maker's closure; calling
+   the maker with a powers handle is the powered stage.
+   The first draft's two-export `defineAgent(template)` / `makeAgent(template,
+   powers)` factorization is **not** what shipped, though it keeps the exo
+   `define*` / `make*` spirit (powerless definition, powered make).
+   One maker builds many agents cheaply.
 
-3. **The builder is where the wire schema becomes real.**
-   `defineAgent` fills `Tool.parameters` and MCP `inputSchema` at define
-   time, closing the `additionalProperties: true` punt; the schemas are
-   baked into the template, not re-derived at make time.
+3. **The builder is where the wire schema becomes real.** *(Aspirational.)*
+   The proposal that `defineAgent` fills `Tool.parameters` and MCP
+   `inputSchema` at define time is the discrete-tool path, **not** shipped in
+   #517; the shipped code-mode presets carry one execute tool whose SmallCaps
+   wrapping lives in `@endo/agent-tools` (`toSmallcapsPiAgentTool`).
+   See § Aspirational surface.
 
-4. **`prepareArguments` hosts the symmetric SmallCaps decode plus LLM-JSON
-   fixups.**
+4. **The symmetric SmallCaps decode plus LLM-JSON fixups.**
    SmallCaps is a Hilbert Hotel over all string values, so the wire
    contract has symmetric halves: the schema names the wire shape
-   (string-encoded bigint plus escape on outbound collisions) and
-   `prepareArguments` runs `coerceBigintArgs` plus `unescapeHilbertHotel`
-   plus the fixups.
+   (string-encoded bigint plus escape on outbound collisions) and the inbound
+   decode runs `coerceBigintArgs` plus `unescapeHilbertHotel` plus the fixups.
    Neither half stands alone.
+   (Shipped via `@endo/agent-tools`'s `toSmallcapsPiAgentTool`, not a
+   define-time `prepareArguments` recipe assembled by `defineAgent`.)
 
 5. **A new module in the #308 package, not a new package.**
    `@endo/agentry` already exists as the optimizer and eval package;
-   `defineAgent` plus `makeAgent` grow it.
+   `defineAgent` grows it. (Shipped #517.)
 
-6. **Each harness exports its own `define<Name>Agent` / `make<Name>Agent`
-   pair.**
-   lal and genie are reconstructed from the builder in the first pass;
-   `@endo/agentry` ships no preset bundles; `familiar` names the presets.
+6. **Per-harness preset bundles.** *(Aspirational, in part.)*
+   The first draft proposed each harness exporting its own
+   `define<Name>Agent` / `make<Name>Agent` pair reconstructing lal and genie.
+   What shipped in #517 is the two code-mode presets (`makeCodeModeAgent`,
+   `makeCodeModeGitLoopAgent`) in `@endo/agentry/execute`; the per-harness lal
+   / genie reconstruction bundles are aspirational.
    `defineFaeAgent` is deferred (Design Decision 10).
 
 7. **Attenuation policies declared here; primitives in `agent-tools`;
-   applied to caps in `makeAgent`.**
+   applied to caps at make.** *(Aspirational; see § Aspirational surface.)*
 
-8. **No `harness` abstraction; the genie loop is the `compaction` option.**
-   One loop (the confined pi loop), so no `harness` enum; genie's
-   observer/reflector pair is a `compaction` config option.
+8. **No `harness` abstraction.**
+   One loop (pi-agent-core), so no `harness` enum.
+   The genie observer/reflector `compaction` option this design first sketched
+   is **not** in #517 (no seam yet); see § Aspirational surface.
 
-9. **The pi loop is confined by construction (per #297), at make time.**
-   `makeAgent` loads pi into a fresh Endo `Compartment` via
-   `importLocation` using the `(fs, crypto, url)` powers supplied at
-   instantiation, so the loop runs confined, not unconfined.
+9. **Code-mode guest code is confined (per #297).**
+   The code-mode `execute` tool loads the guest code into a fresh Endo
+   `Compartment` over the petname-bound endowments, so the guest runs confined.
+   (#517 wires the execute tool; the broader "load the whole pi loop through
+   `importLocation`" framing is the code-mode execution boundary, not a wrapper
+   `defineAgent` itself applies.)
 
 10. **fae is not based on pi in the first pass; `defineFaeAgent` is
     deprioritized.**
@@ -540,6 +648,9 @@ The same file tools, the same template, a different cap.
     A tool may request loop termination via `terminate?` and declare its
     queue mode, referencing pi's exact types, rather than being left at pi
     defaults.
+    (These are pi-agent-core tool-record fields a tool author still sets
+    directly; `defineAgent` does not surface them as its own config keys in
+    #517.)
 
 12. **The reply-to tree is the sole branch axis; the per-message revision
     log never forks.**
@@ -555,15 +666,17 @@ The same file tools, the same template, a different cap.
 
 | Design | Relationship |
 |--------|--------------|
-| [endo-agent-tools](endo-agent-tools.md) | **Consumed.** Sibling. `defineAgent` selects its `makeTool` tools, uses its wire schemas, attenuates with its primitives, and runs its `coerceBigintArgs` (re-exported from `@endo/agentry/smallcaps`) via `prepareArguments`. |
-| [PR #297](https://github.com/endojs/endo-but-for-bots/pull/297) | **Confinement enabler.** Fixes the module-resolution bugs that prevented pi from loading through `@endo/compartment-mapper`'s `importLocation`, so `makeAgent` loads pi into a confined Endo `Compartment`. |
-| [PR #290](https://github.com/endojs/endo-but-for-bots/pull/290) | **The merged pi harness.** lal's loop now drives `@earendil-works/pi-agent-core`; `makeAgent` composes the same loop. The session-tree to mail mapping pins their correspondence (§ Mapping pi's session tree to the daemon mail model). |
+| [endo-agent-tools](endo-agent-tools.md) | **Consumed.** Sibling. The code-mode preset wraps its execute tool via `toSmallcapsPiAgentTool`, where the symmetric SmallCaps decode (`coerceBigintArgs` plus `unescapeHilbertHotel`) lives. The aspirational discrete-tool path would also select its `makeTool` tools and use its wire schemas (§ Aspirational surface). |
+| [PR #297](https://github.com/endojs/endo-but-for-bots/pull/297) | **Confinement enabler.** Fixes the module-resolution bugs that prevented pi from loading through `@endo/compartment-mapper`'s `importLocation`, so code-mode guest code loads into a confined Endo `Compartment`. |
+| [PR #290](https://github.com/endojs/endo-but-for-bots/pull/290) | **The merged pi harness.** lal's loop now drives `@earendil-works/pi-agent-core`; `defineAgent`'s maker composes the same loop. The session-tree to mail mapping pins their correspondence (§ Mapping pi's session tree to the daemon mail model). |
+| [PR #517](https://github.com/endojs/endo-but-for-bots/pull/517) | **The shipped core.** `defineAgent` plus the two code-mode presets (`makeCodeModeAgent`, `makeCodeModeGitLoopAgent`). The single-call maker shape this design is reconciled to. |
+| [PR #422](https://github.com/endojs/endo-but-for-bots/pull/422) | **The pi-ai pin.** Bumped `@earendil-works/pi-ai` / `@earendil-works/pi-agent-core` to `^0.79.0`, the version the contract is now verified against. |
 | [PR #125](https://github.com/endojs/endo-but-for-bots/pull/125) | **The revision-log axis.** Added `editMessage` / `messageHistory` / `done` (`revisionsByNumber` in `packages/daemon/src/mail.js`), the intra-node history axis the mapping invariant keeps from forking. |
-| [endo-gateway-mcp](endo-gateway-mcp.md) | The Gateway's MCP termination forwards the MCP `inputSchema` the builder fills to an external MCP client. |
-| [daemon-agent-tools](daemon-agent-tools.md) | The capability-scoped tool model. `defineAgent`'s `attenuate` config realizes the capability-scoping half; the dynamic-discovery half is deferred with fae-on-pi (Design Decision 10, Open Question 2). |
-| [endo-fs-backend-seam](endo-fs-backend-seam.md), [endo-fs-from-git](endo-fs-from-git.md) | The `Filesystem` substrate the builder wires into a harness for the #370 loop. |
-| `chat-inventory-create-menu` (PR #404, forward-ref) | The agent-creation wizard whose three panes map onto the template and the powers; Submit drives `makeAgent`. |
-| PR #370 (forward-ref) | The version-controlled-filesystem loop the builder wires the file tools and Git adapters into. |
+| [endo-gateway-mcp](endo-gateway-mcp.md) | The Gateway's MCP termination forwards the MCP `inputSchema` the aspirational discrete-tool path fills to an external MCP client. |
+| [daemon-agent-tools](daemon-agent-tools.md) | The capability-scoped tool model. The aspirational `attenuate` config would realize the capability-scoping half; the dynamic-discovery half is deferred with fae-on-pi (Design Decision 10, Open Question 2). |
+| [endo-fs-backend-seam](endo-fs-backend-seam.md), [endo-fs-from-git](endo-fs-from-git.md) | The `Filesystem` substrate the builder wires in as the code-mode `workspace` power for the #370 loop. |
+| `chat-inventory-create-menu` (PR #404, forward-ref) | The agent-creation wizard whose three panes map onto the definition and the powers; Submit calls the maker. |
+| PR #370 (forward-ref) | The version-controlled-filesystem loop the builder wires the `workspace` / `git` powers into. |
 
 ## Open Questions
 
@@ -587,10 +700,11 @@ The same file tools, the same template, a different cap.
    Settling this is a prerequisite to revisiting basing fae on pi.
 
 3. **`selectTools` and `attenuate` ergonomics vs the #404 grant shape.**
-   Should `defineAgent`'s `attenuate` config be exactly the #404 endowment
-   grant shape (so Submit forwards it verbatim), or is there a translation
-   layer?
-   Left open pending the #404 grant-shape settling.
+   Should the aspirational `attenuate` config (§ Aspirational surface) be
+   exactly the #404 endowment grant shape (so Submit forwards it verbatim), or
+   is there a translation layer?
+   Left open pending both the attenuation config landing and the #404
+   grant-shape settling.
 
 ## Prompt
 
