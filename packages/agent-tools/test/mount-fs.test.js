@@ -112,7 +112,7 @@ test('truncates content beyond the 50k-char cap', async t => {
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
 
   const tool = makeMountReadTool(filesystem);
-  const result = await tool.invoke({ path: 'big.txt' });
+  const result = /** @type {string} */ (await tool.invoke({ path: 'big.txt' }));
   t.true(result.startsWith('x'.repeat(50_000)));
   t.true(result.includes('truncated at 50000 chars'));
   t.is(result.indexOf('\n\n... (truncated'), 50_000);
@@ -125,7 +125,7 @@ test('truncates at a caller-supplied maxChars', async t => {
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
 
   const tool = makeMountReadTool(filesystem, { maxChars: 8 });
-  const result = await tool.invoke({ path: 'big.txt' });
+  const result = /** @type {string} */ (await tool.invoke({ path: 'big.txt' }));
   t.true(result.startsWith('x'.repeat(8)));
   t.true(result.includes('truncated at 8 chars'));
   t.is(result.indexOf('\n\n... (truncated'), 8);
@@ -138,7 +138,7 @@ test('maxChars: 0 disables the limit and returns full contents', async t => {
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
 
   const tool = makeMountReadTool(filesystem, { maxChars: 0 });
-  const result = await tool.invoke({ path: 'big.txt' });
+  const result = /** @type {string} */ (await tool.invoke({ path: 'big.txt' }));
   t.is(result, big);
   t.false(result.includes('truncated'));
 });
@@ -185,7 +185,7 @@ test('bounds the underlying file read before draining bytes', async t => {
   const tool = makeMountReadTool(
     /** @type {ERef<Filesystem>} */ (/** @type {unknown} */ (filesystem)),
   );
-  const result = await tool.invoke({ path: 'big.txt' });
+  const result = /** @type {string} */ (await tool.invoke({ path: 'big.txt' }));
   t.is(result.indexOf('\n\n... (truncated'), 50_000);
 });
 
@@ -208,7 +208,10 @@ test('parameters and inputSchema advertise the mountReadText required path', t =
   // The same JSON Schema is used verbatim as both LLM `parameters` and MCP
   // `inputSchema`.
   t.is(tool.parameters, tool.inputSchema);
-  const { parameters } = tool;
+  const parameters =
+    /** @type {{ type: string, properties: { path: { type: string } }, required: string[], additionalProperties: boolean }} */ (
+      tool.parameters
+    );
   t.is(parameters.type, 'object');
   t.deepEqual(parameters.properties.path.type, 'string');
   t.deepEqual(parameters.required, ['path']);
