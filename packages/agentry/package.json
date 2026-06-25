@@ -33,6 +33,10 @@
       "types": "./src/execute/index.js",
       "default": "./src/execute/index.js"
     },
+    "./eval": {
+      "types": "./src/eval/index.js",
+      "default": "./src/eval/index.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
