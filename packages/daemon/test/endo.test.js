@@ -3820,8 +3820,7 @@ testShim(
   },
 );
 
-// ============ FORM REQUEST TESTS ============
-
+// Form request tests.
 test('form happy path: guest sends form, host submits', async t => {
   const { host } = await prepareHost(t);
 

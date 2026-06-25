@@ -14,8 +14,7 @@ import { fromAbortSignal } from '../from-abort.js';
 import { delay } from '../delay.js';
 import { makeDelay } from '../delay-lite.js';
 
-// ==================== makeCancelKit tests ====================
-
+// makeCancelKit tests.
 test('makeCancelKit returns cancelled, cancel, and isCancelled', t => {
   const kit = makeCancelKit();
   t.true('cancelled' in kit, 'kit has cancelled');
@@ -101,8 +100,7 @@ test('makeCancelKit synchronously cancels child if parentIsCancelled returns tru
   t.is(childIsCancelled(), true);
 });
 
-// ==================== allMap tests ====================
-
+// allMap tests.
 test('allMap transforms all values', async t => {
   const { cancelled: parentCancelled } = makeCancelKit();
   const values = [1, 2, 3];
@@ -196,8 +194,7 @@ test('allMap handles empty array', async t => {
   t.deepEqual(result, []);
 });
 
-// ==================== anyMap tests ====================
-
+// anyMap tests.
 test('anyMap returns first successful result', async t => {
   const values = [1, 2, 3];
   const result = await anyMap(values, value => value * 2);
@@ -287,8 +284,7 @@ test('anyMap respects external cancellation', async t => {
   t.true(observedCancellation, 'callback observed external cancellation');
 });
 
-// ==================== toAbortSignal tests ====================
-
+// toAbortSignal tests.
 test('toAbortSignal returns an AbortSignal', t => {
   const { cancelled } = makeCancelKit();
   const signal = toAbortSignal(cancelled);
@@ -317,8 +313,7 @@ test('toAbortSignal handles already cancelled token', t => {
   t.true(signal.aborted);
 });
 
-// ==================== fromAbortSignal tests ====================
-
+// fromAbortSignal tests.
 test('fromAbortSignal returns a cancelled token and isCancelled', t => {
   const controller = new AbortController();
   const { cancelled, isCancelled } = fromAbortSignal(controller.signal);
@@ -355,8 +350,7 @@ test('fromAbortSignal promise rejects with abort reason', async t => {
   await t.throwsAsync(cancelled, { message: 'abort reason' });
 });
 
-// ==================== delay tests ====================
-
+// delay tests.
 test('delay fulfills with undefined after ms', async t => {
   const { cancelled: parentCancelled } = makeCancelKit();
   const start = Date.now();
@@ -414,8 +408,7 @@ test('delay treats parentCancelled fulfillment as error', async t => {
   });
 });
 
-// ==================== makeDelay tests ====================
-
+// makeDelay tests.
 test('makeDelay creates a delay function with custom setTimeout', async t => {
   const calls = [];
   const fakeSetTimeout = (callback, ms) => {
