@@ -746,6 +746,105 @@ test('GitRemote fetch / pull / push use the bounded native data plane', async t 
   t.deepEqual([...audit[4].updatedRefs], [...pushResult.updatedRefs]);
 });
 
+test('GitRemote push round-trips to an independent fetcher over file://', async t => {
+  t.timeout(2000);
+  // Producer worktree pushes a branch to a real file:// bare remote; a second,
+  // independent consumer worktree fetches that same branch back and recovers
+  // the full commit object. This closes the loop the sibling fetch/pull/push
+  // test leaves open: that test verifies the push landed on the bare repo via
+  // show-ref, but never re-fetches the pushed branch into a fresh consumer to
+  // prove the objects (commit + tree + blob) actually transfer back out.
+  const producer = await provisionGitContext(t);
+  const remoteRoot = await provisionBareRemote(t, producer.root);
+  const remoteUrl = pathToFileURL(remoteRoot).href;
+
+  const { remote: producerRemote } = makeGitRemote({
+    git: producer.git,
+    name: 'origin',
+    policy: {
+      url: remoteUrl,
+      allowLocalFileTransport: true,
+      allowedDirections: ['push'],
+      fetchRefspecs: [],
+      pushRefspecs: ['refs/heads/agent/*:refs/heads/agent/*'],
+    },
+  });
+
+  await E(producer.git).createBranch('agent/feature', {
+    switchAfterCreate: true,
+  });
+  const payload = 'feature-payload\n';
+  const entry = await E(producer.mount).entry(['feature.txt']);
+  await E(producer.mount).writeText(entry, payload);
+  await E(producer.git).add([entry]);
+  await E(producer.git).commit('test: feature commit to round-trip');
+
+  const pushResult = await E(producerRemote).push({
+    source: 'refs/heads/agent/feature',
+    destination: 'refs/heads/agent/feature',
+  });
+  const pushedRefs = [...pushResult.updatedRefs];
+  t.is(pushedRefs.length, 1);
+  const pushedOid = pushedRefs[0].local.oid;
+  t.regex(pushedOid, /^[0-9a-f]{40}$/u);
+  t.like(pushedRefs[0], {
+    remote: 'refs/heads/agent/feature',
+    result: 'created',
+  });
+
+  // A second worktree, unrelated to the producer's repository, fetches the
+  // pushed branch from the same bare remote.
+  const consumer = await provisionGitContext(t);
+  const { remote: consumerRemote } = makeGitRemote({
+    git: consumer.git,
+    name: 'origin',
+    policy: {
+      url: remoteUrl,
+      allowLocalFileTransport: true,
+      allowedDirections: ['fetch'],
+      fetchRefspecs: ['+refs/heads/agent/*:refs/remotes/origin/agent/*'],
+      pushRefspecs: [],
+    },
+  });
+
+  const fetchResult = await E(consumerRemote).fetch();
+  t.deepEqual(
+    [...fetchResult.updatedRefs],
+    [
+      {
+        local: {
+          name: 'refs/remotes/origin/agent/feature',
+          kind: 'branch',
+          oid: pushedOid,
+        },
+        remote: 'refs/heads/agent/feature',
+        result: 'created',
+      },
+    ],
+  );
+
+  const fetched = await E(consumer.git).revParse(
+    'refs/remotes/origin/agent/feature',
+  );
+  t.is(fetched.oid, pushedOid);
+
+  // The commit and its blob must be materially present in the consumer's
+  // object store, not just a dangling ref. Inspect the consumer repo with
+  // raw git so the assertion is about observable git state, not the exo.
+  const { stdout: objectType } = await execFileAsync(
+    'git',
+    ['cat-file', '-t', pushedOid],
+    { cwd: consumer.root },
+  );
+  t.is(objectType.trim(), 'commit');
+  const { stdout: blob } = await execFileAsync(
+    'git',
+    ['cat-file', '-p', `${pushedOid}:feature.txt`],
+    { cwd: consumer.root },
+  );
+  t.is(blob, payload);
+});
+
 test('GitRemote enforces allowedDirections at the call boundary', async t => {
   const { git } = await provisionGitContext(t);
   // Fetch-only policy: push must be refused before transport is reached.
