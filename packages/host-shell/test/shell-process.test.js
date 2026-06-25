@@ -6,6 +6,7 @@ import '@endo/init/debug.js';
 
 import process from 'node:process';
 import test from 'ava';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { makePromiseKit } from '@endo/promise-kit';
 
@@ -379,11 +380,13 @@ test('extraEnvKeys reaches the child via the make entry', async t => {
 test('a SIGTERM-trapping child is escalated to SIGKILL', async t => {
   t.timeout(10_000);
   // The child ignores SIGTERM, so the timeout's SIGTERM has no effect and
-  // the killGraceMs escalation must SIGKILL it.
+  // the killGraceMs escalation must SIGKILL it.  timeoutMs gives the shell
+  // ample margin to install its trap first, so the SIGTERM lands on an
+  // installed trap rather than racing shell startup.
   const proc = makeProcess(t, {
     command: 'sh',
     args: JSON.stringify(['-c', 'trap "" TERM; while true; do sleep 1; done']),
-    timeoutMs: '200',
+    timeoutMs: '500',
     killGraceMs: '200',
   });
   t.is((await proc.exit()).signal, 'SIGKILL');
@@ -476,11 +479,16 @@ test('context cancellation escalates to SIGKILL for a trapping child', async t =
   cancelled.catch(() => {});
   const proc = makeShellProcess({
     command: 'sh',
-    args: ['-c', 'trap "" TERM; while true; do sleep 1; done'],
+    args: ['-c', 'trap "" TERM; echo ready; while true; do sleep 1; done'],
     context: { whenCancelled: () => cancelled },
     killGraceMs: 200,
   });
   t.teardown(() => proc.kill('SIGKILL'));
+  // Wait until the child has installed its SIGTERM trap — it prints "ready"
+  // on the line right after `trap` — so the cancellation SIGTERM cannot
+  // race ahead of the trap and kill the shell outright before it escalates.
+  const reader = iterateBytesReader(proc.stdout(), { buffer: 64 });
+  await reader.next();
   cancel(new Error('revoked'));
   t.is((await proc.exit()).signal, 'SIGKILL');
 });
