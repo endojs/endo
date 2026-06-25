@@ -17,7 +17,7 @@
 
 import { mustMatch } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
-import { makeMarshal } from '@endo/marshal';
+import { toolResultToSmallcaps, smallcapsMarshal } from '@endo/agentry/harness';
 
 import { tools } from './tools/index.js';
 
@@ -34,18 +34,12 @@ import { tools } from './tools/index.js';
 // produce correct encodings; the patterns matchers then validate the
 // decoded passables rather than the raw JSON strings.
 //
-// The codec is constructed once at module load. No slot converters are
-// needed because tool args never carry remotables or promises; the defaults
-// (`dontEncodeRemotableToSmallcaps` / `dontEncodePromiseToSmallcaps`) are
-// the right handlers and will throw if a remotable somehow reaches the
-// boundary.
-
-/** @type {ReturnType<typeof makeMarshal>} */
-const smallcapsMarshal = makeMarshal(undefined, undefined, {
-  serializeBodyFormat: 'smallcaps',
-  // Tool-result encoding only; error logging is irrelevant here.
-  marshalSaveError: () => {},
-});
+// The `smallcapsMarshal` codec and the `toolResultToSmallcaps` tool-result
+// encoder now live in `@endo/agentry/harness` (imported above). The codec is
+// constructed once at module load there; no slot converters are needed because
+// tool args never carry remotables or promises, and the defaults
+// (`dontEncodeRemotableToSmallcaps` / `dontEncodePromiseToSmallcaps`) throw if
+// a remotable somehow reaches the boundary.
 
 // Pre-index each tool's @endo/patterns matcher by tool name. The matcher
 // validates the SmallCaps-decoded args record before dispatch, matching the
@@ -444,19 +438,9 @@ export function toAgentTool(name, summary, executeTool) {
       // Encode the tool result as SmallCaps so the model reads BigInts as
       // `"+N"` strings (consistent with the encoding it must produce for
       // inbound messageNumber fields) and strings starting with special
-      // chars as `"!<s>"`. `toCapData` produces `{ body: '#<json>', slots: [] }`;
-      // we strip the `#` sentinel and present the SmallCaps JSON directly.
-      let text;
-      if (typeof result === 'string') {
-        // Plain-string results need no SmallCaps wrapping; they carry no
-        // non-JSON values.
-        text = result;
-      } else {
-        const { body } = smallcapsMarshal.toCapData(harden(result));
-        // body is '#<smallcaps-json>'; slice off the '#' sentinel so the
-        // model reads the raw SmallCaps JSON object/array.
-        text = body.slice(1);
-      }
+      // chars as `"!<s>"`. Plain strings pass through unwrapped. The encoder is
+      // the shared `toolResultToSmallcaps` from `@endo/agentry/harness`.
+      const text = toolResultToSmallcaps(result);
       /** @type {AgentToolResult<any>} */
       const toolResult = {
         content: [{ type: 'text', text }],

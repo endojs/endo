@@ -1,11 +1,11 @@
 {
   "extends": "../../tsconfig.eslint-base.json",
   "compilerOptions": {
-    "allowJs": false,
-    "checkJs": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noEmit": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "src/**/*.js"
   ]
 }
