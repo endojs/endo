@@ -15,6 +15,8 @@ import { getAmbientEnv, makeEnvCredentials } from '../harness/credentials.js';
 import { makeCompartmentExecute } from './compartment.js';
 import { makeExecuteTool, toSmallcapsPiAgentTool } from './tool.js';
 import { makeCodeModeSystemPrompt, normalizeGlobals } from './globals.js';
+import { makeGitGlobal } from './git.js';
+import { makeWorkspaceGlobal } from './fs.js';
 
 const IDENTIFIER_RE = /^[A-Za-z_$][0-9A-Za-z_$]*$/;
 
@@ -74,8 +76,13 @@ const lookupRequiredPower = (powers, petName, label) => {
 
 /**
  * Build the lexical globals for a code-mode agent from its configured powers.
- * Each global carries a name, pet name, and a one-line description; type blobs
- * are intentionally absent (the model introspects live caps at runtime).
+ * This builder only chooses WHICH globals to inject from the configured powers;
+ * the per-exo specifics (descriptions, generated declarations, the read-only
+ * member policy) live in `git.js` and `fs.js`, which this delegates to. The
+ * read-only vs read-write split is a prompt-surface policy: `gitMode:
+ * 'readOnly'` selects the `gitReadOnly` declaration (inspection verbs only),
+ * while the runtime read-only enforcement stays the exo guard. `namedPowers`
+ * stay name-only unless the caller attached its own `declaration`.
  *
  * @param {CodeModePowers} powers
  * @returns {CodeModeGlobal[]}
@@ -85,23 +92,22 @@ const makeCodeModeGlobals = (powers = {}) => {
   const globals = [];
   if (powers.workspace !== undefined || powers.workspacePetName !== undefined) {
     const workspacePetName = powers.workspacePetName ?? 'workspace';
-    globals.push({
-      name: petNameToBindingName(workspacePetName, 'workspace'),
-      petName: workspacePetName,
-      description:
-        'Writable @endo/platform/fs/extended Filesystem for the repository.',
-    });
+    globals.push(
+      makeWorkspaceGlobal({
+        name: petNameToBindingName(workspacePetName, 'workspace'),
+        petName: workspacePetName,
+      }),
+    );
   }
   if (powers.git !== undefined || powers.gitPetName !== undefined) {
-    const readOnlyGit = powers.gitMode === 'readOnly';
     const gitPetName = powers.gitPetName ?? 'git';
-    globals.push({
-      name: petNameToBindingName(gitPetName, 'git'),
-      petName: gitPetName,
-      description: readOnlyGit
-        ? 'Read-only @endo/exo-git Git capability for repository inspection.'
-        : 'Read/write @endo/exo-git Git capability for repository changes.',
-    });
+    globals.push(
+      makeGitGlobal({
+        name: petNameToBindingName(gitPetName, 'git'),
+        petName: gitPetName,
+        readOnly: powers.gitMode === 'readOnly',
+      }),
+    );
   }
   globals.push(...(powers.namedPowers || []));
   return normalizeGlobals(globals);
