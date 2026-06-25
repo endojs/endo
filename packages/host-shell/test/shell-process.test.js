@@ -7,6 +7,7 @@ import '@endo/init/debug.js';
 import process from 'node:process';
 import test from 'ava';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
+import { makePromiseKit } from '@endo/promise-kit';
 
 import {
   buildChildEnv,
@@ -451,4 +452,63 @@ test('the make entry rejects an invalid stdio disposition', t => {
     () => make(undefined, undefined, { env: { command: 'echo', stdout: 'x' } }),
     { message: /must be 'pipe' or 'ignore'/ },
   );
+});
+
+test('context cancellation terminates the child', async t => {
+  t.timeout(10_000);
+  // A formula's context cancellation is signalled by `whenCancelled()`
+  // rejecting; that must SIGTERM the child so it is not orphaned.
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  cancelled.catch(() => {});
+  const proc = makeShellProcess({
+    command: 'sleep',
+    args: ['30'],
+    context: { whenCancelled: () => cancelled },
+  });
+  t.teardown(() => proc.kill('SIGKILL'));
+  cancel(new Error('revoked'));
+  t.is((await proc.exit()).signal, 'SIGTERM');
+});
+
+test('context cancellation escalates to SIGKILL for a trapping child', async t => {
+  t.timeout(10_000);
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  cancelled.catch(() => {});
+  const proc = makeShellProcess({
+    command: 'sh',
+    args: ['-c', 'trap "" TERM; while true; do sleep 1; done'],
+    context: { whenCancelled: () => cancelled },
+    killGraceMs: 200,
+  });
+  t.teardown(() => proc.kill('SIGKILL'));
+  cancel(new Error('revoked'));
+  t.is((await proc.exit()).signal, 'SIGKILL');
+});
+
+test('pid() reports the OS process id of a live child', t => {
+  const proc = spawnProcess(t, { command: 'cat' });
+  const pid = proc.pid();
+  t.is(typeof pid, 'number');
+  t.true(/** @type {number} */ (pid) > 0);
+});
+
+test('pid() is undefined when the command could not be spawned', async t => {
+  t.timeout(10_000);
+  const proc = spawnProcess(t, { command: 'definitely-not-a-real-binary-xyz' });
+  await t.throwsAsync(proc.exit());
+  t.is(proc.pid(), undefined);
+});
+
+test('kill() defaults to SIGTERM', async t => {
+  t.timeout(10_000);
+  const proc = spawnProcess(t, { command: 'sleep', args: ['30'] });
+  t.true(proc.kill());
+  t.is((await proc.exit()).signal, 'SIGTERM');
+});
+
+test('kill() returns false once the child has exited', async t => {
+  t.timeout(10_000);
+  const proc = spawnProcess(t, { command: 'sh', args: ['-c', 'exit 0'] });
+  await proc.exit();
+  t.false(proc.kill());
 });

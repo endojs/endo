@@ -13,12 +13,29 @@ import test from 'ava';
 import path from 'path';
 import url from 'url';
 import process from 'process';
+import { setTimeout as delay } from 'timers/promises';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, purge, makeEndoClient } from '@endo/daemon';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
 import { readAll } from './_helpers.js';
+
+/**
+ * Whether a process with this pid currently exists (signal 0 probes
+ * existence without delivering a signal).
+ *
+ * @param {number} pid
+ * @returns {boolean}
+ */
+const isAlive = pid => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /** @import { ShellProcess } from '../src/types.js' */
 
@@ -216,4 +233,46 @@ test.serial("host-shell formula honors stdout:'ignore'", async t => {
 
   t.is((await E(proc).exit()).code, 0);
   await t.throwsAsync(E(proc).stdout(), { message: /stdout is not piped/ });
+});
+
+test.serial('host-shell formula kills the child over CapTP', async t => {
+  t.timeout(90_000);
+  const { host } = await prepareHost(t);
+
+  const proc = /** @type {ShellProcess} */ (
+    await E(host).makeUnconfined('@node', shellModuleHref, {
+      powersName: '@none',
+      env: { command: 'sleep', args: JSON.stringify(['30']) },
+      resultName: 'sleeper',
+    })
+  );
+
+  t.true(await E(proc).kill('SIGKILL'));
+  t.is((await E(proc).exit()).signal, 'SIGKILL');
+});
+
+test.serial('cancelling the formula terminates the child process', async t => {
+  t.timeout(90_000);
+  const { host } = await prepareHost(t);
+
+  const proc = /** @type {ShellProcess} */ (
+    await E(host).makeUnconfined('@node', shellModuleHref, {
+      powersName: '@none',
+      env: { command: 'sleep', args: JSON.stringify(['30']) },
+      resultName: 'long-runner',
+    })
+  );
+
+  const pid = /** @type {number} */ (await E(proc).pid());
+  t.is(typeof pid, 'number');
+  t.true(isAlive(pid));
+
+  // Revoking the capability cancels the formula's context, which must tear
+  // the child down rather than leaving it orphaned.
+  await E(host).cancel('long-runner');
+  for (let i = 0; i < 100 && isAlive(pid); i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await delay(100);
+  }
+  t.false(isAlive(pid));
 });
