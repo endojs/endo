@@ -1265,6 +1265,7 @@ __metadata:
     "@endo/lockdown": "workspace:^"
     "@endo/marshal": "workspace:^"
     "@endo/pass-style": "workspace:^"
+    "@endo/patterns": "workspace:^"
     "@endo/platform": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
