@@ -27,6 +27,8 @@ import {
   makeCodeModeSystemPrompt,
   makeCodeModeAgent,
   makeCodeModeGitLoopAgent,
+  gitCodeModeTypeDeclarations,
+  fsCodeModeTypeDeclarations,
 } from '../src/execute/index.js';
 
 /** @import { CodeModeGlobal, CodeModeExecute } from '../src/execute/tool.js' */
@@ -176,7 +178,7 @@ const writeFileText = async (file, text) => {
   }
 };
 
-test('the system prompt carries name + one-line description, no type blob', t => {
+test('an untyped global carries name + one-line description only', t => {
   /** @type {CodeModeGlobal[]} */
   const globals = harden([
     {
@@ -191,6 +193,8 @@ test('the system prompt carries name + one-line description, no type blob', t =>
   ]);
   const systemPrompt = makeCodeModeSystemPrompt(globals);
 
+  // Globals without a declaration stay name-only; the model introspects live
+  // caps via __getMethodNames__ at runtime.
   t.true(systemPrompt.includes('declare const git;'));
   t.true(systemPrompt.includes('declare const repoName;'));
   t.true(
@@ -198,11 +202,51 @@ test('the system prompt carries name + one-line description, no type blob', t =>
       '// Read/write @endo/exo-git Git capability for the repo.',
     ),
   );
-  // No hand-maintained TS type declarations leak into the prompt; the model
-  // introspects live caps via __getMethodNames__ at runtime.
-  t.false(systemPrompt.includes('declare const git: {'));
-  t.false(systemPrompt.includes('currentBranch(): Promise'));
+  t.false(systemPrompt.includes('declare const git:'));
   t.true(systemPrompt.includes('__getMethodNames__'));
+});
+
+test('a typed global injects its generated declaration into the prompt', t => {
+  /** @type {CodeModeGlobal[]} */
+  const globals = harden([
+    {
+      name: 'git',
+      petName: 'git',
+      description: 'Read/write git.',
+      declaration: gitCodeModeTypeDeclarations.git,
+    },
+    {
+      name: 'workspace',
+      petName: 'workspace',
+      description: 'Writable Filesystem.',
+      declaration: fsCodeModeTypeDeclarations.workspace,
+    },
+  ]);
+  const systemPrompt = makeCodeModeSystemPrompt(globals);
+
+  // git: TS-canonical, referenced by its named root type plus the supporting
+  // aliases the printer emitted.
+  t.true(systemPrompt.includes('declare const git: EndoGit;'));
+  t.true(systemPrompt.includes('type EndoGit = {'));
+  t.true(
+    systemPrompt.includes('commit: (message: string) => Promise<GitCommit>;'),
+  );
+  // workspace: guard-derived, reaching the Directory surface transitively.
+  t.true(systemPrompt.includes('declare const workspace: Filesystem;'));
+  t.true(systemPrompt.includes('type Directory = {'));
+  // The runtime introspection fallback is still advertised.
+  t.true(systemPrompt.includes('__getMethodNames__'));
+});
+
+test('makeCodeModeAgent injects typed git + workspace declarations from powers', async t => {
+  const { workspace, git } = await makeRealGit(t);
+  const { systemPrompt } = makeCodeModeAgent({
+    model: fauxModel(t, []),
+    powers: { workspace, git },
+  });
+  t.true(systemPrompt.includes('declare const git: EndoGit;'));
+  t.true(systemPrompt.includes('declare const workspace: Filesystem;'));
+  t.true(systemPrompt.includes('type EndoGit = {'));
 });
 
 test('makeEnvCredentials is the single env reader and reads through .get', t => {

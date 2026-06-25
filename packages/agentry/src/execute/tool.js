@@ -56,10 +56,22 @@ const EXECUTE_PARAMETERS = harden({
  *
  * @typedef {{ lookup: (petName: string | string[]) => Promise<PowerHandle> }} LookupPowers
  *
+ * @typedef {object} GlobalDeclaration A generated TypeScript declaration for a
+ *   code-mode global. `body` is the root type name spliced after
+ *   `declare const <name>:`; `aux` is the supporting `type` aliases emitted
+ *   above it (omitted when the body needs no supporting aliases).
+ * @property {string} body
+ * @property {string} [aux]
+ *
  * @typedef {object} CodeModeGlobal
  * @property {string} name
  * @property {string | string[]} [petName]
  * @property {string} [description]
+ * @property {GlobalDeclaration} [declaration] Generated TypeScript declaration
+ *   for this global. When set, `formatGlobalDeclarations` emits a typed
+ *   `declare const` for this global instead of a name-only one. The per-exo
+ *   files (`git.js`, `fs.js`) supply these; unset for `namedPowers`, which stay
+ *   name-only. A consumer can attach its own.
  *
  * @typedef {object} CodeModeExecuteInput
  * @property {string} source

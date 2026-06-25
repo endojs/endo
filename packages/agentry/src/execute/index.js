@@ -7,4 +7,6 @@ export {
   formatGlobalDeclarations,
   makeCodeModeSystemPrompt,
 } from './globals.js';
+export { makeGitGlobal, gitCodeModeTypeDeclarations } from './git.js';
+export { makeWorkspaceGlobal, fsCodeModeTypeDeclarations } from './fs.js';
 export { makeCodeModeAgent, makeCodeModeGitLoopAgent } from './preset.js';
