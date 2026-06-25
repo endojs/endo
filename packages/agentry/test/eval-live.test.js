@@ -1,13 +1,16 @@
 // @ts-check
 
 // The live-model git code-mode eval: the SAME scenarios and SAME outcome scorers
-// as the no-LLM tests, but driven by a real provider. It is gated on the
-// `ENDO_LLM_*` / `LAL_*` environment credentials: when they are absent every row
-// skips rather than failing. To run it, set `ENDO_LLM_HOST` / `ENDO_LLM_MODEL`
-// / `ENDO_LLM_AUTH_TOKEN` (or their `LAL_*` aliases) to point at an
-// OpenAI-compatible endpoint, then:
+// as the no-LLM tests, but driven by a real provider. It runs ONLY via its own
+// `test:live` command and a dedicated ava config (`ava-live.config.js`); it is
+// deliberately excluded from the default `yarn test` so that a host with
+// `ENDO_LLM_*` / `LAL_*` credentials in its environment does not reach a real
+// provider as a side effect of a plain `yarn test`. It is also gated on those
+// same credentials: when they are absent every row skips rather than failing. To
+// run it, set `ENDO_LLM_HOST` / `ENDO_LLM_MODEL` / `ENDO_LLM_AUTH_TOKEN` (or
+// their `LAL_*` aliases) to point at an OpenAI-compatible endpoint, then:
 //
-//   yarn workspace @endo/agentry test
+//   yarn workspace @endo/agentry test:live
 //
 // Pass = the repository reached the target end-state (outcome assertion), not a
 // transcript score. A failure here is an eval signal about the model, not a

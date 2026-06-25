@@ -79,16 +79,20 @@ together under `test/eval/` (see "Running" below), mirroring this source layout.
   full harness with a scripted faux provider standing in for the model. This is
   the assertion-path test; it needs no network and no secrets, and each eval's
   test co-locates with its per-eval repository fixture (`_stage-and-commit-repo.js`)
-  under `test/eval/`.
+  under `test/eval/`. It runs under the default `yarn test`.
 - **Live model (credentialed host):** `test/eval-live.test.js` runs the same
   scenarios and scorers against a real provider, table-driven over a registry
-  with one row per eval. It skips unless the credentials are present. To run it,
-  set `ENDO_LLM_HOST` / `ENDO_LLM_MODEL` /
-  `ENDO_LLM_AUTH_TOKEN` (or their `LAL_*` aliases) in the environment to point
-  at an OpenAI-compatible endpoint, then:
+  with one row per eval. It is **not** part of the default `yarn test`: it runs
+  only via its own `test:live` command, under a dedicated ava config
+  (`ava-live.config.js`), so that a host that happens to have the credentials in
+  its environment does not reach a real provider as a side effect of a plain
+  `yarn test` at the package or workspace root. The live test additionally skips
+  every row unless the credentials are present. To run it, set `ENDO_LLM_HOST` /
+  `ENDO_LLM_MODEL` / `ENDO_LLM_AUTH_TOKEN` (or their `LAL_*` aliases) in the
+  environment to point at an OpenAI-compatible endpoint, then:
 
   ```sh
-  yarn workspace @endo/agentry test
+  yarn workspace @endo/agentry test:live
   ```
 
   Supply the token through the environment only; it never appears in code,
