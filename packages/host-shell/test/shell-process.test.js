@@ -110,6 +110,27 @@ test('shell:true enables pipelines and chaining', async t => {
   t.is(out, 'one\nTWO\n');
 });
 
+test('a shell may not be combined with args', t => {
+  // In shell mode Node splices args into the `sh -c` string unquoted, so
+  // the combination is refused rather than silently injectable.
+  t.throws(
+    () =>
+      makeShellProcess({ command: 'echo hi', args: ['; echo x'], shell: true }),
+    { message: /cannot combine a shell with args/ },
+  );
+  t.throws(
+    () =>
+      make(undefined, undefined, {
+        env: {
+          command: 'echo hi',
+          args: JSON.stringify(['; echo x']),
+          shell: 'true',
+        },
+      }),
+    { message: /cannot combine a shell with args/ },
+  );
+});
+
 test('the cwd option is honored', async t => {
   const proc = spawnProcess(t, { command: 'pwd', cwd: '/' });
   const out = await readAll(proc.stdout());
@@ -152,6 +173,21 @@ test('exit rejects when the command does not exist', async t => {
   t.timeout(10_000);
   const proc = spawnProcess(t, { command: 'definitely-not-a-real-binary-xyz' });
   await t.throwsAsync(proc.exit(), { message: /ENOENT|spawn/ });
+});
+
+test('reading stdout after a failed spawn terminates rather than hanging', async t => {
+  t.timeout(10_000);
+  // The eager reader ends on the stdout stream's 'end'/'error'; a failed
+  // spawn must still let a consumer drain stdout to completion instead of
+  // hanging forever.  t.timeout guards against a regression to a hang; the
+  // stream may legitimately end empty or error, both of which terminate.
+  const proc = spawnProcess(t, { command: 'definitely-not-a-real-binary-xyz' });
+  try {
+    t.is(await readAll(proc.stdout()), '');
+  } catch {
+    t.pass('stdout terminated via error rather than end');
+  }
+  await t.throwsAsync(proc.exit());
 });
 
 test('large output streams without loss across backpressure', async t => {

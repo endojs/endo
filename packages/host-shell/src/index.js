@@ -43,7 +43,9 @@ export { ShellProcessInterface } from './interfaces.js';
  * - `env.shell` (optional): `'true'` to run `command` through the default
  *   shell (enabling pipelines / redirection / `&&` chaining), or a path
  *   to name a specific shell.  Omitted or `'false'` keeps the safe,
- *   shell-free structured argv.
+ *   shell-free structured argv.  A shell may not be combined with `args`
+ *   (the shell would splice them in unquoted); put the whole command line
+ *   in `command`.
  * - `env.stdin` / `env.stdout` / `env.stderr` (optional): `'pipe'`
  *   (default) bridges the stream over CapTP; `'ignore'` wires the fd to
  *   the null device, so the host does not buffer a stream the caller does

@@ -57,6 +57,14 @@ variable (e.g. `SSH_AUTH_SOCK`) without opening the whole environment, name
 it in `extraEnvKeys`. Set `inheritEnv: 'true'` only for trusted commands
 that genuinely need the worker's full environment.
 
+Because `processEnv` is layered last, it can override `PATH`, which
+influences which binary a bare `command` name resolves to (a formula bound
+to `command: 'git'` with `processEnv: { PATH: '/elsewhere/bin' }` runs
+`/elsewhere/bin/git`). The formula-`env` author is the grantor, not a third
+party, so this is not an external injection vector — but for a high-trust
+formula prefer an absolute-path `command` so resolution does not depend on
+`PATH`.
+
 ### Termination
 
 `timeoutMs` and `maxOutputBytes` terminate the child with `SIGTERM`, then
@@ -99,7 +107,8 @@ await writer.next(new TextEncoder().encode('hello'));
 await writer.return(); // EOF on the child's stdin
 ```
 
-To use a pipeline or chain, opt into a shell:
+To use a pipeline or chain, opt into a shell and put the **whole command
+line in `command`**:
 
 ```js
 await E(host).makeUnconfined('@node', shellModuleHref, {
@@ -107,6 +116,12 @@ await E(host).makeUnconfined('@node', shellModuleHref, {
   env: { command: 'grep foo log.txt | wc -l', shell: 'true' },
 });
 ```
+
+With a shell enabled, `args` are spliced into the `sh -c` string
+**unquoted**, so their metacharacters would be interpreted as script rather
+than passed as literal arguments. To keep that sharp edge from being a
+silent footgun, combining `shell` with a non-empty `args` is **rejected** —
+build the command line yourself when you opt into a shell.
 
 ## The `ShellProcess` interface
 

@@ -52,7 +52,9 @@
  * @property {boolean | string} [shell] `false` (default) spawns a
  *   structured argv with no shell.  `true` runs through the default shell;
  *   a string names a shell executable.  Enabling a shell re-introduces the
- *   injection surface.
+ *   injection surface, so it may not be combined with a non-empty `args`
+ *   (which the shell would splice in unquoted); put the whole command line
+ *   in `command`.
  * @property {'pipe' | 'ignore'} [stdin] `'pipe'` (default) bridges the
  *   child's stdin; `'ignore'` gives the child an immediate EOF and makes
  *   `stdin()` throw.

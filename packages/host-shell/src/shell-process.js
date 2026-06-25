@@ -242,6 +242,16 @@ export const makeShellProcess = options => {
   for (const arg of args) {
     requireNoNul(arg, 'args entry');
   }
+  // With a shell enabled, Node splices `args` into the `sh -c` string
+  // *unquoted*, so an arg's shell metacharacters would be interpreted as
+  // script — defeating the structured-argv injection guarantee.  Refuse
+  // the combination: in shell mode the whole command line belongs in
+  // `command`.
+  if (shell && args.length > 0) {
+    throw makeError(
+      X`host-shell cannot combine a shell with args; put the full command line in command (args are spliced into the shell string unquoted)`,
+    );
+  }
   if (cwd !== undefined) {
     if (typeof cwd !== 'string') {
       throw makeError(X`host-shell cwd must be a string, got ${q(cwd)}`);
@@ -304,6 +314,9 @@ export const makeShellProcess = options => {
         }
       }, killGraceMs);
       // Don't let the escalation timer keep the worker's event loop alive.
+      // Trade-off: if the worker's loop were to drain in the grace window
+      // (no other handles), the SIGKILL could be skipped — acceptable here
+      // because the worker normally outlives the child it is hosting.
       if (typeof killTimer.unref === 'function') {
         killTimer.unref();
       }
@@ -336,6 +349,9 @@ export const makeShellProcess = options => {
   // Enforce the optional total-output cap across stdout + stderr: a
   // runaway producer is terminated rather than allowed to grow the heap
   // (when a consumer is attached) or block on a full pipe (when not).
+  // The cap is approximate: a chunk is counted only after it is queued, so
+  // up to one pipe-sized read (~64 KiB) past the limit may be buffered
+  // before the SIGTERM lands.  That overshoot is bounded by a single read.
   let outputBytes = 0;
   /** @type {((byteLength: number) => void) | undefined} */
   const onBytes =
