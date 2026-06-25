@@ -173,6 +173,19 @@ const makeGitEnv = repoRoot => ({
   GIT_CONFIG_GLOBAL: gitNullDevice,
   // No interactive prompts.
   GIT_TERMINAL_PROMPT: '0',
+  // No interactive editor.  Some porcelain commands (notably
+  // `rebase --continue` under the merge backend, and a non-fast-forward
+  // `merge`) open the editor to confirm a commit message.  With no
+  // controlling terminal that editor hangs on stdin or fails, stranding
+  // the operation mid-rebase.  `GIT_EDITOR=true` is a no-op editor that
+  // exits success, so git keeps the message it already prepared and the
+  // command completes non-interactively.  Takes precedence over any
+  // repository-local `core.editor`.
+  GIT_EDITOR: 'true',
+  // The same no-op for the rebase todo-list editor, should an
+  // interactive rebase ever be wired in.  Takes precedence over any
+  // repository-local `sequence.editor`.
+  GIT_SEQUENCE_EDITOR: ':',
   // Suppress the opportunistic index refresh that read commands
   // (status, diff) otherwise perform.  Without this, a "read-only"
   // inspection rewrites `.git/index` metadata as a side effect and
