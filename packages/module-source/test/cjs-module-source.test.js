@@ -107,6 +107,19 @@ test('esbuild hint', t => {
   t.true(ms.reexports.includes('fs'));
 });
 
+test('esbuild hint module.exports reassignment clears earlier reexports', t => {
+  // The `module.exports = { ... }` inside the esbuild hint clobbers the
+  // earlier `module.exports = require('./stale')` re-export, but re-exports
+  // declared within the same hint must survive.
+  const ms = new CjsModuleSource(`
+    module.exports = require('./stale');
+    0 && (module.exports = {bar}, __export(require('./kept')));
+  `);
+  t.false(ms.reexports.includes('./stale'));
+  t.true(ms.reexports.includes('./kept'));
+  t.true(ms.exports.includes('bar'));
+});
+
 test('__needsImport__ is false when no import()', t => {
   const ms = new CjsModuleSource(`const x = require('foo');`);
   t.false(ms.__needsImport__);
@@ -136,6 +149,29 @@ test('module.exports reassignment clears reexports (last wins)', t => {
   `);
   t.true(ms.exports.includes('asdf'));
   t.deepEqual([...ms.reexports], ['./another']);
+});
+
+test('module.exports object reassignment clears earlier reexports', t => {
+  // `module.exports = require('./stale')` registers a re-export; the subsequent
+  // object reassignment must discard it (Node only exposes `bar` here).
+  const ms = new CjsModuleSource(`
+    module.exports = require('./stale');
+    module.exports = { bar: 1 };
+  `);
+  t.deepEqual([...ms.reexports], []);
+  t.true(ms.exports.includes('bar'));
+});
+
+test('module.exports non-require reassignment clears earlier reexports', t => {
+  // A reassignment to a non-require, non-object value still clobbers earlier
+  // re-exports and falls back to a single `default` export.
+  const ms = new CjsModuleSource(`
+    function thing() {}
+    module.exports = require('./stale');
+    module.exports = thing;
+  `);
+  t.deepEqual([...ms.reexports], []);
+  t.deepEqual([...ms.exports], ['default']);
 });
 
 test('TypeScript reexport helpers', t => {

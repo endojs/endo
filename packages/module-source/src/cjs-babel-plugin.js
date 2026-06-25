@@ -635,10 +635,17 @@ export default function makeCjsModulePlugins(options) {
           }
 
           if (right.type === 'ObjectExpression') {
+            // Reassigning module.exports discards any previously-detected
+            // re-exports (e.g. an earlier `module.exports = require('x')`),
+            // matching the character-level lexer and Node's runtime behavior.
+            // This visitor also fires on the nested `module.exports = { ... }`
+            // inside an esbuild `0 && (...)` hint, so that case is covered too.
+            reexports.clear();
             collectObjectExports(right, exportsSet, reexports, requires);
             return;
           }
 
+          reexports.clear();
           exportsSet.add('default');
         }
       },
