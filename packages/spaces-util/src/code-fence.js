@@ -50,11 +50,13 @@ const decodeEntities = text =>
 /**
  * Parse the HTML string Monaco's `editor.colorize` returns into Preact vnodes,
  * so syntax-highlighted code survives the confining renderer (which strips raw
- * HTML strings). Monaco's output is a flat run of
- * `<span class="mtkN">escaped-text</span>` tokens with `<br/>` line breaks; the
- * `mtkN` classes are coloured by the theme stylesheet Monaco injects globally.
- * Token text becomes plain vnode text (no `dangerouslySetInnerHTML`), so nothing
- * but Monaco's own class names crosses into the tree.
+ * HTML strings). Monaco nests each line's tokens inside a CLASSLESS per-line
+ * wrapper span — `<span><span class="mtkN">escaped-text</span>…</span>` — with
+ * `<br/>` line breaks between lines; the `mtkN` classes are coloured by the
+ * theme stylesheet Monaco injects globally. We therefore track an open-span
+ * stack and colour token text with the nearest enclosing class. Token text
+ * becomes plain vnode text (no `dangerouslySetInnerHTML`), so nothing but
+ * Monaco's own class names crosses into the tree.
  *
  * Returns `null` when the input has no recognisable token spans, so callers can
  * fall back to the plain source.
@@ -69,22 +71,34 @@ export const colorizedHtmlToVnodes = html => {
   /** @type {Array<VNode | string>} */
   const out = [];
   let sawSpan = false;
-  /** @type {string | null} */
-  let currentClass = null;
-  const pattern = /<span class="([^"]*)">|<\/span>|<br\s*\/?>|([^<]+)/g;
+  // Stack of the classes of the currently-open spans (a classless wrapper span
+  // pushes `null`). Text is coloured with the nearest enclosing non-null class.
+  /** @type {Array<string | null>} */
+  const classStack = [];
+  const nearestClass = () => {
+    for (let i = classStack.length - 1; i >= 0; i -= 1) {
+      if (classStack[i]) return classStack[i];
+    }
+    return null;
+  };
+  // The opening-span class is optional so Monaco's classless line-wrapper spans
+  // are recognised as tags instead of leaking their `span>` text through the
+  // `[^<]+` fallback.
+  const pattern = /<span(?: class="([^"]*)")?>|<\/span>|<br\s*\/?>|([^<]+)/g;
   for (let m = pattern.exec(html); m !== null; m = pattern.exec(html)) {
-    if (m[1] !== undefined) {
-      currentClass = m[1];
-      sawSpan = true;
-    } else if (m[2] !== undefined) {
+    if (m[2] !== undefined) {
       const text = decodeEntities(m[2]);
-      if (currentClass) {
-        out.push(h('span', { class: currentClass }, text));
+      const cls = nearestClass();
+      if (cls) {
+        out.push(h('span', { class: cls }, text));
       } else {
         out.push(text);
       }
     } else if (m[0].startsWith('</span')) {
-      currentClass = null;
+      classStack.pop();
+    } else if (m[0].startsWith('<span')) {
+      classStack.push(m[1] !== undefined ? m[1] : null);
+      sawSpan = true;
     } else {
       // A <br> line break; <pre> preserves the literal newline.
       out.push('\n');

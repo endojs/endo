@@ -39,6 +39,30 @@ test('colorizedHtmlToVnodes: parses Monaco token spans into vnodes', t => {
   t.true(out.includes('\n'));
 });
 
+test('colorizedHtmlToVnodes: handles Monaco classless per-line wrapper spans', t => {
+  // Real `monaco.editor.colorize` output nests each line's tokens inside a
+  // classless wrapper span. The classless `<span>` open must be recognised as a
+  // tag, not leak its `span>` text through the plain-text fallback.
+  const html =
+    '<span><span class="mtk12">const</span><span class="mtk1"> x </span>' +
+    '<span class="mtk10">=</span></span><br/><span><span></span></span><br/>';
+  const out = colorizedHtmlToVnodes(html);
+  t.true(Array.isArray(out));
+  // No stray "span>" (or any other markup) leaks as plain text.
+  t.false(
+    out.some(n => typeof n === 'string' && n.includes('span')),
+    'classless wrapper span must not leak as text',
+  );
+  const spans = out.filter(n => n && n.type === 'span');
+  t.is(spans.length, 3);
+  t.is(spans[0].props.class, 'mtk12');
+  t.is(spans[0].props.children, 'const');
+  t.is(spans[1].props.class, 'mtk1');
+  t.is(spans[1].props.children, ' x ');
+  t.is(spans[2].props.class, 'mtk10');
+  t.is(spans[2].props.children, '=');
+});
+
 test('colorizedHtmlToVnodes: decodes HTML entities in token text', t => {
   const html = '<span class="mtk1">a &lt; b &amp;&amp; c &#39;d&#39;</span>';
   const [span] = colorizedHtmlToVnodes(html);
