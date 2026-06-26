@@ -445,6 +445,26 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('inspect <name-or-identifier>')
+    .description(
+      "prints the formula record (type and per-property literals and references) for a name or local formula identifier; per the 'pop the bonnet' design",
+    )
+    .option(
+      '-i,--identifier',
+      'interpret the argument as a formula identifier rather than a pet name path',
+    )
+    .option('--json', 'emit the raw FormulaRecord as JSON for scripting')
+    .action(async (nameOrIdentifier, cmd) => {
+      const { identifier: asIdentifier, json: asJson } = cmd.opts();
+      const { inspect } = await import('./commands/inspect.js');
+      return inspect({
+        nameOrIdentifier,
+        asIdentifier: Boolean(asIdentifier),
+        asJson: Boolean(asJson),
+      });
+    });
+
+  program
     .command('follow <name>')
     .option(...commonOptions.as)
     .description('subscribe to a stream of values')
