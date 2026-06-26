@@ -130,6 +130,7 @@ api-docs
 !packages/ocapn-noise/src/types.d.ts
 
 # Test/runtime scratch directories (daemon state, sqlite, worker logs)
+.tmp/
 packages/*/tmp/
 packages/*/test/tmp/
 .turbo/
