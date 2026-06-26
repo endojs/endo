@@ -19,7 +19,7 @@
  *
  * Usage from the CLI:
  *
- *   endo make --UNCONFINED packages/endo-fs/src/node-fs-module.js \
+ *   endo make --UNCONFINED packages/platform/src/fs/extended/node-fs-module.js \
  *     --name workspace \
  *     --workerName @node \
  *     --env ENDO_FS_ROOT=/path/to/dir

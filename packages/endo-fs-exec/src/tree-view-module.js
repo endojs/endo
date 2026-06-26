@@ -25,7 +25,7 @@
  * End-to-end recipe:
  *
  *   # 1. Mount a host directory as a Filesystem cap.
- *   endo make --UNCONFINED packages/endo-fs/src/node-fs-module.js \
+ *   endo make --UNCONFINED packages/platform/src/fs/extended/node-fs-module.js \
  *     --name workspace-fs --workerName @node \
  *     --env ENDO_FS_ROOT=/path/to/project
  *
