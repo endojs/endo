@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-06-23 |
+| **Updated** | 2026-06-26 |
 | **Author** | endolinbot (prompted) |
 | **Status** | Proposed |
 
@@ -22,9 +23,12 @@ daemon on the worker's behalf, mediated by a new
 The user's agency over revocation falls out of the daemon-side
 retention table directly, the same way it already does for pet names.
 
-The competing plan is on branch `design/sturdy-refs-pass-style`
-(or its equivalent) and will be linked once the parallel designer
-lands.
+The competing plan (the `FinalizationRegistry` plan, PR #511) is on
+branch `design/sturdy-refs-via-finalization-registry`.
+The shared base problem (item 1 below) is being implemented in PR #521
+(`feat(pass-style): first-class 'sturdyref' pass-style; ocapn defers
+to it`), whose review established the inert-data-box correction this
+design adopts.
 
 ## What is the Problem Being Solved?
 
@@ -32,9 +36,13 @@ The maintainer's directive on PR #500 comment `4775973308` describes
 three needs that have to be solved together:
 
 1. **`@endo/pass-style` learns about SturdyRefs.**
-   A SturdyRef is an opaque object similar to a presence that must be
-   registered with `HandledPromise` and that corresponds to an OCapN
+   A SturdyRef is an opaque object that corresponds to an OCapN
    locator (`peer + swiss-num`).
+   The maintainer's directive first described it as "similar to a
+   presence … registered with `HandledPromise`"; PR #521's review
+   corrected that (see *A SturdyRef is inert* below): a SturdyRef is an
+   inert data box, not a presence, and `@endo/eventual-send` is
+   unchanged.
    The on-wire form is already specified in the OCapN spec
    (`ocapn-sturdyref` tagged record carrying a peer locator and a
    swiss number); pass-style needs a category for it so `passStyleOf`
@@ -166,19 +174,44 @@ A SturdyRef is similarly identity-bearing but, unlike a presence,
 it carries a **resolvable** identity (the locator) rather than a
 slot established at session bootstrap.
 
-### `HandledPromise` registration
+### A SturdyRef is inert; it is enlivened, not sent to
 
-`@endo/eventual-send`'s `makeHandledPromise` keeps a
-`presenceToHandler` `WeakMap` and a `presenceToPromise` `WeakMap`;
-when a presence is registered with `HandledPromise.resolve(p)` or
-created via `new HandledPromise(executor, handler)`, those maps are
-populated.
-The maintainer's framing is that a SturdyRef must be registered with
-`HandledPromise` so that `E(sturdyRef).foo()` does the right thing.
-This design treats `HandledPromise` registration as the
-**boxing layer's responsibility on inbound unbox** (per the next
-subsection).
-The pass-style layer does not call into eventual-send.
+The maintainer's original framing described a SturdyRef as "an opaque
+object, similar to a presence, that must be registered with
+`HandledPromise`."
+The implementation slice (PR #521, the shared base both designs in this
+pair build on) discovered and the maintainer confirmed a correction:
+a SturdyRef is **not** a presence and is **not** registered with
+`HandledPromise`.
+It is an **inert, opaque, pass-by-copy data box** that carries only the
+off-band `(location, secret)` needed to *re-acquire* the live
+capability.
+`E(sturdyRef).foo()` is **not** a valid operation, and
+`@endo/eventual-send` needs **no change** for SturdyRefs.
+
+To act on the capability a SturdyRef names, the bearer first
+**enlivens** it to an ordinary CapTP presence and then sends to the
+presence:
+
+```js
+const presence = await enlivenSturdyRef(sturdyRef);
+const result = await E(presence).method(...args);
+```
+
+`enlivenSturdyRef` is the closely-held OCapN-provided capability
+(described under *Boxing and unboxing* and *OCapN's closely-held
+capability* below): it reads the locator off-band, then for a local
+locator flows to the daemon's own formula store and for a remote
+locator dials the peer via `provideSession(location)` and
+`bootstrap.fetch(secret)`.
+The enlivened presence is an ordinary presence; from there `E(presence)`
+is the existing, unchanged eventual-send path.
+The pass-style layer never calls into eventual-send, and the enlivenment
+cache (if any) lives in `@endo/ocapn`, not in `HandledPromise`.
+
+This correction does **not** touch the retention axis that distinguishes
+this design from its sibling; it aligns the shared base-problem framing
+(item 1) with what #521 actually landed.
 
 ### How the OCapN codec already boxes SturdyRefs
 
@@ -387,15 +420,17 @@ The mechanism is:
 - **On receive (unboxing).**
   The wire form (`ocapn-sturdyref(peer, swiss-num)` for OCapN, the
   equivalent for other layers) is handed to the layer's
-  sturdyref *enlivener*, which:
+  sturdyref *unboxer*, which:
   1. constructs a SturdyRef via `makeSturdyRef(parsedLocation)`,
   2. records `{ swissNum }` in the layer's side-table keyed by
-     SturdyRef identity,
-  3. registers the SturdyRef with the layer's `HandledPromise`
-     (so `E(sturdyRef).foo()` routes through the layer's handler,
-     which knows how to fetch the underlying CapTP reference on
-     first send),
-  4. returns the SturdyRef to the application.
+     SturdyRef identity (the off-band `(location, secret)` map),
+  3. returns the inert SturdyRef to the application.
+  No `HandledPromise` registration occurs: the SturdyRef is an inert
+  data box (see *A SturdyRef is inert*).
+  The application that wants the live capability calls
+  `enlivenSturdyRef(sturdyRef)` to obtain a presence and then `E()`s
+  the presence; the OCapN-provided `enlivenSturdyRef` is the only path
+  that reads the swiss number.
 
 The closely-held capability OCapN supplies to the daemon is the
 *identity* of the layer's sturdyref dispatcher and enlivener.
@@ -468,10 +503,11 @@ A SturdyRef returned to a worker as the result of an agent
 method (`lookup`, `evaluate`, `makeUnconfined`, an `E(...).foo()`
 return value, a CapTP slot delivery) lives only for the duration
 of the current delivery's task.
-The worker can use the SturdyRef inside that turn (it can call
-`E(sturdyRef).foo()`, hand it back to the daemon as an argument,
-embed it in a copyRecord it returns) but cannot stash it in a
-module-scope variable and expect to find it later.
+The worker can use the SturdyRef inside that turn (it can enliven it
+to a presence and `E(presence).foo()`, hand the inert SturdyRef back
+to the daemon as a pet-name-path substitute argument, embed it in a
+copyRecord it returns) but cannot stash it in a module-scope variable
+and expect to find it later.
 
 Mechanically, the bookkeeping unwinds through CapTP's existing
 distributed-GC path, not through a turn boundary.
@@ -891,8 +927,8 @@ for a deliberate choice.
 
 ## Comparison points with the alternative plan
 
-The sibling design (`design/sturdy-refs-pass-style` or
-equivalent) lets workers retain SturdyRefs as ordinary JS values
+The sibling design (`design/sturdy-refs-via-finalization-registry`,
+PR #511) lets workers retain SturdyRefs as ordinary JS values
 and uses `FinalizationRegistry` on the daemon side to observe
 worker-VM drop events.
 Concrete points where the two diverge:
@@ -948,9 +984,11 @@ OCapN integration:
 - `@endo/ocapn` round-trips a SturdyRef minted by `makeSturdyRef`
   across a session and back to a SturdyRef whose `location`
   deeply equals the original.
-- The receiving side's SturdyRef is registered with the
-  receiver's `HandledPromise`; `E(sturdyRef).foo()` reaches the
-  remote target.
+- The receiving side's SturdyRef is inert; `E(sturdyRef)` is **not**
+  valid, and `enlivenSturdyRef(sturdyRef)` yields a presence whose
+  `E(presence).foo()` reaches the remote target.
+- `@endo/eventual-send` is unchanged: no `HandledPromise` surface is
+  added for SturdyRefs.
 - `ocapnPassStyleOf` collapses to `passStyleOf` with no behaviour
   change for SturdyRefs.
 
@@ -993,6 +1031,9 @@ Retention surface:
 
 - `@endo/pass-style` exports a SturdyRef pass-style category with
   a maker, a helper, a pattern, and full tests.
+- `@endo/eventual-send` is unchanged: a SturdyRef is inert and is
+  enlivened to a presence before any `E()`; no `HandledPromise`
+  surface is added for SturdyRefs (per #521).
 - `@endo/ocapn` no longer needs `ocapnPassStyleOf` for SturdyRefs.
 - Every daemon facet method that today accepts a pet-name-path
   also accepts a SturdyRef (per the table in *Daemon: SturdyRef as
@@ -1084,7 +1125,8 @@ Retention surface:
 | [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | Establishes the `formulaGraph` retention edges this design composes with. |
 | [daemon-endor-architecture](daemon-endor-architecture.md) | Source of the `endor` envelope protocol this design extends with `retain` / `release`. |
 | [retention-path-notation](retention-path-notation.md) | Source of the edge-label notation `pet:<name>`, which this design extends with `ephemeral:<worker>:<turn>` and `retained:<worker>:<handle>`. |
-| (sibling, to be linked) | `design/sturdy-refs-pass-style` (the FinalizationRegistry plan competing with this one). |
+| (sibling, #511) | `design/sturdy-refs-via-finalization-registry` (the FinalizationRegistry plan competing with this one). |
+| #521 | `feat(pass-style): first-class 'sturdyref' pass-style; ocapn defers to it` — the in-flight implementation of the shared base problem (item 1), which established the inert-data-box correction both designs adopt. |
 
 ## Prompt
 
