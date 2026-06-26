@@ -21,6 +21,9 @@
       "path": "../compartment-mapper/tsconfig.composite.json"
     },
     {
+      "path": "../daemon-cas/tsconfig.composite.json"
+    },
+    {
       "path": "../errors/tsconfig.composite.json"
     },
     {

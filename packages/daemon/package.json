@@ -1,6 +1,6 @@
 {
   "name": "@endo/daemon",
-  "version": "3.0.0",
+  "version": "2.5.3",
   "private": true,
   "description": "Endo daemon",
   "keywords": [
@@ -37,6 +37,8 @@
   },
   "scripts": {
     "build": "exit 0",
+    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
+    "postpack": "git clean -fX -e node_modules/",
     "cover": "c8 ava --config test/_ava-ses.config.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
@@ -57,6 +59,7 @@
     "@endo/cancel": "workspace:^",
     "@endo/captp": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
+    "@endo/daemon-cas": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
