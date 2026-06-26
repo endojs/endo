@@ -3,7 +3,7 @@
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PassableBytesReader } from '@endo/exo-stream' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGit, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGit, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, FormulaRecord, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -31,6 +31,7 @@ import { toHex, fromHex } from './hex.js';
 import { makePetSitter } from './pet-sitter.js';
 
 import { makeDeferredTasks } from './deferred-tasks.js';
+import { makeFormulaRecord } from './formula-record.js';
 
 import { HostInterface } from './interfaces.js';
 import { hostHelp, makeHelp } from './help-text.js';
@@ -210,6 +211,12 @@ export const makeHostMaker = ({
     const baseController = await provideStoreController(storeId);
     const mailboxController = await provideStoreController(mailboxStoreId);
 
+    // Note: `inspectorId` is retained on the host formula for
+    // forward-load compatibility with hosts whose formulas were
+    // written before `getFormula` replaced the `@info` name hub.
+    // The id no longer participates in any special-name lookup;
+    // `getFormula(identifier)` is the user-facing replacement.
+    // See `designs/formula-inspector.md` "Removing the `@info` name hub".
     /** @type {Record<string, FormulaIdentifier>} */
     const specialNames = {
       ...platformNames,
@@ -221,7 +228,6 @@ export const makeHostMaker = ({
       '@endo': endoId,
       '@nets': networksDirectoryId,
       '@pins': pinsDirectoryId,
-      '@info': inspectorId,
       '@none': leastAuthorityId,
     };
     if (mailHubId !== undefined) {
@@ -1515,6 +1521,63 @@ export const makeHostMaker = ({
       await E(directory).storeIdentifier(namePath, id);
     };
 
+    /**
+     * Retrieve the formula record for a local formula identifier.
+     *
+     * Per `designs/formula-inspector.md`, this is the host-only
+     * replacement for the prior `@info` name hub. The identifier must
+     * name a formula this daemon hosts locally — either on its own node
+     * or under one of the agent keys it holds (`isLocalKey`); locators
+     * on genuinely remote peers are rejected with a clear error.
+     *
+     * @param {FormulaIdentifier} identifier
+     * @returns {Promise<FormulaRecord>}
+     */
+    const getFormula = async identifier => {
+      await null;
+      if (typeof identifier !== 'string') {
+        throw new TypeError(
+          `getFormula requires a formula identifier string, got ${q(identifier)}`,
+        );
+      }
+      const { number, node } = parseId(identifier);
+      if (!isLocalKey(node)) {
+        throw new Error(
+          `getFormula rejects cross-peer locators: ${q(identifier)}`,
+        );
+      }
+      let formula;
+      try {
+        formula = await getFormulaForId(
+          /** @type {FormulaIdentifier} */ (identifier),
+        );
+      } catch (err) {
+        // Normalize the persistence-layer "No reference exists at path
+        // ..." `ReferenceError` (and any other read failure) into a
+        // surface-level error that cites the requested identifier
+        // rather than the on-disk path. The persistence-layer message
+        // leaks the filesystem layout and does not name the input the
+        // caller used.
+        const cause = /** @type {Error} */ (err);
+        throw makeError(
+          `getFormula could not resolve unknown identifier: ${q(identifier)}`,
+          undefined,
+          { cause },
+        );
+      }
+      // A scratch-mount carries no path on disk; resolve the daemon-
+      // managed host path so the formula record can surface it. Other
+      // formula types (including `mount`, whose path lives in the
+      // formula itself) need no host-side resolution here.
+      let mountHostPath;
+      if (formula.type === 'scratch-mount') {
+        mountHostPath = getMountHostPath(
+          /** @type {FormulaIdentifier} */ (identifier),
+        );
+      }
+      return makeFormulaRecord(formula, number, { mountHostPath });
+    };
+
     const { reverseIdentify } = specialStore;
     const {
       has,
@@ -1744,6 +1807,7 @@ export const makeHostMaker = ({
       endow,
       submit,
       sendValue,
+      getFormula,
       // Graph
       getFormulaGraph,
     };

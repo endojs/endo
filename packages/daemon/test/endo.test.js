@@ -37,6 +37,7 @@ import {
 
 /**
  * @import {EReturn} from '@endo/eventual-send';
+ * @import {ExecutionContext} from 'ava';
  * @import {FormulaNumber, NodeNumber} from '../src/types.js';
  */
 
@@ -271,7 +272,7 @@ const makeHost = async (config, cancelled) => {
 };
 
 /**
- * @param {import('ava').ExecutionContext<any>} t
+ * @param {ExecutionContext<any>} t
  * @returns {Promise<ReturnType<prepareConfig> & ReturnType<makeHost>>}
  */
 const prepareHost = async t => {
@@ -282,7 +283,7 @@ const prepareHost = async t => {
 };
 
 /**
- * @param {import('ava').ExecutionContext<any>} t
+ * @param {ExecutionContext<any>} t
  */
 const prepareHostWithTestNetwork = async t => {
   const { host } = await prepareHost(t);
@@ -430,7 +431,7 @@ const getConfigDirectoryName = (testTitle, testConfigIndex) => {
 };
 
 /**
- * @param {import('ava').ExecutionContext<any>} t
+ * @param {ExecutionContext<any>} t
  * @param {object} [options]
  * @param {boolean} [options.gcEnabled]
  */
@@ -2714,79 +2715,76 @@ test('make a host', async t => {
   t.is(ten, 10);
 });
 
-testNeedsNodeWorker('name and reuse inspector', async t => {
-  const { host } = await prepareHost(t);
+testNeedsNodeWorker(
+  'getFormula returns per-type formula record (make-unconfined)',
+  async t => {
+    const { host } = await prepareHost(t);
 
-  await E(host).provideWorker(['worker']);
+    await E(host).provideWorker(['worker']);
 
-  const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).makeUnconfined('worker', counterPath, {
-    powersName: '@none',
-    resultName: 'counter',
-  });
+    const counterPath = path.join(dirname, 'test', 'counter.js');
+    await E(host).makeUnconfined('worker', counterPath, {
+      powersName: '@none',
+      resultName: 'counter',
+    });
 
-  const inspector = await E(host).evaluate(
-    'worker',
-    'E(INFO).lookup(["counter"])',
-    ['INFO'],
-    ['@info'],
-    ['inspector'],
-  );
-  t.regex(String(inspector), /Alleged: Inspector.+make-unconfined/u);
-
-  const worker = await E(host).evaluate(
-    'worker',
-    'E(inspector).lookup(["worker"])',
-    ['inspector'],
-    ['inspector'],
-  );
-  t.regex(String(worker), /Alleged: EndoWorker/u);
-});
+    const counterId = await E(host).identify('counter');
+    t.truthy(counterId, 'counter has a formula identifier');
+    const record = await E(host).getFormula(counterId);
+    t.is(record.type, 'make-unconfined');
+    t.is(record.properties.specifier.kind, 'literal');
+    t.is(record.properties.specifier.value, counterPath);
+    t.is(record.properties.worker.kind, 'reference');
+    t.is(record.properties.powers.kind, 'reference');
+  },
+);
 
 // Regression test for https://github.com/endojs/endo/issues/2021
-testNeedsNodeWorker('eval-mediated worker name', async t => {
-  const { host } = await prepareHost(t);
+testNeedsNodeWorker(
+  'getFormula resolves a caplet to its worker formula',
+  async t => {
+    const { host } = await prepareHost(t);
 
-  await E(host).provideWorker(['worker']);
+    await E(host).provideWorker(['worker']);
 
-  const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).makeUnconfined('worker', counterPath, {
-    powersName: '@none',
-    resultName: 'counter',
-  });
+    const counterPath = path.join(dirname, 'test', 'counter.js');
+    await E(host).makeUnconfined('worker', counterPath, {
+      powersName: '@none',
+      resultName: 'counter',
+    });
 
-  t.is(
-    await E(host).evaluate(
-      'worker',
-      'E(counter).incr()',
-      ['counter'],
-      ['counter'],
-    ),
-    1,
-  );
+    t.is(
+      await E(host).evaluate(
+        'worker',
+        'E(counter).incr()',
+        ['counter'],
+        ['counter'],
+      ),
+      1,
+    );
 
-  // We create a petname for the worker of `counter`.
-  // Note that while `worker === counter-worker`, it doesn't matter here.
-  const counterWorker = await E(host).evaluate(
-    'worker',
-    'E(E(INFO).lookup(["counter"])).lookup(["worker"])',
-    ['INFO'],
-    ['@info'],
-    ['counter-worker'],
-  );
-  t.regex(String(counterWorker), /Alleged: EndoWorker/u);
+    // The original `@info`-based shape composed two lookups to walk
+    // from a caplet's formula to its worker. The replacement is a
+    // direct `getFormula` call that exposes the `worker` reference.
+    const counterId = await E(host).identify('counter');
+    const counterRecord = await E(host).getFormula(counterId);
+    t.is(counterRecord.properties.worker.kind, 'reference');
+    const workerId = counterRecord.properties.worker.identifier;
 
-  // We should be able to use the new name for the worker.
-  t.is(
-    await E(host).evaluate(
-      'counter-worker',
-      'E(counter).incr()',
-      ['counter'],
-      ['counter'],
-    ),
-    2,
-  );
-});
+    // We should be able to give the discovered worker a petname and
+    // use it to re-enter the same incr path.
+    await E(host).storeIdentifier(['counter-worker'], workerId);
+    t.is(
+      await E(host).evaluate(
+        'counter-worker',
+        'E(counter).incr()',
+        ['counter'],
+        ['counter'],
+      ),
+      2,
+    );
+  },
+);
 
 test('lookup with single petname', async t => {
   const { host } = await prepareHost(t);
@@ -2803,18 +2801,19 @@ test('lookup with single petname', async t => {
   t.is(resolvedValue, 10);
 });
 
-test('lookup with petname path (inspector)', async t => {
+test('getFormula returns per-type formula record (eval)', async t => {
   const { host } = await prepareHost(t);
 
   await E(host).evaluate('@main', '10', [], [], ['ten']);
 
-  const resolvedValue = await E(host).evaluate(
-    '@main',
-    'E(AGENT).lookup(["@info", "ten", "source"])',
-    ['AGENT'],
-    ['@agent'],
-  );
-  t.is(resolvedValue, '10');
+  const tenId = await E(host).identify('ten');
+  t.truthy(tenId, 'ten has a formula identifier');
+  const record = await E(host).getFormula(tenId);
+  t.is(record.type, 'eval');
+  t.is(record.properties.source.kind, 'literal');
+  t.is(record.properties.source.value, '10');
+  t.is(record.properties.worker.kind, 'reference');
+  t.is(record.properties.endowments.kind, 'reference-list');
 });
 
 testNeedsNodeWorker(
@@ -2858,13 +2857,16 @@ test('evaluate name resolved by lookup path', async t => {
 
   await E(host).evaluate('@main', '10', [], [], ['ten']);
 
+  // The legacy `@info`-mediated endowment path
+  // (`['INFO', 'ten', 'source']`) is retired with `@info`. Lookup-path
+  // endowments still resolve through regular pet-name traversal.
   const resolvedValue = await E(host).evaluate(
     '@main',
     'foo',
     ['foo'],
-    [['@info', 'ten', 'source']],
+    ['ten'],
   );
-  t.is(resolvedValue, '10');
+  t.is(resolvedValue, 10);
 });
 
 test('list special names', async t => {
@@ -2917,6 +2919,96 @@ test('guest cannot access host methods', async t => {
   });
   const revealedTarget = await E.get(guestsHost).targetId;
   t.is(revealedTarget, undefined);
+});
+
+test('getFormula is absent on the guest facet', async t => {
+  const { host } = await prepareHost(t);
+
+  // A guest references its host via SELF -> AGENT chain; calling
+  // getFormula through a guest-only edge must fail because the
+  // guest facet does not expose the method (per
+  // `designs/formula-inspector.md` § Why host-only).
+  const guest = await E(host).provideGuest('guest');
+  await E(host).evaluate('MAIN', '10', [], [], ['ten']);
+  const tenId = await E(host).identify('ten');
+  await t.throwsAsync(() => E(guest).getFormula(tenId), {
+    message: /target has no method "getFormula"/u,
+  });
+});
+
+test('getFormula rejects cross-peer locators', async t => {
+  const { host } = await prepareHost(t);
+
+  // A formula identifier whose node-part is some other node is a
+  // cross-peer locator. Per `designs/formula-inspector.md` § Security
+  // considerations these are rejected with a clear error.
+  const otherNode = /** @type {NodeNumber} */ (
+    await cryptoPowers.randomHex256()
+  );
+  const formulaNumber = /** @type {FormulaNumber} */ (
+    await cryptoPowers.randomHex256()
+  );
+  const crossPeerId = formatId({
+    node: otherNode,
+    number: formulaNumber,
+  });
+  await t.throwsAsync(() => E(host).getFormula(crossPeerId), {
+    message: /cross-peer/u,
+  });
+});
+
+test('getFormula resolves the agent’s own identity formulas', async t => {
+  const { host } = await prepareHost(t);
+
+  // An agent's own identity formulas (its handle, host, pet store,
+  // mailbox) are formulated under the agent's freshly-minted keypair,
+  // whose node-part differs from the daemon's `localNodeNumber`. The
+  // daemon nevertheless holds that agent key, so these are local and
+  // `getFormula` must resolve them rather than rejecting them as
+  // cross-peer. Regression for the Formula back-face rendering blank on
+  // an agent's own values: the previous `node !== localNodeNumber`
+  // guard was too strict and only `isLocalKey(node)` is correct.
+
+  // A daemon-level stored value carries the daemon's `localNodeNumber`.
+  await E(host).storeValue(42, 'answer');
+  const { node: daemonNode } = parseId(await E(host).identify('answer'));
+
+  const selfId = await E(host).identify('@self');
+  const { node: selfNode } = parseId(selfId);
+  t.not(
+    selfNode,
+    daemonNode,
+    '@self lives on the agent key node, not the daemon node number',
+  );
+  const selfRecord = await E(host).getFormula(selfId);
+  t.is(selfRecord.type, 'handle');
+
+  const agentId = await E(host).identify('@agent');
+  const agentRecord = await E(host).getFormula(agentId);
+  t.is(agentRecord.type, 'host');
+});
+
+test('getFormula normalizes unknown-identifier-on-local-node error', async t => {
+  const { host } = await prepareHost(t);
+
+  // Resolve a real local identifier to discover the local node-part,
+  // then construct a same-node identifier whose formula number is
+  // random and almost certainly does not exist on disk.
+  await E(host).evaluate('MAIN', '10', [], [], ['ten']);
+  const tenId = await E(host).identify('ten');
+  const { node: localNode } = parseId(tenId);
+  const bogusNumber = /** @type {FormulaNumber} */ (
+    await cryptoPowers.randomHex256()
+  );
+  const unknownId = formatId({ node: localNode, number: bogusNumber });
+
+  // The persistence-layer error names the on-disk path and uses a
+  // generic `ReferenceError`. `getFormula` normalizes that to a
+  // surface-level error that names the requested identifier, so the
+  // caller can route on the input they actually supplied.
+  await t.throwsAsync(() => E(host).getFormula(unknownId), {
+    message: /getFormula could not resolve unknown identifier/u,
+  });
 });
 
 test('read unknown node id', async t => {

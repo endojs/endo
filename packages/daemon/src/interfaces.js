@@ -433,6 +433,11 @@ export const HostInterface = M.interface('EndoHost', {
   ).returns(M.promise()),
   // Get formula dependency graph snapshot for this agent's pet store
   getFormulaGraph: M.call().returns(M.promise()),
+  // Retrieve the formula record for a local formula identifier (host-only).
+  // See `designs/formula-inspector.md`. The identifier must name a
+  // formula whose node matches this daemon's local node; cross-peer
+  // locators are rejected at the entry of `getFormula`.
+  getFormula: M.call(IdShape).returns(M.promise()),
 });
 
 export const ChannelInterface = M.interface('EndoChannel', {
