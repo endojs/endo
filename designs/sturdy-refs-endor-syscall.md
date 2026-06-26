@@ -5,7 +5,7 @@
 | **Created** | 2026-06-23 |
 | **Updated** | 2026-06-26 |
 | **Author** | endolinbot (prompted) |
-| **Status** | Proposed |
+| **Status** | Not Started |
 
 ## Summary
 
@@ -252,6 +252,21 @@ This design promotes that shim by:
   knows about the category, **the secret is not a property the
   worker can read**; reveal goes through the OCapN-provided
   capability.
+
+A SturdyRef's pass-style identity is **scoped to one OCapN instance**
+(or other CapTP session), not global.
+A SturdyRef minted by one OCapN network instance is **not** expected to
+be recognised by another, and `enlivenSturdyRef` may **reject** the
+returned promise when handed a SturdyRef it cannot resolve in the
+current instance — that rejection is **by design**, not an error to
+prevent.
+This is why an **opaque pass-style object suffices** for every sturdy
+reference: because recognition is per-instance, the pass-style layer
+needs no global coordination of a shared `WeakMap` from SturdyRef
+objects to locators.
+Each instance's enlivener owns its own carrier and resolves only the
+SturdyRefs it minted (or that a peer it dialed minted); a SturdyRef
+that does not resolve there simply rejects on enliven.
 
 ### Daemon: where pet-name-paths land today
 
