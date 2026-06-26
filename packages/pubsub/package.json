@@ -61,6 +61,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/cancel": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",

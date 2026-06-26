@@ -12,4 +12,5 @@
 - Each tool is published as its own subpath export (no barrel module); import
   the specific module a dependent needs.
 - Cancellation is provided by [`@endo/cancel`](../cancel/README.md) rather than
-  a bundled primitive.
+  a bundled primitive; the documented subscriber/`makeCancelKit` pairing is
+  exercised by the package's tests.
