@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-06-23 |
-| **Updated** | 2026-06-24 |
+| **Updated** | 2026-06-26 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Revision 5 (resolve revision-4 open questions per kriskowal review: `makeCancelKit` home is `@endo/cancel`; latest always replays to a late subscriber; hot / cold variants for the exo-stream-sourced topic; first-class consumer-side coalescing adapter) |
+| **Status** | Revision 6 (the `@endo/cancel` package has merged onto `llm`, so the cancellation dependency is no longer a prerequisite gate: the design now imports `makeCancelKit` from the landed package and tracks its actual `{ cancelled, cancel, isCancelled }` shape) |
 
 ## What is the Problem Being Solved?
 
@@ -303,17 +303,31 @@ A `fail(error)` settles them with a rejection.
 For **consumer-side cancellation**, this design adopts
 `makeCancelKit()` (per the maintainer's framing on inline comment
 3460690829: "Consider using `makeCancelKit`").
-Its shape:
+As of the `@endo/cancel` package landing on `llm`, the shape is
+fixed by that package's `CancelKit` type:
 
 ```ts
+type Cancelled = Promise<never>;
+type Cancel = (reason?: Error) => void;
+type IsCancelled = () => boolean;
 type CancelKit = {
-  cancel(reason?: Error): void;
-  cancelled: Promise<never>;
+  cancelled: Cancelled;
+  cancel: Cancel;
+  isCancelled: IsCancelled;
 };
+declare const makeCancelKit: (
+  parentCancelled?: Cancelled,
+  parentIsCancelled?: IsCancelled,
+) => CancelKit;
 ```
 
-The kit returns the rejection-side of a promise plus the function that
-rejects it.
+The kit returns the rejection-side of a promise (`cancelled`), the
+function that rejects it (`cancel`), and a synchronous observation
+function (`isCancelled`) for the local-side fast path.
+Passing a parent `cancelled` (and optionally a parent `isCancelled`)
+propagates cancellation from parent to child automatically, which the
+adapter set uses to fan one consumer's cancellation down to every
+spring it drains.
 A consumer that wants to stop draining a spring (or, at the exo layer, a
 remote topic) constructs a `CancelKit`, passes `cancelled` to the
 draining wrapper, and calls `cancel(reason)` when ready to stop.
@@ -339,17 +353,21 @@ The maintainer's framing on the revision-4 review:
 > `@endo/cancel` should already exist on the llm branch.
 > Otherwise, this should be gated on merging the cancel package.
 
-`@endo/cancel` does **not** yet exist on the `llm` branch (no
-`packages/cancel/`, no `makeCancelKit` export anywhere in the tree as of
-this revision).
-Therefore this design is **gated on the `@endo/cancel` package landing on
-`llm`**: `@endo/pubsub` and `@endo/exo-pubsub` take `@endo/cancel` as a
-workspace dependency and import `makeCancelKit` from it; neither package
-re-homes the primitive nor ships an internal copy.
-Creating `@endo/cancel` (the `makeCancelKit` / `CancelKit` primitive
-above, plus whatever sibling cancellation helpers the maintainer wants to
-co-locate) is a **prerequisite sibling PR**, surfaced to the maintainer as
-a separate piece of work rather than absorbed into either pubsub package.
+The `@endo/cancel` package has since merged onto `llm`
+(`packages/cancel/`, exporting `makeCancelKit` from its index and the
+`CancelKit` / `Cancelled` / `Cancel` / `IsCancelled` types from
+`./src/types.js`).
+The earlier gate is therefore cleared: `@endo/pubsub` and
+`@endo/exo-pubsub` take `@endo/cancel` as a workspace dependency and
+import `makeCancelKit` from it; neither package re-homes the primitive
+nor ships an internal copy.
+Alongside `makeCancelKit`, the landed package also ships the
+abort-bridging helpers (`@endo/cancel/from-abort`, `@endo/cancel/to-abort`,
+`@endo/cancel/abort`), cancellable iteration combinators
+(`@endo/cancel/all-map`, `@endo/cancel/any-map`), and cancellable delays
+(`@endo/cancel/delay`, `@endo/cancel/delay-lite`); the pubsub packages
+use only `makeCancelKit` from the index for now, but the abort bridges
+are the natural seam for a future `AbortSignal`-driven consumer.
 See § *Cross-design coordination* for the dependency row.
 
 ## `@endo/exo-pubsub`: the adapter set
@@ -760,7 +778,7 @@ consumer that knows its memory budget knows the right policy.
 | `@endo/exo-stream` (`packages/exo-stream/`) | The new adapter set composes with the existing exo-stream toolkit. `topicFromReader` calls `readerFromIterator` internally to mint the underlying passable surface; `readerFromTopic` mirrors `iterateReader`'s consumer-side iterator construction. The packages depend on `@endo/exo-stream` for the bidirectional-promise-chain protocol primitives. |
 | `@endo/stream` (`packages/stream/`) | The new local package is a sibling: both build on the Sink / Spring / Queue substrate. The new `@endo/pubsub` re-homes the existing `packages/daemon/src/pubsub.js` `makeChangePubSub` into a reusable location and adds the lossy variant. `makeQueue` and `makeStream` are the substrate; the new package does not reimplement them. |
 | Earlier `@endo/stream` `makePubSub` + `makeTopic` (commit `cbbd57c03`, since removed) | Design-consistency anchor. The new `@endo/pubsub`'s `makeChangesPubSub` matches the removed `makePubSub` shape (sink + many independent springs over a shared async linked list); the kit-with-finish/fail surface is the additional discipline this design adds. |
-| `@endo/cancel` (prerequisite, not yet on `llm`) | The home for `makeCancelKit` per § *Termination and cancellation*. The maintainer's revision-4 review expected `@endo/cancel` to already exist on `llm`; it does not. This design is **gated on the `@endo/cancel` package landing**: both pubsub packages take it as a workspace dependency and import `makeCancelKit` rather than re-homing the primitive. Creating `@endo/cancel` is a separate prerequisite PR. |
+| `@endo/cancel` (`packages/cancel/`, landed on `llm`) | The home for `makeCancelKit` per § *Termination and cancellation*. The maintainer's revision-4 review expected `@endo/cancel` to already exist on `llm`, and it now does (the package merged). Both pubsub packages take it as a workspace dependency and import `makeCancelKit` rather than re-homing the primitive; the prerequisite gate that the earlier revisions carried is cleared. The landed surface (`makeCancelKit` with optional parent propagation, plus the `from-abort` / `to-abort` / `all-map` / `any-map` / `delay` subpath helpers) is the cancellation vocabulary the adapter set draws on. |
 
 ## Compatibility considerations
 
@@ -844,18 +862,20 @@ the kits and adapters are parameterized on `T`, and a future
 The revision-4 open questions are resolved by the revision-5 review and
 folded into the design prose:
 
-- **Home for `makeCancelKit`** is `@endo/cancel` (a prerequisite package,
-  not yet on `llm`); see § *Termination and cancellation* and the
-  `@endo/cancel` row in § *Cross-design coordination*.
+- **Home for `makeCancelKit`** is `@endo/cancel`, which has now merged
+  onto `llm` (the earlier prerequisite gate is cleared); see
+  § *Termination and cancellation* and the `@endo/cancel` row in
+  § *Cross-design coordination*.
 - **Latest replays to a late subscriber**, always; see § *`makeLatestPubSub`*.
 - **The exo-stream-sourced topic has both a hot and a cold variant**
   (`hotTopicFromExoStream` / `coldTopicFromExoStream`); see that adapter's
   section.
 
 No design-level open questions remain.
-The one cross-PR prerequisite is the `@endo/cancel` package; the one
-parallel work item is the `@endo/pubsub` implementation PR (#513), which
-this design stays aligned with.
+The `@endo/cancel` prerequisite has merged onto `llm`, so the design no
+longer carries a cross-PR gate; the one parallel work item is the
+`@endo/pubsub` implementation PR (#513), which this design stays aligned
+with.
 
 ## Prompt
 
