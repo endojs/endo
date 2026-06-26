@@ -307,10 +307,18 @@ test.serial(
       const locator = await E(hostA).locateForSharing('test-channel');
 
       // Simulate the broken chat UI flow: extract formula ID but
-      // discard connection hints (use write instead of adoptFromLocator)
+      // discard connection hints (use write instead of adoptFromLocator).
+      // The locator format puts `@`-delimited URL-encoded path components
+      // after the host:
+      //   endo://{node}/{formulaAddress}@{hint1}@{hint2}?type={type}
+      // The first path component is the formula address; the rest are
+      // hints.
       const locatorUrl = new URL(/** @type {string} */ (locator));
       const nodeNumber = locatorUrl.host;
-      const formulaNumber = locatorUrl.searchParams.get('id');
+      const [formulaNumber] = locatorUrl.pathname
+        .replace(/^\//, '')
+        .split('@')
+        .map(decodeURIComponent);
       // Deliberately NOT calling addPeerInfo — simulates the bug.
       // However, peers were already introduced above, so connectivity
       // works. The real failure is a NAME MISMATCH: the UI calls
@@ -426,9 +434,13 @@ test.serial(
       const locator = await E(hostA).locateForSharing('my-val');
       t.truthy(locator, 'locator should exist');
 
-      // Verify locator has connection hints
+      // Verify locator has connection hints (subsequent `@`-delimited
+      // path components after the formula address).
       const locatorUrl = new URL(/** @type {string} */ (locator));
-      const hints = locatorUrl.searchParams.getAll('at');
+      const [, ...hints] = locatorUrl.pathname
+        .replace(/^\//, '')
+        .split('@')
+        .map(decodeURIComponent);
       t.true(hints.length > 0, 'locator should contain connection hints');
 
       // Host B uses adoptFromLocator — this should register peer info

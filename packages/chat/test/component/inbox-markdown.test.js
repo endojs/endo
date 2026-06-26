@@ -45,7 +45,7 @@ const makePackagePowers = ({ selfId, message }) => {
     locate(...path) {
       calls.push({ method: 'locate', args: path });
       if (path.length === 1 && path[0] === '@self') {
-        return `endo://localhost/?id=${selfId}&type=handle`;
+        return `endo://localhost/${selfId}?type=handle`;
       }
       return undefined;
     },
@@ -173,8 +173,8 @@ test.serial(
       type: 'package',
       number: 1n,
       date: new Date().toISOString(),
-      from: 'endo://localhost/?id=host-handle-id&type=handle',
-      to: 'endo://localhost/?id=guest-handle-id&type=handle',
+      from: 'endo://localhost/host-handle-id?type=handle',
+      to: 'endo://localhost/guest-handle-id?type=handle',
       dismissed: dismissedKit.promise,
       strings: [
         'Here is **bold** text and a fence:\n\n```js\nconst x = 1;\n```',
@@ -224,13 +224,13 @@ test.serial(
       type: 'package',
       number: 7n,
       date: new Date().toISOString(),
-      from: 'endo://localhost/?id=host-handle-id&type=handle',
-      to: 'endo://localhost/?id=guest-handle-id&type=handle',
+      from: 'endo://localhost/host-handle-id?type=handle',
+      to: 'endo://localhost/guest-handle-id?type=handle',
       dismissed: dismissedKit.promise,
       strings: ['Check out ', ' please'],
       names: ['greeting'],
       ids: [
-        'endo://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/?id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&type=eval',
+        'endo://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?type=eval',
       ],
     };
 
@@ -268,7 +268,7 @@ test.serial(
     t.truthy(lookupCall, 'lookupByLocator should be called');
     t.is(
       lookupCall.args[0],
-      'endo://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/?id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&type=eval',
+      'endo://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?type=eval',
     );
 
     t.is(showValueCalls.length, 1, 'showValue should have been called once');
@@ -277,7 +277,7 @@ test.serial(
     t.is(
       showValueCalls[0].id,
       idFromLocator(
-        'endo://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/?id=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&type=eval',
+        'endo://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?type=eval',
       ),
     );
     t.deepEqual(showValueCalls[0].messageContext, {

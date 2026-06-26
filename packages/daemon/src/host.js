@@ -26,11 +26,7 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import {
-  addressesFromLocator,
-  formatLocator,
-  idFromLocator,
-} from './locator.js';
+import { formatLocator, idFromLocator, internalizeLocator } from './locator.js';
 import { toHex, fromHex } from './hex.js';
 import { makePetSitter } from './pet-sitter.js';
 
@@ -1337,19 +1333,24 @@ export const makeHostMaker = ({
         petNamePathFrom(guestName);
       const url = new URL(invitationLocator);
       const daemonNode = url.hostname;
-      const invitationNumber = url.searchParams.get('id');
+      // Path components are `@`-delimited and URL-encoded.  The first
+      // component is the invitation's formula address; the rest are
+      // connection hints.
+      const [invitationNumber, ...addresses] = url.pathname
+        .replace(/^\//, '')
+        .split('@')
+        .map(decodeURIComponent);
       const remoteHandleNumber = url.searchParams.get('from');
       // The remote handle's node may differ from the daemon node when
       // agent keys are used as formula nodes.
       const remoteHandleNodeParam = url.searchParams.get('fromNode');
-      const addresses = url.searchParams.getAll('at');
 
       daemonNode || assert.Fail`Invitation must have a hostname`;
       if (!remoteHandleNumber) {
         throw makeError(`Invitation must have a "from" parameter`);
       }
-      if (invitationNumber === null) {
-        throw makeError(`Invitation must have an "id" parameter`);
+      if (!invitationNumber) {
+        throw makeError(`Invitation must include a formula number`);
       }
       assertNodeNumber(daemonNode);
       assertFormulaNumber(remoteHandleNumber);
@@ -1376,16 +1377,18 @@ export const makeHostMaker = ({
       const { number: handleNumber, node: handleNode } = parseId(handleId);
       // eslint-disable-next-line no-use-before-define
       const { addresses: hostAddresses } = await getPeerInfo();
-      const handleUrl = new URL('endo://');
-      handleUrl.hostname = localNodeNumber;
-      handleUrl.searchParams.set('id', handleNumber);
+      // Build the handle locator with `@`-delimited URL-encoded path
+      // components: the first component is the handle's formula number,
+      // and subsequent components are connection hints.
+      const handlePath = [handleNumber, ...hostAddresses]
+        .map(encodeURIComponent)
+        .join('@');
+      const handleUrl = new URL(`endo://${localNodeNumber}/${handlePath}`);
+      handleUrl.searchParams.set('type', 'handle');
       // Include the handle's node if it differs from the daemon node
       // (i.e. it uses an agent key).
       if (handleNode !== localNodeNumber) {
         handleUrl.searchParams.set('handleNode', handleNode);
-      }
-      for (const address of hostAddresses) {
-        handleUrl.searchParams.append('at', address);
       }
       const handleLocator = handleUrl.href;
 
@@ -1499,11 +1502,9 @@ export const makeHostMaker = ({
     /** @type {EndoHost['adoptFromLocator']} */
     const adoptFromLocator = async (locator, petNameOrPath) => {
       const { namePath } = petNamePathFrom(petNameOrPath);
-      const url = new URL(locator);
-      const nodeNumber = url.hostname;
-      assertNodeNumber(nodeNumber);
-      const addresses = addressesFromLocator(locator);
+      const { id, addresses } = internalizeLocator(locator);
       if (addresses.length > 0) {
+        const { node: nodeNumber } = parseId(id);
         /** @type {PeerInfo} */
         const peerInfo = {
           node: nodeNumber,
@@ -1511,16 +1512,6 @@ export const makeHostMaker = ({
         };
         await addPeerInfo(peerInfo);
       }
-      const formulaNumber = url.searchParams.get('id');
-      if (!formulaNumber) {
-        throw makeError('Locator must have an "id" parameter');
-      }
-      const id = formatId({
-        number: /** @type {import('./types.js').FormulaNumber} */ (
-          formulaNumber
-        ),
-        node: /** @type {NodeNumber} */ (nodeNumber),
-      });
       await E(directory).storeIdentifier(namePath, id);
     };
 

@@ -83,7 +83,7 @@ const makeEditPowers = ({ selfId, initialMessages }) => {
     locate(...path) {
       calls.push({ method: 'locate', args: path });
       if (path.length === 1 && path[0] === '@self') {
-        return `endo://localhost/?id=${selfId}&type=handle`;
+        return `endo://localhost/${selfId}?type=handle`;
       }
       return undefined;
     },
@@ -192,8 +192,8 @@ const buildPackage = ({
 });
 
 const SELF = 'self-id';
-const SELF_LOCATOR = `endo://localhost/?id=${SELF}&type=handle`;
-const PEER_LOCATOR = `endo://localhost/?id=peer-id&type=handle`;
+const SELF_LOCATOR = `endo://localhost/${SELF}?type=handle`;
+const PEER_LOCATOR = `endo://localhost/peer-id?type=handle`;
 
 test.serial(
   'edit button is visible on own settled package messages',
@@ -354,8 +354,8 @@ test.serial(
   'submitting an edit that preserves a binding resolves each kept locator to a pet name',
   async t => {
     const { $parent, $end } = createInboxDOM();
-    const KEPT_LOCATOR = `endo://localhost/?id=kept-value-id&type=handle`;
-    const DROPPED_LOCATOR = `endo://localhost/?id=dropped-value-id&type=handle`;
+    const KEPT_LOCATOR = `endo://localhost/kept-value-id?type=handle`;
+    const DROPPED_LOCATOR = `endo://localhost/dropped-value-id?type=handle`;
     const message = buildPackage({
       number: 50n,
       from: SELF_LOCATOR,

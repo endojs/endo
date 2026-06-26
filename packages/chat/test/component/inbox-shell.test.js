@@ -36,7 +36,7 @@ const makeStreamPowers = ({ selfId, messages }) => {
     locate(...path) {
       calls.push({ method: 'locate', args: path });
       if (path.length === 1 && path[0] === '@self') {
-        return `endo://localhost/?id=${selfId}&type=handle`;
+        return `endo://localhost/${selfId}?type=handle`;
       }
       return undefined;
     },
@@ -115,8 +115,8 @@ const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
   }
 };
 
-const HOST = 'endo://localhost/?id=host-handle-id&type=handle';
-const GUEST = 'endo://localhost/?id=guest-handle-id&type=handle';
+const HOST = 'endo://localhost/host-handle-id?type=handle';
+const GUEST = 'endo://localhost/guest-handle-id?type=handle';
 
 test.serial(
   'envelopes render with number, sent class, and timestamp',
@@ -184,7 +184,7 @@ test.serial(
   async t => {
     const { $parent, $end } = createInboxDOM();
     const dismissed = makePromiseKit().promise;
-    const OTHER = 'endo://localhost/?id=other-handle-id&type=handle';
+    const OTHER = 'endo://localhost/other-handle-id?type=handle';
 
     const messages = [
       {

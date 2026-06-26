@@ -52,7 +52,7 @@ const makeValuePowers = ({ selfId, message, lookedUpValue }) => {
     locate(...path) {
       calls.push({ method: 'locate', args: path });
       if (path.length === 1 && path[0] === '@self') {
-        return `endo://localhost/?id=${selfId}&type=handle`;
+        return `endo://localhost/${selfId}?type=handle`;
       }
       return undefined;
     },
@@ -109,8 +109,8 @@ const createInboxDOM = () => {
   return { $parent, $end };
 };
 
-const HOST = 'endo://localhost/?id=host-handle-id&type=handle';
-const GUEST = 'endo://localhost/?id=guest-handle-id&type=handle';
+const HOST = 'endo://localhost/host-handle-id?type=handle';
+const GUEST = 'endo://localhost/guest-handle-id?type=handle';
 
 const makeValueMessage = (number = 1n) => ({
   type: 'value',

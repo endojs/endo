@@ -199,8 +199,14 @@ for example, `bob`. The command prints an `endo://` locator URL. Copy it.
 The locator looks like:
 
 ```
-endo://abc123?id=42&from=7&at=tcp%2Bnetstring%2Bjson%2Bcaptp0%3A%2F%2F127.0.0.1%3A54321
+endo://abc123/42@tcp%2Bnetstring%2Bjson%2Bcaptp0%3A%2F%2F127.0.0.1%3A54321?type=invitation&from=7
 ```
+
+The URL path is a sequence of `@`-delimited components.
+The first component (here `42`) is the invitation's formula address; each
+subsequent component is a connection hint of the form
+`<transport-prefix>:<transport-payload>`, URL-encoded so that `@`, `/`,
+and `?` inside a hint round-trip cleanly.
 
 ### Bob Accepts the Invitation
 

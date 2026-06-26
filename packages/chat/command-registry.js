@@ -674,7 +674,7 @@ export const COMMANDS = {
         label: 'Locator',
         type: 'locator',
         required: true,
-        placeholder: 'endo://...?id=...&type=...&at=...',
+        placeholder: 'endo://.../formula@hint?type=...',
       },
       {
         name: 'petName',

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-02-24 |
-| **Updated** | 2026-03-18 |
+| **Updated** | 2026-05-10 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
@@ -20,21 +20,25 @@ from `designs/daemon-256-bit-identifiers.md`.
 | Node Number | 64-char hex string (Ed25519 public key after 256-bit migration) |
 | Formula Number | 64-char hex string (SHA-256 or random 256-bit) |
 | Formula Identifier | `{formulaNumber}:{nodeNumber}` |
-| Locator | `endo://{nodeNumber}/?id={formulaNumber}&type={type}` |
+| Locator | `endo://{peerKey}/{formulaAddress}?type={type}` |
 
 ### Current Locator Format
 
-Standard locator (locator.js:89-101):
+Standard locator (locator.js):
 ```
-endo://{nodeNumber}/?id={formulaNumber}&type={formulaType}
-```
-
-Invitation locator (daemon.js:3166-3173):
-```
-endo://{nodeNumber}?id={invitationNumber}&from={handleNumber}&at={address1}&at={address2}
+endo://{peerKey}/{formulaAddress}?type={formulaType}
 ```
 
-Connection hints are passed as repeated `at` query parameters.
+Invitation locator (daemon.js):
+```
+endo://{peerKey}/{invitationAddress}@{hint1}@{hint2}?type=invitation&from={handleAddress}
+```
+
+The URL path is a sequence of `@`-delimited components.
+The first component is the formula address; subsequent components are
+connection hints in the form `<transport-prefix>:<transport-payload>`.
+Each component is URL-encoded so that `@`, `/`, and `?` inside a hint
+round-trip cleanly.
 
 ### Current Types (types.d.ts)
 
@@ -102,8 +106,16 @@ Invitation locator:
 endo://{peerKey}/{invitationAddress}@{hint1}@{hint2}?type=invitation&from={handleAddress}
 ```
 
-The `from` parameter contains only the handle's formula address (peer key is
-the same as the hostname).
+The URL path is a sequence of `@`-delimited components.
+The first component is the formula address; subsequent components are
+connection hints of the form `<transport-prefix>:<transport-payload>`
+(for example, `ws-relay+captp0://example.com:8920` or
+`tor:abc123def456.onion:443`).
+Each component is URL-encoded with `encodeURIComponent` so that `@`, `/`,
+and `?` inside a hint do not collide with the path syntax.
+
+The `from` parameter on an invitation contains only the handle's formula
+address (peer key is the same as the hostname).
 
 ### New Types (types.d.ts)
 
@@ -309,9 +321,10 @@ original.
 - Update function documentation to use new terminology (no signature changes)
 
 **`packages/daemon/src/locator.js`**
-- Update `parseLocator` return type to include `hints`
-- Add `formatLocatorWithHints`
-- Add backward compatibility: detect old format (has `id` query param)
+- Update `parseLocator` to return `hints` (the URL-decoded `@`-delimited
+  path components after the formula address)
+- Update `formatLocator` and `formatLocatorForSharing` to emit
+  `@`-delimited URL-encoded path components
 
 **`packages/daemon/src/directory.js`**
 - Add `locateWithHints` implementation
@@ -327,21 +340,14 @@ original.
 
 ---
 
-## Migration
-
-Type aliases allow incremental code migration. `parseLocator` detects the
-format by checking for the `id` query parameter (old format) vs formula
-address in path (new format). No state migration is needed since formulas
-store formula keys, not locators.
-
 ## Test Plan
 
-- Parse/format round-trip for new locator format
-- Parse with URL-encoded hints containing `@` or `/`
-- Backward compatibility: parse old `?id=` format
+- Parse/format round-trip for the locator format
+- Parse with URL-encoded hints containing `@`, `/`, or `?`
+- Multiple connection hints (`ws` + `libp2p` + `tor`)
 - `locateWithHints` returns locator with current peer hints
 - Dehydration/hydration round-trip invariant
-- Integration: invitation creation and acceptance with new format
+- Integration: invitation creation and acceptance
 - LOCAL_NODE normalization:
   - `internalizeLocator` normalizes local keys to LOCAL_NODE
   - `internalizeLocator` preserves remote node keys

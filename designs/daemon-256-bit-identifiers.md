@@ -123,11 +123,17 @@ const idPattern = /^(?<number>[0-9a-f]{64}):(?<node>[0-9a-f]{64})$/;
 
 #### Locator Format
 
-The locator format is unchanged but uses shorter identifiers:
+The locator format uses shorter identifiers and embeds the formula
+address as the first `@`-delimited URL-encoded path component:
 
 ```
-endo://{64-char node}/?id={64-char number}&type={type}
+endo://{64-char peerKey}/{64-char formulaAddress}?type={type}
 ```
+
+Connection hints are added as subsequent `@`-delimited URL-encoded path
+components.
+See [`daemon-locator-reference.md`](./daemon-locator-reference.md) for
+the full locator grammar.
 
 #### Storage Path Format
 

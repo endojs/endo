@@ -941,7 +941,12 @@ export const renderGraph = (
             const locator = await E(powers).locate(name);
             if (!locator) return;
             const url = new URL(/** @type {string} */ (locator));
-            const formulaNumber = url.searchParams.get('id');
+            // The first `@`-delimited URL-encoded path component is the
+            // formula address.
+            const [formulaNumber] = url.pathname
+              .replace(/^\//, '')
+              .split('@')
+              .map(decodeURIComponent);
             const nodeNumber = url.hostname;
             const type = url.searchParams.get('type') || 'unknown';
             if (formulaNumber) {
@@ -979,7 +984,12 @@ export const renderGraph = (
         const locator = await E(powers).locate('@agent');
         if (locator) {
           const url = new URL(/** @type {string} */ (locator));
-          const num = url.searchParams.get('id');
+          // The first `@`-delimited URL-encoded path component is the
+          // formula address.
+          const [num] = url.pathname
+            .replace(/^\//, '')
+            .split('@')
+            .map(decodeURIComponent);
           const node = url.hostname;
           if (num) agentId = `${num}:${node}`;
         }
