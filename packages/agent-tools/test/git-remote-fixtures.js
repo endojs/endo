@@ -20,7 +20,7 @@ const execFileAsync = promisify(execFile);
  * plane, and `makeGit` mints the exo `Git` capability over the pair.
  *
  * @param {string} root absolute path to a git working tree
- * @returns {{ git: ReturnType<typeof makeGit>, mount: ReturnType<typeof makeMount>, root: string }}
+ * @returns {Promise<{ git: ReturnType<typeof makeGit>, mount: ReturnType<typeof makeMount>, root: string }>}
  */
 export const composeGitOverWorktree = async root => {
   const filePowers = makeFilePowers({ fs, path });
