@@ -33,9 +33,6 @@ The sink extends the linked list one node at a time as the publisher emits
 values.
 Each spring is an independent cursor over the same list; when a spring is
 created, its cursor starts at the next node the publisher will add.
-This is the same primitive `@endo/stream` introduced in commit `cbbd57c03`
-(later removed during the `@endo/harden` refactor); the present package lifts
-the primitive into a sibling.
 
 ```js
 import { makePubSub } from '@endo/pubsub/pub-sub.js';
@@ -140,13 +137,3 @@ companion `notifier-pubsub-migration` design), which lifts a local topic to a
 topic exo via a `from-iterator`-style factory in the same way
 `@endo/exo-stream`'s `PassableReader` / `PassableWriter` lift `@endo/stream`'s
 local `Reader<T>` / `Writer<T>`.
-
-## Provenance
-
-The async-promise-linked-list convention this package uses originally landed
-on `@endo/stream` itself in commit `cbbd57c03` (*"feat(stream): Introduce
-pubsub topics"*) and was removed during the `@endo/harden` refactor.
-The `notifier-pubsub-migration` design document on the `llm` branch revisits
-the lossy / lossless taxonomy from `@agoric/notifier`'s notifier-pair and
-subscription-pair, names this package's local-layer role, and proposes
-`@endo/exo-pubsub` as its exo-layer sibling.

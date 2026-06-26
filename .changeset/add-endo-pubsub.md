@@ -1,5 +1,5 @@
 ---
-'@endo/pubsub': minor
+'@endo/pubsub': major
 ---
 
 Add `@endo/pubsub` package: local-layer pubsub topics over a shared async promise linked list (the Sink + Spring convention).

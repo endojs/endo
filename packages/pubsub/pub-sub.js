@@ -28,10 +28,6 @@ const freeze = /** @type {<T>(v: T | Readonly<T>) => T} */ (Object.freeze);
  * begins its cursor at the *next* node, not at the head, matching the
  * lossless-deltas semantics of `makeChangeTopic`.
  *
- * The mechanism is the same one the now-removed `makePubSub` in
- * `@endo/stream` introduced; the present file lifts it from package history
- * into the new local-layer `@endo/pubsub`.
- *
  * The `pub.put(value)` calls advance the linked list synchronously; subscribers
  * observe new nodes when they `get()` and the value they observe is the value
  * the producer most recently advanced past.
