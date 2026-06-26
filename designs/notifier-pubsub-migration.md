@@ -4,8 +4,8 @@
 |---|---|
 | **Created** | 2026-06-23 |
 | **Updated** | 2026-06-26 |
-| **Author** | Kris Kowal (prompted) |
-| **Status** | Revision 6 (the `@endo/cancel` package has merged onto `llm`, so the cancellation dependency is no longer a prerequisite gate: the design now imports `makeCancelKit` from the landed package and tracks its actual `{ cancelled, cancel, isCancelled }` shape) |
+| **Author** | Kris Kowal |
+| **Status** | Proposed |
 
 ## What is the Problem Being Solved?
 
@@ -31,26 +31,19 @@ retire `@agoric/notifier`.
 `@agoric/notifier` continues to ship from `agoric-sdk` and the agoric-sdk
 maintainer's schedule decides any future deprecation independently.
 
-### Reorientation: start at the local layer
+### Start at the local layer
 
-Earlier revisions of this design were rooted at the exo layer (`@endo/exo-pubsub`)
-and treated the local layer as a sibling named in passing.
-Revision 4 inverts that.
-The maintainer's framing on PR #507 review (2026-06-23):
-
-> in the way that `@endo/exo-stream` focuses on adapting local async
-> iterators to passable readers, it may make more sense for us to start
-> from local pubsub foundations including async promise queues
-> (`@endo/stream` and `@endo/pubsub` layer) and async iterators for both
-> consuming and producing changes or updates, as well as adapters for
-> sampling a value and changes to a value on demand.
-> ...
-> In the next iteration, I would like to focus on a broader but tighter
-> set of adapters that lift and drop between passable and local pubsub
-> primitives.
-
-That direction collapses the prior "two topic shapes as exos" framing
-into a layered shape:
+This design starts from local pubsub foundations.
+In the way that `@endo/exo-stream` focuses on adapting local async
+iterators to passable readers, the pubsub family starts from local
+pubsub foundations including async promise queues (the `@endo/stream`
+and `@endo/pubsub` layer) and async iterators for both consuming and
+producing changes or updates, plus adapters for sampling a value and
+changes to a value on demand.
+The exo layer is a broad but tight set of adapters that lift and drop
+between passable and local pubsub primitives, rather than a fixed catalog
+of topic shapes.
+The design is a layered shape:
 
 1. **A local `@endo/pubsub` package** at the `@endo/stream` layer.
    Two factories (`makeChangesPubSub`, `makeLatestPubSub`) that return a
@@ -74,11 +67,8 @@ and what is passable, given that the two often differ.
 
 ### Asymmetric passability
 
-Revision 4 takes seriously the maintainer's observation:
-
-> it occurs to me that there is an asymmetry where it may be sensible for
-> either the topic or the publisher to be passable, but rarely both.
-
+There is an asymmetry where it is sensible for either the topic or the
+publisher to be passable, but rarely both.
 A pubsub kit has two facets, the publisher (producer end) and the topic
 (consumer-fan-out end).
 In practice, **one of the two facets is the wire-crossing facet, the
@@ -103,11 +93,9 @@ with a publisher-passable adapter, two separate decisions.
 
 ### Incubation on `llm`
 
-Per the maintainer's framing on inline comment 3460690829:
-
-> Please make the base for this build the llm branch. This will incubate
-> here and later get projected out to a change on the master branch.
-
+The base for this build is the `llm` branch.
+The work incubates there and later gets projected out to a change on the
+`master` branch.
 The whole package family (`@endo/pubsub` at the local layer,
 `@endo/exo-pubsub` at the exo layer) incubates on the `llm` branch, both
 the design and the implementation.
@@ -119,11 +107,14 @@ the implementation stabilized.
 ### Greenfield scope
 
 The packages are **greenfield for Endo.**
-No existing Endo or endo-but-for-bots consumer migrates onto them as a
-prerequisite.
-The only in-tree call site that the new packages will eventually replace
-is `formulaChangeTopic` in `packages/daemon/`, and that replacement is a
-follow-up rather than a precondition.
+The one in-tree primitive that moves as part of this change is the
+daemon's `makeChangePubSub` in `packages/daemon/src/pubsub.js`: it is
+migrated onto `@endo/pubsub` and the daemon-internal copy removed, so the
+daemon imports the re-homed kit instead of carrying its own.
+The daemon's `formulaChangeTopic`, a separate consumer built on that
+primitive, is left to a follow-up rather than rewritten here.
+Beyond that, no existing Endo or endo-but-for-bots consumer migrates onto
+the packages as a prerequisite.
 The packages land on their own merits as primitives that future Endo
 code can use; whether and when other ecosystems (agoric-sdk, third-party
 consumers) adopt them is out of scope for this design.
@@ -203,29 +194,42 @@ not replay history.
 type ChangesPubSub<T> = {
   sink: AsyncSink<T>;
   makeSpring(): AsyncSpring<T>;
-  finish(value?: undefined): void;
-  fail(reason: Error): void;
 };
 ```
 
-The factory shape matches the existing `makeChangePubSub` in
-`packages/daemon/src/pubsub.js` (file path; the daemon's existing function
-keeps its current name during the migration window so this design's
-landing does not churn unrelated daemon call sites).
-This package re-homes the primitive to a reusable location and adds
-termination (`finish` / `fail`) at the kit level so subscribers see a
-clean `done: true` or a thrown error rather than a hung spring.
+The kit is exactly `{ sink, makeSpring }`.
+There are no `finish` / `fail` methods at the kit level.
+At the queue layer `put` is a non-terminating sequence: the producer puts
+values and never has to announce an end.
+When termination *is* expressed, it rides the `sink` itself, which is a
+full `Writer` facet (`put` / `return` / `throw`) rather than a bare
+`AsyncSink`.
+A `sink.return()` settles every active spring's pending `get()` with the
+terminal sentinel (the spring's `Reader`-wrapping yields `{ done: true,
+value: undefined }`); a `sink.throw(error)` settles them with a rejection.
+A failure may also be carried as a rejected value through `put`, since a
+spring's value is itself a promise.
+
+This is the iterator-protocol duality: `put` is the plural `next`, and the
+terminating `return` / `throw` are the same two terminators a `Writer`
+already carries.
+
+The factory replaces the daemon's existing `makeChangePubSub` in
+`packages/daemon/src/pubsub.js`.
+That daemon-internal function is migrated onto `@endo/pubsub` and removed
+as part of this change; the daemon's call sites import the re-homed kit
+from the package.
 
 ```js
 import { makeChangesPubSub } from '@endo/pubsub/changes-pubsub.js';
 
-const { sink, makeSpring, finish, fail } = makeChangesPubSub();
+const { sink, makeSpring } = makeChangesPubSub();
 sink.put('a');
 const earlySpring = makeSpring();
 sink.put('b');
 const lateSpring = makeSpring();
 sink.put('c');
-finish();
+sink.return();
 // earlySpring sees: a, b, c, done
 // lateSpring sees: c, done
 ```
@@ -250,13 +254,12 @@ status-display / exchange-rate-style data.
 type LatestPubSub<T> = {
   sink: AsyncSink<T>;
   makeSpring(): AsyncSpring<T>;
-  finish(value?: undefined): void;
-  fail(reason: Error): void;
 };
 ```
 
-The kit shape is identical to `makeChangesPubSub`; the retention policy
-differs.
+The kit shape is identical to `makeChangesPubSub` (`{ sink, makeSpring }`,
+with the `sink` carrying the full `put` / `return` / `throw` Writer
+facet); the retention policy differs.
 Internally, `makeLatestPubSub` maintains one cell (the most recent
 published value) plus a "next" promise that resolves on the next publish.
 A spring's `get()` either resolves immediately with the current cell
@@ -265,14 +268,14 @@ A spring's `get()` either resolves immediately with the current cell
 ```js
 import { makeLatestPubSub } from '@endo/pubsub/latest-pubsub.js';
 
-const { sink, makeSpring, finish } = makeLatestPubSub();
+const { sink, makeSpring } = makeLatestPubSub();
 sink.put(1);
 sink.put(2);
 const spring = makeSpring();
 const a = await spring.get();  // 2 (latest, not 1)
 sink.put(3);
 const b = await spring.get();  // 3
-finish();
+sink.return();
 ```
 
 A spring minted before the first publish blocks on its first `get()` until
@@ -284,90 +287,35 @@ This is a settled decision, not an option.
 A spring minted after at least one value has been published resolves its
 first `get()` immediately with the most recent cell, then waits for the
 next publish.
-The maintainer's framing on the revision-4 review: *"'Latest' should
-always replay latest to a late subscriber."*
+Latest always replays the latest value to a late subscriber.
 There is no from-now-forward variant of `makeLatestPubSub`; a caller who
 wants strictly-future values without the initial replay uses
 `makeChangesPubSub` (whose late springs see only post-mint values) rather
 than a latest topic.
 
-### Termination and cancellation
+### Cancellation
 
-The `finish()` / `fail(error)` methods on each kit are the package's
-producer-side termination surface.
-A `finish()` settles every active spring's pending `get()` with the
-terminal sentinel (the spring's `Reader`-wrapping yields `{ done: true,
-value: undefined }`).
-A `fail(error)` settles them with a rejection.
+Cancellation is a consumer-side concern, applied at the adapter boundary,
+not a kit-construction concern.
+The local kit (`{ sink, makeSpring }`) does not take or thread a cancel
+handle; producer-side termination rides the `sink`'s `return` / `throw`
+per § *`makeChangesPubSub`* above.
 
-For **consumer-side cancellation**, this design adopts
-`makeCancelKit()` (per the maintainer's framing on inline comment
-3460690829: "Consider using `makeCancelKit`").
-As of the `@endo/cancel` package landing on `llm`, the shape is
-fixed by that package's `CancelKit` type:
-
-```ts
-type Cancelled = Promise<never>;
-type Cancel = (reason?: Error) => void;
-type IsCancelled = () => boolean;
-type CancelKit = {
-  cancelled: Cancelled;
-  cancel: Cancel;
-  isCancelled: IsCancelled;
-};
-declare const makeCancelKit: (
-  parentCancelled?: Cancelled,
-  parentIsCancelled?: IsCancelled,
-) => CancelKit;
-```
-
-The kit returns the rejection-side of a promise (`cancelled`), the
-function that rejects it (`cancel`), and a synchronous observation
-function (`isCancelled`) for the local-side fast path.
-Passing a parent `cancelled` (and optionally a parent `isCancelled`)
-propagates cancellation from parent to child automatically, which the
-adapter set uses to fan one consumer's cancellation down to every
-spring it drains.
-A consumer that wants to stop draining a spring (or, at the exo layer, a
-remote topic) constructs a `CancelKit`, passes `cancelled` to the
-draining wrapper, and calls `cancel(reason)` when ready to stop.
-The pattern replaces the
-`makePromiseKit()` + manual-rejection idiom that earlier revisions of
-this design used inline:
+A consumer that wants to stop draining passes a `cancelled: Promise<never>`
+(the rejection-side of an `@endo/cancel` `CancelKit`) to the draining
+adapter (`readerFromTopic`, the patcher's `observe`, or the samplers) and
+settles it when ready to stop:
 
 ```js
-// Earlier revisions (manual):
-const { reject: cancel, promise: cancelled } = makePromiseKit();
-// ...
-cancel(Error('done'));
-
-// This revision (with makeCancelKit):
 const { cancel, cancelled } = makeCancelKit();
-// ...
+const reader = readerFromTopic(topic, cancelled);
+// ... later, to stop draining and release per-consumer state:
 cancel(Error('done'));
 ```
 
-**Home: `@endo/cancel`.**
-The maintainer's framing on the revision-4 review:
-
-> `@endo/cancel` should already exist on the llm branch.
-> Otherwise, this should be gated on merging the cancel package.
-
-The `@endo/cancel` package has since merged onto `llm`
-(`packages/cancel/`, exporting `makeCancelKit` from its index and the
-`CancelKit` / `Cancelled` / `Cancel` / `IsCancelled` types from
-`./src/types.js`).
-The earlier gate is therefore cleared: `@endo/pubsub` and
-`@endo/exo-pubsub` take `@endo/cancel` as a workspace dependency and
-import `makeCancelKit` from it; neither package re-homes the primitive
-nor ships an internal copy.
-Alongside `makeCancelKit`, the landed package also ships the
-abort-bridging helpers (`@endo/cancel/from-abort`, `@endo/cancel/to-abort`,
-`@endo/cancel/abort`), cancellable iteration combinators
-(`@endo/cancel/all-map`, `@endo/cancel/any-map`), and cancellable delays
-(`@endo/cancel/delay`, `@endo/cancel/delay-lite`); the pubsub packages
-use only `makeCancelKit` from the index for now, but the abort bridges
-are the natural seam for a future `AbortSignal`-driven consumer.
+`makeCancelKit` comes from `@endo/cancel` (`packages/cancel/`), which is
+present on `llm`; both pubsub packages take it as a workspace dependency
+rather than re-homing the primitive.
 See § *Cross-design coordination* for the dependency row.
 
 ## `@endo/exo-pubsub`: the adapter set
@@ -375,7 +323,7 @@ See § *Cross-design coordination* for the dependency row.
 The exo-layer package is **not** a fixed catalog of topic shapes.
 It is a set of adapters that decide, per-direction and per-facet, what
 crosses the wire and what stays local.
-The set below enumerates the adapters the maintainer's review names.
+The set below enumerates the adapters this design defines.
 Each adapter is one module under `packages/exo-pubsub/` (no barrel
 exports, per the project `CLAUDE.md`).
 
@@ -438,7 +386,7 @@ returned from `makeChangesPubSub`'s spring carries a `sinkChanges`
 method; the topic exo returned from `makeLatestPubSub`'s spring carries
 a `sinkLatest` method).
 
-#### `hotTopicFromExoStream` / `coldTopicFromExoStream`: lift a passable reader's wire protocol into a topic
+#### `hotTopicFromStreamableExo` / `coldTopicFromStreamableExo`: lift a passable reader's wire protocol into a topic
 
 Given a `PassableReader<T>` exo (the existing exo-stream protocol over
 the wire), lift it to a passable topic exo that fans the reader's
@@ -451,21 +399,13 @@ to a local fan-out across several consumers, without forcing the
 producer to know how many consumers exist.
 
 **Two variants: hot and cold.**
-The maintainer's framing on the revision-4 review:
-
-> We should have both.
-> Please investigate the right name.
-> I have seen the labels "hot" versus "cold" as well as "lazy" versus
-> "eager".
-> I suspect these are hot and cold variations.
-
-They are.
+The adapter set carries both.
 The distinction is *when the underlying passable reader starts draining*,
 which is exactly the reactive-streams hot / cold axis (whether production
 runs independently of subscription, or is deferred until a subscriber
 demands it):
 
-- **`hotTopicFromExoStream`** drains the passable reader eagerly, on
+- **`hotTopicFromStreamableExo`** drains the passable reader eagerly, on
   adapter construction, regardless of whether any subscriber has
   attached.
   Values flow off the wire immediately; a subscriber that attaches late
@@ -474,17 +414,18 @@ demands it):
   This is the eager shape, and it matches the "drop the back-pressure"
   framing that `topicFromReader` uses: the source is consumed as fast as
   the wire delivers.
-- **`coldTopicFromExoStream`** drains lazily, starting on the first
-  subscriber and stopping (cancelling the underlying exo-stream
+- **`coldTopicFromStreamableExo`** drains lazily.
+  It starts a **new** stream from the streamable exo whenever a first
+  subscriber arrives, and stops it (cancelling the underlying exo-stream
   subscription) when the last subscriber leaves.
+  A later first-subscriber arrival starts a fresh stream again.
   No cost is paid while no subscriber is attached, at the expense of a
   per-first-subscriber start latency and the possibility that the first
   subscriber, not the adapter's constructor, triggers the remote
   producer's work.
 
 These are sibling adapters, not a `{ hot: boolean }` toggle on one
-function (the maintainer's standing preference for this axis, carried
-from the revision-4 open-questions prose).
+function.
 The hot / cold vocabulary is preferred over eager / lazy because it is
 the established reactive-streams term for "production independent of
 subscription" versus "production deferred to subscription," which is
@@ -493,20 +434,20 @@ from the implementation's point of view and is retained only as the
 in-prose gloss.
 
 ```ts
-type ExoStreamTopicOptions = {
+type StreamableExoTopicOptions = {
   valuePattern?: Pattern,
   returnPattern?: Pattern,
   buffer?: number,
 };
 
-function hotTopicFromExoStream<T>(
+function hotTopicFromStreamableExo<T>(
   passableReader: ERef<PassableReader<T>>,
-  options?: ExoStreamTopicOptions,
+  options?: StreamableExoTopicOptions,
 ): PassableChangesTopicExo<T>;
 
-function coldTopicFromExoStream<T>(
+function coldTopicFromStreamableExo<T>(
   passableReader: ERef<PassableReader<T>>,
-  options?: ExoStreamTopicOptions,
+  options?: StreamableExoTopicOptions,
 ): PassableChangesTopicExo<T>;
 ```
 
@@ -514,9 +455,8 @@ function coldTopicFromExoStream<T>(
 
 The inverse: given a passable topic exo, drop it to a local
 `Reader<T>` on the consumer side.
-This is the local-consumer-facing adapter that earlier revisions of this
-design called `iterateChanges` / `iterateLatest`; this revision keeps a
-single adapter whose name describes the direction.
+This is the local-consumer-facing adapter, a single adapter whose name
+describes the direction rather than a per-retention-policy pair.
 
 ```ts
 function readerFromTopic<T>(
@@ -530,31 +470,41 @@ to decide which sink method to call (`sinkChanges` versus `sinkLatest`).
 The `cancelled` argument is the rejection-side of a `CancelKit`; settling
 it releases the per-consumer producer-side state.
 
-#### `patcherFromTopic(topic, applyDelta, cancelled)`: patch a local value from a remote subscription
+#### `patcherFromTopic(topic, patch, cancelled)`: patch a local value from a remote subscription
 
-The maintainer's review names this directly:
-
-> We can likewise create a patcher for a local value from a remote
-> subscription.
-
-Given a passable changes topic exo and a delta-applying function, drain
-the topic against a caller-supplied initial value, applying each delta
-in arrival order.
+This adapter creates a patcher for a local value from a remote
+subscription.
+Given a passable changes topic exo and a `patch` function, drain the
+topic against a caller-supplied initial value, applying each delta in
+arrival order.
 
 ```ts
+type Canceller = (reason?: Error) => void;
+
 function patcherFromTopic<T, D>(
   topic: ERef<PassableChangesTopicExo<D>>,
   initial: T,
-  applyDelta: (current: T, delta: D) => T,
+  patch: (current: T, delta: D) => T,
   cancelled: Promise<never>,
 ): {
-  current(): T;
-  subscribe(observer: (snapshot: T) => void): () => void;
+  get(): T;
+  observe(observer: (snapshot: T) => Canceller | void): Canceller;
 };
 ```
 
-A caller can use `current()` to read the current patched value at any
-time, or `subscribe(observer)` to be notified on each delta apply.
+A caller uses `get()` to read the current patched value at any time, or
+`observe(observer)` to be notified on each delta apply.
+
+`observe` follows the FRB-style canceller-nesting discipline.
+On each emitted snapshot the `observer` may return a `Canceller`.
+Before the next value is emitted, the previous snapshot's `Canceller` is
+invoked, so an observer can stack per-snapshot teardown (detaching the
+listeners it attached for the value it last saw) without writing the
+unwind by hand.
+An observer that returns nothing opts out of per-snapshot teardown.
+`observe` itself returns a `Canceller` that stops the observation
+entirely; calling it also invokes the most recent snapshot's `Canceller`.
+
 The `cancelled` argument settles the underlying topic subscription per
 the standard cancel pattern.
 
@@ -562,17 +512,12 @@ This adapter is the local-side counterpart to a remote source that
 publishes deltas to a topic: the caller patches a local mirror without
 having to write the drain loop by hand.
 
-#### `coalesceReader(reader, reduce, options?)`: consumer-side coalescing middleware
+#### `reduceReader(reader, reduce, options?)`: consumer-side coalescing middleware
 
-The maintainer's review names this directly:
-
-> Let's specifically add the coalescing accumulator middleware to the
-> design.
-> The consumer of differential updates should have the option of
-> providing a reducer function, including potentially an operational
-> transform, that can relieve pressure or debounce updates to the
-> ultimate consumer.
-
+The adapter set includes a coalescing accumulator middleware.
+The consumer of differential updates has the option of providing a
+reducer function, including potentially an operational transform, that
+can relieve pressure or debounce updates to the ultimate consumer.
 This is a **consumer-side reader-to-reader middleware**, not a topic
 shape.
 Given a local `Reader<T>` (typically the output of `readerFromTopic` on a
@@ -582,7 +527,7 @@ upstream reader delivers between drains into a single accumulated value,
 relieving pressure on the ultimate consumer.
 
 ```ts
-function coalesceReader<T, A>(
+function reduceReader<T, A>(
   reader: Reader<T>,
   reduce: (accumulated: A | undefined, next: T) => A,
   options?: {
@@ -609,22 +554,17 @@ Mechanics:
 - `cancelled` settles the middleware (and propagates cancellation to the
   upstream reader) per the standard `@endo/cancel` pattern.
 
-`coalesceReader` deliberately carries **no** time-based coalescing
+`reduceReader` deliberately carries **no** time-based coalescing
 option.
-The maintainer's review on this revision:
-
-> If we integrate the debouncer, we need to also accept a timer, which
-> is beyond the scope.
-> Please remove, but add a section on composing a timer subscription.
-> In general, a timer is an I/O capability that should always be
-> injected in the ocap discipline, which is a house rule for the garden
-> and endo.
-
+Integrating a debouncer would require also accepting a timer, which is
+beyond this adapter's scope.
 Time-based coalescing (debounce, throttle) needs a clock, and a clock is
-an I/O capability that this package must not reach for ambiently.
-The "debounce updates to the ultimate consumer" path the maintainer's
-earlier review named is therefore expressed by **composition** with an
-injected timer, not by a `debounceMs` option on this adapter.
+an I/O capability that should always be injected under the ocap
+discipline, a house rule for the garden and endo; this package must not
+reach for one ambiently.
+The "debounce updates to the ultimate consumer" path is therefore
+expressed by **composition** with an injected timer, not by a
+`debounceMs` option on this adapter.
 See § *Composing a timer subscription* below.
 
 The middleware is the reusable form of the `retention-accumulator.js`
@@ -661,10 +601,7 @@ acknowledgement or side-effect, then puts on a sink the caller controls.
 
 #### `publisherFromUpdateSampler(sample, schedule, options?)`: mint a publisher from a value sampler
 
-The maintainer's review names this directly:
-
-> We can create a publisher from an async iterator or an update sampler
-
+A publisher can come from an async iterator or an update sampler.
 Given a synchronous-or-async `sample()` function that returns the
 current value of some observable thing, plus a `schedule(callback)`
 function that fires the callback whenever the underlying thing might
@@ -675,25 +612,34 @@ sample on each schedule firing.
 function publisherFromUpdateSampler<T>(
   sample: () => T | Promise<T>,
   schedule: (callback: () => void) => () => void,
+  cancelled: Promise<never>,
   options?: { valuePattern?: Pattern },
 ): {
   publisher: PassablePublisherExo<T>;
-  stop(): void;
+  get(): T | Promise<T>;
+  observe(observer: (value: T) => Canceller | void): Canceller;
 };
 ```
 
 The shape is suitable for "latest" surfaces: the publisher is wired into
 a `makeLatestPubSub` so that each remote subscriber sees only the most
 recent sample.
-The returned `stop()` releases the `schedule` subscription and finalizes
-the underlying pubsub.
+
+Teardown rides the `cancelled` argument, symmetric with the draining
+adapters: settling the `cancelled` promise releases the `schedule`
+subscription and finalizes the underlying pubsub.
+There is no returned `stop()`.
+
+`get()` reads the current sample, and `observe(observer)` notifies on
+each sampled update with the same canceller-nesting contract as the
+patcher's `observe`: the observer may return a per-value `Canceller` that
+is invoked before the next value is emitted, and `observe` returns a
+`Canceller` that stops observation.
 
 #### `publisherFromChangeSampler(sample, diff, schedule, options?)`: mint a publisher from a differential change sampler
 
-The maintainer's review names this directly:
-
-> ... or a differential change sampler given a diff function.
-
+A publisher can also come from a differential change sampler given a
+diff function.
 Given a `sample()` that returns the current value, a `diff(prev, next)`
 that returns the change between two samples (or a sentinel `null` /
 `undefined` for "no change"), and a `schedule(callback)` that fires when
@@ -705,16 +651,27 @@ function publisherFromChangeSampler<T, D>(
   sample: () => T | Promise<T>,
   diff: (prev: T, next: T) => D | undefined,
   schedule: (callback: () => void) => () => void,
+  cancelled: Promise<never>,
   options?: { deltaPattern?: Pattern },
 ): {
   publisher: PassablePublisherExo<D>;
-  stop(): void;
+  get(): D | undefined;
+  observe(observer: (delta: D) => Canceller | void): Canceller;
 };
 ```
 
 The shape is suitable for "changes" surfaces: the publisher is wired
 into a `makeChangesPubSub` so that each remote subscriber receives every
 diff.
+
+As above, so below: teardown rides the `cancelled` argument rather than a
+returned `stop()`, and the surface is symmetric with the update sampler.
+`get()` reads the most recent diff (or `undefined` before the first
+change), and `observe(observer)` notifies on each non-null change with
+the same canceller-nesting contract: the observer may return a per-delta
+`Canceller` invoked before the next delta is emitted, and `observe`
+returns a `Canceller` that stops observation.
+
 This is the adapter the daemon-cross-peer-gc retention-accumulator
 pattern would lift to, were its current single-mutation-surface refactored
 onto the new package.
@@ -748,11 +705,6 @@ Neither `@endo/pubsub` nor `@endo/exo-pubsub` reads the clock.
 A timer is an I/O capability, and the ocap discipline both the garden and
 endo hold as a house rule is that an I/O capability is **always
 injected**, never reached for ambiently.
-The maintainer's review on this revision:
-
-> In general, a timer is an I/O capability that should always be injected
-> in the ocap discipline, which is a house rule for the garden and endo.
-
 So time-based behavior (debounce, throttle, periodic sampling) is not a
 feature of any adapter in this design.
 It is something a caller **composes** by injecting a timer.
@@ -783,8 +735,8 @@ construction.
 
 ### Debounce by composition
 
-The `debounceMs` option removed from `coalesceReader` is recovered by
-composing a `coalesceReader` (which does the value-folding) with a
+The `debounceMs` option removed from `reduceReader` is recovered by
+composing a `reduceReader` (which does the value-folding) with a
 caller-supplied timer (which does the windowing).
 The consumer that wants debounce writes a small reader-to-reader wrapper
 that holds the coalesced accumulator until a timer fires:
@@ -792,14 +744,14 @@ that holds the coalesced accumulator until a timer fires:
 ```js
 // caller injects its own timer and its own cancel kit's `cancelled`
 const makeDebouncedReader = (reader, timer, windowMs, cancelled) => {
-  // coalesceReader folds the burst losslessly; the timer decides when
+  // reduceReader folds the burst losslessly; the timer decides when
   // the folded value is released to the ultimate consumer.
-  const coalesced = coalesceReader(reader, (acc, next) => next, { cancelled });
+  const coalesced = reduceReader(reader, (acc, next) => next, { cancelled });
   return makeStream(/* a spring fed by a sink the timer drives */);
 };
 ```
 
-The division of labor is clean: `coalesceReader` owns the **what**
+The division of labor is clean: `reduceReader` owns the **what**
 (which values fold together and how), and the injected timer owns the
 **when** (the window boundary).
 Neither the local package nor the exo package gains a clock dependency,
@@ -851,7 +803,7 @@ The wire-protocol-side accumulation is unbounded by default.
 A consumer that does not drain pins consumer-process memory.
 A consumer that needs a bound applies it on the local side, after
 `readerFromTopic` recovers the local reader: the consumer wraps its
-local reader with `coalesceReader` (see § *`coalesceReader`: consumer-side
+local reader with `reduceReader` (see § *`reduceReader`: consumer-side
 coalescing middleware* above) supplying its own reducer (and, for
 time-based coalescing, its own injected timer per § *Composing a timer
 subscription*), or with a drop-oldest policy of its own choosing.
@@ -863,12 +815,12 @@ consumer that knows its memory budget knows the right policy.
 | Design | Relationship |
 |---|---|
 | [daemon-message-streaming](daemon-message-streaming.md) | The closest in-tree precedent for an exo-shaped streaming interface. Its four-event taxonomy (`append` / `setPhase` / `end` / `abort`) collapses onto the `next` / `return` / `throw` triple, which `publisherFromIterator`'s underlying iterator follows. A daemon-message-streaming consumer that wants a fan-out (one streaming source, many downstream UI surfaces) wraps the streaming source's local reader with `topicFromReader` to mint a passable topic, then exposes the topic exo to its UI consumers. |
-| [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | `formulaChangeTopic` is the direct in-tree precedent for the changes-pubsub kit. The `retention-accumulator.js` coalesce-then-deliver primitive is the precedent for the optional subscriber-side delta-coalescing addressed in *Back-pressure and wire protocol*. The new packages generalize `formulaChangeTopic` from a single-purpose daemon-internal topic into a reusable kit plus adapter set; the daemon's existing call site is one of the eventual migration targets. |
-| [presence-severance-observation](presence-severance-observation.md) (PR #450) | Out of reach for this iteration. The presence-severance design has not landed, so the adapters cannot rely on `E.whenSevered(presence)` to observe a remote consumer's CapTP severance. The cancellation surface uses `makeCancelKit` per § *Termination and cancellation*; once presence-severance lands, a future revision can wire `E.whenSevered(consumerPresence)` to settle the cancel kit's promise automatically, so a remote consumer whose CapTP session severs is treated identically to a graceful cancellation. The consumer retains the right to cancel earlier on local conditions. |
+| [daemon-cross-peer-gc](daemon-cross-peer-gc.md) | `formulaChangeTopic` is the direct in-tree precedent for the changes-pubsub kit. The `retention-accumulator.js` coalesce-then-deliver primitive is the precedent for the `reduceReader` consumer-side delta-coalescing addressed in *Back-pressure and wire protocol*. The new packages generalize `formulaChangeTopic` from a single-purpose daemon-internal topic into a reusable kit plus adapter set. The daemon's `makeChangePubSub` is migrated onto `@endo/pubsub` and the daemon-internal function removed as part of this change; `formulaChangeTopic`'s own migration onto the kit is the remaining daemon follow-up. |
+| [presence-severance-observation](presence-severance-observation.md) (PR #450) | Out of reach for this iteration. The presence-severance design has not landed, so the adapters cannot rely on `E.whenSevered(presence)` to observe a remote consumer's CapTP severance. The cancellation surface uses `makeCancelKit` per § *Cancellation*; once presence-severance lands, a future revision can wire `E.whenSevered(consumerPresence)` to settle the cancel kit's promise automatically, so a remote consumer whose CapTP session severs is treated identically to a graceful cancellation. The consumer retains the right to cancel earlier on local conditions. |
 | `@endo/exo-stream` (`packages/exo-stream/`) | The new adapter set composes with the existing exo-stream toolkit. `topicFromReader` calls `readerFromIterator` internally to mint the underlying passable surface; `readerFromTopic` mirrors `iterateReader`'s consumer-side iterator construction. The packages depend on `@endo/exo-stream` for the bidirectional-promise-chain protocol primitives. |
-| `@endo/stream` (`packages/stream/`) | The new local package is a sibling: both build on the Sink / Spring / Queue substrate. The new `@endo/pubsub` re-homes the existing `packages/daemon/src/pubsub.js` `makeChangePubSub` into a reusable location and adds the lossy variant. `makeQueue` and `makeStream` are the substrate; the new package does not reimplement them. |
-| Earlier `@endo/stream` `makePubSub` + `makeTopic` (commit `cbbd57c03`, since removed) | Design-consistency anchor. The new `@endo/pubsub`'s `makeChangesPubSub` matches the removed `makePubSub` shape (sink + many independent springs over a shared async linked list); the kit-with-finish/fail surface is the additional discipline this design adds. |
-| `@endo/cancel` (`packages/cancel/`, landed on `llm`) | The home for `makeCancelKit` per § *Termination and cancellation*. The maintainer's revision-4 review expected `@endo/cancel` to already exist on `llm`, and it now does (the package merged). Both pubsub packages take it as a workspace dependency and import `makeCancelKit` rather than re-homing the primitive; the prerequisite gate that the earlier revisions carried is cleared. The landed surface (`makeCancelKit` with optional parent propagation, plus the `from-abort` / `to-abort` / `all-map` / `any-map` / `delay` subpath helpers) is the cancellation vocabulary the adapter set draws on. |
+| `@endo/stream` (`packages/stream/`) | The new local package is a sibling: both build on the Sink / Spring / Queue substrate. The new `@endo/pubsub` migrates the existing `packages/daemon/src/pubsub.js` `makeChangePubSub` into the package (removing the daemon-internal function) and adds the lossy variant. `makeQueue` and `makeStream` are the substrate; the new package does not reimplement them. |
+| Earlier `@endo/stream` `makePubSub` + `makeTopic` (commit `cbbd57c03`, since removed) | Design-consistency anchor. The new `@endo/pubsub`'s `makeChangesPubSub` matches the removed `makePubSub` shape (sink + many independent springs over a shared async linked list); routing termination through the `sink`'s `return` / `throw` rather than kit-level methods is the additional discipline this design adds. |
+| `@endo/cancel` (`packages/cancel/`, landed on `llm`) | The home for `makeCancelKit` per § *Cancellation*. `@endo/cancel` exists on `llm` (the package merged). Both pubsub packages take it as a workspace dependency and import `makeCancelKit` rather than re-homing the primitive; there is no prerequisite gate. The cancellation surface a consumer touches is the `cancelled: Promise<never>` passed to the draining adapters. |
 
 ## Compatibility considerations
 
@@ -899,22 +851,19 @@ The new packages' designs avoid re-creating that pain:
 Persistence of unread changes in `makeChangesPubSub` across a daemon
 restart, or persistence of the latest cell in `makeLatestPubSub`, is not
 in scope.
-The maintainer's framing on an earlier revision: *"Not relevant at this
-layer. Durable pubsub is another concern that would require durable
-exos. We can introduce these later."*
+This is not relevant at this layer.
+Durable pubsub is another concern that would require durable exos, to be
+introduced later.
 A future to-be-filed tracking issue revisits durable pubsub once durable
 exos exist; that work is a separate sibling design, not a follow-up of
 this one.
 
 ## Future evolution: collection-change propagation
 
-The maintainer's review names a longer-term direction:
-
-> Please also read in https://github.com/kriskowal/frb for how this
-> might later evolve into a system for propagating changes to
-> collections through transform relations with automated subscription
-> and unsubscription.
-
+A longer-term direction is to evolve this into a system for propagating
+changes to collections through transform relations with automated
+subscription and unsubscription, along the lines of
+[FRB](https://github.com/kriskowal/frb).
 [FRB (Functional Reactive Bindings)](https://github.com/kriskowal/frb)
 provides incremental collection-change propagation: arrays and
 collections dispatch granular change records (additions, removals,
@@ -949,59 +898,32 @@ the kits and adapters are parameterized on `T`, and a future
 
 ## Open questions
 
-The revision-4 open questions are resolved by the revision-5 review and
-folded into the design prose:
+The design's settled decisions:
 
-- **Home for `makeCancelKit`** is `@endo/cancel`, which has now merged
-  onto `llm` (the earlier prerequisite gate is cleared); see
-  § *Termination and cancellation* and the `@endo/cancel` row in
-  § *Cross-design coordination*.
+- **Home for `makeCancelKit`** is `@endo/cancel`, which is present on
+  `llm`; see § *Cancellation* and the `@endo/cancel` row
+  in § *Cross-design coordination*.
 - **Latest replays to a late subscriber**, always; see § *`makeLatestPubSub`*.
-- **The exo-stream-sourced topic has both a hot and a cold variant**
-  (`hotTopicFromExoStream` / `coldTopicFromExoStream`); see that adapter's
-  section.
+- **The streamable-exo-sourced topic has both a hot and a cold variant**
+  (`hotTopicFromStreamableExo` / `coldTopicFromStreamableExo`); the cold
+  variant starts a new stream on the first subscriber and stops it when
+  the last leaves. See that adapter's section.
+- **Producer-side termination rides the `sink`**, not kit-level
+  `finish` / `fail` methods; `put` is a non-terminating sequence and the
+  `sink`'s `return` / `throw` carry the terminators. See
+  § *`makeChangesPubSub`*.
 
 No design-level open questions remain.
-The `@endo/cancel` prerequisite has merged onto `llm`, so the design no
-longer carries a cross-PR gate; the one parallel work item is the
-`@endo/pubsub` implementation PR (#513), which this design stays aligned
-with.
-
-## Prompt
-
-The original dispatch prompt and the maintainer's three review iterations
-shape this revision.
-The current iteration's centroid:
-
-> Please read in https://kriskowal.com/gtor for shared vocabulary and
-> take another pass at this design.
-> In the next iteration, I would like to focus on a broader but tighter
-> set of adapters that lift and drop between passable and local pubsub
-> primitives.
-> At the Exo layer, we can create various kinds of topics and publishers
-> as adapters.
-> For example, we can create topics from a local reader or writer,
-> dropping the back-pressure channel.
-> We can create a topic from a Spring.
-> We can create a topic from the Exo stream async promise chain protocol
-> over the wire.
-> We can create a publisher from an async iterator or an update sampler,
-> or a differential change sampler given a diff function.
-> We can likewise create a patcher for a local value from a remote
-> subscription.
-
-The earlier revisions' framing (three topic shapes; two topic shapes
-with exos; greenfield-for-Endo; durable-pubsub-deferred;
-presence-severance-not-yet) remains valid; this revision reorients the
-catalog from "fixed topic shapes" to "adapter set" without abandoning
-the prior scoping decisions.
+`@endo/cancel` is present on `llm`, so the design carries no cross-PR
+gate; the one parallel work item is the `@endo/pubsub` implementation PR
+(#513), which this design stays aligned with.
 
 ## Library and project references
 
 ### Library concepts and sections
 
-- [`concepts/exo-stream.md`](../../journal/library/concepts/exo-stream.md) — the canonical bridge from local async iterators to remote-passable `PassableReader` / `PassableWriter` exo refs. The maintainer's "exo-streams discipline" rooting. Read first.
-- [`sources/endo--packages-stream-README-md`](../../journal/library/sources/) section family — `@endo/stream`'s symmetric Reader/Writer type, parity invariant, back-pressure-via-acks. The `Reader<T>` / `Writer<T>` framing this revision's adapter set anchors on.
+- [`concepts/exo-stream.md`](../../journal/library/concepts/exo-stream.md) — the canonical bridge from local async iterators to remote-passable `PassableReader` / `PassableWriter` exo refs. The exo-streams discipline this design roots on. Read first.
+- [`sources/endo--packages-stream-README-md`](../../journal/library/sources/) section family — `@endo/stream`'s symmetric Reader/Writer type, parity invariant, back-pressure-via-acks. The `Reader<T>` / `Writer<T>` framing the adapter set anchors on.
 - [`sections/endo--packages-stream-index-js--symmetric-async-iterator-streams-with-makeQueue-makePipe-pump-and-prime-utilities`](../../journal/library/sections/) — the source implementation. `makeQueue` is the async-promise-linked-list-queue this design's pubsub kits are built on; `Sink` and `Spring` are the substrate vocabulary.
 - [`sections/agoric-sdk--pkg-notifier-readme--type-differences`](../../journal/library/sections/) — the lossy / lossless taxonomy that distinguishes `makeLatestPubSub` from `makeChangesPubSub`.
 - [`sections/agoric-sdk--pkg-notifier-readme--distributed-operation`](../../journal/library/sections/) — the load-bearing distributed-systems properties: producer-not-vulnerable-to-consumers, consumers-mutually-independent.
