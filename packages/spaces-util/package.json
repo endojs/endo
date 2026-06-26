@@ -27,6 +27,8 @@
     "./code-fence.js": "./src/code-fence.js",
     "./value-vnodes.js": "./src/value-vnodes.js",
     "./value-component.js": "./src/value-component.js",
+    "./formula-view.js": "./src/formula-view.js",
+    "./formula-view-registry.js": "./src/formula-view-registry.js",
     "./value-render.js": "./src/value-render.js",
     "./language-detect.js": "./src/language-detect.js",
     "./markdown-preview.js": "./src/markdown-preview.js",
