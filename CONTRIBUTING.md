@@ -77,6 +77,22 @@ declarations](#typescript-declarations) for more details.
   See
   [`designs/inter-package-plain-re-exports.md`](./designs/inter-package-plain-re-exports.md).
 
+- Within a package, import a name from the module that originally defines and
+  exports it, not from a sibling module that plain-re-exports it.
+  A *plain re-export* is a non-renaming `export { name } from './other.js'`
+  (or `export *`) that adds nothing an importer could not get from `./other.js`
+  directly.
+  In particular, a module should not reach back through its own package's public
+  barrel (`import { name } from './index.js'`) for a name a sibling module
+  defines.
+  A single canonical import source per name spares IDEs and AI tools a pointless
+  choice of where to import from, keeps bundles minimal, and lets the import
+  list document the package's internal layering.
+  The package's public entry barrel itself is a deliberate API surface and is
+  exempt; this rule is about intra-package import edges.
+  See
+  [`designs/intra-package-plain-re-exports.md`](./designs/intra-package-plain-re-exports.md).
+
 ## Markdown Style Guide
 
 When writing Markdown documentation:
