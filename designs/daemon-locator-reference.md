@@ -48,6 +48,13 @@ Each path component is **URL-encoded** with `encodeURIComponent` so that
 For example, a hint `tcp:user@example.com:8920` is encoded as
 `tcp%3Auser%40example.com%3A8920`.
 
+> **Tor hints carry the port separately from the address.** A Tor v3
+> `.onion` address is host-only — a 56-character base32 service identifier
+> followed by `.onion`, with no port embedded in the address. The `:443` in
+> a `tor:` hint is the hidden service's *virtual port*, which the Tor client
+> requests over its SOCKS connection; it lives in the hint's transport
+> payload, never in the `.onion` address itself.
+
 Hints are ephemeral: they reflect the peer's current network configuration
 and may change over time.
 
