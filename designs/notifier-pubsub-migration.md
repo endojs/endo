@@ -587,7 +587,6 @@ function coalesceReader<T, A>(
   reduce: (accumulated: A | undefined, next: T) => A,
   options?: {
     initial?: A,
-    debounceMs?: number,
     cancelled?: Promise<never>,
   },
 ): Reader<A>;
@@ -607,13 +606,26 @@ Mechanics:
   A `reduce` of `(_, next) => next` degenerates to latest-wins
   coalescing; a `reduce` that composes deltas preserves losslessly while
   still collapsing the count of values the consumer must process.
-- `debounceMs`, when set, adds time-based coalescing: the middleware
-  holds the accumulator for up to the debounce window and emits the
-  folded value when the window closes or the upstream terminates,
-  whichever comes first.
-  This is the "debounce updates to the ultimate consumer" path.
 - `cancelled` settles the middleware (and propagates cancellation to the
   upstream reader) per the standard `@endo/cancel` pattern.
+
+`coalesceReader` deliberately carries **no** time-based coalescing
+option.
+The maintainer's review on this revision:
+
+> If we integrate the debouncer, we need to also accept a timer, which
+> is beyond the scope.
+> Please remove, but add a section on composing a timer subscription.
+> In general, a timer is an I/O capability that should always be
+> injected in the ocap discipline, which is a house rule for the garden
+> and endo.
+
+Time-based coalescing (debounce, throttle) needs a clock, and a clock is
+an I/O capability that this package must not reach for ambiently.
+The "debounce updates to the ultimate consumer" path the maintainer's
+earlier review named is therefore expressed by **composition** with an
+injected timer, not by a `debounceMs` option on this adapter.
+See § *Composing a timer subscription* below.
 
 The middleware is the reusable form of the `retention-accumulator.js`
 coalesce-then-deliver primitive from
@@ -622,7 +634,8 @@ caller-provided `reduce` rather than that primitive's fixed
 microtask-batched set union.
 It lives on the consumer side by design: the consumer is the party that
 knows its own memory budget and its own tolerance for staleness, so the
-consumer chooses the reducer and the debounce window.
+consumer chooses the reducer (and, when it wants time-based coalescing,
+injects its own timer per § *Composing a timer subscription*).
 The topic itself bakes in no coalescing policy (see § *Overflow policy on
 the consumer*).
 
@@ -729,6 +742,82 @@ underlying local kit.
 The design does not provide a single-call factory for this case; the
 composition is explicit so the caller acknowledges the topology.
 
+## Composing a timer subscription
+
+Neither `@endo/pubsub` nor `@endo/exo-pubsub` reads the clock.
+A timer is an I/O capability, and the ocap discipline both the garden and
+endo hold as a house rule is that an I/O capability is **always
+injected**, never reached for ambiently.
+The maintainer's review on this revision:
+
+> In general, a timer is an I/O capability that should always be injected
+> in the ocap discipline, which is a house rule for the garden and endo.
+
+So time-based behavior (debounce, throttle, periodic sampling) is not a
+feature of any adapter in this design.
+It is something a caller **composes** by injecting a timer.
+This section shows the shape.
+
+### What a timer subscription is
+
+A timer, injected, exposes the same `schedule(callback)` shape the
+publisher samplers already take:
+
+```ts
+type Timer = {
+  // fire callback once after delayMs; returns a canceller
+  setTimeout(callback: () => void, delayMs: number): () => void;
+  // fire callback every periodMs; returns a canceller
+  setInterval(callback: () => void, periodMs: number): () => void;
+};
+```
+
+The caller obtains the timer from its own powers (the daemon's host
+powers, a test's fake timer, a virtualized clock) and passes it in.
+The pubsub packages never construct one.
+This is the same injection the sampler adapters already require: a
+`publisherFromUpdateSampler` or `publisherFromChangeSampler` is handed a
+`schedule(callback)` that the caller has already wired to its own timer,
+so the producer side of this design is already timer-injected by
+construction.
+
+### Debounce by composition
+
+The `debounceMs` option removed from `coalesceReader` is recovered by
+composing a `coalesceReader` (which does the value-folding) with a
+caller-supplied timer (which does the windowing).
+The consumer that wants debounce writes a small reader-to-reader wrapper
+that holds the coalesced accumulator until a timer fires:
+
+```js
+// caller injects its own timer and its own cancel kit's `cancelled`
+const makeDebouncedReader = (reader, timer, windowMs, cancelled) => {
+  // coalesceReader folds the burst losslessly; the timer decides when
+  // the folded value is released to the ultimate consumer.
+  const coalesced = coalesceReader(reader, (acc, next) => next, { cancelled });
+  return makeStream(/* a spring fed by a sink the timer drives */);
+};
+```
+
+The division of labor is clean: `coalesceReader` owns the **what**
+(which values fold together and how), and the injected timer owns the
+**when** (the window boundary).
+Neither the local package nor the exo package gains a clock dependency,
+and a test drives the debounce deterministically by injecting a fake
+timer rather than waiting on a wall clock.
+
+### Why this is better than a `debounceMs` option
+
+An adapter that took `debounceMs: number` would have to read the clock
+itself, which means either reaching for an ambient `setTimeout` (a
+violation of the ocap discipline and untestable without monkey-patching
+globals) or growing a `timer` parameter that widens the adapter's
+surface for a concern the consumer is better placed to own.
+Keeping the timer out of the adapter set and pushing it to the
+composition boundary keeps every adapter clock-free, keeps the packages
+testable with injected fake timers, and keeps the one place that knows
+the staleness budget (the consumer) in charge of the windowing policy.
+
 ## Back-pressure and wire protocol
 
 The wire-protocol discipline is inherited from `@endo/exo-stream`: a
@@ -763,8 +852,9 @@ A consumer that does not drain pins consumer-process memory.
 A consumer that needs a bound applies it on the local side, after
 `readerFromTopic` recovers the local reader: the consumer wraps its
 local reader with `coalesceReader` (see § *`coalesceReader`: consumer-side
-coalescing middleware* above) supplying its own reducer / debounce window,
-or with a drop-oldest policy of its own choosing.
+coalescing middleware* above) supplying its own reducer (and, for
+time-based coalescing, its own injected timer per § *Composing a timer
+subscription*), or with a drop-oldest policy of its own choosing.
 The adapters do not bake an overflow policy into the topic itself; the
 consumer that knows its memory budget knows the right policy.
 
