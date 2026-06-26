@@ -106,6 +106,7 @@ api-docs
 !packages/daemon/src/bus-xs-host-globals.d.ts
 !packages/daemon/src/types.d.ts
 !packages/daemon/types.d.ts
+!packages/daemon-cas/types.d.ts
 !packages/git/types.d.ts
 !packages/exo-git/types.d.ts
 !packages/eventual-send/src/exports.d.ts

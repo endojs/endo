@@ -51,6 +51,9 @@
       "path": "packages/daemon/tsconfig.composite.json"
     },
     {
+      "path": "packages/daemon-cas/tsconfig.composite.json"
+    },
+    {
       "path": "packages/env-options/tsconfig.composite.json"
     },
     {
