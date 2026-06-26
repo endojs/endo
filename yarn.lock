@@ -2561,6 +2561,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/pubsub@workspace:packages/pubsub":
+  version: 0.0.0-use.local
+  resolution: "@endo/pubsub@workspace:packages/pubsub"
+  dependencies:
+    "@endo/cancel": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@endo/stream": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/random@workspace:^, @endo/random@workspace:packages/random":
   version: 0.0.0-use.local
   resolution: "@endo/random@workspace:packages/random"
