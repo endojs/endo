@@ -1633,6 +1633,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/daemon-cas@workspace:^, @endo/daemon-cas@workspace:packages/daemon-cas":
+  version: 0.0.0-use.local
+  resolution: "@endo/daemon-cas@workspace:packages/daemon-cas"
+  dependencies:
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/platform": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@endo/stream": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/daemon@workspace:^, @endo/daemon@workspace:packages/daemon":
   version: 0.0.0-use.local
   resolution: "@endo/daemon@workspace:packages/daemon"
@@ -1643,6 +1659,7 @@ __metadata:
     "@endo/cancel": "workspace:^"
     "@endo/captp": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
+    "@endo/daemon-cas": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
