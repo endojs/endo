@@ -43,14 +43,17 @@ const jaineSetupUrl = pathToFileURL(
 // would later fail with "No corresponding formula for (an
 // object)"); the daemon has to formulate them via the module
 // recipe so they're durable in the inventory.
+//
+// `@endo/endo-fs` was retired into `@endo/platform/fs/extended`, so these
+// resolve to the platform package's caplet modules.
 const endoFsInMemoryUrl = pathToFileURL(
-  path.join(repoRoot, 'packages/endo-fs/src/in-memory-module.js'),
+  path.join(repoRoot, 'packages/platform/src/fs/extended/in-memory-module.js'),
 ).href;
 const endoFsReadonlyUrl = pathToFileURL(
-  path.join(repoRoot, 'packages/endo-fs/src/readonly-module.js'),
+  path.join(repoRoot, 'packages/platform/src/fs/extended/readonly-module.js'),
 ).href;
 const endoFsLayerUrl = pathToFileURL(
-  path.join(repoRoot, 'packages/endo-fs/src/layer-module.js'),
+  path.join(repoRoot, 'packages/platform/src/fs/extended/layer-module.js'),
 ).href;
 
 // Path to the endo CLI in this repo
