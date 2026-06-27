@@ -2908,6 +2908,38 @@ button.btn-spinner::after {
   overflow: auto;
 }
 
+/* Readable-tree entry listing, shown on both the value and formula
+   faces of the inspector. */
+.value-tree-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.value-tree-child {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-secondary);
+  color: var(--accent-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.value-tree-child:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+}
+
+.value-tree-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
 #value-value:has(.value-blob-content) {
   max-width: none;
   padding: 0;
@@ -9820,4 +9852,312 @@ button.btn-spinner::after {
 
 .fx-status-text {
   vertical-align: middle;
+}
+
+/* --- Formula Inspector (Value modal back face) ------------------- */
+/* See designs/formula-inspector.md. The Value modal grows a Formula
+   back face reached via the F key, the modal-header gear icon, or
+   the inventory-row gear icon. The flip is a 3D card-rotate; the
+   reduced-motion fallback is a cross-fade. */
+
+:root {
+  --card-flip-duration: 200ms;
+  --card-flip-easing: ease-in-out;
+}
+
+.value-card {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform var(--card-flip-duration) var(--card-flip-easing);
+}
+
+.value-card.flipped {
+  transform: rotateY(180deg);
+}
+
+/* The card scrolls (`.window` sets `overflow: auto`), and a non-visible
+   overflow forces `transform-style` to compute as `flat` regardless of
+   the `preserve-3d` request on `.value-card`. In flat mode each face is
+   composited into the card's own plane, so `backface-visibility: hidden`
+   would evaluate the back face against its own `rotateY(180deg)` and hide
+   it — leaving a blank card after the flip. We instead rely solely on the
+   `visibility` rules below to show exactly one face: when flipped, the
+   card's `rotateY(180deg)` composes with the back face's `rotateY(180deg)`
+   to render its content upright. */
+.value-card-face {
+  -webkit-backface-visibility: visible;
+  backface-visibility: visible;
+}
+
+.value-card-face-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow: auto;
+}
+
+/* When flipped, the back face joins the document flow so the card
+   scales to the formula view, and the front face becomes the (hidden)
+   overlay instead of dictating the card's height. This lets the back
+   side size independently of the front. */
+.value-card.flipped .value-card-face-back {
+  position: relative;
+  inset: auto;
+}
+.value-card.flipped .value-card-face-front {
+  position: absolute;
+  inset: 0;
+}
+
+/* On the back face we hide the front content from the accessibility
+   tree so screen readers do not announce both faces. */
+.value-card.flipped .value-card-face-front {
+  visibility: hidden;
+}
+.value-card:not(.flipped) .value-card-face-back {
+  visibility: hidden;
+}
+
+.value-flip-button {
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+.value-flip-button:hover {
+  background: var(--bg-hover);
+}
+
+.value-back-face-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* The verso title mirrors the recto; keep the flip button from being
+   crowded out by a long pet-name list. */
+.value-back-face-header .value-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Muted "(formula)" annotation appended to the verso title. */
+.value-title-suffix {
+  color: var(--text-secondary);
+  font-weight: normal;
+  font-style: italic;
+}
+
+.value-back-face {
+  flex: 1;
+  overflow: auto;
+}
+
+/* A capability that cannot be brought across CapTP is shown as a
+   remote placeholder ("Remote Pet Store") on the front face. */
+.value-remote {
+  padding: 16px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.value-modeline {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 0;
+  border-top: 1px solid var(--border-light);
+  margin-top: 8px;
+}
+
+.value-modeline .modeline-hint {
+  white-space: nowrap;
+}
+
+.value-modeline kbd {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px;
+}
+
+/* Formula-view back-face content. */
+.formula-view-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.formula-view-header-text {
+  min-width: 0;
+}
+
+.formula-view-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.formula-view-help {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.formula-view-identifier {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+.formula-view-stack {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.formula-view-property-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.formula-view-property-name {
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.formula-view-property-value {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.formula-view-literal {
+  margin: 0;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
+  background: var(--bg-secondary);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.formula-view-reference {
+  background: var(--bg-secondary);
+  color: var(--accent-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  margin-right: 6px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.formula-view-reference:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+}
+.formula-view-reference:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* A run of single-reference buttons shares one flow row that spans both
+   grid columns, so the buttons wrap horizontally rather than each
+   occupying a full-width grid row and stacking vertically. */
+.formula-view-reference-row {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.formula-view-reference-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.formula-view-empty,
+.formula-view-loading,
+.formula-view-error {
+  padding: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 13px;
+  text-align: center;
+}
+
+.formula-view-error {
+  color: var(--accent-danger, #e53e3e);
+}
+
+.formula-view-property-missing,
+.formula-view-property-omitted {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.formula-view-property-omitted-name {
+  color: var(--text-muted);
+}
+
+.formula-view-empty-list {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Reduced-motion fallback: cross-fade between faces instead of rotation. */
+@media (prefers-reduced-motion: reduce) {
+  .value-card {
+    transition: none;
+  }
+  .value-card.flipped {
+    transform: none;
+  }
+  .value-card-face-back {
+    transform: none;
+    opacity: 0;
+    transition: opacity 100ms ease-in-out;
+  }
+  .value-card.flipped .value-card-face-back {
+    opacity: 1;
+  }
+  .value-card.flipped .value-card-face-front {
+    opacity: 0;
+    transition: opacity 100ms ease-in-out;
+  }
 }

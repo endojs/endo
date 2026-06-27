@@ -1618,6 +1618,23 @@ export interface EndoHost extends EndoAgent {
       label: string;
     }>;
   }>;
+  /**
+   * Retrieve the formula record for a local formula identifier.
+   * Returns the formula type plus the type-specific metadata as a
+   * normalized property record. Each property is either a literal
+   * passable value, a single reference (formula identifier), or a
+   * record of references (codeName-keyed).
+   *
+   * Host-only by precedent: a guest must not be able to enumerate
+   * the host's internal naming, peer relationships, or the formula
+   * graph of capabilities it does not own. See
+   * `designs/formula-inspector.md` and `daemon-retention-paths.md`
+   * for the host-only authority rationale.
+   *
+   * The identifier must name a formula local to this node;
+   * cross-peer locators are rejected.
+   */
+  getFormula(identifier: FormulaIdentifier): Promise<FormulaRecord>;
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
@@ -1743,11 +1760,35 @@ export interface EndoChannelMember {
   followHeatEvents(): Promise<AsyncIterableIterator<HeatEvent>>;
 }
 
+/**
+ * Internal per-formula-type metadata facet retained for backward
+ * compatibility with existing `pet-inspector` formulas already
+ * persisted on disk. This type is internal: it is declared in
+ * `packages/daemon/src/types.d.ts` and is not re-exported through the
+ * package's public type surface in `packages/daemon/types.d.ts`. User
+ * agents should use `EndoHost.getFormula(identifier)`; the inspector
+ * facet remains only because the `pet-inspector` formula entries that
+ * already exist on disk still need to revive into something callable.
+ * See `designs/formula-inspector.md`.
+ *
+ * Removal target: once a daemon migration retires the on-disk
+ * `pet-inspector` formula entries (no earlier than `@endo/daemon@4.0.0`),
+ * both `EndoInspector` and `KnownEndoInspectors` go with them.
+ *
+ * @deprecated Internal. Use `EndoHost.getFormula(identifier)` instead.
+ *   Removal scheduled with the on-disk `pet-inspector` retirement, no
+ *   earlier than `@endo/daemon@4.0.0`.
+ */
 export type EndoInspector<RecordT = string> = {
   lookup(petNameOrPath: RecordT | NameOrPath): Promise<unknown>;
   list(): RecordT[];
 };
 
+/**
+ * @deprecated Internal. Use `EndoHost.getFormula(identifier)` instead.
+ *   Removal scheduled with the on-disk `pet-inspector` retirement, no
+ *   earlier than `@endo/daemon@4.0.0`. See `EndoInspector`.
+ */
 export type KnownEndoInspectors = {
   eval: EndoInspector<'endowments' | 'source' | 'worker'>;
   'make-unconfined': EndoInspector<'host'>;
@@ -1767,6 +1808,29 @@ export type LogChunk = {
   source: string;
   /** A run of UTF-8 text read from that log. */
   chunk: string;
+};
+
+/**
+ * A property of a `FormulaRecord` is either a literal passable
+ * value, a single reference to another formula, or a record of
+ * references keyed by a code-name (for example, the `endowments`
+ * of an `eval` formula).
+ */
+export type FormulaProperty =
+  | { kind: 'literal'; value: Passable }
+  | { kind: 'reference'; identifier: FormulaIdentifier }
+  | { kind: 'reference-list'; entries: Record<string, FormulaIdentifier> };
+
+/**
+ * The normalized formula record returned by `EndoHost.getFormula`.
+ * `type` is one of the canonical formula types per
+ * `packages/daemon/src/formula-type.js`. `number` is the 128-character
+ * hex formula number. `properties` are the per-type metadata.
+ */
+export type FormulaRecord = {
+  type: string;
+  number: FormulaNumber;
+  properties: Record<string, FormulaProperty>;
 };
 
 export type EndoBootstrap = {
