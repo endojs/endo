@@ -3,16 +3,18 @@
 | | |
 |---|---|
 | **Created** | 2026-06-26 |
+| **Updated** | 2026-06-27 |
 | **Author** | Mark S. Miller (prompted) |
 | **Status** | Not Started |
 | **Source** | endojs/endo-but-for-bots#543 (intra-package follow-up comment) |
 
 ## Summary
 
-Issue #543 establishes a rule for *cross-package* imports:
+Issue #543 establishes a rule for *cross-package* imports, articulated in the
+inter-package design (#548):
 a name should be imported from the package that originally exports it,
 never from another package that merely re-exports it unchanged.
-That issue calls such a pass-through a **plain re-export**:
+That work calls such a pass-through a **plain re-export**:
 a re-export that does not rename and adds no value to an importer over
 importing the name from its originally-exporting module.
 
@@ -21,7 +23,8 @@ The maintainer's follow-up on #543 observes that the same rationale applies
 decoupled pull request.
 This design is that separate articulation.
 It states the intra-package rule, gives its rationale, and lays out the same
-deprecate-then-remove staging that #543 uses across packages.
+deprecate-then-remove staging that the inter-package design (#548) uses across
+packages.
 
 ## The rule
 
@@ -79,22 +82,24 @@ The rationale is #543's, re-read at module granularity.
   When every import names the module that owns the concept, a reader learns the
   package's internal structure from its imports.
 
-## Relationship to #543
+## Relationship to the inter-package design (#548)
 
-This work is **decoupled** from the two cross-package PRs requested in #543 and
-can land independently.
-It shares #543's vocabulary (*plain re-export*) and its staging shape, but it
-operates entirely inside package boundaries, so it neither blocks nor depends on
-the cross-package rule.
+This work is **decoupled** from the inter-package design (#548) and its
+mechanical follow-up, the two cross-package PRs requested in #543, and can land
+independently.
+It shares #543's vocabulary (*plain re-export*) and the inter-package design's
+staging shape, but it operates entirely inside package boundaries, so it neither
+blocks nor depends on the cross-package rule.
 
-Where #543 amends an endo style guide to state the cross-package rule, the
-intra-package rule is stated in this design and as a `Coding Style` entry in
-`CONTRIBUTING.md` so that new intra-package importers are discouraged from the
-start.
+Where the inter-package design (#548) amends an endo style guide to state the
+cross-package rule, the intra-package rule is stated in this design and as a
+`Coding Style` entry in `CONTRIBUTING.md` so that new intra-package importers are
+discouraged from the start.
 
 ## Staging
 
-Mirroring #543's two-PR shape, but scoped within packages:
+Mirroring the inter-package design's (#548) two-PR shape, but scoped within
+packages:
 
 1. **This PR — articulate and discourage (no behavior change).**
    Land this design and the `CONTRIBUTING.md` `Coding Style` entry.
@@ -110,7 +115,8 @@ Mirroring #543's two-PR shape, but scoped within packages:
 
 Because this is `endojs/endo-but-for-bots`, both stages may be merged here once
 ready and approved.
-As with #543's second PR, the removal stage must not be merged into
+As with the inter-package design's (#548) removal stage, the removal stage must
+not be merged into
 `endojs/endo` until we are adequately confident there are no outstanding
 importers that depend on an intra-package pass-through, in this repository or in
 others.
