@@ -1906,7 +1906,7 @@ export const makeHostMaker = ({
         /** @param {string} locator */
         followRetentionPaths: async locator => {
           const iterator = host.followRetentionPaths(locator);
-          return makeIteratorRef(iterator);
+          return readerFromIterator(iterator);
         },
       }),
     );
