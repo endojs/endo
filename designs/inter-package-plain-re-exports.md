@@ -17,8 +17,9 @@ a re-export that does not rename and adds no value to an importer over
 importing the name from its originally-exporting package.
 
 This design is the articulation of that cross-package (inter-package) rule.
-It states the rule, gives its rationale, and lays out the deprecate-then-remove
-staging that #543 describes.
+It states the rule, gives its rationale, and lays out the staging that #543
+describes: repoint importers and deprecate the plain re-exports first, then
+remove the now-unreferenced re-exports later.
 It is the inter-package companion to the intra-package design in #544, which
 applies the same rationale among modules within a single package.
 
@@ -67,25 +68,32 @@ import a name from.
 
 ## Staging
 
-Per #543, this work is split into two pull requests:
+Per #543, the implementation is split into two pull requests, sequenced by
+compatibility risk: the non-breaking work goes first, the breaking work later.
 
-1. **This PR — articulate, discourage, and deprecate (no importer churn).**
-   Land this design and an endo style-guide entry (a `CONTRIBUTING.md`
-   `Coding Style` rule) stating the rule, so new importers are discouraged from
-   violating it.
-   Deprecate the plain re-exports themselves, discouraging the introduction of
-   new importers that depend on them.
-   No importers are repointed in this PR; the style rule and the deprecations
-   establish the rule and give reviewers a single place to discuss it before any
-   mechanical churn.
+1. **First PR — repoint and deprecate (no compatibility problems).**
+   Repoint every cross-package importer at the package that originally exports
+   the name, and deprecate all plain re-exports.
+   This goes first precisely because it causes no compatibility problems: the
+   plain re-exports still exist, so any importer that has not yet been repointed
+   (including importers outside this repository) keeps working, while every
+   importer inside the repository moves to the canonical source.
+   The deprecations discourage the introduction of new importers that depend on
+   the plain re-exports.
 
-2. **Follow-up PR — repoint and remove (mechanical).**
-   Repoint cross-package importers at the originating package, then remove the
-   now-unreferenced plain re-exports.
-   This is deliberately separate because it is broad, mechanical, and reviewed
-   most easily a slice at a time.
+2. **Follow-up PR — remove (deferred until repointing is complete).**
+   Remove the now-unreferenced plain re-exports.
+   This comes later because removal potentially introduces compatibility
+   problems with importers outside this repository that still depend on a plain
+   re-export and have not yet been repointed.
+   It is also broad and mechanical, and reviewed most easily a slice at a time.
 
-Because this is `endojs/endo-but-for-bots`, both stages may be merged here once
+This design PR precedes both: it lands this design and an endo style-guide entry
+(a `CONTRIBUTING.md` `Coding Style` rule) stating the rule, so new importers are
+discouraged from violating it and reviewers have a single place to discuss the
+rule and its staging before any mechanical churn.
+
+Because this is `endojs/endo-but-for-bots`, the stages may be merged here once
 ready and approved.
 As with #543's second PR, the removal stage must not be merged into
 `endojs/endo` until we are adequately confident there are no outstanding
@@ -95,8 +103,9 @@ in others.
 ## Relationship to the intra-package design (#544)
 
 This inter-package rule and the intra-package rule in #544 share #543's
-vocabulary (*plain re-export*) and the same deprecate-then-remove staging shape,
-but they operate at different granularities and are decoupled:
+vocabulary (*plain re-export*) and the same staging shape (repoint and deprecate
+first, then remove), but they operate at different granularities and are
+decoupled:
 
 - This design governs import *edges between packages*: the unit removed is a
   package (or package export) that exists only to re-export another package's
@@ -109,24 +118,25 @@ independently.
 
 ## Examples in the current tree
 
-These are illustrative starting points for the follow-up removal pass, not an
-exhaustive inventory.
+These are illustrative starting points for the repointing and removal work, not
+an exhaustive inventory.
 
 - `@endo/far` is the canonical plain re-exporter: the issue cites it as a
   package that exists only for the convenience of re-exporting names that
   originate elsewhere.
-  The removal pass repoints its importers at the originating packages and then
-  decides, per export, whether the re-export carries any residual value.
+  The first PR repoints its importers at the originating packages; the removal
+  pass then decides, per export, whether the re-export carries any residual
+  value before removing it.
 
-The follow-up PR enumerates these mechanically, package by package.
+The implementation enumerates these mechanically, package by package.
 
 ## Open questions
 
 - **`export *` aggregators.**
   Some packages re-export with `export *` rather than named re-exports.
-  The removal pass treats a non-renaming cross-package `export *` as a plain
+  The implementation treats a non-renaming cross-package `export *` as a plain
   re-export, but a package whose entire purpose is a curated, value-adding
-  aggregate surface is a judgment call the removal pass makes per package.
+  aggregate surface is a judgment call made per package.
 
 - **Type-only re-exports.**
   A cross-package re-export used purely for `@import` types has the same
