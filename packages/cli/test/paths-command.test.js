@@ -10,7 +10,7 @@ import { renderPath, renderBanner } from '../src/render-retention-path.js';
 /** @import { RetentionPath } from '@endo/daemon' */
 
 const dirname = url.fileURLToPath(new URL('.', import.meta.url));
-const endoBin = path.join(dirname, '..', 'bin', 'endo');
+const endoBin = path.join(dirname, '..', 'bin', 'endo.cjs');
 
 // The `endo paths` verb is the CLI surface for the daemon's new
 // listRetentionPaths host method, per designs/daemon-retention-paths.md.
