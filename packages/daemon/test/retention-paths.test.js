@@ -91,7 +91,7 @@ test.serial('listRetentionPaths returns empty for unknown locator', async t => {
   t.truthy(knownLocator);
   const url2 = new URL(knownLocator);
   // Swap in a deterministic, definitely-not-allocated formula number.
-  url2.searchParams.set('id', '0'.repeat(64));
+  url2.pathname = `/${'0'.repeat(64)}`;
   const bogusLocator = url2.toString();
   const paths = await E(host).listRetentionPaths(bogusLocator);
   t.deepEqual(paths, []);
