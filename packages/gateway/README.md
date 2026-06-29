@@ -1,8 +1,9 @@
 # `@endo/gateway`
 
-`@endo/gateway` is the package shape extracted from the per-user
-daemon's built-in HTTP+WebSocket server, generalized to serve the
-five deployment shapes named in `designs/gateway-package.md`:
+`@endo/gateway` is the HTTP gateway package for Endo hosts. It
+terminates the public HTTP surface, routes `Host` headers to
+weblets, and provides the package boundary shared by these five
+deployment shapes from `designs/gateway-package.md`:
 
 1. A per-user developer install (today's shape).
 2. A per-host system service that virtual-hosts many users on one
@@ -14,12 +15,11 @@ five deployment shapes named in `designs/gateway-package.md`:
    an OS-assigned port for exactly one user.
 5. A CapTP relay-as-a-service.
 
-The five deployments share most of their machinery (HTTP framing,
-virtual hosting, the Noise-over-WebSocket OCapN endpoint, the
-content-addressed static-asset cache); they differ in configuration.
-A single binary configuration cannot serve all of them without
-re-introducing the forks the design corpus has been working around
-one PR at a time, so the gateway is extracted into its own package.
+The five deployments share HTTP framing, virtual hosting, the
+Noise-over-WebSocket OCapN endpoint, and the content-addressed
+static-asset cache. They differ in configuration and supervision,
+so the package exposes a small factory plus feature toggles instead
+of baking one daemon mode into the implementation.
 
 ## Status
 
@@ -33,7 +33,9 @@ Implemented in this slice:
 - `make({ config, powers })` factory returning a hardened gateway
   exo with `start`, `stop`, `getBindAddress`, `getApps`.
 - `ENDO_HTTP_ADDR` parsing with the OS-assigned-port (`:0`)
-  convention; defaults to `0.0.0.0:3469`.
+  convention; defaults to `0.0.0.0:8920`, preserving the existing
+  daemon HTTP port and reserving `3469` for a future CBOR-frame
+  transport.
 - In-memory `AppsNameHub` exo with `bind`, `unbind`, `list`,
   `lookup`.
 - Per-feature configuration toggles validated at `make` time.
@@ -110,15 +112,17 @@ The bind address is a `host:port` pair. IPv6 uses bracket
 notation. Port `0` requests an OS-assigned port. Examples:
 
 ```sh
-ENDO_HTTP_ADDR=0.0.0.0:3469 endo-gateway       # default
-ENDO_HTTP_ADDR=127.0.0.1:3469 endo-gateway     # private bind
-ENDO_HTTP_ADDR=[::1]:3469 endo-gateway         # IPv6 loopback
+ENDO_HTTP_ADDR=0.0.0.0:8920 endo-gateway       # default
+ENDO_HTTP_ADDR=127.0.0.1:8920 endo-gateway     # private bind
+ENDO_HTTP_ADDR=[::1]:8920 endo-gateway         # IPv6 loopback
 ENDO_HTTP_ADDR=127.0.0.1:0 endo-gateway        # OS-assigned port
 ```
 
 `ENDO_HTTP_ADDR` is distinct from `ENDO_ADDR` (the per-user
-daemon's existing web-server bind, default `127.0.0.1:8920`); the
-two coexist during the transition out of the in-daemon gateway.
+daemon's existing web-server bind, also defaulting to
+`127.0.0.1:8920`). During the transition, an embedder runs one HTTP
+gateway for a given host/port and chooses which package owns that
+listener.
 
 ### Feature toggles
 
@@ -147,6 +151,4 @@ npx ava test/vhost.test.js         # virtual-host NameHub tests
 
 See `designs/gateway-package.md` for the overarching design
 covering ten configurable feature subsystems, the capability
-surface, the configuration model, and the phased rollout. The
-prior `designs/endo-gateway.md` is superseded by the package
-design; its decisions carry forward unless explicitly revised.
+surface, the configuration model, and the phased rollout.

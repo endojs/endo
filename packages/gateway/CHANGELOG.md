@@ -9,7 +9,7 @@ Phase-1 skeleton of the `@endo/gateway` package per
 - `makeGateway({ powers, config })` factory returning a hardened
   gateway exo with `start`, `stop`, `getBindAddress`, `getApps`.
 - `ENDO_HTTP_ADDR` parsing with the OS-assigned-port (`:0`)
-  convention; the default is `0.0.0.0:3469`.
+  convention; the default is `0.0.0.0:8920`.
 - In-memory `AppsNameHub` exo with `bind`, `unbind`, `list`,
   `lookup`.
 - Per-feature configuration toggles validated at `make` time.

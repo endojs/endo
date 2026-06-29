@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-22 |
-| **Updated** | 2026-05-29 |
+| **Updated** | 2026-06-29 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Proposed |
 | **Supersedes** | endo-gateway (removed 2026-05-29; material folded into this document) |
@@ -162,18 +162,20 @@ bootstrap).
 
 ## Bind Shape
 
-The gateway binds to **`0.0.0.0:3469`** by default, overridable
+The gateway binds to **`0.0.0.0:8920`** by default, overridable
 via the `ENDO_HTTP_ADDR` environment variable.
 
-The maintainer directive names this port and env var explicitly.
+Round-3 review keeps the HTTP gateway on the daemon's existing
+HTTP port, 8920, and reserves 3469 for a future CBOR-frame
+transport or similarly specialized listener.
 `0.0.0.0` makes the bind public to the host's network interfaces;
 this is appropriate because the gateway is intended as a public
 web service.
 Operators who want a private bind override:
 
 ```sh
-ENDO_HTTP_ADDR=127.0.0.1:3469 endo-gateway
-ENDO_HTTP_ADDR=[::1]:3469 endo-gateway
+ENDO_HTTP_ADDR=127.0.0.1:8920 endo-gateway
+ENDO_HTTP_ADDR=[::1]:8920 endo-gateway
 ENDO_HTTP_ADDR=0.0.0.0:0 endo-gateway      # OS-assigned port
 ```
 
@@ -186,16 +188,18 @@ OS-assigned `:0` case correctly.
 `ENDO_HTTP_ADDR` is distinct from the existing `ENDO_ADDR`
 (default `127.0.0.1:8920`) used by the per-user daemon's existing
 web server.
-The two coexist during the transition: a host running today's
-per-user daemon (binding `ENDO_ADDR`) can also run an `@endo/gateway`
-on `ENDO_HTTP_ADDR=0.0.0.0:3469` without a port conflict.
+The two are not two simultaneous listeners on the same host and
+port.
+During the transition, the embedder chooses which package owns the
+8920 HTTP listener: today's in-daemon server or the extracted
+`@endo/gateway`.
 After the gateway lands and the per-user daemon's built-in server
 is retired, `ENDO_ADDR` is deprecated and `ENDO_HTTP_ADDR` is the
 single source of truth.
 
 The IPv4-vs-IPv6 default: `0.0.0.0` is IPv4-only.
 On a dual-stack host that wants both, the operator binds two
-gateway instances (one IPv4, one IPv6) or uses `[::]:3469` (which
+gateway instances (one IPv4, one IPv6) or uses `[::]:8920` (which
 on Linux with `IPV6_V6ONLY=0` accepts both).
 The default stays IPv4-only because IPv4 reachability is the
 broader case for the public-web-service use; the operator who
@@ -206,7 +210,7 @@ changes: the Familiar always sets `ENDO_HTTP_ADDR=127.0.0.1:0`
 (localhost only, OS-assigned port) and the Familiar's
 `localhttp://` protocol handler
 ([`familiar-localhttp-protocol`](familiar-localhttp-protocol.md))
-proxies through the OS-assigned port instead of the default 3469.
+proxies through the OS-assigned port instead of the default 8920.
 The Familiar does not bind a public address.
 
 ## Lifecycle
@@ -327,6 +331,55 @@ which to set.
 Singleton enforcement ("only one gateway per host") is provided by
 the service manager being the thing that started it, not by the
 gateway implementing its own pid-file or advisory-lock check.
+
+## Root User and Service CLI
+
+When `endo gateway start` is invoked as root, it manages the
+system gateway, not root's personal daemon state.
+The command ensures the service account and directories exist,
+installs or refreshes the platform service definition, and then
+delegates lifecycle control to the platform service manager.
+Root-owned locations are:
+
+- State: `/var/lib/endo-gateway/` owned by `endo:endo`, mode 0750.
+- Runtime: `/run/endo-gateway/` owned by `endo:endo`, mode 0750,
+  containing the bootstrap socket.
+- Cache: `/var/cache/endo-gateway/` owned by `endo:endo`, mode
+  0750, containing the CAS read-through cache.
+- Config: `/etc/endo-gateway/config.toml` owned by `root:endo`,
+  mode 0640.
+- Logs: systemd journal by default, or `/var/log/endo-gateway/`
+  owned by `endo:endo`, mode 0750 on systems without a structured
+  journal.
+
+The CLI surface:
+
+```sh
+endo gateway start   # install/refresh the service definition, then start
+endo gateway stop    # stop the platform service
+endo gateway log     # follow the platform log stream
+```
+
+On Linux with systemd, `start` writes `endo-gateway.service` (or
+verifies the packaged unit), relies on systemd's
+`RuntimeDirectory=`, `StateDirectory=`, `CacheDirectory=`, and
+`LogsDirectory=` helpers for directory creation, then runs
+`systemctl enable --now endo-gateway.service`.
+`stop` runs `systemctl stop endo-gateway.service`.
+`log` runs `journalctl -u endo-gateway.service -f`.
+
+On macOS, the same verbs map to a LaunchDaemon plist under
+`/Library/LaunchDaemons/` plus `launchctl bootstrap`, `bootout`,
+and `log stream` filtered to the gateway subsystem.
+On Windows, they map to a Windows Service (`sc.exe create`,
+`start`, `stop`) and Event Log tailing.
+In a container, `start` is not an installer; the image entrypoint is
+the gateway process and lifecycle is delegated to Docker, Podman, or
+Kubernetes.
+When invoked without root privileges, the command either manages a
+user service with XDG state/cache/runtime locations or reports that
+system-service installation needs root; it must not populate
+`/root/.endo` as the gateway's durable system state.
 
 ## Feature Decomposition
 
@@ -737,7 +790,7 @@ bound to `127.0.0.1:0`.
 The Familiar's `localhttp://` protocol handler
 ([`familiar-localhttp-protocol`](familiar-localhttp-protocol.md))
 then proxies through the OS-assigned port instead of the default
-3469.
+8920.
 
 The Familiar reads the gateway's actual port after bind:
 
@@ -1053,7 +1106,7 @@ The gateway warns at startup when bound publicly without a
 trusted-proxy configuration:
 
 ```
-[Gateway] Bound to 0.0.0.0:3469 with no trusted proxy configured.
+[Gateway] Bound to 0.0.0.0:8920 with no trusted proxy configured.
 Browser-facing endpoints transmit bearer tokens; ensure TLS
 termination if this gateway is reachable from the internet.
 ```
@@ -1137,8 +1190,8 @@ RUN useradd --system --home /var/lib/endo-gateway endo && \
 USER endo
 WORKDIR /var/lib/endo-gateway
 COPY --chown=endo:endo dist/ ./
-ENV ENDO_HTTP_ADDR=0.0.0.0:3469
-EXPOSE 3469
+ENV ENDO_HTTP_ADDR=0.0.0.0:8920
+EXPOSE 8920
 ENTRYPOINT ["node", "endo-gateway.cjs"]
 ```
 
@@ -1282,7 +1335,7 @@ Establish `packages/gateway/` in the monorepo; implement
 NameHub) and feature 8 (`/ocapn-cbor-np` WebSocket).
 Wire the daemon's existing `@apps` formula to import `@endo/gateway`
 instead of inline `web-server-node.js`.
-The package binds `0.0.0.0:3469` by default and behaves
+The package binds `0.0.0.0:8920` by default and behaves
 indistinguishably from today's daemon-internal gateway for the
 single-user case.
 
@@ -1323,12 +1376,12 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
    without per-user daemon state, and lets the package have its
    own tests and release cadence.
 
-2. **`0.0.0.0:3469` default with `ENDO_HTTP_ADDR` override.**
-   The maintainer directive names the port and env var.
+2. **`0.0.0.0:8920` default with `ENDO_HTTP_ADDR` override.**
+   Round-3 review keeps HTTP on the daemon's existing 8920 port.
    `0.0.0.0` reflects the "public web service" framing; operators
    who want a private bind override.
-   3469 is a non-conflicting maintainer pick (not in the IANA
-   well-known range, not commonly used by other services).
+   Port 3469 is reserved for a future CBOR-frame transport or other
+   specialized listener rather than used for HTTP.
 
 3. **`/ocapn-cbor-np` rather than `/ocapn`.**
    The path encodes the codec/network pair (CBOR + Noise
@@ -1528,7 +1581,7 @@ Phases 3 and 4 are independently order-able once Phase 2 is in.
 > pertaining to an Endo gateway and then propose an overarching
 > design document for the Gateway. This would be a package
 > `@endo/gateway` that stands up a local HTTP server on
-> 0.0.0.0:3469 by default (ENDO_HTTP_ADDR). That is, it is a public
+> 0.0.0.0:8920 by default (ENDO_HTTP_ADDR). That is, it is a public
 > web service.
 >
 > The gateway will, in the fullness of its design:

@@ -38,8 +38,7 @@ export {
 
 export { normalizeVirtualHostName, makeAppsNameHub } from './src/vhost.js';
 
-/** @import { GatewayConfig, FeatureToggles, BindAddress } from './src/config.js' */
-/** @import { AppsNameHub } from './src/vhost.js' */
+/** @import { GatewayConfig, BindAddress, GatewayPowers, Gateway } from './types.d.ts' */
 
 const GatewayInterface = M.interface('Gateway', {
   start: M.call().returns(M.promise()),
@@ -48,27 +47,6 @@ const GatewayInterface = M.interface('Gateway', {
   getApps: M.call().returns(M.promise()),
   getConfig: M.call().returns(M.promise()),
 });
-
-/**
- * @typedef {object} GatewayPowers The host-supplied powers the
- *   gateway needs to listen on the network and read the
- *   environment. The phase-1 skeleton uses only `env`; later
- *   phases add `net`, `fs`, `crypto`, and `time`.
- * @property {{[name: string]: string | undefined}} [env]
- */
-
-/**
- * @typedef {object} Gateway
- * @property {() => Promise<void>} start
- * @property {() => Promise<void>} stop
- * @property {() => Promise<string>} getBindAddress The address
- *   the gateway is bound to, in `host:port` form. Before
- *   `start()`, the configured value; after `start()`, the
- *   resolved address (which differs from the configured value
- *   when the configured port is `0`).
- * @property {() => Promise<AppsNameHub>} getApps
- * @property {() => Promise<GatewayConfig>} getConfig
- */
 
 /**
  * Create a hardened gateway exo. See `designs/gateway-package.md`

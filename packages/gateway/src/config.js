@@ -19,13 +19,15 @@
 
 import { makeError, q, X } from '@endo/errors';
 
+/** @import { BindAddress, FeatureToggles, GatewayConfig } from '../types.d.ts' */
+
 /**
  * The default bind address per `designs/gateway-package.md` §
  * Bind Shape. `0.0.0.0` is the public-network IPv4 wildcard;
- * `3469` is the maintainer's pick (non-conflicting, not in the
- * IANA well-known range).
+ * `8920` preserves the daemon HTTP port while leaving `3469`
+ * available for a future CBOR-frame transport.
  */
-export const DEFAULT_BIND_ADDRESS = '0.0.0.0:3469';
+export const DEFAULT_BIND_ADDRESS = '0.0.0.0:8920';
 harden(DEFAULT_BIND_ADDRESS);
 
 /**
@@ -63,23 +65,13 @@ export const defaultGatewayConfig = harden({
 });
 
 /**
- * @typedef {object} BindAddress
- * @property {string} host A non-empty hostname or IP literal,
- *   with no surrounding IPv6 brackets.
- * @property {number} port An integer in [0, 65535]. `0` means
- *   "let the OS choose".
- * @property {'ipv4' | 'ipv6' | 'hostname'} kind The shape of
- *   `host`. Distinguishes `0.0.0.0` from `[::]` from `localhost`.
- */
-
-/**
  * Parse an `ENDO_HTTP_ADDR`-shaped `host:port` string.
  *
  * Returns a normalized {@link BindAddress}. Throws on malformed
  * input. Notably correct:
  *
- *   - IPv6: `[::1]:3469` -> { host: '::1', kind: 'ipv6', port: 3469 }
- *   - OS-assigned port: `127.0.0.1:0` keeps port `0`, not `3469`.
+ *   - IPv6: `[::1]:8920` -> { host: '::1', kind: 'ipv6', port: 8920 }
+ *   - OS-assigned port: `127.0.0.1:0` keeps port `0`, not `8920`.
  *     The naive `Number(port) || default` collapses `0` to the
  *     default (see `project/CLAUDE.md` § Familiar), so the parser
  *     uses the `port !== '' ? Number(port) : default` rule.
@@ -94,55 +86,35 @@ export const parseBindAddress = input => {
     );
   }
 
-  /** @type {string} */
-  let host;
-  /** @type {string} */
-  let portString;
-  /** @type {'ipv4' | 'ipv6' | 'hostname'} */
-  let kind;
-
   if (input.startsWith('[')) {
-    // Bracketed IPv6: `[host]:port`.
     const closeBracket = input.indexOf(']');
     if (closeBracket < 0) {
       throw makeError(
         X`IPv6 bind address missing closing bracket: ${q(input)}`,
       );
     }
-    host = input.slice(1, closeBracket);
     const rest = input.slice(closeBracket + 1);
     if (!rest.startsWith(':')) {
       throw makeError(
         X`IPv6 bind address must have port after bracket: ${q(input)}`,
       );
     }
-    portString = rest.slice(1);
-    kind = 'ipv6';
   } else {
-    // host:port. The last colon separates port; everything before
-    // is host. This handles bare IPv6 (no brackets) by rejecting
-    // it: an unbracketed `::1:3469` is ambiguous.
     const lastColon = input.lastIndexOf(':');
     if (lastColon < 0) {
       throw makeError(X`Bind address must include host:port: ${q(input)}`);
     }
-    host = input.slice(0, lastColon);
-    portString = input.slice(lastColon + 1);
-    if (host.includes(':')) {
+    const hostPart = input.slice(0, lastColon);
+    if (hostPart.includes(':')) {
       throw makeError(
         X`Bare IPv6 bind address is ambiguous, use bracket notation: ${q(input)}`,
       );
     }
-    // Distinguish IPv4 literal from hostname by digits-and-dots.
-    kind = /^[0-9]+(\.[0-9]+){3}$/.test(host) ? 'ipv4' : 'hostname';
-  }
-
-  if (host.length === 0) {
-    throw makeError(X`Bind address host cannot be empty: ${q(input)}`);
   }
 
   // Per `project/CLAUDE.md` § Familiar: port 0 is falsy in JS, so
   // the conditional has to test the string, not the number.
+  const portString = input.slice(input.lastIndexOf(':') + 1);
   if (portString === '') {
     throw makeError(X`Bind address port cannot be empty: ${q(input)}`);
   }
@@ -156,31 +128,38 @@ export const parseBindAddress = input => {
     );
   }
 
+  /** @type {URL} */
+  let parsed;
+  try {
+    parsed = new URL(`http://${input}`);
+  } catch {
+    throw makeError(X`Malformed bind address: ${q(input)}`);
+  }
+  if (
+    parsed.username !== '' ||
+    parsed.password !== '' ||
+    parsed.pathname !== '/' ||
+    parsed.search !== '' ||
+    parsed.hash !== ''
+  ) {
+    throw makeError(X`Bind address must be a bare host:port: ${q(input)}`);
+  }
+
+  const host = parsed.hostname.replace(/^\[(.*)\]$/, '$1');
+  if (host.length === 0) {
+    throw makeError(X`Bind address host cannot be empty: ${q(input)}`);
+  }
+
+  /** @type {'ipv4' | 'ipv6' | 'hostname'} */
+  const kind = input.startsWith('[')
+    ? 'ipv6'
+    : /^[0-9]+(\.[0-9]+){3}$/.test(host)
+      ? 'ipv4'
+      : 'hostname';
+
   return harden({ host, port, kind });
 };
 harden(parseBindAddress);
-
-/**
- * @typedef {object} FeatureToggles
- * @property {boolean} chatHosting Feature 1.
- * @property {boolean} virtualHosting Feature 2.
- * @property {boolean} gitHttp Feature 3.
- * @property {boolean} udsBootstrap Feature 4.
- * @property {boolean} captpRelay Feature 6.
- * @property {boolean} adminDaemon Feature 7.
- * @property {boolean} ocapnWebSocket Feature 8.
- */
-
-/**
- * @typedef {object} GatewayConfig
- * @property {string} bindAddress The `host:port` to bind, as
- *   accepted by {@link parseBindAddress}.
- * @property {FeatureToggles} enableFeatures
- * @property {ReadonlyArray<string>} trustedProxyCidrs Feature 9:
- *   CIDR ranges trusted to set `X-Forwarded-*` headers.
- * @property {number} maxProxyHops Feature 9: maximum
- *   `X-Forwarded-For` hops to trust.
- */
 
 /**
  * Validate the inter-feature dependency graph spelled out in the

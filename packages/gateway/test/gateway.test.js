@@ -54,10 +54,10 @@ test('makeGateway with explicit config and no env honors config', async t => {
 
 test('makeGateway with bracketed IPv6 round-trips the address', async t => {
   const gateway = makeGateway({
-    config: { bindAddress: '[::1]:3469' },
+    config: { bindAddress: '[::1]:8920' },
   });
   const bindAddress = await E(gateway).getBindAddress();
-  t.is(bindAddress, '[::1]:3469');
+  t.is(bindAddress, '[::1]:8920');
 });
 
 test('Gateway lifecycle: start then stop', async t => {

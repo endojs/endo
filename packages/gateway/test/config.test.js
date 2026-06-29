@@ -12,35 +12,35 @@ import {
   bindAddressFromEnv,
 } from '../index.js';
 
-test('DEFAULT_BIND_ADDRESS is 0.0.0.0:3469', t => {
+test('DEFAULT_BIND_ADDRESS is 0.0.0.0:8920', t => {
   // Regression: if the maintainer-pinned default ever drifts off
-  // 0.0.0.0:3469 (named in the design's Bind Shape section), this
+  // 0.0.0.0:8920 (named in the design's Bind Shape section), this
   // assertion fails. The Familiar variant overrides; the
   // system-service default must not.
-  t.is(DEFAULT_BIND_ADDRESS, '0.0.0.0:3469');
+  t.is(DEFAULT_BIND_ADDRESS, '0.0.0.0:8920');
 });
 
 test('parseBindAddress accepts IPv4 host:port', t => {
-  const result = parseBindAddress('0.0.0.0:3469');
-  t.deepEqual({ ...result }, { host: '0.0.0.0', port: 3469, kind: 'ipv4' });
+  const result = parseBindAddress('0.0.0.0:8920');
+  t.deepEqual({ ...result }, { host: '0.0.0.0', port: 8920, kind: 'ipv4' });
 });
 
 test('parseBindAddress accepts hostname host:port', t => {
-  const result = parseBindAddress('localhost:3469');
+  const result = parseBindAddress('localhost:8920');
   t.deepEqual(
     { ...result },
-    { host: 'localhost', port: 3469, kind: 'hostname' },
+    { host: 'localhost', port: 8920, kind: 'hostname' },
   );
 });
 
 test('parseBindAddress accepts bracketed IPv6', t => {
-  const result = parseBindAddress('[::1]:3469');
-  t.deepEqual({ ...result }, { host: '::1', port: 3469, kind: 'ipv6' });
+  const result = parseBindAddress('[::1]:8920');
+  t.deepEqual({ ...result }, { host: '::1', port: 8920, kind: 'ipv6' });
 });
 
 test('parseBindAddress accepts the IPv6 unspecified address', t => {
-  const result = parseBindAddress('[::]:3469');
-  t.deepEqual({ ...result }, { host: '::', port: 3469, kind: 'ipv6' });
+  const result = parseBindAddress('[::]:8920');
+  t.deepEqual({ ...result }, { host: '::', port: 8920, kind: 'ipv6' });
 });
 
 test('parseBindAddress keeps port 0 distinct from default', t => {
@@ -50,7 +50,7 @@ test('parseBindAddress keeps port 0 distinct from default', t => {
   // request is lost.
   const result = parseBindAddress('127.0.0.1:0');
   t.is(result.port, 0);
-  t.not(result.port, 3469);
+  t.not(result.port, 8920);
 });
 
 test('parseBindAddress rejects an empty string', t => {
@@ -58,11 +58,11 @@ test('parseBindAddress rejects an empty string', t => {
 });
 
 test('parseBindAddress rejects an unbracketed bare IPv6', t => {
-  // `::1:3469` is ambiguous; the parser must reject rather than
+  // `::1:8920` is ambiguous; the parser must reject rather than
   // guess. If the parser ever silently accepts this shape and
-  // assigns `port = 3469` while leaving `host = '::1'`, this
+  // assigns `port = 8920` while leaving `host = '::1'`, this
   // assertion fails.
-  t.throws(() => parseBindAddress('::1:3469'), {
+  t.throws(() => parseBindAddress('::1:8920'), {
     message: /Bare IPv6 bind address is ambiguous/,
   });
 });
@@ -86,7 +86,7 @@ test('parseBindAddress rejects host without colon', t => {
 });
 
 test('parseBindAddress rejects IPv6 without closing bracket', t => {
-  t.throws(() => parseBindAddress('[::1:3469'), {
+  t.throws(() => parseBindAddress('[::1:8920'), {
     message: /missing closing bracket/,
   });
 });
@@ -179,7 +179,7 @@ test('mergeGatewayConfig rejects a malformed bind address', t => {
 
 test('bindAddressFromEnv prefers ENDO_HTTP_ADDR', t => {
   t.is(
-    bindAddressFromEnv({ ENDO_HTTP_ADDR: '127.0.0.1:0' }, '0.0.0.0:3469'),
+    bindAddressFromEnv({ ENDO_HTTP_ADDR: '127.0.0.1:0' }, '0.0.0.0:8920'),
     '127.0.0.1:0',
   );
 });

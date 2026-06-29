@@ -69,8 +69,9 @@ original 1164-line monolith is repurposed; this layer carries
 dispatch body, CLI shape, XS bridging, and the architecture diagram
 that stitches the three preceding layers),
 [gateway-package](gateway-package.md) (added 2026-05-22, revised
-2026-05-29 to absorb the prior endo-gateway material per the PR-#343
-review; overarching `@endo/gateway` package design integrating the
+2026-06-29 for root-owned system-service lifecycle, `endo gateway`
+start/stop/log, and the 8920 HTTP default per PR #343 review;
+overarching `@endo/gateway` package design integrating the
 gateway/weblet/Noise cluster across ten feature subsystems),
 [daemon-git-next-steps](daemon-git-next-steps.md) (added 2026-05-27,
 reframed 2026-05-29, slimmed 2026-06-03 to its forward-looking kernel;
@@ -279,7 +280,7 @@ LLM-agent stack).*
 | [hex-package](hex-package.md) | 2026-04-23 | 2026-05-18 | **Complete** |
 | [endo-bytes](endo-bytes.md) | 2026-05-08 | 2026-05-10 | Implemented |
 | [endo-gateway-mcp](endo-gateway-mcp.md) | 2026-05-29 | 2026-05-29 | Not Started |
-| [gateway-package](gateway-package.md) | 2026-05-22 | 2026-05-29 | Proposed (absorbs the removed endo-gateway design) |
+| [gateway-package](gateway-package.md) | 2026-05-22 | 2026-06-29 | Proposed (absorbs the removed endo-gateway design) |
 | [agent-tools-mount-fs-tools](agent-tools-mount-fs-tools.md) | 2026-06-01 | 2026-06-25 | Superseded |
 | [endo-agent-tools](endo-agent-tools.md) | 2026-06-03 | 2026-06-25 | In Progress |
 | [agentry-agent-builder](agentry-agent-builder.md) | 2026-06-03 | 2026-06-25 | In Progress |

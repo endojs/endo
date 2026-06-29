@@ -24,6 +24,8 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makeError, q, X } from '@endo/errors';
 
+/** @import { AppsNameHub } from '../types.d.ts' */
+
 /**
  * Validate and normalize a virtual-host name. RFC 1123 hostnames
  * are case-insensitive ASCII; this normalization keeps the table
@@ -73,28 +75,6 @@ const AppsNameHubInterface = M.interface('AppsNameHub', {
   lookup: M.call(M.string()).returns(M.promise()),
   has: M.call(M.string()).returns(M.promise()),
 });
-
-/**
- * @typedef {object} VirtualHostEntry
- * @property {string} name The lowercased virtual-host name.
- * @property {string} webletFormulaId The formula identifier the
- *   gateway should resolve when serving this host. The current
- *   slice holds the identifier as an opaque string; later phases
- *   replace it with a typed FormulaIdentifier.
- */
-
-/**
- * @typedef {object} AppsNameHub
- * @property {(name: string, webletFormulaId: string) => Promise<void>} bind
- *   Bind a virtual host to a weblet formula. Throws on collision
- *   with the design's first-bind-wins policy; later phases relax
- *   this to operator policy.
- * @property {(name: string) => Promise<void>} unbind
- * @property {() => Promise<ReadonlyArray<VirtualHostEntry>>} list
- * @property {(name: string) => Promise<string>} lookup Throws if
- *   the name is not bound.
- * @property {(name: string) => Promise<boolean>} has
- */
 
 /**
  * Create an in-memory `@apps` NameHub exo. The phase-1 skeleton
