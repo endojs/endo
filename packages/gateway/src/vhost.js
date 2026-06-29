@@ -73,7 +73,6 @@ const AppsNameHubInterface = M.interface('AppsNameHub', {
   lookup: M.call(M.string()).returns(M.promise()),
   has: M.call(M.string()).returns(M.promise()),
 });
-harden(AppsNameHubInterface);
 
 /**
  * @typedef {object} VirtualHostEntry
@@ -115,7 +114,7 @@ export const makeAppsNameHub = () => {
   const exo = makeExo(
     'AppsNameHub',
     AppsNameHubInterface,
-    /** @type {any} */ ({
+    /** @type {AppsNameHub} */ ({
       /**
        * @param {string} name
        * @param {string} webletFormulaId

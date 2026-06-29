@@ -55,6 +55,7 @@
   },
   "devDependencies": {
     "@endo/init": "workspace:^",
+    "@types/node": "^25.2.3",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",

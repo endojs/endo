@@ -48,7 +48,6 @@ const GatewayInterface = M.interface('Gateway', {
   getApps: M.call().returns(M.promise()),
   getConfig: M.call().returns(M.promise()),
 });
-harden(GatewayInterface);
 
 /**
  * @typedef {object} GatewayPowers The host-supplied powers the
@@ -100,7 +99,7 @@ export const makeGateway = ({ powers = {}, config: configIn = {} } = {}) => {
   const exo = makeExo(
     'Gateway',
     GatewayInterface,
-    /** @type {any} */ ({
+    /** @type {Gateway} */ ({
       async start() {
         if (lifecycle === 'started') {
           return;

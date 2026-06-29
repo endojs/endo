@@ -150,7 +150,7 @@ export const parseBindAddress = input => {
     throw makeError(X`Bind address port must be numeric: ${q(input)}`);
   }
   const port = Number(portString);
-  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+  if (!Number.isInteger(port) || port < 0 || port > 65_535) {
     throw makeError(
       X`Bind address port must be 0..65535, got ${q(portString)}`,
     );
