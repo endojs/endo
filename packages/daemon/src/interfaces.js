@@ -385,8 +385,8 @@ export const HostInterface = M.interface('EndoHost', {
   listKnownPeers: M.call().returns(M.promise()),
   // Follow changes to the known peers store
   followPeerChanges: M.call().returns(M.promise()),
-  // Locate a formula with connection hints for sharing with remote peers
-  locateForSharing: M.call().rest(NamePathShape).returns(M.promise()),
+  // Locate a formula with connection hints.
+  locateWithHints: M.call().rest(NamePathShape).returns(M.promise()),
   // Adopt a value from a locator with connection hints
   adoptFromLocator: M.call(LocatorShape, NameOrPathShape).returns(M.promise()),
   // Create an invitation

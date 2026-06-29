@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @import { FormulaNumber, NodeNumber, FormulaIdentifier } from './types.js' */
+/** @import { ConnectionHint, FormulaNumber, NodeNumber, FormulaIdentifier } from './types.js' */
 
 import { makeError, q } from '@endo/errors';
 import { formatId, isValidNumber, parseId } from './formula-identifier.js';
@@ -92,7 +92,7 @@ const encodePathComponents = components =>
 
 /**
  * @param {string} allegedLocator
- * @returns {{ formulaType: string, node: NodeNumber, number: FormulaNumber, hints: string[] }}
+ * @returns {{ formulaType: string, node: NodeNumber, number: FormulaNumber, hints: ConnectionHint[] }}
  */
 export const parseLocator = allegedLocator => {
   const errorPrefix = `Invalid locator ${q(allegedLocator)}:`;
@@ -178,29 +178,43 @@ export const idFromLocator = locator => {
  *
  * @param {string} id - The full formula identifier.
  * @param {string} formulaType - The type of the formula with the given id.
- * @param {string[]} addresses - Network addresses (connection hints).
+ * @param {ConnectionHint[]} hints - Connection hints.
  */
-export const formatLocatorForSharing = (id, formulaType, addresses) => {
+export const formatLocatorWithHints = (id, formulaType, hints) => {
   const { number, node } = parseId(id);
   assertValidLocatorType(formulaType);
   const url = new URL(
-    `endo://${node}${encodePathComponents([number, ...addresses])}`,
+    `endo://${node}${encodePathComponents([number, ...hints])}`,
   );
   url.searchParams.set('type', formulaType);
   return url.toString();
 };
 
 /**
- * Extract connection hint addresses from a locator, if any.
+ * Compatibility alias for the previous connection-hint formatter name.
+ *
+ * @deprecated Use formatLocatorWithHints.
+ */
+export const formatLocatorForSharing = formatLocatorWithHints;
+
+/**
+ * Extract connection hints from a locator, if any.
  *
  * @param {string} locator
- * @returns {string[]}
+ * @returns {ConnectionHint[]}
  */
-export const addressesFromLocator = locator => {
+export const hintsFromLocator = locator => {
   const url = new URL(locator);
   const [, ...hints] = decodePathComponents(url.pathname);
   return hints;
 };
+
+/**
+ * Compatibility alias for the previous connection-hint extractor name.
+ *
+ * @deprecated Use hintsFromLocator.
+ */
+export const addressesFromLocator = hintsFromLocator;
 
 /**
  * Convert an internal formula identifier to a locator for agent
@@ -209,17 +223,12 @@ export const addressesFromLocator = locator => {
  * @param {FormulaIdentifier} id - Internal formula identifier.
  * @param {string} formulaType - The type of the formula.
  * @param {NodeNumber} agentNodeNumber - The agent's public key.
- * @param {string[]} [addresses] - Optional network addresses.
+ * @param {ConnectionHint[]} [hints] - Optional connection hints.
  * @returns {string} A locator string.
  */
-export const externalizeId = (
-  id,
-  formulaType,
-  agentNodeNumber,
-  addresses = [],
-) => {
-  if (addresses.length > 0) {
-    return formatLocatorForSharing(id, formulaType, addresses);
+export const externalizeId = (id, formulaType, agentNodeNumber, hints = []) => {
+  if (hints.length > 0) {
+    return formatLocatorWithHints(id, formulaType, hints);
   }
   return formatLocator(id, formulaType);
 };
@@ -230,10 +239,10 @@ export const externalizeId = (
  * actual node numbers (no sentinel normalization needed).
  *
  * @param {string} locator - A locator string.
- * @returns {{ id: FormulaIdentifier, formulaType: string, addresses: string[] }}
+ * @returns {{ id: FormulaIdentifier, formulaType: string, hints: ConnectionHint[], addresses: ConnectionHint[] }}
  */
 export const internalizeLocator = locator => {
   const { number, node, formulaType, hints } = parseLocator(locator);
   const id = formatId({ number, node });
-  return { id, formulaType, addresses: hints };
+  return { id, formulaType, hints, addresses: hints };
 };

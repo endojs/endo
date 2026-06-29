@@ -235,7 +235,7 @@ test.serial(
       await E(channel).createInvitation('Bob');
 
       // --- Host A: generate a sharing locator ---
-      const locator = await E(hostA).locateForSharing('test-channel');
+      const locator = await E(hostA).locateWithHints('test-channel');
       t.truthy(locator, 'locator should be generated');
       t.assert(
         /** @type {string} */ (locator).startsWith('endo://'),
@@ -304,7 +304,7 @@ test.serial(
         .then(ch => E(ch).createInvitation('Carol'));
 
       // Generate locator
-      const locator = await E(hostA).locateForSharing('test-channel');
+      const locator = await E(hostA).locateWithHints('test-channel');
 
       // Simulate the broken chat UI flow: extract formula ID but
       // discard connection hints (use write instead of adoptFromLocator).
@@ -370,7 +370,7 @@ test.serial(
       await E(channel).createInvitation('Bob');
 
       // Host B adopts and joins
-      const locator = await E(hostA).locateForSharing('chat-room');
+      const locator = await E(hostA).locateWithHints('chat-room');
       await E(hostB).adoptFromLocator(
         /** @type {string} */ (locator),
         'remote-chat',
@@ -431,7 +431,7 @@ test.serial(
       await E(hostA).evaluate('@main', '"shared value"', [], [], ['my-val']);
 
       // Host A generates locator (includes connection hints)
-      const locator = await E(hostA).locateForSharing('my-val');
+      const locator = await E(hostA).locateWithHints('my-val');
       t.truthy(locator, 'locator should exist');
 
       // Verify locator has connection hints (subsequent `@`-delimited
