@@ -21,7 +21,7 @@ SES stands for fearless cooperation, and strong security requires strong collabo
 * A bug reporter can expect acknowledgment of a potential vulnerability reported through  [security@agoric.com](mailto:security@agoric.com)  within one business day of submitting a report. If an acknowledgement of an issue is not received within this time frame, especially during a weekend or holiday period, please reach out again. Any issues reported to the HackerOne program will be acknowledged within the time frames posted on the program page.
 	* The bug triage team and Agoric code maintainers are primarily located in the San Francisco Bay Area with business hours in  [Pacific Time](https://www.timeanddate.com/worldclock/usa/san-francisco) .
 
-* For the safety and security of those who depend on the code, bug reporters should avoid publicly sharing the details of a security bug on Twitter, Discord, Telegram, or in public Github issues during the coordination process.
+* For the safety and security of those who depend on the code, bug reporters should avoid publicly sharing the details of a security bug on Twitter, Discord, Telegram, or in public GitHub issues during the coordination process.
 
 * Once a vulnerability report has been received and triaged:
 	* Agoric code maintainers will confirm whether it is valid, and will provide updates to the reporter on validity of the report.
