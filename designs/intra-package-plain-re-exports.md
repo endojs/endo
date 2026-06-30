@@ -81,7 +81,8 @@ This rule is therefore about *intra-package* import edges only: a package's
 *own* modules should import from each other directly rather than through the
 package's declared-export entries or through internal pass-through modules that
 no `"exports"` entry names. The public surface (every module the `"exports"` map
-reaches) stays exactly as declared.
+reaches) stays exactly as declared: this refactor neither removes a surface
+module nor deprecates any export it provides.
 
 ## Rationale
 
