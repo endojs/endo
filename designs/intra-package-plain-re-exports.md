@@ -181,10 +181,16 @@ exhaustive inventory.
   could then be retired — is a case-by-case judgment left to a later PR, not this
   rule PR or its mechanical follow-up.
 
-- Barrel reach-back: modules that import from their own package's `./index.js`
-  (for values or for `@import` types) rather than from the defining sibling.
-  `packages/genie/src/agent/tool-gate.js` reaches back to `./index.js` for a
-  type import; the repoint targets the module that defines the type.
+- Declared-export reach-back: modules that import from one of their own package's
+  `package.json` `"exports"` entries (for values or for `@import` types) rather
+  than from the defining sibling. The barrel `./index.js` is only the most common
+  such entry; the case is general over every module the `"exports"` map reaches,
+  not just the entry barrel. `packages/genie/src/agent/tool-gate.js` reaches back
+  to `./index.js` for a type import; the repoint targets the module that defines
+  the type. Only the importer's edge moves: the declared-export module it reached
+  through is public API, so it stays unchanged and undeprecated (see *What the rule
+  does not touch*) — the removal pass never touches, deprecates, or repoints any
+  module the `"exports"` map names.
 
 The follow-up PR enumerates these mechanically, package by package.
 
