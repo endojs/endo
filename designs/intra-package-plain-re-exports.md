@@ -173,9 +173,13 @@ exhaustive inventory.
   `export { makeEvasiveTransformVisitor } from './transform-ast.js'`.
   The removal pass first checks whether the package's `package.json` `"exports"`
   map reaches this module; if it does, the module is public API and stays. If it
-  does not, its module comment still carries documentation value, so the pass
-  should decide per case whether to repoint importers at `./transform-ast.js`
-  and drop the module, or keep it solely as a documented seam.
+  does not, its module comment still carries documentation value — which means
+  the re-export is not *plain* by this design's definition, because it adds
+  something an importer could not get by importing straight from
+  `./transform-ast.js`. Such a re-export is kept as a documented seam. Any further
+  refinement of a kept seam — for example relocating its documentation so the seam
+  could then be retired — is a case-by-case judgment left to a later PR, not this
+  rule PR or its mechanical follow-up.
 
 - Barrel reach-back: modules that import from their own package's `./index.js`
   (for values or for `@import` types) rather than from the defining sibling.
