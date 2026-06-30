@@ -37,10 +37,16 @@ import { registerBuiltInApiProviders } from '@earendil-works/pi-ai';
 
 import { runAgentRound } from './src/agent/index.js';
 import { makeGenieAgents } from './src/loop/agents.js';
-import { formatHelpLines, makeBuiltinSpecials } from './src/loop/builtin-specials.js';
+import {
+  formatHelpLines,
+  makeBuiltinSpecials,
+} from './src/loop/builtin-specials.js';
 import { runGenieLoop } from './src/loop/run.js';
 import { makeSpecialsDispatcher } from './src/loop/specials.js';
-import { buildGenieTools, PLUGIN_DEFAULT_INCLUDE } from './src/tools/registry.js';
+import {
+  buildGenieTools,
+  PLUGIN_DEFAULT_INCLUDE,
+} from './src/tools/registry.js';
 
 /** @import { Observer } from './src/observer/index.js' */
 /** @import { Reflector } from './src/reflector/index.js' */
