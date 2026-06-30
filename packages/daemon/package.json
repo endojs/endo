@@ -61,6 +61,7 @@
     "@endo/stream": "workspace:^",
     "@endo/stream-node": "workspace:^",
     "@endo/where": "workspace:^",
+    "amaro": "^1.1.9",
     "ses": "workspace:^",
     "ws": "^8.13.0"
   },
