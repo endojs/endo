@@ -2336,7 +2336,13 @@ const makeMethodGuardMaker = (
 export const InterfaceGuardPayloadShape = M.splitRecord(
   {
     interfaceName: M.string(),
-    methodGuards: M.recordOf(M.string(), MethodGuardShape),
+    // Raise the method-guard count cap from the default 80 to 128. Large agent
+    // facets (e.g. the daemon's `EndoHost`) legitimately expose more than 80
+    // method guards; the cap stays bounded for DoS-defense, just with more
+    // headroom so normal innocent interfaces don't trip it.
+    methodGuards: M.recordOf(M.string(), MethodGuardShape, {
+      numPropertiesLimit: 128,
+    }),
   },
   {
     defaultGuards: M.or(M.undefined(), 'passable', 'raw'),

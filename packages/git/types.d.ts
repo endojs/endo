@@ -5,7 +5,7 @@
  * binary).  The remotable exo glue, interface guards, and
  * `GitBackend` typedef live in `@endo/exo-git`.
  *
- * Same shim pattern as `packages/endo-fs/types.d.ts`: factory return
+ * Same shim pattern as `packages/exo-git/types.d.ts`: factory return
  * types are `any` because daemon-side consumers immediately call
  * methods on the result (`backend.assertRepositoryRoot()`); a narrower
  * `object` would cascade TS2339 errors at every call site.

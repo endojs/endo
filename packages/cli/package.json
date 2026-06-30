@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@endo/bytes": "workspace:^",
+    "@endo/cancel": "workspace:^",
     "@endo/compartment-mapper": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",

@@ -4,9 +4,9 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { E } from '@endo/far';
+import { petNamePathsAutocomplete } from '@endo/spaces-util/petname-paths-autocomplete.js';
 import { createDOM, waitFor } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
-import { petNamePathsAutocomplete } from '../../petname-paths-autocomplete.js';
 
 const { window: testWindow, cleanup: cleanupDOM } = createDOM();
 

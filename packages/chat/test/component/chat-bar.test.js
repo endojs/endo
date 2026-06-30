@@ -4,13 +4,13 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { makeMockPowers } from '../helpers/mock-powers.js';
-import { createDOM, tick } from '../helpers/dom-setup.js';
-import { chatBarComponent } from '../../chat-bar-component.js';
+import { chatBarComponent } from '@endo/spaces-util/chat-bar-component.js';
 import {
   getCategories,
   getCommandsByCategory,
-} from '../../command-registry.js';
+} from '@endo/spaces-util/command-registry.js';
+import { makeMockPowers } from '../helpers/mock-powers.js';
+import { createDOM, tick } from '../helpers/dom-setup.js';
 
 const {
   window: testWindow,
@@ -48,6 +48,10 @@ if (typeof testDocument.execCommand !== 'function') {
  * popover mount through `renderConfined`, whose effects flush across Preact's
  * requestAnimationFrame-backed scheduler, so a fixed delay races on slower CI
  * runners; polling the actual condition is robust.
+ * @param predicate
+ * @param root0
+ * @param root0.timeout
+ * @param root0.step
  */
 const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
   const start = Date.now();
@@ -316,6 +320,98 @@ test.serial(
   },
 );
 
+test.serial(
+  'command-mode chrome (label / submit / error) renders confined',
+  async t => {
+    const ctx = await setupChatBar();
+
+    const $header = ctx.$parent.querySelector('.command-header');
+    const $footer = ctx.$parent.querySelector('.command-footer');
+    const $commandError = ctx.$parent.querySelector('#command-error');
+
+    // Enter command mode via the /mkdir popover row.
+    ctx.$menuButton.click();
+    const $row = await waitFor(() =>
+      ctx.$popover.querySelector('.command-popover-item[data-command="mkdir"]'),
+    );
+    $row.click();
+
+    await waitFor(() => ctx.$chatBar.classList.contains('command-mode'));
+    t.true(
+      ctx.$chatBar.classList.contains('command-mode'),
+      'command-mode class still toggles',
+    );
+
+    // The command label renders confined into a dedicated mount child of
+    // `.command-header` as a `.command-label` span — no imperative textContent.
+    const $label = await waitFor(() => {
+      const span = $header.querySelector('.command-label');
+      return span && span.textContent === 'Make Directory' ? span : null;
+    });
+    t.truthy($label, 'confined command label renders the command label');
+
+    // The submit button renders confined into `.command-footer`, labelled from
+    // the command's submitLabel, and starts disabled (the form is invalid).
+    const $submit = await waitFor(() => {
+      const btn = $footer.querySelector('button');
+      return btn && btn.textContent === 'Create' ? btn : null;
+    });
+    t.truthy($submit, 'confined submit button renders the submit label');
+    t.true(
+      $submit.disabled,
+      'submit button mirrors the authoritative invalid state (disabled)',
+    );
+    t.truthy(
+      $footer.querySelector('.command-cancel-footer'),
+      'confined cancel-footer button renders',
+    );
+
+    // The error region renders confined; it starts empty / hidden.
+    t.is($commandError.style.display, 'none', 'error bubble hidden when empty');
+
+    t.teardown(() => ctx.api.dispose());
+  },
+);
+
+test.serial(
+  'dispose unmounts the confined command-mode chrome mounts',
+  async t => {
+    const ctx = await setupChatBar();
+
+    const $header = ctx.$parent.querySelector('.command-header');
+    const $footer = ctx.$parent.querySelector('.command-footer');
+
+    ctx.$menuButton.click();
+    const $row = await waitFor(() =>
+      ctx.$popover.querySelector('.command-popover-item[data-command="mkdir"]'),
+    );
+    $row.click();
+
+    await waitFor(() => $header.querySelector('.command-label'));
+    await waitFor(() => $footer.querySelector('button'));
+    t.truthy($header.querySelector('.command-label'), 'chrome populated');
+    t.truthy($footer.querySelector('button'), 'footer populated');
+
+    ctx.api.dispose();
+
+    await waitFor(() => !$header.querySelector('.command-label'));
+    await waitFor(() => !$footer.querySelector('button'));
+
+    // unmount() tears down each confined chrome tree, leaving the host mount
+    // nodes empty.
+    t.is(
+      $header.querySelector('.command-label'),
+      null,
+      'command label removed after dispose',
+    );
+    t.is(
+      $footer.querySelector('button'),
+      null,
+      'submit/cancel buttons removed after dispose',
+    );
+  },
+);
+
 test.serial('dispose unmounts the confined modeline mount', async t => {
   const ctx = await setupChatBar();
 
@@ -339,3 +435,39 @@ test.serial('dispose unmounts the confined modeline mount', async t => {
     'modeline hints removed after dispose',
   );
 });
+
+test.serial(
+  'dispose removes the global document/window listeners it added',
+  async t => {
+    const ctx = await setupChatBar();
+
+    // Count the listener removals the chat bar performs during dispose. The
+    // chat bar attaches a document `click` (popover dismiss) and two window
+    // `keydown` handlers (focus mode + global keypress-to-focus); before this
+    // fix they were anonymous and leaked one set per space switch.
+    let docClickRemovals = 0;
+    let winKeydownRemovals = 0;
+    const realDocRemove = testDocument.removeEventListener.bind(testDocument);
+    const realWinRemove = testWindow.removeEventListener.bind(testWindow);
+    testDocument.removeEventListener = (type, ...rest) => {
+      if (type === 'click') docClickRemovals += 1;
+      return realDocRemove(type, ...rest);
+    };
+    testWindow.removeEventListener = (type, ...rest) => {
+      if (type === 'keydown') winKeydownRemovals += 1;
+      return realWinRemove(type, ...rest);
+    };
+    t.teardown(() => {
+      testDocument.removeEventListener = realDocRemove;
+      testWindow.removeEventListener = realWinRemove;
+    });
+
+    ctx.api.dispose();
+
+    t.true(docClickRemovals >= 1, 'document click listener removed on dispose');
+    t.true(
+      winKeydownRemovals >= 2,
+      'both window keydown listeners removed on dispose',
+    );
+  },
+);

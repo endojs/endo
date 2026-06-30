@@ -27,6 +27,31 @@ export type NodeNumber = string & { [NodeNumberBrand]: true };
 /** A full formula identifier in the format {FormulaNumber}:{NodeNumber} */
 export type FormulaIdentifier = string & { [FormulaIdentifierBrand]: true };
 
+// Semantic aliases for the locator terminology (see
+// designs/daemon-locator-terminology.md).  These are type-level
+// aliases; they introduce no runtime change.
+/** Ed25519 public key identifying a peer (alias for NodeNumber). */
+export type PeerKey = NodeNumber;
+/** Content address (SHA-256) or capability address (random 256-bit). */
+export type FormulaAddress = FormulaNumber;
+/** Full formula key: {formulaAddress}:{peerKey} (alias for FormulaIdentifier). */
+export type FormulaKey = FormulaIdentifier;
+/** A transport-prefixed address string (e.g., "ws-relay+captp0://host:8920"). */
+export type ConnectionHint = string;
+
+/** Peer key plus connection hints for reaching a peer. */
+export type PeerLocator = {
+  peerKey: PeerKey;
+  hints: ConnectionHint[];
+};
+
+/** Formula key plus connection hints and type for locating a formula. */
+export type FormulaLocator = {
+  formulaKey: FormulaKey;
+  formulaType: string;
+  hints: ConnectionHint[];
+};
+
 /** Either a pet name or a special name */
 export type Name = PetName | SpecialName;
 
@@ -106,6 +131,17 @@ export type ParseIdRecord = IdRecord & {
 export type EdgeName = string;
 
 export type EnvRecord = Record<string, string>;
+
+/**
+ * Re-exports of the retention-path types defined in `graph.js`
+ * (the segment / path shape) and `retention-path-accumulator.js`
+ * (the delta shape). See `designs/daemon-retention-paths.md` §
+ * Notation for the label conventions.
+ */
+export type RetentionPathSegment = import('./graph.js').RetentionPathSegment;
+export type RetentionPath = import('./graph.js').RetentionPath;
+export type RetentionPathDelta =
+  import('./retention-path-accumulator.js').RetentionPathDelta;
 
 type EndoFormula = {
   type: 'endo';
@@ -867,7 +903,7 @@ export interface Handle {
 export type MakeSha256 = () => Sha256;
 
 export type PetStoreNameChange =
-  | { add: Name; value: IdRecord }
+  | { add: Name; value: IdRecord; type?: string }
   | { remove: Name };
 
 export type PetStoreIdNameChange =
@@ -1593,6 +1629,48 @@ export interface EndoHost extends EndoAgent {
       label: string;
     }>;
   }>;
+  /**
+   * Retrieve the formula record for a local formula identifier.
+   * Returns the formula type plus the type-specific metadata as a
+   * normalized property record. Each property is either a literal
+   * passable value, a single reference (formula identifier), or a
+   * record of references (codeName-keyed).
+   *
+   * Host-only by precedent: a guest must not be able to enumerate
+   * the host's internal naming, peer relationships, or the formula
+   * graph of capabilities it does not own. See
+   * `designs/formula-inspector.md` and `daemon-retention-paths.md`
+   * for the host-only authority rationale.
+   *
+   * The identifier must name a formula local to this node;
+   * cross-peer locators are rejected.
+   */
+  getFormula(identifier: FormulaIdentifier): Promise<FormulaRecord>;
+  /**
+   * Snapshot every retention path from a GC root to the target,
+   * identified by an endo:// locator. Pet-store edges along the
+   * path render as `pet:<name>` labels; internal field edges
+   * pass through (e.g. `worker`, `petStore`, `retention`).
+   * See `designs/daemon-retention-paths.md` § Notation.
+   */
+  listRetentionPaths(
+    locator: string,
+  ): Promise<import('./graph.js').RetentionPath[]>;
+  /**
+   * Subscribe to retention-path changes for the target. The first
+   * delta is a full `{ snapshot }`; subsequent deltas are
+   * `{ added, removed }` diffs over a microtask-coalesced batch
+   * window. Drop the returned far reference to release the
+   * subscription, exactly as with `followNameChanges` and
+   * `followLocatorNameChanges`.
+   */
+  followRetentionPaths(
+    locator: string,
+  ): AsyncGenerator<
+    import('./retention-path-accumulator.js').RetentionPathDelta,
+    undefined,
+    undefined
+  >;
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
@@ -1718,11 +1796,35 @@ export interface EndoChannelMember {
   followHeatEvents(): Promise<AsyncIterableIterator<HeatEvent>>;
 }
 
+/**
+ * Internal per-formula-type metadata facet retained for backward
+ * compatibility with existing `pet-inspector` formulas already
+ * persisted on disk. This type is internal: it is declared in
+ * `packages/daemon/src/types.d.ts` and is not re-exported through the
+ * package's public type surface in `packages/daemon/types.d.ts`. User
+ * agents should use `EndoHost.getFormula(identifier)`; the inspector
+ * facet remains only because the `pet-inspector` formula entries that
+ * already exist on disk still need to revive into something callable.
+ * See `designs/formula-inspector.md`.
+ *
+ * Removal target: once a daemon migration retires the on-disk
+ * `pet-inspector` formula entries (no earlier than `@endo/daemon@4.0.0`),
+ * both `EndoInspector` and `KnownEndoInspectors` go with them.
+ *
+ * @deprecated Internal. Use `EndoHost.getFormula(identifier)` instead.
+ *   Removal scheduled with the on-disk `pet-inspector` retirement, no
+ *   earlier than `@endo/daemon@4.0.0`.
+ */
 export type EndoInspector<RecordT = string> = {
   lookup(petNameOrPath: RecordT | NameOrPath): Promise<unknown>;
   list(): RecordT[];
 };
 
+/**
+ * @deprecated Internal. Use `EndoHost.getFormula(identifier)` instead.
+ *   Removal scheduled with the on-disk `pet-inspector` retirement, no
+ *   earlier than `@endo/daemon@4.0.0`. See `EndoInspector`.
+ */
 export type KnownEndoInspectors = {
   eval: EndoInspector<'endowments' | 'source' | 'worker'>;
   'make-unconfined': EndoInspector<'host'>;
@@ -1733,6 +1835,40 @@ export type KnownEndoInspectors = {
   [formulaType: string]: EndoInspector<any>;
 };
 
+/**
+ * A run of newly read text from one of the daemon's log files, as
+ * streamed by `EndoBootstrap.readLog`.
+ */
+export type LogChunk = {
+  /** Display name of the source log, e.g. `endo.log` or `worker/<id8>`. */
+  source: string;
+  /** A run of UTF-8 text read from that log. */
+  chunk: string;
+};
+
+/**
+ * A property of a `FormulaRecord` is either a literal passable
+ * value, a single reference to another formula, or a record of
+ * references keyed by a code-name (for example, the `endowments`
+ * of an `eval` formula).
+ */
+export type FormulaProperty =
+  | { kind: 'literal'; value: Passable }
+  | { kind: 'reference'; identifier: FormulaIdentifier }
+  | { kind: 'reference-list'; entries: Record<string, FormulaIdentifier> };
+
+/**
+ * The normalized formula record returned by `EndoHost.getFormula`.
+ * `type` is one of the canonical formula types per
+ * `packages/daemon/src/formula-type.js`. `number` is the 128-character
+ * hex formula number. `properties` are the per-type metadata.
+ */
+export type FormulaRecord = {
+  type: string;
+  number: FormulaNumber;
+  properties: Record<string, FormulaProperty>;
+};
+
 export type EndoBootstrap = {
   ping: () => Promise<string>;
   terminate: () => Promise<void>;
@@ -1740,7 +1876,13 @@ export type EndoBootstrap = {
   leastAuthority: () => Promise<EndoGuest>;
   greeter: () => Promise<EndoGreeter>;
   gateway: () => Promise<EndoGateway>;
+  nodeId: () => string;
   sign: (hexBytes: string) => Promise<string>;
+  readLog: (options?: {
+    name?: string;
+    pattern?: string;
+    follow?: boolean;
+  }) => Promise<import('@endo/exo-stream').PassableReader<LogChunk, undefined>>;
   reviveNetworks: () => Promise<void>;
   revivePins: () => Promise<void>;
   addPeerInfo: (peerInfo: PeerInfo) => Promise<void>;
@@ -2313,6 +2455,16 @@ export interface DaemonCore {
       label: string;
     }>;
   }>;
+  listRetentionPaths: (
+    targetId: FormulaIdentifier,
+  ) => Promise<import('./graph.js').RetentionPath[]>;
+  followRetentionPaths: (
+    targetId: FormulaIdentifier,
+  ) => AsyncGenerator<
+    import('./retention-path-accumulator.js').RetentionPathDelta,
+    undefined,
+    undefined
+  >;
   provideController: (id: FormulaIdentifier) => Controller;
 }
 

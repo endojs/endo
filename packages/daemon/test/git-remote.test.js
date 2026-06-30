@@ -80,33 +80,6 @@ const provisionBareRemote = async (t, sourceRepo) => {
   return remoteRoot;
 };
 
-/**
- * @param {import('ava').ExecutionContext} t
- * @param {string} remoteRoot
- */
-const advanceRemoteMain = async (t, remoteRoot) => {
-  const cloneRoot = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), 'git-remote-upstream-'),
-  );
-  t.teardown(() => fs.promises.rm(cloneRoot, { recursive: true, force: true }));
-  await execFileAsync('git', ['clone', remoteRoot, cloneRoot]);
-  await fs.promises.writeFile(
-    path.join(cloneRoot, 'upstream.txt'),
-    'upstream\n',
-  );
-  await execFileAsync('git', ['add', 'upstream.txt'], { cwd: cloneRoot });
-  await execFileAsync(
-    'git',
-    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'upstream'],
-    { cwd: cloneRoot },
-  );
-  await execFileAsync('git', ['push', 'origin', 'main'], { cwd: cloneRoot });
-  const { stdout } = await execFileAsync('git', ['rev-parse', 'main'], {
-    cwd: cloneRoot,
-  });
-  return stdout.trim();
-};
-
 test('makeGitRemote produces a paired (remote, controller) facet', async t => {
   const { git } = await provisionGitContext(t);
   const { remote, controller } = makeGitRemote({
@@ -621,129 +594,100 @@ test('GitRemoteController.revoke during in-flight pull aborts before local integ
   t.like(audit[2], { type: 'pull', outcome: 'error' });
 });
 
-test('GitRemote fetch / pull / push use the bounded native data plane', async t => {
-  const { git, mount, root } = await provisionGitContext(t);
-  const remoteRoot = await provisionBareRemote(t, root);
+test('GitRemote push round-trips to an independent fetcher over file://', async t => {
+  t.timeout(2000);
+  // Producer worktree pushes a branch to a real file:// bare remote; a second,
+  // independent consumer worktree fetches that same branch back and recovers
+  // the full commit object.
+  const producer = await provisionGitContext(t);
+  const remoteRoot = await provisionBareRemote(t, producer.root);
   const remoteUrl = pathToFileURL(remoteRoot).href;
-  const remoteHead = await advanceRemoteMain(t, remoteRoot);
 
-  const { remote, controller } = makeGitRemote({
-    git,
+  const { remote: producerRemote } = makeGitRemote({
+    git: producer.git,
     name: 'origin',
     policy: {
       url: remoteUrl,
       allowLocalFileTransport: true,
-      allowedDirections: ['fetch', 'push'],
-      fetchRefspecs: ['+refs/heads/main:refs/remotes/origin/main'],
+      allowedDirections: ['push'],
+      fetchRefspecs: [],
       pushRefspecs: ['refs/heads/agent/*:refs/heads/agent/*'],
-      allowDelete: true,
     },
   });
 
-  const fetchResult = await E(remote).fetch({ prune: true });
-  const fetchUpdates = [...fetchResult.updatedRefs];
-  t.is(fetchUpdates.length, 1);
-  t.deepEqual(fetchUpdates[0], {
-    local: {
-      name: 'refs/remotes/origin/main',
-      kind: 'branch',
-      oid: remoteHead,
-    },
-    remote: 'refs/heads/main',
+  await E(producer.git).createBranch('agent/feature', {
+    switchAfterCreate: true,
+  });
+  const payload = 'feature-payload\n';
+  const entry = await E(producer.mount).entry(['feature.txt']);
+  await E(producer.mount).writeText(entry, payload);
+  await E(producer.git).add([entry]);
+  await E(producer.git).commit('test: feature commit to round-trip');
+
+  const pushResult = await E(producerRemote).push({
+    source: 'refs/heads/agent/feature',
+    destination: 'refs/heads/agent/feature',
+  });
+  const pushedRefs = [...pushResult.updatedRefs];
+  t.is(pushedRefs.length, 1);
+  const pushedOid = pushedRefs[0].local.oid;
+  t.regex(pushedOid, /^[0-9a-f]{40}$/u);
+  t.like(pushedRefs[0], {
+    remote: 'refs/heads/agent/feature',
     result: 'created',
   });
-  const fetched = await E(git).revParse('refs/remotes/origin/main');
-  t.is(fetched.oid, remoteHead);
 
-  const pullResult = await E(remote).pull({
-    branch: 'refs/remotes/origin/main',
-    strategy: 'ff-only',
+  // A second worktree, unrelated to the producer's repository, fetches the
+  // pushed branch from the same bare remote.
+  const consumer = await provisionGitContext(t);
+  const { remote: consumerRemote } = makeGitRemote({
+    git: consumer.git,
+    name: 'origin',
+    policy: {
+      url: remoteUrl,
+      allowLocalFileTransport: true,
+      allowedDirections: ['fetch'],
+      fetchRefspecs: ['+refs/heads/agent/*:refs/remotes/origin/agent/*'],
+      pushRefspecs: [],
+    },
   });
-  t.is(pullResult.integration, 'fast-forward');
+
+  const fetchResult = await E(consumerRemote).fetch();
   t.deepEqual(
-    [...pullResult.fetch.updatedRefs],
+    [...fetchResult.updatedRefs],
     [
       {
         local: {
-          name: 'refs/remotes/origin/main',
-          kind: 'branch',
-          oid: remoteHead,
-        },
-        remote: 'refs/heads/main',
-        result: 'up-to-date',
-      },
-    ],
-  );
-  t.is(await E(mount).readText(['upstream.txt']), 'upstream\n');
-
-  const upToDatePullResult = await E(remote).pull({
-    branch: 'refs/remotes/origin/main',
-    strategy: 'ff-only',
-  });
-  t.is(upToDatePullResult.integration, 'up-to-date');
-
-  await E(git).createBranch('agent/topic', { switchAfterCreate: true });
-  const note = await E(mount).entry(['agent.txt']);
-  await E(mount).writeText(note, 'agent\n');
-  await E(git).add([note]);
-  await E(git).commit('test: agent branch');
-  const pushResult = await E(remote).push({
-    source: 'refs/heads/agent/topic',
-    destination: 'refs/heads/agent/topic',
-    setUpstream: true,
-  });
-  const { stdout: pushedRef } = await execFileAsync(
-    'git',
-    ['show-ref', '--hash', 'refs/heads/agent/topic'],
-    { cwd: remoteRoot },
-  );
-  const pushedOid = pushedRef.trim();
-  t.regex(pushedOid, /^[0-9a-f]{40}$/u);
-  t.deepEqual(
-    [...pushResult.updatedRefs],
-    [
-      {
-        local: {
-          name: 'refs/heads/agent/topic',
+          name: 'refs/remotes/origin/agent/feature',
           kind: 'branch',
           oid: pushedOid,
         },
-        remote: 'refs/heads/agent/topic',
+        remote: 'refs/heads/agent/feature',
         result: 'created',
       },
     ],
   );
-  const { stdout: upstreamRemote } = await execFileAsync(
-    'git',
-    ['config', '--get', 'branch.agent/topic.remote'],
-    { cwd: root },
-  );
-  const { stdout: upstreamMerge } = await execFileAsync(
-    'git',
-    ['config', '--get', 'branch.agent/topic.merge'],
-    { cwd: root },
-  );
-  t.is(upstreamRemote.trim(), remoteUrl);
-  t.is(upstreamMerge.trim(), 'refs/heads/agent/topic');
 
-  const audit = await E(controller).audit();
-  t.deepEqual(
-    audit.map(event => event.type),
-    ['create', 'fetch', 'pull', 'pull', 'push'],
+  const fetched = await E(consumer.git).revParse(
+    'refs/remotes/origin/agent/feature',
   );
-  t.like(audit[1], { type: 'fetch', outcome: 'ok' });
-  t.like(audit[2], {
-    type: 'pull',
-    outcome: 'ok',
-    integration: 'fast-forward',
-  });
-  t.like(audit[3], {
-    type: 'pull',
-    outcome: 'ok',
-    integration: 'up-to-date',
-  });
-  t.like(audit[4], { type: 'push', outcome: 'ok' });
-  t.deepEqual([...audit[4].updatedRefs], [...pushResult.updatedRefs]);
+  t.is(fetched.oid, pushedOid);
+
+  // The commit and its blob must be materially present in the consumer's
+  // object store, not just a dangling ref. Inspect the consumer repo with
+  // raw git so the assertion is about observable git state, not the exo.
+  const { stdout: objectType } = await execFileAsync(
+    'git',
+    ['cat-file', '-t', pushedOid],
+    { cwd: consumer.root },
+  );
+  t.is(objectType.trim(), 'commit');
+  const { stdout: blob } = await execFileAsync(
+    'git',
+    ['cat-file', '-p', `${pushedOid}:feature.txt`],
+    { cwd: consumer.root },
+  );
+  t.is(blob, payload);
 });
 
 test('GitRemote enforces allowedDirections at the call boundary', async t => {

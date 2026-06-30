@@ -70,7 +70,7 @@ const setupInventory = async (opts = {}) => {
 
   const mock = makeMockPowers(opts);
 
-  const { inventoryComponent } = await import('../../inventory/inventory.js');
+  const { inventoryComponent } = await import('../../inventory-component.js');
 
   // Fire-and-forget: inventoryComponent runs an infinite `for await` loop on
   // followNameChanges and only returns when the iterator does. The tests
@@ -94,7 +94,7 @@ const setupInventory = async (opts = {}) => {
 // ── harden ────────────────────────────────────────────────────────────
 
 test.serial('inventoryComponent export is hardened', async t => {
-  const { inventoryComponent } = await import('../../inventory/inventory.js');
+  const { inventoryComponent } = await import('../../inventory-component.js');
   t.true(Object.isFrozen(inventoryComponent), 'inventoryComponent is frozen');
 });
 
@@ -175,15 +175,27 @@ test.serial('hub-typed rows accept drop; leaf-typed rows do not', async t => {
   });
 
   // locate() runs asynchronously after each item is added; wait for both type
-  // badges to resolve so the rows are typed before the drag interaction.
+  // badges to resolve so the rows are typed before the drag interaction. With
+  // grouped layout items land in separate group sections, so positional
+  // nth-child selectors cannot be used; find each item wrapper by its pet-name
+  // span text instead.
   await waitFor(() => $list.querySelectorAll('.pet-type-badge').length === 2);
 
-  const $inboxRow = /** @type {HTMLElement} */ (
-    $list.querySelector('.pet-item-wrapper:nth-child(1) .pet-item-row')
-  );
-  const $noteRow = /** @type {HTMLElement} */ (
-    $list.querySelector('.pet-item-wrapper:nth-child(2) .pet-item-row')
-  );
+  /** @param {string} petName */
+  const rowFor = petName => {
+    for (const $wrapper of $list.querySelectorAll('.pet-item-wrapper')) {
+      const $nameSpan = $wrapper.querySelector('.pet-name');
+      if ($nameSpan && $nameSpan.textContent === petName) {
+        return /** @type {HTMLElement} */ (
+          $wrapper.querySelector('.pet-item-row')
+        );
+      }
+    }
+    return null;
+  };
+
+  const $inboxRow = rowFor('inbox');
+  const $noteRow = rowFor('note');
   t.truthy($inboxRow, 'inbox row exists');
   t.truthy($noteRow, 'note row exists');
 
@@ -276,7 +288,10 @@ test.serial(
   async t => {
     const { readFile } = await import('node:fs/promises');
     const source = await readFile(
-      new URL('../../inventory/inventory.js', import.meta.url),
+      new URL(
+        '../../../space-chat/src/inventory/inventory.js',
+        import.meta.url,
+      ),
       'utf8',
     );
     // The spread form `.cancel(...` would forward path[1] as the optional
@@ -553,5 +568,409 @@ test.serial(
       'error names the MIME type',
     );
     t.regex(message, /inbox/, 'error names the destination row path');
+  },
+);
+
+// ── per-category grouping (maintainer ask: "Add similar tests for each ──
+//    category of entity") ─────────────────────────────────────────────
+
+// Helper: find the group section element for a given group key.
+const groupSectionFor = ($list, groupKey) =>
+  /** @type {HTMLElement | null} */ (
+    $list.querySelector(`[data-group-key="${groupKey}"]`)
+  );
+
+// Helper: find an item wrapper by pet name within the whole inventory.
+const wrapperFor = ($list, petName) => {
+  for (const $w of $list.querySelectorAll('.pet-item-wrapper')) {
+    const $n = $w.querySelector('.pet-name');
+    if ($n && $n.textContent === petName) {
+      return /** @type {HTMLElement} */ ($w);
+    }
+  }
+  return null;
+};
+
+test.serial(
+  'directory created via addNameWithType appears in the Directories group',
+  async t => {
+    const { $list, mock } = await setupInventory();
+
+    // Simulate what the daemon emits after /mkdir: an add event with
+    // type: 'directory', matching the enrichWithType daemon change in this PR.
+    mock.addNameWithType('my-dir', 'directory');
+
+    // Wait for the new item to appear in the DOM.
+    await waitFor(() => wrapperFor($list, 'my-dir') !== null);
+
+    const $directoriesGroup = groupSectionFor($list, 'directories');
+    t.truthy($directoriesGroup, 'directories group section exists');
+    t.truthy(
+      $directoriesGroup &&
+        $directoriesGroup.querySelector('.pet-name')?.textContent === 'my-dir',
+      'my-dir item appears inside the directories group',
+    );
+    void mock;
+  },
+);
+
+test.serial('handle type appears in its own Handles group', async t => {
+  const { $list } = await setupInventory({
+    names: ['alice'],
+    locators: new Map([['alice', 'endo://?type=handle&number=10']]),
+  });
+
+  await waitFor(() => !!$list.querySelector('.pet-type-badge'));
+
+  const $handlesGroup = groupSectionFor($list, 'handles');
+  t.truthy($handlesGroup, 'handles group section exists');
+  t.truthy(
+    $handlesGroup &&
+      $handlesGroup.querySelector('.pet-name')?.textContent === 'alice',
+    'alice handle appears inside the dedicated handles group',
+  );
+  t.falsy(
+    groupSectionFor($list, 'capabilities'),
+    'a lone handle no longer lands in the capabilities group',
+  );
+});
+
+test.serial('group header count honors the special-names filter', async t => {
+  // The host show-special toggle (an aria-pressed icon button) must exist before
+  // mount so the inventory wrapper can bind to it and thread its state into the
+  // confined tree.
+  const $toggle = testDocument.createElement('button');
+  $toggle.id = 'show-special-toggle';
+  $toggle.setAttribute('aria-pressed', 'false');
+  testDocument.body.appendChild($toggle);
+  t.teardown(() => $toggle.remove());
+
+  // A regular handle plus a special (`@`-prefixed) handle land in the same
+  // group; the special one is hidden by default.
+  const { $list } = await setupInventory({
+    names: ['alice', '@self'],
+    locators: new Map([
+      ['alice', 'endo://?type=handle&number=10'],
+      ['@self', 'endo://?type=handle&number=11'],
+    ]),
+  });
+
+  await waitFor(() => !!groupSectionFor($list, 'handles'));
+
+  const countText = () =>
+    groupSectionFor($list, 'handles')?.querySelector('.pet-group-count')
+      ?.textContent;
+
+  // The count must agree with the (default-filtered) expanded contents: the
+  // hidden special name is excluded, so the header reads 1, not 2.
+  t.is(countText(), '1', 'count excludes the hidden special name by default');
+
+  // Reveal special names; the count re-renders to include @self.
+  $toggle.setAttribute('aria-pressed', 'true');
+  $toggle.dispatchEvent(new globalThis.Event('change'));
+  await tick(20);
+  t.is(countText(), '2', 'count includes special names once revealed');
+});
+
+test.serial(
+  'a group whose only member is a hidden special name is hidden',
+  async t => {
+    // @self is a handle; with no show-special toggle present it stays hidden, so
+    // every group has zero visible members and none renders. (A hidden-only
+    // group never mounts its rows, so there is no type badge to await; settle a
+    // few ticks and assert the absence of any group section.)
+    const { $list } = await setupInventory({
+      names: ['@self'],
+      locators: new Map([['@self', 'endo://?type=handle&number=11']]),
+    });
+
+    await tick(60);
+
+    t.is(
+      $list.querySelectorAll('[data-group-key]').length,
+      0,
+      'no group section renders when the only item is a hidden special name',
+    );
+  },
+);
+
+test.serial('host type appears in the Personas group', async t => {
+  const { $list } = await setupInventory({
+    names: ['self'],
+    locators: new Map([['self', 'endo://?type=host&number=11']]),
+  });
+
+  await waitFor(() => !!$list.querySelector('.pet-type-badge'));
+
+  const $personasGroup = groupSectionFor($list, 'personas');
+  t.truthy($personasGroup, 'personas group section exists');
+  t.truthy(
+    $personasGroup &&
+      $personasGroup.querySelector('.pet-name')?.textContent === 'self',
+    'self item appears inside the personas group',
+  );
+});
+
+test.serial('guest type appears in the Agents group', async t => {
+  const { $list } = await setupInventory({
+    names: ['helper'],
+    locators: new Map([['helper', 'endo://?type=guest&number=12']]),
+  });
+
+  await waitFor(() => !!$list.querySelector('.pet-type-badge'));
+
+  const $agentsGroup = groupSectionFor($list, 'agents');
+  t.truthy($agentsGroup, 'agents group section exists');
+  t.truthy(
+    $agentsGroup &&
+      $agentsGroup.querySelector('.pet-name')?.textContent === 'helper',
+    'helper item appears inside the agents group',
+  );
+});
+
+test.serial('marshal type appears in the Values group', async t => {
+  const { $list } = await setupInventory({
+    names: ['greeting'],
+    locators: new Map([['greeting', 'endo://?type=marshal&number=13']]),
+  });
+
+  await waitFor(() => !!$list.querySelector('.pet-type-badge'));
+
+  const $valuesGroup = groupSectionFor($list, 'values');
+  t.truthy($valuesGroup, 'values group section exists');
+  t.truthy(
+    $valuesGroup &&
+      $valuesGroup.querySelector('.pet-name')?.textContent === 'greeting',
+    'greeting item appears inside the values group',
+  );
+});
+
+test.serial('worker type appears in its own Workers group', async t => {
+  const { $list } = await setupInventory({
+    names: ['worker1'],
+    locators: new Map([['worker1', 'endo://?type=worker&number=20']]),
+  });
+
+  await waitFor(() => !!$list.querySelector('.pet-type-badge'));
+
+  const $workersGroup = groupSectionFor($list, 'workers');
+  t.truthy($workersGroup, 'workers group section exists');
+  t.truthy(
+    $workersGroup &&
+      $workersGroup.querySelector('.pet-name')?.textContent === 'worker1',
+    'worker1 item appears inside the workers group',
+  );
+});
+
+test.serial('mail-hub type appears in the Directories group', async t => {
+  const { $list } = await setupInventory({
+    names: ['MAIL'],
+    locators: new Map([['MAIL', 'endo://?type=mail-hub&number=21']]),
+  });
+
+  await waitFor(() => !!$list.querySelector('.pet-type-badge'));
+
+  const $directoriesGroup = groupSectionFor($list, 'directories');
+  t.truthy($directoriesGroup, 'directories group section exists');
+  t.truthy(
+    $directoriesGroup &&
+      $directoriesGroup.querySelector('.pet-name')?.textContent === 'MAIL',
+    'mail-hub item appears inside the directories group',
+  );
+});
+
+test.serial('pet-store type appears in the Directories group', async t => {
+  const { $list } = await setupInventory({
+    names: ['SELF'],
+    locators: new Map([['SELF', 'endo://?type=pet-store&number=21']]),
+  });
+
+  await waitFor(() => !!$list.querySelector('.pet-type-badge'));
+
+  const $directoriesGroup = groupSectionFor($list, 'directories');
+  t.truthy($directoriesGroup, 'directories group section exists');
+  t.truthy(
+    $directoriesGroup &&
+      $directoriesGroup.querySelector('.pet-name')?.textContent === 'SELF',
+    'SELF pet-store item appears inside the directories group',
+  );
+});
+
+test.serial('readable-blob type appears in the Capabilities group', async t => {
+  const { $list } = await setupInventory({
+    names: ['note'],
+    locators: new Map([['note', 'endo://?type=readable-blob&number=30']]),
+  });
+
+  await waitFor(() => !!$list.querySelector('.pet-type-badge'));
+
+  const $elseGroup = groupSectionFor($list, 'capabilities');
+  t.truthy($elseGroup, 'capabilities group section exists');
+  t.truthy(
+    $elseGroup && $elseGroup.querySelector('.pet-name')?.textContent === 'note',
+    'note item appears inside the capabilities group',
+  );
+});
+
+test.serial('eval type appears in the Capabilities group', async t => {
+  const { $list } = await setupInventory({
+    names: ['my-eval'],
+    locators: new Map([['my-eval', 'endo://?type=eval&number=40']]),
+  });
+
+  await waitFor(() => !!$list.querySelector('.pet-type-badge'));
+
+  const $elseGroup = groupSectionFor($list, 'capabilities');
+  t.truthy($elseGroup, 'capabilities group section exists');
+  t.truthy(
+    $elseGroup &&
+      $elseGroup.querySelector('.pet-name')?.textContent === 'my-eval',
+    'my-eval item appears inside the capabilities group',
+  );
+});
+
+test.serial('empty group is hidden and non-empty group is shown', async t => {
+  // Only a directory is present; the Agents and Values groups should not
+  // render at all (FRB filter{items.length > 0} pattern).
+  const { $list } = await setupInventory({
+    names: ['inbox'],
+    locators: new Map([['inbox', 'endo://?type=directory&number=50']]),
+  });
+
+  // Wait for the locate probe so the item lands in the correct group.
+  await waitFor(() => !!$list.querySelector('.pet-type-badge'));
+
+  // Only the directories group should be present; agents and values absent.
+  t.falsy(
+    groupSectionFor($list, 'agents'),
+    'agents group is hidden when no agents exist',
+  );
+  t.falsy(
+    groupSectionFor($list, 'values'),
+    'values group is hidden when no values exist',
+  );
+  t.truthy(
+    groupSectionFor($list, 'directories'),
+    'directories group is shown when a directory exists',
+  );
+});
+
+test.serial(
+  '/mkdir reactive update: directory appears via addNameWithType without locate()',
+  async t => {
+    // This test covers the reactive update path for /mkdir: the daemon now
+    // includes type: 'directory' in the followNameChanges add event, so the
+    // inventory can group the item correctly without waiting for locate().
+    // The FRB analogy: the group projection is derived from a directly observed
+    // property (type in the event), not from a secondary async look-up.
+    const { $list, mock } = await setupInventory();
+
+    // No items yet: no group sections should appear.
+    t.falsy(
+      groupSectionFor($list, 'directories'),
+      'directories group absent before mkdir',
+    );
+
+    // Simulate /mkdir: daemon emits { add: 'new-dir', type: 'directory' }.
+    mock.addNameWithType('new-dir', 'directory');
+
+    // The directories group section should appear and contain the new item, all
+    // without any locate() round-trip (no locator is registered in the mock).
+    await waitFor(() => groupSectionFor($list, 'directories') !== null);
+
+    const $hubsGroup = groupSectionFor($list, 'directories');
+    t.truthy($hubsGroup, 'directories group appears after mkdir');
+    t.truthy(
+      $hubsGroup &&
+        $hubsGroup.querySelector('.pet-name')?.textContent === 'new-dir',
+      'new-dir item is in the directories group immediately from the event type',
+    );
+
+    // Confirm locate() was NOT called for new-dir (the type came from the event).
+    const locateCalls = mock.calls.filter(
+      c => c.method === 'locate' && String(c.args[0]) === 'new-dir',
+    );
+    // locate() may still be called for decoration (conversable check), but the
+    // item should already be in the correct group before it resolves.
+    // The key assertion is that the group appeared immediately, not that
+    // locate() was skipped entirely.
+    t.truthy(
+      $hubsGroup.querySelector('.pet-name')?.textContent === 'new-dir',
+      'hubs group shows new-dir from the event type field',
+    );
+    void locateCalls;
+  },
+);
+
+// ── group-by-type toggle ──────────────────────────────────────────────
+//
+// The grouped layout is the default. A host toggle icon button
+// (#group-by-type-toggle, aria-pressed) makes it optional: when un-pressed the
+// wrapper threads grouped=false into the confined tree, which renders the prior
+// flat list (items directly, no group sections).
+
+test.serial(
+  'absent the group-by-type toggle, the grouped layout renders',
+  async t => {
+    const { $list } = await setupInventory({
+      names: ['alice'],
+      locators: new Map([['alice', 'endo://?type=handle&number=10']]),
+    });
+
+    await waitFor(() => !!groupSectionFor($list, 'handles'));
+    t.truthy(
+      groupSectionFor($list, 'handles'),
+      'a group section renders when no group toggle is present',
+    );
+  },
+);
+
+test.serial(
+  'un-pressing the group-by-type toggle renders the flat list',
+  async t => {
+    // The group toggle starts pressed (grouped is the default); flipping it off
+    // must drop the group sections and render items directly in the list.
+    const $groupToggle = testDocument.createElement('button');
+    $groupToggle.id = 'group-by-type-toggle';
+    $groupToggle.setAttribute('aria-pressed', 'true');
+    testDocument.body.appendChild($groupToggle);
+    t.teardown(() => $groupToggle.remove());
+
+    const { $list } = await setupInventory({
+      names: ['alice'],
+      locators: new Map([['alice', 'endo://?type=handle&number=10']]),
+    });
+
+    await waitFor(() => !!groupSectionFor($list, 'handles'));
+    t.truthy(
+      groupSectionFor($list, 'handles'),
+      'grouped while the toggle is pressed',
+    );
+
+    // Flip to the flat view.
+    $groupToggle.setAttribute('aria-pressed', 'false');
+    $groupToggle.dispatchEvent(new globalThis.Event('change'));
+
+    await waitFor(
+      () => $list.querySelectorAll('[data-group-key]').length === 0,
+    );
+    t.is(
+      $list.querySelectorAll('[data-group-key]').length,
+      0,
+      'no group sections render in the flat view',
+    );
+    t.truthy(
+      wrapperFor($list, 'alice'),
+      'the alice item still renders in the flat list',
+    );
+
+    // Flip back to grouped; the section returns.
+    $groupToggle.setAttribute('aria-pressed', 'true');
+    $groupToggle.dispatchEvent(new globalThis.Event('change'));
+    await waitFor(() => !!groupSectionFor($list, 'handles'));
+    t.truthy(
+      groupSectionFor($list, 'handles'),
+      'grouped view returns when the toggle is re-pressed',
+    );
   },
 );

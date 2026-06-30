@@ -385,10 +385,18 @@ export const main = async rawArgs => {
     .option('-f,--follow', 'Follow updates')
     .option('-j,--json', 'JSON format output')
     .option('-v,--verbose', 'Provide more detailed output')
+    .option(
+      '-g,--grouped',
+      'Group output by formula type (handles, directories, values, capabilities, agents, personas)',
+    )
+    .option(
+      '-t,--type <formulaType>',
+      'Show only names whose formula type matches (e.g. handle, eval, readable-blob)',
+    )
     .action(async (directory, cmd) => {
-      const { follow, json, verbose } = cmd.opts();
+      const { follow, json, verbose, grouped, type } = cmd.opts();
       const { list } = await import('./commands/list.js');
-      return list({ directory, follow, json, verbose });
+      return list({ directory, follow, json, verbose, grouped, type });
     });
 
   program
@@ -442,6 +450,43 @@ export const main = async rawArgs => {
       const { as: agentNames } = cmd.opts();
       const { locate } = await import('./commands/locate.js');
       return locate({ name, agentNames });
+    });
+
+  program
+    .command('inspect <name-or-identifier>')
+    .description(
+      "prints the formula record (type and per-property literals and references) for a name or local formula identifier; per the 'pop the bonnet' design",
+    )
+    .option(
+      '-i,--identifier',
+      'interpret the argument as a formula identifier rather than a pet name path',
+    )
+    .option('--json', 'emit the raw FormulaRecord as JSON for scripting')
+    .action(async (nameOrIdentifier, cmd) => {
+      const { identifier: asIdentifier, json: asJson } = cmd.opts();
+      const { inspect } = await import('./commands/inspect.js');
+      return inspect({
+        nameOrIdentifier,
+        asIdentifier: Boolean(asIdentifier),
+        asJson: Boolean(asJson),
+      });
+    });
+
+  program
+    .command('paths <name-or-locator>')
+    .description(
+      'prints every retention path from a GC root to the named value',
+    )
+    .option(...commonOptions.as)
+    .option(
+      '--locator',
+      'interpret <name-or-locator> as an endo:// locator rather than a pet name',
+    )
+    .option('--json', 'emit raw RetentionPath[] as JSON instead of prose')
+    .action(async (name, cmd) => {
+      const { as: agentNames, locator = false, json = false } = cmd.opts();
+      const { paths } = await import('./commands/paths.js');
+      return paths({ name, agentNames, locator, json });
     });
 
   program
@@ -908,6 +953,7 @@ export const main = async rawArgs => {
         'mount',
         'mktmp',
         'locate',
+        'paths',
         'remove',
         'move',
         'copy',

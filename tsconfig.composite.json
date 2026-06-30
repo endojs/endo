@@ -18,6 +18,9 @@
       "path": "packages/cache-map/tsconfig.composite.json"
     },
     {
+      "path": "packages/cancel/tsconfig.composite.json"
+    },
+    {
       "path": "packages/captp/tsconfig.composite.json"
     },
     {
@@ -76,6 +79,9 @@
     },
     {
       "path": "packages/far/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/gateway/tsconfig.composite.json"
     },
     {
       "path": "packages/goblin-chat/tsconfig.composite.json"
@@ -139,6 +145,9 @@
     },
     {
       "path": "packages/promise-kit/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/pubsub/tsconfig.composite.json"
     },
     {
       "path": "packages/random/tsconfig.composite.json"

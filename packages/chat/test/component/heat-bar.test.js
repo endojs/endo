@@ -3,8 +3,8 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
+import { createHeatBar } from '@endo/spaces-util/heat-bar.js';
 import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
-import { createHeatBar } from '../../heat-bar.js';
 
 const { document: testDocument } = createDOM();
 

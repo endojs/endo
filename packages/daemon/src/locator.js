@@ -16,9 +16,31 @@ export const LOCAL_NODE = /** @type {NodeNumber} */ ('0'.repeat(64));
 /**
  * The endo locator format:
  * ```
- * endo://{nodeNumber}/?id={formulaNumber}&type={formulaType}
+ * endo://{peerKey}/{formulaAddress}@{hint1}@{hint2}?type={formulaType}
  * ```
- * Note that the `id` query param is just the formula number.
+ *
+ * - `peerKey` is the URL host: a 64-char hex Ed25519 public key.
+ * - The URL path is a sequence of `@`-delimited components.  The first
+ *   component is the formula address (a 64-char hex string).  Subsequent
+ *   components are connection hints in the form
+ *   `<transport-prefix>:<transport-payload>`.
+ * - Each path component is URL-encoded so that `@`, `/`, and other
+ *   reserved characters inside a component round-trip cleanly.
+ * - The query string carries metadata.  `type={formulaType}` is required;
+ *   `from={handleNumber}` and `fromNode={nodeNumber}` are used by
+ *   invitation locators.
+ *
+ * Example (no hints):
+ *
+ * ```
+ * endo://abcd…/ef01…?type=eval
+ * ```
+ *
+ * Example (with hints):
+ *
+ * ```
+ * endo://abcd…/ef01…@tcp%2Bnetstring%2Bjson%2Bcaptp0%3A%2F%2F127.0.0.1%3A54321?type=eval
+ * ```
  */
 
 /**
@@ -41,8 +63,36 @@ const assertValidLocatorType = allegedType => {
 };
 
 /**
+ * Split the `@`-delimited URL path into its decoded components.
+ * The leading slash is stripped first; the empty path yields an empty
+ * array.  Each component is URL-decoded so that `@`, `/`, and `?` inside
+ * a hint round-trip cleanly.
+ *
+ * @param {string} pathname
+ * @returns {string[]}
+ */
+const decodePathComponents = pathname => {
+  const stripped = pathname.replace(/^\//, '');
+  if (stripped === '') {
+    return [];
+  }
+  return stripped.split('@').map(decodeURIComponent);
+};
+
+/**
+ * Encode an array of path components into the `@`-delimited URL path
+ * (with a leading slash).  Each component is URL-encoded so that `@`,
+ * `/`, and `?` inside a component do not collide with the path syntax.
+ *
+ * @param {string[]} components
+ * @returns {string}
+ */
+const encodePathComponents = components =>
+  `/${components.map(encodeURIComponent).join('@')}`;
+
+/**
  * @param {string} allegedLocator
- * @returns {{ formulaType: string, node: NodeNumber, number: FormulaNumber }}
+ * @returns {{ formulaType: string, node: NodeNumber, number: FormulaNumber, hints: string[] }}
  */
 export const parseLocator = allegedLocator => {
   const errorPrefix = `Invalid locator ${q(allegedLocator)}:`;
@@ -61,20 +111,21 @@ export const parseLocator = allegedLocator => {
     throw makeError(`${errorPrefix} Invalid node identifier.`);
   }
 
-  if (!url.searchParams.has('id') || !url.searchParams.has('type')) {
-    throw makeError(`${errorPrefix} Invalid search params.`);
+  const components = decodePathComponents(url.pathname);
+  if (components.length === 0) {
+    throw makeError(`${errorPrefix} Missing formula number.`);
+  }
+  const [number, ...hints] = components;
+  if (!isValidNumber(number)) {
+    throw makeError(`${errorPrefix} Invalid id.`);
   }
 
-  // Only 'id', 'type', and 'at' (connection hints) are allowed.
+  // Only `type`, `from`, and `fromNode` are recognized query parameters.
+  // `from` and `fromNode` are specific to invitation and handle locators.
   for (const key of url.searchParams.keys()) {
-    if (key !== 'id' && key !== 'type' && key !== 'at') {
+    if (key !== 'type' && key !== 'from' && key !== 'fromNode') {
       throw makeError(`${errorPrefix} Invalid search params.`);
     }
-  }
-
-  const number = url.searchParams.get('id');
-  if (number === null || !isValidNumber(number)) {
-    throw makeError(`${errorPrefix} Invalid id.`);
   }
 
   const formulaType = url.searchParams.get('type');
@@ -84,7 +135,7 @@ export const parseLocator = allegedLocator => {
 
   const nodeNumber = /** @type {NodeNumber} */ (node);
   const formulaNumber = /** @type {FormulaNumber} */ (number);
-  return { formulaType, node: nodeNumber, number: formulaNumber };
+  return { formulaType, node: nodeNumber, number: formulaNumber, hints };
 };
 
 /** @param {string} allegedLocator */
@@ -93,20 +144,18 @@ export const assertValidLocator = allegedLocator => {
 };
 
 /**
+ * Format a locator with no connection hints.
+ *
+ * Format: `endo://{peerKey}/{formulaAddress}?type={type}`
+ *
  * @param {string} id - The full formula identifier.
  * @param {string} formulaType - The type of the formula with the given id.
  */
 export const formatLocator = (id, formulaType) => {
   const { number, node } = parseId(id);
-  const url = new URL(`endo://${node}`);
-  url.pathname = '/';
-
-  // The id query param is just the number
-  url.searchParams.set('id', number);
-
   assertValidLocatorType(formulaType);
+  const url = new URL(`endo://${node}${encodePathComponents([number])}`);
   url.searchParams.set('type', formulaType);
-
   return url.toString();
 };
 
@@ -121,24 +170,23 @@ export const idFromLocator = locator => {
 /**
  * Format a locator with connection hints for sharing with remote peers.
  *
+ * Format:
+ * `endo://{peerKey}/{formulaAddress}@{hint1}@{hint2}?type={type}`
+ *
+ * Each `<hint>` is URL-encoded so that `@`, `/`, and `?` inside a hint
+ * (e.g., a hostname containing `@`) do not collide with the path syntax.
+ *
  * @param {string} id - The full formula identifier.
  * @param {string} formulaType - The type of the formula with the given id.
  * @param {string[]} addresses - Network addresses (connection hints).
  */
 export const formatLocatorForSharing = (id, formulaType, addresses) => {
   const { number, node } = parseId(id);
-  const url = new URL(`endo://${node}`);
-  url.pathname = '/';
-
-  url.searchParams.set('id', number);
-
   assertValidLocatorType(formulaType);
+  const url = new URL(
+    `endo://${node}${encodePathComponents([number, ...addresses])}`,
+  );
   url.searchParams.set('type', formulaType);
-
-  for (const address of addresses) {
-    url.searchParams.append('at', address);
-  }
-
   return url.toString();
 };
 
@@ -150,7 +198,8 @@ export const formatLocatorForSharing = (id, formulaType, addresses) => {
  */
 export const addressesFromLocator = locator => {
   const url = new URL(locator);
-  return url.searchParams.getAll('at');
+  const [, ...hints] = decodePathComponents(url.pathname);
+  return hints;
 };
 
 /**
@@ -184,8 +233,7 @@ export const externalizeId = (
  * @returns {{ id: FormulaIdentifier, formulaType: string, addresses: string[] }}
  */
 export const internalizeLocator = locator => {
-  const { number, node, formulaType } = parseLocator(locator);
-  const addresses = addressesFromLocator(locator);
+  const { number, node, formulaType, hints } = parseLocator(locator);
   const id = formatId({ number, node });
-  return { id, formulaType, addresses };
+  return { id, formulaType, addresses: hints };
 };

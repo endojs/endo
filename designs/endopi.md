@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-15 |
-| **Updated** | 2026-05-15 |
+| **Updated** | 2026-06-25 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Reference |
 
@@ -128,6 +128,7 @@ primitive a tool-calling LLM uses. See gap [endopi-edit-tool](endopi-edit-tool.m
 | `id` / `parentId` tree linking              | `messageId` / `replyTo` on daemon messages     | **Available** (different naming)                       |
 | `/tree` navigation UI                       | —                                              | Not designed                                           |
 | `/fork`, `/clone`                           | Reply at a chosen prior message produces a new branch | **Available** (different mechanism)             |
+| Per-message edit / revision log             | `revisionsByNumber` per message number: `editMessage` / `messageHistory` / `done` (#125) | **Available**; pinned as intra-node, orthogonal to the reply-to branch axis ([agentry-agent-builder](agentry-agent-builder.md)) |
 | `--no-session` ephemeral mode               | —                                              | Implicit (formula not persisted on a one-shot guest)   |
 | Cross-host session export (Hugging Face)    | —                                              | Not designed                                           |
 | `/export` to HTML                           | —                                              | Not designed                                           |
@@ -140,6 +141,16 @@ and Memory*) names "Pi-compatible jsonl files" as the desired offline
 operator shape. The session-export feature also doubles as the
 agent's own form of long-term memory inside its workspace. See gap
 [endopi-jsonl-transcript-format](endopi-jsonl-transcript-format.md).
+
+The reply-to tree and the per-message revision log are two orthogonal
+axes, now that the pi harness has merged (#290) and the revision log
+landed (#125). The reply-to tree is the sole branch axis: a `reply`
+grows a sibling subtree, mapping pi `/fork` / `/clone`. The revision
+log is strictly intra-node: an `editMessage` settles a node in place
+and never forks. [agentry-agent-builder](agentry-agent-builder.md)
+§ Mapping pi's session tree to the daemon mail model pins this invariant
+for the harness, closing the gap where nothing said which revision was
+current when a reply branched off a node.
 
 ### Multi-provider LLM API
 

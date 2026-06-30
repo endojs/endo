@@ -43,7 +43,7 @@ register(
 // Dynamically imported AFTER the loader is registered so define-form's
 // `import { createMonacoEditor } from '@endo/monaco-wrapper'` resolves to the
 // stub.
-const { createDefineForm } = await import('../../define-form.js');
+const { createDefineForm } = await import('@endo/spaces-util/define-form.js');
 
 const { document: testDocument } = createDOM();
 

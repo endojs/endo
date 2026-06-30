@@ -22,6 +22,7 @@ import {
 } from '@endo/platform/fs/extended';
 
 import { makeMountReadTool } from '../src/mount-fs.js';
+import { toPiAgentTool } from '../src/pi.js';
 
 /**
  * @typedef {object} TestFilesystemLike
@@ -63,7 +64,7 @@ test('reads a text file inside the filesystem', async t => {
 
   const tool = makeMountReadTool(filesystem);
   await null;
-  t.is(await tool.execute({ path: 'a.txt' }), 'hello mount');
+  t.is(await tool.invoke({ path: 'a.txt' }), 'hello mount');
 });
 
 test('reads a file in a subdirectory by relative path', async t => {
@@ -74,7 +75,7 @@ test('reads a file in a subdirectory by relative path', async t => {
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
 
   const tool = makeMountReadTool(filesystem);
-  t.is(await tool.execute({ path: 'sub/b.txt' }), 'nested');
+  t.is(await tool.invoke({ path: 'sub/b.txt' }), 'nested');
 });
 
 test('reads through a chroot subtree view as the new root', async t => {
@@ -88,8 +89,8 @@ test('reads through a chroot subtree view as the new root', async t => {
   ]);
 
   const tool = makeMountReadTool(filesystem);
-  t.is(await tool.execute({ path: 'c.txt' }), 'in subtree');
-  await t.throwsAsync(() => tool.execute({ path: 'top.txt' }), {
+  t.is(await tool.invoke({ path: 'c.txt' }), 'in subtree');
+  await t.throwsAsync(() => tool.invoke({ path: 'top.txt' }), {
     message: /ENOENT/,
   });
 });
@@ -101,7 +102,7 @@ test('reads an empty file as the empty string', async t => {
 
   const tool = makeMountReadTool(filesystem);
   await null;
-  t.is(await tool.execute({ path: 'empty.txt' }), '');
+  t.is(await tool.invoke({ path: 'empty.txt' }), '');
 });
 
 test('truncates content beyond the 50k-char cap', async t => {
@@ -111,7 +112,7 @@ test('truncates content beyond the 50k-char cap', async t => {
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
 
   const tool = makeMountReadTool(filesystem);
-  const result = await tool.execute({ path: 'big.txt' });
+  const result = /** @type {string} */ (await tool.invoke({ path: 'big.txt' }));
   t.true(result.startsWith('x'.repeat(50_000)));
   t.true(result.includes('truncated at 50000 chars'));
   t.is(result.indexOf('\n\n... (truncated'), 50_000);
@@ -124,7 +125,7 @@ test('truncates at a caller-supplied maxChars', async t => {
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
 
   const tool = makeMountReadTool(filesystem, { maxChars: 8 });
-  const result = await tool.execute({ path: 'big.txt' });
+  const result = /** @type {string} */ (await tool.invoke({ path: 'big.txt' }));
   t.true(result.startsWith('x'.repeat(8)));
   t.true(result.includes('truncated at 8 chars'));
   t.is(result.indexOf('\n\n... (truncated'), 8);
@@ -137,7 +138,7 @@ test('maxChars: 0 disables the limit and returns full contents', async t => {
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
 
   const tool = makeMountReadTool(filesystem, { maxChars: 0 });
-  const result = await tool.execute({ path: 'big.txt' });
+  const result = /** @type {string} */ (await tool.invoke({ path: 'big.txt' }));
   t.is(result, big);
   t.false(result.includes('truncated'));
 });
@@ -150,9 +151,9 @@ test('normalizes leading, trailing, and doubled slashes to "." no-op steps', asy
 
   const tool = makeMountReadTool(filesystem);
   await null;
-  t.is(await tool.execute({ path: '/sub/d.txt' }), 'normalized');
-  t.is(await tool.execute({ path: 'sub//d.txt' }), 'normalized');
-  t.is(await tool.execute({ path: 'sub/d.txt/' }), 'normalized');
+  t.is(await tool.invoke({ path: '/sub/d.txt' }), 'normalized');
+  t.is(await tool.invoke({ path: 'sub//d.txt' }), 'normalized');
+  t.is(await tool.invoke({ path: 'sub/d.txt/' }), 'normalized');
 });
 
 test('bounds the underlying file read before draining bytes', async t => {
@@ -184,31 +185,37 @@ test('bounds the underlying file read before draining bytes', async t => {
   const tool = makeMountReadTool(
     /** @type {ERef<Filesystem>} */ (/** @type {unknown} */ (filesystem)),
   );
-  const result = await tool.execute({ path: 'big.txt' });
+  const result = /** @type {string} */ (await tool.invoke({ path: 'big.txt' }));
   t.is(result.indexOf('\n\n... (truncated'), 50_000);
 });
 
-test('help() returns a one-line capability description', t => {
+test('emits a canonical ToolRecord with a one-line description', t => {
   const rootPath = makeTempRoot(t);
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
   const tool = makeMountReadTool(filesystem);
 
-  const help = tool.help();
-  t.is(typeof help, 'string');
-  t.true(help.length > 0);
-  t.false(help.includes('\n'));
+  t.is(tool.name, 'mountReadText');
+  t.is(typeof tool.description, 'string');
+  t.true(tool.description.length > 0);
+  t.is(typeof tool.invoke, 'function');
 });
 
-test('schema advertises the mountReadText tool name and a required path', t => {
+test('parameters and inputSchema advertise the mountReadText required path', t => {
   const rootPath = makeTempRoot(t);
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
   const tool = makeMountReadTool(filesystem);
 
-  const schema = tool.schema();
-  t.is(schema.type, 'function');
-  t.is(schema.function.name, 'mountReadText');
-  t.deepEqual(schema.function.parameters.required, ['path']);
-  t.false(schema.function.parameters.additionalProperties);
+  // The same JSON Schema is used verbatim as both LLM `parameters` and MCP
+  // `inputSchema`.
+  t.is(tool.parameters, tool.inputSchema);
+  const parameters =
+    /** @type {{ type: string, properties: { path: { type: string } }, required: string[], additionalProperties: boolean }} */ (
+      tool.parameters
+    );
+  t.is(parameters.type, 'object');
+  t.deepEqual(parameters.properties.path.type, 'string');
+  t.deepEqual(parameters.required, ['path']);
+  t.false(parameters.additionalProperties);
 });
 
 test('rejects extra arguments before any filesystem send', async t => {
@@ -222,7 +229,7 @@ test('rejects extra arguments before any filesystem send', async t => {
   const tool = makeMountReadTool(filesystem);
 
   const err = await t.throwsAsync(() =>
-    tool.execute({ path: 'a.txt', extra: 'ignored' }),
+    tool.invoke({ path: 'a.txt', extra: 'ignored' }),
   );
   t.true(
     err !== undefined && err.message.includes('extra'),
@@ -236,10 +243,10 @@ test('rejects a missing or empty path before any send', async t => {
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
   const tool = makeMountReadTool(filesystem);
 
-  await t.throwsAsync(() => tool.execute({}), {
+  await t.throwsAsync(() => tool.invoke({}), {
     message: /non-empty string path/,
   });
-  await t.throwsAsync(() => tool.execute({ path: '' }), {
+  await t.throwsAsync(() => tool.invoke({ path: '' }), {
     message: /non-empty string path/,
   });
 });
@@ -257,10 +264,10 @@ test('rejects a "../" escape via the Filesystem, not a string check', async t =>
     fs.readFileSync(path.join(outsideRoot, 'secret'), 'utf-8'),
     'TOP SECRET',
   );
-  await t.throwsAsync(() => tool.execute({ path: '../secret' }), {
+  await t.throwsAsync(() => tool.invoke({ path: '../secret' }), {
     message: /reserved|EINVAL|ENOENT/,
   });
-  t.is(await tool.execute({ path: 'inside.txt' }), 'ok');
+  t.is(await tool.invoke({ path: 'inside.txt' }), 'ok');
 });
 
 test('rejects reading through a symlink that escapes the root', async t => {
@@ -273,9 +280,29 @@ test('rejects reading through a symlink that escapes the root', async t => {
   const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
 
   const tool = makeMountReadTool(filesystem);
-  await t.throwsAsync(() => tool.execute({ path: 'link-out' }), {
+  await t.throwsAsync(() => tool.invoke({ path: 'link-out' }), {
     message: /escapes filesystem root|EACCES|ENOENT/,
   });
+});
+
+test('bridges through toPiAgentTool and reads a file end to end', async t => {
+  const rootPath = makeTempRoot(t);
+  fs.writeFileSync(path.join(rootPath, 'a.txt'), 'bridged content');
+  const filesystem = readOnly(makeNodeFilesystem({ rootPath }));
+
+  const tool = makeMountReadTool(filesystem);
+  const agentTool = toPiAgentTool(tool);
+
+  // The model-facing surface is copied verbatim from the canonical record.
+  t.is(agentTool.name, 'mountReadText');
+  t.is(agentTool.label, 'mountReadText');
+  t.is(agentTool.description, tool.description);
+  t.is(agentTool.parameters, tool.parameters);
+
+  // Invoking through the bridge resolves the file and renders the contents.
+  const result = await agentTool.execute('call-1', { path: 'a.txt' });
+  t.deepEqual(result.content, [{ type: 'text', text: 'bridged content' }]);
+  t.is(result.details, 'bridged content');
 });
 
 test('fails closed after the Filesystem is revoked, with no ambient fallback', async t => {
@@ -298,10 +325,10 @@ test('fails closed after the Filesystem is revoked, with no ambient fallback', a
   );
 
   await null;
-  t.is(await tool.execute({ path: 'a.txt' }), 'live content');
+  t.is(await tool.invoke({ path: 'a.txt' }), 'live content');
 
   revoked = true;
-  await t.throwsAsync(() => tool.execute({ path: 'a.txt' }), {
+  await t.throwsAsync(() => tool.invoke({ path: 'a.txt' }), {
     message: /revoked/,
   });
 

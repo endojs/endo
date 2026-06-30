@@ -10,7 +10,7 @@ import {
   getCommand,
   getCommandsByCategory,
   getCategories,
-} from '../../command-registry.js';
+} from '@endo/spaces-util/command-registry.js';
 
 test('COMMANDS contains expected commands', t => {
   t.true('request' in COMMANDS);

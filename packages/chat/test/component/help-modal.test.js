@@ -4,8 +4,8 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
+import { createHelpModal } from '@endo/spaces-util/help-modal.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
-import { createHelpModal } from '../../help-modal.js';
 
 const { document: testDocument } = createDOM();
 

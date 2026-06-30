@@ -1,4 +1,5 @@
 // @ts-check
+/// <reference path="./css-modules.types.d.ts" />
 
 // Lock down the realm before any application module evaluates. This is the
 // standard `@endo/init` preamble; `./pre-lockdown.js` runs first (it has no
@@ -36,6 +37,11 @@ import '@endo/space-peers/peers.css';
 // no test loads `main.js`.
 // eslint-disable-next-line import/no-unresolved
 import '@endo/space-floot/floot.css';
+
+// The channel space family (`@endo/space-channel`) ships its stylesheet via the
+// `./channel.css` package export (previously a `<link>` in index.html). Vite-only.
+// eslint-disable-next-line import/no-unresolved
+import '@endo/space-channel/channel.css';
 
 const RECONNECT_INTERVAL_MS = 5000;
 

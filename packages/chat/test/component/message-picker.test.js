@@ -3,8 +3,8 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
+import { createMessagePicker } from '@endo/spaces-util/message-picker.js';
 import { createDOM, waitFor } from '../helpers/dom-setup.js';
-import { createMessagePicker } from '../../message-picker.js';
 
 const { document: testDocument } = createDOM();
 

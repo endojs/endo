@@ -16,7 +16,7 @@ import { promisify as nodePromisify } from 'util';
 import { E, Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
-import { makePromiseKit } from '@endo/promise-kit';
+import { makeCancelKit } from '@endo/cancel';
 import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
@@ -37,6 +37,7 @@ import {
 
 /**
  * @import {EReturn} from '@endo/eventual-send';
+ * @import {ExecutionContext} from 'ava';
  * @import {FormulaNumber, NodeNumber} from '../src/types.js';
  */
 
@@ -271,7 +272,7 @@ const makeHost = async (config, cancelled) => {
 };
 
 /**
- * @param {import('ava').ExecutionContext<any>} t
+ * @param {ExecutionContext<any>} t
  * @returns {Promise<ReturnType<prepareConfig> & ReturnType<makeHost>>}
  */
 const prepareHost = async t => {
@@ -282,7 +283,7 @@ const prepareHost = async t => {
 };
 
 /**
- * @param {import('ava').ExecutionContext<any>} t
+ * @param {ExecutionContext<any>} t
  */
 const prepareHostWithTestNetwork = async t => {
   const { host } = await prepareHost(t);
@@ -430,15 +431,12 @@ const getConfigDirectoryName = (testTitle, testConfigIndex) => {
 };
 
 /**
- * @param {import('ava').ExecutionContext<any>} t
+ * @param {ExecutionContext<any>} t
  * @param {object} [options]
  * @param {boolean} [options.gcEnabled]
  */
 const prepareConfig = async (t, { gcEnabled = true } = {}) => {
-  const { reject: cancel, promise: cancelled } = makePromiseKit();
-  // Sink the rejection to prevent SES from treating the teardown rejection as
-  // unhandled. Consumers of `cancelled` attach their own .catch() handlers.
-  cancelled.catch(() => {});
+  const { cancelled, cancel } = makeCancelKit();
   const config = {
     ...makeConfig('tmp', getConfigDirectoryName(t.title, t.context.length)),
     gcEnabled,
@@ -1046,9 +1044,7 @@ testNeedsNodeWorker(
     const { cancelled, config } = await prepareConfig(t);
 
     const responderFinished = (async () => {
-      const { promise: followerCancelled, reject: cancelFollower } =
-        makePromiseKit();
-      cancelled.catch(cancelFollower);
+      const { cancelled: followerCancelled } = makeCancelKit(cancelled);
       const { host } = await makeHost(config, followerCancelled);
       await E(host).provideWorker(['user-worker']);
 
@@ -1114,9 +1110,7 @@ testNeedsNodeWorker('persist confined services and their requests', async t => {
   const { cancelled, config } = await prepareConfig(t);
 
   const responderFinished = (async () => {
-    const { promise: followerCancelled, reject: cancelFollower } =
-      makePromiseKit();
-    cancelled.catch(cancelFollower);
+    const { cancelled: followerCancelled } = makeCancelKit(cancelled);
     const { host } = await makeHost(config, followerCancelled);
     await E(host).provideWorker(['user-worker']);
 
@@ -1573,6 +1567,75 @@ test('followNameChanges does not notify of redundant pet store writes', async t 
   await E(host).storeValue(11, 'eleven');
   const { value } = await changesIterator.next();
   t.is(value.add, 'eleven');
+});
+
+test('followNameChanges includes formula type on add events', async t => {
+  const { host } = await prepareHost(t);
+
+  const changesIterator = await prepareFollowNameChangesIterator(host);
+
+  // storeValue formulates a `marshal` typed formula.
+  await E(host).storeValue(42, 'meaning');
+  const { value } = await changesIterator.next();
+  t.is(value.add, 'meaning');
+  t.is(value.type, 'marshal', 'type field is plumbed through to followers');
+});
+
+test('followNameChanges includes type for worker formulas', async t => {
+  const { host } = await prepareHost(t);
+
+  const changesIterator = await prepareFollowNameChangesIterator(host);
+
+  // Workers have formula type `worker`; the type travels with the add event.
+  await E(host).provideWorker('w1');
+  const { value } = await changesIterator.next();
+  t.is(value.add, 'w1');
+  t.is(value.type, 'worker');
+});
+
+test('followNameChanges existing names carry type', async t => {
+  const { host } = await prepareHost(t);
+
+  // Store before subscribing so the value is in the "existing names" batch.
+  await E(host).storeValue('first', 'one');
+
+  const changesIterator = iterateReader(await E(host).followNameChanges());
+  // Read existing values until we find our name. Special names (@self, etc)
+  // are interleaved alphabetically and also carry types now.
+  /** @type {Map<string, any>} */
+  const existing = new Map();
+  // Pull a generous prefix; the host has a known special-name set plus 'one'.
+  for (let i = 0; i < 12; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const { value, done } = await changesIterator.next();
+    if (done) break;
+    if (value.add !== undefined) {
+      existing.set(value.add, value);
+    }
+    if (value.add === 'one') break;
+  }
+  const oneEvent = existing.get('one');
+  t.truthy(oneEvent, 'expected to find the stored name in the initial batch');
+  t.is(oneEvent.type, 'marshal');
+
+  // The special name @self is a handle.
+  const selfEvent = existing.get('@self');
+  t.truthy(selfEvent, 'expected special name @self in the initial batch');
+  t.is(selfEvent.type, 'handle');
+});
+
+test('followNameChanges omits type on remove events', async t => {
+  const { host } = await prepareHost(t);
+
+  const changesIterator = await prepareFollowNameChangesIterator(host);
+
+  await E(host).storeValue('whatever', 'temp');
+  await changesIterator.next();
+
+  await E(host).remove('temp');
+  const { value } = await changesIterator.next();
+  t.is(value.remove, 'temp');
+  t.is(value.type, undefined, 'type is not relevant on remove events');
 });
 
 test('followLocatorNameChanges first publishes existing pet name', async t => {
@@ -2721,79 +2784,76 @@ test('make a host', async t => {
   t.is(ten, 10);
 });
 
-testNeedsNodeWorker('name and reuse inspector', async t => {
-  const { host } = await prepareHost(t);
+testNeedsNodeWorker(
+  'getFormula returns per-type formula record (make-unconfined)',
+  async t => {
+    const { host } = await prepareHost(t);
 
-  await E(host).provideWorker(['worker']);
+    await E(host).provideWorker(['worker']);
 
-  const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).makeUnconfined('worker', counterPath, {
-    powersName: '@none',
-    resultName: 'counter',
-  });
+    const counterPath = path.join(dirname, 'test', 'counter.js');
+    await E(host).makeUnconfined('worker', counterPath, {
+      powersName: '@none',
+      resultName: 'counter',
+    });
 
-  const inspector = await E(host).evaluate(
-    'worker',
-    'E(INFO).lookup(["counter"])',
-    ['INFO'],
-    ['@info'],
-    ['inspector'],
-  );
-  t.regex(String(inspector), /Alleged: Inspector.+make-unconfined/u);
-
-  const worker = await E(host).evaluate(
-    'worker',
-    'E(inspector).lookup(["worker"])',
-    ['inspector'],
-    ['inspector'],
-  );
-  t.regex(String(worker), /Alleged: EndoWorker/u);
-});
+    const counterId = await E(host).identify('counter');
+    t.truthy(counterId, 'counter has a formula identifier');
+    const record = await E(host).getFormula(counterId);
+    t.is(record.type, 'make-unconfined');
+    t.is(record.properties.specifier.kind, 'literal');
+    t.is(record.properties.specifier.value, counterPath);
+    t.is(record.properties.worker.kind, 'reference');
+    t.is(record.properties.powers.kind, 'reference');
+  },
+);
 
 // Regression test for https://github.com/endojs/endo/issues/2021
-testNeedsNodeWorker('eval-mediated worker name', async t => {
-  const { host } = await prepareHost(t);
+testNeedsNodeWorker(
+  'getFormula resolves a caplet to its worker formula',
+  async t => {
+    const { host } = await prepareHost(t);
 
-  await E(host).provideWorker(['worker']);
+    await E(host).provideWorker(['worker']);
 
-  const counterPath = path.join(dirname, 'test', 'counter.js');
-  await E(host).makeUnconfined('worker', counterPath, {
-    powersName: '@none',
-    resultName: 'counter',
-  });
+    const counterPath = path.join(dirname, 'test', 'counter.js');
+    await E(host).makeUnconfined('worker', counterPath, {
+      powersName: '@none',
+      resultName: 'counter',
+    });
 
-  t.is(
-    await E(host).evaluate(
-      'worker',
-      'E(counter).incr()',
-      ['counter'],
-      ['counter'],
-    ),
-    1,
-  );
+    t.is(
+      await E(host).evaluate(
+        'worker',
+        'E(counter).incr()',
+        ['counter'],
+        ['counter'],
+      ),
+      1,
+    );
 
-  // We create a petname for the worker of `counter`.
-  // Note that while `worker === counter-worker`, it doesn't matter here.
-  const counterWorker = await E(host).evaluate(
-    'worker',
-    'E(E(INFO).lookup(["counter"])).lookup(["worker"])',
-    ['INFO'],
-    ['@info'],
-    ['counter-worker'],
-  );
-  t.regex(String(counterWorker), /Alleged: EndoWorker/u);
+    // The original `@info`-based shape composed two lookups to walk
+    // from a caplet's formula to its worker. The replacement is a
+    // direct `getFormula` call that exposes the `worker` reference.
+    const counterId = await E(host).identify('counter');
+    const counterRecord = await E(host).getFormula(counterId);
+    t.is(counterRecord.properties.worker.kind, 'reference');
+    const workerId = counterRecord.properties.worker.identifier;
 
-  // We should be able to use the new name for the worker.
-  t.is(
-    await E(host).evaluate(
-      'counter-worker',
-      'E(counter).incr()',
-      ['counter'],
-      ['counter'],
-    ),
-    2,
-  );
-});
+    // We should be able to give the discovered worker a petname and
+    // use it to re-enter the same incr path.
+    await E(host).storeIdentifier(['counter-worker'], workerId);
+    t.is(
+      await E(host).evaluate(
+        'counter-worker',
+        'E(counter).incr()',
+        ['counter'],
+        ['counter'],
+      ),
+      2,
+    );
+  },
+);
 
 test('lookup with single petname', async t => {
   const { host } = await prepareHost(t);
@@ -2810,18 +2870,19 @@ test('lookup with single petname', async t => {
   t.is(resolvedValue, 10);
 });
 
-test('lookup with petname path (inspector)', async t => {
+test('getFormula returns per-type formula record (eval)', async t => {
   const { host } = await prepareHost(t);
 
   await E(host).evaluate('@main', '10', [], [], ['ten']);
 
-  const resolvedValue = await E(host).evaluate(
-    '@main',
-    'E(AGENT).lookup(["@info", "ten", "source"])',
-    ['AGENT'],
-    ['@agent'],
-  );
-  t.is(resolvedValue, '10');
+  const tenId = await E(host).identify('ten');
+  t.truthy(tenId, 'ten has a formula identifier');
+  const record = await E(host).getFormula(tenId);
+  t.is(record.type, 'eval');
+  t.is(record.properties.source.kind, 'literal');
+  t.is(record.properties.source.value, '10');
+  t.is(record.properties.worker.kind, 'reference');
+  t.is(record.properties.endowments.kind, 'reference-list');
 });
 
 testNeedsNodeWorker(
@@ -2865,13 +2926,16 @@ test('evaluate name resolved by lookup path', async t => {
 
   await E(host).evaluate('@main', '10', [], [], ['ten']);
 
+  // The legacy `@info`-mediated endowment path
+  // (`['INFO', 'ten', 'source']`) is retired with `@info`. Lookup-path
+  // endowments still resolve through regular pet-name traversal.
   const resolvedValue = await E(host).evaluate(
     '@main',
     'foo',
     ['foo'],
-    [['@info', 'ten', 'source']],
+    ['ten'],
   );
-  t.is(resolvedValue, '10');
+  t.is(resolvedValue, 10);
 });
 
 test('list special names', async t => {
@@ -2924,6 +2988,96 @@ test('guest cannot access host methods', async t => {
   });
   const revealedTarget = await E.get(guestsHost).targetId;
   t.is(revealedTarget, undefined);
+});
+
+test('getFormula is absent on the guest facet', async t => {
+  const { host } = await prepareHost(t);
+
+  // A guest references its host via SELF -> AGENT chain; calling
+  // getFormula through a guest-only edge must fail because the
+  // guest facet does not expose the method (per
+  // `designs/formula-inspector.md` § Why host-only).
+  const guest = await E(host).provideGuest('guest');
+  await E(host).evaluate('MAIN', '10', [], [], ['ten']);
+  const tenId = await E(host).identify('ten');
+  await t.throwsAsync(() => E(guest).getFormula(tenId), {
+    message: /target has no method "getFormula"/u,
+  });
+});
+
+test('getFormula rejects cross-peer locators', async t => {
+  const { host } = await prepareHost(t);
+
+  // A formula identifier whose node-part is some other node is a
+  // cross-peer locator. Per `designs/formula-inspector.md` § Security
+  // considerations these are rejected with a clear error.
+  const otherNode = /** @type {NodeNumber} */ (
+    await cryptoPowers.randomHex256()
+  );
+  const formulaNumber = /** @type {FormulaNumber} */ (
+    await cryptoPowers.randomHex256()
+  );
+  const crossPeerId = formatId({
+    node: otherNode,
+    number: formulaNumber,
+  });
+  await t.throwsAsync(() => E(host).getFormula(crossPeerId), {
+    message: /cross-peer/u,
+  });
+});
+
+test('getFormula resolves the agent’s own identity formulas', async t => {
+  const { host } = await prepareHost(t);
+
+  // An agent's own identity formulas (its handle, host, pet store,
+  // mailbox) are formulated under the agent's freshly-minted keypair,
+  // whose node-part differs from the daemon's `localNodeNumber`. The
+  // daemon nevertheless holds that agent key, so these are local and
+  // `getFormula` must resolve them rather than rejecting them as
+  // cross-peer. Regression for the Formula back-face rendering blank on
+  // an agent's own values: the previous `node !== localNodeNumber`
+  // guard was too strict and only `isLocalKey(node)` is correct.
+
+  // A daemon-level stored value carries the daemon's `localNodeNumber`.
+  await E(host).storeValue(42, 'answer');
+  const { node: daemonNode } = parseId(await E(host).identify('answer'));
+
+  const selfId = await E(host).identify('@self');
+  const { node: selfNode } = parseId(selfId);
+  t.not(
+    selfNode,
+    daemonNode,
+    '@self lives on the agent key node, not the daemon node number',
+  );
+  const selfRecord = await E(host).getFormula(selfId);
+  t.is(selfRecord.type, 'handle');
+
+  const agentId = await E(host).identify('@agent');
+  const agentRecord = await E(host).getFormula(agentId);
+  t.is(agentRecord.type, 'host');
+});
+
+test('getFormula normalizes unknown-identifier-on-local-node error', async t => {
+  const { host } = await prepareHost(t);
+
+  // Resolve a real local identifier to discover the local node-part,
+  // then construct a same-node identifier whose formula number is
+  // random and almost certainly does not exist on disk.
+  await E(host).evaluate('MAIN', '10', [], [], ['ten']);
+  const tenId = await E(host).identify('ten');
+  const { node: localNode } = parseId(tenId);
+  const bogusNumber = /** @type {FormulaNumber} */ (
+    await cryptoPowers.randomHex256()
+  );
+  const unknownId = formatId({ node: localNode, number: bogusNumber });
+
+  // The persistence-layer error names the on-disk path and uses a
+  // generic `ReferenceError`. `getFormula` normalizes that to a
+  // surface-level error that names the requested identifier, so the
+  // caller can route on the input they actually supplied.
+  await t.throwsAsync(() => E(host).getFormula(unknownId), {
+    message: /getFormula could not resolve unknown identifier/u,
+  });
 });
 
 test('read unknown node id', async t => {
@@ -3827,8 +3981,7 @@ testShim(
   },
 );
 
-// ============ FORM REQUEST TESTS ============
-
+// Form request tests.
 test('form happy path: guest sends form, host submits', async t => {
   const { host } = await prepareHost(t);
 
@@ -5923,4 +6076,397 @@ test('mount symlink - all symlink types together in one listing', async t => {
   const rawEntries = await fs.promises.readdir(mountRoot);
   t.is(rawEntries.length, 8); // 2 real + 2 internal + 4 escaping
   t.is(entries.length, 4); // 2 real + 2 internal
+});
+
+test('readLog streams daemon logs', async t => {
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-reader-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  const bootstrap = getBootstrap();
+
+  // Write a marker log larger than one read window, using a 3-byte
+  // character so the streaming decoder is exercised across a window
+  // boundary (the 65536-byte window is not a multiple of 3).
+  const expected = '€'.repeat(50_000);
+  const markerPath = path.join(config.statePath, 'marker.log');
+  await fsp.writeFile(markerPath, expected);
+
+  /** @param {any} reader */
+  const collect = async reader => {
+    let text = '';
+    const sources = [];
+    for await (const entry of iterateReader(reader)) {
+      sources.push(entry.source);
+      text += entry.chunk;
+    }
+    return { text, sources };
+  };
+
+  // Filtering by display name yields exactly that log, reassembled
+  // intact across read-window boundaries.
+  const marker = await collect(
+    await E(bootstrap).readLog({ name: 'marker.log' }),
+  );
+  t.is(marker.text, expected);
+  t.deepEqual([...new Set(marker.sources)], ['marker.log']);
+
+  // An unknown name yields an empty stream.
+  const missing = await collect(
+    await E(bootstrap).readLog({ name: 'no-such.log' }),
+  );
+  t.is(missing.text, '');
+  t.deepEqual(missing.sources, []);
+
+  // Without a filter, the marker log is among the streamed sources.
+  const all = await collect(await E(bootstrap).readLog());
+  t.true(all.sources.includes('marker.log'));
+
+  // The pattern filter operates line-by-line. Write a log with known
+  // lines.
+  const linesPath = path.join(config.statePath, 'lines.log');
+  await fsp.writeFile(linesPath, 'alpha\nbeta\ngamma\nalpaca\n');
+
+  // A plain substring is just an unanchored pattern; the newline is
+  // preserved on each emitted line.
+  const substringResult = await collect(
+    await E(bootstrap).readLog({ name: 'lines.log', pattern: 'alp' }),
+  );
+  t.is(substringResult.text, 'alpha\nalpaca\n');
+
+  // Anchors and other regexp syntax work too.
+  const anchoredResult = await collect(
+    await E(bootstrap).readLog({ name: 'lines.log', pattern: 'ta$' }),
+  );
+  t.is(anchoredResult.text, 'beta\n');
+
+  cancel(Error('readLog test done'));
+});
+
+test('readLog filters lines by regexp over CapTP', async t => {
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-regexp-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  // The bootstrap is a remote reference: every readLog() call and the
+  // reader it returns are driven across the CapTP connection.
+  const bootstrap = getBootstrap();
+
+  /** @param {any} reader */
+  const drain = async reader => {
+    const entries = [];
+    for await (const entry of iterateReader(reader)) {
+      entries.push(entry);
+    }
+    return entries;
+  };
+  /** @param {any} reader */
+  const textOf = async reader =>
+    (await drain(reader)).map(entry => entry.chunk).join('');
+
+  await fsp.writeFile(
+    path.join(config.statePath, 'fruit.log'),
+    'apple 1\nbanana 2\ncherry 3\nAPPLE 4\n',
+  );
+
+  // Alternation selects multiple lines, preserved in file order.
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({
+        name: 'fruit.log',
+        pattern: 'apple|cherry',
+      }),
+    ),
+    'apple 1\ncherry 3\n',
+  );
+
+  // Character classes and anchors work; here, lines ending in 2 or 4.
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({ name: 'fruit.log', pattern: '[24]$' }),
+    ),
+    'banana 2\nAPPLE 4\n',
+  );
+
+  // Matching is case-sensitive (no flags are applied to the source).
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({ name: 'fruit.log', pattern: '^apple' }),
+    ),
+    'apple 1\n',
+  );
+
+  // A pattern that matches nothing yields an empty stream.
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({ name: 'fruit.log', pattern: 'durian' }),
+    ),
+    '',
+  );
+
+  // Without `name`, the regexp filters lines across every log, and each
+  // surviving line is tagged with its source. Use a token unlikely to
+  // occur in the daemon's own logs so the assertion is deterministic.
+  await fsp.writeFile(
+    path.join(config.statePath, 'a.log'),
+    'keep ZZTOKENZZ one\ndrop this\n',
+  );
+  await fsp.writeFile(
+    path.join(config.statePath, 'b.log'),
+    'drop that\nkeep ZZTOKENZZ two\n',
+  );
+  const tagged = await drain(
+    await E(bootstrap).readLog({ pattern: 'ZZTOKENZZ' }),
+  );
+  t.deepEqual(tagged.map(entry => `${entry.source}:${entry.chunk}`).sort(), [
+    'a.log:keep ZZTOKENZZ one\n',
+    'b.log:keep ZZTOKENZZ two\n',
+  ]);
+
+  cancel(Error('readLog regexp test done'));
+});
+
+test('readLog discovers worker logs and disambiguates colliding ids', async t => {
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-worker-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  const bootstrap = getBootstrap();
+
+  /** @param {any} reader */
+  const drain = async reader => {
+    const entries = [];
+    for await (const entry of iterateReader(reader)) {
+      entries.push(entry);
+    }
+    return entries;
+  };
+
+  // Synthesize worker logs directly under <state>/worker/<id>/worker.log.
+  // Two ids share an 8-char prefix; one is unique.
+  const workerDir = path.join(config.statePath, 'worker');
+  const writeWorkerLog = async (id, text) => {
+    await fsp.mkdir(path.join(workerDir, id), { recursive: true });
+    await fsp.writeFile(path.join(workerDir, id, 'worker.log'), text);
+  };
+  await writeWorkerLog('abc12345aaa', 'from aaa\n');
+  await writeWorkerLog('abc12345bbb', 'from bbb\n');
+  await writeWorkerLog('unique99zzz', 'from zzz\n');
+
+  const entries = await drain(await E(bootstrap).readLog());
+  /** @type {Map<string, string>} */
+  const bySource = new Map();
+  for (const { source, chunk } of entries) {
+    bySource.set(source, (bySource.get(source) ?? '') + chunk);
+  }
+  // Unique prefix collapses to the short display name.
+  t.is(bySource.get('worker/unique99'), 'from zzz\n');
+  // Colliding prefix falls back to full ids; logs are NOT merged.
+  t.is(bySource.get('worker/abc12345aaa'), 'from aaa\n');
+  t.is(bySource.get('worker/abc12345bbb'), 'from bbb\n');
+  t.false(bySource.has('worker/abc12345'));
+
+  // The short display name selects exactly that worker's log.
+  const one = await drain(
+    await E(bootstrap).readLog({ name: 'worker/unique99' }),
+  );
+  t.deepEqual(
+    one.map(entry => `${entry.source}:${entry.chunk}`),
+    ['worker/unique99:from zzz\n'],
+  );
+
+  cancel(Error('readLog worker test done'));
+});
+
+test('readLog handles empty, unterminated, CRLF, and invalid-pattern logs', async t => {
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-edge-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  const bootstrap = getBootstrap();
+
+  /** @param {any} reader */
+  const drain = async reader => {
+    const entries = [];
+    for await (const entry of iterateReader(reader)) {
+      entries.push(entry);
+    }
+    return entries;
+  };
+  /** @param {any} reader */
+  const textOf = async reader =>
+    (await drain(reader)).map(entry => entry.chunk).join('');
+
+  // An empty log yields no records at all.
+  await fsp.writeFile(path.join(config.statePath, 'empty.log'), '');
+  t.deepEqual(
+    await drain(await E(bootstrap).readLog({ name: 'empty.log' })),
+    [],
+  );
+
+  // A final line with no trailing newline: unfiltered returns it verbatim,
+  // and the filtered flush emits it without inventing a newline.
+  await fsp.writeFile(
+    path.join(config.statePath, 'tail.log'),
+    'first\nlast line no newline',
+  );
+  t.is(
+    await textOf(await E(bootstrap).readLog({ name: 'tail.log' })),
+    'first\nlast line no newline',
+  );
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({ name: 'tail.log', pattern: 'last' }),
+    ),
+    'last line no newline',
+  );
+
+  // CRLF: the terminator is excluded when matching, so `$` anchors work,
+  // and the original CRLF is preserved in the emitted chunk.
+  await fsp.writeFile(
+    path.join(config.statePath, 'crlf.log'),
+    'alpha\r\nbeta\r\n',
+  );
+  t.is(
+    await textOf(
+      await E(bootstrap).readLog({ name: 'crlf.log', pattern: 'alpha$' }),
+    ),
+    'alpha\r\n',
+  );
+
+  // An invalid RegExp source surfaces as a stream error when consumed.
+  await t.throwsAsync(
+    async () => {
+      const reader = await E(bootstrap).readLog({
+        name: 'crlf.log',
+        pattern: '[',
+      });
+      await drain(reader);
+    },
+    { message: /Invalid regular expression|character class|unterminated/ },
+  );
+
+  cancel(Error('readLog edge-case test done'));
+});
+
+test('readLog follow streams appended content until the reader is closed', async t => {
+  // Guard the deadlock regression: a follow stream that fails to honor an
+  // early close, or to resume a file across polls, would hang here rather
+  // than fail fast.
+  t.timeout(60_000);
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-follow-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  const bootstrap = getBootstrap();
+
+  const followPath = path.join(config.statePath, 'follow.log');
+  await fsp.writeFile(followPath, 'one\ntwo\n');
+
+  const reader = await E(bootstrap).readLog({
+    name: 'follow.log',
+    follow: true,
+  });
+  const iterator = iterateReader(reader);
+
+  // Accumulate chunks until `marker` appears, so the assertions don't
+  // depend on how bytes happen to be split across reads or follow polls.
+  /** @param {string} marker */
+  const readUntil = async marker => {
+    let text = '';
+    while (!text.includes(marker)) {
+      // eslint-disable-next-line no-await-in-loop
+      const { value, done } = await iterator.next();
+      t.false(done, `stream ended before ${marker}`);
+      if (done) {
+        break;
+      }
+      text += value.chunk;
+    }
+    return text;
+  };
+
+  // The existing extent is delivered first, then the stream stays open.
+  t.is(await readUntil('two\n'), 'one\ntwo\n');
+
+  // Bytes appended after the stream started arrive without re-opening;
+  // the cursor resumes from where the prior poll stopped.
+  await fsp.appendFile(followPath, 'three\n');
+  t.is(await readUntil('three\n'), 'three\n');
+
+  // Closing the reader tears the follow loop down promptly (the buffer:0
+  // pump observes the close at the syn await rather than blocking inside a
+  // sleeping pull).
+  const final = await iterator.return();
+  t.true(final.done);
+
+  cancel(Error('readLog follow test done'));
+});
+
+test('readLog follow discovers new logs and settles on disconnect', async t => {
+  t.timeout(60_000);
+  const { cancel, cancelled, config } = await prepareConfig(t);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'log-follow-new-client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  const bootstrap = getBootstrap();
+
+  // Follow every log, filtered to a token that won't occur in the
+  // daemon's own logs, so the only matches come from the file we create.
+  const reader = await E(bootstrap).readLog({
+    pattern: 'ZZFOLLOWZZ',
+    follow: true,
+  });
+  const iterator = iterateReader(reader);
+
+  // A log created only after the follow stream is live must still be
+  // picked up by the per-poll re-scan.
+  await fsp.writeFile(
+    path.join(config.statePath, 'late.log'),
+    'noise\nkeep ZZFOLLOWZZ now\n',
+  );
+
+  /** @type {any} */
+  let match;
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const { value, done } = await iterator.next();
+    t.false(done);
+    if (done) {
+      break;
+    }
+    if (value.chunk.includes('ZZFOLLOWZZ')) {
+      match = value;
+      break;
+    }
+  }
+  t.is(match.source, 'late.log');
+  t.is(match.chunk, 'keep ZZFOLLOWZZ now\n');
+
+  // With the follow stream still open and a pull outstanding, dropping the
+  // client connection must settle that pull rather than hang it.
+  const pending = iterator.next().then(
+    () => 'settled',
+    () => 'settled',
+  );
+  cancel(Error('readLog follow new-log test done'));
+  t.is(await pending, 'settled');
 });

@@ -1,0 +1,96 @@
+{
+  "name": "@endo/spaces-util",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared message-rendering primitives for Endo Chat spaces (markdown/value vnodes, time formatting, chime, locator helpers)",
+  "keywords": [
+    "endo",
+    "chat",
+    "markdown",
+    "preact"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/spaces-util"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./markdown-render.js": "./src/markdown-render.js",
+    "./markdown-vnodes.js": "./src/markdown-vnodes.js",
+    "./code-fence.js": "./src/code-fence.js",
+    "./value-vnodes.js": "./src/value-vnodes.js",
+    "./value-component.js": "./src/value-component.js",
+    "./formula-view.js": "./src/formula-view.js",
+    "./formula-view-registry.js": "./src/formula-view-registry.js",
+    "./value-render.js": "./src/value-render.js",
+    "./language-detect.js": "./src/language-detect.js",
+    "./markdown-preview.js": "./src/markdown-preview.js",
+    "./time-formatters.js": "./src/time-formatters.js",
+    "./chime.js": "./src/chime.js",
+    "./locator.js": "./src/locator.js",
+    "./package.json": "./package.json",
+    "./token-autocomplete.js": "./src/token-autocomplete.js",
+    "./chat-bar-component.js": "./src/chat-bar-component.js",
+    "./send-form.js": "./src/send-form.js",
+    "./command-selector.js": "./src/command-selector.js",
+    "./inline-command-form.js": "./src/inline-command-form.js",
+    "./message-picker.js": "./src/message-picker.js",
+    "./blob-viewer.js": "./src/blob-viewer.js",
+    "./define-form.js": "./src/define-form.js",
+    "./eval-form.js": "./src/eval-form.js",
+    "./endow-modal.js": "./src/endow-modal.js",
+    "./form-builder.js": "./src/form-builder.js",
+    "./help-modal.js": "./src/help-modal.js",
+    "./debugger-panel.js": "./src/debugger-panel.js",
+    "./command-executor.js": "./src/command-executor.js",
+    "./command-registry.js": "./src/command-registry.js",
+    "./platform-keys.js": "./src/platform-keys.js",
+    "./inline-define.js": "./src/inline-define.js",
+    "./inline-eval.js": "./src/inline-eval.js",
+    "./petname-path-autocomplete.js": "./src/petname-path-autocomplete.js",
+    "./petname-paths-autocomplete.js": "./src/petname-paths-autocomplete.js",
+    "./heat-bar.js": "./src/heat-bar.js",
+    "./composite-heat-engine.js": "./src/composite-heat-engine.js",
+    "./heat-engine.js": "./src/heat-engine.js",
+    "./browser-tree.js": "./src/browser-tree.js"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/daemon": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/markmdown": "workspace:^",
+    "@endo/monaco-wrapper": "workspace:^",
+    "@endo/pass-style": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/preact-container": "workspace:^",
+    "marked": "^17.0.5",
+    "preact": "^10.29.2"
+  },
+  "devDependencies": {
+    "eslint": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "env": {
+      "browser": true
+    }
+  }
+}

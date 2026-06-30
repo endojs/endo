@@ -1226,10 +1226,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/agent-tools@workspace:packages/agent-tools":
+"@endo/agent-tools@workspace:^, @endo/agent-tools@workspace:packages/agent-tools":
   version: 0.0.0-use.local
   resolution: "@endo/agent-tools@workspace:packages/agent-tools"
   dependencies:
+    "@earendil-works/pi-agent-core": "npm:^0.79.0"
+    "@earendil-works/pi-ai": "npm:^0.79.0"
     "@endo/daemon": "workspace:^"
     "@endo/exo-git": "workspace:^"
     "@endo/far": "workspace:^"
@@ -1240,6 +1242,39 @@ __metadata:
     ajv: "npm:^8.17.1"
     ava: "catalog:dev"
     c8: "catalog:dev"
+    eslint: "catalog:dev"
+    typescript: "catalog:dev"
+  peerDependencies:
+    "@earendil-works/pi-agent-core": ^0.79.0
+    "@earendil-works/pi-ai": ^0.79.0
+  peerDependenciesMeta:
+    "@earendil-works/pi-agent-core":
+      optional: true
+    "@earendil-works/pi-ai":
+      optional: true
+  languageName: unknown
+  linkType: soft
+
+"@endo/agentry@workspace:^, @endo/agentry@workspace:packages/agentry":
+  version: 0.0.0-use.local
+  resolution: "@endo/agentry@workspace:packages/agentry"
+  dependencies:
+    "@earendil-works/pi-agent-core": "npm:^0.79.0"
+    "@earendil-works/pi-ai": "npm:^0.79.0"
+    "@endo/agent-tools": "workspace:^"
+    "@endo/daemon": "workspace:^"
+    "@endo/exo-git": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/git": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/marshal": "workspace:^"
+    "@endo/pass-style": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/platform": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
     eslint: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
@@ -1334,6 +1369,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/cancel@workspace:^, @endo/cancel@workspace:packages/cancel":
+  version: 0.0.0-use.local
+  resolution: "@endo/cancel@workspace:packages/cancel"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    tsd: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/captp@workspace:^, @endo/captp@workspace:packages/captp":
   version: 0.0.0-use.local
   resolution: "@endo/captp@workspace:packages/captp"
@@ -1414,11 +1465,14 @@ __metadata:
     "@endo/preact-container": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
+    "@endo/space-channel": "workspace:^"
+    "@endo/space-chat": "workspace:^"
     "@endo/space-file-explorer": "workspace:^"
     "@endo/space-floot": "workspace:^"
     "@endo/space-inventory-graph": "workspace:^"
     "@endo/space-peers": "workspace:^"
     "@endo/space-whylip": "workspace:^"
+    "@endo/spaces-util": "workspace:^"
     "@endo/where": "workspace:^"
     "@playwright/test": "npm:^1.40.0"
     "@vitejs/plugin-react": "npm:^4.0.0"
@@ -1482,6 +1536,7 @@ __metadata:
   resolution: "@endo/cli@workspace:packages/cli"
   dependencies:
     "@endo/bytes": "workspace:^"
+    "@endo/cancel": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/errors": "workspace:^"
@@ -1585,6 +1640,7 @@ __metadata:
     "@endo/base64": "workspace:^"
     "@endo/bundle-source": "workspace:^"
     "@endo/bytes": "workspace:^"
+    "@endo/cancel": "workspace:^"
     "@endo/captp": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
     "@endo/errors": "workspace:^"
@@ -1933,6 +1989,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/gateway@workspace:packages/gateway":
+  version: 0.0.0-use.local
+  resolution: "@endo/gateway@workspace:packages/gateway"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@types/node": "npm:^25.2.3"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/genie@workspace:packages/genie":
   version: 0.0.0-use.local
   resolution: "@endo/genie@workspace:packages/genie"
@@ -2057,6 +2132,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/host-shell@workspace:packages/host-shell":
+  version: 0.0.0-use.local
+  resolution: "@endo/host-shell@workspace:packages/host-shell"
+  dependencies:
+    "@endo/daemon": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/stream-node": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/immutable-arraybuffer@workspace:^, @endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer":
   version: 0.0.0-use.local
   resolution: "@endo/immutable-arraybuffer@workspace:packages/immutable-arraybuffer"
@@ -2134,6 +2228,7 @@ __metadata:
     "@anthropic-ai/sdk": "npm:^0.95.1"
     "@earendil-works/pi-agent-core": "npm:^0.79.0"
     "@earendil-works/pi-ai": "npm:^0.79.0"
+    "@endo/agentry": "workspace:^"
     "@endo/cli": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/errors": "workspace:^"
@@ -2495,6 +2590,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/pubsub@workspace:packages/pubsub":
+  version: 0.0.0-use.local
+  resolution: "@endo/pubsub@workspace:packages/pubsub"
+  dependencies:
+    "@endo/cancel": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@endo/stream": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/random@workspace:^, @endo/random@workspace:packages/random":
   version: 0.0.0-use.local
   resolution: "@endo/random@workspace:packages/random"
@@ -2597,6 +2711,36 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/space-channel@workspace:^, @endo/space-channel@workspace:packages/space-channel":
+  version: 0.0.0-use.local
+  resolution: "@endo/space-channel@workspace:packages/space-channel"
+  dependencies:
+    "@endo/daemon": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/monaco-wrapper": "workspace:^"
+    "@endo/preact-container": "workspace:^"
+    "@endo/spaces-util": "workspace:^"
+    eslint: "catalog:dev"
+    preact: "npm:^10.29.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/space-chat@workspace:^, @endo/space-chat@workspace:packages/space-chat":
+  version: 0.0.0-use.local
+  resolution: "@endo/space-chat@workspace:packages/space-chat"
+  dependencies:
+    "@endo/daemon": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/spaces-util": "workspace:^"
+    eslint: "catalog:dev"
+    preact: "npm:^10.29.2"
+  languageName: unknown
+  linkType: soft
+
 "@endo/space-file-explorer@workspace:^, @endo/space-file-explorer@workspace:packages/space-file-explorer":
   version: 0.0.0-use.local
   resolution: "@endo/space-file-explorer@workspace:packages/space-file-explorer"
@@ -2658,6 +2802,27 @@ __metadata:
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     eslint: "catalog:dev"
+    preact: "npm:^10.29.2"
+  languageName: unknown
+  linkType: soft
+
+"@endo/spaces-util@workspace:^, @endo/spaces-util@workspace:packages/spaces-util":
+  version: 0.0.0-use.local
+  resolution: "@endo/spaces-util@workspace:packages/spaces-util"
+  dependencies:
+    "@endo/daemon": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/markmdown": "workspace:^"
+    "@endo/monaco-wrapper": "workspace:^"
+    "@endo/pass-style": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/preact-container": "workspace:^"
+    eslint: "catalog:dev"
+    marked: "npm:^17.0.5"
     preact: "npm:^10.29.2"
   languageName: unknown
   linkType: soft

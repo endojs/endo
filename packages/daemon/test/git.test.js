@@ -1589,6 +1589,108 @@ test('NativeGitBackend.rebase rebases a local branch onto upstream', async t => 
   );
 });
 
+test('NativeGitBackend.rebase continues a conflicted rebase without an interactive editor', async t => {
+  // Under the merge backend, `git rebase --continue` opens the editor to
+  // confirm the conflicted commit's message.  With no controlling terminal
+  // that editor blocks or fails, stranding the rebase.  The backend pins
+  // `GIT_EDITOR=true` so the continue path completes non-interactively,
+  // preserving the original message.  The timeout bounds the test so a
+  // reintroduced editor hang fails fast instead of waiting out the global
+  // AVA timeout.
+  t.timeout(10_000);
+  const repoRoot = await provisionGitWorktree(t);
+
+  // Pin a deliberately failing editor in repo-local config.  If the backend
+  // ever stops overriding the editor, `git rebase --continue` would fall back
+  // to this `false` and abort with a non-zero exit, failing the test; with the
+  // `GIT_EDITOR=true` override in place the failing editor is never consulted.
+  await execFileAsync('git', ['config', '--local', 'core.editor', 'false'], {
+    cwd: repoRoot,
+  });
+
+  // A base commit both branches share, then a divergent edit to the same file
+  // on each branch so the rebase is guaranteed to conflict.
+  await fs.promises.writeFile(path.join(repoRoot, 'conflict.txt'), 'base\n');
+  await execFileAsync('git', ['add', 'conflict.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'base commit',
+    ],
+    { cwd: repoRoot },
+  );
+  await execFileAsync('git', ['switch', '-c', 'feature'], { cwd: repoRoot });
+  await fs.promises.writeFile(path.join(repoRoot, 'conflict.txt'), 'feature\n');
+  await execFileAsync('git', ['add', 'conflict.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'feature commit',
+    ],
+    { cwd: repoRoot },
+  );
+  await execFileAsync('git', ['switch', 'main'], { cwd: repoRoot });
+  await fs.promises.writeFile(path.join(repoRoot, 'conflict.txt'), 'main\n');
+  await execFileAsync('git', ['add', 'conflict.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'main commit',
+    ],
+    { cwd: repoRoot },
+  );
+  await execFileAsync('git', ['switch', 'feature'], { cwd: repoRoot });
+
+  const backend = makeNativeGitBackend({ repoRoot });
+
+  // Starting the rebase stops on the conflict and surfaces a non-zero exit.
+  await t.throwsAsync(
+    () => backend.rebase({ mode: 'start', upstream: 'main' }),
+    {
+      message: /rebase failed/,
+    },
+  );
+
+  // Resolve the conflict and stage the resolution.
+  await fs.promises.writeFile(
+    path.join(repoRoot, 'conflict.txt'),
+    'resolved\n',
+  );
+  await backend.add(['conflict.txt']);
+
+  // The continue must complete non-interactively and preserve the original
+  // commit message (the editor override accepts the prepared message as-is).
+  await backend.rebase({ mode: 'continue' });
+
+  const commits = await backend.log({ maxCount: 2 });
+  t.deepEqual(
+    commits.map(commit => commit.summary),
+    ['feature commit', 'main commit'],
+  );
+  t.is(
+    await fs.promises.readFile(path.join(repoRoot, 'conflict.txt'), 'utf8'),
+    'resolved\n',
+  );
+});
+
 test('Git stash methods preserve path authority through EndoMountEntry', async t => {
   const repoRoot = await provisionGitWorktree(t);
   await fs.promises.writeFile(path.join(repoRoot, 'tracked.txt'), 'before\n');

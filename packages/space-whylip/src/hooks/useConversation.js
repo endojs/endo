@@ -9,7 +9,16 @@ import {
   makeMemoryBackend,
 } from '@endo/conversation-tree';
 
-/** @import { ConversationNode, ConversationTree } from '@endo/conversation-tree/types.js' */
+// `@endo/conversation-tree` does not expose its `./types.js` through its
+// package `exports` map, so the structural shape of a conversation node used
+// by this hook is declared locally. Only the members referenced below are
+// included.
+/**
+ * @typedef {object} ConversationNode
+ * @property {string} id
+ * @property {string | null} parentId
+ * @property {Array<{ role: string, content: string }>} messages
+ */
 
 /**
  * @typedef {object} ParsedResponse
@@ -311,7 +320,13 @@ export const useConversation = powers => {
         for await (const msg of messageIter) {
           if (cancelled) break;
 
-          const { messageId, replyTo, from: fromId, strings, type } = msg;
+          const {
+            messageId,
+            replyTo,
+            from: fromId,
+            strings,
+            type,
+          } = /** @type {any} */ (msg);
           if (!messageId) {
             // skip
           } else if (messageToNodeId.has(messageId)) {

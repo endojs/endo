@@ -5,8 +5,8 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
+import { createShareModal } from '@endo/space-channel/share-modal.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
-import { createShareModal } from '../../share-modal.js';
 
 const { document: testDocument } = createDOM();
 

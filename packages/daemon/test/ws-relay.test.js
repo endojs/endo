@@ -372,11 +372,19 @@ test.serial(
 
       await E(hostA).evaluate('@main', '1', [], [], ['one']);
       const oneLocator = /** @type {string} */ (await E(hostA).locate('one'));
-      // Rewrite the locator to point at the bogus node
+      // Rewrite the locator to point at the bogus node, preserving the
+      // `@`-delimited URL-encoded path-component format:
+      //   endo://{node}/{formulaAddress}@{hint}?type={type}
       const oneUrl = new URL(oneLocator);
-      const formulaNumber = oneUrl.searchParams.get('id');
+      const [formulaNumber] = oneUrl.pathname
+        .replace(/^\//, '')
+        .split('@')
+        .map(decodeURIComponent);
       const formulaType = oneUrl.searchParams.get('type');
-      const bogusLocator = `endo://${bogusNodeId}?id=${formulaNumber}&type=${formulaType}&at=${encodeURIComponent(bogusAddress)}`;
+      const bogusPath = [formulaNumber, bogusAddress]
+        .map(encodeURIComponent)
+        .join('@');
+      const bogusLocator = `endo://${bogusNodeId}/${bogusPath}?type=${formulaType}`;
       await E(hostA).storeLocator(['bogus'], bogusLocator);
 
       // The lookup should reject, not hang indefinitely.

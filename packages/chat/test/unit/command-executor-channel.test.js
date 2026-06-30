@@ -7,7 +7,7 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 import { Far } from '@endo/far';
-import { createCommandExecutor } from '../../command-executor.js';
+import { createCommandExecutor } from '@endo/spaces-util/command-executor.js';
 
 /**
  * Create a mock powers object that tracks calls.
@@ -51,17 +51,17 @@ const createMockContext = () => {
         args: [targetNamePath, formulaId],
       });
     },
-    identify: async (/** @type {string} */ ...path) => {
+    identify: async (/** @type {string[]} */ ...path) => {
       calls.push({ method: 'identify', args: path });
       return `id:${path.join('/')}`;
     },
-    list: async (/** @type {string} */ ...pathParts) => {
+    list: async (/** @type {string[]} */ ...pathParts) => {
       calls.push({ method: 'list', args: pathParts });
       return ['item1', 'item2'];
     },
     lookup: async (
       /** @type {string | string[]} */ pathOrFirst,
-      /** @type {string} */ ...rest
+      /** @type {string[]} */ ...rest
     ) => {
       const args = Array.isArray(pathOrFirst)
         ? pathOrFirst
@@ -69,7 +69,7 @@ const createMockContext = () => {
       calls.push({ method: 'lookup', args: [args] });
       return { looked: 'up' };
     },
-    remove: async (/** @type {string} */ ...pathParts) => {
+    remove: async (/** @type {string[]} */ ...pathParts) => {
       calls.push({ method: 'remove', args: pathParts });
     },
     move: async (

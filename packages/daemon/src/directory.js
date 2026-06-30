@@ -8,6 +8,7 @@ import { q } from '@endo/errors';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { externalizeId, internalizeLocator } from './locator.js';
+import { formatId } from './formula-identifier.js';
 import {
   assertNamePath,
   assertNames,
@@ -20,7 +21,7 @@ import { directoryHelp, makeHelp } from './help-text.js';
 
 import { DirectoryInterface } from './interfaces.js';
 
-/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, NodeNumber, ReadableBlobDeferredTaskParams, StoreController } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, NodeNumber, PetStoreNameChange, ReadableBlobDeferredTaskParams, StoreController } from './types.js' */
 
 /**
  * @param {object} args
@@ -232,17 +233,49 @@ export const makeDirectoryMaker = ({
       return E(hub).listLocators();
     };
 
+    /**
+     * Enrich a name-change event with the formula type of the named value.
+     * The `type` field is additive and appears only on `add` events; old
+     * consumers that destructure only `add` or `remove` are unaffected.
+     * Remote values whose type cannot be determined locally surface as
+     * `'remote'` (mirroring the locator-`type` convention).
+     *
+     * @param {PetStoreNameChange} change
+     * @returns {Promise<PetStoreNameChange>}
+     */
+    const enrichWithType = async change => {
+      if (!('add' in change)) {
+        return change;
+      }
+      const { value } = change;
+      if (value === undefined) {
+        return change;
+      }
+      const id = formatId(value);
+      const formulaType = await getTypeForId(id).catch(() => undefined);
+      if (formulaType === undefined) {
+        return change;
+      }
+      return harden({ ...change, type: formulaType });
+    };
+
     /** @type {EndoDirectory['followNameChanges']} */
     const followNameChanges = async function* followNameChanges(
       ...petNamePath
     ) {
       assertNames(petNamePath);
       if (petNamePath.length === 0) {
-        yield* controller.followNameChanges();
+        for await (const change of controller.followNameChanges()) {
+          yield await enrichWithType(change);
+        }
         return;
       }
       const hub = /** @type {NameHub} */ (await lookup(petNamePath));
-      yield* await E(hub).followNameChanges();
+      for await (const change of /** @type {AsyncIterable<PetStoreNameChange>} */ (
+        await E(hub).followNameChanges()
+      )) {
+        yield await enrichWithType(change);
+      }
     };
 
     /** @type {EndoDirectory['remove']} */

@@ -64,6 +64,7 @@ import {
 import { makeFormulaGraph } from './graph.js';
 import { makeChangeTopic } from './pubsub.js';
 import { makeRetentionAccumulator } from './retention-accumulator.js';
+import { makeRetentionPathAccumulator } from './retention-path-accumulator.js';
 import { makeResidenceTracker } from './residence.js';
 import { toHex, fromHex } from './hex.js';
 import { makeSerialJobs } from './serial-jobs.js';
@@ -101,7 +102,7 @@ import {
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { ArchiveTreeMethods } from './tar-checkin.js' */
-/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGit, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
+/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGit, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LogChunk, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
 
 /**
  * @typedef {{ kind: 'bearer', token: string } | { kind: 'basic', username: string, password: string }} GitCredentialMaterial
@@ -3122,6 +3123,270 @@ const makeDaemonCore = async (
       peers: peersId,
     }) => {
       const help = makeHelp(endoHelp);
+
+      // Size of each ranged read while streaming a log file. The
+      // reader yields one entry per non-empty chunk, so a larger
+      // window means fewer CapTP messages for big logs.
+      const logChunkBytes = 65_536;
+
+      // How long a `follow` stream waits between filesystem polls once a
+      // log has no new bytes. Short enough to feel live, long enough that
+      // an idle `follow` stream does not busy-poll the disk.
+      const followPollMs = 1000;
+
+      /**
+       * Enumerate the daemon's log files — the top-level `*.log` files
+       * (e.g. `endo.log`) plus each worker's `worker/<id>/worker.log` —
+       * paired with a stable display name and modification time, oldest
+       * first. Mirrors the discovery the `endo log --all` CLI command
+       * performs directly against the filesystem.
+       *
+       * @returns {Promise<Array<{ path: string, source: string, mtime: bigint }>>}
+       */
+      const listLogFiles = async () => {
+        const { statePath } = persistencePowers;
+        /** @type {Array<{ path: string, source: string, mtime: bigint }>} */
+        const logFiles = [];
+        /**
+         * @param {string} logPath
+         * @param {string} source
+         */
+        const consider = async (logPath, source) => {
+          const stat = await filePowers
+            .statPath(logPath)
+            .catch(() => undefined);
+          if (stat !== undefined && stat.kind === 'file') {
+            logFiles.push(harden({ path: logPath, source, mtime: stat.mtime }));
+          }
+        };
+        // Top-level *.log files.
+        const entries = await filePowers
+          .readDirectory(statePath)
+          .catch(() => []);
+        for (const entry of entries) {
+          if (entry.endsWith('.log')) {
+            await consider(filePowers.joinPath(statePath, entry), entry);
+          }
+        }
+        // Per-worker worker.log files. The display name uses a short id
+        // prefix for readability, but since `source` doubles as the
+        // `name` selector, fall back to the full id whenever two workers
+        // would share a prefix — otherwise selecting one would
+        // ambiguously match (and concatenate) both.
+        const workerDirectory = filePowers.joinPath(statePath, 'worker');
+        const workerIds = await filePowers
+          .readDirectory(workerDirectory)
+          .catch(() => []);
+        const prefixCounts = new Map();
+        for (const workerId of workerIds) {
+          const prefix = workerId.slice(0, 8);
+          prefixCounts.set(prefix, (prefixCounts.get(prefix) ?? 0) + 1);
+        }
+        for (const workerId of workerIds) {
+          const prefix = workerId.slice(0, 8);
+          const source =
+            prefixCounts.get(prefix) === 1
+              ? `worker/${prefix}`
+              : `worker/${workerId}`;
+          await consider(
+            filePowers.joinPath(workerDirectory, workerId, 'worker.log'),
+            source,
+          );
+        }
+        logFiles.sort((a, b) => {
+          if (a.mtime < b.mtime) return -1;
+          if (a.mtime > b.mtime) return 1;
+          // Tie-break on the display name so logs with identical mtimes
+          // (created together, or on a coarse-resolution filesystem) have
+          // a fully deterministic order rather than a filesystem-dependent
+          // one.
+          if (a.source < b.source) return -1;
+          if (a.source > b.source) return 1;
+          return 0;
+        });
+        return harden(logFiles);
+      };
+
+      /**
+       * Stream the daemon's logs as a sequence of `{ source, chunk }`
+       * records, where `source` is the log's display name and `chunk`
+       * is a run of newly read UTF-8 text. Each file is read in bounded
+       * windows so an arbitrarily large log never has to be buffered in
+       * memory or marshalled in a single message. A streaming decoder
+       * keeps multi-byte characters intact across window boundaries.
+       *
+       * When a content filter (`pattern`) is supplied, the stream
+       * switches to line granularity: the windows are split into lines
+       * and only matching lines are emitted (each as its own `chunk`,
+       * newline included), so the consumer still reconstructs a
+       * coherent — but filtered — log by concatenating chunks. A plain
+       * substring search is just an unanchored pattern, so no separate
+       * `includes` option is needed.
+       *
+       * @param {object} [options]
+       * @param {string} [options.name] Restrict the stream to the single
+       *   log whose display name matches exactly (e.g. `endo.log` or
+       *   `worker/<id8>`). When omitted, every log is streamed.
+       * @param {string} [options.pattern] Emit only lines that match this
+       *   regular expression, given as a `RegExp` *source string* (a
+       *   `RegExp` object is not passable, so it cannot cross CapTP). The
+       *   line's terminator (`\n` or `\r\n`) is excluded when matching,
+       *   so `$`-anchored patterns behave the same on LF and CRLF logs.
+       * @param {boolean} [options.follow] When false (the default), the
+       *   stream ends once the current extent of every selected log has
+       *   been read. When true, the stream stays open after reaching the
+       *   end and keeps emitting bytes as the logs grow — re-scanning on
+       *   each poll so newly created logs (e.g. a freshly spawned worker)
+       *   are picked up too — until the consumer closes the reader or the
+       *   daemon shuts down.
+       * @returns {AsyncGenerator<LogChunk, undefined, undefined>}
+       */
+      const readLogEntries = async function* readLogEntries(options = {}) {
+        const { name, pattern, follow = false } = options;
+        // Compile the caller's line predicate once. `pattern` arrives as
+        // a RegExp source string and is compiled here. A pathological
+        // pattern could backtrack catastrophically (ReDoS) while scanning
+        // a large log, but `readLog` is only reachable through the Endo
+        // bootstrap capability — a holder of which can already
+        // `terminate()` the daemon outright — so this adds no meaningful
+        // denial-of-service surface and is deliberately left unsanitised.
+        const regexp = pattern === undefined ? undefined : new RegExp(pattern);
+        const filtered = regexp !== undefined;
+        /** @param {string} line */
+        const matchesLine = line => regexp === undefined || regexp.test(line);
+
+        // Per-log streaming cursor. `follow` resumes each log where the
+        // previous poll left off, so the byte offset, the streaming
+        // decoder (mid multi-byte character) and the trailing partial
+        // line must all persist across polls.
+        /** @typedef {{ path: string, source: string, offset: number, decoder: TextDecoder, pending: string }} LogCursor */
+        /** @type {Map<string, LogCursor>} */
+        const cursors = new Map();
+
+        /**
+         * @param {{ path: string, source: string }} logFile
+         * @returns {LogCursor}
+         */
+        const cursorFor = ({ path: logPath, source }) => {
+          let cursor = cursors.get(logPath);
+          if (cursor === undefined) {
+            cursor = {
+              path: logPath,
+              source,
+              offset: 0,
+              decoder: new TextDecoder(),
+              pending: '',
+            };
+            cursors.set(logPath, cursor);
+          }
+          return cursor;
+        };
+
+        /**
+         * Yield every byte currently readable from one log, advancing its
+         * cursor and stopping at the present end of file. Partial
+         * multi-byte characters, and (when filtering) the trailing partial
+         * line, are retained on the cursor for the next call rather than
+         * emitted prematurely.
+         *
+         * @param {LogCursor} cursor
+         */
+        const drainCursor = async function* drainCursor(cursor) {
+          for (;;) {
+            const bytes = await filePowers.readFileRange(
+              cursor.path,
+              cursor.offset,
+              logChunkBytes,
+            );
+            if (bytes.length === 0) {
+              break;
+            }
+            cursor.offset += bytes.length;
+            const text = cursor.decoder.decode(bytes, { stream: true });
+            // An empty decode means the window ended mid multi-byte
+            // character; the decoder retains those bytes for the next read.
+            if (text.length !== 0 && !filtered) {
+              yield harden({ source: cursor.source, chunk: text });
+            } else if (text.length !== 0) {
+              cursor.pending += text;
+              let newlineIndex = cursor.pending.indexOf('\n');
+              while (newlineIndex !== -1) {
+                const line = cursor.pending.slice(0, newlineIndex);
+                cursor.pending = cursor.pending.slice(newlineIndex + 1);
+                // Match the content without its line terminator so a
+                // trailing `\r` (CRLF logs) doesn't defeat `$` anchors;
+                // re-emit the line with its original terminator intact.
+                const content = line.endsWith('\r') ? line.slice(0, -1) : line;
+                if (matchesLine(content)) {
+                  yield harden({ source: cursor.source, chunk: `${line}\n` });
+                }
+                newlineIndex = cursor.pending.indexOf('\n');
+              }
+            }
+          }
+        };
+
+        /**
+         * Flush the bytes the streaming decoder is holding plus the final
+         * unterminated line. Only used when a log is considered complete,
+         * i.e. never in `follow` mode, where more bytes may still arrive.
+         *
+         * @param {LogCursor} cursor
+         */
+        const flushCursor = async function* flushCursor(cursor) {
+          const tail = cursor.decoder.decode();
+          if (!filtered) {
+            if (tail.length > 0) {
+              yield harden({ source: cursor.source, chunk: tail });
+            }
+            return;
+          }
+          cursor.pending += tail;
+          const content = cursor.pending.endsWith('\r')
+            ? cursor.pending.slice(0, -1)
+            : cursor.pending;
+          if (content.length > 0 && matchesLine(content)) {
+            yield harden({ source: cursor.source, chunk: cursor.pending });
+          }
+          cursor.pending = '';
+        };
+
+        /** @param {Array<{ path: string, source: string }>} logFiles */
+        const select = logFiles =>
+          name === undefined
+            ? logFiles
+            : logFiles.filter(logFile => logFile.source === name);
+
+        if (!follow) {
+          for (const logFile of select(await listLogFiles())) {
+            const cursor = cursorFor(logFile);
+            yield* drainCursor(cursor);
+            yield* flushCursor(cursor);
+          }
+          return undefined;
+        }
+
+        // Follow mode: re-enumerate (to catch newly created logs), drain
+        // any new bytes from each, then wait and repeat — never flushing,
+        // since an unterminated tail may still be completed by later
+        // writes. The poll sleep is bounded by the daemon's grace-period
+        // promise so the loop and its timer cannot outlive the daemon;
+        // `delay` rejects when that promise rejects, which we treat as a
+        // clean end of stream. Early consumer close is handled by the
+        // reader pump calling this generator's `return()` at the yield
+        // point (see the `buffer: 0` note where `readLog` wraps this).
+        for (;;) {
+          for (const logFile of select(await listLogFiles())) {
+            yield* drainCursor(cursorFor(logFile));
+          }
+          try {
+            await delay(followPollMs, gracePeriodElapsed);
+          } catch {
+            break;
+          }
+        }
+        return undefined;
+      };
       const endoBootstrap = /** @type {FarRef<EndoBootstrap>} */ (
         /** @type {unknown} */ (
           makeExo(
@@ -3138,6 +3403,17 @@ const makeDaemonCore = async (
               greeter: async () => localGreeter,
               gateway: async () => localGateway,
               nodeId: () => localNodeNumber,
+              readLog: async (options = {}) => {
+                const settings = options ?? {};
+                // Bulk reads stay pipelined for throughput, but a `follow`
+                // stream uses no pre-buffer: the pump must park on the syn
+                // chain (not inside a pulled, sleeping `next()`) so an
+                // early `return()` from the consumer is observed promptly
+                // and tears the follow loop down instead of hanging.
+                return readerFromIterator(readLogEntries(settings), {
+                  buffer: settings.follow ? 0 : 64,
+                });
+              },
               sign: async hexBytes => toHex(signBytes(fromHex(hexBytes))),
               reviveNetworks: async () => {
                 const networksDirectory = await provide(
@@ -5512,18 +5788,19 @@ const makeDaemonCore = async (
       const { number: hostHandleNumber, node: hostHandleNode } =
         parseId(hostHandleId);
       const { number } = parseId(id);
-      const url = new URL('endo://');
-      url.hostname = node;
-      url.searchParams.set('id', number);
+      // Build path with `@`-delimited URL-encoded components: the first
+      // component is the invitation's formula number, and subsequent
+      // components are connection hints.
+      const invitationPath = [number, ...addresses]
+        .map(encodeURIComponent)
+        .join('@');
+      const url = new URL(`endo://${node}/${invitationPath}`);
       url.searchParams.set('type', 'invitation');
       url.searchParams.set('from', hostHandleNumber);
       // Include the handle's node if it differs from the daemon node
       // (i.e. it uses an agent key).
       if (hostHandleNode !== node) {
         url.searchParams.set('fromNode', hostHandleNode);
-      }
-      for (const address of addresses) {
-        url.searchParams.append('at', address);
       }
       return url.href;
     };
@@ -5535,8 +5812,13 @@ const makeDaemonCore = async (
      */
     const accept = async (guestHandleLocator, _hostNameFromGuest) => {
       const url = new URL(guestHandleLocator);
-      const guestHandleNumber = url.searchParams.get('id');
-      const addresses = url.searchParams.getAll('at');
+      // Path components are `@`-delimited and URL-encoded.  The first
+      // component is the handle's formula address; the rest are
+      // connection hints.
+      const [guestHandleNumber, ...addresses] = url.pathname
+        .replace(/^\//, '')
+        .split('@')
+        .map(decodeURIComponent);
       const guestDaemonNode = url.hostname;
       // The handle's node may differ from the daemon node when agent keys
       // are used as formula nodes.
@@ -5544,7 +5826,7 @@ const makeDaemonCore = async (
         url.searchParams.get('handleNode') || guestDaemonNode;
 
       if (!guestHandleNumber) {
-        throw makeError('Handle locator must have an "id" parameter');
+        throw makeError('Handle locator must include a formula number');
       }
       assertNodeNumber(guestDaemonNode);
       assertFormulaNumber(guestHandleNumber);
@@ -5736,6 +6018,231 @@ const makeDaemonCore = async (
   };
 
   /**
+   * Build the host-shaped retention-path list for a target formula.
+   *
+   * Walks the labeled formula graph backward from `targetId` to a
+   * GC root and rewrites pet-store edges from the generic
+   * `'petName'` token into `pet:<name>` labels by resolving each
+   * referencing store's reverse-name table. Other labels (field
+   * names, `'retention'`, `'transient'`) pass through unchanged.
+   *
+   * The returned shape matches `designs/daemon-retention-paths.md`
+   * § Notation: paths and segments — the leaf segment is the
+   * target group, subsequent segments walk upstream toward a root,
+   * and the topmost segment carries `type: 'root'` when the path
+   * terminates at a GC root.
+   *
+   * @param {FormulaIdentifier} targetId
+   * @returns {Promise<import('./graph.js').RetentionPath[]>}
+   */
+  const listRetentionPaths = async targetId => {
+    const rawPaths = formulaGraph.listRetentionPaths(targetId);
+
+    /**
+     * Per-call cache of `(petStoreId, memberId) -> pet:<name> labels`,
+     * deliberately scoped to this `listRetentionPaths` invocation:
+     * pet-store contents change between calls and a process-wide
+     * cache would silently serve stale labels. The cache is
+     * discarded when the function returns.
+     *
+     * @type {Map<string, string[]>}
+     */
+    const labelCache = new Map();
+    /** @type {Set<FormulaIdentifier>} */
+    const storeIdsToResolve = new Set();
+    for (const path of rawPaths) {
+      for (const seg of path) {
+        if (seg.referencedBy !== undefined) {
+          const refFormula = formulaForId.get(seg.referencedBy);
+          if (
+            refFormula !== undefined &&
+            (refFormula.type === 'pet-store' ||
+              refFormula.type === 'mailbox-store' ||
+              refFormula.type === 'known-peers-store')
+          ) {
+            storeIdsToResolve.add(seg.referencedBy);
+          }
+        }
+      }
+    }
+    // Resolve store controllers in parallel; on multi-pet-store
+    // retention paths this is a real per-call speedup over the
+    // serial await loop. `provideStoreController` is cache-backed,
+    // so concurrent calls do not duplicate work for the same id.
+    /** @type {Map<FormulaIdentifier, import('./types.js').StoreController>} */
+    const storeControllers = new Map(
+      await Promise.all(
+        Array.from(
+          storeIdsToResolve,
+          async storeId =>
+            /** @type {[FormulaIdentifier, import('./types.js').StoreController]} */ ([
+              storeId,
+              await provideStoreController(storeId),
+            ]),
+        ),
+      ),
+    );
+
+    /**
+     * Resolve the formula type for each member of a segment's group.
+     * Returns `'unknown'` for ids the daemon does not have a formula
+     * record for (collected or never-formulated), matching the
+     * graph-snapshot convention at the same site.
+     *
+     * @param {import('./graph.js').RetentionPathSegment} seg
+     * @returns {string[]}
+     */
+    const formulaTypesFor = seg =>
+      seg.groupMembers.map(memberId => {
+        const formula = formulaForId.get(memberId);
+        return formula ? formula.type : 'unknown';
+      });
+
+    /** @type {import('./graph.js').RetentionPath[]} */
+    const shaped = [];
+    for (const path of rawPaths) {
+      /** @type {import('./graph.js').RetentionPath} */
+      const shapedPath = [];
+      for (const seg of path) {
+        const controller =
+          seg.referencedBy !== undefined
+            ? storeControllers.get(seg.referencedBy)
+            : undefined;
+        const segLabels = seg.labels;
+        const needsRename =
+          seg.referencedBy !== undefined &&
+          segLabels !== undefined &&
+          segLabels.length > 0 &&
+          controller !== undefined;
+        const formulaTypes = formulaTypesFor(seg);
+        if (!needsRename) {
+          shapedPath.push(harden({ ...seg, formulaTypes }));
+        } else {
+          /** @type {string[]} */
+          const newLabels = [];
+          for (const label of /** @type {string[]} */ (segLabels)) {
+            if (label === 'petName') {
+              // Resolve every pet name in the upstream store that
+              // points at any member of this group. The cache key
+              // is per (storeId, memberId) pair so a multi-member
+              // group fans out into multiple `pet:<name>` labels
+              // deterministically.
+              for (const memberId of seg.groupMembers) {
+                const cacheKey = `${seg.referencedBy} ${memberId}`;
+                let names = labelCache.get(cacheKey);
+                if (names === undefined) {
+                  const petNames =
+                    /** @type {import('./types.js').StoreController} */ (
+                      controller
+                    ).reverseIdentify(memberId);
+                  names = petNames.map(n => `pet:${n}`);
+                  labelCache.set(cacheKey, names);
+                }
+                for (const n of names) {
+                  newLabels.push(n);
+                }
+              }
+            } else {
+              newLabels.push(label);
+            }
+          }
+          shapedPath.push(
+            harden({
+              ...seg,
+              labels: newLabels,
+              formulaTypes,
+            }),
+          );
+        }
+      }
+      shaped.push(harden(shapedPath));
+    }
+    return harden(shaped);
+  };
+
+  /**
+   * Subscribe to retention-path changes for a target formula.
+   *
+   * Returns an async generator whose first delta is a full
+   * `{ snapshot }` of the paths at the time of subscription and
+   * whose subsequent deltas are `{ added, removed }` diffs over
+   * the path set. Updates are coalesced over a microtask window
+   * so a single `provideGuest` (which incarnates a chain of
+   * dependent formulas) yields one delta, not many.
+   *
+   * Drop the returned iterator (or `break` out of a for-await-of
+   * loop on it) to release the subscription: the underlying graph
+   * change subscription drains and the producer returns.
+   *
+   * @param {FormulaIdentifier} targetId
+   * @returns {AsyncGenerator<
+   *   import('./retention-path-accumulator.js').RetentionPathDelta
+   * >}
+   */
+  // eslint-disable-next-line no-use-before-define
+  const followRetentionPaths = async function* followRetentionPaths(targetId) {
+    // eslint-disable-next-line no-use-before-define
+    const accumulator = makeRetentionPathAccumulator({
+      compute: () => listRetentionPaths(targetId),
+      // Route structured failures through the lifecycle log per
+      // `packages/daemon/CLAUDE.md` § Diagnostic Discipline in
+      // Formulas. The target's formula id correlates the line
+      // with other lifecycle events for the same formula.
+      onError: err => {
+        logLifecycle(
+          targetId,
+          'RETENTION_PATH_FLUSH_FAILED',
+          /** @type {Error} */ (err).message,
+        );
+      },
+    });
+
+    // Notify the accumulator whenever any formula in the graph
+    // changes. Phase 1 uses formulaChangeTopic as the coarse
+    // change signal; finer-grained edge-event topics are deferred
+    // to follow-up work per the design's *Known Gaps and TODOs*.
+    const subscription = formulaChangeTopic.subscribe();
+    let cancelled = false;
+    // Drive the iterator with a `.next().then(loop)` recursion so
+    // the change body never names a value to keep undefined,
+    // side-stepping the leading-underscore / no-unused-vars lint
+    // conflict documented in project root `CLAUDE.md` § Lint-rule
+    // gotchas. The accumulator recomputes from scratch on every
+    // notify(), so the yielded change is a coarse "something
+    // happened" signal only and the value itself is discarded.
+    const pump = () =>
+      subscription.next().then(step => {
+        if (step.done || cancelled) return undefined;
+        accumulator.notify();
+        return pump();
+      });
+    pump().catch(err => {
+      // Route through the lifecycle log so retention-path subsystem
+      // failures correlate with other lifecycle events for the same
+      // formula. See `packages/daemon/CLAUDE.md` § Diagnostic
+      // Discipline in Formulas.
+      logLifecycle(
+        targetId,
+        'RETENTION_PATH_PUMP_FAILED',
+        /** @type {Error} */ (err).message,
+      );
+    });
+
+    try {
+      yield* accumulator.subscribe();
+    } finally {
+      cancelled = true;
+      // Best-effort: closing the iterator on the next
+      // formulaChangeTopic emission lets the inner loop fall out.
+      try {
+        await subscription.return?.(undefined);
+      } catch (_e) {
+        // Ignore close errors; the iterator is already terminating.
+      }
+    }
+  };
+
+  /**
    * Return the on-disk filesystem path for a `mount` or `scratch-mount`
    * formula.  Privileged host-paths surface the daemon does **not**
    * place on Mount's public interface — only callers that hold the
@@ -5838,6 +6345,8 @@ const makeDaemonCore = async (
     pinTransient,
     unpinTransient,
     getFormulaGraphSnapshot,
+    listRetentionPaths,
+    followRetentionPaths,
     getScratchMountPath,
     getMountHostPath,
     getIdForRef,

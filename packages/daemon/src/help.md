@@ -447,7 +447,7 @@ Example: locateForSharing("my-channel") returns a shareable locator URL.
 Adopt a value from a locator that includes connection hints.
 Parses the locator to extract peer info, establishes a connection if needed,
 and writes the formula ID into the local pet store.
-Example: adoptFromLocator("endo://node...?id=...&type=channel&at=...", "remote-channel")
+Example: adoptFromLocator("endo://node.../formula@hint?type=channel", "remote-channel")
 
 ## invite(guestName) -> Promise<Invitation>
 
@@ -514,6 +514,38 @@ this agent's pet store.
 - edges: Array of { sourceId, targetId, label } for each dependency
 
 Used by the Chat inventory graph space to visualize formula relationships.
+
+## listRetentionPaths(locator) -> Promise<RetentionPath[]>
+
+Snapshot every retention path from a GC root to the target locator.
+
+Each path is an array of segments walking upstream from the target
+to a root. A segment carries:
+
+- `groupMembers`: identifiers union-merged into the segment's group
+- `referencedBy`: id of the upstream group representative
+  (absent on the root)
+- `labels`: edge labels from the referrer into this group;
+  pet-store edges render as `pet:<name>`, internal edges keep
+  their field name (e.g. `worker`, `petStore`, `retention`), and
+  the root segment carries `type: "root"`.
+
+Useful for answering "why is this value still alive?" without
+polling the whole graph. See `endo paths <name>` for the CLI form.
+
+## followRetentionPaths(locator) -> AsyncIterator<RetentionPathDelta>
+
+Subscribe to retention-path changes for the target locator.
+
+The first delta is always a full `{ snapshot: RetentionPath[] }`.
+Subsequent deltas are `{ added, removed }` diffs over a
+microtask-coalesced batch window, so a single `provideGuest`
+yields one delta rather than many.
+
+Drop the returned reference to release the subscription, exactly
+as with `followNameChanges` and `followLocatorNameChanges`.
+
+Use with `for-await-of` to receive updates.
 
 ## readText(petNameOrPath) -> Promise<string>
 
@@ -612,6 +644,21 @@ Get the network gateway for providing values to peers.
 
 Get this node's unique identifier.
 Used for peer-to-peer communication.
+
+## readLog(options?) -> AsyncIterator
+
+Stream the daemon logs as { source, chunk } records, where source is a log
+display name (such as endo.log or worker/<id8>) and chunk is a run of UTF-8
+text.
+Returns a reader; consume it with iterateReader.
+The optional options.name restricts the stream to a single log by display
+name; omitting it streams every log.
+options.pattern emits only lines matching a regular expression given as a
+RegExp source string (a plain substring is just an unanchored pattern).
+By default the stream ends once the current logs have been read; pass
+options.follow true to keep it open and keep emitting new lines as the logs
+grow (and as new logs appear) until you close the reader.
+Logs are read in bounded windows so a large log is never buffered whole.
 
 ## reviveNetworks() -> Promise<void>
 

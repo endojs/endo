@@ -1,0 +1,72 @@
+{
+  "name": "@endo/space-channel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multiuser channel space family for Endo Chat — the channel, forum, outliner, and microblog views plus their shared channel/react/edit substrate",
+  "keywords": [
+    "endo",
+    "chat",
+    "channel",
+    "preact"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/space-channel"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./channel-component.js": "./src/channel-component.js",
+    "./channel-header.js": "./src/channel-header.js",
+    "./heat-simulation.js": "./src/heat-simulation.js",
+    "./channel-utils.js": "./src/channel-utils.js",
+    "./channel.css": "./src/channel.css",
+    "./edit-queue.js": "./src/edit-queue.js",
+    "./forum-component.js": "./src/forum-component.js",
+    "./microblog-component.js": "./src/microblog-component.js",
+    "./outliner/controller-intents.js": "./src/outliner/controller-intents.js",
+    "./outliner/editable-line.js": "./src/outliner/editable-line.js",
+    "./outliner/outliner-root.js": "./src/outliner/outliner-root.js",
+    "./outliner/outliner-structure.js": "./src/outliner/outliner-structure.js",
+    "./outliner/slash-commands.js": "./src/outliner/slash-commands.js",
+    "./outliner/tree-snapshot.js": "./src/outliner/tree-snapshot.js",
+    "./outliner/tree-source.js": "./src/outliner/tree-source.js",
+    "./package.json": "./package.json",
+    "./profile-popup.js": "./src/profile-popup.js",
+    "./share-modal.js": "./src/share-modal.js",
+    "./react-utils.js": "./src/react-utils.js"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/daemon": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/monaco-wrapper": "workspace:^",
+    "@endo/preact-container": "workspace:^",
+    "@endo/spaces-util": "workspace:^",
+    "preact": "^10.29.2"
+  },
+  "devDependencies": {
+    "eslint": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "env": {
+      "browser": true
+    }
+  }
+}

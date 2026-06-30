@@ -137,7 +137,7 @@ export const helpTextEntries = harden([
       locateForSharing:
         'locateForSharing(...petNamePath) -> Promise<string | undefined>\nLocate a formula and return a locator URL with connection hints.\nThe returned locator includes network addresses from all registered netlayers,\nallowing remote peers to connect and access the value.\nExample: locateForSharing("my-channel") returns a shareable locator URL.',
       adoptFromLocator:
-        'adoptFromLocator(locator, petNameOrPath) -> Promise<void>\nAdopt a value from a locator that includes connection hints.\nParses the locator to extract peer info, establishes a connection if needed,\nand writes the formula ID into the local pet store.\nExample: adoptFromLocator("endo://node...?id=...&type=channel&at=...", "remote-channel")',
+        'adoptFromLocator(locator, petNameOrPath) -> Promise<void>\nAdopt a value from a locator that includes connection hints.\nParses the locator to extract peer info, establishes a connection if needed,\nand writes the formula ID into the local pet store.\nExample: adoptFromLocator("endo://node.../formula@hint?type=channel", "remote-channel")',
       invite:
         'invite(guestName) -> Promise<Invitation>\nCreate an invitation for a guest to connect.',
       accept:
@@ -151,6 +151,10 @@ export const helpTextEntries = harden([
         'sendValue(messageNumber, petNameOrPath) -> Promise<void>\nReply to any message with a retained value from your pet store.\n\n- messageNumber: The inbox message number to reply to\n- petNameOrPath: Pet name (or path) of the value to send\n\nExample: sendValue(0, "my-counter")',
       getFormulaGraph:
         "getFormulaGraph() -> Promise<{ nodes, edges }>\nReturns a snapshot of the formula dependency graph reachable from\nthis agent's pet store.\n\n- nodes: Array of { id, type } for each formula\n- edges: Array of { sourceId, targetId, label } for each dependency\n\nUsed by the Chat inventory graph space to visualize formula relationships.",
+      listRetentionPaths:
+        'listRetentionPaths(locator) -> Promise<RetentionPath[]>\nSnapshot every retention path from a GC root to the target locator.\n\nEach path is an array of segments walking upstream from the target to a root.\nA segment carries:\n- groupMembers: identifiers union-merged into the segment\'s group\n- referencedBy: id of the upstream group representative (absent on the root)\n- labels: edge labels from the referrer into this group; pet-store edges\n  render as "pet:<name>", internal edges keep their field name\n  (e.g. "worker", "petStore", "retention"), and the root segment carries\n  type: "root".\n\nUseful for answering "why is this value still alive?" without polling the\nwhole graph. See `endo paths <name>` for the CLI form.',
+      followRetentionPaths:
+        'followRetentionPaths(locator) -> AsyncIterator<RetentionPathDelta>\nSubscribe to retention-path changes for the target locator.\n\nThe first delta is always a full { snapshot: RetentionPath[] }. Subsequent\ndeltas are { added, removed } diffs over a microtask-coalesced batch\nwindow, so a single provideGuest yields one delta rather than many.\n\nDrop the returned reference to release the subscription, exactly as with\nfollowNameChanges and followLocatorNameChanges.\n\nUse with for-await-of to receive updates.',
       readText:
         'readText(petNameOrPath) -> Promise<string>\nRead text content by pet name or path.\nFor a single name, reads the blob\'s text content.\nFor a multi-segment path, reads through the mount.\nExample: readText(["my-blob"])\nExample: readText(["my-mount", "config.json"])',
       maybeReadText:
@@ -190,6 +194,8 @@ export const helpTextEntries = harden([
         'gateway() -> Promise<EndoGateway>\nGet the network gateway for providing values to peers.',
       nodeId:
         "nodeId() -> string\nGet this node's unique identifier.\nUsed for peer-to-peer communication.",
+      readLog:
+        'readLog(options?) -> AsyncIterator\nStream the daemon logs as { source, chunk } records, where source is a log\ndisplay name (such as endo.log or worker/<id8>) and chunk is a run of UTF-8\ntext. Returns a reader; consume it with iterateReader. The optional\noptions.name restricts the stream to a single log by display name; omitting\nit streams every log. options.pattern emits only lines matching a regular\nexpression given as a RegExp source string (a plain substring is just an\nunanchored pattern). By default the stream ends once the current logs have\nbeen read; pass options.follow true to keep it open and keep emitting new\nlines as the logs grow (and as new logs appear) until you close the reader.\nLogs are read in bounded windows so a large log is never buffered whole.',
       reviveNetworks:
         'reviveNetworks() -> Promise<void>\nRestore network connections from persisted state.',
       revivePins:

@@ -674,6 +674,30 @@
   font-weight: 600;
   margin-bottom: 0.75rem;
 }
+.floot-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.85rem;
+}
+.floot-modal-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--fl-text-muted);
+}
+.floot-model-select {
+  width: 100%;
+  background: var(--fl-surface2);
+  border: 1px solid var(--fl-border);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  color: var(--fl-text);
+  font-size: 0.85rem;
+}
+.floot-model-select:focus {
+  outline: none;
+  border-color: var(--fl-accent);
+}
 .floot-preset-list {
   display: flex;
   flex-direction: column;

@@ -3,8 +3,8 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
+import { createProfilePopup } from '@endo/space-channel/profile-popup.js';
 import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
-import { createProfilePopup } from '../../profile-popup.js';
 
 const { document: testDocument } = createDOM();
 

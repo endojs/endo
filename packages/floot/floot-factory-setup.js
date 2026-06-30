@@ -10,9 +10,32 @@
 // to the factory behind an `llm-provider` capability handle, so no secret lives
 // in env. Persistence is daemon-only.
 
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { E } from '@endo/eventual-send';
 
 const flootFactorySpecifier = new URL('agent.js', import.meta.url).href;
+
+// Absolute host path to the Endo codebase, mounted read-only into full-control
+// sessions. Default: the repo root, two directories up from this script
+// (packages/floot/) — derivable because this setup script runs unconfined from
+// its real on-disk location. Override with FLOOT_CODE_PATH (e.g. to mount a
+// subset, or when the script is run from a copy outside the repo). Resolved to
+// '' when the path does not exist on disk, which makes the factory skip the
+// mount instead of failing per session.
+const resolveCodePath = () => {
+  const configured =
+    process.env.FLOOT_CODE_PATH ||
+    fileURLToPath(new URL('../../', import.meta.url));
+  if (!existsSync(configured)) {
+    console.warn(
+      `Floot: code path "${configured}" does not exist; full-control sessions will have no source mount.`,
+    );
+    return '';
+  }
+  return configured;
+};
 
 /**
  * Provision (or revive) the floot-factory: its guest, its provider handle, the
@@ -36,6 +59,7 @@ export const main = async agent => {
   const authToken =
     process.env.ANTHROPIC_API_KEY || process.env.FLOOT_AUTH_TOKEN || '';
   const systemPrompt = process.env.FLOOT_SYSTEM_PROMPT || '';
+  const codePath = resolveCodePath();
 
   if (provider === 'anthropic' && !authToken) {
     throw new Error(
@@ -75,7 +99,10 @@ export const main = async agent => {
   await E(agent).makeUnconfined('@main', flootFactorySpecifier, {
     powersName: agentName,
     resultName: controllerPath,
-    env: harden({ FLOOT_SYSTEM_PROMPT: systemPrompt }),
+    env: harden({
+      FLOOT_SYSTEM_PROMPT: systemPrompt,
+      FLOOT_CODE_PATH: codePath,
+    }),
   });
 
   // 4. Tuck the factory host + its profile under floot/ so the top level stays
@@ -96,8 +123,8 @@ export const main = async agent => {
     console.log('Seeded a default session.');
   }
   console.log(
-    `Ready (provider: ${provider}${
-      model ? `, model: ${model}` : ''
+    `Ready (provider: ${provider}${model ? `, model: ${model}` : ''}${
+      codePath ? `, code mount: ${codePath}` : ''
     }). Look up "${dir}/controller" and call createSession()/listSessions().`,
   );
 };

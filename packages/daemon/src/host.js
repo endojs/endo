@@ -3,7 +3,7 @@
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PassableBytesReader } from '@endo/exo-stream' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGit, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoGit, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, FormulaRecord, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 
 import { E } from '@endo/far';
 import { makeExo } from '@endo/exo';
@@ -26,15 +26,12 @@ import {
   parseId,
   formatId,
 } from './formula-identifier.js';
-import {
-  addressesFromLocator,
-  formatLocator,
-  idFromLocator,
-} from './locator.js';
+import { formatLocator, idFromLocator, internalizeLocator } from './locator.js';
 import { toHex, fromHex } from './hex.js';
 import { makePetSitter } from './pet-sitter.js';
 
 import { makeDeferredTasks } from './deferred-tasks.js';
+import { makeFormulaRecord } from './formula-record.js';
 
 import { HostInterface } from './interfaces.js';
 import { hostHelp, makeHelp } from './help-text.js';
@@ -118,6 +115,8 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  * @param {DaemonCore['getFormulaGraphSnapshot']} [args.getFormulaGraphSnapshot]
+ * @param {DaemonCore['listRetentionPaths']} [args.listRetentionPaths]
+ * @param {DaemonCore['followRetentionPaths']} [args.followRetentionPaths]
  */
 export const makeHostMaker = ({
   provide,
@@ -164,6 +163,28 @@ export const makeHostMaker = ({
   unpinTransient = /** @param {any} _id */ _id => {},
   getFormulaGraphSnapshot = /** @param {any[]} _ids */ async _ids =>
     harden({ nodes: [], edges: [] }),
+  // Retention-path introspection is an opt-in instrumentation
+  // surface: embedders that do not wire the daemon-side path
+  // resolver still satisfy the `EndoHost` shape, and clients see
+  // an empty path list rather than a hard error. Contrast
+  // `getMountHostPath` below, where a missing wire indicates a
+  // configuration bug worth surfacing loudly: there the no-wire
+  // default throws an explicit `makeError`. Diagnose retention
+  // gaps via `endo paths --json` returning `[]` for an id whose
+  // formula clearly exists.
+  listRetentionPaths = /** @param {any} _id */ async _id => harden([]),
+  /**
+   * @param {any} _id
+   * @returns {AsyncGenerator<
+   *   import('./retention-path-accumulator.js').RetentionPathDelta,
+   *   undefined,
+   *   undefined
+   * >}
+   */
+  // eslint-disable-next-line require-yield
+  followRetentionPaths = async function* _follow(_id) {
+    return undefined;
+  },
 }) => {
   /**
    * @param {FormulaIdentifier} hostId
@@ -214,6 +235,12 @@ export const makeHostMaker = ({
     const baseController = await provideStoreController(storeId);
     const mailboxController = await provideStoreController(mailboxStoreId);
 
+    // Note: `inspectorId` is retained on the host formula for
+    // forward-load compatibility with hosts whose formulas were
+    // written before `getFormula` replaced the `@info` name hub.
+    // The id no longer participates in any special-name lookup;
+    // `getFormula(identifier)` is the user-facing replacement.
+    // See `designs/formula-inspector.md` "Removing the `@info` name hub".
     /** @type {Record<string, FormulaIdentifier>} */
     const specialNames = {
       ...platformNames,
@@ -225,7 +252,6 @@ export const makeHostMaker = ({
       '@endo': endoId,
       '@nets': networksDirectoryId,
       '@pins': pinsDirectoryId,
-      '@info': inspectorId,
       '@none': leastAuthorityId,
     };
     if (mailHubId !== undefined) {
@@ -1337,19 +1363,24 @@ export const makeHostMaker = ({
         petNamePathFrom(guestName);
       const url = new URL(invitationLocator);
       const daemonNode = url.hostname;
-      const invitationNumber = url.searchParams.get('id');
+      // Path components are `@`-delimited and URL-encoded.  The first
+      // component is the invitation's formula address; the rest are
+      // connection hints.
+      const [invitationNumber, ...addresses] = url.pathname
+        .replace(/^\//, '')
+        .split('@')
+        .map(decodeURIComponent);
       const remoteHandleNumber = url.searchParams.get('from');
       // The remote handle's node may differ from the daemon node when
       // agent keys are used as formula nodes.
       const remoteHandleNodeParam = url.searchParams.get('fromNode');
-      const addresses = url.searchParams.getAll('at');
 
       daemonNode || assert.Fail`Invitation must have a hostname`;
       if (!remoteHandleNumber) {
         throw makeError(`Invitation must have a "from" parameter`);
       }
-      if (invitationNumber === null) {
-        throw makeError(`Invitation must have an "id" parameter`);
+      if (!invitationNumber) {
+        throw makeError(`Invitation must include a formula number`);
       }
       assertNodeNumber(daemonNode);
       assertFormulaNumber(remoteHandleNumber);
@@ -1376,16 +1407,18 @@ export const makeHostMaker = ({
       const { number: handleNumber, node: handleNode } = parseId(handleId);
       // eslint-disable-next-line no-use-before-define
       const { addresses: hostAddresses } = await getPeerInfo();
-      const handleUrl = new URL('endo://');
-      handleUrl.hostname = localNodeNumber;
-      handleUrl.searchParams.set('id', handleNumber);
+      // Build the handle locator with `@`-delimited URL-encoded path
+      // components: the first component is the handle's formula number,
+      // and subsequent components are connection hints.
+      const handlePath = [handleNumber, ...hostAddresses]
+        .map(encodeURIComponent)
+        .join('@');
+      const handleUrl = new URL(`endo://${localNodeNumber}/${handlePath}`);
+      handleUrl.searchParams.set('type', 'handle');
       // Include the handle's node if it differs from the daemon node
       // (i.e. it uses an agent key).
       if (handleNode !== localNodeNumber) {
         handleUrl.searchParams.set('handleNode', handleNode);
-      }
-      for (const address of hostAddresses) {
-        handleUrl.searchParams.append('at', address);
       }
       const handleLocator = handleUrl.href;
 
@@ -1499,11 +1532,9 @@ export const makeHostMaker = ({
     /** @type {EndoHost['adoptFromLocator']} */
     const adoptFromLocator = async (locator, petNameOrPath) => {
       const { namePath } = petNamePathFrom(petNameOrPath);
-      const url = new URL(locator);
-      const nodeNumber = url.hostname;
-      assertNodeNumber(nodeNumber);
-      const addresses = addressesFromLocator(locator);
+      const { id, addresses } = internalizeLocator(locator);
       if (addresses.length > 0) {
+        const { node: nodeNumber } = parseId(id);
         /** @type {PeerInfo} */
         const peerInfo = {
           node: nodeNumber,
@@ -1511,17 +1542,64 @@ export const makeHostMaker = ({
         };
         await addPeerInfo(peerInfo);
       }
-      const formulaNumber = url.searchParams.get('id');
-      if (!formulaNumber) {
-        throw makeError('Locator must have an "id" parameter');
-      }
-      const id = formatId({
-        number: /** @type {import('./types.js').FormulaNumber} */ (
-          formulaNumber
-        ),
-        node: /** @type {NodeNumber} */ (nodeNumber),
-      });
       await E(directory).storeIdentifier(namePath, id);
+    };
+
+    /**
+     * Retrieve the formula record for a local formula identifier.
+     *
+     * Per `designs/formula-inspector.md`, this is the host-only
+     * replacement for the prior `@info` name hub. The identifier must
+     * name a formula this daemon hosts locally — either on its own node
+     * or under one of the agent keys it holds (`isLocalKey`); locators
+     * on genuinely remote peers are rejected with a clear error.
+     *
+     * @param {FormulaIdentifier} identifier
+     * @returns {Promise<FormulaRecord>}
+     */
+    const getFormula = async identifier => {
+      await null;
+      if (typeof identifier !== 'string') {
+        throw new TypeError(
+          `getFormula requires a formula identifier string, got ${q(identifier)}`,
+        );
+      }
+      const { number, node } = parseId(identifier);
+      if (!isLocalKey(node)) {
+        throw new Error(
+          `getFormula rejects cross-peer locators: ${q(identifier)}`,
+        );
+      }
+      let formula;
+      try {
+        formula = await getFormulaForId(
+          /** @type {FormulaIdentifier} */ (identifier),
+        );
+      } catch (err) {
+        // Normalize the persistence-layer "No reference exists at path
+        // ..." `ReferenceError` (and any other read failure) into a
+        // surface-level error that cites the requested identifier
+        // rather than the on-disk path. The persistence-layer message
+        // leaks the filesystem layout and does not name the input the
+        // caller used.
+        const cause = /** @type {Error} */ (err);
+        throw makeError(
+          `getFormula could not resolve unknown identifier: ${q(identifier)}`,
+          undefined,
+          { cause },
+        );
+      }
+      // A scratch-mount carries no path on disk; resolve the daemon-
+      // managed host path so the formula record can surface it. Other
+      // formula types (including `mount`, whose path lives in the
+      // formula itself) need no host-side resolution here.
+      let mountHostPath;
+      if (formula.type === 'scratch-mount') {
+        mountHostPath = getMountHostPath(
+          /** @type {FormulaIdentifier} */ (identifier),
+        );
+      }
+      return makeFormulaRecord(formula, number, { mountHostPath });
     };
 
     const { reverseIdentify } = specialStore;
@@ -1671,6 +1749,48 @@ export const makeHostMaker = ({
       return getFormulaGraphSnapshot(seedIds);
     };
 
+    /**
+     * Snapshot every retention path from a GC root to the target,
+     * named by an endo:// locator. Pet-store edges along each path
+     * render as `pet:<name>` labels by reverse-resolving the
+     * referencing store's name table; other labels (field names,
+     * `retention`, `transient`) pass through. See
+     * `designs/daemon-retention-paths.md` § Notation.
+     *
+     * @param {string} locator
+     * @returns {Promise<import('./graph.js').RetentionPath[]>}
+     */
+    const listRetentionPathsForHost = async locator => {
+      const { id } = internalizeLocator(locator);
+      return listRetentionPaths(
+        /** @type {import('./types.js').FormulaIdentifier} */ (id),
+      );
+    };
+
+    /**
+     * Subscribe to retention-path changes for the target locator.
+     * First delta is a `{ snapshot }`; subsequent deltas are
+     * `{ added, removed }` diffs over a microtask-coalesced batch
+     * window. Drop the returned far reference to release the
+     * subscription, matching `followNameChanges` /
+     * `followLocatorNameChanges`.
+     *
+     * @param {string} locator
+     * @returns {AsyncGenerator<
+     *   import('./retention-path-accumulator.js').RetentionPathDelta,
+     *   undefined,
+     *   undefined
+     * >}
+     */
+    const followRetentionPathsForHost =
+      async function* followRetentionPathsForHost(locator) {
+        const { id } = internalizeLocator(locator);
+        yield* followRetentionPaths(
+          /** @type {import('./types.js').FormulaIdentifier} */ (id),
+        );
+        return undefined;
+      };
+
     /** @type {EndoHost} */
     const host = {
       // Directory
@@ -1753,8 +1873,11 @@ export const makeHostMaker = ({
       endow,
       submit,
       sendValue,
+      getFormula,
       // Graph
       getFormulaGraph,
+      listRetentionPaths: listRetentionPathsForHost,
+      followRetentionPaths: followRetentionPathsForHost,
     };
 
     const hostExo = makeExo(
@@ -1778,6 +1901,11 @@ export const makeHostMaker = ({
         },
         followPeerChanges: async () => {
           const iterator = await host.followPeerChanges();
+          return readerFromIterator(iterator);
+        },
+        /** @param {string} locator */
+        followRetentionPaths: async locator => {
+          const iterator = host.followRetentionPaths(locator);
           return readerFromIterator(iterator);
         },
       }),

@@ -3,8 +3,8 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
+import { createInlineDefine } from '@endo/spaces-util/inline-define.js';
 import { createDOM, tick, waitFor } from '../helpers/dom-setup.js';
-import { createInlineDefine } from '../../inline-define.js';
 
 const { document: testDocument } = createDOM();
 

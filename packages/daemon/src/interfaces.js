@@ -433,6 +433,15 @@ export const HostInterface = M.interface('EndoHost', {
   ).returns(M.promise()),
   // Get formula dependency graph snapshot for this agent's pet store
   getFormulaGraph: M.call().returns(M.promise()),
+  // Retrieve the formula record for a local formula identifier (host-only).
+  // See `designs/formula-inspector.md`. The identifier must name a
+  // formula whose node matches this daemon's local node; cross-peer
+  // locators are rejected at the entry of `getFormula`.
+  getFormula: M.call(IdShape).returns(M.promise()),
+  // Snapshot every retention path from a GC root to the target locator
+  listRetentionPaths: M.call(LocatorShape).returns(M.promise()),
+  // Subscribe to retention-path changes for a target locator
+  followRetentionPaths: M.call(LocatorShape).returns(M.promise()),
 });
 
 export const ChannelInterface = M.interface('EndoChannel', {
@@ -697,6 +706,14 @@ export const EndoInterface = M.interface('Endo', {
   greeter: M.call().returns(M.promise()),
   gateway: M.call().returns(M.promise()),
   nodeId: M.call().returns(M.string()),
+  readLog: M.call()
+    .optional(
+      M.splitRecord(
+        {},
+        { name: M.string(), pattern: M.string(), follow: M.boolean() },
+      ),
+    )
+    .returns(M.promise()),
   sign: M.call(M.string()).returns(M.promise()),
   reviveNetworks: M.call().returns(M.promise()),
   revivePins: M.call().returns(M.promise()),

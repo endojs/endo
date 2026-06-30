@@ -3,8 +3,28 @@
 | | |
 |---|---|
 | **Created** | 2026-06-01 |
+| **Updated** | 2026-06-25 |
 | **Author** | 0xPatrick (prompted) |
-| **Status** | Not Started |
+| **Status** | Superseded |
+| **Superseded by** | [endo-agent-tools](endo-agent-tools.md) |
+
+> **Superseded.**
+> This design proposed `makeMountReadTool(mount)` as a bespoke
+> `{ schema, execute, help }` record over `EndoMount`'s raw
+> `MountInterface.readText`.
+> Both the design and the code moved on.
+> [endo-agent-tools](endo-agent-tools.md) specifies the filesystem read
+> tool as a `Filesystem` read tool over `mountAsFilesystem` /
+> `Git.filesystemAt(ref)` with `readOnly()` attenuation, so one tool reads
+> the live worktree and history through the unified substrate, and PR #523
+> shipped it: `makeMountReadTool` now builds through `makeTool` and emits
+> the canonical `ToolRecord` (`{ name, description, parameters,
+> inputSchema, invoke }`), at parity with the git tools and compatible with
+> `toPiAgentTool`.
+> This document is retained for history; its security framing (the tool
+> holds a capability, not a path; fail-closed on revoke) carries over to
+> the rewritten design unchanged.
+> Read [endo-agent-tools](endo-agent-tools.md) for the current design.
 
 ## What is the Problem Being Solved?
 
