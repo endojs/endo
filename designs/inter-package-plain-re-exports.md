@@ -124,26 +124,37 @@ an exhaustive inventory.
 - `@endo/far` is the canonical plain re-exporter: the issue cites it as a
   package that exists only for the convenience of re-exporting names that
   originate elsewhere.
-  The first PR repoints its importers at the originating packages; the removal
-  pass then decides, per export, whether the re-export carries any residual
-  value before removing it.
+  The first PR repoints both its own imports from other packages and other
+  packages' imports from it at the originating exports, and deprecates every one
+  of its exports; the removal pass then removes the now-unreferenced re-exports.
+  There is no per-export residual-value judgment: every plain re-export is
+  repointed and deprecated.
 
 The implementation enumerates these mechanically, package by package.
 
-## Open questions
+## Resolved questions
 
-- **`export *` aggregators.**
-  Some packages re-export with `export *` rather than named re-exports.
-  The implementation treats a non-renaming cross-package `export *` as a plain
-  re-export, but a package whose entire purpose is a curated, value-adding
-  aggregate surface is a judgment call made per package.
+These were raised as open questions and settled during review (erights,
+2026-06-30).
+
+- **`export *` re-exports.**
+  A non-renaming cross-package `export *` is a plain re-export, treated exactly
+  like a named plain re-export.
+  There is no per-package value-judgement exemption for a package whose purpose
+  is an aggregate surface.
+  `@endo/far` is the worked example: even though it exists to aggregate, every
+  import it makes from other packages is repointed at the originating export,
+  every import other packages make from it is repointed at the originating
+  export, and every one of its exports is deprecated in favor of importing from
+  the particular originating package.
 
 - **Type-only re-exports.**
-  A cross-package re-export used purely for `@import` types has the same
-  ambiguity cost for tooling as a value re-export and is in scope, but the
-  repoint is type-position only and never changes runtime bundling.
+  A cross-package re-export used purely for `@import` types is in scope and
+  treated the same as a value re-export.
+  The smaller-bundles rationale does not apply to a type-position repoint, but
+  the remaining rationales (tooling disambiguation and readable layering) are on
+  their own adequate to keep type imports in scope.
 
 - **Deprecation mechanism.**
-  How a plain re-export is *deprecated* in the first PR (a `@deprecated` JSDoc
-  tag on the re-export, a lint rule, or both) is settled when this design is
-  approved, before the deprecations land.
+  A plain re-export is deprecated with an `@deprecated` JSDoc tag on the
+  re-export.
