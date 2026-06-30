@@ -473,6 +473,23 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('paths <name-or-locator>')
+    .description(
+      'prints every retention path from a GC root to the named value',
+    )
+    .option(...commonOptions.as)
+    .option(
+      '--locator',
+      'interpret <name-or-locator> as an endo:// locator rather than a pet name',
+    )
+    .option('--json', 'emit raw RetentionPath[] as JSON instead of prose')
+    .action(async (name, cmd) => {
+      const { as: agentNames, locator = false, json = false } = cmd.opts();
+      const { paths } = await import('./commands/paths.js');
+      return paths({ name, agentNames, locator, json });
+    });
+
+  program
     .command('follow <name>')
     .option(...commonOptions.as)
     .description('subscribe to a stream of values')
@@ -936,6 +953,7 @@ export const main = async rawArgs => {
         'mount',
         'mktmp',
         'locate',
+        'paths',
         'remove',
         'move',
         'copy',

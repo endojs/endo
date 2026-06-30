@@ -438,6 +438,10 @@ export const HostInterface = M.interface('EndoHost', {
   // formula whose node matches this daemon's local node; cross-peer
   // locators are rejected at the entry of `getFormula`.
   getFormula: M.call(IdShape).returns(M.promise()),
+  // Snapshot every retention path from a GC root to the target locator
+  listRetentionPaths: M.call(LocatorShape).returns(M.promise()),
+  // Subscribe to retention-path changes for a target locator
+  followRetentionPaths: M.call(LocatorShape).returns(M.promise()),
 });
 
 export const ChannelInterface = M.interface('EndoChannel', {

@@ -115,6 +115,8 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {DaemonCore['pinTransient']} [args.pinTransient]
  * @param {DaemonCore['unpinTransient']} [args.unpinTransient]
  * @param {DaemonCore['getFormulaGraphSnapshot']} [args.getFormulaGraphSnapshot]
+ * @param {DaemonCore['listRetentionPaths']} [args.listRetentionPaths]
+ * @param {DaemonCore['followRetentionPaths']} [args.followRetentionPaths]
  */
 export const makeHostMaker = ({
   provide,
@@ -161,6 +163,28 @@ export const makeHostMaker = ({
   unpinTransient = /** @param {any} _id */ _id => {},
   getFormulaGraphSnapshot = /** @param {any[]} _ids */ async _ids =>
     harden({ nodes: [], edges: [] }),
+  // Retention-path introspection is an opt-in instrumentation
+  // surface: embedders that do not wire the daemon-side path
+  // resolver still satisfy the `EndoHost` shape, and clients see
+  // an empty path list rather than a hard error. Contrast
+  // `getMountHostPath` below, where a missing wire indicates a
+  // configuration bug worth surfacing loudly: there the no-wire
+  // default throws an explicit `makeError`. Diagnose retention
+  // gaps via `endo paths --json` returning `[]` for an id whose
+  // formula clearly exists.
+  listRetentionPaths = /** @param {any} _id */ async _id => harden([]),
+  /**
+   * @param {any} _id
+   * @returns {AsyncGenerator<
+   *   import('./retention-path-accumulator.js').RetentionPathDelta,
+   *   undefined,
+   *   undefined
+   * >}
+   */
+  // eslint-disable-next-line require-yield
+  followRetentionPaths = async function* _follow(_id) {
+    return undefined;
+  },
 }) => {
   /**
    * @param {FormulaIdentifier} hostId
@@ -1725,6 +1749,48 @@ export const makeHostMaker = ({
       return getFormulaGraphSnapshot(seedIds);
     };
 
+    /**
+     * Snapshot every retention path from a GC root to the target,
+     * named by an endo:// locator. Pet-store edges along each path
+     * render as `pet:<name>` labels by reverse-resolving the
+     * referencing store's name table; other labels (field names,
+     * `retention`, `transient`) pass through. See
+     * `designs/daemon-retention-paths.md` § Notation.
+     *
+     * @param {string} locator
+     * @returns {Promise<import('./graph.js').RetentionPath[]>}
+     */
+    const listRetentionPathsForHost = async locator => {
+      const { id } = internalizeLocator(locator);
+      return listRetentionPaths(
+        /** @type {import('./types.js').FormulaIdentifier} */ (id),
+      );
+    };
+
+    /**
+     * Subscribe to retention-path changes for the target locator.
+     * First delta is a `{ snapshot }`; subsequent deltas are
+     * `{ added, removed }` diffs over a microtask-coalesced batch
+     * window. Drop the returned far reference to release the
+     * subscription, matching `followNameChanges` /
+     * `followLocatorNameChanges`.
+     *
+     * @param {string} locator
+     * @returns {AsyncGenerator<
+     *   import('./retention-path-accumulator.js').RetentionPathDelta,
+     *   undefined,
+     *   undefined
+     * >}
+     */
+    const followRetentionPathsForHost =
+      async function* followRetentionPathsForHost(locator) {
+        const { id } = internalizeLocator(locator);
+        yield* followRetentionPaths(
+          /** @type {import('./types.js').FormulaIdentifier} */ (id),
+        );
+        return undefined;
+      };
+
     /** @type {EndoHost} */
     const host = {
       // Directory
@@ -1810,6 +1876,8 @@ export const makeHostMaker = ({
       getFormula,
       // Graph
       getFormulaGraph,
+      listRetentionPaths: listRetentionPathsForHost,
+      followRetentionPaths: followRetentionPathsForHost,
     };
 
     const hostExo = makeExo(
@@ -1833,6 +1901,11 @@ export const makeHostMaker = ({
         },
         followPeerChanges: async () => {
           const iterator = await host.followPeerChanges();
+          return readerFromIterator(iterator);
+        },
+        /** @param {string} locator */
+        followRetentionPaths: async locator => {
+          const iterator = host.followRetentionPaths(locator);
           return readerFromIterator(iterator);
         },
       }),
