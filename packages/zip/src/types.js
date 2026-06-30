@@ -67,10 +67,10 @@ export {};
  * @callback WriteFn
  * @param {string} name
  * @param {Uint8Array} bytes
- * @returns {Promise<void>}
+ * @returns {void | Promise<void>}
  */
 
 /**
  * @callback SnapshotFn
- * @returns {Promise<Uint8Array>}
+ * @returns {Uint8Array | Promise<Uint8Array>}
  */

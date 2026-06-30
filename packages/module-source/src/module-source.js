@@ -57,7 +57,13 @@ export function ModuleSource(source, opts = {}) {
   }
   // analyzeModule now returns a frozen PrecompiledModuleSource-shaped record
   // via buildModuleRecord(), so we copy its properties directly.
-  const record = analyzeModule(source, opts);
+  const endAnalyze = opts.profileStartSpan?.('moduleSource.analyzeModule');
+  let record;
+  try {
+    record = analyzeModule(source, opts);
+  } finally {
+    endAnalyze?.();
+  }
   this.imports = record.imports;
   this.exports = record.exports;
   this.reexports = record.reexports;
