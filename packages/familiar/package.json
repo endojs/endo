@@ -21,7 +21,7 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./bundles/electron-main.cjs",
+  "main": "./bundles/electron-main.mjs",
   "scripts": {
     "start": "electron .",
     "dev": "electron electron-main.js --dev",
@@ -34,13 +34,14 @@
     "step:make": "node scripts/make-distributables.mjs",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
-    "lint:eslint": "eslint --ignore-pattern out '**/*.js'",
+    "lint:eslint": "eslint --ignore-pattern out '**/*.{js,mjs}'",
     "lint:types": "tsc",
+    "test": "ava",
     "generate-icons": "./scripts/generate-icons.sh"
   },
   "dependencies": {
     "@endo/where": "workspace:^",
-    "electron": "^40.8.0"
+    "electron": "^42.0.1"
   },
   "devDependencies": {
     "@electron/packager": "^19.0.5",
@@ -48,11 +49,18 @@
     "@endo/init": "workspace:^",
     "@lavamoat/allow-scripts": "^3.4.1",
     "appdmg": "^0.6.6",
-    "electron": "^40.8.0",
+    "ava": "catalog:dev",
+    "electron": "^42.0.1",
     "electron-installer-dmg": "^5.0.1",
     "esbuild": "^0.28.0",
     "eslint": "catalog:dev",
     "typescript": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "120s"
   },
   "eslintConfig": {
     "extends": [
@@ -65,17 +73,6 @@
       "no-restricted-globals": "off"
     },
     "overrides": [
-      {
-        "files": [
-          "preload.js"
-        ],
-        "parserOptions": {
-          "sourceType": "script"
-        },
-        "env": {
-          "commonjs": true
-        }
-      },
       {
         "files": [
           "scripts/*.mjs"

@@ -139,7 +139,7 @@ const createWindow = () => {
     width,
     height,
     webPreferences: {
-      preload: path.join(appRoot, 'preload.js'),
+      preload: path.join(appRoot, 'preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
     },

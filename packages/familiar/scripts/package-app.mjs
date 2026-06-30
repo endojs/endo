@@ -26,7 +26,7 @@ const includeFilter = filePath => {
   if (filePath === '') return true;
 
   const allowed = [
-    '/preload.js',
+    '/preload.mjs',
     '/package.json',
     '/bundles',
     '/dist',
