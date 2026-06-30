@@ -14,6 +14,13 @@ import harden from '@endo/harden';
  * Phase 5) without disturbing the consumer at
  * `packages/daemon/src/daemon.js`.
  *
+ * This store stands on `@endo/platform` for both halves of its model:
+ * the CAS interface it produces (`ContentStore`, whose `fetch()`
+ * returns a platform `ReadableBlob`) and the injected dependencies it
+ * consumes (`ContentStoreFilePowers` for the filesystem seam,
+ * `ContentStoreCryptoPowers` for content addressing), all defined in
+ * `@endo/platform/fs/lite/types`.
+ *
  * `store` streams to a randomly-named temp file, hashes the bytes as
  * they land, then atomically renames the temp file to its sha256
  * hex name.  `fetch`, `has`, and `remove` operate directly on the

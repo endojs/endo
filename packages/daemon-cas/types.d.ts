@@ -8,6 +8,15 @@
 // destination architecture and `designs/daemon-content-store-gc.md`
 // for the four-method contract (`store`/`fetch`/`has`/`remove`)
 // the daemon's formula GC depends on.
+//
+// `@endo/daemon-cas` stands on `@endo/platform` for both halves of
+// its model: the CAS interfaces it produces (`ContentStore`, the
+// `ReadableBlob` `fetch()` returns) and the filesystem/crypto
+// dependencies it injects (`ContentStoreFilePowers`,
+// `ContentStoreCryptoPowers`). Those contracts live in
+// `@endo/platform/fs/lite/types`; this file re-exports them so the
+// package's public surface keeps naming them, and adds only the
+// daemon-cas-specific factory options on top.
 
 /**
  * Byte reader handed back by `fetch().makeFileReader`.  This is the
@@ -18,56 +27,41 @@
 export type ContentStoreReader = import('@endo/stream').Reader<Uint8Array>;
 
 /**
- * Writer shape consumed by `store`.  Structurally compatible with
- * `@endo/stream`'s `Writer<Uint8Array>`.
+ * The `ReadableBlob` read surface `fetch()` returns — re-exported from
+ * `@endo/platform` so callers see the shared CAS interface.
  */
-export interface ContentStoreWriter {
-  next(chunk: Uint8Array): Promise<IteratorResult<undefined, undefined>>;
-  return(value?: undefined): Promise<IteratorResult<undefined, undefined>>;
-}
+export type ContentStoreReadableBlob =
+  import('@endo/platform/fs/lite/types').ReadableBlob;
 
 /**
- * The filesystem powers the content store uses to materialise blobs
- * on disk.  Structurally a subset of the daemon's `FilePowers`; the
- * declaration is reproduced here so the daemon-cas package does not
- * depend on the daemon for its types.
+ * Writer shape consumed by `store`.  The platform-owned
+ * `ContentStoreFileWriter` (structurally compatible with
+ * `@endo/stream`'s `Writer<Uint8Array>`).
  */
-export interface ContentStoreFilePowers {
-  makeFileReader(path: string): ContentStoreReader;
-  makeFileWriter(path: string): ContentStoreWriter;
-  readFileText(path: string): Promise<string>;
-  readFileRange(
-    path: string,
-    offset: number,
-    length: number,
-  ): Promise<Uint8Array>;
-  makePath(path: string): Promise<void>;
-  joinPath(...components: string[]): string;
-  renamePath(source: string, target: string): Promise<void>;
-  removePath(path: string): Promise<void>;
-  statPath(path: string): Promise<{
-    kind: 'file' | 'directory' | 'symlink';
-    size: bigint;
-    mtime: bigint;
-    atime: bigint;
-  }>;
-}
+export type ContentStoreWriter =
+  import('@endo/platform/fs/lite/types').ContentStoreFileWriter;
 
 /**
- * The crypto powers the content store uses to hash inbound streams
- * and to mint randomly-named temporary files.  Structurally a subset
- * of the daemon's `CryptoPowers`.
+ * The filesystem powers the content store materialises blobs with.
+ * Owned by `@endo/platform/fs/lite/types`; re-exported here so the
+ * daemon-cas surface keeps naming the dependency it stands on rather
+ * than reproducing a subset of the daemon's `FilePowers`.
  */
-export interface ContentStoreCryptoPowers {
-  makeSha256(): {
-    update(chunk: Uint8Array): void;
-    digestHex(): string;
-  };
-  randomHex256(): Promise<string>;
-}
+export type ContentStoreFilePowers =
+  import('@endo/platform/fs/lite/types').ContentStoreFilePowers;
 
 /**
- * Options shared by both factory shapes.
+ * The crypto powers the content store hashes inbound streams and mints
+ * temp-file names with.  Owned by `@endo/platform/fs/lite/types`;
+ * re-exported here for the same reason as `ContentStoreFilePowers`.
+ */
+export type ContentStoreCryptoPowers =
+  import('@endo/platform/fs/lite/types').ContentStoreCryptoPowers;
+
+/**
+ * The injected dependencies shared by the factory: the filesystem and
+ * crypto powers the content store stands on, both sourced from
+ * `@endo/platform`.
  */
 export interface ContentStorePowers {
   filePowers: ContentStoreFilePowers;

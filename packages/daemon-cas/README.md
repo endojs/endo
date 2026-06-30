@@ -20,6 +20,26 @@ implementation with a thin shim over the Rust CAS).
   daemon layout.
   This generic factory is the package's only export.
 
+## Standing on `@endo/platform`
+
+`@endo/daemon-cas` stands on `@endo/platform` for both halves of its
+model, so the package adds an implementation rather than a parallel set
+of contracts:
+
+- **The CAS interfaces it produces.** The `store`/`fetch`/`has`/`remove`
+  surface and the `ReadableBlob` that `fetch()` returns are the
+  `ContentStore` and `ReadableBlob` typedefs in
+  [`@endo/platform/fs/lite/types`](../platform/src/fs/types.js). A raw
+  store from this package feeds `makeSnapshotStore` from
+  `@endo/platform/fs/lite` unchanged.
+- **The injected dependencies it consumes.** The `filePowers` and
+  `cryptoPowers` it materialises blobs with are the platform-owned
+  `ContentStoreFilePowers` and `ContentStoreCryptoPowers` contracts,
+  also defined in `@endo/platform/fs/lite/types`. The package no longer
+  reproduces a subset of the daemon's `FilePowers`; it names the
+  platform contract directly, which keeps the filesystem seam the CAS
+  layer couples to in one place.
+
 ## What this package does **not** provide
 
 - The daemon-specific path opinion and `SnapshotStore` wrap.

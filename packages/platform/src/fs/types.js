@@ -87,6 +87,65 @@
  */
 
 /**
+ * The writer half handed to a filesystem-backed `ContentStore`'s
+ * `store` loop: an `@endo/stream` `Writer<Uint8Array>`-shaped sink the
+ * store streams chunks into before the atomic rename. Reproduced as a
+ * narrow typedef here (rather than imported wholesale from
+ * `@endo/stream`) so the filesystem-dependency contract stays self
+ * describing.
+ *
+ * @typedef {object} ContentStoreFileWriter
+ * @property {(chunk: Uint8Array) => Promise<IteratorResult<undefined, undefined>>} next
+ * @property {(value?: undefined) => Promise<IteratorResult<undefined, undefined>>} return
+ */
+
+/**
+ * The filesystem dependency a filesystem-backed `ContentStore` stands
+ * on. This is the platform-owned contract a content store such as
+ * `@endo/daemon-cas` injects to materialise blobs on disk: stream a
+ * temp file, hash as the bytes land, atomically rename to the sha256
+ * name, then read back by whole-value, range, or stat. Path-keyed and
+ * `node:fs`-shaped, it is the small filesystem seam the CAS layer
+ * couples to so that the store implementation stays host-agnostic.
+ *
+ * @typedef {object} ContentStoreFilePowers
+ * @property {(path: string) => import('@endo/stream').Reader<Uint8Array>} makeFileReader
+ *   Whole-blob byte stream — the `@endo/stream` `Reader<Uint8Array>`
+ *   the `ReadableBlob.makeFileReader` surface hands back.
+ * @property {(path: string) => ContentStoreFileWriter} makeFileWriter
+ * @property {(path: string) => Promise<string>} readFileText
+ * @property {(path: string, offset: number, length: number) => Promise<Uint8Array>} readFileRange
+ *   Windowed read of `[offset, offset + length)`, clamped at EOF.
+ * @property {(path: string) => Promise<void>} makePath
+ * @property {(...components: string[]) => string} joinPath
+ * @property {(source: string, target: string) => Promise<void>} renamePath
+ * @property {(path: string) => Promise<void>} removePath
+ *   Idempotent removal (missing path is not an error), matching the
+ *   `ContentStore.remove` contract.
+ * @property {(path: string) => Promise<{
+ *   kind: 'file' | 'directory' | 'symlink',
+ *   size: bigint,
+ *   mtime: bigint,
+ *   atime: bigint,
+ * }>} statPath
+ */
+
+/**
+ * The content-addressing dependency a `ContentStore` injects: a
+ * sha256 digester over the inbound stream plus a random hex source for
+ * the temp-file name. Platform-owned so the CAS layer stands on a
+ * single shared contract rather than reproducing the daemon's crypto
+ * powers.
+ *
+ * @typedef {object} ContentStoreCryptoPowers
+ * @property {() => {
+ *   update(chunk: Uint8Array): void,
+ *   digestHex(): string,
+ * }} makeSha256
+ * @property {() => Promise<string>} randomHex256
+ */
+
+/**
  * A SnapshotStore is a ContentStore that also knows how to load
  * SnapshotBlob and SnapshotTree remotable Exos.
  *
