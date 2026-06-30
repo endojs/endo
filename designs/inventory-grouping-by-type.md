@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-02-14 |
-| **Updated** | 2026-02-24 |
+| **Updated** | 2026-06-28 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | In Progress |
 
 ## What is the Problem Being Solved?
 
@@ -20,14 +20,37 @@ currently expose it through the agent's naming API.
 
 ### Inventory Groups
 
-Group inventory items into collapsible sections:
+Group inventory items into collapsible sections, rendered in this fixed manual
+order (not alphabetical or derived):
 
 | Group | Formula Types | Icon | Description |
 |-------|--------------|------|-------------|
-| **Handles** | `handle` | Person silhouette | Agent identities (hosts, guests) |
-| **Hubs** | `directory`, `host`, `guest`, `pet-store` | Folder | Naming containers that expose `lookup` / `list` |
-| **Workers** | `worker` | Gear | Execution sandboxes |
-| **Everything Else** | All remaining types | Circle | Blobs, eval results, promises, lookups, etc. |
+| **Handles** | `handle` | Bust in silhouette | Agent handles (identities representing people / contacts) |
+| **Directories** | `directory`, `readable-tree`, `mount`, `scratch-mount`, `pet-store` | Folder | Directories, readable trees, mounts, scratch mounts, pet stores |
+| **Values** | `marshal` | Diamond | Marshalled values |
+| **Capabilities** | All remaining types | Key | Everything else: workers, blobs, eval results, promises, lookups, peers, remotes, etc. |
+| **Agents** | `guest` | Robot | Delegated guests |
+| **Personas** | `host` | Performing-arts masks | The agent's own host identities |
+
+A group renders **only when it has at least one visible item**. An empty group
+does not appear at all (for example the Agents section is absent when there are
+no guests), and neither does a group whose only members are special
+(`@`-prefixed system) names that the show-special toggle currently hides.
+(Empty-group hiding is implemented declaratively in the Preact
+`InventoryGroupSection` — a zero visible-item count returns `null` — and on the
+CLI side, which skips a bucket with no members. The chat CSS also hides an empty
+group's header outright as a backstop.)
+
+Each group header's item count reflects the **same special-name filter** that
+governs the body, so the count agrees with the number of items the section
+actually shows when expanded. When the show-special toggle reveals `@`-prefixed
+system names, both the body and every header count include them; the host
+wrapper threads the live toggle state into the confined tree and re-renders on
+change.
+
+Handles are a first-class top-level category and carry no per-item speech-bubble
+prefix (the earlier conversable-item marker was removed in favor of the group
+heading).
 
 Each item should display a small type badge showing the formula type (e.g.,
 `eval`, `readable-blob`, `worker`).
@@ -35,6 +58,19 @@ Each item should display a small type badge showing the formula type (e.g.,
 The "system" items (`@`-prefixed special names like `@self`, `@agent`) that are
 currently hidden by default should remain in their respective type groups but
 with the existing toggle to show/hide them.
+
+> **2026-06-28 revision.** The taxonomy was first reshaped to five role-named
+> groups (`Directories`, `Agents`, `Personas`, `Values`, `Capabilities`) and
+> then, in the follow-up round on PR #405, promoted `Handles` back to a
+> dedicated top-level category and fixed a manual heading order: **Handles,
+> Directories, Values, Capabilities, Agents, Personas.** `Directories` includes
+> `pet-store`; the catch-all `Capabilities` collects everything not enumerated
+> elsewhere (workers, blobs, eval results, peers, remotes). The earlier
+> four-group scheme (Handles, Hubs, Workers, Everything Else) and the interim
+> five- and seven-group schemes are all superseded. The same round made each
+> header's count honor the show-special filter, removed the per-handle
+> speech-bubble prefix, and nudged the indent under each disclosure-triangle
+> section.
 
 ### Daemon API Changes
 
