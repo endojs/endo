@@ -1569,6 +1569,75 @@ test('followNameChanges does not notify of redundant pet store writes', async t 
   t.is(value.add, 'eleven');
 });
 
+test('followNameChanges includes formula type on add events', async t => {
+  const { host } = await prepareHost(t);
+
+  const changesIterator = await prepareFollowNameChangesIterator(host);
+
+  // storeValue formulates a `marshal` typed formula.
+  await E(host).storeValue(42, 'meaning');
+  const { value } = await changesIterator.next();
+  t.is(value.add, 'meaning');
+  t.is(value.type, 'marshal', 'type field is plumbed through to followers');
+});
+
+test('followNameChanges includes type for worker formulas', async t => {
+  const { host } = await prepareHost(t);
+
+  const changesIterator = await prepareFollowNameChangesIterator(host);
+
+  // Workers have formula type `worker`; the type travels with the add event.
+  await E(host).provideWorker('w1');
+  const { value } = await changesIterator.next();
+  t.is(value.add, 'w1');
+  t.is(value.type, 'worker');
+});
+
+test('followNameChanges existing names carry type', async t => {
+  const { host } = await prepareHost(t);
+
+  // Store before subscribing so the value is in the "existing names" batch.
+  await E(host).storeValue('first', 'one');
+
+  const changesIterator = iterateReader(await E(host).followNameChanges());
+  // Read existing values until we find our name. Special names (@self, etc)
+  // are interleaved alphabetically and also carry types now.
+  /** @type {Map<string, any>} */
+  const existing = new Map();
+  // Pull a generous prefix; the host has a known special-name set plus 'one'.
+  for (let i = 0; i < 12; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    const { value, done } = await changesIterator.next();
+    if (done) break;
+    if (value.add !== undefined) {
+      existing.set(value.add, value);
+    }
+    if (value.add === 'one') break;
+  }
+  const oneEvent = existing.get('one');
+  t.truthy(oneEvent, 'expected to find the stored name in the initial batch');
+  t.is(oneEvent.type, 'marshal');
+
+  // The special name @self is a handle.
+  const selfEvent = existing.get('@self');
+  t.truthy(selfEvent, 'expected special name @self in the initial batch');
+  t.is(selfEvent.type, 'handle');
+});
+
+test('followNameChanges omits type on remove events', async t => {
+  const { host } = await prepareHost(t);
+
+  const changesIterator = await prepareFollowNameChangesIterator(host);
+
+  await E(host).storeValue('whatever', 'temp');
+  await changesIterator.next();
+
+  await E(host).remove('temp');
+  const { value } = await changesIterator.next();
+  t.is(value.remove, 'temp');
+  t.is(value.type, undefined, 'type is not relevant on remove events');
+});
+
 test('followLocatorNameChanges first publishes existing pet name', async t => {
   const { host } = await prepareHost(t);
 
