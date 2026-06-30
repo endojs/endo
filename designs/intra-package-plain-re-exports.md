@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-06-26 |
-| **Updated** | 2026-06-27 |
+| **Updated** | 2026-06-30 |
 | **Author** | Mark S. Miller (prompted) |
 | **Status** | Not Started |
 | **Source** | endojs/endo-but-for-bots#543 (intra-package follow-up comment) |
@@ -38,27 +38,47 @@ straight from `./other.js`.
 
 The rule has two corollaries that the removal pass will act on:
 
-1. **Internal modules should not reach back through the package's public
-   barrel.** A module inside package `P` that writes
-   `import { name } from './index.js'` (or `'../index.js'`) is importing through
-   the package's own re-export aggregator rather than from the defining module.
-   It should import `name` from the module that defines it.
+1. **Internal modules should not reach back through the package's own declared
+   exports.** A module inside package `P` that writes
+   `import { name } from './index.js'` (or `'../index.js'`, or any other module
+   the package's `package.json` `"exports"` map names) is importing through the
+   package's own public surface rather than from the defining module. It should
+   import `name` from the module that defines it. The declared-export entry stays
+   for external importers; the change is only that `P`'s own modules stop routing
+   through it.
 
-2. **A module that exists only to re-bundle sibling exports is the
-   intra-package analog of `@endo/far`.** If `./convenience.js` only re-exports
-   names that other modules in the same package already export, and adds no
-   value of its own, it is a candidate for removal once its importers are
-   repointed at the defining modules.
+2. **A module that exists only to re-bundle sibling exports, and is not itself
+   part of the package's public API surface, is the intra-package analog of
+   `@endo/far`.** If `./convenience.js` only re-exports names that other modules
+   in the same package already export, adds no value of its own, and is not
+   reachable through the package's `package.json` `"exports"` map (see *What the
+   rule does not touch*), it is a candidate for removal once its importers are
+   repointed at the defining modules. A pass-through module that *is* a declared
+   export is public API and stays, even when it only re-exports siblings.
 
 ### What the rule does *not* touch
 
-The package's **public entry barrel** (typically `src/index.js`) is a
-deliberate, value-adding API surface: it is the contract external importers
-depend on, and consolidating the package's exports there is the point.
-This rule is about *intra-package* import edges, not the barrel's existence.
-The barrel stays; what changes is that a package's *own* modules import from
-each other directly rather than through the barrel or through internal
-pass-through modules.
+The package's **public API surface** is everything listed in its `package.json`
+`"exports"` map, not only a single entry barrel. A package may declare several
+subpath exports (`"."`, `"./reader"`, `"./writer"`, and so on), and each entry
+names a module that external importers are entitled to import from. The common
+case is one main `"."` entry pointed at `src/index.js`, but `src/index.js` is
+just the most frequent instance of the surface, not its definition: the surface
+is the whole `"exports"` map.
+
+Every module reachable through that map is a deliberate, value-adding API
+surface. That holds even when such a module is *itself* a plain re-export of a
+sibling: from outside the package there is nowhere else to import that name
+from, so the re-export is the canonical public location, not a removable
+pass-through. A name that an external importer reaches through the `"exports"`
+map must keep a stable import path there; the deprecate-then-remove staging
+below never deprecates or removes a re-export that backs a declared export.
+
+This rule is therefore about *intra-package* import edges only: a package's
+*own* modules should import from each other directly rather than through the
+package's declared-export entries or through internal pass-through modules that
+no `"exports"` entry names. The public surface (every module the `"exports"` map
+reaches) stays exactly as declared.
 
 ## Rationale
 
@@ -129,9 +149,11 @@ exhaustive inventory.
 - `packages/evasive-transform/src/visitor.js` is a near-pure intra-package
   re-exporter: its only export is
   `export { makeEvasiveTransformVisitor } from './transform-ast.js'`.
-  Its module comment carries documentation value, so the removal pass should
-  decide per case whether to repoint importers at `./transform-ast.js` and drop
-  the module, or keep it solely as a documented seam.
+  The removal pass first checks whether the package's `package.json` `"exports"`
+  map reaches this module; if it does, the module is public API and stays. If it
+  does not, its module comment still carries documentation value, so the pass
+  should decide per case whether to repoint importers at `./transform-ast.js`
+  and drop the module, or keep it solely as a documented seam.
 
 - Barrel reach-back: modules that import from their own package's `./index.js`
   (for values or for `@import` types) rather than from the defining sibling.
@@ -145,9 +167,9 @@ The follow-up PR enumerates these mechanically, package by package.
 - **`export *` aggregators.**
   Some intra-package barrels use `export *` rather than named re-exports.
   The removal pass treats a non-renaming `export *` from a sibling as a plain
-  re-export for the corollary-1 reach-back case, but a package's public-entry
-  `export *` is part of the API surface and is out of scope (see *What the rule
-  does not touch*).
+  re-export for the corollary-1 reach-back case, but an `export *` in any module
+  the package's `package.json` `"exports"` map reaches is part of the API surface
+  and is out of scope (see *What the rule does not touch*).
 
 - **Type-only re-exports.**
   A re-export used purely for `@import` types has the same ambiguity cost for
