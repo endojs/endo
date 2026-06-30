@@ -20,6 +20,91 @@ import { E } from '@endo/far';
 export const CONVERSABLE_TYPES = harden(['handle', 'peer', 'remote']);
 
 /**
+ * Group definitions for inventory grouping by formula type. Each row defines
+ * one collapsible section in the top-level inventory view. The `types` set
+ * is consulted in declaration order; the first matching group wins, and the
+ * `capabilities` group catches everything not enumerated elsewhere.
+ *
+ * The declaration order is the rendered heading order, fixed manually to the
+ * sequence the maintainer specified on PR #405: Handles, Directories, Values,
+ * Capabilities, Workers, Agents, Personas. It is intentionally not alphabetical
+ * or derived, so the most-used categories sort to the top.
+ *
+ * The `types` set for `capabilities` is empty by convention — the
+ * `groupKeyForType` fallback handles it, so its heading position is independent
+ * of its catch-all role.
+ *
+ * @typedef {{ key: string, label: string, types: ReadonlySet<string> }} InventoryGroup
+ */
+
+/** @type {ReadonlyArray<InventoryGroup>} */
+export const INVENTORY_GROUPS = harden([
+  {
+    key: 'handles',
+    label: 'Handles',
+    types: harden(new Set(['handle'])),
+  },
+  {
+    key: 'directories',
+    label: 'Directories',
+    types: harden(
+      new Set([
+        'directory',
+        'mail-hub',
+        'readable-tree',
+        'mount',
+        'scratch-mount',
+        'pet-store',
+      ]),
+    ),
+  },
+  {
+    key: 'values',
+    label: 'Values',
+    types: harden(new Set(['marshal'])),
+  },
+  {
+    key: 'capabilities',
+    label: 'Capabilities',
+    types: harden(new Set()),
+  },
+  {
+    key: 'workers',
+    label: 'Workers',
+    types: harden(new Set(['worker'])),
+  },
+  {
+    key: 'agents',
+    label: 'Agents',
+    types: harden(new Set(['guest'])),
+  },
+  {
+    key: 'personas',
+    label: 'Personas',
+    types: harden(new Set(['host'])),
+  },
+]);
+
+/**
+ * Return the group key for a formula type. Unknown or undefined types map to
+ * `'capabilities'` (the catch-all) so the UI never drops an item.
+ *
+ * @param {string | undefined | null} formulaType
+ * @returns {string}
+ */
+export const groupKeyForType = formulaType => {
+  if (formulaType !== undefined && formulaType !== null) {
+    for (const group of INVENTORY_GROUPS) {
+      if (group.types.has(formulaType)) {
+        return group.key;
+      }
+    }
+  }
+  return 'capabilities';
+};
+harden(groupKeyForType);
+
+/**
  * Non-expandable formula types — these items have no children and should not
  * show a disclosure triangle.
  */
