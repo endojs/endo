@@ -1,5 +1,20 @@
 # @endo/module-source
 
+## 1.5.0
+
+### Minor Changes
+
+- [#3218](https://github.com/endojs/endo/pull/3218) [`dfdfa08`](https://github.com/endojs/endo/commit/dfdfa085df47078b2f8e7d89d04bd92634651cda) Thanks [@boneskull](https://github.com/boneskull)! - Fixes the type of `SourceMapHook` and introduces proper `.ts` type sources checked by `tsc`. Types that were previously inlined as JSDoc typedefs (`SourceMapHook`, `SourceMapHookDetails`, `SourceMapObject`, `ModuleSourceOptions`, `TransformSourceParams`) are now defined in `src/types/module-source.ts` and re-exported from the package root via a new `src/external.types.d.ts` entry.
+
+  Adds a `./analyzer.js` subpath export with `analyzeModule(options?)`. The returned context object exposes `analyzePass` and `transformPass` (plain `{ visitor }` objects) and a `buildRecord()` function. This is the primitive that `@endo/parser-pipeline` uses to drive module analysis; it is also used internally by the `ModuleSource` constructor, so the exported API is not specific to the pipeline.
+
+  Removes the `PluginFactory` abstraction and `visitorFromPlugin` helper: Babel plugins now return plain `{ visitor }` objects directly, with `@babel/types` imported at module scope.
+
+### Patch Changes
+
+- Updated dependencies [[`4da9a99`](https://github.com/endojs/endo/commit/4da9a9959e4376c5760a3232e978a4f8fe4ac6b7), [`a85b212`](https://github.com/endojs/endo/commit/a85b212344b2a1e2329e55852e11c590828fc450), [`c69eb03`](https://github.com/endojs/endo/commit/c69eb033e5db48c681e6ab39445142732871bb80), [`bfa149b`](https://github.com/endojs/endo/commit/bfa149b4f18c6ad1cf1fed3e91cbaddf1e61b39d)]:
+  - ses@2.3.0
+
 ## 1.4.1
 
 ### Patch Changes

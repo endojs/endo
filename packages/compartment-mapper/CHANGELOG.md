@@ -1,5 +1,19 @@
 # @endo/compartment-mapper
 
+## 2.3.1
+
+### Patch Changes
+
+- [#3247](https://github.com/endojs/endo/pull/3247) [`73e03aa`](https://github.com/endojs/endo/commit/73e03aa5bc461cd6eef3fc59dee50ab33ee174cf) Thanks [@boneskull](https://github.com/boneskull)! - Fixes `CompartmentDescriptor` so that it is generic on the `PackagePolicy`; externally-defined `ParseFn`s can now refer to the specific contents of a custom `PackagePolicy` present in a `CompartmentDescriptor`.
+
+  Introduces `ParseSourceMapHook`; differentiated from `@endo/module-source`'s `SourceMapHook`.
+
+  Fixes type of `PolicyItem`; eliminates confusion between `void` (no extra union members) and `any` (`SomePackagePolicy`).
+
+- Updated dependencies [[`4da9a99`](https://github.com/endojs/endo/commit/4da9a9959e4376c5760a3232e978a4f8fe4ac6b7), [`a85b212`](https://github.com/endojs/endo/commit/a85b212344b2a1e2329e55852e11c590828fc450), [`c69eb03`](https://github.com/endojs/endo/commit/c69eb033e5db48c681e6ab39445142732871bb80), [`dfdfa08`](https://github.com/endojs/endo/commit/dfdfa085df47078b2f8e7d89d04bd92634651cda), [`bfa149b`](https://github.com/endojs/endo/commit/bfa149b4f18c6ad1cf1fed3e91cbaddf1e61b39d)]:
+  - ses@2.3.0
+  - @endo/module-source@1.5.0
+
 ## 2.3.0
 
 ### Minor Changes

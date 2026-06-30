@@ -1,5 +1,16 @@
 # @endo/patterns
 
+## 2.1.0
+
+### Minor Changes
+
+- [#3287](https://github.com/endojs/endo/pull/3287) [`d54fad3`](https://github.com/endojs/endo/commit/d54fad3f9a036dbc16ba611c184857cfb0460b4a) Thanks [@boneskull](https://github.com/boneskull)! - Bump version for publishing only.
+
+### Patch Changes
+
+- Updated dependencies [[`4da9a99`](https://github.com/endojs/endo/commit/4da9a9959e4376c5760a3232e978a4f8fe4ac6b7)]:
+  - @endo/pass-style@1.8.2
+
 ## 1.9.1
 
 ### Patch Changes
