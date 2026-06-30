@@ -81,12 +81,25 @@ compatibility risk: the non-breaking work goes first, the breaking work later.
    The deprecations discourage the introduction of new importers that depend on
    the plain re-exports.
 
-2. **Follow-up PR — remove (deferred until repointing is complete).**
+2. **Follow-up PR — remove (a repo-wide major version bump, deferred until
+   repointing is complete).**
    Remove the now-unreferenced plain re-exports.
    This comes later because removal potentially introduces compatibility
    problems with importers outside this repository that still depend on a plain
    re-export and have not yet been repointed.
-   It is also broad and mechanical, and reviewed most easily a slice at a time.
+   Because removing a plain re-export breaks any unrepointed importer in another
+   repository, the removal is an inter-repo compatibility hazard, so the
+   follow-up PR also **bumps the major version number** of every affected
+   package.
+   That major bump is the reason to do the follow-up **repo-wide in a single
+   effort** rather than package by package: bundling every removal into one
+   release lets each downstream consumer absorb the whole change in one upgrade
+   effort instead of one forced upgrade per package.
+   The removal is still broad and mechanical, so it may be authored and reviewed
+   a slice at a time, but it lands as a single repo-wide major release.
+   For the same reason the follow-up may be **deferred until Endo is ready for
+   its next major release**, so this breaking removal travels with the other
+   breaking changes that release already carries.
 
 This design PR precedes both: it lands this design and an endo style-guide entry
 (a `CONTRIBUTING.md` `Coding Style` rule) stating the rule, so new importers are
