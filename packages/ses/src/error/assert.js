@@ -368,7 +368,7 @@ const makeError = (
   // mode" will complain if default parameters are provided in the method
   // signature. The below workaround (optDetails -> details; errConstructor ->
   // errCtor) is functionally equivalent but allows us to use type assertions to
-  // workaround the strict mode issue.
+  // workaround the issue with TypeScript's so-called "strict mode".
   let details = /** @type {Details} */ (
     optDetails ?? redactedDetails`Assert failed`
   );
