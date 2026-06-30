@@ -1,4 +1,4 @@
-import { encodeBase64 } from './encode.js';
+import { encodeBase64 } from './src/encode.js';
 
 /**
  * @param {string} stringToEncode the binary string to encode

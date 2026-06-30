@@ -35,17 +35,12 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { registerBuiltInApiProviders } from '@earendil-works/pi-ai';
 
-// eslint-disable-next-line import/no-unresolved
-import {
-  buildGenieTools,
-  formatHelpLines,
-  makeBuiltinSpecials,
-  makeGenieAgents,
-  makeSpecialsDispatcher,
-  PLUGIN_DEFAULT_INCLUDE,
-  runAgentRound,
-  runGenieLoop,
-} from './src/index.js';
+import { runAgentRound } from './src/agent/index.js';
+import { makeGenieAgents } from './src/loop/agents.js';
+import { formatHelpLines, makeBuiltinSpecials } from './src/loop/builtin-specials.js';
+import { runGenieLoop } from './src/loop/run.js';
+import { makeSpecialsDispatcher } from './src/loop/specials.js';
+import { buildGenieTools, PLUGIN_DEFAULT_INCLUDE } from './src/tools/registry.js';
 
 /** @import { Observer } from './src/observer/index.js' */
 /** @import { Reflector } from './src/reflector/index.js' */
@@ -55,7 +50,7 @@ import {
 /** @import { GenieIO, InboundPrompt, InboundPromptKind } from './src/loop/io.js' */
 
 import { runHeartbeat, HeartbeatStatus } from './src/heartbeat/index.js';
-import { makeIntervalScheduler } from './src/interval/index.js';
+import { makeIntervalScheduler } from './src/interval/scheduler.js';
 import {
   ALLOWED_BACKENDS as SLICE_ALLOWED_BACKENDS,
   ALLOWED_NETWORK_PROFILES as SLICE_ALLOWED_NETWORK_PROFILES,
