@@ -385,10 +385,18 @@ export const main = async rawArgs => {
     .option('-f,--follow', 'Follow updates')
     .option('-j,--json', 'JSON format output')
     .option('-v,--verbose', 'Provide more detailed output')
+    .option(
+      '-g,--grouped',
+      'Group output by formula type (handles, directories, values, capabilities, agents, personas)',
+    )
+    .option(
+      '-t,--type <formulaType>',
+      'Show only names whose formula type matches (e.g. handle, eval, readable-blob)',
+    )
     .action(async (directory, cmd) => {
-      const { follow, json, verbose } = cmd.opts();
+      const { follow, json, verbose, grouped, type } = cmd.opts();
       const { list } = await import('./commands/list.js');
-      return list({ directory, follow, json, verbose });
+      return list({ directory, follow, json, verbose, grouped, type });
     });
 
   program
