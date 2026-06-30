@@ -19,7 +19,9 @@ import { ItemLabel } from './item-label.js';
 import {
   CONVERSABLE_TYPES,
   HUB_TYPES,
+  INVENTORY_GROUPS,
   NON_EXPANDABLE_TYPES,
+  groupKeyForType,
   makeStaticTreePowers,
 } from './tree-source.js';
 
@@ -68,6 +70,12 @@ harden(dropTargetPath);
  *   any lingering `.drop-target` / `.drop-target-list` highlight the browser's
  *   per-element dragleave model left in the app's own DOM. Lives in the host
  *   wrapper so the confined tree holds no ambient `document` authority.
+ * @property {boolean} [showSpecial] - Whether special (`@`-prefixed system)
+ *   names are currently revealed by the host's show-special toggle. Drives the
+ *   per-group header count and empty-group hiding so the count agrees with what
+ *   actually renders when the section is expanded. The host wrapper threads the
+ *   live toggle state in and re-renders on change; the items themselves are
+ *   still shown/hidden by CSS, so the body markup is unchanged.
  */
 
 /**
@@ -92,6 +100,98 @@ const namesReducer = (state, action) => {
 harden(namesReducer);
 
 /**
+ * A collapsible group section rendered in the top-level inventory. Shows only
+ * when at least one item belongs to the group (the FRB `filter{items.length >
+ * 0}` projection, applied declaratively by returning null when the item list
+ * is empty).
+ *
+ * @param {object} props
+ * @param {import('./tree-source.js').InventoryGroup} props.group
+ * @param {string[]} props.names - Names assigned to this group.
+ * @param {ERef<EndoHost>} props.powers
+ * @param {InventoryOptions} props.options
+ * @param {string[]} props.path
+ * @param {ERef<EndoHost>} props.rootPowers
+ * @param {string[]} props.rootPrefix
+ * @param {(x: number, y: number, from: string[], to: string[]) => void} props.openDropMenu
+ * @param {(name: string, formulaType: string) => void} props.onTypeResolved
+ */
+const InventoryGroupSection = ({
+  group,
+  names,
+  powers,
+  options,
+  path,
+  rootPowers,
+  rootPrefix,
+  openDropMenu,
+  onTypeResolved,
+}) => {
+  const [expanded, setExpanded] = useState(true);
+
+  // The header count and empty-group decision must honor the same special-name
+  // filter that hides `@`-prefixed system names from the body by default, so the
+  // count agrees with what actually renders when the section is expanded. When
+  // the host's show-special toggle is on, specials are counted too. The body
+  // markup still renders every name (specials carry `.special` and are hidden by
+  // CSS), so toggling re-renders only the count and the empty-group decision.
+  const visibleNames = options.showSpecial
+    ? names
+    : names.filter(name => !isSpecialName(name));
+  const visibleCount = visibleNames.length;
+
+  // An empty group is entirely hidden — no header, no body. This mirrors the
+  // FRB `filter{items.length > 0}` projection: the group is absent from the
+  // rendered tree when it has no visible items, reappearing the moment the first
+  // matching item arrives. A group whose only members are hidden special names
+  // disappears until the show-special toggle reveals them.
+  if (visibleCount === 0) return null;
+
+  const caretClass = ['pet-group-caret', expanded && 'expanded']
+    .filter(Boolean)
+    .join(' ');
+
+  const bodyClass = ['pet-group-body', expanded && 'expanded']
+    .filter(Boolean)
+    .join(' ');
+
+  return h(
+    'div',
+    { class: `pet-group pet-group-${group.key}`, 'data-group-key': group.key },
+    h(
+      'button',
+      {
+        class: 'pet-group-header',
+        type: 'button',
+        title: `Toggle ${group.label}`,
+        onClick: () => setExpanded(e => !e),
+      },
+      h('span', { class: caretClass }, '▶'),
+      h('span', { class: 'pet-group-label' }, group.label),
+      h('span', { class: 'pet-group-count' }, String(visibleCount)),
+    ),
+    h(
+      'div',
+      { class: bodyClass },
+      names.map(name =>
+        h(InventoryItem, {
+          key: name,
+          name,
+          powers,
+          options,
+          path,
+          rootPowers,
+          rootPrefix,
+          openDropMenu,
+          onTypeResolved,
+        }),
+      ),
+    ),
+  );
+};
+harden(InventoryGroupSection);
+
+/**
  * One inventory item: its disclosure triangle, label (name + type badge),
  * action buttons, drag source / drop target behavior, and — when expanded —
  * a nested {@link InventoryList} mounted into its children. All visual state
@@ -109,6 +209,10 @@ harden(namesReducer);
  *   to this level.
  * @param {(x: number, y: number, from: string[], to: string[]) => void} props.openDropMenu
  *   - Ask the enclosing list to open the link/move menu.
+ * @param {((name: string, formulaType: string) => void) | undefined} [props.onTypeResolved]
+ *   - Called once when the item's formula type is resolved via `locate()`.
+ *   The enclosing list uses this to update its type-to-group mapping for
+ *   daemons that do not include `type` in `followNameChanges` add events.
  */
 const InventoryItem = ({
   name,
@@ -118,6 +222,7 @@ const InventoryItem = ({
   rootPowers,
   rootPrefix,
   openDropMenu,
+  onTypeResolved,
 }) => {
   const {
     showValue,
@@ -173,6 +278,15 @@ const InventoryItem = ({
           /** @type {string} */ (probed),
         ).searchParams.get('type');
         setType(probedType);
+        // Report the resolved type back to the enclosing list so it can
+        // update its group mapping. This covers daemons that do not include
+        // `type` in `followNameChanges` add events — the group assignment
+        // lands as soon as `locate()` resolves rather than requiring a page
+        // reload. The FRB analogy: this is the `observe` callback that fires
+        // when a derived property's value changes.
+        if (probedType && onTypeResolved) {
+          onTypeResolved(name, probedType);
+        }
       })
       .catch(() => {
         // Item may have been removed before its locator resolved.
@@ -223,10 +337,24 @@ const InventoryItem = ({
     }
     // Expand — try to load children.
     setLoading(true);
+    // The first await must not be nested (jessie safe-await rule), so we
+    // perform the lookup before entering the try/catch. The literal `ok`
+    // discriminant lets TypeScript narrow to the `value` arm after the guard
+    // below.
+    /** @type {{ ok: true, value: unknown } | { ok: false, error: unknown }} */
+    const targetOrError = await lookupPath(powers, itemPath).then(
+      v => ({ ok: true, value: v }),
+      e => ({ ok: false, error: e }),
+    );
+    if (!targetOrError.ok) {
+      setLoading(false);
+      setDisclosureHidden(true);
+      return;
+    }
     try {
       const target =
         /** @type {ERef<{ __getMethodNames__: () => string[], list?: () => string[], followNameChanges?: () => AsyncIterator<{ add?: string, remove?: string }> }>} */ (
-          await lookupPath(powers, itemPath)
+          targetOrError.value
         );
       // Detect capabilities via __getMethodNames__ to avoid CapTP noise.
       // eslint-disable-next-line no-underscore-dangle
@@ -496,6 +624,9 @@ const InventoryItem = ({
             rootPowers,
             // DnD stays in the root's coordinate space so items can move up.
             rootPrefix: absPath,
+            // Nested expansions are always flat: grouping applies only at the
+            // root inventory level.
+            grouped: false,
           })
         : null,
     ),
@@ -506,8 +637,9 @@ harden(InventoryItem);
 /**
  * A level of the inventory tree: owns the `followNameChanges` subscription for
  * its `powers`, the list-level drop zone, and the link/move drop menu. Renders
- * an {@link InventoryItem} per discovered name. Nested levels are rendered by
- * an expanded item, never by an imperative recursive call.
+ * an {@link InventoryItem} per discovered name. When `grouped` is true (the
+ * default at the root level), items are organized into collapsible
+ * {@link InventoryGroupSection} sections instead of a flat list.
  *
  * @param {object} props
  * @param {ERef<EndoHost>} props.powers
@@ -515,6 +647,8 @@ harden(InventoryItem);
  * @param {string[]} props.path
  * @param {ERef<EndoHost>} props.rootPowers
  * @param {string[]} props.rootPrefix
+ * @param {boolean} [props.grouped] - When true (default), render items in
+ *   collapsible groups by formula type. Nested InventoryLists pass false.
  */
 export const InventoryList = ({
   powers,
@@ -522,11 +656,21 @@ export const InventoryList = ({
   path,
   rootPowers,
   rootPrefix,
+  grouped = true,
 }) => {
   const [names, dispatch] = useReducer(
     namesReducer,
     /** @type {string[]} */ ([]),
   );
+  // Type-to-group mapping: formula type keyed by pet name. Populated from
+  // `followNameChanges` add events (when the daemon includes `type`) and from
+  // the `onTypeResolved` callback that each InventoryItem fires when `locate()`
+  // resolves for older daemons. The FRB analogy: this is the observable source
+  // that drives the `group{groupKeyForType(type)}` projection rendered below.
+  const [typesByName, setTypesByName] = useState(
+    /** @type {Map<string, string>} */ (new Map()),
+  );
+
   // List-level drop-zone highlight.
   const [dropTargetList, setDropTargetList] = useState(false);
   // The open link/move menu, positioned at {x, y} with whole from/to paths.
@@ -554,13 +698,36 @@ export const InventoryList = ({
       );
       for await (const rawChange of nameChanges) {
         if (disposed) break;
-        const change = /** @type {{ add?: string, remove?: string }} */ (
-          rawChange
-        );
+        const change =
+          /** @type {{ add?: string, remove?: string, type?: string }} */ (
+            rawChange
+          );
         if (change.add !== undefined) {
           dispatch({ type: 'add', name: change.add });
+          // When the daemon enriches add events with `type` (the daemon change
+          // in this PR), record the type immediately so the item renders in the
+          // correct group without waiting for the per-item `locate()` probe.
+          // This is the primary reactive path for `/mkdir` and other creation
+          // commands: the add event carries `type: 'directory'` and the group
+          // section updates synchronously with the name list.
+          if (change.type !== undefined) {
+            const addedName = change.add;
+            const formulaType = change.type;
+            setTypesByName(prev => {
+              const next = new Map(prev);
+              next.set(addedName, formulaType);
+              return next;
+            });
+          }
         } else if (change.remove !== undefined) {
-          dispatch({ type: 'remove', name: change.remove });
+          const removedName = change.remove;
+          dispatch({ type: 'remove', name: removedName });
+          setTypesByName(prev => {
+            if (!prev.has(removedName)) return prev;
+            const next = new Map(prev);
+            next.delete(removedName);
+            return next;
+          });
         }
       }
     };
@@ -575,6 +742,23 @@ export const InventoryList = ({
       disposed = true;
     };
   }, [powers]);
+
+  // Called by each InventoryItem when its `locate()` probe resolves and the
+  // item's formula type becomes known. This covers daemons that do not include
+  // `type` in `followNameChanges` add events. The FRB analogy: this is the
+  // `observe` sink that fires when the derived `type` property changes, pushing
+  // the update into the parent's grouping map.
+  const onTypeResolved = (
+    /** @type {string} */ name,
+    /** @type {string} */ formulaType,
+  ) => {
+    setTypesByName(prev => {
+      if (prev.get(name) === formulaType) return prev;
+      const next = new Map(prev);
+      next.set(name, formulaType);
+      return next;
+    });
+  };
 
   /**
    * @param {number} x
@@ -641,6 +825,74 @@ export const InventoryList = ({
     .filter(Boolean)
     .join(' ');
 
+  // The grouped layout (FRB `group{groupKeyForType(type)}` projection): derive
+  // per-group name arrays from the flat `names` list and the `typesByName` map.
+  // Names whose type has not yet been resolved land in `capabilities` until
+  // `onTypeResolved` fires, at which point Preact re-renders with the updated
+  // group assignment. Empty groups are hidden by InventoryGroupSection (the
+  // `filter{items.length > 0}` side of the projection).
+  const groupedContent = grouped
+    ? INVENTORY_GROUPS.map(group =>
+        h(InventoryGroupSection, {
+          key: group.key,
+          group,
+          names: names.filter(
+            name => groupKeyForType(typesByName.get(name)) === group.key,
+          ),
+          powers,
+          options,
+          path,
+          rootPowers,
+          rootPrefix,
+          openDropMenu,
+          onTypeResolved,
+        }),
+      )
+    : names.map(name =>
+        h(InventoryItem, {
+          key: name,
+          name,
+          powers,
+          options,
+          path,
+          rootPowers,
+          rootPrefix,
+          openDropMenu,
+          onTypeResolved,
+        }),
+      );
+
+  const dropMenu = menu
+    ? // A full-screen backdrop dismisses the menu on an outside click,
+      // declaratively, instead of a `document`-level click listener. The
+      // fixed-position DropMenu renders above it.
+      h(
+        'div',
+        {
+          class: 'inventory-drop-menu-backdrop',
+          onClick: () => setMenu(null),
+        },
+        h(DropMenu, {
+          x: menu.x,
+          y: menu.y,
+          onLink: () => {
+            const { from, to } = menu;
+            setMenu(null);
+            E(rootPowers)
+              .copy(from, to)
+              .catch(err => console.error('[inventory] Link failed:', err));
+          },
+          onMove: () => {
+            const { from, to } = menu;
+            setMenu(null);
+            E(rootPowers)
+              .move(from, to)
+              .catch(err => console.error('[inventory] Move failed:', err));
+          },
+        }),
+      )
+    : null;
+
   return h(
     'div',
     {
@@ -649,48 +901,8 @@ export const InventoryList = ({
       onDragLeave,
       onDrop,
     },
-    names.map(name =>
-      h(InventoryItem, {
-        key: name,
-        name,
-        powers,
-        options,
-        path,
-        rootPowers,
-        rootPrefix,
-        openDropMenu,
-      }),
-    ),
-    menu
-      ? // A full-screen backdrop dismisses the menu on an outside click,
-        // declaratively, instead of a `document`-level click listener. The
-        // fixed-position DropMenu renders above it.
-        h(
-          'div',
-          {
-            class: 'inventory-drop-menu-backdrop',
-            onClick: () => setMenu(null),
-          },
-          h(DropMenu, {
-            x: menu.x,
-            y: menu.y,
-            onLink: () => {
-              const { from, to } = menu;
-              setMenu(null);
-              E(rootPowers)
-                .copy(from, to)
-                .catch(err => console.error('[inventory] Link failed:', err));
-            },
-            onMove: () => {
-              const { from, to } = menu;
-              setMenu(null);
-              E(rootPowers)
-                .move(from, to)
-                .catch(err => console.error('[inventory] Move failed:', err));
-            },
-          }),
-        )
-      : null,
+    ...groupedContent,
+    dropMenu,
   );
 };
 harden(InventoryList);

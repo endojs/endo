@@ -8,6 +8,15 @@ import { InventoryList } from '@endo/space-chat';
 
 import { h, renderConfined } from './setup-preact-container.js';
 
+// The currently-installed inventory-toggle listeners' detacher. Only one root
+// inventory is mounted at a time (nested levels recurse inside the confined
+// tree, not through this wrapper), so a single module-level slot suffices.
+// Re-mounting (a channel switch) detaches the prior listeners before installing
+// fresh ones bound to the new powers. Covers both the show-special and the
+// group-by-type toggles.
+/** @type {(() => void) | undefined} */
+let detachToggleListeners;
+
 // Host wrapper for the default 1:1 chat (inbox) space's inventory pet-name
 // tree. The view itself — the confined `InventoryList` Preact tree and all its
 // nested item rendering and drag-and-drop handlers — lives in the standalone
@@ -66,15 +75,67 @@ export const inventoryComponent = async (
     },
   });
 
-  renderConfined(
-    h(InventoryList, {
-      powers,
-      options: confinedOptions,
-      path,
-      rootPowers,
-      rootPrefix,
-    }),
-    $list,
+  // Two host toggle icon buttons govern the top-level inventory view. The
+  // confined tree must not reach for that host DOM itself, so this trusted
+  // wrapper reads each button's live `aria-pressed` state and re-renders on
+  // change, passing plain props in:
+  //   - show-special: whether `@`-prefixed system names are revealed.
+  //   - group-by-type: whether the grouped view (the default) or the prior flat
+  //     view is rendered.
+  // Reading `aria-pressed` (set by the button's click handler before the
+  // dispatched `change` event fires) is order-independent of the sibling
+  // listener that toggles the `.show-special` class on the list.
+  const $specialToggle = /** @type {HTMLElement | null} */ (
+    document.getElementById('show-special-toggle')
   );
+  const $groupToggle = /** @type {HTMLElement | null} */ (
+    document.getElementById('group-by-type-toggle')
+  );
+
+  const renderTree = () => {
+    const showSpecial = $specialToggle
+      ? $specialToggle.getAttribute('aria-pressed') === 'true'
+      : $list.classList.contains('show-special');
+    // Grouping is the default view; absent the toggle the grouped layout holds.
+    const grouped = $groupToggle
+      ? $groupToggle.getAttribute('aria-pressed') === 'true'
+      : true;
+    renderConfined(
+      h(InventoryList, {
+        powers,
+        options: harden({ ...confinedOptions, showSpecial }),
+        path,
+        rootPowers,
+        rootPrefix,
+        grouped,
+      }),
+      $list,
+    );
+  };
+
+  renderTree();
+
+  // Re-render the (state-preserving) confined tree when either toggle flips, so
+  // the per-group counts track the special-name filter and the layout tracks
+  // the grouping choice. renderConfined reconciles the existing tree in place,
+  // so the followNameChanges subscription and accumulated names survive the
+  // re-render.
+  if ($specialToggle || $groupToggle) {
+    if (detachToggleListeners) {
+      detachToggleListeners();
+    }
+    const detachers = [];
+    for (const $toggle of [$specialToggle, $groupToggle]) {
+      if ($toggle) {
+        $toggle.addEventListener('change', renderTree);
+        detachers.push(() => $toggle.removeEventListener('change', renderTree));
+      }
+    }
+    detachToggleListeners = () => {
+      for (const detach of detachers) {
+        detach();
+      }
+    };
+  }
 };
 harden(inventoryComponent);

@@ -892,7 +892,7 @@ export interface Handle {
 export type MakeSha256 = () => Sha256;
 
 export type PetStoreNameChange =
-  | { add: Name; value: IdRecord }
+  | { add: Name; value: IdRecord; type?: string }
   | { remove: Name };
 
 export type PetStoreIdNameChange =

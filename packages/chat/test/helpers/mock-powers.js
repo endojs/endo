@@ -22,7 +22,10 @@ import { makePromiseKit } from '@endo/promise-kit';
 /**
  * @typedef {object} MockPowersResult
  * @property {ERef<EndoHost>} powers - The mock powers object (cast via unknown)
- * @property {(name: string) => void} addName - Add a pet name
+ * @property {(name: string) => void} addName - Add a pet name (no type in event)
+ * @property {(name: string, formulaType: string) => void} addNameWithType
+ *   - Add a pet name emitting `{ add: name, type: formulaType }` in the
+ *   `followNameChanges` event, simulating the daemon's type-enrichment path.
  * @property {(name: string) => void} removeName - Remove a pet name
  * @property {(name: string, value: unknown, id?: string) => void} setValue
  * @property {Array<{ to: string, strings: string[], edgeNames: string[], petNames: string[] }>} sentMessages
@@ -48,7 +51,7 @@ export const makeMockPowers = ({
   // Make a mutable copy of names
   const names = [...initialNames];
 
-  /** @type {Array<(value: { add: string } | { remove: string }) => void>} */
+  /** @type {Array<(value: { add: string, type?: string } | { remove: string }) => void>} */
   const nameChangeResolvers = [];
 
   /** @type {Array<{ to: string, strings: string[], edgeNames: string[], petNames: string[] }>} */
@@ -59,15 +62,15 @@ export const makeMockPowers = ({
 
   /**
    * Create an async iterator that yields initial names then waits for changes.
-   * @returns {AsyncIterator<{ add: string } | { remove: string }>}
+   * @returns {AsyncIterator<{ add: string, type?: string } | { remove: string }>}
    */
   const makeNameChangesIterator = () => {
     let initialIndex = 0;
-    /** @type {import('@endo/promise-kit').PromiseKit<{ add: string } | { remove: string }> | null} */
+    /** @type {import('@endo/promise-kit').PromiseKit<{ add: string, type?: string } | { remove: string }> | null} */
     let pendingKit = null;
 
     const iterator = Far('NameChangesIterator', {
-      /** @returns {Promise<IteratorResult<{ add: string } | { remove: string }>>} */
+      /** @returns {Promise<IteratorResult<{ add: string, type?: string } | { remove: string }>>} */
       async next() {
         // First yield all initial names
         if (initialIndex < names.length) {
@@ -309,6 +312,15 @@ export const makeMockPowers = ({
         names.push(name);
         for (const resolve of nameChangeResolvers) {
           resolve({ add: name });
+        }
+      }
+    },
+
+    addNameWithType(name, formulaType) {
+      if (!names.includes(name)) {
+        names.push(name);
+        for (const resolve of nameChangeResolvers) {
+          resolve({ add: name, type: formulaType });
         }
       }
     },
