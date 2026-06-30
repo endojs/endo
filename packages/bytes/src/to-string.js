@@ -2,6 +2,8 @@
 
 import harden from '@endo/harden';
 
+import { toGenuineBytes } from './to-genuine.js';
+
 // Capture both `TextDecoder` modes once at module load.
 // The default UTF-8 decoder substitutes U+FFFD for malformed sequences;
 // the `fatal: true` decoder throws on the same input.
@@ -23,14 +25,21 @@ const fatalTextDecoder = new TextDecoder('utf-8', { fatal: true });
  * invalid input. The default lenient mode substitutes the
  * Unicode replacement character (U+FFFD) for malformed sequences.
  *
+ * Tolerates every `Uint8Array` variant: native or emulated, frozen or mutable.
+ * `TextDecoder.decode` requires a real `ArrayBufferView`, so an emulated
+ * freezable wrapper (from `@endo/immutable-arraybuffer`) is first copied to a
+ * genuine `Uint8Array` by `toGenuineBytes`; genuine views are passed through
+ * uncopied.
+ *
  * @param {Uint8Array} view
  * @param {BytesToTextOptions} [options]
  * @returns {string}
  */
 export const bytesToText = (view, options = undefined) => {
+  const genuine = toGenuineBytes(view);
   if (options !== undefined && options.fatal) {
-    return fatalTextDecoder.decode(view);
+    return fatalTextDecoder.decode(genuine);
   }
-  return lenientTextDecoder.decode(view);
+  return lenientTextDecoder.decode(genuine);
 };
 harden(bytesToText);

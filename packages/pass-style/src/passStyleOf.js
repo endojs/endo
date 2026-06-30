@@ -194,6 +194,15 @@ const makePassStyleOf = passStyleHelpers => {
               return helper.styleName;
             }
           }
+          // A TypedArray that was not claimed by any helper (most commonly a
+          // Uint8Array backed by a mutable ArrayBuffer) must not fall through to
+          // the remotable path with a confusing "non-methods" error. Provide the
+          // same diagnostic as the early `isFrozen` gate above, which normally
+          // catches the mutable case before it reaches here. Under unsafe harden
+          // taming `isFrozen` may return true for unfrozen objects, so the early
+          // gate can be bypassed; this check closes that gap.
+          isTypedArray(inner) &&
+            assert.fail(X`Cannot pass mutable typed arrays like ${inner}.`);
           assertValid(remotableHelper, inner, passStyleOfRecur);
           return 'remotable';
         }

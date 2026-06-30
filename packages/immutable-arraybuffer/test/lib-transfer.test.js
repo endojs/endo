@@ -107,27 +107,33 @@ test('Standard TypedArray behavior baseline', t => {
   t.is(ta2.byteLength, 0);
 });
 
-// This could have been written as a test.failing as compared to
-// the immutable ArrayBuffer we'll propose. However, I'd rather test what
 // the shim purposely does instead.
-test('TypedArray on Immutable ArrayBuffer lib limitations', t => {
+test('TypedArray on Immutable ArrayBuffer: freezable-TypedArray emulation now supported', t => {
+  // As of the freezable-TypedArray shim (PR implementing
+  // designs/freezable-typedarray.md), calling a TypedArray constructor with an
+  // emulated immutable ArrayBuffer produced by transferToImmutable produces an
+  // emulated freezable wrapper whose byteLength matches the underlying buffer.
+  // The old limitation (producing a 0-byte TypedArray) no longer applies.
+  if (optTransferBufferToImmutable === undefined) {
+    t.pass(
+      'Platform lacks transfer or structuredClone; skip transferToImmutable coverage',
+    );
+    return;
+  }
   const ab1 = new ArrayBuffer(2);
-  const dv1 = new DataView(ab1);
-  t.is(dv1.buffer, ab1);
-  t.is(dv1.byteLength, 2);
   const ta1 = new Uint8Array(ab1);
   ta1[0] = 3;
   ta1[1] = 4;
-  t.is(ta1.byteLength, 2);
 
   const iab = optTransferBufferToImmutable(ab1);
-  // Unfortunately, unlike the immutable ArrayBuffer to be proposed,
-  // calling a TypedArray constructor with the shim implementation of
-  // an immutable ArrayBuffer as argument treats it as an unrecognized object,
-  // rather than throwing an error or acting as a non-changeable TypedArray.
   t.is(iab.byteLength, 2);
   const ta3 = new Uint8Array(iab);
-  t.is(ta3.byteLength, 0);
+  // The emulated freezable wrapper covers the full 2 bytes.
+  t.is(ta3.byteLength, 2);
+  // Mutators throw on the emulated freezable wrapper.
+  t.throws(() => ta3.set([0, 0]), { instanceOf: TypeError });
+  // The buffer accessor returns the immutable wrapper.
+  t.is(ta3.buffer, iab);
 });
 
 const testTransfer = t => {

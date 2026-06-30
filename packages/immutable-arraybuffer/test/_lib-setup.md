@@ -19,9 +19,6 @@ shim has run.
 The lib's free-function helpers (`sliceBufferToImmutable`,
 `optTransferBufferToImmutable`) remain importable from the lib module
 for tests that want to exercise the free-function call shape directly.
-They are also (today) re-exported from `index.js` for pre-shim callers;
-the premise-2 follow-up PR will retire the free-function exports from
-the package's module surface but not from the lib module itself.
 
 The `shim-amplifier.test.js` and `shim-slice.test.js` / `shim-transfer.test.js`
 test files have always installed the shim at module top (their purpose
