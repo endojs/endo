@@ -22,9 +22,12 @@ The maintainer's follow-up on #543 observes that the same rationale applies
 *among modules within a single package*, and asks for that work as a separate,
 decoupled pull request.
 This design is that separate articulation.
-It states the intra-package rule, gives its rationale, and lays out the same
-deprecate-then-remove staging that the inter-package design (#548) uses across
-packages.
+It states the intra-package rule, gives its rationale, and lays out its staging.
+Because an intra-package removal never crosses a package boundary, it causes
+none of the inter-package (and inter-repo) compatibility problems that the
+inter-package design (#548) has to stage around: this design needs no
+deprecation step and no version bump, and #548's two mechanical stages collapse
+into a single repoint-and-remove pass.
 
 ## The rule
 
@@ -71,8 +74,8 @@ surface. That holds even when such a module is *itself* a plain re-export of a
 sibling: from outside the package there is nowhere else to import that name
 from, so the re-export is the canonical public location, not a removable
 pass-through. A name that an external importer reaches through the `"exports"`
-map must keep a stable import path there; the deprecate-then-remove staging
-below never deprecates or removes a re-export that backs a declared export.
+map must keep a stable import path there; the staging below never removes a
+re-export that backs a declared export.
 
 This rule is therefore about *intra-package* import edges only: a package's
 *own* modules should import from each other directly rather than through the
@@ -107,9 +110,21 @@ The rationale is #543's, re-read at module granularity.
 This work is **decoupled** from the inter-package design (#548) and its
 mechanical follow-up, the two cross-package PRs requested in #543, and can land
 independently.
-It shares #543's vocabulary (*plain re-export*) and the inter-package design's
-staging shape, but it operates entirely inside package boundaries, so it neither
-blocks nor depends on the cross-package rule.
+It shares #543's vocabulary (*plain re-export*), but it operates entirely inside
+package boundaries, so it neither blocks nor depends on the cross-package rule.
+
+The two designs differ in staging, and the difference is the point. The
+inter-package design (#548) sequences its mechanical work into two PRs by
+compatibility risk: a first PR that repoints importers and **deprecates** the
+plain re-exports without removing them, then a later removal PR that bumps the
+**major version** of every affected package, because removing a cross-package
+re-export can break an importer in another repository that has not yet been
+repointed. An intra-package pass-through is never part of a package's published
+surface (see *What the rule does not touch*), so no importer in any other
+repository can depend on it. Removing one therefore causes no inter-repo
+compatibility problem, which is why this design needs neither #548's deprecation
+step nor its version bump, and why its mechanical work is a single
+repoint-and-remove pass rather than #548's two staged PRs.
 
 Where the inter-package design (#548) amends an endo style guide to state the
 cross-package rule, the intra-package rule is stated in this design and as a
@@ -118,8 +133,12 @@ discouraged from the start.
 
 ## Staging
 
-Mirroring the inter-package design's (#548) two-PR shape, but scoped within
-packages:
+The intra-package work is two PRs, a rule PR (this one) and a mechanical
+follow-up, but only because keeping the design review separate from broad,
+mechanical churn is convenient, not because compatibility forces a split. Unlike
+the inter-package design (#548), the mechanical work itself is a single pass:
+because an intra-package pass-through is never externally importable, repointing
+and removal land together, with no deprecation buffer and no version bump.
 
 1. **This PR — articulate and discourage (no behavior change).**
    Land this design and the `CONTRIBUTING.md` `Coding Style` entry.
@@ -127,19 +146,22 @@ packages:
    This establishes the rule and gives reviewers a single place to discuss it
    before any mechanical churn.
 
-2. **Follow-up PR — repoint and remove (mechanical).**
-   Per package, repoint intra-package importers at the defining module, then
-   delete pass-through modules that become unreferenced.
-   This is deliberately separate because it is broad, mechanical, and reviewed
-   most easily one package at a time.
+2. **Follow-up PR — repoint and remove, in one mechanical pass.**
+   Per package, repoint intra-package importers at the defining module and, in
+   the same change, delete the pass-through modules that thereby become
+   unreferenced. There is no separate deprecation stage and no version bump:
+   removing a module that no `"exports"` entry reaches cannot break any external
+   importer, so #548's two-stage, major-bump sequencing does not apply here.
+   The pass is deliberately kept separate from this rule PR only because it is
+   broad, mechanical, and reviewed most easily one package at a time.
 
-Because this is `endojs/endo-but-for-bots`, both stages may be merged here once
-ready and approved.
-As with the inter-package design's (#548) removal stage, the removal stage must
-not be merged into
-`endojs/endo` until we are adequately confident there are no outstanding
-importers that depend on an intra-package pass-through, in this repository or in
-others.
+Because the removal touches nothing an external importer can reach, it carries
+no inter-repo compatibility hazard, so, unlike the inter-package design's (#548)
+removal stage, its content may be merged into `endojs/endo` as soon as it is
+ready and approved, with no deferral to a major release. The only correctness
+obligation is the local one the mechanical pass already discharges: before
+deleting a pass-through module, confirm that no module *inside its own package*
+still imports through it.
 
 ## Examples in the current tree
 
