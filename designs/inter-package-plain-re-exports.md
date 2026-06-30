@@ -171,3 +171,14 @@ These were raised as open questions and settled during review (erights,
 - **Deprecation mechanism.**
   A plain re-export is deprecated with an `@deprecated` JSDoc tag on the
   re-export.
+
+- **Removal couples to a major release.**
+  The follow-up removal PR bumps the major version number, because removing a
+  plain re-export is an inter-repo compatibility hazard for importers outside
+  this repository.
+  That major bump is the reason to do the removal repository-wide in a single
+  effort rather than package by package, so each downstream consumer absorbs the
+  change in one bundled upgrade rather than one forced upgrade per package; the
+  removal may consequently be deferred until Endo is ready for its next major
+  release.
+  See the Staging section's follow-up PR item for the full articulation.
