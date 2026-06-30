@@ -239,6 +239,99 @@ test('export name as default', async t => {
   await compartment.import('./main.js');
 });
 
+// Regression for endojs/endo#59. A module reached more than once via
+// `export *` and a renaming reexport with a different `exported` name
+// formerly raised a spurious "does not provide an export named X"
+// SyntaxError (latterly a `TypeError: notify is not a function`):
+// the export-renamer's `export { y as x } from './star-reexporter.js'`
+// was wired before star-reexporter's star-import from export-renamer had
+// populated star-reexporter's notifier for `y`. The same fixture shape is
+// also exercised through compartment-mapper's scaffold and pinned to
+// Node.js's reference behavior; see
+// packages/compartment-mapper/test/cycle-rename.test.js and
+// packages/compartment-mapper/test/cycle-rename-node-parity.test.js.
+test('cyclic star export with renaming reexport (issue #59)', async t => {
+  t.plan(3);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/star-reexporter.js': `
+      export * from './export-renamer.js';
+    `,
+    'https://example.com/export-renamer.js': `
+      export { y as x } from './star-reexporter.js';
+      export var y = 45;
+    `,
+    'https://example.com/main.js': `
+      import { x } from './star-reexporter.js';
+      import * as ns1 from './star-reexporter.js';
+      import * as ns2 from './export-renamer.js';
+      export const captured = x;
+      export const namespace1 = { x: ns1.x, y: ns1.y };
+      export const namespace2 = { x: ns2.x, y: ns2.y };
+    `,
+  });
+
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+
+  const namespace = await compartment.import('./main.js');
+
+  t.is(namespace.captured, 45);
+  t.deepEqual(namespace.namespace1, { x: 45, y: 45 });
+  t.deepEqual(namespace.namespace2, { x: 45, y: 45 });
+});
+
+// Companion regression for endojs/endo#59 covering the unused-live-binding
+// shape of the cyclic star-export. The export-renamer's
+// `export { y as x } from './star-reexporter.js'` re-exports a live binding
+// from the star reexporter, but the renamer's own `y` is declared without
+// initialization (`export var y;`), so the binding is never updated.
+// Every projection of the cycle reads `undefined`. Node.js agrees: the
+// in-process SES linker behavior matches Node.js's reference behavior for
+// this shape, which is the parity property the test pins. The same fixture
+// shape is also exercised through compartment-mapper's scaffold and pinned
+// to Node.js's reference behavior with a shared assertion module; see
+// packages/compartment-mapper/test/cycle-rename-unused.test.js and
+// packages/compartment-mapper/test/cycle-rename-unused-node-parity.test.js.
+test('cyclic star export with renaming reexport, unused live binding', async t => {
+  t.plan(3);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/star-reexporter.js': `
+      export * from './export-renamer.js';
+    `,
+    'https://example.com/export-renamer.js': `
+      export { y as x } from './star-reexporter.js';
+      export var y;
+    `,
+    'https://example.com/main.js': `
+      import { x } from './star-reexporter.js';
+      import * as ns1 from './star-reexporter.js';
+      import * as ns2 from './export-renamer.js';
+      export const captured = x;
+      export const namespace1 = { x: ns1.x, y: ns1.y };
+      export const namespace2 = { x: ns2.x, y: ns2.y };
+    `,
+  });
+
+  const compartment = new Compartment({
+    resolveHook: resolveNode,
+    importHook: makeImportHook('https://example.com'),
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+
+  const namespace = await compartment.import('./main.js');
+
+  t.is(namespace.captured, undefined);
+  t.deepEqual(namespace.namespace1, { x: undefined, y: undefined });
+  t.deepEqual(namespace.namespace2, { x: undefined, y: undefined });
+});
+
 test('export-as with duplicated export name', async t => {
   t.plan(4);
 
