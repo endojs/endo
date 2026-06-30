@@ -420,17 +420,38 @@ body.resizing * {
   color: var(--text-muted);
 }
 
-.inventory-toggle {
+.inventory-toggles {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+}
+
+/* Toggle icon buttons: a glyph that lights up when its mode is active
+   (aria-pressed="true"). Replaces the prior plain checkboxes. */
+.inventory-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
   color: var(--text-muted);
   cursor: pointer;
 }
 
-.inventory-toggle input {
-  cursor: pointer;
+.inventory-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.inventory-toggle[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* Special (all-caps) items - hidden by default */
@@ -440,7 +461,8 @@ body.resizing * {
 
 /* Show special items when toggle is checked (class on pet-list propagates via CSS) */
 .pet-list.show-special .pet-item-wrapper.special,
-.pet-list.show-special .pet-children .pet-item-wrapper.special {
+.pet-list.show-special .pet-children .pet-item-wrapper.special,
+.pet-list.show-special .pet-group-body .pet-item-wrapper.special {
   display: flex;
 }
 
@@ -591,6 +613,99 @@ body.resizing * {
 
 .pet-item-row:hover {
   background: var(--bg-hover);
+}
+
+/* Inventory grouping by formula type */
+.pet-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+}
+
+.pet-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  width: 100%;
+}
+
+.pet-group-header:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.pet-group-caret {
+  display: inline-block;
+  width: 10px;
+  font-size: 9px;
+  transition: transform var(--transition-fast);
+  opacity: 0.7;
+}
+
+.pet-group-caret.expanded {
+  transform: rotate(90deg);
+}
+
+.pet-group-label {
+  flex: 1;
+}
+
+.pet-group-count {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--bg-active);
+  color: var(--text-muted);
+  min-width: 18px;
+  text-align: center;
+}
+
+.pet-group-body {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  /* Indent the items under a disclosure-triangle section slightly past the
+     group header's caret so the hierarchy reads at a glance. */
+  padding-left: 7px;
+}
+
+.pet-group-body.expanded {
+  display: flex;
+}
+
+/* When a group body is empty, hide its section entirely so the inventory
+   doesn't show empty headers. */
+.pet-group-body:not(:has(.pet-item-wrapper)) {
+  display: none;
+}
+
+.pet-group:has(.pet-group-body:not(:has(.pet-item-wrapper))) .pet-group-header {
+  display: none;
+}
+
+/* Type badge on inventory items — small chip showing the formula type
+   (e.g. `eval`, `readable-blob`). */
+.pet-type-badge {
+  font-size: 0.65em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.15);
+  color: var(--text-muted, #888);
+  margin-left: 2px;
+  vertical-align: middle;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pet-item-row button:not(.pet-disclosure) {
@@ -3637,18 +3752,6 @@ button.btn-spinner::after {
   display: block;
 }
 
-/* Type badge on inventory items */
-.pet-type-badge {
-  font-size: 0.65em;
-  padding: 1px 4px;
-  border-radius: 3px;
-  background: rgba(128, 128, 128, 0.15);
-  color: var(--text-muted, #888);
-  margin-left: 6px;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
 /* Cancel button */
 .cancel-button {
   background: none;
@@ -6278,16 +6381,10 @@ button.btn-spinner::after {
   opacity: 1;
 }
 
-/* Conversable inventory items */
-.pet-item-wrapper.conversable > .pet-item-row .pet-name {
-  color: var(--accent-primary);
-  font-weight: 500;
-}
-
-.pet-item-wrapper.conversable > .pet-item-row .pet-name::before {
-  content: '💬 ';
-  font-size: 12px;
-}
+/* Conversable inventory items are no longer color-differentiated: the
+   grouped inventory already separates handles into their own section, so
+   the accent tint was redundant. The pointer affordance and hover
+   highlight (above) still mark them as clickable. */
 
 /* Active conversation highlight */
 .pet-item-wrapper.active-conversation > .pet-item-row {
@@ -6301,10 +6398,6 @@ button.btn-spinner::after {
 .pet-item-wrapper.active-conversation > .pet-item-row .pet-name {
   color: white;
   font-weight: 600;
-}
-
-.pet-item-wrapper.active-conversation > .pet-item-row .pet-name::before {
-  content: '💬 ';
 }
 
 .pet-item-wrapper.active-conversation > .pet-item-row button.info-button,

@@ -51,10 +51,12 @@ const template = `
 <div id="pets">
   <div class="inventory-header">
     <span class="inventory-title">Inventory</span>
-    <label class="inventory-toggle">
-      <input type="checkbox" id="show-special-toggle">
-      <span>SPECIAL</span>
-    </label>
+    <div class="inventory-toggles">
+      <button type="button" class="inventory-toggle" id="group-by-type-toggle"
+        aria-pressed="true" title="Group by type">▤</button>
+      <button type="button" class="inventory-toggle" id="show-special-toggle"
+        aria-pressed="false" title="Show special names">@</button>
+    </div>
   </div>
   <div class="pet-list"></div>
   <div id="profile-bar"></div>
@@ -258,8 +260,11 @@ const bodyComponent = (
   const $petList = /** @type {HTMLElement} */ (
     $pets.querySelector('.pet-list')
   );
-  const $showSpecialToggle = /** @type {HTMLInputElement} */ (
+  const $showSpecialToggle = /** @type {HTMLButtonElement} */ (
     $parent.querySelector('#show-special-toggle')
+  );
+  const $groupByTypeToggle = /** @type {HTMLButtonElement} */ (
+    $parent.querySelector('#group-by-type-toggle')
   );
   const $spacesGutter = /** @type {HTMLElement} */ (
     $parent.querySelector('#spaces-gutter')
@@ -300,14 +305,38 @@ const bodyComponent = (
       'Type / for commands, or @recipient message...';
   }
 
-  // Set up special names toggle
-  $showSpecialToggle.addEventListener('change', () => {
-    if ($showSpecialToggle.checked) {
+  // Wire an aria-pressed toggle icon button: a click flips its pressed state,
+  // runs `onToggle` with the new boolean, then dispatches a `change` event so
+  // the inventory wrapper (inventory-component.js) re-renders the confined tree.
+  /**
+   * @param {HTMLButtonElement} $button
+   * @param {(pressed: boolean) => void} [onToggle]
+   */
+  const wireIconToggle = ($button, onToggle) => {
+    if (!$button) return;
+    $button.addEventListener('click', () => {
+      const pressed = $button.getAttribute('aria-pressed') !== 'true';
+      $button.setAttribute('aria-pressed', String(pressed));
+      if (onToggle) onToggle(pressed);
+      $button.dispatchEvent(new Event('change'));
+    });
+  };
+
+  // The "show special" toggle reveals `@`-prefixed system names. The class on
+  // the pet list drives the CSS reveal; the dispatched `change` lets the
+  // confined tree re-render its per-group counts.
+  wireIconToggle($showSpecialToggle, pressed => {
+    if (pressed) {
       $petList.classList.add('show-special');
     } else {
       $petList.classList.remove('show-special');
     }
   });
+
+  // The "group by type" toggle selects between the grouped inventory view and
+  // the prior flat view. The wrapper reads this button's aria-pressed state on
+  // the dispatched `change` and re-renders with the chosen layout.
+  wireIconToggle($groupByTypeToggle);
 
   // Set up resizable sidebar
   resizeHandleComponent($parent);
