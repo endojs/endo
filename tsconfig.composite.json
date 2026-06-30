@@ -81,6 +81,9 @@
       "path": "packages/far/tsconfig.composite.json"
     },
     {
+      "path": "packages/gateway/tsconfig.composite.json"
+    },
+    {
       "path": "packages/goblin-chat/tsconfig.composite.json"
     },
     {
