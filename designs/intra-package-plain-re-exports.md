@@ -42,13 +42,13 @@ straight from `./other.js`.
 The rule has two corollaries that the removal pass will act on:
 
 1. **Internal modules should not reach back through the package's own declared
-   exports.** A module inside package `P` that writes
-   `import { name } from './index.js'` (or `'../index.js'`, or any other module
-   the package's `package.json` `"exports"` map names) is importing through the
-   package's own public surface rather than from the defining module. It should
-   import `name` from the module that defines it. The declared-export entry stays
-   for external importers; the change is only that `P`'s own modules stop routing
-   through it.
+   exports.** Suppose a module inside package `P` writes
+   `import { name } from './index.js'`. The same applies to `'../index.js'`, or
+   to any other module the package's `package.json` `"exports"` map names. Each of
+   these imports reaches `name` through the package's own public surface rather
+   than through the module that defines it. It should instead import `name` from
+   the defining module. The declared export itself stays in place for external
+   importers. Only `P`'s own modules stop routing through it.
 
 2. **A module that exists only to re-bundle sibling exports, and is not itself
    part of the package's public API surface, is the intra-package analog of
