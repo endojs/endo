@@ -182,16 +182,28 @@ exhaustive inventory.
   could then be retired — is a case-by-case judgment left to a later PR, not this
   rule PR or its mechanical follow-up.
 
-- Declared-export reach-back: modules that import from one of their own package's
-  `package.json` `"exports"` entries (for values or for `@import` types) rather
-  than from the defining sibling. The barrel `./index.js` is only the most common
-  such entry; the case is general over every module the `"exports"` map reaches,
-  not just the entry barrel. `packages/genie/src/agent/tool-gate.js` reaches back
-  to `./index.js` for a type import; the repoint targets the module that defines
-  the type. Only the importer's edge moves: the declared-export module it reached
-  through is public API, so it stays unchanged and undeprecated (see *What the rule
-  does not touch*) — the removal pass never touches, deprecates, or repoints any
-  module the `"exports"` map names.
+- Declared-export reach-back: a module that imports a name from one of its own
+  package's `package.json` `"exports"` entries — for values or for `@import`
+  types — instead of from the sibling that defines it. The barrel `src/index.js`
+  is only the most common such entry. The case is general over every module the
+  `"exports"` map reaches, not just the entry barrel. When an import truly routes
+  through a non-defining re-exporter, the repoint targets the defining module and
+  only the importer's edge moves. The declared-export module it reached through is
+  public API, so it stays unchanged and undeprecated (see *What the rule does not
+  touch*): the removal pass never touches, deprecates, or repoints any module the
+  `"exports"` map names.
+
+  An import that *looks* like a reach-back is not always one. The pass therefore
+  resolves each candidate to its defining module before repointing. The running
+  `genie` example shows why. `packages/genie/src/agent/tool-gate.js` imports
+  `ChatEvent` from `./index.js`, which at first reads like a reach-back. But that
+  `./index.js` is the sibling `agent/index.js`, and `ChatEvent` is `@typedef`'d
+  there — so it is the defining module, not a re-exporter. That module is also
+  internal: `genie`'s `"exports"` map names only `"."` → `src/index.js`, never
+  `agent/index.js`. The import already names the type's canonical source, so there
+  is nothing to repoint. A name defined in the same module a sibling imports it
+  from is not a reach-back. The same resolve-then-decide check applies to every
+  candidate the follow-up surfaces.
 
 The follow-up PR enumerates these mechanically, package by package.
 
