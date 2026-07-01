@@ -40,8 +40,13 @@ import { E } from '@endo/far';
  */
 
 /**
- * @typedef {object} GraphHost
+ * @typedef {object} GraphDiagnostics
  * @property {() => Promise<unknown>} getFormulaGraph
+ */
+
+/**
+ * @typedef {object} GraphHost
+ * @property {() => Promise<GraphDiagnostics>} diagnostics
  */
 
 const SPECIAL_NAME_RE = /^[A-Z][A-Z0-9_-]*$/;
@@ -984,7 +989,9 @@ export const renderGraph = (
       try {
         const host = /** @type {ERef<unknown>} */ (rootPowers);
         const result = /** @type {any} */ (
-          await E(/** @type {GraphHost} */ (host)).getFormulaGraph()
+          await E(
+            E(/** @type {GraphHost} */ (host)).diagnostics(),
+          ).getFormulaGraph()
         );
         if (
           result &&
