@@ -1,4 +1,4 @@
-import { decodeBase64 } from './decode.js';
+import { decodeBase64 } from './src/decode.js';
 
 /**
  * @param {string} encodedData a binary string containing base64-encoded data

@@ -13,7 +13,7 @@
 import harden from '@endo/harden';
 import { makeCborWriter } from './encode.js';
 import { makeCborReader } from './decode.js';
-import { cborToDiagnostic } from './diagnostic/index.js';
+import { cborToDiagnostic } from './diagnostic/encode.js';
 
 export { CborWriter, makeCborWriter } from './encode.js';
 export { CborReader, makeCborReader } from './decode.js';
