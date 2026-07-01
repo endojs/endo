@@ -7,7 +7,6 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
@@ -99,9 +98,13 @@ const createMockContext = () => {
           },
           invite: async guestName => {
             calls.push({ method: 'invite', args: [guestName] });
-            return Far('MockInvitation', {
-              locate: async () => 'endo://invitation',
-            });
+            return makeExo(
+              'MockInvitation',
+              M.interface('MockInvitation', {}, { defaultGuards: 'passable' }),
+              {
+                locate: async () => 'endo://invitation',
+              },
+            );
           },
           accept: async (locator, guestName) => {
             calls.push({ method: 'accept', args: [locator, guestName] });
@@ -1021,4 +1024,80 @@ test('execute handles slash-path splitting', async t => {
   await executor.execute('show', { petName: 'a/b/c/d' });
 
   t.deepEqual(ctx.calls[0].args, [['a', 'b', 'c', 'd']]);
+});
+
+test('execute js command surfaces the daemon trace when evaluation throws', async t => {
+  // The literal acceptance command `/js throw new Error("x")` routes through
+  // this `case 'js'` path. On a rejected evaluation the executor must hand
+  // showError not just the error but the resolved daemon-side trace (stack +
+  // authoritative worker id) so the chat error bubble can render a stack trace
+  // and a clickable worker chip (PR #58 criteria 2 and 3).
+  const STACK = 'Error: x\n    at <eval>:1:7';
+  const WORKER_ID = 'worker-formula-id-512';
+
+  // A decoded CapTP error carrying the wire-level errorId in its SES error tag.
+  const thrown = Error('x');
+  thrown.name = 'Error (error:Endo#1)';
+
+  const tracePowers = /** @type {ERef<EndoHost>} */ (
+    /** @type {unknown} */ (
+      makeExo(
+        'TracePowers',
+        M.interface('TracePowers', {}, { defaultGuards: 'passable' }),
+        {
+          evaluate: async () => {
+            throw thrown;
+          },
+          diagnostics: async () =>
+            makeExo(
+              'Diagnostics',
+              M.interface('Diagnostics', {}, { defaultGuards: 'passable' }),
+              {
+                traces: async () =>
+                  makeExo(
+                    'Traces',
+                    M.interface('Traces', {}, { defaultGuards: 'passable' }),
+                    {
+                      lookup: async errorId =>
+                        errorId === 'error:Endo#1'
+                          ? { errorId, stack: STACK, workerId: WORKER_ID }
+                          : undefined,
+                    },
+                  ),
+              },
+            ),
+        },
+      )
+    )
+  );
+
+  /** @typedef {{ message: string, stack: string | undefined, workerId: string | undefined }} TraceDetail */
+  /** @type {Array<{ error: Error, trace: TraceDetail }>} */
+  const errorCalls = [];
+  const executor = createCommandExecutor({
+    powers: tracePowers,
+    showValue: () => {},
+    showMessage: () => {},
+    // On the error path the executor always resolves and forwards a trace; the
+    // callback's `trace` param is optional, so assert it for the assertions below.
+    showError: (error, trace) => {
+      const detail = /** @type {TraceDetail} */ (trace);
+      errorCalls.push({ error, trace: detail });
+    },
+  });
+
+  const result = await executor.execute('js', {
+    source: 'throw new Error("x")',
+  });
+
+  t.false(result.success, 'a thrown evaluation reports failure');
+  t.is(errorCalls.length, 1, 'showError invoked once');
+  t.is(errorCalls[0].error, thrown, 'the original error is surfaced');
+  t.is(errorCalls[0].trace.message, 'x', 'criterion 1: message resolved');
+  t.is(errorCalls[0].trace.stack, STACK, 'criterion 2: stack resolved');
+  t.is(
+    errorCalls[0].trace.workerId,
+    WORKER_ID,
+    'criterion 3: authoritative worker id resolved for the chip',
+  );
 });

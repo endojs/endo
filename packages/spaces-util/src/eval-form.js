@@ -10,6 +10,7 @@ import { h } from 'preact';
 import { renderConfined, unmount } from '@endo/preact-container/renderer';
 import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
 import { keyCombo, modKey } from './platform-keys.js';
+import { resolveErrorTrace, watchErrorTrace } from './error-trace.js';
 
 // Eval form, migrated from imperative DOM to a confined Preact component,
 // copying the host-node Monaco embedding pattern established in define-form.js.
@@ -78,6 +79,9 @@ import { keyCombo, modKey } from './platform-keys.js';
  * @property {boolean} isSubmitting - Whether a submit is in flight.
  * @property {boolean} formDisabled - Whether inputs/buttons are disabled.
  * @property {string} error - The current error message ('' for none).
+ * @property {import('./error-trace.js').ErrorTraceDetail | null} [errorDetail] -
+ *   Resolved daemon-side trace detail for the error (stack trace and the
+ *   authoritative worker id), when the failed evaluation resolved one.
  */
 
 /**
@@ -105,6 +109,8 @@ import { keyCombo, modKey } from './platform-keys.js';
  *   input changed.
  * @param {(workerName: string) => void} props.onWorkerNameInput - Worker name
  *   input changed.
+ * @param {(workerId: string) => void} props.onShowWorker - Show Value requested
+ *   for the worker that produced the current error (error worker chip click).
  * @returns {import('preact').VNode}
  */
 const EvalFormBody = ({
@@ -119,6 +125,7 @@ const EvalFormBody = ({
   onCodeNameTab,
   onResultNameInput,
   onWorkerNameInput,
+  onShowWorker,
 }) => {
   const endowmentRows = state.endowments.map((endowment, index) =>
     h(
@@ -231,10 +238,40 @@ const EvalFormBody = ({
         }),
       ),
     ),
+    state.error
+      ? h(
+          'div',
+          { class: 'eval-error-detail' },
+          h('span', { class: 'eval-error' }, state.error),
+          state.errorDetail && state.errorDetail.stack
+            ? h(
+                'pre',
+                { class: 'eval-error-stack-text' },
+                state.errorDetail.stack,
+              )
+            : null,
+          state.errorDetail && state.errorDetail.workerId
+            ? h(
+                'button',
+                {
+                  type: 'button',
+                  class: 'eval-error-worker-chip',
+                  title: 'Show the worker that produced this error',
+                  onClick: () =>
+                    onShowWorker(
+                      /** @type {string} */ (state.errorDetail?.workerId),
+                    ),
+                },
+                // The worker's reverse-looked-up name (`@petName`), matching the
+                // Show Value title; `worker` when the worker is anonymous.
+                state.errorDetail?.workerName || 'worker',
+              )
+            : null,
+        )
+      : null,
     h(
       'div',
       { class: 'eval-footer' },
-      h('span', { class: 'eval-error' }, state.error),
       h(
         'button',
         {
@@ -263,6 +300,8 @@ harden(EvalFormBody);
  * @param {ERef<EndoHost>} options.powers - Powers object
  * @param {(data: EvalFormData) => Promise<void>} options.onSubmit - Called when form is submitted
  * @param {() => void} options.onClose - Called when form is closed
+ * @param {(workerId: string) => void} [options.onShowWorker] - Called when the
+ *   error worker chip is clicked; the host runs Show Value for that worker.
  * @returns {Promise<EvalFormAPI>}
  */
 export const createEvalForm = async ({
@@ -271,6 +310,7 @@ export const createEvalForm = async ({
   powers,
   onSubmit,
   onClose,
+  onShowWorker = () => {},
 }) => {
   let isVisible = false;
   let isDirty = false;
@@ -287,6 +327,7 @@ export const createEvalForm = async ({
     isSubmitting: false,
     formDisabled: false,
     error: '',
+    errorDetail: null,
   });
 
   // Dedicated confined mount; siblings of `$container` are never reconciled.
@@ -394,6 +435,7 @@ export const createEvalForm = async ({
           isDirty = true;
           rerender();
         },
+        onShowWorker: workerId => onShowWorker(workerId),
       }),
       $mount,
     );
@@ -452,12 +494,32 @@ export const createEvalForm = async ({
     }
   };
 
-  const clearError = () => {
-    if (state.error !== '') patch({ error: '' });
+  // Cancels the in-flight trace watch feeding the error area, if any. The area
+  // watches for the daemon-side trace (stack + worker chip) to arrive after the
+  // bare error renders (a real cross-process race); the watch is cancelled the
+  // moment the error is dismissed (the next submit clears it via clearError).
+  /** @type {(() => void) | null} */
+  let errorWatchCancel = null;
+  const cancelErrorWatch = () => {
+    if (errorWatchCancel) {
+      errorWatchCancel();
+      errorWatchCancel = null;
+    }
   };
 
-  const showError = (/** @type {string} */ message) => {
-    patch({ error: message });
+  const clearError = () => {
+    cancelErrorWatch();
+    if (state.error !== '' || state.errorDetail !== null) {
+      patch({ error: '', errorDetail: null });
+    }
+  };
+
+  /**
+   * @param {string} message
+   * @param {import('./error-trace.js').ErrorTraceDetail | null} [detail]
+   */
+  const showError = (message, detail = null) => {
+    patch({ error: message, errorDetail: detail || null });
   };
 
   /**
@@ -578,7 +640,37 @@ export const createEvalForm = async ({
       hide();
       onClose();
     } catch (err) {
-      showError(/** @type {Error} */ (err).message);
+      // Resolve the daemon-side trace for the failed evaluation so the error
+      // surfaces with its full stack and a clickable worker chip (the worker id
+      // the daemon stamped from the connection identity), not just the bare
+      // message. Best-effort: resolveErrorTrace degrades to the bare message.
+      const detail = await resolveErrorTrace(powers, err);
+      showError(detail.message, detail);
+      // The trace record (stack + producing worker) can reach the daemon after
+      // this rejection surfaces locally, so `detail` above often carries only
+      // the bare message even though an errorId was recovered. Watch for the
+      // record to arrive and patch the disclosure triangle + worker chip in when
+      // it lands; clearError (the next submit) cancels the watch.
+      cancelErrorWatch();
+      if (detail.errorId && !detail.stack && !detail.workerId) {
+        errorWatchCancel = watchErrorTrace(
+          powers,
+          detail.errorId,
+          ({ stack, workerId, workerName: resolvedWorkerName }) => {
+            errorWatchCancel = null;
+            // Only patch while this same error is still displayed; a dismissal
+            // or a newer error will have moved `state.error` on.
+            if (state.error === detail.message) {
+              showError(detail.message, {
+                ...detail,
+                stack,
+                workerId,
+                workerName: resolvedWorkerName,
+              });
+            }
+          },
+        );
+      }
     } finally {
       patch({ isSubmitting: false });
       setFormDisabled(false);
@@ -598,6 +690,7 @@ export const createEvalForm = async ({
   };
 
   const resetForm = () => {
+    cancelErrorWatch();
     source = '';
     clearRows();
     resultName = '';
@@ -673,6 +766,7 @@ export const createEvalForm = async ({
     },
     focus: () => editor.focus(),
     dispose: () => {
+      cancelErrorWatch();
       $container.removeEventListener('keydown', handleEscape);
       clearRows();
       editor.dispose();

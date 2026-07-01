@@ -54,6 +54,11 @@ export const makeMarshal = (
     // to be revealed when correlating with the received error.
     marshalSaveError = err =>
       console.log('Temporary logging of sent error', err),
+    // Optional hook called for every error decoded from this marshal
+    // instance, with the wire-level errorId (when one was present on
+    // the wire). Lets a privileged downstream layer correlate the
+    // decoded error object with the sender's locally captured context.
+    marshalLoadError = undefined,
     // Default to 'capdata' because it was implemented first.
     // Sometimes, ontogeny does recapitulate phylogeny ;)
     serializeBodyFormat = 'capdata',
@@ -124,7 +129,11 @@ export const makeMarshal = (
         const errorId = encodeRecur(nextErrorId());
         assert.typeof(errorId, 'string');
         annotateError(err, X`Sent as ${errorId}`);
-        marshalSaveError(err);
+        // The errorId is forwarded so a privileged caller (such as
+        // the Endo daemon's trace aggregator) can correlate the
+        // outbound on-the-wire id with locally captured context
+        // without having to re-parse the just-added annotation.
+        marshalSaveError(err, errorId);
         return harden({ errorId, message, name });
       } else {
         return harden({ message, name });
@@ -317,7 +326,19 @@ export const makeMarshal = (
       }));
       defineProperties(rawError, descs);
       harden(rawError);
-      return toPassableError(rawError);
+      const passable = toPassableError(rawError);
+      if (marshalLoadError !== undefined) {
+        try {
+          marshalLoadError(passable, dErrorId);
+        } catch (hookError) {
+          // Never let a misbehaving hook poison error decoding.
+          console.error(
+            'marshal: marshalLoadError hook threw, ignoring:',
+            hookError,
+          );
+        }
+      }
+      return passable;
     };
 
     // The current encoding does not give the decoder enough into to distinguish

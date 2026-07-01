@@ -94,7 +94,7 @@ export const inspect = async ({ nameOrIdentifier, asIdentifier, asJson }) =>
       nameOrIdentifier,
       asIdentifier,
     );
-    const record = await E(host).getFormula(identifier);
+    const record = await E(E(host).diagnostics()).getFormula(identifier);
     if (asJson) {
       console.log(JSON.stringify(record, null, 2));
     } else {

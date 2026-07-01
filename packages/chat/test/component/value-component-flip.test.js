@@ -76,6 +76,12 @@ const makeMockPowers = () => {
   /** @type {Array<{ method: string, args: unknown[] }>} */
   const calls = [];
   const powers = Far('MockHostPowers', {
+    // value-component reaches getFormula via `powers.diagnostics()`. The
+    // mock exposes itself as its own diagnostics facet so the recorded
+    // call tracking below still observes the getFormula call.
+    diagnostics() {
+      return powers;
+    },
     getFormula(id) {
       calls.push({ method: 'getFormula', args: [id] });
       return {
@@ -333,6 +339,10 @@ test.serial(
   'navigating to a non-passable reference shows it as "Remote <Type>"',
   async t => {
     const powers = Far('MockHostPowers', {
+      // The mock exposes itself as its own `diagnostics()` facet.
+      diagnostics() {
+        return powers;
+      },
       getFormula(id) {
         if (id === 'pet-store-id') {
           return { type: 'pet-store', number: 'pet-store-id', properties: {} };
@@ -454,6 +464,10 @@ test.serial(
   'verso title mirrors the recto title with a "(formula)" suffix',
   async t => {
     const powers = Far('MockHostPowers', {
+      // The mock exposes itself as its own `diagnostics()` facet.
+      diagnostics() {
+        return powers;
+      },
       getFormula() {
         return {
           type: 'eval',
@@ -512,6 +526,10 @@ test.serial('readable tree lists its children on both faces', async t => {
     ],
   });
   const powers = Far('MockHostPowers', {
+    // The mock exposes itself as its own `diagnostics()` facet.
+    diagnostics() {
+      return powers;
+    },
     getFormula() {
       return { type: 'readable-tree', number: 'tree-1', properties: {} };
     },

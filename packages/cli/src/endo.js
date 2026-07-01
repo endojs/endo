@@ -490,6 +490,33 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('trace [errorId]')
+    .description(
+      'fetches an error trace from the daemon (use --recent for a list, --stats for aggregator stats)',
+    )
+    .option('--recent', 'list recent error traces instead of looking up one')
+    .option('--worker <id>', 'restrict --recent to a single worker id')
+    .option(
+      '--limit <n>',
+      'cap on the number of recent records returned',
+      val => Number(val),
+    )
+    .option('--stats', 'print aggregator stats only')
+    .option('--json', 'emit JSON instead of formatted text')
+    .action(async (errorId, cmd) => {
+      const opts = cmd.opts();
+      const { trace } = await import('./commands/trace.js');
+      return trace({
+        errorId,
+        recent: Boolean(opts.recent),
+        workerId: opts.worker,
+        limit: opts.limit,
+        json: Boolean(opts.json),
+        statsOnly: Boolean(opts.stats),
+      });
+    });
+
+  program
     .command('follow <name>')
     .option(...commonOptions.as)
     .description('subscribe to a stream of values')
