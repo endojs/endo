@@ -49,11 +49,11 @@ const compartmentOptions = (...args) => {
   }
 };
 
-export function wrapInescapableCompartment(
+export const wrapInescapableCompartment = (
   OldCompartment,
   inescapableTransforms,
   inescapableGlobalProperties,
-) {
+) => {
   // This is the new Compartment constructor. We name it `Compartment` so
   // that it's .name property is correct, but we hold it in 'NewCompartment'
   // so that lint doesn't think we're shadowing the original.
@@ -131,7 +131,7 @@ export function wrapInescapableCompartment(
   // class. Under SES, OldCompartment.prototype.constructor is tamed
 
   return NewCompartment;
-}
+};
 
 // swingset would do this to each dynamic vat
 //  c.globalThis.Compartment = wrapCompartment(c.globalThis.Compartment, ..);
