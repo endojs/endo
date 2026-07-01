@@ -92,12 +92,22 @@ const powers = { list: async () => [], lookup: () => powers };
 
 /**
  * Construct an eval form exactly as chat-bar-component.js does:
- * createEvalForm({ $container, E, powers, onSubmit, onClose }).
+ * createEvalForm({ $container, E, powers, onSubmit, onClose, onShowWorker }).
  *
  * @param {object} [opts]
  * @param {(data: object) => Promise<void>} [opts.onSubmit]
+ * @param {object} [opts.powers] - Override the powers ref handed to the form;
+ *   the failure-path test supplies a daemon-shaped `diagnostics()` facet so the
+ *   form's submit-catch can resolve a trace (stack + worker id) via
+ *   resolveErrorTrace.
+ * @param {(workerId: string) => void} [opts.onShowWorker] - Worker-chip click
+ *   sink.
  */
-const setupForm = async ({ onSubmit = async () => {} } = {}) => {
+const setupForm = async ({
+  onSubmit = async () => {},
+  powers: powersOverride = powers,
+  onShowWorker = () => {},
+} = {}) => {
   globalThis.__monacoStubEditors__ = [];
   testDocument.body.innerHTML = '';
   const $container = testDocument.createElement('div');
@@ -111,7 +121,7 @@ const setupForm = async ({ onSubmit = async () => {} } = {}) => {
   const form = await createEvalForm({
     $container,
     E,
-    powers,
+    powers: powersOverride,
     onSubmit: async data => {
       submits.push(data);
       await onSubmit(data);
@@ -119,6 +129,7 @@ const setupForm = async ({ onSubmit = async () => {} } = {}) => {
     onClose: () => {
       closed += 1;
     },
+    onShowWorker,
   });
 
   const editor = () => globalThis.__monacoStubEditors__[0];
@@ -386,3 +397,93 @@ test.serial('dispose tears down and disposes the editor', async t => {
 
   $container.remove();
 });
+
+test.serial(
+  'failed submit surfaces the daemon trace: message, stack, worker chip',
+  async t => {
+    // Acceptance criteria for `/js throw new Error("x")` (PR #58): the error
+    // bubble must show (1) the message, (2) the full stack trace, and (3) a
+    // clickable worker chip whose click opens Show Value for the worker. This
+    // exercises the eval form's submit-catch wiring end to end: a rejected
+    // evaluation, a daemon-shaped diagnostics().traces().lookup() that returns
+    // the recorded stack and authoritative worker id, and the confined render.
+    const STACK =
+      'Error: x\n    at <eval>:1:7\n    at evaluate (worker.js:42:10)';
+    const WORKER_ID = 'worker-formula-id-512';
+
+    // A decoded CapTP error as @endo/marshal hands it to the client: the
+    // wire-level errorId rides in the parenthesized SES error tag on `name`.
+    const thrown = Error('x');
+    thrown.name = 'Error (error:Endo#1)';
+
+    // Daemon-shaped powers: diagnostics() -> traces() -> lookup(errorId). The
+    // lookup is keyed by the de-parenthesized tag extractErrorId produces.
+    const tracePowers = {
+      list: async () => [],
+      lookup: () => tracePowers,
+      diagnostics: async () => ({
+        traces: async () => ({
+          lookup: async errorId =>
+            errorId === 'error:Endo#1'
+              ? { errorId, stack: STACK, workerId: WORKER_ID }
+              : undefined,
+        }),
+      }),
+    };
+
+    /** @type {string[]} */
+    const shownWorkers = [];
+
+    const { $container, form, editor } = await setupForm({
+      powers: tracePowers,
+      onShowWorker: workerId => shownWorkers.push(workerId),
+      onSubmit: async () => {
+        throw thrown;
+      },
+    });
+    t.teardown(() => {
+      form.dispose();
+      $container.remove();
+    });
+
+    await waitFor(() => !!$container.querySelector('.eval-form'));
+
+    // Type a throwing source and submit.
+    editor().__setValueFromUser('throw new Error("x")');
+    await waitFor(() => !$container.querySelector('.eval-submit').disabled);
+    $container
+      .querySelector('.eval-submit')
+      .dispatchEvent(new globalThis.Event('click', { bubbles: true }));
+
+    // Criterion 1: the message renders in the error bubble.
+    await waitFor(
+      () => $container.querySelector('.eval-error')?.textContent === 'x',
+    );
+    t.is(
+      $container.querySelector('.eval-error').textContent,
+      'x',
+      'criterion 1: error message rendered',
+    );
+
+    // Criterion 2: the full daemon-side stack trace is surfaced alongside it.
+    await waitFor(() => !!$container.querySelector('.eval-error-stack-text'));
+    const $stack = $container.querySelector('.eval-error-stack-text');
+    t.truthy($stack, 'criterion 2: stack-trace element rendered');
+    t.is(
+      $stack.textContent,
+      STACK,
+      'criterion 2: full daemon-side stack trace surfaced',
+    );
+
+    // Criterion 3: a clickable worker chip that opens Show Value for the worker.
+    const $chip = $container.querySelector('.eval-error-worker-chip');
+    t.truthy($chip, 'criterion 3: worker chip rendered');
+    $chip.dispatchEvent(new globalThis.Event('click', { bubbles: true }));
+    await waitFor(() => shownWorkers.length > 0);
+    t.deepEqual(
+      shownWorkers,
+      [WORKER_ID],
+      'criterion 3: chip click requests Show Value for the authoritative worker id',
+    );
+  },
+);

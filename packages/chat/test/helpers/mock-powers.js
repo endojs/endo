@@ -17,6 +17,19 @@ import { makePromiseKit } from '@endo/promise-kit';
  *   (e.g. "endo://?type=directory&number=...").
  *   inventoryComponent calls locate() to probe formula type for type badges
  *   and hub-gating; absent entries return undefined (immutable / non-locatable).
+ * @property {Error} [evaluateError] - When set, `evaluate()` rejects with this
+ *   error, modelling a worker throw so the `/js` failure path can be exercised.
+ * @property {Map<string, { message?: string, stack?: string, workerId?: string }>} [traceReports] -
+ *   errorId to daemon-side trace report, returned by
+ *   `diagnostics().traces().lookup(errorId)` so `resolveErrorTrace` can resolve a
+ *   stack + authoritative worker id.
+ * @property {Map<string, unknown>} [workersById] - Worker formula id to the live
+ *   worker value returned by `lookupById(id)` (the error worker-chip's Show Value
+ *   reverse lookup); a missing id rejects, driving the anonymous fallback.
+ * @property {number} [traceReportMisses] - Model the trace race: the first N
+ *   `diagnostics().traces().lookup(errorId)` calls return `undefined` (the
+ *   record has not yet reached the aggregator) before subsequent calls serve
+ *   `traceReports`. Exercises the client-side `watchErrorTrace` retry.
  */
 
 /**
@@ -47,9 +60,17 @@ export const makeMockPowers = ({
   values = new Map(),
   ids = new Map(),
   locators = new Map(),
+  evaluateError = undefined,
+  traceReports = new Map(),
+  workersById = new Map(),
+  traceReportMisses = 0,
 } = {}) => {
   // Make a mutable copy of names
   const names = [...initialNames];
+
+  // Countdown of initial trace lookups that miss (record still in flight),
+  // modelling the worker-push / lookup-round-trip race.
+  let remainingTraceMisses = traceReportMisses;
 
   /** @type {Array<(value: { add: string, type?: string } | { remove: string }) => void>} */
   const nameChangeResolvers = [];
@@ -294,6 +315,69 @@ export const makeMockPowers = ({
         }
       }
       return result;
+    },
+
+    /**
+     * Evaluate JavaScript in a worker. When `evaluateError` was supplied the
+     * mock rejects with it, modelling a worker throw whose decoded CapTP error
+     * carries a wire errorId; otherwise it records the call and resolves.
+     * @param {string} workerName
+     * @param {string} source
+     * @param {string[]} codeNames
+     * @param {string[][]} petNamePaths
+     * @param {string[]} [resultPath]
+     */
+    evaluate(workerName, source, codeNames, petNamePaths, resultPath) {
+      calls.push({
+        method: 'evaluate',
+        args: [workerName, source, codeNames, petNamePaths, resultPath],
+      });
+      if (evaluateError !== undefined) {
+        throw evaluateError;
+      }
+      return undefined;
+    },
+
+    /**
+     * The privileged diagnostics facet holding the trace aggregator. Mirrors the
+     * real `host.diagnostics().traces().lookup(errorId)` shape used by
+     * `resolveErrorTrace`.
+     */
+    diagnostics() {
+      return Far('MockDiagnostics', {
+        traces() {
+          return Far('MockTraces', {
+            /**
+             * @param {string} errorId
+             * @returns {{ message?: string, stack?: string, workerId?: string } | undefined}
+             */
+            lookup(errorId) {
+              calls.push({ method: 'traces.lookup', args: [errorId] });
+              // Model the race: the first `traceReportMisses` lookups miss
+              // (record still propagating) before the aggregator serves it.
+              if (remainingTraceMisses > 0) {
+                remainingTraceMisses -= 1;
+                return undefined;
+              }
+              return traceReports.get(errorId);
+            },
+          });
+        },
+      });
+    },
+
+    /**
+     * Resolve a live worker value by its formula id (the error worker-chip's
+     * Show Value reverse lookup). A missing id rejects, driving the chat bar's
+     * anonymous-fallback Show Value.
+     * @param {string} id
+     */
+    lookupById(id) {
+      calls.push({ method: 'lookupById', args: [id] });
+      if (!workersById.has(id)) {
+        throw new Error(`No retained path for worker ${id}`);
+      }
+      return workersById.get(id);
     },
   });
 

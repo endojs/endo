@@ -120,12 +120,14 @@ const CHAT_BAR_TEMPLATE = `
  * @param {object} [overrides]
  */
 const setupChatBar = async (overrides = {}) => {
+  const { powersOptions, ...optionOverrides } = overrides;
   testDocument.body.innerHTML = '';
   const $parent = testDocument.createElement('div');
   $parent.innerHTML = CHAT_BAR_TEMPLATE;
   testDocument.body.appendChild($parent);
 
-  const { powers } = makeMockPowers({ names: ['alice', 'bob'] });
+  const mock = makeMockPowers({ names: ['alice', 'bob'], ...powersOptions });
+  const { powers } = mock;
 
   /** @type {unknown[]} */
   const shownValues = [];
@@ -136,7 +138,7 @@ const setupChatBar = async (overrides = {}) => {
     canExitProfile: false,
     getConversationPetName: () => null,
     getChannelRef: () => null,
-    ...overrides,
+    ...optionOverrides,
   };
 
   const api = chatBarComponent($parent, powers, options);
@@ -160,6 +162,7 @@ const setupChatBar = async (overrides = {}) => {
     $menuButton,
     api,
     powers,
+    mock,
     shownValues,
   };
 };
@@ -468,6 +471,275 @@ test.serial(
     t.true(
       winKeydownRemovals >= 2,
       'both window keydown listeners removed on dispose',
+    );
+  },
+);
+
+test.serial(
+  'inline /js worker throw surfaces the daemon trace (stack + worker chip) in the command-error bubble',
+  async t => {
+    // Regression for PR #58: an inline `/js` that throws must render its
+    // daemon-resolved stack trace and clickable worker chip in the rich
+    // command-error bubble — not fall through to the bare `#chat-error` toast
+    // that shows only the message. The bug was `executeWithSpinner` classifying
+    // `/js` as modal-opening, so it left command mode (`mode = 'send'`) before
+    // the async error arrived and `showError` dropped the resolved trace. The
+    // pre-existing command-executor / eval-form tests missed it because they
+    // mock `showError` directly and never exercise this routing.
+    const WORKER_ID = 'worker-formula-id-abc123';
+    const STACK = 'Error: x\n    at eval (worker:1:7)\n    at run (worker:2:3)';
+
+    // Model the decoded CapTP error the browser sees: its SES error name carries
+    // the wire errorId `(error:daemon#1)` that `extractErrorId` reads.
+    const workerError = new Error('x');
+    Object.defineProperty(workerError, 'name', {
+      value: 'RemoteError(error:daemon#1)',
+      configurable: true,
+    });
+
+    const workerValue = harden({ mockWorker: WORKER_ID });
+
+    /** @type {Array<{ value: unknown, id: unknown }>} */
+    const workerShows = [];
+
+    const ctx = await setupChatBar({
+      powersOptions: {
+        evaluateError: workerError,
+        traceReports: new Map([
+          [
+            'error:daemon#1',
+            { message: 'x', stack: STACK, workerId: WORKER_ID },
+          ],
+        ]),
+        workersById: new Map([[WORKER_ID, workerValue]]),
+      },
+      showValue: (value, id) => workerShows.push({ value, id }),
+    });
+    t.teardown(() => ctx.api.dispose());
+
+    // Enter `/js` command mode via its popover row (mode becomes 'inline').
+    ctx.$menuButton.click();
+    const $row = await waitFor(() =>
+      ctx.$popover.querySelector('.command-popover-item[data-command="js"]'),
+    );
+    t.truthy($row, 'a /js command row is available');
+    $row.click();
+
+    await waitFor(() => ctx.$chatBar.classList.contains('command-mode'));
+
+    // Type source into the inline eval input (a plain confined <input>, not
+    // Monaco) and submit with Enter — the exact `/js throw new Error("x")` flow.
+    const $src = await waitFor(() =>
+      ctx.$parent.querySelector('.inline-eval-input'),
+    );
+    t.truthy($src, 'inline eval source input rendered');
+    $src.value = 'throw new Error("x")';
+    $src.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+    $src.dispatchEvent(
+      new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+
+    // Criterion 2: the full daemon-recorded stack surfaces in the bubble.
+    const $commandError = ctx.$parent.querySelector('#command-error');
+    const $stack = await waitFor(() =>
+      $commandError.querySelector('.command-error-stack-text'),
+    );
+    t.truthy($stack, 'stack trace rendered in the command-error bubble');
+    t.is($stack.textContent, STACK, 'the daemon-recorded stack is shown');
+    t.is(
+      $commandError.querySelector('.command-error-message').textContent,
+      'x',
+      'the error message is shown alongside the stack',
+    );
+
+    // The bare send-mode toast must NOT be the surface used.
+    t.is(
+      ctx.$parent.querySelector('#chat-error').textContent,
+      '',
+      'the bare #chat-error toast was not used',
+    );
+
+    // Criterion 3: a clickable worker chip that opens Show Value for the
+    // authoritative worker id.
+    const $chip = $commandError.querySelector('.command-error-worker-chip');
+    t.truthy($chip, 'worker chip rendered');
+    $chip.click();
+    await waitFor(() => workerShows.length > 0);
+    t.is(
+      workerShows[0].id,
+      WORKER_ID,
+      'chip click opens Show Value for the authoritative worker id',
+    );
+    t.is(
+      workerShows[0].value,
+      workerValue,
+      'the reverse-resolved live worker value is shown',
+    );
+    t.true(
+      ctx.mock.calls.some(
+        c => c.method === 'lookupById' && c.args[0] === WORKER_ID,
+      ),
+      'the chip reverse-resolved the worker via lookupById',
+    );
+  },
+);
+
+const traceLookupCount = ctx =>
+  Number(ctx.mock.calls.filter(c => c.method === 'traces.lookup').length);
+
+test.serial(
+  'inline /js: a late-arriving trace (race) enriches the bubble via the watch',
+  async t => {
+    // PR #58 follow-up: the maintainer saw the bare message but no disclosure
+    // triangle or worker chip locally. Direct inspection showed the client did
+    // a single one-shot `lookup` at render time; when the daemon-side record
+    // had not yet reached the aggregator (a race between the worker's async
+    // trace push and the browser's lookup round-trip), the bubble degraded
+    // permanently to the bare message. `watchErrorTrace` now re-queries until
+    // the record arrives and enriches the bubble in place. `traceReportMisses:
+    // 1` models the race: the in-line resolve misses, the first watch re-check
+    // hits.
+    const WORKER_ID = 'worker-formula-id-race';
+    const STACK = 'Error: x\n    at eval (worker:1:7)';
+
+    const workerError = new Error('x');
+    Object.defineProperty(workerError, 'name', {
+      value: 'RemoteError(error:daemon#2)',
+      configurable: true,
+    });
+    const workerValue = harden({ mockWorker: WORKER_ID });
+
+    /** @type {Array<{ value: unknown, id: unknown }>} */
+    const workerShows = [];
+
+    const ctx = await setupChatBar({
+      powersOptions: {
+        evaluateError: workerError,
+        traceReports: new Map([
+          [
+            'error:daemon#2',
+            { message: 'x', stack: STACK, workerId: WORKER_ID },
+          ],
+        ]),
+        workersById: new Map([[WORKER_ID, workerValue]]),
+        traceReportMisses: 1,
+      },
+      showValue: (value, id) => workerShows.push({ value, id }),
+    });
+    t.teardown(() => ctx.api.dispose());
+
+    ctx.$menuButton.click();
+    const $row = await waitFor(() =>
+      ctx.$popover.querySelector('.command-popover-item[data-command="js"]'),
+    );
+    $row.click();
+    await waitFor(() => ctx.$chatBar.classList.contains('command-mode'));
+
+    const $src = await waitFor(() =>
+      ctx.$parent.querySelector('.inline-eval-input'),
+    );
+    $src.value = 'throw new Error("x")';
+    $src.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+    $src.dispatchEvent(
+      new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+
+    const $commandError = ctx.$parent.querySelector('#command-error');
+
+    // The first resolve missed, so initially only the bare message shows — no
+    // disclosure triangle, no chip. Confirm the message surfaced first.
+    await waitFor(() => $commandError.textContent.includes('x'));
+
+    // The watch then re-queries and enriches: the stack disclosure and the
+    // worker chip appear without any further user action.
+    const $stack = await waitFor(() =>
+      $commandError.querySelector('.command-error-stack-text'),
+    );
+    t.is($stack.textContent, STACK, 'the late daemon-recorded stack is shown');
+    t.is(
+      $commandError.querySelector('.command-error-message').textContent,
+      'x',
+      'the message remains alongside the enriched stack',
+    );
+
+    // The enrichment required a retry: at least two lookups (the initial miss
+    // plus the watch's hit).
+    t.true(
+      traceLookupCount(ctx) >= 2,
+      'the watch re-queried the aggregator after the initial miss',
+    );
+
+    const $chip = await waitFor(() =>
+      $commandError.querySelector('.command-error-worker-chip'),
+    );
+    $chip.click();
+    await waitFor(() => workerShows.length > 0);
+    t.is(
+      workerShows[0].id,
+      WORKER_ID,
+      'the enriched chip opens Show Value for the authoritative worker id',
+    );
+  },
+);
+
+test.serial(
+  'inline /js: dismissing the error bubble cancels the trace watch',
+  async t => {
+    // The maintainer specified the watch must be cancelled when the bubble is
+    // dismissed (the next command submitted / command mode exited). `setCommandError('')`
+    // — called by `exitCommandMode` and at the start of the next command — is
+    // the dismissal signal. With `traceReportMisses` larger than the watch's
+    // attempt budget the record never resolves, so an un-cancelled watch would
+    // keep polling; after dismissal the lookup count must stop growing.
+    const workerError = new Error('x');
+    Object.defineProperty(workerError, 'name', {
+      value: 'RemoteError(error:daemon#3)',
+      configurable: true,
+    });
+
+    const ctx = await setupChatBar({
+      powersOptions: {
+        evaluateError: workerError,
+        traceReports: new Map([
+          ['error:daemon#3', { message: 'x', stack: 'S', workerId: 'W' }],
+        ]),
+        traceReportMisses: 1000,
+      },
+    });
+    t.teardown(() => ctx.api.dispose());
+
+    ctx.$menuButton.click();
+    const $row = await waitFor(() =>
+      ctx.$popover.querySelector('.command-popover-item[data-command="js"]'),
+    );
+    $row.click();
+    await waitFor(() => ctx.$chatBar.classList.contains('command-mode'));
+
+    const $src = await waitFor(() =>
+      ctx.$parent.querySelector('.inline-eval-input'),
+    );
+    $src.value = 'throw new Error("x")';
+    $src.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+    $src.dispatchEvent(
+      new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+
+    const $commandError = ctx.$parent.querySelector('#command-error');
+    await waitFor(() => $commandError.textContent.includes('x'));
+
+    // Dismiss via the command-bar cancel control (exitCommandMode →
+    // setCommandError('')), the same clear the next submitted command performs.
+    const $cancel = await waitFor(() =>
+      ctx.$parent.querySelector('.command-cancel-footer'),
+    );
+    $cancel.click();
+
+    // Let several watch intervals elapse; a cancelled watch stops polling.
+    const countAfterDismiss = traceLookupCount(ctx);
+    await new Promise(resolve => setTimeout(resolve, 700));
+    t.true(
+      traceLookupCount(ctx) - countAfterDismiss <= 1,
+      'no further trace lookups after dismissal (watch cancelled)',
     );
   },
 );

@@ -1309,6 +1309,65 @@ body.resizing * {
   font-size: 13px;
 }
 
+.eval-error-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 16px 0;
+}
+
+.eval-error-stack-text,
+.command-error-stack-text {
+  margin: 4px 0 0;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.eval-error-worker-chip,
+.command-error-worker-chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color, var(--border, #ccc));
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.eval-error-worker-chip:hover,
+.command-error-worker-chip:hover {
+  background: var(--bg-hover, var(--bg-tertiary, var(--bg-secondary)));
+  border-color: var(--accent-color, var(--border-color, #999));
+}
+
+.eval-error-worker-chip:hover,
+.command-error-worker-chip:hover {
+  background: var(--accent-hover);
+  color: white;
+}
+
+.command-error-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Override the compact bubble's `white-space: nowrap` so a long message,
+     stack trace, and worker chip can wrap and stack vertically. */
+  white-space: normal;
+}
+
+.command-error-message {
+  color: var(--danger);
+}
+
 .eval-submit {
   background: var(--accent-primary);
   color: white;
@@ -2097,6 +2156,23 @@ body.resizing * {
   top: 100%;
   border: 6px solid transparent;
   border-top-color: var(--danger-hover);
+}
+
+/* When the bubble carries a resolved daemon trace (the /js evaluate path), it
+   hosts a multi-line detail — message, collapsible stack trace, worker chip —
+   whose text colors (var(--danger), var(--text-secondary)) assume a light
+   surface. Swap the solid-red compact toast for a light danger panel so that
+   detail is legible and can wrap, instead of red-on-red. */
+#command-error:has(.command-error-detail) {
+  max-width: min(92vw, 520px);
+  white-space: normal;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+#command-error:has(.command-error-detail)::after {
+  border-top-color: var(--danger-border);
 }
 
 #chat-bar.command-mode #chat-send-button {
