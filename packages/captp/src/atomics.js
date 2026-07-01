@@ -55,45 +55,47 @@ export const makeAtomicsTrapHost = transferBuffer => {
 
   const te = new TextEncoder();
 
-  return harden(async function* trapHost([isReject, serialized]) {
-    // Get the complete encoded message buffer.
-    const json = JSON.stringify(serialized);
-    const encoded = te.encode(json);
+  return harden({
+    async *trapHost([isReject, serialized]) {
+      // Get the complete encoded message buffer.
+      const json = JSON.stringify(serialized);
+      const encoded = te.encode(json);
 
-    // Send chunks in the data transfer buffer.
-    let i = 0;
-    let done = false;
-    while (!done) {
-      // Copy the next slice of the encoded arry to the data buffer.
-      const subenc = encoded.subarray(i, i + databuf.length);
-      databuf.set(subenc);
+      // Send chunks in the data transfer buffer.
+      let i = 0;
+      let done = false;
+      while (!done) {
+        // Copy the next slice of the encoded arry to the data buffer.
+        const subenc = encoded.subarray(i, i + databuf.length);
+        databuf.set(subenc);
 
-      // Save the length of the remaining data.
-      const remaining = BigInt(encoded.length - i);
-      lenbuf[0] = remaining;
+        // Save the length of the remaining data.
+        const remaining = BigInt(encoded.length - i);
+        lenbuf[0] = remaining;
 
-      // Calculate the next slice, and whether this is the last one.
-      i += subenc.length;
-      done = i >= encoded.length;
+        // Calculate the next slice, and whether this is the last one.
+        i += subenc.length;
+        done = i >= encoded.length;
 
-      // Find bitflags to represent the rejected and finished state.
-      const rejectFlag = isReject ? STATUS_FLAG_REJECT : 0;
-      const doneFlag = done ? STATUS_FLAG_DONE : 0;
+        // Find bitflags to represent the rejected and finished state.
+        const rejectFlag = isReject ? STATUS_FLAG_REJECT : 0;
+        const doneFlag = done ? STATUS_FLAG_DONE : 0;
 
-      // Notify our guest for this data buffer.
+        // Notify our guest for this data buffer.
 
-      // eslint-disable-next-line no-bitwise
-      statusbuf[0] = rejectFlag | doneFlag;
-      Atomics.notify(statusbuf, 0, +Infinity);
+        // eslint-disable-next-line no-bitwise
+        statusbuf[0] = rejectFlag | doneFlag;
+        Atomics.notify(statusbuf, 0, +Infinity);
 
-      if (!done) {
-        // Wait until the next call to `it.next()`.  If the guest calls
-        // `it.return()` or `it.throw()`, then this yield will return or throw,
-        // terminating the generator function early.
-        yield;
+        if (!done) {
+          // Wait until the next call to `it.next()`.  If the guest calls
+          // `it.return()` or `it.throw()`, then this yield will return or throw,
+          // terminating the generator function early.
+          yield;
+        }
       }
-    }
-  });
+    },
+  }).trapHost;
 };
 
 /**
