@@ -120,12 +120,23 @@ export {};
  * @property {string=} marshalName Used to identify sent errors.
  * @property {number=} errorIdNum Ascending numbers staring from here
  * identify the sending of errors relative to this marshal instance.
- * @property {(err: Error) => void=} marshalSaveError If `errorTagging` is
- * `'on'`, then errors serialized by this marshal instance are also
- * logged by calling `marshalSaveError` *after* `annotateError` associated
- * that error with its errorId. Thus, if `marshalSaveError` in turn logs
- * to the normal console, which is the default, then the console will
- * show that note showing the associated errorId.
+ * @property {(err: Error, errorId?: string) => void=} marshalSaveError If
+ * `errorTagging` is `'on'`, then errors serialized by this marshal
+ * instance are also logged by calling `marshalSaveError` *after*
+ * `annotateError` has associated that error with its errorId. The
+ * errorId is also passed as a second argument so callers that want to
+ * correlate the outbound id with locally captured context can do so
+ * without re-parsing the just-added annotation. Thus, if
+ * `marshalSaveError` in turn logs to the normal console, which is the
+ * default, then the console will show that note showing the associated
+ * errorId.
+ * @property {(err: Error, errorId?: string) => void=} marshalLoadError
+ * Optional hook called for every error this marshal instance decodes,
+ * with the wire-level errorId (when one was present on the wire). Lets
+ * a privileged downstream layer correlate the decoded error object with
+ * the sender's locally captured context without having to fish the id
+ * out of the SES `tagError` side table. Hook exceptions are caught and
+ * logged so that decoding cannot be poisoned by a misbehaving hook.
  * @property {'capdata'|'smallcaps'} [serializeBodyFormat]
  * Formatting to use in the "body" property in objects returned from
  * `serialize`. The body string for each case:
