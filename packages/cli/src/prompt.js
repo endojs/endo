@@ -8,7 +8,7 @@ import readline from 'readline';
  * @param {string} question - The question to ask the user.
  * @returns {Promise<string>} The user's answer.
  */
-export async function prompt(question) {
+export const prompt = async question => {
   const rl = readline.createInterface({
     input: stdin,
     output: stdout,
@@ -20,4 +20,4 @@ export async function prompt(question) {
       resolve(answer.trim().toLowerCase());
     });
   });
-}
+};

@@ -6,6 +6,9 @@ const { getPrototypeOf } = Object;
 const { bind } = Function.prototype;
 const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no-polymorphic-call
 export const { prototype: generatorPrototype } = getPrototypeOf(
+  // Standalone generator expression retained by deliberate exception: an
+  // anonymous sentinel used only to reach the intrinsic generator prototype, not
+  // naturally an object member. See docs/house-style/function-keyword.md.
   // eslint-disable-next-line no-empty-function, func-names
   function* () {},
 );
@@ -21,7 +24,7 @@ const generatorThrow = uncurryThis(generatorPrototype.throw);
  * @param {TArgs} args Arguments to pass to `generatorFn`
  * @returns {SyncTrampolineResult<TFn>}
  */
-export function syncTrampoline(generatorFn, ...args) {
+export const syncTrampoline = (generatorFn, ...args) => {
   const iterator = generatorFn(...args);
   let result = generatorNext(iterator);
   while (!result.done) {
@@ -32,7 +35,7 @@ export function syncTrampoline(generatorFn, ...args) {
     }
   }
   return result.value;
-}
+};
 
 /**
  * Trampoline on {@link TrampolineGeneratorFn generatorFn} asynchronously.
@@ -43,7 +46,7 @@ export function syncTrampoline(generatorFn, ...args) {
  * @param {TArgs} args Arguments to pass to `generatorFn`
  * @returns {Promise<TrampolineResult<TFn>>}
  */
-export async function asyncTrampoline(generatorFn, ...args) {
+export const asyncTrampoline = async (generatorFn, ...args) => {
   const iterator = generatorFn(...args);
   let result = generatorNext(iterator);
   while (!result.done) {
@@ -56,4 +59,4 @@ export async function asyncTrampoline(generatorFn, ...args) {
     }
   }
   return result.value;
-}
+};

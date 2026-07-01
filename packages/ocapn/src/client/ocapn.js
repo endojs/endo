@@ -1191,6 +1191,10 @@ export const makeOcapn = (
 
   const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(referenceKit);
 
+  // Retains the `function` keyword by deliberate exception: it is passed into
+  // `makeOcapnCommsKit({ ...rawSend: serializeAndSendMessage })` during module
+  // init, before its declaration, so a `const` arrow would be in its temporal
+  // dead zone. See docs/house-style/function-keyword.md.
   function serializeAndSendMessage(message) {
     try {
       const bytes = writeOcapnMessage(message);

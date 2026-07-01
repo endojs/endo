@@ -835,19 +835,19 @@ const makeDaemonCore = async (
       );
     };
 
-    const followLocatorNameChanges = async function* followLocatorNameChanges(
-      locator,
-    ) {
-      const id = idFromLocator(locator);
-      const names = mailboxStore
-        .reverseIdentify(id)
-        .filter(isMessageNumberName);
-      if (names.length === 0) {
+    const followLocatorNameChanges = {
+      async *followLocatorNameChanges(locator) {
+        const id = idFromLocator(locator);
+        const names = mailboxStore
+          .reverseIdentify(id)
+          .filter(isMessageNumberName);
+        if (names.length === 0) {
+          return undefined;
+        }
+        yield { add: locator, names };
         return undefined;
-      }
-      yield { add: locator, names };
-      return undefined;
-    };
+      },
+    }.followLocatorNameChanges;
 
     const list = async (...petNamePath) => {
       assertNames(petNamePath);
@@ -873,27 +873,27 @@ const makeDaemonCore = async (
       return harden(Array.from(identities).sort());
     };
 
-    const followNameChanges = async function* followNameChanges(
-      ...petNamePath
-    ) {
-      await null;
-      assertNames(petNamePath);
-      if (petNamePath.length === 0) {
-        for await (const change of mailboxStore.followNameChanges()) {
-          if ('add' in change) {
-            if (isMessageNumberName(change.add)) {
+    const followNameChanges = {
+      async *followNameChanges(...petNamePath) {
+        await null;
+        assertNames(petNamePath);
+        if (petNamePath.length === 0) {
+          for await (const change of mailboxStore.followNameChanges()) {
+            if ('add' in change) {
+              if (isMessageNumberName(change.add)) {
+                yield change;
+              }
+            } else if (isMessageNumberName(change.remove)) {
               yield change;
             }
-          } else if (isMessageNumberName(change.remove)) {
-            yield change;
           }
+          return undefined;
         }
+        const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+        yield* await E(hub).followNameChanges();
         return undefined;
-      }
-      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
-      yield* await E(hub).followNameChanges();
-      return undefined;
-    };
+      },
+    }.followNameChanges;
 
     const reverseLookup = presence => {
       const id = getIdForRef(presence);
@@ -1114,19 +1114,19 @@ const makeDaemonCore = async (
       );
     };
 
-    const followLocatorNameChanges = async function* followLocatorNameChanges(
-      locator,
-    ) {
-      const id = idFromLocator(locator);
-      const locatorNames = orderedNames.filter(
-        name => idByName.get(name) === id,
-      );
-      if (locatorNames.length === 0) {
+    const followLocatorNameChanges = {
+      async *followLocatorNameChanges(locator) {
+        const id = idFromLocator(locator);
+        const locatorNames = orderedNames.filter(
+          name => idByName.get(name) === id,
+        );
+        if (locatorNames.length === 0) {
+          return undefined;
+        }
+        yield { add: locator, names: /** @type {Name[]} */ (locatorNames) };
         return undefined;
-      }
-      yield { add: locator, names: /** @type {Name[]} */ (locatorNames) };
-      return undefined;
-    };
+      },
+    }.followLocatorNameChanges;
 
     const list = async (...petNamePath) => {
       assertNames(petNamePath);
@@ -1152,23 +1152,23 @@ const makeDaemonCore = async (
       return harden(Array.from(identities).sort());
     };
 
-    const followNameChanges = async function* followNameChanges(
-      ...petNamePath
-    ) {
-      assertNames(petNamePath);
-      if (petNamePath.length === 0) {
-        for (const name of orderedNames) {
-          const id = idByName.get(name);
-          if (id !== undefined) {
-            yield { add: /** @type {Name} */ (name), value: parseId(id) };
+    const followNameChanges = {
+      async *followNameChanges(...petNamePath) {
+        assertNames(petNamePath);
+        if (petNamePath.length === 0) {
+          for (const name of orderedNames) {
+            const id = idByName.get(name);
+            if (id !== undefined) {
+              yield { add: /** @type {Name} */ (name), value: parseId(id) };
+            }
           }
+          return undefined;
         }
+        const hub = /** @type {NameHub} */ (await lookup(petNamePath));
+        yield* await E(hub).followNameChanges();
         return undefined;
-      }
-      const hub = /** @type {NameHub} */ (await lookup(petNamePath));
-      yield* await E(hub).followNameChanges();
-      return undefined;
-    };
+      },
+    }.followNameChanges;
 
     const reverseLookup = presence => {
       const id = getIdForRef(presence);
@@ -1998,7 +1998,7 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateMarshalValue']} */
-  async function formulateMarshalValue(value, deferredTasks) {
+  const formulateMarshalValue = async (value, deferredTasks) => {
     const { marshalFormulaNumber } = await formulaGraphJobs.enqueue(
       async () => {
         const ownFormulaNumber = /** @type {FormulaNumber} */ (
@@ -2030,7 +2030,7 @@ const makeDaemonCore = async (
     return /** @type {FormulateResult<void>} */ (
       formulate(marshalFormulaNumber, formula)
     );
-  }
+  };
 
   /** @type {DaemonCore['formulatePromise']} */
   const formulatePromise = async () => {

@@ -17,16 +17,18 @@ export const makePostponedHandler = HandledPromise => {
 
   const makePostponedOperation = postponedOperation => {
     // Just wait until the handler is resolved/rejected.
-    return function postpone(x, ...args) {
+    // Named so stack traces and `.name` keep reporting `postpone` for
+    // postponed operations, without reintroducing the `function` keyword.
+    const postpone = (x, ...args) =>
       // console.log(`forwarding ${postponedOperation} ${args[0]}`);
-      return new HandledPromise((resolve, reject) => {
+      new HandledPromise((resolve, reject) => {
         interlockP
           .then(_ => {
             resolve(HandledPromise[postponedOperation](x, ...args));
           })
           .catch(reject);
       });
-    };
+    return postpone;
   };
 
   /** @type {Required<import('./types.js').Handler<any>>} */

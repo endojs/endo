@@ -138,13 +138,15 @@ export const makeSocketPowers = ({ net, fsp: { access } }) => {
 export const makeNetworkPowers = ({ net, fsp }) => {
   const { servePort, servePath, connectPort } = makeSocketPowers({ net, fsp });
 
-  const connectionNumbers = (function* generateNumbers() {
-    let n = 0;
-    for (;;) {
-      yield n;
-      n += 1;
-    }
-  })();
+  const connectionNumbers = {
+    *generateNumbers() {
+      let n = 0;
+      for (;;) {
+        yield n;
+        n += 1;
+      }
+    },
+  }.generateNumbers();
 
   /**
    * @param {FarRef<unknown>} endoBootstrap

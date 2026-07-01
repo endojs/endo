@@ -53,11 +53,10 @@ export const link = (
   return instantiate(compartmentPrivateFields, moduleAliases, moduleRecord);
 };
 
-function mayBePrecompiledModuleSource(moduleSource) {
-  return typeof moduleSource.__syncModuleProgram__ === 'string';
-}
+const mayBePrecompiledModuleSource = moduleSource =>
+  typeof moduleSource.__syncModuleProgram__ === 'string';
 
-function validatePrecompiledModuleSource(moduleSource, moduleSpecifier) {
+const validatePrecompiledModuleSource = (moduleSource, moduleSpecifier) => {
   const { __fixedExportMap__, __liveExportMap__ } = moduleSource;
   !isPrimitive(__fixedExportMap__) ||
     Fail`Property '__fixedExportMap__' of a precompiled module source must be an object, got ${q(
@@ -67,21 +66,20 @@ function validatePrecompiledModuleSource(moduleSource, moduleSpecifier) {
     Fail`Property '__liveExportMap__' of a precompiled module source must be an object, got ${q(
       __liveExportMap__,
     )}, for module ${q(moduleSpecifier)}`;
-}
+};
 
-function mayBeVirtualModuleSource(moduleSource) {
-  return typeof moduleSource.execute === 'function';
-}
+const mayBeVirtualModuleSource = moduleSource =>
+  typeof moduleSource.execute === 'function';
 
-function validateVirtualModuleSource(moduleSource, moduleSpecifier) {
+const validateVirtualModuleSource = (moduleSource, moduleSpecifier) => {
   const { exports } = moduleSource;
   isArray(exports) ||
     Fail`Invalid module source: 'exports' of a virtual module source must be an array, got ${q(
       exports,
     )}, for module ${q(moduleSpecifier)}`;
-}
+};
 
-function validateModuleSource(moduleSource, moduleSpecifier) {
+const validateModuleSource = (moduleSource, moduleSpecifier) => {
   !isPrimitive(moduleSource) ||
     Fail`Invalid module source: must be of type object, got ${q(
       moduleSource,
@@ -99,7 +97,7 @@ function validateModuleSource(moduleSource, moduleSpecifier) {
     Fail`Invalid module source: 'reexports' must be an array if present, got ${q(
       reexports,
     )}, for module ${q(moduleSpecifier)}`;
-}
+};
 
 export const instantiate = (
   compartmentPrivateFields,
