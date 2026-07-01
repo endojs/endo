@@ -591,6 +591,8 @@ declare global {
 
     get name(): string;
 
+    get __noNamespaceBox__(): boolean;
+
     evaluate(code: string, options?: CompartmentEvaluateOptions): any;
 
     import(

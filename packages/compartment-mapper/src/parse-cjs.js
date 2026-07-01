@@ -19,7 +19,7 @@ export const parseCjs = (
   bytes,
   _specifier,
   location,
-  _packageLocation,
+  packageLocation,
   { readPowers } = {},
 ) => {
   const source = textDecoder.decode(bytes);
@@ -51,6 +51,7 @@ export const parseCjs = (
       compartment,
       resolvedImports,
       location,
+      packageLocation,
       readPowers,
     });
 

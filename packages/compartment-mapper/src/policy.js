@@ -22,8 +22,6 @@
  * @import {
  *   ModuleDescriptor,
  *   SourceModuleDescriptor,
- *   StrictModuleDescriptor,
- *   ThirdPartyStaticModuleInterface,
  *   VirtualModuleSource,
  * } from 'ses'
  */
@@ -260,10 +258,16 @@ export const makeDeferredAttenuatorsProvider = (
         }
         attenuatorSpecifier = defaultAttenuator;
       }
-      const { namespace } = await compartments[ATTENUATORS_COMPARTMENT].import(
+      const attenuatorsCompartment = compartments[ATTENUATORS_COMPARTMENT];
+      const result = await attenuatorsCompartment.import(
         /** @type {string} */ (attenuatorSpecifier),
       );
-      return namespace;
+      // A compartment constructed with `__noNamespaceBox__: true` returns the
+      // bare namespace from `import` rather than a boxed `{ namespace }`.
+      return /** @type {Attenuator} */ (
+        // eslint-disable-next-line no-underscore-dangle
+        attenuatorsCompartment.__noNamespaceBox__ ? result : result.namespace
+      );
     };
   }
 

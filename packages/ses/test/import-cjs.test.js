@@ -1,77 +1,57 @@
-// @ts-nocheck
 import test from 'ava';
-import { ModuleSource } from '@endo/module-source';
+import { ModuleSource, CjsModuleSource } from '@endo/module-source';
 import { resolveNode } from './_node.js';
 import '../index.js';
-import { freeze, keys } from '../src/commons.js';
 
-function heuristicAnalysis(moduleSource) {
-  const dependsUpon = {};
-  const exports = {};
-  moduleSource.replace(
-    /(?:^|[^\w$_.])require\s*\(\s*["']([^"']*)["']\s*\)/g,
-    (_, id) => {
-      dependsUpon[id] = true;
+const { freeze } = Object;
+
+/**
+ * @import {ThirdPartyStaticModuleInterface} from 'ses'
+ */
+
+/**
+ * Adapts a `CjsModuleSource` to be a `ThirdPartyStaticModuleInterface`.
+ *
+ * @param {string} source
+ * @param {string} moduleLocation
+ * @returns {ThirdPartyStaticModuleInterface}
+ */
+const makeCjsModuleSource = (source, moduleLocation) => {
+  const moduleSource = new CjsModuleSource(source, moduleLocation);
+  return freeze({
+    ...moduleSource,
+    /** @type {ThirdPartyStaticModuleInterface['execute']} */
+    execute: (moduleExports, compartment, resolvedImports) => {
+      const functor = compartment.evaluate(moduleSource.cjsFunctor);
+
+      const module = {
+        get exports() {
+          return moduleExports;
+        },
+        set exports(newModuleExports) {
+          moduleExports.default = newModuleExports;
+        },
+      };
+
+      const require = importSpecifier => {
+        const namespace = compartment.importNow(
+          resolvedImports[importSpecifier],
+        );
+        if (namespace.default !== undefined) {
+          return namespace.default;
+        }
+        return namespace;
+      };
+
+      functor(
+        require,
+        moduleExports,
+        module,
+        moduleLocation, // __filename
+        new URL('./', moduleLocation).toString(), // __dirname
+      );
     },
-  );
-  moduleSource.replace(/(?:^|[^\w$_.])exports\.(\w[\w\d]*)\s*=/g, (_, name) => {
-    exports[name] = true;
   });
-  moduleSource.replace(/(?:^|[^\w$_.])module\.exports\s*=/g, () => {
-    exports.default = true;
-  });
-  return {
-    imports: keys(dependsUpon),
-    exports: keys(exports),
-  };
-}
-
-const CjsModuleSource = (moduleSource, moduleLocation) => {
-  if (typeof moduleSource !== 'string') {
-    throw TypeError(
-      `Cannot create CommonJS virtual module source, module source must be a string, got ${moduleSource}`,
-    );
-  }
-  if (typeof moduleLocation !== 'string') {
-    throw TypeError(
-      `Cannot create CommonJS virtual module source, module location must be a string, got ${moduleLocation}`,
-    );
-  }
-
-  const { imports, exports } = heuristicAnalysis(moduleSource);
-
-  const execute = (moduleExports, compartment, resolvedImports) => {
-    const functor = compartment.evaluate(
-      `(function (require, exports, module, __filename, __dirname) { ${moduleSource} //*/\n})\n//# sourceURL=${moduleLocation}`,
-    );
-
-    const module = {
-      get exports() {
-        return moduleExports;
-      },
-      set exports(newModuleExports) {
-        moduleExports.default = newModuleExports;
-      },
-    };
-
-    const require = importSpecifier => {
-      const namespace = compartment.importNow(resolvedImports[importSpecifier]);
-      if (namespace.default !== undefined) {
-        return namespace.default;
-      }
-      return namespace;
-    };
-
-    functor(
-      require,
-      moduleExports,
-      module,
-      moduleLocation, // __filename
-      new URL('./', moduleLocation).toString(), // __dirname
-    );
-  };
-
-  return freeze({ imports, exports, execute });
 };
 
 test('import a CommonJS module with exports assignment', async t => {
@@ -79,7 +59,7 @@ test('import a CommonJS module with exports assignment', async t => {
 
   const resolveHook = resolveNode;
   const importHook = async () => {
-    return CjsModuleSource(
+    return makeCjsModuleSource(
       `
       exports.meaning = 42;
     `,
@@ -94,6 +74,7 @@ test('import a CommonJS module with exports assignment', async t => {
     __options__: true,
   });
   const module = compartment.module('.');
+  /** @type {any} */
   const { meaning } = await compartment.import('.');
 
   t.is(meaning, 42, 'exports seen');
@@ -105,7 +86,7 @@ test('import a CommonJS module with exports replacement', async t => {
 
   const resolveHook = resolveNode;
   const importHook = async () => {
-    return CjsModuleSource(
+    return makeCjsModuleSource(
       `
       module.exports = 42;
     `,
@@ -120,6 +101,7 @@ test('import a CommonJS module with exports replacement', async t => {
     __options__: true,
   });
   const module = compartment.module('.');
+  /** @type {any} */
   const { default: meaning } = await compartment.import('.');
 
   t.is(meaning, 42, 'exports seen');
@@ -132,7 +114,7 @@ test('CommonJS module imports CommonJS module by name', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         exports.even = n => n % 2 === 0;
       `,
@@ -140,7 +122,7 @@ test('CommonJS module imports CommonJS module by name', async t => {
       );
     }
     if (specifier === './odd') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         const { even } = require('./even');
         exports.odd = n => !even(n);
@@ -157,6 +139,7 @@ test('CommonJS module imports CommonJS module by name', async t => {
     __noNamespaceBox__: true,
     __options__: true,
   });
+  /** @type {any} */
   const { odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -169,7 +152,7 @@ test('CommonJS module imports CommonJS module as default', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         module.exports = n => n % 2 === 0;
       `,
@@ -177,7 +160,7 @@ test('CommonJS module imports CommonJS module as default', async t => {
       );
     }
     if (specifier === './odd') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         const even = require('./even');
         module.exports = n => !even(n);
@@ -194,6 +177,7 @@ test('CommonJS module imports CommonJS module as default', async t => {
     __noNamespaceBox__: true,
     __options__: true,
   });
+  /** @type {any} */
   const namespace = await compartment.import('./odd');
   const { default: odd } = namespace;
 
@@ -207,7 +191,7 @@ test('ESM imports CommonJS module as default', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         module.exports = n => n % 2 === 0;
       `,
@@ -232,6 +216,7 @@ test('ESM imports CommonJS module as default', async t => {
     __noNamespaceBox__: true,
     __options__: true,
   });
+  /** @type {any} */
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -244,7 +229,7 @@ test('ESM imports CommonJS module as star', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         exports.even = n => n % 2 === 0;
       `,
@@ -269,6 +254,7 @@ test('ESM imports CommonJS module as star', async t => {
     __noNamespaceBox__: true,
     __options__: true,
   });
+  /** @type {any} */
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -281,7 +267,7 @@ test('ESM imports CommonJS module with replaced exports as star', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         module.exports = { even: n => n % 2 === 0 };
       `,
@@ -308,6 +294,7 @@ test('ESM imports CommonJS module with replaced exports as star', async t => {
     __noNamespaceBox__: true,
     __options__: true,
   });
+  /** @type {any} */
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -320,7 +307,7 @@ test('ESM imports CommonJS module by name', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         exports.even = n => n % 2 === 0;
       `,
@@ -345,6 +332,7 @@ test('ESM imports CommonJS module by name', async t => {
     __noNamespaceBox__: true,
     __options__: true,
   });
+  /** @type {any} */
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -365,7 +353,7 @@ test('CommonJS module imports ESM as default', async t => {
       );
     }
     if (specifier === './odd') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
           const even = require('./even');
           module.exports = n => !even(n);
@@ -382,6 +370,7 @@ test('CommonJS module imports ESM as default', async t => {
     __noNamespaceBox__: true,
     __options__: true,
   });
+  /** @type {any} */
   const { default: odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -404,7 +393,7 @@ test('CommonJS module imports ESM by name', async t => {
       );
     }
     if (specifier === './odd') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
           const { even } = require('./even');
           exports.odd = n => !even(n);
@@ -421,6 +410,7 @@ test('CommonJS module imports ESM by name', async t => {
     __noNamespaceBox__: true,
     __options__: true,
   });
+  /** @type {any} */
   const { odd } = await compartment.import('./odd');
 
   t.is(odd(1), true);
@@ -433,7 +423,7 @@ test('cross import ESM and CommonJS modules', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './src/main.js') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         const direct = require('./other.js');
         const indirect = require("./helper.mjs");
@@ -454,7 +444,7 @@ test('cross import ESM and CommonJS modules', async t => {
       `);
     }
     if (specifier === './src/other.js') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         exports.a = 10;
         exports.b = 20;
@@ -463,7 +453,7 @@ test('cross import ESM and CommonJS modules', async t => {
       );
     }
     if (specifier === './src/default.js') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         exports.default = 30;
       `,
@@ -487,7 +477,7 @@ test('live bindings through through an ESM between CommonJS modules', async t =>
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './src/main.js') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         const dep = require("./intermediate.mjs");
         t.is(dep.value, undefined);
@@ -508,7 +498,7 @@ test('live bindings through through an ESM between CommonJS modules', async t =>
       `);
     }
     if (specifier === './src/value.js') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         exports.reanimate = () => {
           exports.value = 30;
@@ -534,7 +524,7 @@ test('export name as default from CommonJS module', async t => {
 
   const importHook = async specifier => {
     if (specifier === './meaning.cjs') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         exports.meaning = 42;
       `,
@@ -573,7 +563,7 @@ test('synchronous loading via importNowHook', async t => {
 
   const importNowHook = specifier => {
     if (specifier === './meaning.cjs') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         exports.meaning = 42;
       `,
@@ -610,7 +600,7 @@ test('synchronous loading via importNowHook', async t => {
 
 const importNowHookWithCyclicDep = specifier => {
   if (specifier === './a.cjs') {
-    return CjsModuleSource(
+    return makeCjsModuleSource(
       `
       exports.a = 42;
       exports.B = require('./b.cjs');
@@ -619,7 +609,7 @@ const importNowHookWithCyclicDep = specifier => {
     );
   }
   if (specifier === './b.cjs') {
-    return CjsModuleSource(
+    return makeCjsModuleSource(
       `
       exports.b = 44
       exports.A = require('./a.cjs');
@@ -639,6 +629,7 @@ test('import handles a cycle in CommonJS modules', async t => {
     __options__: true,
   });
 
+  /** @type {any} */
   let namespace;
   await t.notThrowsAsync(async () => {
     const result = await compartment.import('./a.cjs');
@@ -658,6 +649,7 @@ test('importNow handles a cycle in CommonJS modules', t => {
     __options__: true,
   });
 
+  /** @type {any} */
   let namespace;
   t.notThrows(() => {
     namespace = compartment.importNow('./a.cjs');
@@ -692,7 +684,7 @@ test('importNowHook only called if specifier was not imported before', async t =
   };
   const importHook = async specifier => {
     if (specifier === './meaning.cjs') {
-      return CjsModuleSource(
+      return makeCjsModuleSource(
         `
         exports.meaning = 42;
       `,

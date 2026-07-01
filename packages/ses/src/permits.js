@@ -2089,6 +2089,7 @@ export const permitted = {
     load: asyncFn,
     importNow: fn,
     module: fn,
+    __noNamespaceBox__: getter,
     '@@toStringTag': 'string',
   },
 

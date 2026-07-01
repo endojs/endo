@@ -22,3 +22,25 @@ scaffold(
     knownArchiveFailure: true,
   },
 );
+
+scaffold(
+  'fixtures-dynamic-import-esm-noNamespaceBox',
+  test,
+  fixture,
+  async (t, { namespace }) => {
+    // @ts-expect-error - untyped
+    const foo = await namespace.getFoo();
+    t.is(foo, 'foo');
+  },
+  1,
+  {
+    knownArchiveFailure: true,
+    additionalOptions: {
+      Compartment: class extends Compartment {
+        constructor(options = {}) {
+          super({ ...options, __noNamespaceBox__: true });
+        }
+      },
+    },
+  },
+);
