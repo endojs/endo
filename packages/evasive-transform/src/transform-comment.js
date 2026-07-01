@@ -27,7 +27,7 @@ const HTML_COMMENT_END_RE = new RegExp(`--${'>'}`, 'g');
  *
  * @param {import('@babel/types').Comment} node
  */
-export function evadeComment(node) {
+export const evadeComment = node => {
   node.type = 'CommentBlock';
   // Within comments...
   node.value = node.value
@@ -41,7 +41,7 @@ export function evadeComment(node) {
     .replace(IMPORT_RE, 'IMPORT$2')
     // ...replace end-of-comment markers
     .replace(/\*\//g, '*X/');
-}
+};
 
 /**
  * Inspects a comment for a hint that it must be preserved by a transform.
