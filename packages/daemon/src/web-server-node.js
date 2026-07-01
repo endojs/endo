@@ -41,13 +41,15 @@ export const make = async (_powers, context) => {
 
   const serverCancelled = E(context).whenCancelled();
 
-  const connectionNumbers = (function* generateNumbers() {
-    let n = 0;
-    for (;;) {
-      yield n;
-      n += 1;
-    }
-  })();
+  const connectionNumbers = {
+    *generateNumbers() {
+      let n = 0;
+      for (;;) {
+        yield n;
+        n += 1;
+      }
+    },
+  }.generateNumbers();
 
   /** @type {Set<Promise<void>>} */
   const connectionClosedPromises = new Set();

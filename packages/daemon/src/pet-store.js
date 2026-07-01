@@ -136,37 +136,43 @@ export const makePetStoreMaker = (filePowers, config) => {
     const list = () => harden(idsToPetNames.getAll().sort());
 
     /** @type {PetStore['followNameChanges']} */
-    const followNameChanges = async function* currentAndSubsequentNames() {
-      const subscription = nameChangesTopic.subscribe();
-      for (const name of idsToPetNames.getAll().sort()) {
-        const idRecord = parseId(
-          /** @type {string} */ (idsToPetNames.getKey(name)),
-        );
+    const followNameChanges = {
+      /** @returns {ReturnType<PetStore['followNameChanges']>} */
+      async *currentAndSubsequentNames() {
+        const subscription = nameChangesTopic.subscribe();
+        for (const name of idsToPetNames.getAll().sort()) {
+          const idRecord = parseId(
+            /** @type {string} */ (idsToPetNames.getKey(name)),
+          );
 
-        yield {
-          add: name,
-          value: idRecord,
-        };
-      }
-      yield* subscription;
-    };
+          yield {
+            add: name,
+            value: idRecord,
+          };
+        }
+        yield* subscription;
+      },
+    }.currentAndSubsequentNames;
 
     /** @type {PetStore['followIdNameChanges']} */
-    const followIdNameChanges = async function* currentAndSubsequentIds(id) {
-      if (!idsToTopics.has(id)) {
-        idsToTopics.set(id, makeIdChangeTopic());
-      }
-      const idTopic = /** @type {IdChangesTopic} */ (idsToTopics.get(id));
-      const subscription = idTopic.subscribe();
+    const followIdNameChanges = {
+      /** @returns {ReturnType<PetStore['followIdNameChanges']>} */
+      async *currentAndSubsequentIds(id) {
+        if (!idsToTopics.has(id)) {
+          idsToTopics.set(id, makeIdChangeTopic());
+        }
+        const idTopic = /** @type {IdChangesTopic} */ (idsToTopics.get(id));
+        const subscription = idTopic.subscribe();
 
-      const existingNames = idsToPetNames.getAllFor(id).sort();
-      yield {
-        add: parseId(id),
-        names: existingNames,
-      };
+        const existingNames = idsToPetNames.getAllFor(id).sort();
+        yield {
+          add: parseId(id),
+          names: existingNames,
+        };
 
-      yield* subscription;
-    };
+        yield* subscription;
+      },
+    }.currentAndSubsequentIds;
 
     /** @type {PetStore['remove']} */
     const remove = async petName => {
