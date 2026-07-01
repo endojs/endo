@@ -5,6 +5,7 @@ fixtures
 tmp
 /packages/ses-integration-test/transform-tests/output
 /packages/test262-runner/prelude
+/packages/parser-pipeline/test/fixture/*-error.js
 test262
 
 *.html
