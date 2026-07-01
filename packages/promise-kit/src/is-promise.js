@@ -6,7 +6,6 @@ import harden from '@endo/harden';
  * @param {unknown} maybePromise The value to examine
  * @returns {maybePromise is Promise} Whether it is a promise
  */
-export function isPromise(maybePromise) {
-  return Promise.resolve(maybePromise) === maybePromise;
-}
+export const isPromise = maybePromise =>
+  Promise.resolve(maybePromise) === maybePromise;
 harden(isPromise);
