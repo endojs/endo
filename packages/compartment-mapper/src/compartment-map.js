@@ -275,14 +275,14 @@ const assertErrorModuleConfiguration = (moduleDescriptor, keypath, url) => {
  * @param {string} url
  * @returns {asserts allegedModule is ModuleConfiguration}
  */
-
 /**
  * @param {unknown} allegedModule
  * @param {string} keypath
  * @param {string} url
- * @param {ModuleConfigurationKind[]} kinds
+ * @param {ModuleConfigurationKind[]} [kinds]
+ * @returns {asserts allegedModule is ModuleConfiguration}
  */
-function assertModuleConfiguration(allegedModule, keypath, url, kinds) {
+const assertModuleConfiguration = (allegedModule, keypath, url, kinds = []) => {
   assertPlainObject(allegedModule, keypath, url);
   assertBaseModuleConfiguration(allegedModule, keypath, url);
 
@@ -340,7 +340,7 @@ function assertModuleConfiguration(allegedModule, keypath, url, kinds) {
 
   errors.length < finalKinds.length ||
     Fail`invalid module descriptor in ${q(url)} at ${q(keypath)}; expected to match one of ${q(kinds)}: ${errors.map(err => err.message).join('; ')}`;
-}
+};
 
 /**
  * @param {unknown} allegedModules
