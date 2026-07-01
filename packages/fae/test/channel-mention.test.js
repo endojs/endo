@@ -20,7 +20,7 @@ import url from 'url';
 import path from 'path';
 import fs from 'fs';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 

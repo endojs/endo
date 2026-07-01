@@ -2,7 +2,7 @@
 
 import harden from '@endo/harden';
 import { bytesFromText } from '@endo/bytes/from-string.js';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';

@@ -1,6 +1,6 @@
 /* global process */
 import os from 'os';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';
 import { renderPath, renderBanner } from '../render-retention-path.js';

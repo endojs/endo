@@ -13,7 +13,7 @@ import path from 'path';
 import popen from 'child_process';
 import url from 'url';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeCancelKit } from '@endo/cancel';
 import { makeDaemon } from './daemon.js';
 import {

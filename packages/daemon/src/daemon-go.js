@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import url from 'url';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './daemon.js';
 import {

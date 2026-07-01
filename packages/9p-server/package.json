@@ -41,6 +41,7 @@
   },
   "devDependencies": {
     "@endo/far": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev"
   },

@@ -4,7 +4,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { channelComponent } from '@endo/space-channel/channel-component.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';

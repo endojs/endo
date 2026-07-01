@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { E } from '@endo/eventual-send';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 
 import { spawnWorkerLoop } from './agent.js';
 

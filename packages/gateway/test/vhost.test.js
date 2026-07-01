@@ -4,7 +4,7 @@ import '@endo/init/debug.js';
 
 import test from 'ava';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 import { makeAppsNameHub, normalizeVirtualHostName } from '../index.js';
 

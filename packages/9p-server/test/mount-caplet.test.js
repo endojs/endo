@@ -13,7 +13,8 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import os from 'node:os';
 import nodePath from 'node:path';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 
 import { makeFsMounter } from '../mount-caplet.js';
 

@@ -9,7 +9,7 @@ import baseTest from 'ava';
 import os from 'os';
 import url from 'url';
 import path from 'path';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 import { parseId } from '../src/formula-identifier.js';

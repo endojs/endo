@@ -4,7 +4,8 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far, E } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { createEndowModal } from '@endo/spaces-util/endow-modal.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 

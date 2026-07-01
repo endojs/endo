@@ -15,10 +15,10 @@ const TAR_BLOCK_SIZE = 512;
  * `E(archiveTree).archiveTar()`.
  *
  * @param {Parameters<typeof bytesReaderFromIterator>[0]} source
- * @returns {import('@endo/far').ERef<import('@endo/exo-stream').PassableBytesReader>}
+ * @returns {import('@endo/eventual-send').ERef<import('@endo/exo-stream').PassableBytesReader>}
  */
 const makeArchiveReaderRef = source =>
-  /** @type {import('@endo/far').ERef<import('@endo/exo-stream').PassableBytesReader>} */ (
+  /** @type {import('@endo/eventual-send').ERef<import('@endo/exo-stream').PassableBytesReader>} */ (
     /** @type {unknown} */ (bytesReaderFromIterator(source))
   );
 

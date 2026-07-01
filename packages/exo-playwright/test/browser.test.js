@@ -1,7 +1,7 @@
 // @ts-check
 
 import test from '@endo/ses-ava/prepare-endo.js';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 import { makeBrowserAndControl } from '../src/browser.js';
 

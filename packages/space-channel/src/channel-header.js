@@ -3,9 +3,9 @@
 
 import harden from '@endo/harden';
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 import {
   deriveConstants,

@@ -70,6 +70,7 @@
     "@endo/init": "workspace:^",
     "@endo/marshal": "workspace:^",
     "@endo/netstring": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/platform": "workspace:^",
     "@endo/promise-kit": "workspace:^",
@@ -88,7 +89,6 @@
   },
   "devDependencies": {
     "@endo/bundle-source": "workspace:^",
-    "@endo/pass-style": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@types/ws": "^8.18.1",
     "ava": "catalog:dev",

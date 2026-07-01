@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-use-before-define */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 /** @import { CommandField } from './command-registry.js' */
 
@@ -382,7 +382,7 @@ harden(FormView);
  *
  * @param {object} options
  * @param {HTMLElement} options.$container - Container for the form
- * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {typeof import('@endo/eventual-send').E} options.E - Eventual send function
  * @param {ERef<EndoHost>} options.powers - Powers object for autocomplete
  * @param {(commandName: string, data: Record<string, unknown>) => void} options.onSubmit - Submit callback
  * @param {() => void} options.onCancel - Cancel callback

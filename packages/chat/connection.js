@@ -1,7 +1,7 @@
 // @ts-check
 
 import { makeCapTP } from '@endo/captp';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';

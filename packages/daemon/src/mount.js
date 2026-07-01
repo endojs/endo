@@ -7,7 +7,7 @@
  * @typedef {{ add: string, type: 'file' | 'directory' } | { remove: string }} MountNameChange
  */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { q } from '@endo/errors';
 import { makeExo } from '@endo/exo';
 import { encodeBase64 } from '@endo/base64';

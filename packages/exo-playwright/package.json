@@ -42,13 +42,13 @@
     "@endo/errors": "workspace:^",
     "@endo/exo": "workspace:^",
     "@endo/harden": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^"
   },
   "devDependencies": {
     "@endo/eventual-send": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/init": "workspace:^",
-    "@endo/pass-style": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",

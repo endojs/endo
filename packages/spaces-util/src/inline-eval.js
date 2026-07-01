@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-use-before-define */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 
 import harden from '@endo/harden';
@@ -248,7 +248,7 @@ harden(Root);
  *
  * @param {object} options
  * @param {HTMLElement} options.$container - Container for the input
- * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {typeof import('@endo/eventual-send').E} options.E - Eventual send function
  * @param {ERef<EndoHost>} options.powers - Powers object for autocomplete
  * @param {(data: ParsedEval) => void} options.onSubmit - Called on Enter
  * @param {(data: ParsedEval) => void} options.onExpand - Called on Cmd+Enter to expand to modal

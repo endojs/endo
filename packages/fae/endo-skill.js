@@ -28,7 +28,7 @@
 
 import '@endo/init/debug.js';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeEndoClient } from '@endo/daemon';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';

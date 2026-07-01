@@ -32,7 +32,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
 import { makeInMemoryFilesystem } from '../src/fs/extended/in-memory.js';

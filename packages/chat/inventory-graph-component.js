@@ -1,7 +1,7 @@
 // @ts-check
 
 import harden from '@endo/harden';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { mountInventoryGraph } from '@endo/space-inventory-graph';
 
 /**

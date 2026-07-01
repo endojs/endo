@@ -8,7 +8,7 @@ import test from 'ava';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { checkinTree } from '@endo/platform/fs/lite';
 

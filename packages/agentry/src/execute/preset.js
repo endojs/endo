@@ -7,7 +7,7 @@
 /** @import { ThinkingLevel } from '../harness/model.js' */
 /** @import { CodeModeExecute, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from './tool.js' */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { isGitReadOnly } from '@endo/exo-git';
 
 import { defineAgent } from '../define-agent.js';

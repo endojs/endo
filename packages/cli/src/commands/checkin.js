@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeLocalTree } from '@endo/platform/fs/node';
 
 import { withEndoAgent } from '../context.js';

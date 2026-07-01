@@ -1,6 +1,7 @@
 // @ts-check
 
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import harden from '@endo/harden';
 
 import { FlootApp } from '@endo/space-floot';

@@ -14,7 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify as nodePromisify } from 'node:util';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeNodeFilesystem } from '@endo/platform/fs/extended';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { makeGit } from '@endo/exo-git';

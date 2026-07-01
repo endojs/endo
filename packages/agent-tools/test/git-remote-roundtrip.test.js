@@ -9,7 +9,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeGitRemote } from '@endo/exo-git';
 
 import {

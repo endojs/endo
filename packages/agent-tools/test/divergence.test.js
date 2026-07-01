@@ -4,7 +4,7 @@
 // eslint-disable-next-line import/order
 import '@endo/init/debug.js';
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { InterfaceGuard, Pattern } from '@endo/patterns' */
 /** @import { GitToolCapability, ToolRecord } from '../src/types.js' */
 
@@ -16,7 +16,7 @@ import {
   getInterfaceGuardPayload,
   getMethodGuardPayload,
 } from '@endo/patterns';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { GitInterface } from '@endo/exo-git';
 
 import { makeGitTool } from '../src/git-tool.js';

@@ -1,13 +1,13 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { decodeBase64 } from '@endo/base64';
 import { M, mustMatch } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 
 /** @import { Passable } from '@endo/pass-style' */
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { PassableBytesReader, StreamNode, IterateBytesReaderOptions, BytesReaderIterator } from './types.js' */
 
 const { freeze } = Object;

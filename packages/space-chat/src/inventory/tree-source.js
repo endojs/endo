@@ -1,10 +1,10 @@
 // @ts-check
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 
 import harden from '@endo/harden';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 // Substrate-agnostic data layer for the inventory bar: the formula-type
 // classification rules and the adapter that lets a static `ReadableTree`

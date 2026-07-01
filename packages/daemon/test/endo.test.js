@@ -13,7 +13,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { execFile } from 'child_process';
 import { promisify as nodePromisify } from 'util';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makeCancelKit } from '@endo/cancel';
@@ -6181,7 +6182,7 @@ testNeedsNodeWorker(
     fs.mkdirSync(srcDir, { recursive: true });
     fs.writeFileSync(
       path.join(srcDir, 'index.js'),
-      `import { Far } from '@endo/far';
+      `import { Far } from '@endo/pass-style';
     export const make = (_powers, _context, options = {}) => {
       const env = options.env || {};
       return Far('UnconfinedFromTreeEnv', {

@@ -11,7 +11,7 @@ import { dirname, resolve as resolvePath } from 'node:path';
 
 import test from 'ava';
 import harden from '@endo/harden';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 
 import { createDOM, tick } from '../helpers/dom-setup.js';
 

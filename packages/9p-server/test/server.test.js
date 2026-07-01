@@ -18,7 +18,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { mkdtemp, rm } from 'node:fs/promises';
 
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';

@@ -10,7 +10,8 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 
 import {
   classifyCapability,

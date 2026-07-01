@@ -21,7 +21,7 @@
  */
 
 import test from '@endo/ses-ava/prepare-endo.js';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeLoopback } from '@endo/captp';
 
 import { makeDebugSession } from '../src/debug-session.js';

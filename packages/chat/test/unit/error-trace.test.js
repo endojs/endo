@@ -1,7 +1,7 @@
 // @ts-check
 /* global globalThis */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 
 import '@endo/init/debug.js';

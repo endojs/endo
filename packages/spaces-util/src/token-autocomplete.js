@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-use-before-define */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 
 import harden from '@endo/harden';
@@ -200,7 +200,7 @@ harden(TokenAutocompleteRoot);
  * @param {HTMLElement} $input - The contenteditable div
  * @param {HTMLElement} $menu - The autocomplete menu container
  * @param {object} options
- * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {typeof import('@endo/eventual-send').E} options.E - Eventual send function
  * @param {(ref: unknown) => AsyncIterable<unknown>} options.iterateReader - Ref iterator factory
  * @param {ERef<EndoHost>} options.powers - Powers object for following name changes
  * @param {string[]} [options.externalPetNames] - Pre-managed pet names array (skips followNameChanges subscription)

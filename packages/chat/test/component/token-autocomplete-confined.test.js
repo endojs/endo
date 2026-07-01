@@ -4,7 +4,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { tokenAutocompleteComponent } from '@endo/spaces-util/token-autocomplete.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';

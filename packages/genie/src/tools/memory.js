@@ -14,7 +14,7 @@
  * implementation.
  */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import harden from '@endo/harden';
 import { M } from '@endo/patterns';
 

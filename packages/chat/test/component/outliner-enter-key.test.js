@@ -4,7 +4,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 // Repointed in the Phase-5 swap from the retired imperative
 // `@endo/space-channel/outliner-component.js` to the live CONFINED host wrapper,

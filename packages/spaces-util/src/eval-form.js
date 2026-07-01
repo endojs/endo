@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-use-before-define */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 /** @import { PetNamePathAutocompleteAPI } from './petname-path-autocomplete.js' */
 
@@ -296,7 +296,7 @@ harden(EvalFormBody);
  *
  * @param {object} options
  * @param {HTMLElement} options.$container - Container element for the form
- * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {typeof import('@endo/eventual-send').E} options.E - Eventual send function
  * @param {ERef<EndoHost>} options.powers - Powers object
  * @param {(data: EvalFormData) => Promise<void>} options.onSubmit - Called when form is submitted
  * @param {() => void} options.onClose - Called when form is closed

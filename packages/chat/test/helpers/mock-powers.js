@@ -1,10 +1,10 @@
 // @ts-check
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 /** @import { PassableReader } from '@endo/exo-stream' */
 
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';

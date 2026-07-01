@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-use-before-define */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 /** @import { HopPolicy, HopState, HeatEvent } from './composite-heat-engine.js' */
 
@@ -244,7 +244,7 @@ harden(ReplyContextBar);
  * @param {HTMLElement} options.$error - Error display element
  * @param {HTMLElement} options.$sendButton - Send button element
  * @param {HTMLElement} options.$chatBar - Chat bar element (for submitting class)
- * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {typeof import('@endo/eventual-send').E} options.E - Eventual send function
  * @param {(ref: unknown) => AsyncIterable<unknown>} options.iterateReader - Ref iterator factory
  * @param {ERef<EndoHost>} options.powers - Powers object
  * @param {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => void | Promise<void>} [options.showValue] - Display a value

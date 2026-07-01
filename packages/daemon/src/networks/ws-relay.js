@@ -5,7 +5,8 @@
 import { WebSocket } from 'ws';
 
 import harden from '@endo/harden';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { makePipe } from '@endo/stream';
 import { makePromiseKit } from '@endo/promise-kit';
 import { bytesFromText } from '@endo/bytes/from-string.js';

@@ -2,7 +2,7 @@
 /* eslint-disable no-continue */
 
 import os from 'os';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { withEndoAgent } from '../context.js';
 import { formatMessage } from '../message-format.js';

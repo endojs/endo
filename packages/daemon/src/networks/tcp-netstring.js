@@ -3,7 +3,8 @@ import fs from 'fs';
 import net from 'net';
 
 import harden from '@endo/harden';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { mapWriter, mapReader } from '@endo/stream';
 import { makeNetstringReader, makeNetstringWriter } from '@endo/netstring';
 import {

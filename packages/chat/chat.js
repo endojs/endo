@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 
 /**
@@ -17,7 +17,7 @@
  * @property {() => Promise<unknown>} getMembers
  */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import harden from '@endo/harden';
 import { fileExplorerComponent } from '@endo/space-file-explorer';
 import { idFromLocator } from '@endo/spaces-util/locator.js';

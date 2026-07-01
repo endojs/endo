@@ -3,7 +3,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { petNamePathsAutocomplete } from '@endo/spaces-util/petname-paths-autocomplete.js';
 import { createDOM, waitFor } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';
@@ -526,7 +526,7 @@ test('Shift+Tab goes back to edit previous chip', async t => {
   const { $container, $menu, cleanup } = createElements();
 
   // Create nested mock so that '@agent' has children
-  const { Far } = await import('@endo/far');
+  const { Far } = await import('@endo/pass-style');
   const nestedDir = Far('NestedDir', {
     list() {
       return Far('NameIterator', {
@@ -642,7 +642,7 @@ test('setValue with path then focus shows nested suggestions', async t => {
   const { $container, $menu, cleanup } = createElements();
 
   // Create mock with nested directory structure
-  const { Far } = await import('@endo/far');
+  const { Far } = await import('@endo/pass-style');
   const nestedDir = Far('NestedDir', {
     list() {
       return Far('NameIterator', {
@@ -692,7 +692,7 @@ test('setValue with path then focus shows nested suggestions', async t => {
 test('clicking nested suggestion extends chip path', async t => {
   const { $container, $menu, cleanup } = createElements();
 
-  const { Far } = await import('@endo/far');
+  const { Far } = await import('@endo/pass-style');
   const nestedDir = Far('NestedDir', {
     list() {
       return Far('NameIterator', {
@@ -754,7 +754,7 @@ test('clicking nested suggestion extends chip path', async t => {
 test('ArrowDown works after setValue with existing chip', async t => {
   const { $container, $menu, cleanup } = createElements();
 
-  const { Far } = await import('@endo/far');
+  const { Far } = await import('@endo/pass-style');
   const nestedDir = Far('NestedDir', {
     list() {
       return Far('NameIterator', {
@@ -830,7 +830,7 @@ test('ArrowDown works after setValue with existing chip', async t => {
 test('Space on nested suggestion extends the chip path', async t => {
   const { $container, $menu, cleanup } = createElements();
 
-  const { Far } = await import('@endo/far');
+  const { Far } = await import('@endo/pass-style');
   const nestedDir = Far('NestedDir', {
     list() {
       return Far('NameIterator', {

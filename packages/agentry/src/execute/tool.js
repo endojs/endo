@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { Tool } from '@earendil-works/pi-ai' */
 /** @import { AgentTool } from '@earendil-works/pi-agent-core' */
 /** @import { ToolRecord } from '@endo/agent-tools' */

@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@fast-check/ava": "catalog:dev",
     "ava": "catalog:dev",

@@ -1,11 +1,11 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { File, Filesystem } from '@endo/platform/fs/extended' */
 /** @import { ToolRecord } from './types.js' */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { walk, collectBytes } from '@endo/platform/fs/extended';
 
 import { makeTool } from './tool.js';

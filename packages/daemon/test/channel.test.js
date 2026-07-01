@@ -1,7 +1,7 @@
 // @ts-nocheck
 /* global process */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '../src/types.js' */
 
 // Establish a perimeter:
@@ -11,7 +11,7 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import url from 'url';
 import path from 'path';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { start, stop, purge, makeEndoClient } from '../index.js';

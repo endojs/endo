@@ -14,7 +14,7 @@ import path from 'path';
 import url from 'url';
 import process from 'process';
 import { setTimeout as delay } from 'timers/promises';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, purge, makeEndoClient } from '@endo/daemon';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';

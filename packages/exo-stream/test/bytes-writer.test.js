@@ -1,7 +1,7 @@
 // @ts-check
 import test from '@endo/ses-ava/prepare-endo.js';
 import { makePromiseKit } from '@endo/promise-kit';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { makePipe } from '@endo/stream';

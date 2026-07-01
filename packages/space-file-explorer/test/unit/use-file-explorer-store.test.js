@@ -15,7 +15,8 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 
 import { renderConfined, unmount, h } from '@endo/preact-container/renderer';

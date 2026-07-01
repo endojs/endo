@@ -11,7 +11,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { walk, collectBytes } from '@endo/platform/fs/extended';
 import { makeNativeGitBackend } from '@endo/git';
 import { makeGit } from '@endo/exo-git';
