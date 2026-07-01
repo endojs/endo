@@ -70,6 +70,15 @@ jobs:
       - name: Check composite tsconfig files are up to date
         run: yarn build:types:check
 
+      # this will fail if the "include" paths in the tsconfigs are too broad,
+      # (e.g., "*.ts"); typescript will complain about overwriting files
+      - name: Check tsconfigs are compatible with composite build
+        run: yarn build:types && yarn build:types
+
+      # types must be cleaned up after to avoid problems with the docs build below
+      - name: Cleanup types
+        run: yarn clean
+
       - name: Check package uniformity
         run: node scripts/check-package-uniformity.mjs
 
