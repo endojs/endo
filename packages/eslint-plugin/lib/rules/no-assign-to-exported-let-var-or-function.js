@@ -58,21 +58,21 @@ module.exports = {
      * @param {string} name
      * @returns {Variable | null}
      */
-    function findVariable(scope, name) {
+    const findVariable = (scope, name) => {
       for (let s = scope; s; s = s.upper) {
         const found = s.variables.find(v => v.name === name);
         if (found) return found;
       }
       return null;
-    }
+    };
 
     /**
      * True if a Variable’s definition is a let/var or a function declaration.
      * @param {Variable} variable
      * @returns {boolean}
      */
-    function isLetVarOrFunction(variable) {
-      return variable.defs.some(def => {
+    const isLetVarOrFunction = variable =>
+      variable.defs.some(def => {
         if (def.type === 'Variable') {
           const declNode = def.parent; // VariableDeclaration
           return (
@@ -85,34 +85,33 @@ module.exports = {
         }
         return false;
       });
-    }
 
     /**
      * Collect variables declared by a node and, if eligible, mark them exported.
      * @param {Node} nodeWithDecl
      * @returns {void}
      */
-    function collectDeclaredAndMark(nodeWithDecl) {
+    const collectDeclaredAndMark = nodeWithDecl => {
       const vars = sourceCode.getDeclaredVariables(nodeWithDecl);
       for (const v of vars) {
         if (isLetVarOrFunction(v)) {
           exportedVars.add(v);
         }
       }
-    }
+    };
 
     /**
      * Record a local name (from an export specifier) as exported if eligible.
      * @param {Identifier} nameNode
      * @returns {void}
      */
-    function markLocalNameIfEligible(nameNode) {
+    const markLocalNameIfEligible = nameNode => {
       const scope = context.getScope();
       const variable = findVariable(scope, nameNode.name);
       if (variable && isLetVarOrFunction(variable)) {
         exportedVars.add(variable);
       }
-    }
+    };
 
     /**
      * Extract all identifiers on the left side of an Assignment target (handles patterns).
@@ -120,7 +119,7 @@ module.exports = {
      * @param {Identifier[]} [acc]
      * @returns {Identifier[]}
      */
-    function gatherAssignedIdentifiers(pattern, acc) {
+    const gatherAssignedIdentifiers = (pattern, acc) => {
       acc = acc || [];
       if (!pattern) return acc;
 
@@ -158,14 +157,14 @@ module.exports = {
           break;
       }
       return acc;
-    }
+    };
 
     /**
      * Report if the identifier resolves to one of the exported variables.
      * @param {Identifier} idNode
      * @returns {void}
      */
-    function maybeReportIdentifier(idNode) {
+    const maybeReportIdentifier = idNode => {
       const scope = context.getScope();
       const variable = findVariable(scope, idNode.name);
       if (variable && exportedVars.has(variable)) {
@@ -175,7 +174,7 @@ module.exports = {
           data: { name: idNode.name },
         });
       }
-    }
+    };
 
     return {
       // Collect directly exported declarations, e.g.:

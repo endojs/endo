@@ -32,6 +32,11 @@ const originalLeaveNode =
  * @param {...string} moduleNames - module names to import.
  * @returns {object|null} The imported object, or null.
  */
+// Retains the `function` keyword by deliberate exception: the top-level
+// `safeRequire(...)` calls at the head of this file precede this declaration
+// (the `no-use-before-define` disable above permits the hoisting), and this file
+// is adopted from mysticatea/eslint-plugin-node and kept diff-tractable against
+// upstream. See docs/house-style/function-keyword.md.
 function safeRequire(...moduleNames) {
   for (const moduleName of moduleNames) {
     try {
