@@ -165,6 +165,16 @@ export const makeDefaultCapTPImportExportTables = ({
  * objects marked with makeTrapHandler to synchronous clients (guests)
  * @property {boolean} [gcImports] if true, aggressively garbage collect imports
  * @property {(MakeCapTPImportExportTablesOptions) => CapTPImportExportTables} [makeCapTPImportExportTables] provide external import/export tables
+ * @property {(err: Error, errorId?: string) => void} [marshalSaveError]
+ * forwarded to the underlying `makeMarshal` call. Invoked after the
+ * marshal annotates the error with `Sent as ${errorId}`, giving callers
+ * a hook to capture the outbound errorId for tracing or correlation
+ * purposes.
+ * @property {(err: Error, errorId?: string) => void} [marshalLoadError]
+ * forwarded to the underlying `makeMarshal` call. Invoked for every
+ * error this CapTP decodes, with the wire-level errorId. Useful for a
+ * privileged downstream layer to associate the decoded error with the
+ * sender's locally captured context.
  */
 
 /**
@@ -205,6 +215,8 @@ export const makeCapTP = (
     trapHost,
     gcImports = false,
     makeCapTPImportExportTables = makeDefaultCapTPImportExportTables,
+    marshalSaveError,
+    marshalLoadError,
   } = opts;
 
   // It's a hazard to have trapGuest and trapHost both enabled, as we may
@@ -328,6 +340,8 @@ export const makeCapTP = (
       errorIdNum: 20_000,
       // TODO: fix captp to be compatible with smallcaps
       serializeBodyFormat: 'capdata',
+      marshalSaveError,
+      marshalLoadError,
     },
   );
 
