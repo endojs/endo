@@ -21,7 +21,7 @@ import { wrapInescapableCompartment } from './compartment-wrapper.js';
 
 // Adding a type signature in-place proved difficult to migrate in-place.
 // See typedImportBundle below.
-export async function importBundle(bundle, options = {}, powers = {}) {
+export const importBundle = async (bundle, options = {}, powers = {}) => {
   await null;
   const {
     bundleUrl = undefined,
@@ -188,7 +188,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
     // namespace.default has the default export
     return namespace;
   }
-}
+};
 
 /**
  * typedImportBundle<Expected> takes the output of `bundleSource` or
