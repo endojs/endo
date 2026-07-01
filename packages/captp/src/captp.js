@@ -458,6 +458,10 @@ export const makeCapTP = (
    *
    * @type {import('@endo/marshal').ConvertValToSlot<CapTPSlot>}
    */
+  // Retains the `function` keyword by deliberate exception: it is passed to
+  // `makeMarshal(...)` during module init, before its declaration, so a `const`
+  // arrow would be in its temporal dead zone. See
+  // docs/house-style/function-keyword.md.
   function convertValToSlot(val) {
     if (!valToSlot.has(val)) {
       /** @type {CapTPSlot} */
@@ -563,6 +567,10 @@ export const makeCapTP = (
    *
    * @type {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>}
    */
+  // Retains the `function` keyword by deliberate exception: it is passed to
+  // `makeMarshal(...)` during module init, before its declaration, so a `const`
+  // arrow would be in its temporal dead zone. See
+  // docs/house-style/function-keyword.md.
   function convertSlotToVal(theirSlot, iface = undefined) {
     const slot = reverseSlot(theirSlot);
 
