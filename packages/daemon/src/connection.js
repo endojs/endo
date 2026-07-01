@@ -78,6 +78,12 @@ const registerCapTpConnection = (registrar, name, close, closed) => {
 };
 
 /**
+ * Callers that need to capture CapTP-boundary rejections (for example
+ * the trace aggregator capturing framing or dispatch errors that never
+ * reach the marshal layer) pass an `onReject` through `capTpOptions`.
+ * Without one, CapTP rejections are rendered through `renderRejection`
+ * and logged on `console.error`.
+ *
  * @template TBootstrap
  * @param {string} name
  * @param {Stream<unknown, any, unknown, unknown>} writer

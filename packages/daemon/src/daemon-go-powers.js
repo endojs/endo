@@ -158,6 +158,12 @@ export const makeDaemonicGoControlPowers = (
    * @param {Promise<never>} _forceCancelled
    * @param {CapTpConnectionRegistrar} [capTpConnectionRegistrar]
    * @param {string[]} [_trustedShims]
+   * @param {string} [_label]
+   * @param {'locked' | 'node'} [_kind]
+   *   Worker kind. Currently unused by the Go powers implementation,
+   *   but accepted to keep the positional arity aligned with the type
+   *   in `types.d.ts` so `marshalLoadError` lands in the correct slot.
+   * @param {(err: Error, errorId?: string) => void} [marshalLoadError]
    */
   const makeWorker = async (
     workerId,
@@ -166,6 +172,9 @@ export const makeDaemonicGoControlPowers = (
     _forceCancelled,
     capTpConnectionRegistrar = undefined,
     _trustedShims = undefined, // eslint-disable-line no-underscore-dangle
+    _label = undefined, // eslint-disable-line no-underscore-dangle
+    _kind = undefined, // eslint-disable-line no-underscore-dangle
+    marshalLoadError = undefined,
   ) => {
     const { statePath, ephemeralStatePath } = config;
 
@@ -263,7 +272,7 @@ export const makeDaemonicGoControlPowers = (
       captpReadFrom,
       cancelled,
       daemonWorkerFacet,
-      undefined,
+      { marshalLoadError },
       capTpConnectionRegistrar,
     );
 

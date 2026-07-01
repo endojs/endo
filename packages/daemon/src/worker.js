@@ -1,5 +1,5 @@
 // @ts-check
-/* global globalThis */
+/* global globalThis, process */
 
 import harden from '@endo/harden';
 import { E, Far } from '@endo/far';
@@ -9,11 +9,13 @@ import { ZipWriter } from '@endo/zip/writer.js';
 import { bytesFromText } from '@endo/bytes/from-string.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { makeNetstringCapTP } from './connection.js';
+import { getUnredactedStackString } from './unredacted-stack.js';
 
 import { WorkerFacetForDaemonInterface } from './interfaces.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoReadable, MignonicPowers } from './types.js' */
+/** @import { TraceRecord } from './trace-aggregator.js' */
 
 const endowments = harden({
   // See https://github.com/Agoric/agoric-sdk/issues/9515
@@ -223,6 +225,75 @@ export const makeWorkerFacet = ({ cancel }) => {
 };
 
 /**
+ * Build a `marshalSaveError` callback that pushes a worker-side trace
+ * record to the daemon for every outbound error this worker's CapTP
+ * marshal serializes.
+ *
+ * The push uses `E.sendOnly` so the worker never blocks an outbound
+ * error on the success of a trace push.
+ *
+ * @param {() => unknown} getDaemonFacet returns the daemon's
+ *   `EndoDaemonFacetForWorker` once CapTP has resolved the bootstrap.
+ *   May return undefined before the bootstrap arrives, in which case
+ *   the push is dropped.
+ * @param {string} site label for the capture site, recorded with
+ *   each trace.
+ */
+const makeWorkerPushTrace = (getDaemonFacet, site) => {
+  /**
+   * @param {Error} err
+   * @param {string} [errorId]
+   */
+  return (err, errorId) => {
+    if (errorId === undefined) return;
+    const daemonFacet = getDaemonFacet();
+    if (daemonFacet === undefined) return;
+    // Use the privileged SES hook (the same hack `@endo/ses-ava` taps to
+    // surface unredacted traces to AVA) so the operator running
+    // `endo trace` sees the originating stack, the cause chain, and any
+    // `note(err, ...)` annotations rather than the redacted public
+    // `err.stack` view (which is `''` on V8 under safe errorTaming).
+    let stack = getUnredactedStackString(err);
+    if (stack.length === 0) {
+      // The realm has neither the ses-ava unredaction hook nor a usable
+      // `err.stack` (a non-SES embedding, or an error constructed with
+      // no stack). Capture a fresh trace at marshal time so the
+      // operator at least sees where the error left the worker.
+      const captureSite = Error('trace capture');
+      stack = typeof captureSite.stack === 'string' ? captureSite.stack : '';
+    }
+    /** @type {TraceRecord} */
+    const record = harden({
+      errorId,
+      // The daemon overwrites this with the connection's authoritative
+      // workerId; we send a placeholder so the record is well-formed
+      // for any local-only consumer.
+      workerId: '',
+      name: typeof err.name === 'string' ? err.name : 'Error',
+      message: typeof err.message === 'string' ? err.message : `${err}`,
+      stack,
+      annotations: [],
+      causes: [],
+      t: Date.now(),
+      site,
+    });
+    try {
+      // The daemon facet is the bootstrap returned by CapTP and is
+      // typed as opaque on the worker side; cast to access the trace
+      // method we know the daemon exposes.
+      /** @type {{ reportTrace: (r: TraceRecord) => void }} */
+      const facet = /** @type {any} */ (daemonFacet);
+      E.sendOnly(facet).reportTrace(record);
+    } catch (pushError) {
+      console.error(
+        'Endo worker trace push failed:',
+        /** @type {Error} */ (pushError).message || pushError,
+      );
+    }
+  };
+};
+
+/**
  * @param {MignonicPowers} powers
  * @param {number | undefined} pid
  * @param {(error: Error) => void} cancel
@@ -240,13 +311,44 @@ export const main = async (powers, pid, cancel, cancelled) => {
     cancel,
   });
 
-  const { closed } = makeNetstringCapTP(
+  /** @type {unknown} */
+  let daemonFacet;
+  const getDaemonFacet = () => daemonFacet;
+  const pushTraceFromMarshal = makeWorkerPushTrace(getDaemonFacet, 'marshal');
+  const pushTraceFromCapTP = makeWorkerPushTrace(getDaemonFacet, 'captp');
+
+  const { closed, getBootstrap } = makeNetstringCapTP(
     'Endo',
     writer,
     reader,
     cancelled,
     workerFacet,
+    {
+      marshalSaveError: pushTraceFromMarshal,
+      onReject: err => {
+        pushTraceFromCapTP(err);
+        console.error('CapTP Endo exception:', err);
+      },
+    },
   );
+
+  daemonFacet = getBootstrap();
+
+  // Capture top-level unhandled rejections as trace records so a
+  // background failure inside an unconfined caplet still surfaces
+  // through `traces.lookup`.
+  if (typeof process !== 'undefined' && process.on !== undefined) {
+    let unhandledSeq = 0;
+    process.on(
+      'unhandledRejection',
+      /** @param {unknown} reason */ reason => {
+        const err = reason instanceof Error ? reason : Error(String(reason));
+        unhandledSeq += 1;
+        const errorId = `error:Endo#unhandled-${unhandledSeq}`;
+        pushTraceFromMarshal(err, errorId);
+      },
+    );
+  }
 
   return Promise.race([cancelled, closed]);
 };

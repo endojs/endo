@@ -1620,21 +1620,10 @@ export interface EndoHost extends EndoAgent {
   ): Promise<void>;
   submit(messageNumber: bigint, values: Record<string, unknown>): Promise<void>;
   sendValue: Mail['sendValue'];
-  /** Returns a snapshot of the formula dependency graph reachable from this agent's pet store. */
-  getFormulaGraph(): Promise<{
-    nodes: Array<{ id: FormulaIdentifier; type: string }>;
-    edges: Array<{
-      sourceId: FormulaIdentifier;
-      targetId: FormulaIdentifier;
-      label: string;
-    }>;
-  }>;
   /**
-   * Retrieve the formula record for a local formula identifier.
-   * Returns the formula type plus the type-specific metadata as a
-   * normalized property record. Each property is either a literal
-   * passable value, a single reference (formula identifier), or a
-   * record of references (codeName-keyed).
+   * Returns the privileged read-only diagnostics facet: formula
+   * records, the formula dependency graph, and the error-trace
+   * aggregator.
    *
    * Host-only by precedent: a guest must not be able to enumerate
    * the host's internal naming, peer relationships, or the formula
@@ -1642,10 +1631,10 @@ export interface EndoHost extends EndoAgent {
    * `designs/formula-inspector.md` and `daemon-retention-paths.md`
    * for the host-only authority rationale.
    *
-   * The identifier must name a formula local to this node;
-   * cross-peer locators are rejected.
+   * (Named `diagnostics` rather than `inspector` because
+   * `EndoInspector` already denotes the per-formula reference walker.)
    */
-  getFormula(identifier: FormulaIdentifier): Promise<FormulaRecord>;
+  diagnostics(): Promise<EndoDiagnostics>;
   /**
    * Snapshot every retention path from a GC root to the target,
    * identified by an endo:// locator. Pet-store edges along the
@@ -1671,6 +1660,73 @@ export interface EndoHost extends EndoAgent {
     undefined,
     undefined
   >;
+}
+
+/**
+ * The privileged read-only diagnostics facet returned by
+ * `EndoHost.diagnostics()`.
+ */
+export interface EndoDiagnostics {
+  help(): string;
+  /** Returns a snapshot of the formula dependency graph reachable from this agent's pet store. */
+  getFormulaGraph(): Promise<{
+    nodes: Array<{ id: FormulaIdentifier; type: string }>;
+    edges: Array<{
+      sourceId: FormulaIdentifier;
+      targetId: FormulaIdentifier;
+      label: string;
+    }>;
+  }>;
+  /**
+   * Retrieve the formula record for a local formula identifier.
+   * Returns the formula type plus the type-specific metadata as a
+   * normalized property record. Each property is either a literal
+   * passable value, a single reference (formula identifier), or a
+   * record of references (codeName-keyed).
+   *
+   * The identifier must name a formula local to this node;
+   * cross-peer locators are rejected.
+   */
+  getFormula(identifier: FormulaIdentifier): Promise<FormulaRecord>;
+  /** Returns a privileged Exo for inspecting the daemon's error-trace aggregate. */
+  traces(): Promise<EndoTraces>;
+}
+
+export interface EndoTraces {
+  help(): string;
+  lookup(errorId: string): Promise<EndoTraceReport | undefined>;
+  recent(opts?: {
+    workerId?: string;
+    limit?: number;
+  }): Promise<EndoTraceReport[]>;
+  clear(workerId?: string): Promise<void>;
+  stats(): Promise<{
+    workers: number;
+    totalRecords: number;
+    bytes: number;
+    aliases: number;
+  }>;
+}
+
+export interface EndoTraceCauseRef {
+  errorId: string;
+  name: string;
+  message: string;
+}
+
+export interface EndoTraceReport {
+  errorId: string;
+  workerId: string;
+  name: string;
+  message: string;
+  stack: string;
+  annotations: string[];
+  causes: EndoTraceReport[];
+  related: EndoTraceReport[];
+  t: number;
+  site: string;
+  compartmentId?: string;
+  partial: boolean;
 }
 
 export interface EndoHostController extends Controller<FarRef<EndoHost>> {}
@@ -1986,6 +2042,7 @@ export type NetworkPowers = SocketPowers & {
     cancelled: Promise<never>,
     exitWithError: (error: Error) => void,
     capTpConnectionRegistrar?: CapTpConnectionRegistrar,
+    marshalSaveError?: (err: Error, errorId?: string) => void,
   ) => { started: Promise<void>; stopped: Promise<void> };
 };
 
@@ -2073,6 +2130,7 @@ export type DaemonicControlPowers = {
     trustedShims?: string[],
     label?: string,
     kind?: 'locked' | 'node',
+    marshalLoadError?: (err: Error, errorId?: string) => void,
   ) => Promise<{
     workerTerminated: Promise<void>;
     workerDaemonFacet: ERef<WorkerDaemonFacet>;

@@ -431,17 +431,36 @@ export const HostInterface = M.interface('EndoHost', {
     MessageNumberShape, // messageNumber
     NameOrPathShape, // petNameOrPath
   ).returns(M.promise()),
-  // Get formula dependency graph snapshot for this agent's pet store
-  getFormulaGraph: M.call().returns(M.promise()),
-  // Retrieve the formula record for a local formula identifier (host-only).
-  // See `designs/formula-inspector.md`. The identifier must name a
-  // formula whose node matches this daemon's local node; cross-peer
-  // locators are rejected at the entry of `getFormula`.
-  getFormula: M.call(IdShape).returns(M.promise()),
+  // Access the privileged diagnostics facet: formula records, the
+  // formula dependency graph, and the error-trace aggregator. Grouped
+  // behind one revocable sub-capability (see `DiagnosticsInterface`)
+  // both to keep `EndoHost` within the interface-guard method-count
+  // limit and to gather the read-only introspection surface in one
+  // place. (Named `diagnostics` rather than `inspector` because
+  // `EndoInspector` already denotes the per-formula reference walker.)
+  // See `designs/formula-inspector.md`.
+  diagnostics: M.call().returns(M.promise()),
   // Snapshot every retention path from a GC root to the target locator
   listRetentionPaths: M.call(LocatorShape).returns(M.promise()),
   // Subscribe to retention-path changes for a target locator
   followRetentionPaths: M.call(LocatorShape).returns(M.promise()),
+});
+
+// The privileged read-only diagnostics facet returned by
+// `EndoHost.diagnostics()`. Host-only by precedent: a guest must not be
+// able to enumerate the host's formula graph, peer relationships, or
+// the error traces of workers it does not own.
+export const DiagnosticsInterface = M.interface('EndoDiagnostics', {
+  help: M.call().optional(M.string()).returns(M.string()),
+  // Get formula dependency graph snapshot for this agent's pet store.
+  getFormulaGraph: M.call().returns(M.promise()),
+  // Retrieve the formula record for a local formula identifier.
+  // See `designs/formula-inspector.md`. The identifier must name a
+  // formula whose node matches this daemon's local node; cross-peer
+  // locators are rejected at the entry of `getFormula`.
+  getFormula: M.call(IdShape).returns(M.promise()),
+  // Access the privileged error-trace aggregator.
+  traces: M.call().returns(M.promise()),
 });
 
 export const ChannelInterface = M.interface('EndoChannel', {
@@ -663,8 +682,37 @@ export const ReadableTreeInterface = M.interface('EndoReadableTree', {
 
 export const DaemonFacetForWorkerInterface = M.interface(
   'EndoDaemonFacetForWorker',
-  {},
+  {
+    // Push a single trace record to the daemon's aggregate.
+    // The record's workerId field is overwritten by the daemon
+    // with the connection's authoritative workerId.
+    reportTrace: M.call(M.record()).returns(M.promise()),
+  },
 );
+
+export const TracesInterface = M.interface('EndoTraces', {
+  help: M.call().optional(M.string()).returns(M.string()),
+  // Look up a single trace report by errorId (raw worker id or daemon
+  // alias). Returns undefined when not found.
+  lookup: M.call(M.string()).returns(M.promise()),
+  // Return up to `limit` recent reports, optionally restricted to one
+  // worker.
+  recent: M.call()
+    .optional(
+      M.splitRecord(
+        {},
+        {
+          workerId: IdShape,
+          limit: M.number(),
+        },
+      ),
+    )
+    .returns(M.promise()),
+  // Drop all aggregated traces, optionally restricted to one worker.
+  clear: M.call().optional(IdShape).returns(M.promise()),
+  // Return aggregator stats (record count, byte usage, alias count).
+  stats: M.call().returns(M.promise()),
+});
 
 export const WorkerFacetForDaemonInterface = M.interface(
   'EndoWorkerFacetForDaemon',

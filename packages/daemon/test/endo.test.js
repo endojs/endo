@@ -2799,7 +2799,7 @@ testNeedsNodeWorker(
 
     const counterId = await E(host).identify('counter');
     t.truthy(counterId, 'counter has a formula identifier');
-    const record = await E(host).getFormula(counterId);
+    const record = await E(E(host).diagnostics()).getFormula(counterId);
     t.is(record.type, 'make-unconfined');
     t.is(record.properties.specifier.kind, 'literal');
     t.is(record.properties.specifier.value, counterPath);
@@ -2836,7 +2836,7 @@ testNeedsNodeWorker(
     // from a caplet's formula to its worker. The replacement is a
     // direct `getFormula` call that exposes the `worker` reference.
     const counterId = await E(host).identify('counter');
-    const counterRecord = await E(host).getFormula(counterId);
+    const counterRecord = await E(E(host).diagnostics()).getFormula(counterId);
     t.is(counterRecord.properties.worker.kind, 'reference');
     const workerId = counterRecord.properties.worker.identifier;
 
@@ -2877,7 +2877,7 @@ test('getFormula returns per-type formula record (eval)', async t => {
 
   const tenId = await E(host).identify('ten');
   t.truthy(tenId, 'ten has a formula identifier');
-  const record = await E(host).getFormula(tenId);
+  const record = await E(E(host).diagnostics()).getFormula(tenId);
   t.is(record.type, 'eval');
   t.is(record.properties.source.kind, 'literal');
   t.is(record.properties.source.value, '10');
@@ -2990,16 +2990,20 @@ test('guest cannot access host methods', async t => {
   t.is(revealedTarget, undefined);
 });
 
-test('getFormula is absent on the guest facet', async t => {
+test('the diagnostics facet is absent on the guest facet', async t => {
   const { host } = await prepareHost(t);
 
-  // A guest references its host via SELF -> AGENT chain; calling
-  // getFormula through a guest-only edge must fail because the
-  // guest facet does not expose the method (per
+  // The privileged formula-introspection surface (getFormula,
+  // getFormulaGraph, traces) lives behind the host-only `diagnostics`
+  // facet. A guest must expose neither the facet nor the legacy
+  // top-level getFormula edge (per
   // `designs/formula-inspector.md` § Why host-only).
   const guest = await E(host).provideGuest('guest');
   await E(host).evaluate('MAIN', '10', [], [], ['ten']);
   const tenId = await E(host).identify('ten');
+  await t.throwsAsync(() => E(guest).diagnostics(), {
+    message: /target has no method "diagnostics"/u,
+  });
   await t.throwsAsync(() => E(guest).getFormula(tenId), {
     message: /target has no method "getFormula"/u,
   });
@@ -3021,7 +3025,7 @@ test('getFormula rejects cross-peer locators', async t => {
     node: otherNode,
     number: formulaNumber,
   });
-  await t.throwsAsync(() => E(host).getFormula(crossPeerId), {
+  await t.throwsAsync(() => E(E(host).diagnostics()).getFormula(crossPeerId), {
     message: /cross-peer/u,
   });
 });
@@ -3049,11 +3053,11 @@ test('getFormula resolves the agent’s own identity formulas', async t => {
     daemonNode,
     '@self lives on the agent key node, not the daemon node number',
   );
-  const selfRecord = await E(host).getFormula(selfId);
+  const selfRecord = await E(E(host).diagnostics()).getFormula(selfId);
   t.is(selfRecord.type, 'handle');
 
   const agentId = await E(host).identify('@agent');
-  const agentRecord = await E(host).getFormula(agentId);
+  const agentRecord = await E(E(host).diagnostics()).getFormula(agentId);
   t.is(agentRecord.type, 'host');
 });
 
@@ -3075,7 +3079,7 @@ test('getFormula normalizes unknown-identifier-on-local-node error', async t => 
   // generic `ReferenceError`. `getFormula` normalizes that to a
   // surface-level error that names the requested identifier, so the
   // caller can route on the input they actually supplied.
-  await t.throwsAsync(() => E(host).getFormula(unknownId), {
+  await t.throwsAsync(() => E(E(host).diagnostics()).getFormula(unknownId), {
     message: /getFormula could not resolve unknown identifier/u,
   });
 });

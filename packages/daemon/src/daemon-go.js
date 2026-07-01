@@ -142,17 +142,21 @@ const main = async () => {
 
   await daemonicPersistencePowers.initializePersistence();
 
-  const { endoBootstrap, cancelGracePeriod, capTpConnectionRegistrar } =
-    await makeDaemon(
-      powers,
-      daemonLabel,
-      cancel,
-      cancelled,
-      {},
-      {
-        defaultWorkerKind: 'locked',
-      },
-    );
+  const {
+    endoBootstrap,
+    cancelGracePeriod,
+    capTpConnectionRegistrar,
+    marshalSaveError,
+  } = await makeDaemon(
+    powers,
+    daemonLabel,
+    cancel,
+    cancelled,
+    {},
+    {
+      defaultWorkerKind: 'locked',
+    },
+  );
 
   /** @param {Error} error */
   const exitWithError = error => {
@@ -167,6 +171,7 @@ const main = async () => {
     cancelled,
     exitWithError,
     capTpConnectionRegistrar,
+    marshalSaveError,
   );
   const services = [privatePathService];
 
