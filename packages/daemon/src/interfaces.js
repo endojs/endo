@@ -560,14 +560,14 @@ export const MountInterface = M.interface('EndoMount', {
   // mount accepts a `MountEntry` cap as the path argument, exactly like
   // `lookup`. See designs/fs-interface-consolidation.md § C1.
   maybeLookup: M.call(PathArgShape).returns(M.any()),
-  // `followNameChanges` is part of the full name-hub contract, but a live
-  // change feed requires a filesystem watcher behind the mount
-  // (filesystem-watchers.md), which is not yet implemented. The method is
-  // declared so the mount honestly advertises the surface (and a future
-  // watcher slots in without an interface bump); until then the
-  // implementation throws a clear "not supported" error rather than being
-  // silently absent. See designs/fs-interface-consolidation.md § C1.
-  followNameChanges: M.call().returns(M.any()),
+  // Subscribe to entry-name changes within a named subdirectory (returns
+  // an iterator ref). The first batch is a snapshot in alphabetical order;
+  // subsequent records diff against the snapshot as entries appear or
+  // disappear. Mirrors EndoDirectory.followNameChanges but emits
+  // `type: 'file' | 'directory'` in place of an IdRecord since a filesystem
+  // entry has no formula identifier. Backed by FilePowers.watchDirectory
+  // (filesystem-watchers.md). See designs/fs-interface-consolidation.md § C1.
+  followNameChanges: M.call().rest(PathSegmentsShape).returns(M.remotable()),
   // Confined sub-root: returns a sub-mount whose own confinement root is
   // the target directory, so `..` cannot escape it (unlike a `lookup`
   // sub-handle, which shares the mount's confinement root). The

@@ -1935,6 +1935,27 @@ export type FilePowers = {
   }>;
   isDirectory: (path: string) => Promise<boolean>;
   exists: (path: string) => Promise<boolean>;
+  /**
+   * Watch a directory for entry-name changes (children added or
+   * removed).  The returned `events` stream yields one record per
+   * coalesced filesystem event; the `kind` field is a hint that the
+   * consumer reconciles against its own snapshot set to decide
+   * whether the entry was genuinely added, removed, or unchanged.
+   * `cancel()` closes the OS-level watcher handle and terminates
+   * `events`.  `cancel()` is idempotent.
+   *
+   * On platforms or filesystems where `fs.watch` is unavailable, the
+   * implementation logs to `console.error` and returns an `events`
+   * stream that terminates immediately so callers see end-of-stream
+   * rather than hang.
+   */
+  watchDirectory: (path: string) => {
+    events: AsyncIterable<{
+      kind: 'add' | 'remove' | 'replace';
+      name: string;
+    }>;
+    cancel: () => void;
+  };
 };
 
 export type AssertValidNameFn = (name: string) => void;

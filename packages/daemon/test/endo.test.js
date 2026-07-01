@@ -5284,6 +5284,280 @@ test('scratch mount persists across restart', async t => {
   }
 });
 
+// --- followNameChanges on EndoMount ---
+
+/**
+ * Drain an EndoMount followNameChanges iterator until either a
+ * matching record arrives or the deadline elapses.  Returns the
+ * first record whose predicate matches, or `undefined` on timeout.
+ *
+ * Maintains at most one outstanding `next()` call so events are not
+ * lost between iterations.  The deadline is enforced by racing a
+ * single watchdog promise against the cumulative `next()` chain.
+ *
+ * @param {AsyncIterator<{ add?: string, remove?: string, type?: 'file' | 'directory' }>} iter
+ * @param {(record: { add?: string, remove?: string }) => boolean} predicate
+ * @param {number} [timeoutMs]
+ */
+const awaitMountChange = async (iter, predicate, timeoutMs = 5000) => {
+  const timeoutSentinel = harden({ timeout: true });
+  const watchdog = new Promise(resolve =>
+    setTimeout(() => resolve(timeoutSentinel), timeoutMs),
+  );
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const next = await Promise.race([iter.next(), watchdog]);
+    if (next === timeoutSentinel) {
+      return undefined;
+    }
+    if (next.done) {
+      return undefined;
+    }
+    if (predicate(next.value)) {
+      return next.value;
+    }
+  }
+};
+
+test('mount followNameChanges yields snapshot in alphabetical order', async t => {
+  t.timeout(30_000);
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-follow-snapshot');
+  await createMountFixture(mountPath, {
+    'beta.txt': 'b',
+    'alpha.txt': 'a',
+    'gamma.txt': 'g',
+  });
+
+  await E(host).provideMount(mountPath, 'follow-snapshot-mount');
+  const mount = await E(host).lookup(['follow-snapshot-mount']);
+
+  const iter = iterateReader(await E(mount).followNameChanges());
+
+  const snapshot = await takeCount(iter, 3);
+  t.deepEqual(
+    snapshot.map(record => record.add),
+    ['alpha.txt', 'beta.txt', 'gamma.txt'],
+    'snapshot is yielded in alphabetical order',
+  );
+  for (const record of snapshot) {
+    t.is(record.type, 'file', `${record.add} is reported as a file`);
+  }
+
+  await E(iter).return();
+});
+
+test('mount followNameChanges yields directory type for subdirectories', async t => {
+  t.timeout(30_000);
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-follow-types');
+  await createMountFixture(mountPath, {
+    'file.txt': 'content',
+    'subdir/nested.txt': 'nested',
+  });
+
+  await E(host).provideMount(mountPath, 'follow-types-mount');
+  const mount = await E(host).lookup(['follow-types-mount']);
+
+  const iter = iterateReader(await E(mount).followNameChanges());
+  const snapshot = await takeCount(iter, 2);
+
+  const byName = new Map(snapshot.map(record => [record.add, record.type]));
+  t.is(byName.get('file.txt'), 'file');
+  t.is(byName.get('subdir'), 'directory');
+
+  await E(iter).return();
+});
+
+test('mount followNameChanges reports a live file addition', async t => {
+  t.timeout(30_000);
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-follow-add');
+  await createMountFixture(mountPath, {});
+
+  await E(host).provideMount(mountPath, 'follow-add-mount');
+  const mount = await E(host).lookup(['follow-add-mount']);
+
+  const iter = iterateReader(await E(mount).followNameChanges());
+
+  // Backing path is empty, so no snapshot entries; we go straight
+  // to the live stream.  Race the watcher startup by waiting a
+  // brief settle window before mutating the filesystem.
+  await new Promise(resolve => setTimeout(resolve, 100));
+  await fs.promises.writeFile(path.join(mountPath, 'new.txt'), 'content');
+
+  const event = await awaitMountChange(
+    iter,
+    record => record.add === 'new.txt',
+  );
+  t.truthy(event, 'addition event should arrive');
+  t.is(event.add, 'new.txt');
+  t.is(event.type, 'file');
+
+  await E(iter).return();
+});
+
+test('mount followNameChanges reports a live file removal', async t => {
+  t.timeout(30_000);
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-follow-rm');
+  await createMountFixture(mountPath, { 'doomed.txt': 'goodbye' });
+
+  await E(host).provideMount(mountPath, 'follow-rm-mount');
+  const mount = await E(host).lookup(['follow-rm-mount']);
+
+  const iter = iterateReader(await E(mount).followNameChanges());
+
+  // Drain the snapshot (one entry).
+  await takeCount(iter, 1);
+
+  await new Promise(resolve => setTimeout(resolve, 100));
+  await fs.promises.unlink(path.join(mountPath, 'doomed.txt'));
+
+  const event = await awaitMountChange(
+    iter,
+    record => record.remove === 'doomed.txt',
+  );
+  t.truthy(event, 'removal event should arrive');
+  t.is(event.remove, 'doomed.txt');
+
+  await E(iter).return();
+});
+
+test('mount followNameChanges on a subdirectory does not see siblings', async t => {
+  t.timeout(30_000);
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-follow-subdir');
+  await createMountFixture(mountPath, {
+    'top.txt': 'top-level',
+    'sub/inner.txt': 'inner',
+  });
+
+  await E(host).provideMount(mountPath, 'follow-subdir-mount');
+  const mount = await E(host).lookup(['follow-subdir-mount']);
+
+  const subIter = iterateReader(await E(mount).followNameChanges('sub'));
+  const subSnapshot = await takeCount(subIter, 1);
+  t.deepEqual(
+    subSnapshot.map(record => record.add),
+    ['inner.txt'],
+    'subdirectory subscription sees only subdirectory contents',
+  );
+
+  await new Promise(resolve => setTimeout(resolve, 100));
+  await fs.promises.writeFile(
+    path.join(mountPath, 'sub', 'fresh.txt'),
+    'fresh',
+  );
+
+  const subEvent = await awaitMountChange(
+    subIter,
+    record => record.add === 'fresh.txt',
+  );
+  t.truthy(subEvent, 'subdirectory addition should arrive on sub iterator');
+
+  // A parallel addition at the root must NOT be visible on the
+  // subdirectory subscription.  We confirm by writing a sibling at
+  // the mount root and observing that no event with that name
+  // arrives on the subdirectory iterator within the polling window.
+  // (Returning the iterator after this assertion would race the
+  // unresolved next() against teardown; we let the dispatch's daemon
+  // shutdown release the watcher instead.)
+  await fs.promises.writeFile(path.join(mountPath, 'top2.txt'), 'top2');
+  const spurious = await awaitMountChange(
+    subIter,
+    record => record.add === 'top2.txt' || record.remove === 'top2.txt',
+    600,
+  );
+  t.is(
+    spurious,
+    undefined,
+    'sibling root addition is not visible to sub iterator',
+  );
+});
+
+test('mount followNameChanges filters confinement-escaping symlinks from snapshot', async t => {
+  t.timeout(30_000);
+  const { host, config } = await prepareHost(t);
+
+  const basePath = path.join(config.statePath, '..', 'mount-follow-confined');
+  const mountRoot = path.join(basePath, 'mount-root');
+  const outsidePath = path.join(basePath, 'outside');
+  await fs.promises.mkdir(mountRoot, { recursive: true });
+  await fs.promises.mkdir(outsidePath, { recursive: true });
+  await fs.promises.writeFile(path.join(mountRoot, 'inside.txt'), 'inside');
+  await fs.promises.symlink(outsidePath, path.join(mountRoot, 'escape'));
+
+  await E(host).provideMount(mountRoot, 'follow-confined-mount');
+  const mount = await E(host).lookup(['follow-confined-mount']);
+
+  const iter = iterateReader(await E(mount).followNameChanges());
+  const snapshot = await takeCount(iter, 1);
+  t.deepEqual(
+    snapshot.map(record => record.add),
+    ['inside.txt'],
+    'escaping symlink is filtered from the snapshot',
+  );
+
+  await E(iter).return();
+});
+
+test('mount followNameChanges scratch-mount parity: snapshot + live add', async t => {
+  t.timeout(30_000);
+  const { host } = await prepareHost(t);
+
+  await E(host).provideScratchMount('follow-scratch');
+  const scratch = await E(host).lookup(['follow-scratch']);
+  await E(scratch).writeText(['seed.txt'], 'seeded');
+
+  const iter = iterateReader(await E(scratch).followNameChanges());
+  const snapshot = await takeCount(iter, 1);
+  t.is(snapshot[0].add, 'seed.txt');
+  t.is(snapshot[0].type, 'file');
+
+  await new Promise(resolve => setTimeout(resolve, 100));
+  await E(scratch).writeText(['arrival.txt'], 'arrived');
+
+  const event = await awaitMountChange(
+    iter,
+    record => record.add === 'arrival.txt',
+  );
+  t.truthy(event, 'scratch mount surfaces live additions');
+  t.is(event.type, 'file');
+
+  await E(iter).return();
+});
+
+test('mount followNameChanges releases watcher when iterator is returned', async t => {
+  t.timeout(30_000);
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-follow-cleanup');
+  await createMountFixture(mountPath, {});
+
+  await E(host).provideMount(mountPath, 'follow-cleanup-mount');
+  const mount = await E(host).lookup(['follow-cleanup-mount']);
+
+  const iter = iterateReader(await E(mount).followNameChanges());
+
+  // Drop the iterator immediately.  After return() the iterator is
+  // permanently terminated; subsequent next() calls report done and
+  // any filesystem mutations are no longer reportable.
+  await E(iter).return();
+
+  const after = await E(iter).next();
+  t.true(after.done, 'iterator is done after return()');
+
+  await fs.promises.writeFile(path.join(mountPath, 'late.txt'), 'late');
+  const stillDone = await E(iter).next();
+  t.true(stillDone.done, 'iterator stays done after post-return write');
+});
+
 test('provideHostPath resolves Mount caps to host paths', async t => {
   const { host, config } = await prepareHost(t);
 

@@ -239,6 +239,8 @@ export const helpTextEntries = harden([
       move: 'move(from, to) -> Promise<void>\nRename an entry within the mount.\nfrom: string | string[] — Source name or path segments.\nto: string | string[] — Destination name or path segments.',
       makeDirectory:
         'makeDirectory(path) -> Promise<EndoMount>\nCreate a directory (and missing parents) at the given path; returns a sub-mount.\npath: string | string[] | EndoMountEntry — Name, path segments, or mount entry.',
+      followNameChanges:
+        "followNameChanges(...pathSegments) -> AsyncIterator\nSubscribe to entry-name changes within the named subdirectory.\nFirst yields existing entries in alphabetical order as\n{ add: name, type: 'file' | 'directory' } records, then yields\n{ add, type } and { remove } diffs as entries appear or disappear.\nShallow (immediate children only) and confinement-filtered.\nReleases the underlying OS watcher when the iterator is dropped.",
       makeFile:
         'makeFile(path, content?) -> Promise<void>\nCreate a file at the given path, with optional initial text content.\npath: string | string[] | EndoMountEntry — Name, path segments, or mount entry.\ncontent: string (optional) — Initial text content. An existing file is truncated when content is provided. For binary content, use `write(path, readableBlob)`.',
       write:
