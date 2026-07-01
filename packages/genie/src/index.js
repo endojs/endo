@@ -47,7 +47,7 @@ export {
 
 export { default as buildSystemPrompt } from './system/index.js';
 
-export { estimateTokens } from './utils/index.js';
+export { estimateTokens } from './utils/tokens.js';
 
 export {
   BUILTIN_HELP_DESCRIPTIONS,
