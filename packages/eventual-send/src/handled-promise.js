@@ -205,7 +205,7 @@ export const makeHandledPromise = () => {
    * @param {Handler<Promise<R>>} [pendingHandler]
    * @returns {Promise<R>}
    */
-  function baseHandledPromise(executor, pendingHandler = undefined) {
+  function BaseHandledPromise(executor, pendingHandler = undefined) {
     new.target || Fail`must be invoked with "new"`;
     let handledResolve;
     let handledReject;
@@ -563,17 +563,17 @@ export const makeHandledPromise = () => {
   };
 
   // Add everything needed on the constructor.
-  baseHandledPromise.prototype = Promise.prototype;
-  setPrototypeOf(baseHandledPromise, Promise);
+  BaseHandledPromise.prototype = Promise.prototype;
+  setPrototypeOf(BaseHandledPromise, Promise);
   defineProperties(
-    baseHandledPromise,
+    BaseHandledPromise,
     getOwnPropertyDescriptors(staticMethods),
   );
 
   // FIXME: This is really ugly to bypass the type system, but it will be better
   // once we use Promise.delegated and don't have any [[Constructor]] behaviours.
   // @ts-expect-error cast
-  HandledPromise = baseHandledPromise;
+  HandledPromise = BaseHandledPromise;
 
   // We're a vetted shim which runs before `lockdown` allows
   // `harden(HandledPromise)` to function, but single-level `freeze` is a
