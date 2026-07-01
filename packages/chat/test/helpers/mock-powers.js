@@ -5,6 +5,8 @@
 /** @import { PassableReader } from '@endo/exo-stream' */
 
 import { Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
 
@@ -344,26 +346,34 @@ export const makeMockPowers = ({
      * `resolveErrorTrace`.
      */
     diagnostics() {
-      return Far('MockDiagnostics', {
-        traces() {
-          return Far('MockTraces', {
-            /**
-             * @param {string} errorId
-             * @returns {{ message?: string, stack?: string, workerId?: string } | undefined}
-             */
-            lookup(errorId) {
-              calls.push({ method: 'traces.lookup', args: [errorId] });
-              // Model the race: the first `traceReportMisses` lookups miss
-              // (record still propagating) before the aggregator serves it.
-              if (remainingTraceMisses > 0) {
-                remainingTraceMisses -= 1;
-                return undefined;
-              }
-              return traceReports.get(errorId);
-            },
-          });
+      return makeExo(
+        'MockDiagnostics',
+        M.interface('MockDiagnostics', {}, { defaultGuards: 'passable' }),
+        {
+          traces() {
+            return makeExo(
+              'MockTraces',
+              M.interface('MockTraces', {}, { defaultGuards: 'passable' }),
+              {
+                /**
+                 * @param {string} errorId
+                 * @returns {{ message?: string, stack?: string, workerId?: string } | undefined}
+                 */
+                lookup(errorId) {
+                  calls.push({ method: 'traces.lookup', args: [errorId] });
+                  // Model the race: the first `traceReportMisses` lookups miss
+                  // (record still propagating) before the aggregator serves it.
+                  if (remainingTraceMisses > 0) {
+                    remainingTraceMisses -= 1;
+                    return undefined;
+                  }
+                  return traceReports.get(errorId);
+                },
+              },
+            );
+          },
         },
-      });
+      );
     },
 
     /**

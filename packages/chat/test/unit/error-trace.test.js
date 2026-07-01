@@ -7,7 +7,8 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
+import { makeExo } from '@endo/exo';
+import { M } from '@endo/patterns';
 import {
   resolveErrorTrace,
   watchErrorTrace,
@@ -24,21 +25,33 @@ import {
  */
 const makeMockPowersWithReports = reports => {
   let lookups = 0;
-  const mockPowers = Far('MockPowers', {
-    diagnostics() {
-      return Far('MockDiagnostics', {
-        traces() {
-          return Far('MockTraces', {
-            /** @param {string} errorId */
-            lookup(errorId) {
-              lookups += 1;
-              return reports.get(errorId);
+  const mockPowers = makeExo(
+    'MockPowers',
+    M.interface('MockPowers', {}, { defaultGuards: 'passable' }),
+    {
+      diagnostics() {
+        return makeExo(
+          'MockDiagnostics',
+          M.interface('MockDiagnostics', {}, { defaultGuards: 'passable' }),
+          {
+            traces() {
+              return makeExo(
+                'MockTraces',
+                M.interface('MockTraces', {}, { defaultGuards: 'passable' }),
+                {
+                  /** @param {string} errorId */
+                  lookup(errorId) {
+                    lookups += 1;
+                    return reports.get(errorId);
+                  },
+                },
+              );
             },
-          });
-        },
-      });
+          },
+        );
+      },
     },
-  });
+  );
   return {
     powers: /** @type {ERef<EndoHost>} */ (/** @type {unknown} */ (mockPowers)),
     lookupCount: () => lookups,
