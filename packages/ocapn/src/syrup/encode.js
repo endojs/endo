@@ -41,20 +41,20 @@ const NAN64 = new Uint8Array([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
  * @param {Uint8Array} bytes
  * @param {string} typeChar
  */
-function writeStringlike(bufferWriter, bytes, typeChar) {
+const writeStringlike = (bufferWriter, bytes, typeChar) => {
   // write length prefix as ascii string
   const length = bytes.byteLength;
   const lengthPrefix = `${length}`;
   bufferWriter.writeString(lengthPrefix);
   bufferWriter.writeString(typeChar);
   bufferWriter.write(bytes);
-}
+};
 
 /**
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {string} value
  */
-function writeString(bufferWriter, value) {
+const writeString = (bufferWriter, value) => {
   if (typeof value !== 'string') {
     throw Error(`writeString: Expected string, got ${typeof value}`);
   }
@@ -71,34 +71,34 @@ function writeString(bufferWriter, value) {
     );
   }
   writeStringlike(bufferWriter, bytes, '"');
-}
+};
 
 /**
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {string} value
  */
-function writeSelectorFromString(bufferWriter, value) {
+const writeSelectorFromString = (bufferWriter, value) => {
   const bytes = textEncoder.encode(value);
   writeStringlike(bufferWriter, bytes, "'");
-}
+};
 
 /**
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {ArrayBufferLike} value
  */
-function writeBytestring(bufferWriter, value) {
+const writeBytestring = (bufferWriter, value) => {
   // Convert ArrayBuffer to Uint8Array for internal operations
   // Immutable ArrayBuffers need to be sliced first
   const mutableBuffer = value.slice();
   const bytes = new Uint8Array(mutableBuffer);
   writeStringlike(bufferWriter, bytes, ':');
-}
+};
 
 /**
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {number} value
  */
-function writeFloat64(bufferWriter, value) {
+const writeFloat64 = (bufferWriter, value) => {
   bufferWriter.writeByte(FLOAT64);
   if (value === 0) {
     // Canonicalize 0
@@ -109,27 +109,27 @@ function writeFloat64(bufferWriter, value) {
   } else {
     bufferWriter.writeFloat64(value, false); // big end
   }
-}
+};
 
 /**
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {bigint} value
  */
-function writeInteger(bufferWriter, value) {
+const writeInteger = (bufferWriter, value) => {
   if (typeof value !== 'bigint') {
     throw Error(`writeInteger: Expected bigint, got ${typeof value}`);
   }
   const string = value >= ZERO_N ? `${value}+` : `${-value}-`;
   bufferWriter.writeString(string);
-}
+};
 
 /**
  * @param {import('./buffer-writer.js').BufferWriter} bufferWriter
  * @param {boolean} value
  */
-function writeBoolean(bufferWriter, value) {
+const writeBoolean = (bufferWriter, value) => {
   bufferWriter.writeByte(value ? TRUE : FALSE);
-}
+};
 
 export class SyrupWriter {
   /** @type {BufferWriter} */
@@ -229,8 +229,8 @@ export class SyrupWriter {
   }
 }
 
-export function makeSyrupWriter(options = {}) {
+export const makeSyrupWriter = (options = {}) => {
   const { length: capacity = defaultCapacity, ...writerOptions } = options;
   const bufferWriter = new BufferWriter(capacity);
   return new SyrupWriter(bufferWriter, writerOptions);
-}
+};
