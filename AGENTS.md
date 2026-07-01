@@ -2,6 +2,19 @@
 
 This file provides conventions and constraints for AI agents working in this repository.
 
+## House style
+
+Coding style rules that apply across the entire repository are documented in
+[`docs/house-style/`](docs/house-style/).
+
+- [Arrow and method syntax over the `function` keyword](docs/house-style/function-keyword.md):
+  We do not use the `function` keyword in package sources except in specific
+  exception categories (constructor emulation, generators, vendored code, and a
+  few others).
+  Arrow functions and concise method syntax are the default.
+  Read the doc for the rationale (hardened-JS hazards) and the full exception
+  list.
+
 ## Repository structure
 
 - Monorepo managed with Yarn workspaces
