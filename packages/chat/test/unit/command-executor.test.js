@@ -7,7 +7,6 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
@@ -99,9 +98,13 @@ const createMockContext = () => {
           },
           invite: async guestName => {
             calls.push({ method: 'invite', args: [guestName] });
-            return Far('MockInvitation', {
-              locate: async () => 'endo://invitation',
-            });
+            return makeExo(
+              'MockInvitation',
+              M.interface('MockInvitation', {}, { defaultGuards: 'passable' }),
+              {
+                locate: async () => 'endo://invitation',
+              },
+            );
           },
           accept: async (locator, guestName) => {
             calls.push({ method: 'accept', args: [locator, guestName] });
@@ -1046,15 +1049,23 @@ test('execute js command surfaces the daemon trace when evaluation throws', asyn
             throw thrown;
           },
           diagnostics: async () =>
-            Far('Diagnostics', {
-              traces: async () =>
-                Far('Traces', {
-                  lookup: async errorId =>
-                    errorId === 'error:Endo#1'
-                      ? { errorId, stack: STACK, workerId: WORKER_ID }
-                      : undefined,
-                }),
-            }),
+            makeExo(
+              'Diagnostics',
+              M.interface('Diagnostics', {}, { defaultGuards: 'passable' }),
+              {
+                traces: async () =>
+                  makeExo(
+                    'Traces',
+                    M.interface('Traces', {}, { defaultGuards: 'passable' }),
+                    {
+                      lookup: async errorId =>
+                        errorId === 'error:Endo#1'
+                          ? { errorId, stack: STACK, workerId: WORKER_ID }
+                          : undefined,
+                    },
+                  ),
+              },
+            ),
         },
       )
     )
