@@ -330,10 +330,8 @@ const makeModuleMapHook = (
 /**
  * @type {ImportNowHookMaker}
  */
-const impossibleImportNowHookMaker = () => {
-  return function impossibleImportNowHook() {
-    throw new Error('Provided read powers do not support dynamic requires');
-  };
+const impossibleImportNowHookMaker = () => () => {
+  throw new Error('Provided read powers do not support dynamic requires');
 };
 
 /**

@@ -279,12 +279,12 @@ export const makeDeferredAttenuatorsProvider = (
  * @param {object} options.globalThis
  * @param {object} options.globals
  */
-async function attenuateGlobalThis({
+const attenuateGlobalThis = async ({
   attenuators,
   attenuationDefinition,
   globalThis,
   globals,
-}) {
+}) => {
   const attenuate = await importAttenuatorForDefinition(
     attenuationDefinition,
     attenuators,
@@ -307,7 +307,7 @@ async function attenuateGlobalThis({
   if (typeof result === 'object' && result !== null) {
     assign(globalThis, result);
   }
-}
+};
 
 /**
  * Filters available globals and returns a copy according to the policy
@@ -497,11 +497,11 @@ export const enforcePackagePolicyByCanonicalName = (
  * @param {VirtualModuleSource} options.moduleSource
  * @returns {Promise<VirtualModuleSource>}
  */
-async function attenuateVirtualModuleSource({
+const attenuateVirtualModuleSource = async ({
   attenuators,
   attenuationDefinition,
   moduleSource,
-}) {
+}) => {
   const attenuate = await importAttenuatorForDefinition(
     attenuationDefinition,
     attenuators,
@@ -528,7 +528,7 @@ async function attenuateVirtualModuleSource({
       },
     }),
   );
-}
+};
 
 /**
  * Attenuates a module descriptor whose source is a virtual module source.
@@ -543,11 +543,11 @@ async function attenuateVirtualModuleSource({
  * @param {VirtualModuleSource | SourceModuleDescriptor} options.moduleDescriptor
  * @returns {Promise<SourceModuleDescriptor>}
  */
-async function attenuateModule({
+const attenuateModule = async ({
   attenuators,
   attenuationDefinition,
   moduleDescriptor,
-}) {
+}) => {
   await null;
   if ('source' in moduleDescriptor) {
     const { source: moduleSource } = moduleDescriptor;
@@ -587,7 +587,7 @@ async function attenuateModule({
       moduleDescriptor,
     )}`,
   );
-}
+};
 
 /**
  * Throws if importing of the specifier is not allowed by the policy
