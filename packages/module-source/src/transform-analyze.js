@@ -66,16 +66,16 @@ const makeHubParentPath = ast => {
  *
  * @returns {(source: string, options?: ModuleSourceOptions & AnalysisOptions) => ModuleSourceRecord}
  */
-export const makeModuleSourceAnalyzer = () =>
+export const makeModuleSourceAnalyzer = () => {
   /**
    * @param {string} moduleSource
    * @param {ModuleSourceOptions & AnalysisOptions} [options]
    * @returns {ModuleSourceRecord}
    */
-  function createStaticRecord(
+  const createStaticRecord = (
     moduleSource,
     { sourceUrl, sourceMapUrl, sourceMap, sourceMapHook, allowHidden } = {},
-  ) {
+  ) => {
     if (moduleSource.startsWith('#!')) {
       // Comment out the shebang lines.
       moduleSource = `//${moduleSource}`;
@@ -143,6 +143,8 @@ export const makeModuleSourceAnalyzer = () =>
 
     return ctx.buildRecord(scriptSource, sourceUrl);
   };
+  return createStaticRecord;
+};
 
 // TODO: May be unused; referenced only in ses/test262
 export const makeModuleTransformer = (_babel, importer) => {
@@ -177,18 +179,16 @@ export const makeModuleTransformer = (_babel, importer) => {
       const { allowHidden, endowments, src: source, url } = ss;
 
       // Make an importer that uses our transform for its submodules.
-      function curryImporter(srcSpec) {
-        return importer(srcSpec, endowments);
-      }
+      const curryImporter = srcSpec => importer(srcSpec, endowments);
 
       // Create an import expression for the given URL.
-      function makeImportExpr() {
+      const makeImportExpr = () => {
         // TODO: Provide a way to allow hardening of the import expression.
         const importExpr = spec => curryImporter({ url, spec });
         importExpr.meta = Object.create(null);
         importExpr.meta.url = url;
         return importExpr;
-      }
+      };
 
       // Add the $h_import hidden endowment for import expressions.
       Object.assign(endowments, {
