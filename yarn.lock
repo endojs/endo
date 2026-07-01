@@ -1637,13 +1637,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/daemon-cas@workspace:packages/daemon-cas"
   dependencies:
-    "@endo/exo-stream": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/platform": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@endo/stream": "workspace:^"
-    "@endo/stream-node": "workspace:^"
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
