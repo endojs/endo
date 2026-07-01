@@ -51,6 +51,7 @@
     "./debugger-panel.js": "./src/debugger-panel.js",
     "./command-executor.js": "./src/command-executor.js",
     "./command-registry.js": "./src/command-registry.js",
+    "./error-trace.js": "./src/error-trace.js",
     "./platform-keys.js": "./src/platform-keys.js",
     "./inline-define.js": "./src/inline-define.js",
     "./inline-eval.js": "./src/inline-eval.js",

@@ -21,6 +21,7 @@ import { createDebuggerPanel } from './debugger-panel.js';
 import { createEndowModal } from './endow-modal.js';
 import { createInlineCommandForm } from './inline-command-form.js';
 import { createCommandExecutor } from './command-executor.js';
+import { watchErrorTrace } from './error-trace.js';
 import {
   getCommand,
   getCategories,
@@ -209,6 +210,9 @@ harden(CommandPopover);
  * @property {boolean} submitting - Whether a command is in flight (spinner).
  * @property {boolean} valid - Whether the inline form currently validates.
  * @property {string} error - Command error text (empty hides the bubble).
+ * @property {import('./error-trace.js').ErrorTraceDetail | null} [errorDetail] -
+ *   Resolved daemon-side trace detail for the error (stack trace and the
+ *   authoritative worker id). Present for the /js evaluate path; null otherwise.
  */
 
 /**
@@ -225,6 +229,10 @@ harden(CommandPopover);
  * @property {() => CommandChromeState} getState
  * @property {() => void} onSubmit
  * @property {() => void} onCancel
+ * @property {(workerId: string) => void} onShowWorker - Invoke the Show Value
+ *   flow for the worker that produced the current error (the error bubble's
+ *   worker chip click). The host owns the behaviour; the confined view only
+ *   knows the worker id to pass back.
  */
 
 /**
@@ -267,7 +275,39 @@ const CommandChrome = ({ region, controller }) => {
   }
 
   if (region === 'error') {
-    return state.error || null;
+    if (!state.error) return null;
+    const detail = state.errorDetail || null;
+    const stack = detail && detail.stack ? detail.stack : '';
+    const workerId = detail && detail.workerId ? detail.workerId : '';
+    // The chip shows the worker's reverse-looked-up name (`@petName`), the same
+    // token Show Value renders in its title; `worker` when the worker is
+    // anonymous (unnamed in the pet store).
+    const workerName = detail && detail.workerName ? detail.workerName : '';
+    // A bare error (no resolved trace) renders as just its message text, exactly
+    // as before. When the /js evaluate path resolved a daemon-side trace, the
+    // bubble gains a collapsible stack trace and a clickable worker chip whose
+    // click routes through the controller into the host's Show Value flow.
+    if (!stack && !workerId) {
+      return state.error;
+    }
+    return h(
+      'div',
+      { class: 'command-error-detail' },
+      h('div', { class: 'command-error-message' }, state.error),
+      stack ? h('pre', { class: 'command-error-stack-text' }, stack) : null,
+      workerId
+        ? h(
+            'button',
+            {
+              type: 'button',
+              class: 'command-error-worker-chip',
+              title: 'Show the worker that produced this error',
+              onClick: () => controller.onShowWorker(workerId),
+            },
+            workerName || 'worker',
+          )
+        : null,
+    );
   }
 
   // region === 'footer'
@@ -577,11 +617,15 @@ export const chatBarComponent = (
       }
       debuggerPanel.open(debuggerRef, label);
     },
-    showError: error => {
+    showError: (error, trace) => {
       const message = error?.message || String(error) || 'Unknown error';
-      // Use command error element in command mode, chat error otherwise
+      // Use command error element in command mode, chat error otherwise. When a
+      // resolved trace detail accompanies the error (today the /js evaluate
+      // path), the command bubble surfaces the stack trace and a clickable
+      // worker chip; otherwise it shows the bare message.
       if (mode === 'inline') {
-        setCommandError(message); // eslint-disable-line no-use-before-define
+        // eslint-disable-next-line no-use-before-define
+        setCommandError(message, trace);
       } else {
         $error.textContent = message;
       }
@@ -851,6 +895,42 @@ export const chatBarComponent = (
   let currentCommandLabel = '';
   let currentSubmitLabel = 'Execute';
   let currentCommandError = '';
+  /** @type {import('./error-trace.js').ErrorTraceDetail | null} */
+  let currentCommandErrorDetail = null;
+  /**
+   * Cancel handle for an in-flight trace watch (see `setCommandError`). The
+   * next command submitted clears the error via `setCommandError('')`, which
+   * cancels the watch — that is the maintainer-specified dismissal signal.
+   *
+   * @type {(() => void) | undefined}
+   */
+  let cancelTraceWatch;
+
+  /**
+   * Bring up Show Value for the worker that produced an error, given the
+   * worker's formula identifier (stamped by the daemon from the connection
+   * identity). Best-effort reverse lookup: resolve the live worker remotable
+   * via `lookupById` so the modal shows the actual worker value; if the worker
+   * is no longer retained under any path the lookup rejects and we fall back to
+   * a bare-id (anonymous) Show Value, whose back face still inspects the
+   * worker's formula via `diagnostics().getFormula`.
+   *
+   * @param {string} workerId
+   */
+  const showWorkerValue = async workerId => {
+    try {
+      const workerValue = await E(powers).lookupById(
+        /** @type {Parameters<EndoHost['lookupById']>[0]} */ (
+          /** @type {unknown} */ (workerId)
+        ),
+      );
+      showValue(workerValue, workerId, undefined, undefined);
+    } catch {
+      // The worker is anonymous to us (no retained path resolves the id); show
+      // it by bare formula identifier so the chip still opens Show Value.
+      showValue(undefined, workerId, undefined, undefined);
+    }
+  };
 
   /** @type {CommandChromeController} */
   const commandChromeController = {
@@ -861,6 +941,7 @@ export const chatBarComponent = (
       submitting: commandSubmitting,
       valid: commandValid,
       error: currentCommandError,
+      errorDetail: currentCommandErrorDetail,
     }),
     onSubmit: () => {
       // eslint-disable-next-line no-use-before-define
@@ -869,6 +950,11 @@ export const chatBarComponent = (
     onCancel: () => {
       messagePicker.disable();
       exitCommandMode(); // eslint-disable-line no-use-before-define
+    },
+    onShowWorker: workerId => {
+      // The worker id is the worker formula's identifier; reverse-resolve the
+      // live worker for Show Value (anonymous fallback when unretained).
+      void showWorkerValue(workerId);
     },
   };
 
@@ -880,14 +966,53 @@ export const chatBarComponent = (
     }
   };
 
-  /** @param {string} message */
-  const setCommandError = message => {
+  /**
+   * @param {string} message
+   * @param {import('./error-trace.js').ErrorTraceDetail | null} [detail]
+   */
+  const setCommandError = (message, detail = null) => {
+    // Cancel any trace watch from a prior error. Because the next command
+    // submitted clears the bubble via `setCommandError('')` (see
+    // `executeWithSpinner`), this is where "cancel the watch when the error
+    // bubble is dismissed" happens.
+    if (cancelTraceWatch) {
+      cancelTraceWatch();
+      cancelTraceWatch = undefined;
+    }
     currentCommandError = message;
+    currentCommandErrorDetail = detail || null;
     // The host owns the error bubble's visibility (the CSS `:not(:empty)` rule
     // can no longer fire now that `#command-error` always holds a mount child);
     // the confined region owns the text it shows.
     $commandError.style.display = message ? 'block' : 'none';
     pushCommandChrome();
+
+    // The daemon-side trace may not have reached the aggregator when the error
+    // surfaced (a race between the worker's asynchronous trace push and the
+    // browser's lookup round-trip), leaving the bubble with only the bare
+    // message — no disclosure triangle, no worker chip. When the initial
+    // resolve recovered an errorId but no stack/worker, watch for the record to
+    // arrive and enrich the bubble in place.
+    if (detail && detail.errorId && !detail.stack && !detail.workerId) {
+      const watchedDetail = detail;
+      cancelTraceWatch = watchErrorTrace(
+        powers,
+        detail.errorId,
+        ({ stack, workerId, workerName }) => {
+          cancelTraceWatch = undefined;
+          // Ignore a resolution for an error no longer on screen (a newer
+          // command replaced it before the record arrived).
+          if (currentCommandErrorDetail !== watchedDetail) return;
+          currentCommandErrorDetail = {
+            ...watchedDetail,
+            stack,
+            workerId,
+            workerName,
+          };
+          pushCommandChrome();
+        },
+      );
+    }
   };
 
   const $commandHeaderMount = document.createElement('div');
@@ -959,14 +1084,16 @@ export const chatBarComponent = (
       return;
     }
 
-    // For commands that open their own modal, reset command line
-    // immediately so the modal receives focus.
-    const isEval = commandName === 'js' || commandName === 'eval';
+    // For commands that open their own modal, reset the command line
+    // immediately so the modal receives focus. Inline `/js` (and its `/eval`
+    // alias) do NOT open a modal here — they evaluate in place — so they stay in
+    // command mode through execution. That keeps `mode === 'inline'`, so a failed
+    // evaluation surfaces through the rich command-error bubble (message + stack
+    // trace + clickable worker chip via `setCommandError`) instead of the bare
+    // send-mode `#chat-error` toast, which shows only the message. Treating `/js`
+    // as modal-opening here is what dropped the resolved trace on the floor.
     const opensModal =
-      isEval ||
-      commandName === 'view' ||
-      commandName === 'edit' ||
-      commandName === 'cat';
+      commandName === 'view' || commandName === 'edit' || commandName === 'cat';
     if (opensModal) {
       exitCommandMode({ skipFocus: true }); // eslint-disable-line no-use-before-define
     } else {
@@ -1624,6 +1751,11 @@ export const chatBarComponent = (
         },
         onClose: () => {
           hideEvalForm(); // eslint-disable-line no-use-before-define
+        },
+        onShowWorker: workerId => {
+          // Run Show Value for the worker that produced the error: reverse-resolve
+          // the live worker remotable (anonymous fallback when unretained).
+          void showWorkerValue(workerId);
         },
       });
     }

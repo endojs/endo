@@ -10,6 +10,7 @@ import { E } from '@endo/far';
 
 import { makeBrowserTree, checkoutToDirectory } from './browser-tree.js';
 import { lookupPath } from './name-hub.js';
+import { resolveErrorTrace } from './error-trace.js';
 
 /**
  * Structural shape of the channel exo ref the command executor talks to via
@@ -34,7 +35,7 @@ import { lookupPath } from './name-hub.js';
  * @property {ERef<EndoHost>} powers - The powers object
  * @property {(value: unknown, id?: string, petNamePath?: string[], messageContext?: { number: bigint, edgeName: string }) => unknown} showValue - Display a value
  * @property {(message: string) => unknown} showMessage - Display a message
- * @property {(error: Error) => unknown} showError - Display an error
+ * @property {(error: Error, trace?: import('./error-trace.js').ErrorTraceDetail) => unknown} showError - Display an error, optionally with its resolved daemon-side trace detail
  * @property {() => unknown | null} [getChannelRef] - Returns channel ref when in channel mode
  * @property {(petNamePath: string, readOnly: boolean) => Promise<void>} [openBlobViewer] - Open blob viewer/editor
  * @property {(workerRef: unknown, label: string) => void} [openDebugger] - Open debugger panel for a worker
@@ -319,13 +320,29 @@ export const createCommandExecutor = ({
             ? String(resultName).split('/')
             : undefined;
 
-          const result = await E(powers).evaluate(
-            String(workerName),
-            String(source),
-            codeNames,
-            petNamePaths,
-            resultPath,
-          );
+          let result;
+          try {
+            result = await E(powers).evaluate(
+              String(workerName),
+              String(source),
+              codeNames,
+              petNamePaths,
+              resultPath,
+            );
+          } catch (evalError) {
+            // Surface the error with its daemon-side trace: the full stack and
+            // the authoritative worker identifier the daemon stamped from the
+            // connection identity (so the error bubble can show a stack trace
+            // and a clickable worker chip). The decoded CapTP error is hardened,
+            // so the trace travels alongside it via showError's second argument
+            // rather than as a property mutation. The worker id is the worker's
+            // formula identifier, which the Show Value flow resolves.
+            const err = /** @type {Error} */ (evalError);
+            const trace = await resolveErrorTrace(powers, err);
+            console.error(`[Chat] /${commandName} failed:`, err);
+            showError(err, trace);
+            return { success: false, error: err };
+          }
 
           if (resultName) {
             return {

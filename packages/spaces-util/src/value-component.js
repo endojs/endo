@@ -1,7 +1,7 @@
 // @ts-check
 
 /** @import { ERef } from '@endo/far' */
-/** @import { EndoHost } from '@endo/daemon' */
+/** @import { EndoDiagnostics, EndoHost } from '@endo/daemon' */
 /** @import { VNode } from 'preact' */
 /** @import { FormulaRecord } from './formula-view.js' */
 
@@ -46,7 +46,7 @@ import { FormulaView, humanizeName } from './formula-view.js';
 // FORMULA BACK FACE. The modal grows a second (verso) card face that inspects
 // the value's underlying daemon FORMULA, reached via the F key, the header gear
 // icon, or the back-face flip button. The back face fetches the value's formula
-// record through `E(powers).getFormula(id)` and renders it through the SAME
+// record through `E(powers).diagnostics()` → `getFormula(id)` and renders it through the SAME
 // confined `renderConfined` boundary (`FormulaView`), so the daemon-supplied,
 // untrusted property values and reference names reach the DOM only as escaped
 // text — that confinement is the whole point of the conversion. Reference
@@ -822,10 +822,10 @@ export const valueComponent = ($parent, powers, { enterProfile }) => {
       renderBackFaceMessage('formula-view-loading', 'Loading formula...');
       try {
         // currentId is a daemon-emitted formula identifier string;
-        // EndoHost.getFormula expects the branded FormulaIdentifier subtype of
-        // string. Casting via unknown bridges the brand.
-        const fetched = await E(powers).getFormula(
-          /** @type {Parameters<EndoHost['getFormula']>[0]} */ (
+        // EndoDiagnostics.getFormula expects the branded FormulaIdentifier
+        // subtype of string. Casting via unknown bridges the brand.
+        const fetched = await E(E(powers).diagnostics()).getFormula(
+          /** @type {Parameters<EndoDiagnostics['getFormula']>[0]} */ (
             /** @type {unknown} */ (id)
           ),
         );
@@ -941,8 +941,8 @@ export const valueComponent = ($parent, powers, { enterProfile }) => {
       let record = formulaCache.get(identifier);
       if (!record) {
         record = /** @type {FormulaRecord} */ (
-          await E(powers).getFormula(
-            /** @type {Parameters<EndoHost['getFormula']>[0]} */ (
+          await E(E(powers).diagnostics()).getFormula(
+            /** @type {Parameters<EndoDiagnostics['getFormula']>[0]} */ (
               /** @type {unknown} */ (identifier)
             ),
           )
