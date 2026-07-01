@@ -427,9 +427,38 @@ export const makeXsFilePowers = () => {
     });
   };
 
+  /**
+   * Directory-change watcher.  The XS host exposes no `fs.watch`
+   * equivalent, so this returns an event stream that closes
+   * immediately, mirroring the Node powers' documented fallback for
+   * when `fs.watch` is unavailable.  `followNameChanges` under the XS
+   * supervisor therefore yields its initial snapshot and then ends,
+   * a graceful degradation rather than a crash, and the method is
+   * present so the XS powers satisfy the same `FilePowers` contract
+   * as the Node powers (enforced by mount-platform-fs-conformance).
+   *
+   * @type {FilePowers['watchDirectory']}
+   */
+  const watchDirectory = _dirPath => {
+    /** @type {AsyncIterable<{ kind: 'add' | 'remove' | 'replace', name: string }>} */
+    const events = harden({
+      [Symbol.asyncIterator]() {
+        return harden({
+          next: async () => harden({ value: undefined, done: true }),
+          return: async () => harden({ value: undefined, done: true }),
+        });
+      },
+    });
+    return harden({
+      events,
+      cancel: () => {},
+    });
+  };
+
   return harden({
     makeFileReader,
     makeFileWriter,
+    watchDirectory,
     writeFileText,
     appendFileText,
     readFileText,

@@ -13,6 +13,7 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { checkinTree } from '@endo/platform/fs/lite';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
@@ -237,12 +238,23 @@ test('EndoMountFile.fetch rejects a negative or out-of-range window with EINVAL'
   });
 });
 
-test('followNameChanges throws ENOSYS until a filesystem watcher is wired', async t => {
+test('followNameChanges yields existing entries as the initial snapshot', async t => {
   const rootPath = makeTempRoot(t);
   const mount = makeMount({ rootPath, readOnly: false, filePowers });
-  await t.throwsAsync(() => E(mount).followNameChanges(), {
-    message: /ENOSYS.*followNameChanges.*filesystem watcher/,
-  });
+  await E(mount).writeText(['beta.txt'], 'b');
+  await E(mount).writeText(['alpha.txt'], 'a');
+  // The watcher is wired through `filePowers.watchDirectory`, so
+  // followNameChanges resolves to a reader that first publishes the
+  // existing entries in sorted order rather than throwing.
+  const changes = iterateReader(await E(mount).followNameChanges());
+  const first = /** @type {any} */ ((await changes.next()).value);
+  const second = /** @type {any} */ ((await changes.next()).value);
+  t.deepEqual(
+    [first.add, second.add],
+    ['alpha.txt', 'beta.txt'],
+    'snapshot reports both existing entries in alphabetical order',
+  );
+  await changes.return();
 });
 
 test('maybeLookup accepts a MountEntry path argument', async t => {

@@ -3,8 +3,12 @@
 
 /** @import { FilePowers } from './types.js' */
 
+/**
+ * @typedef {{ add: string, type: 'file' | 'directory' } | { remove: string }} MountNameChange
+ */
+
 import { E } from '@endo/far';
-import { makeError, q, X } from '@endo/errors';
+import { q } from '@endo/errors';
 import { makeExo } from '@endo/exo';
 import { encodeBase64 } from '@endo/base64';
 import { mapReader } from '@endo/stream';
@@ -16,6 +20,7 @@ import { toSafeNumber } from '@endo/platform/fs/extended/shared/helpers.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
+import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 
 import { fromHex } from './hex.js';
 import { mountHelp, mountFileHelp, makeHelp } from './help-text.js';
@@ -624,17 +629,6 @@ const makeMountExo = ctx => {
       }
     },
 
-    // Part of the name-hub contract, but a live change feed needs a
-    // filesystem watcher behind the mount (filesystem-watchers.md), which is
-    // not yet implemented. Throw an explicit ENOSYS-style error rather than
-    // being silently absent, so callers get a clear signal that the surface
-    // exists but is not wired yet.
-    followNameChanges() {
-      throw makeError(
-        X`ENOSYS: followNameChanges is not yet supported on EndoMount; a filesystem watcher (see filesystem-watchers.md) is required to emit name changes`,
-      );
-    },
-
     async subView(pathArg) {
       await null;
       const segments = segmentsFromPathArg(pathArg);
@@ -775,6 +769,79 @@ const makeMountExo = ctx => {
       await assertConfined(from, confinementRoot, filePowers);
       await assertConfinedOrAncestor(to, confinementRoot, filePowers);
       await filePowers.renamePath(from, to);
+    },
+
+    followNameChanges(...pathSegments) {
+      /**
+       * Snapshot-then-diff stream of immediate children of the
+       * resolved subdirectory.  The implementation lifts the
+       * structure from `pet-store.js`'s `followNameChanges`: yield
+       * the existing entries in sorted order, then yield diff
+       * records (`{ add, type }` / `{ remove }`) as
+       * `FilePowers.watchDirectory` reports changes.
+       *
+       * Confinement: the watched path is validated up-front, and
+       * each emitted name passes through the same `isConfinedPath`
+       * filter `list()` uses, so symlinks escaping the mount root
+       * are silently dropped from both the snapshot and the diff
+       * stream.
+       *
+       * Lifecycle: the `try / finally` releases the OS-level
+       * watcher handle when the consumer drops the iterator
+       * (the standard `for await … of` cleanup path, and what
+       * `makeIteratorRef` triggers when a remote subscription
+       * closes).
+       */
+      const target = resolve(pathSegments);
+      /** @returns {AsyncGenerator<MountNameChange, undefined, undefined>} */
+      const generate = async function* generate() {
+        await assertConfined(target, confinementRoot, filePowers);
+
+        const watcher = filePowers.watchDirectory(target);
+        try {
+          /** @type {Map<string, 'file' | 'directory'>} */
+          const known = new Map();
+          const entries = await filePowers.readDirectory(target);
+          for (const name of entries.sort()) {
+            const childPath = filePowers.joinPath(target, name);
+            // eslint-disable-next-line no-await-in-loop
+            if (await isConfinedPath(childPath, confinementRoot, filePowers)) {
+              // eslint-disable-next-line no-await-in-loop
+              const isDir = await filePowers.isDirectory(childPath);
+              const type = isDir ? 'directory' : 'file';
+              known.set(name, type);
+              yield harden({ add: name, type });
+            }
+          }
+
+          for await (const event of watcher.events) {
+            const childPath = filePowers.joinPath(target, event.name);
+            // eslint-disable-next-line no-await-in-loop
+            const present = await filePowers.exists(childPath);
+            // eslint-disable-next-line no-await-in-loop
+            const confined =
+              present &&
+              // eslint-disable-next-line no-await-in-loop
+              (await isConfinedPath(childPath, confinementRoot, filePowers));
+            if (confined && !known.has(event.name)) {
+              // eslint-disable-next-line no-await-in-loop
+              const isDir = await filePowers.isDirectory(childPath);
+              const type = isDir ? 'directory' : 'file';
+              known.set(event.name, type);
+              yield harden({ add: event.name, type });
+            } else if (!confined && known.has(event.name)) {
+              known.delete(event.name);
+              yield harden({ remove: event.name });
+            }
+            // Otherwise the event was a same-name in-place mutation
+            // (file contents changed, or a quick remove/re-add that
+            // the debounce window collapsed); name-set is unchanged.
+          }
+        } finally {
+          watcher.cancel();
+        }
+      };
+      return readerFromIterator(generate());
     },
 
     readOnly() {
