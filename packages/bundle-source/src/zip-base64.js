@@ -24,11 +24,11 @@ const readPowers = makeReadPowers({ fs, url, crypto });
  * @param {BundleZipBase64Options} [options]
  * @param {SharedPowers} [grantedPowers]
  */
-export async function bundleZipBase64(
+export const bundleZipBase64 = async (
   startFilename,
   options = {},
   grantedPowers = {},
-) {
+) => {
   const {
     dev = false,
     cacheSourceMaps = false,
@@ -104,4 +104,4 @@ export async function bundleZipBase64(
     endoZipBase64,
     endoZipBase64Sha512: sha512,
   });
-}
+};
