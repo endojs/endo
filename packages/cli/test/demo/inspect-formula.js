@@ -2,7 +2,8 @@
 
 /**
  * `endo inspect` exposes the host-only `getFormula` daemon method
- * per `designs/formula-inspector.md`. The verb accepts either a
+ * (reached via the `diagnostics()` facet) per
+ * `designs/formula-inspector.md`. The verb accepts either a
  * pet-name path (resolved via `host.identify`) or, with
  * `--identifier`, an already-encoded formula identifier. With
  * `--json` the raw `FormulaRecord` is emitted for scripting.
