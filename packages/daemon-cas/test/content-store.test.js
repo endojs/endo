@@ -12,125 +12,26 @@ import path from 'node:path';
 import url from 'node:url';
 import crypto from 'node:crypto';
 
-import { makeNodeReader } from '@endo/stream-node';
-import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
-import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import {
+  makeContentStoreFilePowers,
+  makeContentStoreCryptoPowers,
+} from '@endo/platform/fs/node';
 
 import { makeContentStore } from '../src/content-store.js';
-
-/** @import { ContentStoreFilePowers, ContentStoreCryptoPowers } from '../types.js' */
 
 const test = wrapTest(rawTest);
 
 const dirname = url.fileURLToPath(new URL('..', import.meta.url));
 
-/**
- * Minimal `ContentStoreFilePowers` over `node:fs/promises`, sufficient
- * for the four-method CAS contract.
- *
- * @returns {ContentStoreFilePowers}
- */
-const makeFilePowers = () => {
-  return harden({
-    makeFileReader(p) {
-      // Returns an async iterator that yields Uint8Array chunks.  The
-      // CAS exposes this directly through `fetch().makeFileReader`.  We
-      // shape it with `@endo/exo-stream` readers rather than a
-      // hand-rolled `{ next, return }` shim: the Node read stream is
-      // adapted to an `@endo/stream` `Reader<Uint8Array>`
-      // (`makeNodeReader`), promoted to a passable bytes reader
-      // (`bytesReaderFromIterator`), then consumed back into a local
-      // async iterator (`iterateBytesReader`).  The round-trip exercises
-      // the same reader abstraction the platform's own blob layer uses.
-      const reader = makeNodeReader(fs.createReadStream(p));
-      const passableReader = bytesReaderFromIterator(reader);
-      return /** @type {any} */ (iterateBytesReader(passableReader));
-    },
-    makeFileWriter(p) {
-      const stream = fs.createWriteStream(p);
-      return /** @type {any} */ (
-        harden({
-          /** @param {Uint8Array} chunk */
-          next: chunk =>
-            /** @type {Promise<void>} */ (
-              new Promise((resolve, reject) => {
-                stream.write(chunk, err =>
-                  err ? reject(err) : resolve(undefined),
-                );
-              })
-            ),
-          return: () =>
-            /** @type {Promise<void>} */ (
-              new Promise(resolve => {
-                stream.end(() => resolve(undefined));
-              })
-            ),
-        })
-      );
-    },
-    async readFileText(p) {
-      return fs.promises.readFile(p, 'utf-8');
-    },
-    async readFileRange(p, offset, length) {
-      const handle = await fs.promises.open(p, 'r');
-      try {
-        const buffer = new Uint8Array(length);
-        const { bytesRead } = await handle.read(buffer, 0, length, offset);
-        return buffer.subarray(0, bytesRead);
-      } finally {
-        await handle.close();
-      }
-    },
-    async statPath(p) {
-      const stat = await fs.promises.stat(p, { bigint: true });
-      let kind = /** @type {'file' | 'directory' | 'symlink'} */ ('file');
-      if (stat.isDirectory()) {
-        kind = 'directory';
-      } else if (stat.isSymbolicLink()) {
-        kind = 'symlink';
-      }
-      return harden({
-        kind,
-        size: stat.size,
-        mtime: stat.mtimeNs,
-        atime: stat.atimeNs,
-      });
-    },
-    async makePath(p) {
-      await fs.promises.mkdir(p, { recursive: true });
-    },
-    joinPath(...components) {
-      return path.join(...components);
-    },
-    async renamePath(source, target) {
-      await fs.promises.rename(source, target);
-    },
-    async removePath(p) {
-      // Match the daemon's removePath shape: force: true is idempotent.
-      await fs.promises.rm(p, { force: true });
-    },
-  });
-};
-
-/** @returns {ContentStoreCryptoPowers} */
-const makeCryptoPowers = () => {
-  return harden({
-    makeSha256() {
-      const hasher = crypto.createHash('sha256');
-      return harden({
-        update(chunk) {
-          hasher.update(chunk);
-        },
-        digestHex() {
-          return hasher.digest('hex');
-        },
-      });
-    },
-    async randomHex256() {
-      return crypto.randomBytes(32).toString('hex');
-    },
-  });
-};
+// The `ContentStoreFilePowers` / `ContentStoreCryptoPowers` the store
+// injects are platform-owned contracts with a canonical `node:fs` /
+// `node:crypto` implementation in `@endo/platform/fs/node`; the test
+// stands on that implementation rather than hand-rolling a duplicate
+// mock over `node:fs`.  These are not the subject of the test — the
+// four-method CAS contract (`store` / `fetch` / `has` / `remove`) is —
+// so the test uses the real powers the daemon itself would inject.
+const makeFilePowers = makeContentStoreFilePowers;
+const makeCryptoPowers = makeContentStoreCryptoPowers;
 
 /**
  * Async-iterable wrapper over an array of byte chunks; matches the

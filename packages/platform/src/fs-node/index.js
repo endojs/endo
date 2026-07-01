@@ -7,3 +7,7 @@ export * from '../fs/index.js';
 export { makeLocalTree } from './local-tree.js';
 export { makeLocalBlob } from './local-blob.js';
 export { makeTreeWriter } from './tree-writer.js';
+export {
+  makeContentStoreFilePowers,
+  makeContentStoreCryptoPowers,
+} from './content-store-powers.js';

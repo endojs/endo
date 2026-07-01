@@ -1,7 +1,14 @@
 ---
 '@endo/daemon-cas': minor
+'@endo/platform': minor
 '@endo/daemon': patch
 ---
+
+`@endo/platform/fs/node` now exports `makeContentStoreFilePowers` and
+`makeContentStoreCryptoPowers`: the canonical `node:fs` / `node:crypto`
+implementations of the platform-owned `ContentStoreFilePowers` /
+`ContentStoreCryptoPowers` contracts. Consumers (and their tests) inject these
+rather than hand-rolling a duplicate filesystem/crypto powers object.
 
 Extract the filesystem-backed content-addressed store (`makeContentStore`)
 out of `@endo/daemon`'s `daemon-persistence-powers.js` into a new
