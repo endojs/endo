@@ -46,7 +46,7 @@ const textEncoder = new TextEncoder();
  * @see http://www.delorie.com/djgpp/doc/rbinter/it/65/16.html
  * @see http://www.delorie.com/djgpp/doc/rbinter/it/66/16.html
  */
-function writeDosDateTime(writer, date) {
+const writeDosDateTime = (writer, date) => {
   const dosTime =
     date !== undefined && date !== null
       ? (((date.getUTCFullYear() - 1980) & 0x7f) << 25) | // year
@@ -57,14 +57,14 @@ function writeDosDateTime(writer, date) {
         (date.getUTCSeconds() >> 1) // second
       : 0; // Epoch origin by default.
   writer.writeUint32(dosTime, true);
-}
+};
 
 /**
  * @param {BufferWriter} writer
  * @param {FileRecord} file
  * @returns {LocalFileLocator}
  */
-function writeFile(writer, file) {
+const writeFile = (writer, file) => {
   // Header
   const fileStart = writer.index;
   writer.write(signature.LOCAL_FILE_HEADER);
@@ -91,14 +91,14 @@ function writeFile(writer, file) {
     headerStart,
     headerEnd,
   };
-}
+};
 
 /**
  * @param {BufferWriter} writer
  * @param {FileRecord} file
  * @param {LocalFileLocator} locator
  */
-function writeCentralFileHeader(writer, file, locator) {
+const writeCentralFileHeader = (writer, file, locator) => {
   writer.write(signature.CENTRAL_FILE_HEADER);
   writer.writeUint8(file.version);
   writer.writeUint8(file.madeBy);
@@ -113,7 +113,7 @@ function writeCentralFileHeader(writer, file, locator) {
   writer.write(file.centralName);
   // TODO extra fields
   writer.write(file.comment);
-}
+};
 
 /**
  * @param {BufferWriter} writer
@@ -122,13 +122,13 @@ function writeCentralFileHeader(writer, file, locator) {
  * @param {number} centralDirectoryLength
  * @param {Uint8Array} commentBytes
  */
-function writeEndOfCentralDirectoryRecord(
+const writeEndOfCentralDirectoryRecord = (
   writer,
   entriesCount,
   centralDirectoryStart,
   centralDirectoryLength,
   commentBytes,
-) {
+) => {
   writer.write(signature.CENTRAL_DIRECTORY_END);
   writer.writeUint16(0, true);
   writer.writeUint16(0, true);
@@ -138,14 +138,14 @@ function writeEndOfCentralDirectoryRecord(
   writer.writeUint32(centralDirectoryStart, true);
   writer.writeUint16(commentBytes.length, true);
   writer.write(commentBytes);
-}
+};
 
 /**
  * @param {BufferWriter} writer
  * @param {Array<FileRecord>} records
  * @param {string} comment
  */
-export function writeZipRecords(writer, records, comment = '') {
+export const writeZipRecords = (writer, records, comment = '') => {
   // Write records with local headers.
   const locators = [];
   for (let i = 0; i < records.length; i += 1) {
@@ -169,13 +169,13 @@ export function writeZipRecords(writer, records, comment = '') {
     centralDirectoryLength,
     commentBytes,
   );
-}
+};
 
 /**
  * @param {import('./types.js').ArchivedFile} file
  * @returns {import('./types.js').UncompressedFile}
  */
-function encodeFile(file) {
+const encodeFile = file => {
   const name = textEncoder.encode(file.name.replace(/\\/g, '/'));
   const comment = textEncoder.encode(file.comment);
   return {
@@ -185,25 +185,23 @@ function encodeFile(file) {
     content: file.content,
     comment,
   };
-}
+};
 
 /**
  * @param {import('./types.js').UncompressedFile} file
  * @returns {import('./types.js').CompressedFile}
  */
-function compressFileWithStore(file) {
-  return {
-    name: file.name,
-    mode: file.mode,
-    date: file.date,
-    crc32: crc32(file.content),
-    compressionMethod: compression.STORE,
-    compressedLength: file.content.length,
-    uncompressedLength: file.content.length,
-    content: file.content,
-    comment: file.comment,
-  };
-}
+const compressFileWithStore = file => ({
+  name: file.name,
+  mode: file.mode,
+  date: file.date,
+  crc32: crc32(file.content),
+  compressionMethod: compression.STORE,
+  compressedLength: file.content.length,
+  uncompressedLength: file.content.length,
+  content: file.content,
+  comment: file.comment,
+});
 
 /**
  * Computes Zip external file attributes field from a UNIX mode for a file.
@@ -211,9 +209,7 @@ function compressFileWithStore(file) {
  * @param {number} mode
  * @returns {number}
  */
-function externalFileAttributes(mode) {
-  return ((mode & 0o777) | 0o10_0000) << 16;
-}
+const externalFileAttributes = mode => ((mode & 0o777) | 0o10_0000) << 16;
 
 // TODO Add support for directory records.
 // /**
@@ -229,36 +225,34 @@ function externalFileAttributes(mode) {
  * @param {import('./types.js').CompressedFile} file
  * @returns {FileRecord}
  */
-function makeFileRecord(file) {
-  return {
-    name: file.name,
-    centralName: file.name,
-    madeBy: UNIX,
-    version: UNIX_VERSION,
-    versionNeeded: 0, // TODO this is probably too lax.
-    bitFlag: 0,
-    compressionMethod: compression.STORE,
-    date: file.date,
-    crc32: file.crc32,
-    compressedLength: file.compressedLength,
-    uncompressedLength: file.uncompressedLength,
-    diskNumberStart: 0,
-    internalFileAttributes: 0,
-    externalFileAttributes: externalFileAttributes(file.mode),
-    comment: file.comment,
-    content: file.content,
-  };
-}
+const makeFileRecord = file => ({
+  name: file.name,
+  centralName: file.name,
+  madeBy: UNIX,
+  version: UNIX_VERSION,
+  versionNeeded: 0, // TODO this is probably too lax.
+  bitFlag: 0,
+  compressionMethod: compression.STORE,
+  date: file.date,
+  crc32: file.crc32,
+  compressedLength: file.compressedLength,
+  uncompressedLength: file.uncompressedLength,
+  diskNumberStart: 0,
+  internalFileAttributes: 0,
+  externalFileAttributes: externalFileAttributes(file.mode),
+  comment: file.comment,
+  content: file.content,
+});
 
 /**
  * @param {BufferWriter} writer
  * @param {Array<import('./types.js').ArchivedFile>} files
  * @param {string} comment
  */
-export function writeZip(writer, files, comment = '') {
+export const writeZip = (writer, files, comment = '') => {
   const encodedFiles = files.map(encodeFile);
   const compressedFiles = encodedFiles.map(compressFileWithStore);
   // TODO collate directoryRecords from file bases.
   const fileRecords = compressedFiles.map(makeFileRecord);
   writeZipRecords(writer, fileRecords, comment);
-}
+};
