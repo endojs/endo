@@ -1219,6 +1219,7 @@ __metadata:
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/platform": "workspace:^"
     ava: "catalog:dev"
@@ -1233,10 +1234,12 @@ __metadata:
     "@earendil-works/pi-agent-core": "npm:^0.79.0"
     "@earendil-works/pi-ai": "npm:^0.79.0"
     "@endo/daemon": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
     "@endo/exo-git": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/git": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/platform": "workspace:^"
     ajv: "npm:^8.17.1"
@@ -1263,6 +1266,7 @@ __metadata:
     "@earendil-works/pi-ai": "npm:^0.79.0"
     "@endo/agent-tools": "workspace:^"
     "@endo/daemon": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
     "@endo/exo-git": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
@@ -1923,6 +1927,7 @@ __metadata:
     "@endo/init": "workspace:^"
     "@endo/lal": "workspace:^"
     "@endo/marshal": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     ava: "catalog:dev"
@@ -2024,6 +2029,7 @@ __metadata:
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/marshal": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/platform": "workspace:^"
     "@endo/promise-kit": "workspace:^"
@@ -2215,6 +2221,7 @@ __metadata:
     "@endo/init": "workspace:^"
     "@endo/lal": "workspace:^"
     "@endo/marshal": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@endo/patterns": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     eslint: "catalog:dev"
@@ -2716,6 +2723,7 @@ __metadata:
   resolution: "@endo/space-channel@workspace:packages/space-channel"
   dependencies:
     "@endo/daemon": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
@@ -2732,6 +2740,7 @@ __metadata:
   resolution: "@endo/space-chat@workspace:packages/space-chat"
   dependencies:
     "@endo/daemon": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
@@ -2745,12 +2754,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/space-file-explorer@workspace:packages/space-file-explorer"
   dependencies:
+    "@endo/eventual-send": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/monaco-wrapper": "workspace:^"
+    "@endo/pass-style": "workspace:^"
     "@endo/platform": "workspace:^"
     "@endo/preact-container": "workspace:^"
     "@endo/ses-ava": "workspace:^"
@@ -2776,6 +2787,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/space-inventory-graph@workspace:packages/space-inventory-graph"
   dependencies:
+    "@endo/eventual-send": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
     eslint: "catalog:dev"
@@ -2786,6 +2798,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/space-peers@workspace:packages/space-peers"
   dependencies:
+    "@endo/eventual-send": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
@@ -2799,6 +2812,7 @@ __metadata:
   resolution: "@endo/space-whylip@workspace:packages/space-whylip"
   dependencies:
     "@endo/conversation-tree": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     eslint: "catalog:dev"
