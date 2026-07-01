@@ -55,7 +55,7 @@ const collectPatternIdentifiers = (path, pattern) => {
  * @param {TransformSourceParams} options
  * @returns {{ analyzePlugin: VisitorPlugin, transformPlugin: VisitorPlugin }}
  */
-function makeModulePlugins(options) {
+const makeModulePlugins = options => {
   const {
     sourceType,
     exportAlls,
@@ -678,6 +678,6 @@ function makeModulePlugins(options) {
     analyzePlugin: rewriteModules(0),
     transformPlugin: rewriteModules(1),
   };
-}
+};
 
 export default makeModulePlugins;
