@@ -33,12 +33,11 @@ const { parse: parseBabel } = babelParser;
  * @returns {any}
  * @internal
  */
-export function parseAst(source, opts = {}) {
-  return parseBabel(source, {
+export const parseAst = (source, opts = {}) =>
+  parseBabel(source, {
     tokens: true,
     createParenthesizedExpressions: true,
     allowReturnOutsideFunction:
       opts.sourceType === 'script' || opts.sourceType === 'commonjs',
     ...(opts.sourceType !== undefined && { sourceType: opts.sourceType }),
   });
-}

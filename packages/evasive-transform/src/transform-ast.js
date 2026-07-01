@@ -83,14 +83,14 @@ export const makeEvasiveTransformVisitor = ({
  * @param {TransformAstOptions} [opts]
  * @returns {void}
  */
-export function transformAst(
+export const transformAst = (
   ast,
   { elideComments = false, onlyComments = false, customVisitor } = {},
-) {
+) => {
   const visitor = makeEvasiveTransformVisitor({
     elideComments,
     onlyComments,
     customVisitor,
   });
   traverse(ast, visitor);
-}
+};
