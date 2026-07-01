@@ -36,7 +36,7 @@ const isFunction = obj => typeof obj === 'function';
 // conflict between, for example, two of SES's internal permits might
 // get masked as one overwrites the other. Accordingly, the thrown error
 // complains of a "Conflicting definition".
-function initProperty(obj, name, desc) {
+const initProperty = (obj, name, desc) => {
   if (hasOwn(obj, name)) {
     const preDesc = getOwnPropertyDescriptor(obj, name);
     if (
@@ -52,21 +52,21 @@ function initProperty(obj, name, desc) {
     }
   }
   defineProperty(obj, name, desc);
-}
+};
 
 // Like defineProperties, but throws if it would modify an existing property.
 // This ensures that the intrinsics added to the intrinsics collector object
 // graph do not overlap.
-function initProperties(obj, descs) {
+const initProperties = (obj, descs) => {
   for (const [name, desc] of entries(descs)) {
     initProperty(obj, name, desc);
   }
-}
+};
 
 // sampleGlobals creates an intrinsics object, suitable for
 // interinsicsCollector.addIntrinsics, from the named properties of a global
 // object.
-function sampleGlobals(globalObject, newPropertyNames) {
+const sampleGlobals = (globalObject, newPropertyNames) => {
   const newIntrinsics = { __proto__: null };
   for (const [globalName, intrinsicName] of entries(newPropertyNames)) {
     if (hasOwn(globalObject, globalName)) {
@@ -74,7 +74,7 @@ function sampleGlobals(globalObject, newPropertyNames) {
     }
   }
   return newIntrinsics;
-}
+};
 
 /**
  * @param {Reporter} reporter

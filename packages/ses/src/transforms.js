@@ -21,7 +21,7 @@ import { getSourceURL } from './get-source-url.js';
  * @param {RegExp} pattern
  * @returns {number}
  */
-function getLineNumber(src, pattern) {
+const getLineNumber = (src, pattern) => {
   const index = regexpSearch(pattern, src);
   if (index < 0) {
     return -1;
@@ -33,7 +33,7 @@ function getLineNumber(src, pattern) {
   const adjustment = src[index] === '\n' ? 1 : 0;
 
   return stringSplit(stringSlice(src, 0, index), '\n').length + adjustment;
-}
+};
 
 // /////////////////////////////////////////////////////////////////////////////
 

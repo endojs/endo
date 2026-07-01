@@ -107,7 +107,7 @@ export const isValidIdentifierName = name =>
  * isImmutableDataProperty
  */
 
-function isImmutableDataProperty(obj, name) {
+const isImmutableDataProperty = (obj, name) => {
   const desc = getOwnPropertyDescriptor(obj, name);
   return (
     desc &&
@@ -128,7 +128,7 @@ function isImmutableDataProperty(obj, name) {
     // case where Object.prototype has been poisoned.
     hasOwn(desc, 'value')
   );
-}
+};
 
 /**
  * getScopeConstants()
