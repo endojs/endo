@@ -26,6 +26,7 @@
     },
     "./fs/lite": "./src/fs/index.js",
     "./fs/lite/types": "./src/fs/types.js",
+    "./fs/lite/types.js": "./src/fs/types.js",
     "./fs/node": "./src/fs-node/index.js",
     "./fs/extended": {
       "types": "./src/fs/extended/types.d.ts",

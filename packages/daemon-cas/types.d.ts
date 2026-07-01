@@ -31,7 +31,7 @@ export type ContentStoreReader = import('@endo/stream').Reader<Uint8Array>;
  * `@endo/platform` so callers see the shared CAS interface.
  */
 export type ContentStoreReadableBlob =
-  import('@endo/platform/fs/lite/types').ReadableBlob;
+  import('@endo/platform/fs/lite/types.js').ReadableBlob;
 
 /**
  * Writer shape consumed by `store`.  The platform-owned
@@ -39,7 +39,7 @@ export type ContentStoreReadableBlob =
  * `@endo/stream`'s `Writer<Uint8Array>`).
  */
 export type ContentStoreWriter =
-  import('@endo/platform/fs/lite/types').ContentStoreFileWriter;
+  import('@endo/platform/fs/lite/types.js').ContentStoreFileWriter;
 
 /**
  * The filesystem powers the content store materialises blobs with.
@@ -48,7 +48,7 @@ export type ContentStoreWriter =
  * than reproducing a subset of the daemon's `FilePowers`.
  */
 export type ContentStoreFilePowers =
-  import('@endo/platform/fs/lite/types').ContentStoreFilePowers;
+  import('@endo/platform/fs/lite/types.js').ContentStoreFilePowers;
 
 /**
  * The crypto powers the content store hashes inbound streams and mints
@@ -56,7 +56,7 @@ export type ContentStoreFilePowers =
  * re-exported here for the same reason as `ContentStoreFilePowers`.
  */
 export type ContentStoreCryptoPowers =
-  import('@endo/platform/fs/lite/types').ContentStoreCryptoPowers;
+  import('@endo/platform/fs/lite/types.js').ContentStoreCryptoPowers;
 
 /**
  * The injected dependencies shared by the factory: the filesystem and
@@ -86,4 +86,4 @@ export interface ContentStoreOptions extends ContentStorePowers {
  */
 export function makeContentStore(
   options: ContentStoreOptions,
-): import('@endo/platform/fs/lite/types').ContentStore;
+): import('@endo/platform/fs/lite/types.js').ContentStore;

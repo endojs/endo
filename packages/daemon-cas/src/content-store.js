@@ -3,7 +3,7 @@
 
 import harden from '@endo/harden';
 
-/** @import { ContentStore } from '@endo/platform/fs/lite/types' */
+/** @import { ContentStore } from '@endo/platform/fs/lite/types.js' */
 /** @import { ContentStoreOptions } from '../types.js' */
 
 /**

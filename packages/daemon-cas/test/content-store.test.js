@@ -12,6 +12,10 @@ import path from 'node:path';
 import url from 'node:url';
 import crypto from 'node:crypto';
 
+import { makeNodeReader } from '@endo/stream-node';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+
 import { makeContentStore } from '../src/content-store.js';
 
 /** @import { ContentStoreFilePowers, ContentStoreCryptoPowers } from '../types.js' */
@@ -30,16 +34,17 @@ const makeFilePowers = () => {
   return harden({
     makeFileReader(p) {
       // Returns an async iterator that yields Uint8Array chunks.  The
-      // CAS exposes this directly through `fetch().makeFileReader`; we
-      // shape it as a minimal stream-shaped reader.
-      const stream = fs.createReadStream(p);
-      const iterator = stream[Symbol.asyncIterator]();
-      return /** @type {any} */ (
-        harden({
-          next: () => iterator.next(),
-          return: value => iterator.return && iterator.return(value),
-        })
-      );
+      // CAS exposes this directly through `fetch().makeFileReader`.  We
+      // shape it with `@endo/exo-stream` readers rather than a
+      // hand-rolled `{ next, return }` shim: the Node read stream is
+      // adapted to an `@endo/stream` `Reader<Uint8Array>`
+      // (`makeNodeReader`), promoted to a passable bytes reader
+      // (`bytesReaderFromIterator`), then consumed back into a local
+      // async iterator (`iterateBytesReader`).  The round-trip exercises
+      // the same reader abstraction the platform's own blob layer uses.
+      const reader = makeNodeReader(fs.createReadStream(p));
+      const passableReader = bytesReaderFromIterator(reader);
+      return /** @type {any} */ (iterateBytesReader(passableReader));
     },
     makeFileWriter(p) {
       const stream = fs.createWriteStream(p);
