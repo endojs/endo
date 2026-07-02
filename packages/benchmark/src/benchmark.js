@@ -1,6 +1,6 @@
 const getTime = () => Date.now() * 1_000_000;
 
-async function benchmark(name, t, fn, expedtedTime, iterations = 10_000) {
+const benchmark = async (name, t, fn, expectedTime, iterations = 10_000) => {
   await null;
   const start = getTime();
   for (let i = 0; i < iterations; i += 1) {
@@ -12,20 +12,20 @@ async function benchmark(name, t, fn, expedtedTime, iterations = 10_000) {
 
   console.log(`${name} | Average time: ${avgTime}ns`);
   t.assert(
-    avgTime < Number(expedtedTime),
-    `Expected ${avgTime} to be less than ${expedtedTime}`,
+    avgTime < Number(expectedTime),
+    `Expected ${avgTime} to be less than ${expectedTime}`,
   );
-}
+};
 
-function assert(condition, message = 'Assertion failed') {
+const assert = (condition, message = 'Assertion failed') => {
   if (!condition) throw Error(message);
-}
+};
 
-function truthy(value, message = 'Expected a truthy value') {
+const truthy = (value, message = 'Expected a truthy value') => {
   if (!value) throw Error(message);
-}
+};
 
-async function test(name, fn) {
+const test = async (name, fn) => {
   await null;
   try {
     console.log('Running test: ', name);
@@ -34,6 +34,6 @@ async function test(name, fn) {
   } catch (err) {
     console.log(`❌ Failed: ${/** @type {Error} */ (err).message}`);
   }
-}
+};
 
 export { benchmark, test };
