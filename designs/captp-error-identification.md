@@ -250,44 +250,17 @@ This lets the aggregator drop its reliance on an id embedded in the error body;
 it reads the worker id from connection identity and the error id from the frame
 side channel.
 
-## An alternative to `unredacted-stack.js` (@erights)
+## An alternative to `unredacted-stack.js` — moved to its own design
 
-Inline on `packages/daemon/src/unredacted-stack.js:53`, kriskowal wrote, tagging
-@erights: *"This should not be. We need an alternative."* Line 53 is the tap of
-`globalThis.getStackString`; the module also reaches
-`globalThis[Symbol.for('MAKE_CAUSAL_CONSOLE_FROM_LOGGER_KEY_FOR_SES_AVA')]` — the
-same undocumented SES start-compartment hooks `@endo/ses-ava` uses to surface
-unredacted causal traces. The daemon should not depend on an ses-ava-internal
-symbol and an undocumented global accessor to render unredacted error diagnostics.
-
-**Proposed alternative (design intent; final shape is @erights' call):**
-
-1. **Capture at the throw site, not by reconstruction.** The unredacted rendering
-   is privileged information that belongs to the party that *holds* the error —
-   the worker where the error originated. Capture the unredacted diagnostic in the
-   worker at `marshalSaveError` time (in the trusted start compartment, where the
-   information is legitimately available) and ship the **pre-rendered** text as
-   the `TraceRecord` payload. The daemon aggregator then stores rendered text and
-   performs **no** SES-internal access of its own — the tap disappears from the
-   daemon entirely.
-
-2. **Consume a sanctioned SES API, not the ses-ava symbol.** Even at the worker
-   throw site, the capture should call a **first-class, supported SES export** for
-   privileged unredacted rendering rather than the `MAKE_CAUSAL_CONSOLE_…` symbol
-   or `getStackString`. This design proposes that `ses` grow (or bless) such an
-   API — e.g. a start-compartment-only `getErrorDiagnostic(err)` / public
-   causal-console factory — and that both `@endo/ses-ava` and this daemon consumer
-   migrate onto it, retiring the shared symbol hack. That SES change is an
-   upstream endo issue to be filed and is a **dependency** of the build, not part
-   of this fork's build.
-
-3. **Feature-test against the sanctioned API.** The daemon keeps a narrow
-   feature-test/fallback (to `err.stack`) but tests for the *sanctioned* API, so
-   the daemon no longer breaks when SES retires the ses-ava symbol.
-
-@erights: this section is the specific request for your input — whether the
-sanctioned-SES-API path is the alternative you have in mind, or whether unredacted
-capture should be structured differently (e.g. never leaving the worker at all).
+Per kriskowal's review of #595 — *"Let's post a separate design for this
+improvement and hand that to @erights for review."* — the alternative to the
+`packages/daemon/src/unredacted-stack.js` SES-internal tap is now its own design:
+[`unredacted-stack-sanctioned-ses-api.md`](./unredacted-stack-sanctioned-ses-api.md).
+It is split out because that fix depends on an upstream `ses` API decision that is
+@erights' to steer, on a review track independent of error *identification*. The
+two are independent changes to the same `@endo/daemon` error-diagnostics
+subsystem: identification (the side-channel id) does not depend on how unredacted
+diagnostics are *rendered*, and vice versa.
 
 ## Testing plan (proof obligations)
 
@@ -333,9 +306,11 @@ Called out in the same review, to be carried by the **build** PR, not here:
    numbering: the sender namespace is an OCapN-defined per-session sender sequence,
    not a `marshalName`-scoped marshal counter. (See *Sender-scoped, stable
    identifiers* above.)
-3. **SES API shape.** Exact signature of the sanctioned unredacted-diagnostic SES
-   export — @erights to steer (see the alternative above). This is the gating
-   upstream dependency.
+3. **SES API shape — MOVED (kriskowal, #595).** The sanctioned unredacted-diagnostic
+   SES export, and the whole `unredacted-stack.js` alternative, are now a separate
+   design handed to @erights:
+   [`unredacted-stack-sanctioned-ses-api.md`](./unredacted-stack-sanctioned-ses-api.md).
+   Out of scope for this design.
 4. **Facet placement.** Where the closely-held `identifyError` facet is minted
    (per-session bootstrap vs. explicit grant) and its relationship to the existing
    host `traces` facet.
