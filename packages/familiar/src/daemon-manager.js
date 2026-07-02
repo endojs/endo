@@ -6,7 +6,7 @@
  *
  * Spawns the daemon bundle directly (replicating `daemon/index.js` start()
  * logic) instead of going through the CLI, because the bundled CLI resolves
- * `daemon-node.js` via `import.meta.url` which breaks in packaged builds.
+ * `manager-node.js` via `import.meta.url` which breaks in packaged builds.
  *
  * Uses child_process.spawn (not fork) with the embedded Node binary so the
  * daemon can outlive the Familiar process.
