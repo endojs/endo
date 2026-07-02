@@ -105,12 +105,15 @@ This satisfies **invariant 1**: in-band on the wire, namespace dictated by the
 sender. The receiver treats the identifier as opaque and meaningful only relative
 to the sending peer.
 
-**OCapN/CapTP change:** a new, versioned/negotiated per-message `errorIds` field
-(parallel to `slots`) in the OCapN message framing, and the CapTP marshal glue
-that populates and consumes it. This is a wire-format addition and must be
-specified in OCapN and gated by capability negotiation so pre-change peers
-degrade gracefully (an absent side channel means "no identification available",
-never a decode failure).
+**OCapN/CapTP change:** a new per-message `errorIds` field (parallel to `slots`)
+in the OCapN message framing, and the CapTP marshal glue that populates and
+consumes it. This is a wire-format addition to be specified in OCapN. Per
+kriskowal's review of #595 — *"we do not yet have existing deployments of any
+consequence"* — backward compatibility with pre-change peers is **not** a
+constraint on this change: the wire format may change outright rather than being
+gated behind capability negotiation for old peers. (Version negotiation may still
+be added later as OCapN matures, but it is not a requirement of this change, and
+its absence is not a blocker.)
 
 ### Sender-scoped, stable identifiers (invariants 1 and 5)
 
@@ -313,9 +316,11 @@ Called out in the same review, to be carried by the **build** PR, not here:
 
 ## Open Questions
 
-1. **Wire-format negotiation.** How is the new `errorIds` side channel negotiated
-   so mixed-version peers interoperate? Likely an OCapN capability bit; absent it,
-   errors carry no identification (graceful, not fatal).
+1. **Wire-format negotiation — RESOLVED (kriskowal, #595).** There are no existing
+   deployments of any consequence, so mixed-version interop is not a constraint:
+   the `errorIds` wire-format change lands outright, without a backward-compat
+   capability-negotiation gate. (Negotiation may be added later as OCapN matures;
+   it is not a prerequisite of this change.)
 2. **Namespace form.** Is the sender namespace the `marshalName`-scoped counter or
    an OCapN-defined per-session sequence? The latter is cleaner for pairwise
    scoping but requires OCapN to own the numbering.
