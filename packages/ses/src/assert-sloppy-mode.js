@@ -2,6 +2,8 @@ import { TypeError } from './commons.js';
 
 /** @this {unknown} */
 // getThis returns globalThis in sloppy mode or undefined in strict mode.
+// Retains the `function` keyword by deliberate exception (a caller-sensitive
+// `this` probe, not a constructor); see docs/house-style/function-keyword.md.
 function getThis() {
   return this;
 }
