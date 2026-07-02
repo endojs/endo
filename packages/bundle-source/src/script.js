@@ -23,12 +23,12 @@ const readPowers = makeReadPowers({ fs, url, crypto });
  * @param {BundleScriptOptions} [options]
  * @param {SharedPowers} [grantedPowers]
  */
-export async function bundleScript(
+export const bundleScript = async (
   startFilename,
   moduleFormat,
   options = {},
   grantedPowers = {},
-) {
+) => {
   const {
     dev = false,
     cacheSourceMaps = false,
@@ -126,4 +126,4 @@ export async function bundleScript(
     // TODO
     sourceMap: '',
   });
-}
+};
