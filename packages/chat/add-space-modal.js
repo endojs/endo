@@ -6,10 +6,10 @@ import harden from '@endo/harden';
 
 /** @import { ColorScheme } from './spaces-gutter.js' */
 /** @import { PetNamePathsAutocompleteAPI } from '@endo/spaces-util/petname-paths-autocomplete.js' */
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { assertValidLocator } from '@endo/spaces-util/locator.js';
 import { petNamePathsAutocomplete } from '@endo/spaces-util/petname-paths-autocomplete.js';
 import { ALL_ICONS, IconSelector } from './icon-selector.js';

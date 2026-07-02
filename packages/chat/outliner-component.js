@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 /** @import { ChannelMessage, ChannelRef } from '@endo/space-channel/channel-utils.js' */
 /** @import { TreeStore } from '@endo/space-channel/outliner/tree-source.js' */
@@ -13,7 +13,7 @@
 /** @import { TokenAutocompleteAPI } from '@endo/spaces-util/token-autocomplete.js' */
 
 import harden from '@endo/harden';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { tokenAutocompleteComponent } from '@endo/spaces-util/token-autocomplete.js';

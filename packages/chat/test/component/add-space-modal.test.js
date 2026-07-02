@@ -3,7 +3,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { createDOM, waitFor } from '../helpers/dom-setup.js';
 
 const { document: testDocument } = createDOM();

@@ -8,7 +8,7 @@ import { makeNetstringCapTP } from './connection.js';
 
 /**
  * @param {string} sockPath
- * @param {import('@endo/far').FarRef<unknown>} endoBootstrap
+ * @param {import('@endo/eventual-send').FarRef<unknown>} endoBootstrap
  * @param {object} opts
  * @param {Function} opts.servePath
  * @param {Iterator<number>} opts.connectionNumbers

@@ -1,7 +1,7 @@
 /* global process */
 
 import os from 'os';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';

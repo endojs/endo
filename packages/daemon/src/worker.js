@@ -2,7 +2,8 @@
 /* global globalThis, process */
 
 import harden from '@endo/harden';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { ZipWriter } from '@endo/zip/writer.js';

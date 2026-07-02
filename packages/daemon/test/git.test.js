@@ -12,7 +12,8 @@ import process from 'node:process';
 import { execFile, spawnSync } from 'node:child_process';
 import { promisify as nodePromisify } from 'node:util';
 
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { internalHelpers, makeNativeGitBackend } from '@endo/git';
 import { makeGit, makeNotYetImplementedBackend } from '@endo/exo-git';
 

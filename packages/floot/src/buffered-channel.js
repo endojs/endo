@@ -15,7 +15,7 @@
 // of left synthesizing for no one. It can be supplied up front or set later via
 // `setOnClose` (the transcript wire wires it after construction).
 
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 
 /** Terminal events close the stream; they match across all wires. */
 const isTerminal = event => event.type === 'end' || event.type === 'abort';

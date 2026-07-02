@@ -18,7 +18,7 @@ import {
   useMemo,
   useEffect,
 } from 'preact/hooks';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { buildUnifiedDiffSection } from '../layer-diff.js';

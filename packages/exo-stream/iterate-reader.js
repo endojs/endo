@@ -1,12 +1,12 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { mustMatch } from '@endo/patterns';
 
 /** @import { Passable } from '@endo/pass-style' */
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { Pattern } from '@endo/patterns' */
 /** @import { PassableReader, StreamNode, IterateReaderOptions, ReaderIterator } from './types.js' */
 

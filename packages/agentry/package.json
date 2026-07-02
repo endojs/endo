@@ -54,6 +54,7 @@
     "@earendil-works/pi-agent-core": "^0.79.0",
     "@earendil-works/pi-ai": "^0.79.0",
     "@endo/agent-tools": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
     "@endo/exo-git": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/marshal": "workspace:^",

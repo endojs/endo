@@ -2,7 +2,8 @@
 /* global globalThis */
 
 import { bytesFromText } from '@endo/bytes/from-string.js';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import harden from '@endo/harden';
 import { decodeHex } from '@endo/hex/decode.js';
 

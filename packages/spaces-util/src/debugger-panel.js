@@ -23,7 +23,7 @@
  * new Debugger ref updates the live component without re-mounting.
  */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import harden from '@endo/harden';
 
 import { Fragment, h } from 'preact';

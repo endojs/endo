@@ -14,7 +14,7 @@ import test from 'ava';
 import url from 'url';
 import path from 'path';
 import fs from 'fs';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { encodeHex } from '@endo/hex';
 import { decodeBase64 } from '@endo/base64';

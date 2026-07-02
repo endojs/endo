@@ -10,7 +10,7 @@ import url from 'url';
 import path from 'path';
 import fs from 'fs';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 
 import { start, stop, purge, makeEndoClient } from '../index.js';

@@ -4,7 +4,7 @@
 /** @import { ReadText } from '../../types.js' */
 /** @import { OutcomeReport } from '../../outcome-kit.js' */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 import { check, readTrackedFileAt } from '../../outcome-kit.js';
 

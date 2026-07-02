@@ -32,6 +32,7 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
+    "@endo/eventual-send": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^"
   },

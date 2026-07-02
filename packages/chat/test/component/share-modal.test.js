@@ -4,7 +4,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { createShareModal } from '@endo/space-channel/share-modal.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 

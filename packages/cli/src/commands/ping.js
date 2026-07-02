@@ -1,6 +1,6 @@
 /* global process */
 import os from 'os';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { whereEndoSock } from '@endo/where';
 import { makeEndoClient } from '@endo/daemon';
 import { withInterrupt } from '../context.js';

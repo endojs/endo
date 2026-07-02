@@ -2,7 +2,7 @@
 /* eslint-disable no-continue */
 
 import harden from '@endo/harden';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 /** @import { ChannelRef } from './channel-utils.js' */
 

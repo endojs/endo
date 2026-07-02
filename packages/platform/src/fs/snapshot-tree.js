@@ -1,7 +1,7 @@
 // @ts-check
 
 import harden from '@endo/harden';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { encodeBase64 } from '@endo/base64';
 import { decodeHex } from '@endo/hex';
 

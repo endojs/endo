@@ -2,7 +2,7 @@
 /* eslint-disable no-await-in-loop */
 
 import harden from '@endo/harden';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 
 /** @import { SnapshotStore } from './types.js' */

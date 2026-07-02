@@ -79,6 +79,7 @@
     "timeout": "2m"
   },
   "dependencies": {
+    "@endo/eventual-send": "workspace:^",
     "@endo/exo-git": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/patterns": "workspace:^",
@@ -90,6 +91,7 @@
     "@endo/daemon": "workspace:^",
     "@endo/git": "workspace:^",
     "@endo/init": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "ajv": "^8.17.1",
     "ava": "catalog:dev",
     "c8": "catalog:dev",

@@ -1,12 +1,12 @@
 // @ts-check
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { inferLanguage } from '@endo/spaces-util/language-detect.js';
 import {
   COMMANDS,

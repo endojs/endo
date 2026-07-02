@@ -3,10 +3,10 @@
 
 import harden from '@endo/harden';
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 import { makeBrowserTree, checkoutToDirectory } from './browser-tree.js';
 import { lookupPath } from './name-hub.js';

@@ -10,7 +10,8 @@ import { pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify as nodePromisify } from 'node:util';
 
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { makeNativeGitBackend } from '@endo/git';
 import {
   assertGitCredentialForUrl,

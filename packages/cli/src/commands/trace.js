@@ -2,7 +2,7 @@
 /* eslint-disable @endo/restrict-comparison-operands */
 import os from 'os';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 import { withEndoHost } from '../context.js';
 

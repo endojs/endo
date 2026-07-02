@@ -2,13 +2,13 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import assert from 'node:assert/strict';
 
 import { bytesReaderFromIterator } from '../bytes-reader-from-iterator.js';
 import { iterateBytesReader } from '../iterate-bytes-reader.js';
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { PassableBytesReader, StreamNode } from '../types.js' */
 

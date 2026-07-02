@@ -1,4 +1,4 @@
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { M } from '@endo/patterns';
 import { makeExo } from '@endo/exo';
 

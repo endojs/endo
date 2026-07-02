@@ -1,6 +1,6 @@
 /* global process */
 import os from 'os';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { withEndoAgent } from '../context.js';
 import { parseMessage } from '../message-parse.js';
 import { parseBigint } from '../number-parse.js';

@@ -2,7 +2,7 @@
 /* eslint-disable no-use-before-define */
 
 import harden from '@endo/harden';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 /** @import { ChannelMessage } from './channel-utils.js' */
 

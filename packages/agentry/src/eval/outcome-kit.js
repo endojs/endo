@@ -3,7 +3,7 @@
 
 /** @import { ReadText } from './types.js' */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 /**
  * One outcome check: a named pass/fail with a human-readable detail string.

@@ -4,7 +4,7 @@
  */
 import test from '@endo/ses-ava/prepare-endo.js';
 
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { makeCapTP, E } from '@endo/captp';
 import { makePipe, makeQueue } from '@endo/stream';
 import { makePromiseKit } from '@endo/promise-kit';

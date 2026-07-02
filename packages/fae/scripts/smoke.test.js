@@ -47,7 +47,7 @@ import fsSync from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, purge, makeEndoClient } from '@endo/daemon';
 

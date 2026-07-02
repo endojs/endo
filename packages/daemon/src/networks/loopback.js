@@ -1,9 +1,9 @@
 // @ts-check
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 
 /**
  * @param {Promise<import('../types.js').EndoGateway>} gateway
- * @returns {import('@endo/far').FarRef<import('../types.js').EndoNetwork>}
+ * @returns {import('@endo/eventual-send').FarRef<import('../types.js').EndoNetwork>}
  */
 export const makeLoopbackNetwork = gateway => {
   return Far(

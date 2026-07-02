@@ -1,7 +1,7 @@
 /* global process */
 
 import { makeCancelKit } from '@endo/cancel';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { whereEndoSock } from '@endo/where';
 import { provideEndoClient } from './client.js';
 import { isTerminalError } from './doe-normaal.js';

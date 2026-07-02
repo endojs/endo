@@ -6,7 +6,8 @@
 // when the optional native `@number0/iroh` binding is unavailable.
 import test from '@endo/ses-ava/prepare-endo.js';
 
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { makePromiseKit } from '@endo/promise-kit';
 
 import { adaptIrohStream } from '../src/networks/iroh-stream-adapter.js';

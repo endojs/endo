@@ -4,7 +4,8 @@
 
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 import { makeMarshal } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeError, q, X } from '@endo/errors';
@@ -4339,7 +4340,7 @@ const makeDaemonCore = async (
         await null;
 
         const archiveTree =
-          /** @type {import('@endo/far').ERef<ArchiveTreeMethods>} */ (
+          /** @type {import('@endo/eventual-send').ERef<ArchiveTreeMethods>} */ (
             remoteTree
           );
         const methods =

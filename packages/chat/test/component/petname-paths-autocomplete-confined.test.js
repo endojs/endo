@@ -4,7 +4,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { petNamePathsAutocomplete } from '@endo/spaces-util/petname-paths-autocomplete.js';
 import { createDOM, tick } from '../helpers/dom-setup.js';
 import { makeMockPowers } from '../helpers/mock-powers.js';

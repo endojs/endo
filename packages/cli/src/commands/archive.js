@@ -5,7 +5,7 @@ import fs from 'fs';
 import url from 'url';
 import path from 'path';
 import crypto from 'crypto';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';

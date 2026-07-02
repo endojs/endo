@@ -10,7 +10,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import url from 'url';
 import path from 'path';
 import crypto from 'crypto';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 
 import { start, stop, purge, makeEndoClient } from '../index.js';

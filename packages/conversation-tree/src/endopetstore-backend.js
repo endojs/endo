@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import harden from '@endo/harden';
 
 /** @import { ConversationNode, TreeBackend } from '../types.js' */

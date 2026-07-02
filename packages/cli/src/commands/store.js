@@ -6,7 +6,7 @@ import { makeNodeReader } from '@endo/stream-node';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { concatBytes } from '@endo/bytes/concat.js';
 import { bytesToText } from '@endo/bytes/to-string.js';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 import { withEndoAgent } from '../context.js';
 import { parsePetNamePath } from '../pet-name.js';

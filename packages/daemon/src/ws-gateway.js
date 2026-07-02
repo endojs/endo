@@ -3,7 +3,7 @@
 import http from 'node:http';
 import { WebSocketServer } from 'ws';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';

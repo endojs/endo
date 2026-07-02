@@ -10,7 +10,7 @@ import { makeArchive as makeCompartmentArchive } from '@endo/compartment-mapper'
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { defaultParserForLanguage as sourceParserForLanguage } from '@endo/compartment-mapper/import-parsers.js';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { withEndoAgent } from '../context.js';
 import { parseOptionalPetNamePath } from '../pet-name.js';
 import { randomHex16 } from '../random.js';

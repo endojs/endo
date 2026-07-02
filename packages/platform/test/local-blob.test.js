@@ -13,7 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import test from 'ava';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 
 import { makeLocalBlob } from '../src/fs-node/local-blob.js';

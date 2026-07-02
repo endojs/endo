@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-use-before-define */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 /** @import { PetNamePathAutocompleteAPI } from './petname-path-autocomplete.js' */
 
@@ -202,7 +202,7 @@ harden(EndowModalBody);
  *
  * @param {object} options
  * @param {HTMLElement} options.$container
- * @param {typeof import('@endo/far').E} options.E
+ * @param {typeof import('@endo/eventual-send').E} options.E
  * @param {ERef<EndoHost>} options.powers
  * @param {(result: { messageNumber: bigint, bindings: Record<string, string>, workerName: string, resultName?: string }) => Promise<void>} options.onSubmit
  * @param {() => void} options.onClose

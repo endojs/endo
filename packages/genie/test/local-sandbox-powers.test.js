@@ -29,7 +29,7 @@ import { join, sep } from 'path';
 import { tmpdir } from 'os';
 
 import { E } from '@endo/eventual-send';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import test from 'ava';

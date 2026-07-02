@@ -5,11 +5,11 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 
 import { makeGitTool } from '../src/git-tool.js';
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { GitToolCapability } from '../src/types.js' */
 
 const SLICE = [

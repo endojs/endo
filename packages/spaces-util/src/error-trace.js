@@ -1,9 +1,9 @@
 // @ts-check
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 
 /**
  * The detail a UI shows alongside a thrown error: the original message, the

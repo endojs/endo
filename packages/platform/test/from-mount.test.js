@@ -13,7 +13,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { E } from '@endo/eventual-send';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';

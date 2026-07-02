@@ -1,6 +1,6 @@
 import type { Passable } from '@endo/pass-style';
 import type { ERef } from '@endo/eventual-send';
-import type { FarRef } from '@endo/far';
+import type { FarRef } from '@endo/eventual-send';
 import type { CapTPOptions } from '@endo/captp';
 import type { Reader, Writer, Stream } from '@endo/stream';
 import type { PassableBytesReader, StreamNode } from '@endo/exo-stream';

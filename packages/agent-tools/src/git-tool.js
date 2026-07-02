@@ -1,13 +1,13 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { InterfaceGuard, Pattern } from '@endo/patterns' */
 /** @import { GitToolCapability, ToolRecord } from './types.js' */
 
 /** @typedef {Record<keyof GitToolCapability, (...args: unknown[]) => Promise<unknown>>} GitToolDispatch */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import {
   getInterfaceGuardPayload,
   getMethodGuardPayload,

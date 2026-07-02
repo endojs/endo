@@ -1,11 +1,11 @@
 // @ts-check
 /* eslint-disable no-use-before-define */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 /** @import { VNode } from 'preact' */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { createMonacoEditor, detectTheme } from '@endo/monaco-wrapper';
 import { h } from 'preact';
 import { renderConfined, unmount } from '@endo/preact-container/renderer';

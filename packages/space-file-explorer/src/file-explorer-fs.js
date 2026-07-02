@@ -14,7 +14,7 @@
 
 import './file-explorer-env.js';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import harden from '@endo/harden';
 
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';

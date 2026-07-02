@@ -5,7 +5,7 @@
 import '@endo/init/debug.js';
 
 /** @import { ExecutionContext } from 'ava' */
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { Filesystem } from '@endo/platform/fs/extended' */
 
 import test from 'ava';
@@ -13,7 +13,8 @@ import os from 'os';
 import path from 'path';
 import fs from 'fs';
 import { Buffer } from 'buffer';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 
 import {
   makeNodeFilesystem,

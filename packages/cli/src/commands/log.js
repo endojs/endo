@@ -10,7 +10,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makeEndoClient } from '@endo/daemon';
 import { waitForExitOrCancel } from '@endo/platform/proc';
 import { whereEndoState, whereEndoSock } from '@endo/where';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { withInterrupt } from '../context.js';
 
 const delay = async (ms, cancelled) => {

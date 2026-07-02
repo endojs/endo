@@ -4,7 +4,7 @@
 import '@endo/init/debug.js';
 
 import test from 'ava';
-import { Far } from '@endo/far';
+import { Far } from '@endo/pass-style';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { makePromiseKit } from '@endo/promise-kit';
 import { createDOM, tick } from '../helpers/dom-setup.js';

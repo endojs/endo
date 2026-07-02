@@ -1,12 +1,12 @@
 // @ts-check
 
 import harden from '@endo/harden';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { h, createContext } from 'preact';
 import { useContext, useEffect, useReducer, useState } from 'preact/hooks';
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 
 // Network peers view, migrated from imperative DOM (raw HTML strings /
 // createElement) to a PURE Preact component. This package does NO rendering of

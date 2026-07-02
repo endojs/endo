@@ -1,6 +1,6 @@
 // @ts-check
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';

@@ -1,7 +1,7 @@
 // @ts-check
 
 import harden from '@endo/harden';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { PeersView } from '@endo/space-peers';
 
 import { h, renderConfined, unmount } from './setup-preact-container.js';

@@ -1,12 +1,12 @@
 // @ts-check
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoDiagnostics, EndoHost } from '@endo/daemon' */
 /** @import { VNode } from 'preact' */
 /** @import { FormulaRecord } from './formula-view.js' */
 
 import harden from '@endo/harden';
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { passStyleOf } from '@endo/pass-style';
 
 import { h } from 'preact';

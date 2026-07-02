@@ -1,12 +1,12 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { encodeBase64 } from '@endo/base64';
 import { makePromiseKit } from '@endo/promise-kit';
 
 /** @import { Passable } from '@endo/pass-style' */
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { PassableBytesWriter, StreamNode, IterateBytesWriterOptions, BytesWriterIterator } from './types.js' */
 
 /**

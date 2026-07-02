@@ -1,7 +1,8 @@
 // @ts-check
 
 import test from '@endo/ses-ava/prepare-endo.js';
-import { E, Far } from '@endo/far';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/pass-style';
 
 import {
   makeCompartmentExecute,

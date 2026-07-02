@@ -37,7 +37,7 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
  * `@endo/tar`; the daemon supplies the consumer-side traversal
  * (`iterateBytesReader`), the content-store wiring, and the tree assembly.
  *
- * @param {import('@endo/far').ERef<import('@endo/exo-stream').PassableBytesReader>} readerRef
+ * @param {import('@endo/eventual-send').ERef<import('@endo/exo-stream').PassableBytesReader>} readerRef
  * @param {TarCheckinContentStore} contentStore
  * @returns {Promise<string>} The sha256 of the stored root tree JSON blob.
  */

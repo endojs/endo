@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable no-use-before-define */
 
-/** @import { ERef } from '@endo/far' */
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */
 
 import harden from '@endo/harden';
@@ -197,7 +197,7 @@ harden(PathAutocompleteRoot);
  * @param {HTMLInputElement} $input - The text input element
  * @param {HTMLElement} $menu - The autocomplete menu container
  * @param {object} options
- * @param {typeof import('@endo/far').E} options.E - Eventual send function
+ * @param {typeof import('@endo/eventual-send').E} options.E - Eventual send function
  * @param {ERef<EndoHost>} options.powers - Powers object for listing names
  * @returns {PetNamePathAutocompleteAPI}
  */

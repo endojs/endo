@@ -16,7 +16,7 @@ import { mkdtemp, rm, symlink, writeFile, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { E } from '@endo/far';
+import { E } from '@endo/eventual-send';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
