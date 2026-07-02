@@ -201,6 +201,13 @@ This replaces #58's more list-shaped `traces.lookup(errorId)` surface with an
 ocap-clean `identifyError(err)`: you must already hold the error object *and* the
 diagnostics facet to identify.
 
+Per kriskowal's review of #595, the new `identifyError` diagnostics facet and the
+existing host `traces` facet are **related**, and **consolidating them is left to
+the builder's discretion**: the build may fold `identifyError` into the existing
+`traces` facet, or mint a distinct per-session diagnostics facet, whichever reads
+cleaner in the daemon at build time. Either way the identifier lives only in the
+side table and never on the error.
+
 **OCapN/CapTP change:** define where the closely-held identification facet is
 minted (per-session bootstrap or an explicit grant) and that it reads only the
 session-scoped side table.
@@ -295,7 +302,7 @@ Called out in the same review, to be carried by the **build** PR, not here:
   grow builder directives + a reviewer that prevent inline typedefs recurring —
   a garden-infra follow-up, tracked separately.)
 
-## Open Questions
+## Open Questions (all resolved by kriskowal's review of #595)
 
 1. **Wire-format negotiation — RESOLVED (kriskowal, #595).** There are no existing
    deployments of any consequence, so mixed-version interop is not a constraint:
@@ -311,6 +318,9 @@ Called out in the same review, to be carried by the **build** PR, not here:
    design handed to @erights:
    [`unredacted-stack-sanctioned-ses-api.md`](./unredacted-stack-sanctioned-ses-api.md).
    Out of scope for this design.
-4. **Facet placement.** Where the closely-held `identifyError` facet is minted
-   (per-session bootstrap vs. explicit grant) and its relationship to the existing
-   host `traces` facet.
+4. **Facet placement — RESOLVED (kriskowal, #595).** The `identifyError` facet and
+   the existing host `traces` facet are related; **consolidation is at the
+   builder's discretion** (fold into `traces`, or mint a distinct diagnostics
+   facet). See *`identifyError` is closely held* above. Where exactly the facet is
+   minted (per-session bootstrap vs. explicit grant) follows from that build-time
+   choice.
