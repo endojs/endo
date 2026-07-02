@@ -120,9 +120,17 @@ its absence is not a blocker.)
 The sending marshal assigns identifiers from its own namespace. To make re-sends
 stable, the send side keeps a **WeakMap `sourceError → assignedId`**: the first
 serialization of a given error object allocates a fresh id from the sender's
-monotone counter; subsequent serializations of the *same* object reuse it. The
-namespace is dictated entirely by the sender (`marshalName`-scoped counter, or an
-OCapN-defined per-session sender sequence).
+monotone sequence; subsequent serializations of the *same* object reuse it.
+
+Per kriskowal's review of #595 — *"it will be good for OCapN and CapTP to own the
+numbering"* — the id is drawn from an **OCapN-defined per-session sender
+sequence** owned by OCapN/CapTP, **not** an ad-hoc `marshalName`-scoped marshal
+counter. This does not weaken invariant 1: the namespace is still *dictated by the
+sender* — OCapN defines the *scheme* and owns the sequence, while the sender
+remains the party that allocates the next id from it. Making OCapN own the
+numbering keeps the id space uniform across marshal instances and gives the
+pairwise scoping a single authoritative definition rather than a per-marshal
+convention.
 
 On the receive side, CapTP decodes each transmission into a **fresh** Error
 object (errors are by-copy pass-style; nothing interns them). Therefore two
@@ -321,9 +329,10 @@ Called out in the same review, to be carried by the **build** PR, not here:
    the `errorIds` wire-format change lands outright, without a backward-compat
    capability-negotiation gate. (Negotiation may be added later as OCapN matures;
    it is not a prerequisite of this change.)
-2. **Namespace form.** Is the sender namespace the `marshalName`-scoped counter or
-   an OCapN-defined per-session sequence? The latter is cleaner for pairwise
-   scoping but requires OCapN to own the numbering.
+2. **Namespace form — RESOLVED (kriskowal, #595).** OCapN and CapTP own the
+   numbering: the sender namespace is an OCapN-defined per-session sender sequence,
+   not a `marshalName`-scoped marshal counter. (See *Sender-scoped, stable
+   identifiers* above.)
 3. **SES API shape.** Exact signature of the sanctioned unredacted-diagnostic SES
    export — @erights to steer (see the alternative above). This is the gating
    upstream dependency.
