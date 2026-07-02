@@ -13,13 +13,13 @@ import url from 'url';
 
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
-import { makeDaemon } from './daemon.js';
+import { makeDaemon } from './manager.js';
 import {
   makeFilePowers,
   makeNetworkPowers,
   makeCryptoPowers,
-} from './daemon-node-powers.js';
-import { makeDaemonicBusPowers } from './bus-daemon-node-powers.js';
+} from './manager-node-powers.js';
+import { makeDaemonicBusPowers } from './bus-manager-node-powers.js';
 import {
   encodeEnvelope,
   decodeEnvelope,

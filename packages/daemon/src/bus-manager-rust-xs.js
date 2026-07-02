@@ -47,9 +47,9 @@ import { mapWriter, mapReader, makePipe } from '@endo/stream';
 import { bytesFromText } from '@endo/bytes/from-string.js';
 import { bytesToText } from '@endo/bytes/to-string.js';
 
-import { makeDaemon } from './daemon.js';
-import { makeDaemonicPersistencePowers } from './daemon-persistence-powers.js';
-import { makeDaemonDatabase } from './daemon-database.js';
+import { makeDaemon } from './manager.js';
+import { makeDaemonicPersistencePowers } from './manager-persistence-powers.js';
+import { makeDaemonDatabase } from './manager-database.js';
 import XsDatabase from './better-sqlite3-xs.js';
 import { makePetStoreMaker } from './pet-store.js';
 import {
@@ -61,7 +61,7 @@ import { encodeEnvelope, decodeEnvelope } from './envelope.js';
 import {
   makeXsFilePowers,
   makeXsCryptoPowers,
-} from './bus-daemon-rust-xs-powers.js';
+} from './bus-manager-rust-xs-powers.js';
 import { makeDebugSession } from './debug-session.js';
 import { makeDebugger } from './debugger.js';
 
@@ -636,7 +636,7 @@ const { promise: cancelled, reject: cancel } =
 
 let shouldTerminate = false;
 
-/** @type {Awaited<ReturnType<typeof import('./daemon.js').makeDaemon>> | null} */
+/** @type {Awaited<ReturnType<typeof import('./manager.js').makeDaemon>> | null} */
 let _daemonResult = null;
 
 const main = async () => {

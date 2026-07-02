@@ -33,7 +33,7 @@ import {
 } from '@endo/exo-git';
 
 import { start, stop, purge, makeEndoClient } from '../index.js';
-import { makeFilePowers } from '../src/daemon-node-powers.js';
+import { makeFilePowers } from '../src/manager-node-powers.js';
 import { lineageOf, makeMount } from '../src/mount.js';
 
 const execFileAsync = nodePromisify(execFile);

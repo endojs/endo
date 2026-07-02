@@ -15,13 +15,13 @@ import url from 'url';
 
 import { E } from '@endo/eventual-send';
 import { makeCancelKit } from '@endo/cancel';
-import { makeDaemon } from './daemon.js';
+import { makeDaemon } from './manager.js';
 import {
   makeFilePowers,
   makeNetworkPowers,
   makeDaemonicPowers,
   makeCryptoPowers,
-} from './daemon-node-powers.js';
+} from './manager-node-powers.js';
 import { startWsGateway } from './ws-gateway.js';
 
 const fsp = { access: fs.promises.access };

@@ -12,10 +12,10 @@
  */
 
 import Database from 'better-sqlite3';
-import { makeDaemonDatabase as makeDaemonDatabaseImpl } from './daemon-database.js';
+import { makeDaemonDatabase as makeDaemonDatabaseImpl } from './manager-database.js';
 
 /** @import { Config } from './types.js' */
-/** @import { DaemonDatabase } from './daemon-database.js' */
+/** @import { DaemonDatabase } from './manager-database.js' */
 
 /**
  * @param {Config} config

@@ -9,7 +9,7 @@ import { promisify } from 'node:util';
 import { makeNativeGitBackend } from '@endo/git';
 import { makeGit } from '@endo/exo-git';
 import { makeMount, lineageOf } from '@endo/daemon/src/mount.js';
-import { makeFilePowers } from '@endo/daemon/src/daemon-node-powers.js';
+import { makeFilePowers } from '@endo/daemon/src/manager-node-powers.js';
 
 /** @import { WritableEndoGit } from '@endo/exo-git' */
 

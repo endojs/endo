@@ -26,7 +26,7 @@ import { makeSnapshotStore } from '@endo/platform/fs/lite';
 import { toHex, fromHex } from './hex.js';
 
 /** @import { Config, CryptoPowers, DaemonicPersistencePowers, FilePowers, Formula, FormulaNumber } from './types.js' */
-/** @import { DaemonDatabase } from './daemon-database.js' */
+/** @import { DaemonDatabase } from './manager-database.js' */
 
 /**
  * @param {DaemonDatabase} daemonDb

@@ -16,7 +16,7 @@ import { walk, collectBytes } from '@endo/platform/fs/extended';
 import { makeNativeGitBackend } from '@endo/git';
 import { makeGit } from '@endo/exo-git';
 import { makeMount, lineageOf } from '@endo/daemon/src/mount.js';
-import { makeFilePowers } from '@endo/daemon/src/daemon-node-powers.js';
+import { makeFilePowers } from '@endo/daemon/src/manager-node-powers.js';
 
 import { makeGitTool } from '../src/json-tools/git.js';
 import { makeGitMountTools } from '../src/json-tools/git-mount.js';
