@@ -69,21 +69,25 @@ export interface ContentStorePowers {
 }
 
 /**
- * Options for the raw `makeContentStore` factory.  Caller picks the
- * directory; the factory does not assume any layout relative to a
- * daemon state path.
+ * Options for the raw `makeContentStore` factory: the injected
+ * capabilities the store materialises blobs with, gathered into a
+ * single `options` namespace. The storage directory is *not* part of
+ * this bag — it is a required positional argument to `makeContentStore`
+ * — so the mandatory path stays visibly separate from the optional
+ * powers wiring.
  */
-export interface ContentStoreOptions extends ContentStorePowers {
-  /** Absolute directory the CAS materialises into. */
-  storageDirectoryPath: string;
-}
+export type ContentStoreOptions = ContentStorePowers;
 
 /**
  * Construct a raw `ContentStore` backed by a filesystem directory.
- * The factory writes to a temp file, hashes the stream as it lands,
- * then atomically renames the temp file to its sha256 name.  Returns
- * the `@endo/platform/fs/lite/types`-defined `ContentStore` interface.
+ * The required `storageDirectoryPath` is positional (the directory is
+ * not optional at all); the injected `filePowers` / `cryptoPowers`
+ * capabilities travel in the second `options` namespace.  The factory
+ * writes to a temp file, hashes the stream as it lands, then
+ * atomically renames the temp file to its sha256 name.  Returns the
+ * `@endo/platform/fs/lite/types`-defined `ContentStore` interface.
  */
 export function makeContentStore(
+  storageDirectoryPath: string,
   options: ContentStoreOptions,
 ): import('@endo/platform/fs/lite/types.js').ContentStore;

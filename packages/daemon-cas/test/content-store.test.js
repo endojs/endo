@@ -65,10 +65,9 @@ test.before(async () => {
 
 test('store then fetch round-trips the same bytes', async t => {
   const storageDirectoryPath = await makeTemporaryDirectory(t);
-  const store = makeContentStore({
+  const store = makeContentStore(storageDirectoryPath, {
     filePowers: makeFilePowers(),
     cryptoPowers: makeCryptoPowers(),
-    storageDirectoryPath,
   });
 
   const payload = encoder.encode('hello, content store');
@@ -84,10 +83,9 @@ test('store then fetch round-trips the same bytes', async t => {
 
 test('store concatenates multi-chunk streams before hashing', async t => {
   const storageDirectoryPath = await makeTemporaryDirectory(t);
-  const store = makeContentStore({
+  const store = makeContentStore(storageDirectoryPath, {
     filePowers: makeFilePowers(),
     cryptoPowers: makeCryptoPowers(),
-    storageDirectoryPath,
   });
 
   const parts = ['one ', 'two ', 'three'];
@@ -105,10 +103,9 @@ test('store concatenates multi-chunk streams before hashing', async t => {
 
 test('has reports presence and absence', async t => {
   const storageDirectoryPath = await makeTemporaryDirectory(t);
-  const store = makeContentStore({
+  const store = makeContentStore(storageDirectoryPath, {
     filePowers: makeFilePowers(),
     cryptoPowers: makeCryptoPowers(),
-    storageDirectoryPath,
   });
 
   const sha = await store.store(asAsyncIterable([encoder.encode('present')]));
@@ -121,10 +118,9 @@ test('has reports presence and absence', async t => {
 
 test('remove deletes the blob and is idempotent', async t => {
   const storageDirectoryPath = await makeTemporaryDirectory(t);
-  const store = makeContentStore({
+  const store = makeContentStore(storageDirectoryPath, {
     filePowers: makeFilePowers(),
     cryptoPowers: makeCryptoPowers(),
-    storageDirectoryPath,
   });
 
   const sha = await store.store(asAsyncIterable([encoder.encode('ephemeral')]));
@@ -143,10 +139,9 @@ test('remove deletes the blob and is idempotent', async t => {
 
 test('store deduplicates identical content', async t => {
   const storageDirectoryPath = await makeTemporaryDirectory(t);
-  const store = makeContentStore({
+  const store = makeContentStore(storageDirectoryPath, {
     filePowers: makeFilePowers(),
     cryptoPowers: makeCryptoPowers(),
-    storageDirectoryPath,
   });
 
   const payload = encoder.encode('twice');
@@ -166,10 +161,9 @@ test('store streams to a temp name and atomically renames to the sha256', async 
   // be observable under its sha256 name.  We exercise the happy path
   // here and confirm that no temp file outlives the call.
   const storageDirectoryPath = await makeTemporaryDirectory(t);
-  const store = makeContentStore({
+  const store = makeContentStore(storageDirectoryPath, {
     filePowers: makeFilePowers(),
     cryptoPowers: makeCryptoPowers(),
-    storageDirectoryPath,
   });
 
   const sha = await store.store(asAsyncIterable([encoder.encode('atomic')]));
@@ -185,10 +179,9 @@ test('fetch text reads from disk on each call', async t => {
   // documented contract: the store is filesystem-backed and fetch
   // returns a thin reader over the on-disk blob.
   const storageDirectoryPath = await makeTemporaryDirectory(t);
-  const store = makeContentStore({
+  const store = makeContentStore(storageDirectoryPath, {
     filePowers: makeFilePowers(),
     cryptoPowers: makeCryptoPowers(),
-    storageDirectoryPath,
   });
 
   const sha = await store.store(asAsyncIterable([encoder.encode('live')]));
@@ -215,10 +208,9 @@ test('store on Windows-style path: joinPath is the only path primitive', async t
       return realFile.joinPath(...components);
     },
   });
-  const store = makeContentStore({
+  const store = makeContentStore(storageDirectoryPath, {
     filePowers,
     cryptoPowers: makeCryptoPowers(),
-    storageDirectoryPath,
   });
   // Exercise all four CAS operations against the same store so the
   // assertion covers each of store / fetch / has / remove.  A refactor
@@ -239,10 +231,9 @@ test('fetch surfaces size, range reads, and a byte reader', async t => {
   // `readRange` (a windowed read that only touches the requested
   // span), and `makeFileReader` (a whole-blob byte stream).
   const storageDirectoryPath = await makeTemporaryDirectory(t);
-  const store = makeContentStore({
+  const store = makeContentStore(storageDirectoryPath, {
     filePowers: makeFilePowers(),
     cryptoPowers: makeCryptoPowers(),
-    storageDirectoryPath,
   });
 
   const payload = encoder.encode('content store range reads');

@@ -133,7 +133,7 @@ export const makeDaemonicPersistencePowers = (
       'store-sha256',
     );
     return makeSnapshotStore(
-      makeContentStore({ filePowers, cryptoPowers, storageDirectoryPath }),
+      makeContentStore(storageDirectoryPath, { filePowers, cryptoPowers }),
     );
   };
 

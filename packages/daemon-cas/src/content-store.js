@@ -29,11 +29,20 @@ import harden from '@endo/harden';
  * `designs/daemon-content-store-gc.md` codified for the formula GC
  * sweep.
  *
+ * The required storage directory is a positional argument, kept
+ * separate from the injected capabilities: the directory is not
+ * optional, while the powers travel together in the `options`
+ * namespace.
+ *
+ * @param {string} storageDirectoryPath
+ *   Absolute directory the CAS materialises blobs into. Required.
  * @param {ContentStoreOptions} options
+ *   The injected capabilities: `filePowers` (the filesystem seam) and
+ *   `cryptoPowers` (the content-addressing seam).
  * @returns {ContentStore}
  */
-export const makeContentStore = options => {
-  const { filePowers, cryptoPowers, storageDirectoryPath } = options;
+export const makeContentStore = (storageDirectoryPath, options) => {
+  const { filePowers, cryptoPowers } = options;
 
   /** @type {ContentStore} */
   const rawStore = harden({

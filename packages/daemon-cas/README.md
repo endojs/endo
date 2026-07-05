@@ -12,10 +12,14 @@ implementation with a thin shim over the Rust CAS).
 
 ## What this package provides
 
-- `makeContentStore({ filePowers, cryptoPowers, storageDirectoryPath })`
+- `makeContentStore(storageDirectoryPath, { filePowers, cryptoPowers })`
   builds a raw `ContentStore` (the `store`/`fetch`/`has`/`remove`
   surface defined in `@endo/platform/fs/lite/types`) over a chosen
   filesystem directory.
+  The required `storageDirectoryPath` is a positional first argument —
+  the directory is not optional — kept separate from the injected
+  `filePowers` / `cryptoPowers` capabilities, which travel together in
+  the second `options` namespace.
   The caller picks the directory; the factory does not assume any
   daemon layout.
   This generic factory is the package's only export.
@@ -29,7 +33,7 @@ of contracts:
 - **The CAS interfaces it produces.** The `store`/`fetch`/`has`/`remove`
   surface and the `ReadableBlob` that `fetch()` returns are the
   `ContentStore` and `ReadableBlob` typedefs in
-  [`@endo/platform/fs/lite/types`](../platform/src/fs/types.js). A raw
+  [`@endo/platform/fs/lite/types`](../platform/src/fs/types.d.ts). A raw
   store from this package feeds `makeSnapshotStore` from
   `@endo/platform/fs/lite` unchanged.
 - **The injected dependencies it consumes.** The `filePowers` and
