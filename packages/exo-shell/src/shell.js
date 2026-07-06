@@ -35,7 +35,9 @@ const drainBounded = async (stream, maxBytes) => {
   try {
     for await (const chunk of stream) {
       const bytes =
-        chunk instanceof Uint8Array ? chunk : new TextEncoder().encode(String(chunk));
+        chunk instanceof Uint8Array
+          ? chunk
+          : new TextEncoder().encode(String(chunk));
       if (truncated) {
         // Keep draining to EOF but discard — bounds memory, not the pipe.
         continue; // eslint-disable-line no-continue
@@ -109,9 +111,7 @@ export const makeShell = ({ cwd, policy, spawner, readOnly = false }) => {
     );
   }
   if (!Number.isInteger(policyTimeoutMs) || policyTimeoutMs <= 0) {
-    throw makeError(
-      X`makeShell: policy.timeoutMs must be a positive integer`,
-    );
+    throw makeError(X`makeShell: policy.timeoutMs must be a positive integer`);
   }
   if (!Number.isInteger(maxOutputBytes) || maxOutputBytes <= 0) {
     throw makeError(

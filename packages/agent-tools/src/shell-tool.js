@@ -55,7 +55,9 @@ const makeAdvisoryVeto = (rejectPatterns, rejectFlags) => {
       if (forbiddenFlags.has(token)) {
         const reason = forbiddenFlags.get(token);
         throw new Error(
-          reason ? `Forbidden flag: ${token} — ${reason}` : `Forbidden flag: ${token}`,
+          reason
+            ? `Forbidden flag: ${token} — ${reason}`
+            : `Forbidden flag: ${token}`,
         );
       }
     }
@@ -86,7 +88,8 @@ const shellToolSchemas = harden({
         args: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Arguments passed to the program, one array element each.',
+          description:
+            'Arguments passed to the program, one array element each.',
         },
         options: {
           // Open object (no `additionalProperties: false`) to match the
@@ -154,7 +157,10 @@ const positionalArgGuards = method => {
  */
 export const makeShellTool = (shellCap, options = {}) => {
   const { rejectPatterns = [], rejectFlags = [] } = options;
-  const veto = makeAdvisoryVeto(harden([...rejectPatterns]), harden([...rejectFlags]));
+  const veto = makeAdvisoryVeto(
+    harden([...rejectPatterns]),
+    harden([...rejectFlags]),
+  );
 
   const records = shellToolMethods.map(method => {
     const schema = shellToolSchemas[method];

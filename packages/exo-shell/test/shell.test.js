@@ -62,7 +62,7 @@ const makeFakeSpawner = plan => {
       stderr: toStream(script.stderr),
       wait: () => exited,
       kill: async signal => {
-        killSignal = signal ?? 'SIGTERM';
+        killSignal = signal == null ? 'SIGTERM' : String(signal);
         // A hanging process resolves its exit when killed.
         killed.resolve({ code: null, signal: killSignal });
       },
@@ -97,7 +97,11 @@ test('exec passes an argv array (no shell string) and the cwd/env', async t => {
   t.is(result.exitCode, 0);
   t.deepEqual(calls[0].argv, ['echo', 'hello', 'world']);
   t.is(calls[0].opts.cwd, '/repo');
-  t.is(calls[0].opts.shell, false, 'shell mode is never enabled on this surface');
+  t.is(
+    calls[0].opts.shell,
+    false,
+    'shell mode is never enabled on this surface',
+  );
   t.deepEqual(calls[0].opts.env, { CI: 'true' });
 });
 

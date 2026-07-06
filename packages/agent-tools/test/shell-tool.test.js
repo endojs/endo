@@ -156,7 +156,11 @@ const makeFakeShell = () => {
       });
     },
     inspect: async () =>
-      harden({ allowedCommands: ['echo'], timeoutMs: 1000, maxOutputBytes: 1024 }),
+      harden({
+        allowedCommands: ['echo'],
+        timeoutMs: 1000,
+        maxOutputBytes: 1024,
+      }),
   });
   return { shell, calls };
 };

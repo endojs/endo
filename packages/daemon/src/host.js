@@ -476,7 +476,10 @@ export const makeHostMaker = ({
           X`provideShell: policy.allowedCommands must be a non-empty array of command-name strings`,
         );
       }
-      if (!Number.isInteger(timeoutMs) || /** @type {number} */ (timeoutMs) <= 0) {
+      if (
+        !Number.isInteger(timeoutMs) ||
+        /** @type {number} */ (timeoutMs) <= 0
+      ) {
         throw makeError(
           X`provideShell: policy.timeoutMs must be a positive integer`,
         );
@@ -551,11 +554,7 @@ export const makeHostMaker = ({
         E(directory).storeIdentifier(namePath, identifiers.shellId),
       );
 
-      const { value } = await formulateShell(
-        mountId,
-        normalizedPolicy,
-        tasks,
-      );
+      const { value } = await formulateShell(mountId, normalizedPolicy, tasks);
       return value;
     };
 

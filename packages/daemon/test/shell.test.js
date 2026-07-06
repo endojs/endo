@@ -124,5 +124,8 @@ test('provideShell composition: inspect reveals policy bounds but no host path',
     timeoutMs: 10_000,
     maxOutputBytes: 65_536,
   });
-  t.false(JSON.stringify(revealed).includes(root), 'the mount path did not leak');
+  t.false(
+    JSON.stringify(revealed).includes(root),
+    'the mount path did not leak',
+  );
 });
