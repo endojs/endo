@@ -1,6 +1,6 @@
 # @endo/exo-shell
 
-Remotable exo glue and interface guard for an `EndoShell` capability — a
+Remotable exo glue and interface guard for an `EndoShell` capability: a
 writable-mount-scoped, allowlisted, argv-only command executor. Portable across
 SES realms; pair it with `@endo/host-spawner` (or a sandbox spawner) for the
 process-execution engine.
@@ -18,7 +18,7 @@ import { makeHostSpawner } from '@endo/host-spawner';
 const shell = makeShell({
   cwd: '/repo',
   policy: {
-    allowedCommands: ['node', 'npm', 'grep'],
+    allowedCommands: ['grep', 'ls', 'cat'],
     timeoutMs: 60_000,
     maxOutputBytes: 1_048_576,
     env: { CI: 'true' }, // explicit passlist; nothing inherited
@@ -38,7 +38,13 @@ working directory, env passlist, or search path.
 ## The honest boundary
 
 Under the host spawner, a `Shell` bounds *which* commands start and *with what*
-env, cwd, timeout, and output budget — but a started child is an ordinary host
+env, cwd, timeout, and output budget. A started child is still an ordinary host
 process (an allowlisted `grep` can read `~/.ssh` if the OS user can). Kernel-level
 confinement comes from running the same capability over a sandbox spawner; the
 engine is chosen host-side and is invisible on this surface.
+
+Command-name attenuation is void if a delegating command is allowlisted. An
+interpreter (`node -e`, `python -c`, `bash -c`, `sh`), an exec-forwarder (`env`,
+`find ... -exec`, `xargs`), or `git` (`-c core.sshCommand=...`) collapses the
+allowlist to arbitrary code execution with the host user's authority. Allowlist
+only non-delegating commands, or rely on the sandbox spawner.

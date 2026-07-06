@@ -2,7 +2,7 @@
 
 The host-side `Spawner` seam, extracted from `@endo/genie` so daemon-side
 capabilities (notably the Shell formula in `@endo/daemon`) can reach the same
-process-execution engine without depending on the agent framework — `@endo/genie`
+process-execution engine without depending on the agent framework. `@endo/genie`
 depends on `@endo/daemon`, so the daemon cannot depend back on genie.
 
 A `Spawner` is a single-method contract:

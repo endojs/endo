@@ -4,30 +4,21 @@
 /**
  * Spawner abstraction for the `bash` / `exec` / `git` command tools.
  *
- * `makeCommandTool` (see `./command.js`) historically called
- * `child_process.spawn` directly inside its `execute` body.  For the
- * workspace-as-slice integration the daemon-hosted genie needs the
- * same tools to spawn through a `SandboxHandle.spawn(argv, opts)`
- * instead, while the dev-repl and any future host-only deployment
- * keep the direct-spawn behaviour.
+ * The seam lets a caller swap process-execution engines:
  *
- * The abstraction here is the seam that lets us swap engines:
+ *   - {@link Spawner}: a single-method interface (`spawn(argv, opts)`)
+ *     returning a {@link ProcessLike}. The shape mirrors `DriverProcess`
+ *     from `@endo/sandbox/types.d.ts` so a slice's `ProcessHandle` can drop
+ *     in via a thin adapter (genie's `sandbox-spawner`).
+ *   - {@link makeHostSpawner}: the default host implementation that wraps
+ *     `child_process.spawn` with `searchPath` / env handling. The
+ *     timeout / kill / output-accumulation loop deliberately lives in the
+ *     caller (`@endo/genie`'s command tool) so it stays uniform across
+ *     spawners.
  *
- *   - {@link Spawner} — a single-method interface (`spawn(argv, opts)`)
- *     returning a {@link ProcessLike}.  The shape mirrors
- *     `DriverProcess` from `@endo/sandbox/types.d.ts` so a slice's
- *     `ProcessHandle` can drop in via a thin adapter (see
- *     `./sandbox-spawner.js`).
- *   - {@link makeHostSpawner} — the default host implementation that
- *     wraps `child_process.spawn` with the same `searchPath` / env
- *     handling the original `makeCommandTool` body had.  The
- *     timeout / kill / output-accumulation loop deliberately lives in
- *     `makeCommandTool` itself so it stays uniform across spawners.
- *
- * The async-iterable stdout / stderr surface keeps the contract
- * uniform: both the host (`child_process` event streams) and the
- * sandbox (`ReaderRef`-shaped exos) can be drained with a single
- * `for await` loop.
+ * The async-iterable stdout / stderr surface keeps the contract uniform:
+ * both the host (`child_process` event streams) and the sandbox
+ * (`ReaderRef`-shaped exos) can be drained with a single `for await` loop.
  */
 
 import { spawn as childSpawn } from 'child_process';
@@ -49,7 +40,7 @@ import harden from '@endo/harden';
  *   slice's filesystem for the sandbox spawner).
  * @property {Record<string, string>} [env]
  *   Environment variables for the child.  Spawners merge these on top
- *   of their default environment (host process env, slice env, etc.).
+ *   of their default environment (host process env, slice env, and so on).
  * @property {boolean} [shell]
  *   If true, run the argv through a system shell.  The host spawner
  *   forwards this to Node's `child_process.spawn`; the sandbox
@@ -69,7 +60,7 @@ import harden from '@endo/harden';
  *   Pid as observed by the spawner's runtime.  The host spawner
  *   reports the host pid; the sandbox spawner reports the pid inside
  *   the slice's pid namespace.  May be `0` when the runtime cannot
- *   surface a pid (e.g. a stub used in tests).
+ *   surface a pid (for example a stub used in tests).
  * @property {AsyncIterable<Uint8Array> | null | undefined} [stdout]
  *   Stdout byte stream.  `null` / `undefined` denotes "not captured".
  * @property {AsyncIterable<Uint8Array> | null | undefined} [stderr]
@@ -95,9 +86,7 @@ import harden from '@endo/harden';
  * @returns {Promise<ProcessLike>}
  */
 
-// ---------------------------------------------------------------------------
 // Default host spawner
-// ---------------------------------------------------------------------------
 
 /**
  * Resolve a program name against a colon-separated PATH-like string,
@@ -106,8 +95,8 @@ import harden from '@endo/harden';
  * located.
  *
  * Mirrors the `whichProgram` helper that previously lived inline in
- * `makeCommandTool`.  Pulled out here so the host spawner can reuse
- * it without duplicating the logic.
+ * `@endo/genie`'s command tool.  Pulled out here so the host spawner can
+ * reuse it without duplicating the logic.
  *
  * @param {string} prog
  * @param {string} searchPath
@@ -124,7 +113,10 @@ const whichProgram = async (prog, searchPath) => {
       // eslint-disable-next-line no-await-in-loop
       const stats = await fs.promises.stat(candidate);
       // eslint-disable-next-line no-bitwise
-      if (isWin ? stats.isFile() : (stats.mode & 0o111) !== 0) {
+      const isExecutable = (stats.mode & 0o111) !== 0;
+      // A directory in the search path can carry the exec bit, so confirm the
+      // candidate is a regular file before treating it as the executable.
+      if (isWin ? stats.isFile() : stats.isFile() && isExecutable) {
         return candidate;
       }
     } catch {
@@ -171,7 +163,7 @@ const readableToAsyncIterable = stream => {
  * stdout / stderr surface the sandbox spawner produces.
  *
  * The host spawner does *not* implement timeout / kill itself; the
- * caller (`makeCommandTool`) layers that behaviour on top of the
+ * caller (`@endo/genie`'s command tool) layers that behaviour on top of the
  * returned {@link ProcessLike} so it stays uniform across spawners.
  *
  * @param {object} [options]
@@ -180,14 +172,17 @@ const readableToAsyncIterable = stream => {
  *   `process.env.PATH`.
  * @param {Record<string, string | undefined>} [options.defaultEnv]
  *   Base environment merged into every spawn call.  Defaults to
- *   `process.env`.
+ *   `process.env`, which is the FULL host process environment.  A caller
+ *   minting a GUEST-facing shell must therefore pass an explicit passlist
+ *   (`defaultEnv: {}` plus a policy env) rather than relying on this default,
+ *   or the child inherits every host variable.  (The daemon already does this.)
  * @param {boolean} [options.killProcessGroup]
  *   When true (POSIX only), spawn each child as its own process-group
  *   leader (`detached: true`) and route {@link ProcessLike.kill} to the
  *   whole group (`process.kill(-pid, signal)`).  A caller that enforces a
  *   timeout by escalating `SIGTERM` to `SIGKILL` (the `@endo/exo-shell`
- *   Shell) needs this so a child that traps `SIGTERM` — or forks a
- *   descendant holding the stdio pipes open — is actually reaped when the
+ *   Shell) needs this so a child that traps `SIGTERM` (or forks a
+ *   descendant holding the stdio pipes open) is actually reaped when the
  *   deadline passes, rather than leaking and hanging `wait()`.  Defaults to
  *   false so the historical single-process-kill behaviour (genie's command
  *   tools) is unchanged.

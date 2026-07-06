@@ -68,7 +68,7 @@ const makeAdvisoryVeto = (rejectPatterns, rejectFlags) => {
 /**
  * JSON Schemas for the Shell methods exposed as agent tools. Hand-authored and
  * pinned against `ShellInterface` by the divergence gate
- * (`test/shell-divergence.test.js`).
+ * (`test/shell-tool.test.js`).
  *
  * @type {Record<keyof ShellToolCapability, { description: string, parameters: object }>}
  */
@@ -153,7 +153,10 @@ const positionalArgGuards = method => {
  * @param {ShellToolOptions} [options]
  *   Advisory reject entries ported from genie's command-tool policy closures.
  *   They veto a command string *before* it reaches `Shell.exec`; they are not
- *   the boundary (the formula-owned allowlist is).
+ *   the boundary (the formula-owned allowlist is). `rejectPatterns` /
+ *   `rejectFlags` default to empty (unlike genie's command tool, which ships a
+ *   curated `DANGEROUS_PATTERNS` set); a caller wanting advisory vetoes must
+ *   pass them.
  * @returns {ToolRecord[]}
  */
 export const makeShellTool = (shellCap, options = {}) => {
