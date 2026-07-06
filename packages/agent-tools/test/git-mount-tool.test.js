@@ -179,3 +179,52 @@ test('add rejects a non-string path element and a missing/extra key', async t =>
   );
   t.true(extra !== undefined && extra.message.includes('bogus'));
 });
+
+test('add rejects a path that resolves to the worktree root', async t => {
+  const addCalls = [];
+  const tools = makeGitMountTools(makeStubGit({ addCalls }));
+  const byName = byNameOf(tools);
+  // '.', '/', '//', and './' all collapse to zero segments under
+  // `pathToSegments`; each would otherwise resolve to the worktree-root entry
+  // and reach the cap as an empty pathspec, so the tool rejects them before
+  // touching the mount.
+  await t.throwsAsync(() => byName('add').invoke({ paths: ['.'] }), {
+    message: /worktree root/,
+  });
+  await t.throwsAsync(() => byName('add').invoke({ paths: ['/'] }), {
+    message: /worktree root/,
+  });
+  await t.throwsAsync(() => byName('add').invoke({ paths: ['//'] }), {
+    message: /worktree root/,
+  });
+  await t.throwsAsync(() => byName('add').invoke({ paths: ['./'] }), {
+    message: /worktree root/,
+  });
+  // A root-collapsing path mixed with a real one is still rejected, and
+  // nothing partial reaches the cap.
+  await t.throwsAsync(() => byName('add').invoke({ paths: ['real.js', '.'] }), {
+    message: /worktree root/,
+  });
+  t.deepEqual(
+    addCalls,
+    [],
+    'no staging reaches the cap when a path is rejected',
+  );
+});
+
+test('add forwards a ".." segment to the capability, unfiltered', async t => {
+  const addCalls = [];
+  const tools = makeGitMountTools(makeStubGit({ addCalls }));
+  // The tool does not reject `..` with a brittle string check; it passes the
+  // resolved segments to the mount, which contains the traversal (clamped at
+  // the worktree root). This pins that containment is the capability's job,
+  // not the tool's.
+  await byNameOf(tools)('add').invoke({ paths: ['../x', 'a/../b'] });
+  t.deepEqual(addCalls, [['../x', 'a/../b']]);
+});
+
+test('status on a clean tree returns an empty array', async t => {
+  const tools = makeGitMountTools(makeStubGit());
+  const rows = await byNameOf(tools)('status').invoke({});
+  t.deepEqual(rows, []);
+});

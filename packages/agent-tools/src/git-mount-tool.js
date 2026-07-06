@@ -31,7 +31,8 @@ import { makeTool } from './tool.js';
  * mount/git capability pair (the mount reached through `Git.worktree()`) and
  * converts at the boundary: path strings in, JSON-safe records out. The
  * capability, never a path string, remains the confinement boundary — a `../`
- * escape is rejected by the mount, not by a string check here.
+ * segment is contained by the mount (clamped at the worktree root), not by a
+ * brittle string check here.
  */
 
 /** No-argument JSON Schema, shared by the read-only `status` tool. */
@@ -56,8 +57,10 @@ const addParameters = harden({
       type: 'array',
       items: { type: 'string' },
       description:
-        'Mount-relative paths to stage. Each is resolved through the ' +
-        'worktree mount; a "../" escape is rejected by the capability.',
+        'Mount-relative paths to stage, each addressing a file (not the ' +
+        'worktree root). Each is resolved through the worktree mount; a ' +
+        '"../" segment is contained by the capability, clamped at the ' +
+        'worktree root rather than escaping it.',
     },
   },
   required: ['paths'],
@@ -67,8 +70,10 @@ const addParameters = harden({
 /**
  * Split a mount-relative path string into entry segments, dropping empty and
  * `.` components so `a/b`, `a//b`, and `a/b/` resolve identically. A `..`
- * segment is preserved and rejected by the mount capability, not by a brittle
- * string check here.
+ * segment is preserved and contained by the mount capability (clamped at the
+ * worktree root), not by a brittle string check here. A path built only from
+ * dropped components (`.`, `/`, `//`, `./`) yields an empty segment list; the
+ * caller rejects that so it never resolves to the worktree-root entry.
  *
  * @param {string} path
  * @returns {string[]}
@@ -129,18 +134,32 @@ export const makeGitMountTools = gitCap => {
       if (paths.length === 0) {
         throw new Error('add requires a non-empty array of paths');
       }
-      for (const path of paths) {
+      // Normalize every path up front and reject any that addresses no file.
+      // Beyond the empty string, a path built only from dropped components
+      // (`.`, `/`, `//`, `./`) collapses to zero segments, which would resolve
+      // to the worktree-ROOT entry and reach `Git.add` as an empty pathspec —
+      // rejected by the backend only with an opaque low-level error. Reject it
+      // here, at the tool, with a clear message. A leading `..` is deliberately
+      // NOT rejected here: the mount contains it (clamped at the root).
+      const segmentsByPath = paths.map(path => {
         if (path === '') {
           throw new Error('add paths must be non-empty strings');
         }
-      }
+        const segments = pathToSegments(path);
+        if (segments.length === 0) {
+          throw new Error(
+            'add paths must address a file, not the worktree root',
+          );
+        }
+        return segments;
+      });
       // Resolve each path to an `EndoMountEntry` minted by this Git's own
       // worktree mount, so `Git.add`'s lineage check accepts it. `callWhen`
       // does not deeply await array elements, so the entries must be settled
       // remotables — not promises — before the call.
       const mount = /** @type {WorktreeMount} */ (await E(gitCap).worktree());
       const entries = await Promise.all(
-        paths.map(path => E(mount).entry(pathToSegments(path))),
+        segmentsByPath.map(segments => E(mount).entry(segments)),
       );
       await E(gitCap).add(harden(entries));
       return `Staged ${paths.length} path${paths.length === 1 ? '' : 's'}.`;

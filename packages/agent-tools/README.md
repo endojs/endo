@@ -13,6 +13,7 @@ arguments before dispatching to a capability.
 import {
   makeTool,
   makeGitTool,
+  makeGitMountTools,
   makeMountReadTool,
 } from '@endo/agent-tools';
 ```
@@ -26,6 +27,7 @@ Subpath exports are also available:
 ```js
 import { makeTool } from '@endo/agent-tools/tool.js';
 import { makeGitTool } from '@endo/agent-tools/git-tool.js';
+import { makeGitMountTools } from '@endo/agent-tools/git-mount-tool.js';
 import { makeMountReadTool } from '@endo/agent-tools/mount-fs.js';
 ```
 
@@ -101,9 +103,38 @@ The current slice exposes:
 - `switchBranch`
 - `currentBranch`
 
-Methods that require remotable arguments or can return live capabilities, such
-as `status`, `add`, `restore`, and `filesystemAt`, are not included in this
-first slice.
+This slice holds only the JSON-transparent methods whose hand-authored tool
+schema maps one-to-one onto their `GitInterface` guard. Methods whose native
+signatures traffic in live capabilities — `status` (its rows carry mount-entry
+remotables) and `add` (it takes an array of mount-entry remotables) — are
+served instead by `makeGitMountTools` below. `restore` and `filesystemAt`
+remain deferred.
+
+`makeGitMountTools(gitCap)` bridges the two capability-bearing methods at the
+wire boundary, so the model still sees only JSON:
+
+```js
+const mountTools = makeGitMountTools(git);
+```
+
+- `status` projects each row to a JSON-safe `{ path, index, worktree }` (plus
+  `renamedFrom` on a rename), stripping the authority-bearing `entry`/`node`
+  remotables so none crosses the tool wire.
+- `add` takes mount-relative path strings, resolves each to an `EndoMountEntry`
+  minted by the worktree mount, and stages additively (never discarding
+  working-tree changes). A `..` segment is contained by the mount, clamped at
+  the worktree root rather than escaping it; a path that addresses only the
+  root (`.`, `/`) is rejected.
+
+The two makers compose into the full status/diff/log/add/commit surface:
+
+```js
+const gitTools = [...makeGitTool(git), ...makeGitMountTools(git)];
+```
+
+`add`/`status` deliberately live outside `makeGitTool` so its one-to-one
+schema-to-guard divergence gate stays intact; `makeGitMountTools`'s tool wire
+diverges from the raw `Git` guard by design.
 
 ## Filesystem Tool
 
