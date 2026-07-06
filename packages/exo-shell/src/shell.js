@@ -8,8 +8,7 @@ import { makeExo } from '@endo/exo';
 import { ShellInterface } from './interfaces.js';
 
 /**
- * @import { Spawner, ProcessLike } from '@endo/host-spawner'
- * @import { EndoShell, ShellPolicy } from './types.js'
+ * @import { EndoShell, ShellPolicy, Spawner } from './types.js'
  */
 
 /**

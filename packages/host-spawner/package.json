@@ -21,15 +21,19 @@
   },
   "type": "module",
   "main": "./src/index.js",
-  "types": "./types.d.ts",
+  "types": "./types-index.d.ts",
   "exports": {
     ".": {
-      "types": "./types.d.ts",
+      "types": "./types-index.d.ts",
       "default": "./src/index.js"
     },
     "./src/host-spawner.js": {
-      "types": "./types.d.ts",
+      "types": "./src/host-spawner.d.ts",
       "default": "./src/host-spawner.js"
+    },
+    "./types-index.js": {
+      "types": "./types-index.d.ts",
+      "default": "./types-index.js"
     },
     "./package.json": "./package.json"
   },
