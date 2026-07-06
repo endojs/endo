@@ -1,7 +1,7 @@
 # `@endo/genie` Contributor Conventions
 
 This file collects the genie-specific conventions a future contributor
-needs to know on top of the repo-root [`CLAUDE.md`](../../CLAUDE.md).
+needs to know on top of the repo-root [`AGENTS.md`](../../AGENTS.md).
 The repo-root file documents the SES / harden / @ts-check rules that
 apply everywhere; the rules below are specific to the genie package
 and especially to the **sandbox slice** integration.
@@ -493,5 +493,5 @@ is a hard error at slice-mint time.
   for the underlying slice.
 - [`PLAN/endo_posix_sandbox.md`](../../PLAN/endo_posix_sandbox.md) —
   the design that the slice integration consumes.
-- Repo-root [`CLAUDE.md`](../../CLAUDE.md) — SES, harden, JSDoc, and
+- Repo-root [`AGENTS.md`](../../AGENTS.md) — SES, harden, JSDoc, and
   exo conventions that apply to every file in the genie package.

@@ -52,7 +52,7 @@ Done in this slice:
 
 - `git grep -n "E(sandboxFactory).make"` in `packages/genie` returns
   one code call (in `src/sandbox/slice.js` ~line 354); the other
-  matches are docstrings and a CLAUDE.md reference.
+  matches are docstrings and an AGENTS.md reference.
 - `git grep -n "listBackends"` in `packages/genie` returns one code
   call (in `src/sandbox/slice.js` ~line 327); other matches are docs.
 - `corepack yarn lint` is clean for the slice helper (0 errors; the

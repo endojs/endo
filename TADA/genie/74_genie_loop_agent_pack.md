@@ -21,7 +21,7 @@ pack takes `tools` from `buildGenieTools`.
      heartbeatModel?, dedicatedHeartbeatAgent? }`
    - `// @ts-check`, `harden(makeGenieAgents)`, JSDoc types; prefer
      `makeExo` with `M.interface()` if any returned objects need it
-     (per `CLAUDE.md`)
+     (per `AGENTS.md`)
 
 2. [x] per-sub-agent model overrides
    - each of `observerModel` / `reflectorModel` / `heartbeatModel`

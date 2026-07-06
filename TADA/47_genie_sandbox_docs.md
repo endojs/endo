@@ -41,7 +41,7 @@ docs need to catch up so the slice is not invisible.
   Done.  See `DESIGN.md` § "Sandbox slice integration
   (`main.js` + `tools/sandbox-spawner.js`)".
 
-- [x] **`packages/genie/CLAUDE.md`** — once it exists (or as part of
+- [x] **`packages/genie/AGENTS.md`** — once it exists (or as part of
   this task), capture the conventions a future contributor needs to
   know:
   - never call `child_process.spawn` directly from a tool — go
@@ -52,7 +52,7 @@ docs need to catch up so the slice is not invisible.
     `/workspace`,
   - testing protocol when a contributor changes the slice wiring.
 
-  Done.  `packages/genie/CLAUDE.md` was created with all four
+  Done.  `packages/genie/AGENTS.md` was created with all four
   sections plus a "When you add a new sandbox backend" checklist and
   a cross-package coupling matrix for slice-wiring changes.
 

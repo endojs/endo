@@ -581,7 +581,7 @@ range I/O").
 | Method | Signature | Returns |
 |---|---|---|
 | `help` | `help() → string` (or `help(level?: string) → string`) | Helpdown-formatted description of the cap, its method set, and any backing-specific notes. |
-| `__getMethodNames__` | `__getMethodNames__() → string[]` | CapTP-introspection method automatically provided by `makeExo`. The filesystem viewer uses this to discover which catalog methods the backing exposes. Per [project/CLAUDE.md](../CLAUDE.md) § CapTP introspection. |
+| `__getMethodNames__` | `__getMethodNames__() → string[]` | CapTP-introspection method automatically provided by `makeExo`. The filesystem viewer uses this to discover which catalog methods the backing exposes. Per [project/AGENTS.md](../AGENTS.md) § CapTP introspection. |
 
 ### Methods deliberately NOT in the catalog
 

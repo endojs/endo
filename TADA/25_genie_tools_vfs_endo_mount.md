@@ -112,7 +112,7 @@ How the adaptation gaps were resolved:
   size synthesis, `mkdir`/`unlink`/`rmdir` semantics, recursive `rm`
   walk, async-iterable `readdir` (shallow + recursive + ENOTDIR),
   and out-of-root rejection.
-- [x] Update `packages/genie/CLAUDE.md` § "Tools that need host fs
+- [x] Update `packages/genie/AGENTS.md` § "Tools that need host fs
   access stay daemon-side" so the convention reflects the new
   cap-driven path.
   The section now explicitly says daemon-side fs tools must consume
@@ -177,7 +177,7 @@ a daemon.
 - `packages/daemon/src/interfaces.js` — `MountInterface` /
   `MountFileInterface` (no `stat` / `streamBytesRange` yet; see
   "Deferred upstream changes").
-- `packages/daemon/CLAUDE.md` § "Storage Concepts" — Mount /
+- `packages/daemon/AGENTS.md` § "Storage Concepts" — Mount /
   ReadableTree contract.
-- `packages/genie/CLAUDE.md` § "Tools that need host fs access stay
+- `packages/genie/AGENTS.md` § "Tools that need host fs access stay
   daemon-side" — convention now reflects the cap-driven path.

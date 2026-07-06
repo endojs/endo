@@ -6367,7 +6367,7 @@ const makeDaemonCore = async (
     const accumulator = makeRetentionPathAccumulator({
       compute: () => listRetentionPaths(targetId),
       // Route structured failures through the lifecycle log per
-      // `packages/daemon/CLAUDE.md` § Diagnostic Discipline in
+      // `packages/daemon/AGENTS.md` § Diagnostic Discipline in
       // Formulas. The target's formula id correlates the line
       // with other lifecycle events for the same formula.
       onError: err => {
@@ -6388,7 +6388,7 @@ const makeDaemonCore = async (
     // Drive the iterator with a `.next().then(loop)` recursion so
     // the change body never names a value to keep undefined,
     // side-stepping the leading-underscore / no-unused-vars lint
-    // conflict documented in project root `CLAUDE.md` § Lint-rule
+    // conflict documented in project root `AGENTS.md` § Lint-rule
     // gotchas. The accumulator recomputes from scratch on every
     // notify(), so the yielded change is a coarse "something
     // happened" signal only and the value itself is discarded.
@@ -6401,7 +6401,7 @@ const makeDaemonCore = async (
     pump().catch(err => {
       // Route through the lifecycle log so retention-path subsystem
       // failures correlate with other lifecycle events for the same
-      // formula. See `packages/daemon/CLAUDE.md` § Diagnostic
+      // formula. See `packages/daemon/AGENTS.md` § Diagnostic
       // Discipline in Formulas.
       logLifecycle(
         targetId,

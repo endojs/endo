@@ -56,7 +56,7 @@ roughly in dependency order.
 | [`44_genie_sandbox_workspace_slice.md`](./44_genie_sandbox_workspace_slice.md) | Mint a per-agent slice in `spawnAgent`, route the slice into `buildGenieTools`, surface `backend` / `network` knobs, dispose on cancellation. |
 | [`45_genie_sandbox_integration_test.md`](./45_genie_sandbox_integration_test.md) | End-to-end integration scenario proving `bash` runs inside the slice, with a clean skip when `bwrap` is absent. |
 | [`46_genie_sandbox_fork_children.md`](./46_genie_sandbox_fork_children.md) | Deferred follow-up: route child agents through `slice.fork()` once sandbox Phase 3 lands. |
-| [`47_genie_sandbox_docs.md`](./47_genie_sandbox_docs.md) | Operator-facing docs: README, DESIGN, CLAUDE.md, failure-mode cookbook. |
+| [`47_genie_sandbox_docs.md`](./47_genie_sandbox_docs.md) | Operator-facing docs: README, DESIGN, AGENTS.md, failure-mode cookbook. |
 
 ## Critical path
 

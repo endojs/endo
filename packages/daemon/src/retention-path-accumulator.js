@@ -72,7 +72,7 @@ harden(pathKey);
  *   Reports a flush failure. Defaults to a silent drop so library
  *   callers that do not wire a logger do not gain a `console.error`
  *   side-channel. The daemon-side caller wires this to the formula
- *   lifecycle log per `packages/daemon/CLAUDE.md` § Diagnostic
+ *   lifecycle log per `packages/daemon/AGENTS.md` § Diagnostic
  *   Discipline in Formulas.
  * @returns {{
  *   notify: () => void,

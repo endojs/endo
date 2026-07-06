@@ -225,7 +225,7 @@ Self-contained, low-risk feature. See gap
 
 | Pi Feature                                  | Endo Equivalent                                | Status                                                 |
 |---------------------------------------------|------------------------------------------------|--------------------------------------------------------|
-| `AGENTS.md` / `CLAUDE.md` at startup        | System prompt in `packages/lal/agent.js`       | **Available** (but not editable per-project)           |
+| `AGENTS.md` at startup        | System prompt in `packages/lal/agent.js`       | **Available** (but not editable per-project)           |
 | Walking parents from cwd                    | —                                              | Gap                                                    |
 | Append vs replace via `SYSTEM.md`           | —                                              | Gap                                                    |
 

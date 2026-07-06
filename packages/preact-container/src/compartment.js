@@ -443,7 +443,7 @@ function sesAppearsActive() {
   );
 }
 
-// Best-effort deep-freeze for the module's public exports (CLAUDE.md
+// Best-effort deep-freeze for the module's public exports (AGENTS.md
 // § harden() is mandatory). Under lockdown `harden` transitively freezes
 // them so a holder cannot tamper with the factory; without lockdown (the
 // browser test harness) it falls back to a shallow `Object.freeze`.

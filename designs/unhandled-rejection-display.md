@@ -171,7 +171,7 @@ const defaultOnReject = err => {
 ```
 
 `passableAsJustin` is the project-standard rendering for diagnostic display
-(per the Diagnostic Discipline rule in `CLAUDE.md`).
+(per the Diagnostic Discipline rule in `AGENTS.md`).
 It is unambiguous for remotables and promises, where `JSON.stringify` would
 strip them to `{}` or render them as `[object Object]`.
 

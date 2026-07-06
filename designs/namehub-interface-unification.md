@@ -261,7 +261,7 @@ This split has three benefits:
 - **The CapTP-introspection contract is preserved.**
   `__getMethodNames__()` still returns a list of methods.
   `makeExo` provides the method names automatically (per
-  `CLAUDE.md`'s "CapTP introspection" guidance).
+  `AGENTS.md`'s "CapTP introspection" guidance).
   No new introspection surface is required; the consumer that
   cares about `identify` checks for `identify` by name.
 

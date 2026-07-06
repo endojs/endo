@@ -1,7 +1,7 @@
 # Genie dev-repl: route tools through `@endo/sandbox`
 
 Bring the dev-repl in line with the daemon-hosted genie's sandbox
-slice integration (see `packages/genie/CLAUDE.md` § "Spawning rules"
+slice integration (see `packages/genie/AGENTS.md` § "Spawning rules"
 and TADA/40 ff.) so `bash` / `exec` / `git` run inside a confined
 slice rather than directly on the host kernel.
 
@@ -120,7 +120,7 @@ order:
 | [`53_genie_dev_repl_sandbox_wiring.md`](./53_genie_dev_repl_sandbox_wiring.md) | Wire the local `SandboxPowers` + slice helper into `dev-repl.js`; add `--sandbox` / `--network` / `--rootfs` CLI knobs; route the `Spawner` and `workspaceMount` cap through `buildGenieTools`. |
 | [`54_genie_dev_repl_sandbox_dispose.md`](./54_genie_dev_repl_sandbox_dispose.md) | Wire slice / tmpdir teardown for `.exit`, EOF, and SIGINT / SIGTERM so the bwrap subprocess and scratch upper layer are reclaimed on every exit path. |
 | [`55_genie_dev_repl_sandbox_test.md`](./55_genie_dev_repl_sandbox_test.md) | Integration test that drives the dev-repl via `-c` and verifies `bash` runs inside the slice (via `mount` / `id` / `/proc/1/status` probes), skipping cleanly when no backend is available. |
-| [`56_genie_dev_repl_sandbox_docs.md`](./56_genie_dev_repl_sandbox_docs.md) | Update `packages/genie/README.md` (operator-facing flags) and `packages/genie/CLAUDE.md` (contributor view of the dev-repl's local-powers seam). |
+| [`56_genie_dev_repl_sandbox_docs.md`](./56_genie_dev_repl_sandbox_docs.md) | Update `packages/genie/README.md` (operator-facing flags) and `packages/genie/AGENTS.md` (contributor view of the dev-repl's local-powers seam). |
 
 ## Critical path
 

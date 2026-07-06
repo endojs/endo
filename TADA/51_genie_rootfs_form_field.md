@@ -113,7 +113,7 @@ this task lands the keyword-only subset (`host-bind`, `minimal`,
   — Seam 2 plugs into the `parseRootfsValue` "value is none of the
   above" branch this task introduces.
 - Blocks [`53_genie_rootfs_docs.md`](./53_genie_rootfs_docs.md) —
-  Seam 3's README / CLAUDE.md updates document the form field this
+  Seam 3's README / AGENTS.md updates document the form field this
   task adds.
 
 ## Cross-references

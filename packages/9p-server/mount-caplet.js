@@ -300,7 +300,7 @@ export const makeFsMounter = ({
     // defeating a `Proxy`-backed record whose per-access getter could
     // otherwise differentiate the value validated here from the one
     // passed to `mount`, and `harden` freezes the result (cf.
-    // `packages/genie/CLAUDE.md` § "deep-harden every structured
+    // `packages/genie/AGENTS.md` § "deep-harden every structured
     // input").
     const opts = /** @type {Record<string, unknown>} */ (
       harden({ ...mountOptions })

@@ -6,7 +6,7 @@ Fae is an AI agent manager (same pattern as lal) that runs as an unconfined gues
 
 ### Setup script (`setup.js`)
 
-Same pattern as lal — see `packages/lal/CLAUDE.md` for shared conventions on `introducedNames`, `provideGuest` idempotency, and restart guards.
+Same pattern as lal — see `packages/lal/AGENTS.md` for shared conventions on `introducedNames`, `provideGuest` idempotency, and restart guards.
 
 ### Tool discovery (`initializeIntroducedTools`)
 
@@ -18,4 +18,4 @@ Note: `isSpecialName` from `@endo/daemon/src/pet-name.js` is not available via t
 
 ## Common Pitfalls
 
-See `packages/lal/CLAUDE.md` — fae shares the same guest provisioning model and the same pitfalls around `introducedNames`, handle vs guest, message types, and `Object.create(null)`.
+See `packages/lal/AGENTS.md` — fae shares the same guest provisioning model and the same pitfalls around `introducedNames`, handle vs guest, message types, and `Object.create(null)`.

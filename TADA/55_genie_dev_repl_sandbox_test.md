@@ -6,7 +6,7 @@ is available, with a clean SKIP on platforms where no backend is
 present (macOS, kernels lacking unprivileged user namespaces).
 
 Mirrors `yarn test:integration:sandbox-slice` for the daemon path
-(see `packages/genie/CLAUDE.md` § "Integration path") so the same
+(see `packages/genie/AGENTS.md` § "Integration path") so the same
 probes confirm both rollouts.
 
 Depends on TODO/53 + TODO/54.
@@ -22,7 +22,7 @@ Depends on TODO/53 + TODO/54.
   `/proc/sys/kernel/unprivileged_userns_clone === '0'`, the test
   emits a `SKIP:` log line and `t.pass()`s.  The genie convention
   is to surface skip reasons in the log so investigators can grep
-  for them (see CLAUDE.md § "Integration path").  An additional
+  for them (see AGENTS.md § "Integration path").  An additional
   skip rail probes the configured `GENIE_MODEL` (default
   `ollama/llama3.2`) against `localhost:11434` so a missing model
   surfaces as `SKIP: model … unreachable: …` rather than as an
@@ -63,7 +63,7 @@ Depends on TODO/53 + TODO/54.
   ```json
   "test:integration:dev-repl-sandbox": "ava test/dev-repl-sandbox.test.js --timeout=120s"
   ```
-- [x] Document in `packages/genie/CLAUDE.md` § "Integration path"
+- [x] Document in `packages/genie/AGENTS.md` § "Integration path"
   alongside the existing `test:integration:sandbox-slice` entry.
 
 ### Driving the model

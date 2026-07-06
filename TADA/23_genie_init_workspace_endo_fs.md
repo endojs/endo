@@ -142,7 +142,7 @@ available, falling back to the host-path signature only on the legacy
   Verified locally with
   `corepack yarn ava test/workspace-init.test.js` — 5 / 5 pass.
 
-- [x] Update `packages/genie/CLAUDE.md` § "Capabilities the genie guest
+- [x] Update `packages/genie/AGENTS.md` § "Capabilities the genie guest
   receives" to mention the Mount surface flowing through to template
   seeding (currently silent on this point).
 
@@ -170,6 +170,6 @@ available, falling back to the host-path signature only on the legacy
   drives `initWorkspaceMount` against an in-memory Mount fake.
 - `packages/daemon/src/interfaces.js` `MountInterface` — destination
   cap surface this task targets.
-- `packages/genie/CLAUDE.md` § "Capabilities the genie guest receives"
+- `packages/genie/AGENTS.md` § "Capabilities the genie guest receives"
   / "Template seeding flows through the same Mount cap" — the
   convention this task documents.

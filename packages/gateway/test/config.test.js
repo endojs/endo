@@ -45,7 +45,7 @@ test('parseBindAddress accepts the IPv6 unspecified address', t => {
 
 test('parseBindAddress keeps port 0 distinct from default', t => {
   // Regression for the project's recurring "port 0 is falsy"
-  // pitfall (see `project/CLAUDE.md` § Familiar). If the parser
+  // pitfall (see `project/AGENTS.md` § Familiar). If the parser
   // collapses port 0 to a non-zero default, the OS-assigned port
   // request is lost.
   const result = parseBindAddress('127.0.0.1:0');

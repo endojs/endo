@@ -798,7 +798,7 @@ export const TextBufferInterface = M.interface('TuiTextBuffer', {
 #### Factory
 
 The guest module exposes a single `make(powers)` entry point, per the
-convention documented in the root `CLAUDE.md`:
+convention documented in the root `AGENTS.md`:
 
 ```js
 /** @import { FarEndoGuest } from '@endo/daemon/src/types.js' */
@@ -1087,7 +1087,7 @@ inventory.
 
 8. **The `@tui-screen` reserved name.** Mirrors `@agent`, `@self`,
    `@host`, `@keypair`, `@mail` (see `packages/daemon/src/pet-name.js`
-   and the daemon CLAUDE.md note).
+   and the daemon AGENTS.md note).
    The runtime auto-provisions it so agent code need not thread the
    screen through every initialization path.
 

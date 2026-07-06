@@ -392,7 +392,7 @@ lattice as the web modal:
   in the XS debugger (see below) when the error originated in a
   worker we can attach to.
 - Remotables: interface summary via `E(ref).__getMethodNames__()`,
-  per CLAUDE.md guidance.
+  per AGENTS.md guidance.
 - Readable blobs and code: paged view.
 - Host / guest / directory: an "Enter Profile" affordance that opens a
   new space in the gutter rather than navigating the current space.

@@ -10,7 +10,7 @@ and Seam 2 ([`52_genie_rootfs_mount_cap.md`](./52_genie_rootfs_mount_cap.md))
 land, the configuration form will accept a `rootfs` value with four
 distinct shapes (`host-bind`, `minimal`, `oci:<ref>`, pet name).
 The operator-facing surface in `packages/genie/README.md` and the
-implementer's lens in `packages/genie/CLAUDE.md` need to catch up so
+implementer's lens in `packages/genie/AGENTS.md` need to catch up so
 the new form field is not invisible — and so the bwrap/oci asymmetry
 is documented at the user-facing boundary instead of bubbling up as
 a slice-mint error.
@@ -48,7 +48,7 @@ a slice-mint error.
   `rootfs "oci:<ref>" is incompatible with "backend: bwrap"; …`,
   reproducing the structured error verbatim and cross-linking to
   the sandbox README's "Driver auto-registration" anchor.
-- [x] **`packages/genie/CLAUDE.md`** — extend § "Capabilities the
+- [x] **`packages/genie/AGENTS.md`** — extend § "Capabilities the
   genie guest receives" (or sibling section) so the implementer's
   lens reflects the new form field.
   Specifically, the table row for `workspace` already mentions the
@@ -63,7 +63,7 @@ a slice-mint error.
   `ParsedRootfsValue` to `RootfsSpec` arm, plus a paragraph on
   the dual-check (`assertRootfsBackendCompatible` in `main.js`
   and the bwrap driver's symmetric reject).
-- [x] **`packages/genie/CLAUDE.md`** § "When you add a new sandbox
+- [x] **`packages/genie/AGENTS.md`** § "When you add a new sandbox
   backend": add a step requiring the new driver to declare which
   `RootfsSpec` shapes it supports, and to mirror that declaration
   into the genie's form-side cross-validation if it diverges from
@@ -104,7 +104,7 @@ a slice-mint error.
 
 - [`packages/genie/README.md`](../packages/genie/README.md) §
   "Sandboxed workspace" / "Failure-mode cookbook".
-- [`packages/genie/CLAUDE.md`](../packages/genie/CLAUDE.md) §
+- [`packages/genie/AGENTS.md`](../packages/genie/AGENTS.md) §
   "Capabilities the genie guest receives" / "When you add a new
   sandbox backend".
 - [`packages/sandbox/README.md`](../packages/sandbox/README.md) §

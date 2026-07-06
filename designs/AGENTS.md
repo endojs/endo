@@ -63,7 +63,7 @@ After the metadata table, documents follow this general structure:
 
 3. **Design** — the main body. Uses subsections, tables, and code blocks
    as needed. Code examples use the project's Hardened JavaScript conventions
-   (see the root `CLAUDE.md`).
+   (see the root `AGENTS.md`).
 
 4. **Dependencies** — table of related designs and their relationship.
 

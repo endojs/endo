@@ -12,7 +12,7 @@ dependant.
   - [`52_genie_rootfs_mount_cap.md`](./52_genie_rootfs_mount_cap.md)
     — Seam 2: pet-name `Mount`-cap rootfs, mirroring TADA/22.
   - [`53_genie_rootfs_docs.md`](./53_genie_rootfs_docs.md) — Seam 3:
-    README / CLAUDE.md updates + optional `GENIE_ROOTFS` env var.
+    README / AGENTS.md updates + optional `GENIE_ROOTFS` env var.
 
 ## Analysis
 
@@ -125,7 +125,7 @@ filed for each.
 - Add a row to the failure-mode cookbook for the
   bwrap-rejects-oci case so operators see the fix
   ("set `backend: 'podman'` in the form, or use a non-oci rootfs").
-- Update `packages/genie/CLAUDE.md` § "`GENIE_WORKSPACE` is a host
+- Update `packages/genie/AGENTS.md` § "`GENIE_WORKSPACE` is a host
   path; the slice's cwd is `/workspace`" or its sibling section so
   the implementer's lens reflects the new form field.
 - Optional: introduce a `GENIE_ROOTFS` env var in `setup.js` that

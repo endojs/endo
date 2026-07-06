@@ -34,7 +34,7 @@ block) plus saboteur finding 3 (the `__getMethodNames__()` check is the
   pins the local powers' `not a local-minted mount` rejection plus the
   symmetric "wrong shape" friendly diagnostic.
 
-- [x] **DESIGN / CLAUDE note.**  `packages/genie/CLAUDE.md` §
+- [x] **DESIGN / CLAUDE note.**  `packages/genie/AGENTS.md` §
   "Capabilities the genie guest receives" documents the two-layer gate
   (shape gate via `assertIsMountCap`, identity gate via
   `provideHostPath` — `not a daemon-minted mount` /

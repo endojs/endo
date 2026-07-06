@@ -84,7 +84,7 @@ review (see PR #148's central claim).
     multiple call sites (`readText` and `lookup`).
   All 13 tests in the file pass.
 
-- [x] **Update `packages/genie/CLAUDE.md` § "Dev REPL local powers"** to
+- [x] **Update `packages/genie/AGENTS.md` § "Dev REPL local powers"** to
   state the new posture explicitly: "the dev-repl's local powers reject
   sub-Mounts and symlink escapes to mirror the daemon's
   `EndoHost.provideHostPath` rejection surface — adversarially-shaped

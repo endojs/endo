@@ -26,4 +26,4 @@ You test before you finish.
 
 ## Project specifics
 
-See CLAUDE.md for code style rules, operational commands, and other standards.
+See AGENTS.md for code style rules, operational commands, and other standards.

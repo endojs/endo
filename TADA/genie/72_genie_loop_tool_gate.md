@@ -14,7 +14,7 @@ See [`PLAN/genie_loop_overview.md`](../PLAN/genie_loop_overview.md) §
 1. [x] move `makeToolGate` to `packages/genie/src/agent/tool-gate.js`
    - export from `@endo/genie` alongside other agent-level helpers
    - keep `// @ts-check`, `harden(makeToolGate)`, JSDoc types per
-     `CLAUDE.md` conventions
+     `AGENTS.md` conventions
 
 2. [x] fix the three bugs documented in the architecture doc
    - `argVal === 'string' && argVal` → `typeof argVal === 'string'`

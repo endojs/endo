@@ -320,7 +320,7 @@ follow-up not part of the rename scope.
 
 ### Documentation
 
-- `packages/daemon/CLAUDE.md`, `DEBUGGING.md`, `MULTIPLAYER.md`: edit
+- `packages/daemon/AGENTS.md`, `DEBUGGING.md`, `MULTIPLAYER.md`: edit
   identifier mentions; leave general "the daemon" prose alone where
   it refers to the long-running process.
 - `designs/`: existing design documents reference `daemon.js` and

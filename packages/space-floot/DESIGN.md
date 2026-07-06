@@ -186,7 +186,7 @@ Notes:
 `floot/` inventory directory instead of polluting the top level.
 
 Daemon API facts that shape this (from `packages/daemon/src/types.d.ts` and
-`packages/daemon/CLAUDE.md`):
+`packages/daemon/AGENTS.md`):
 
 - `makeUnconfined` `resultName` and `storeValue`/`storeLocator` accept
   `string | string[]`, so caplets and values can be written straight to

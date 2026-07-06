@@ -319,8 +319,8 @@ explicit workflow steps.
 
 ## What to research before writing
 
-- Read `/home/kris/designer/CLAUDE.md` for project conventions.
-- Read `/home/kris/designer/designs/CLAUDE.md` for the design-doc format
+- Read `/home/kris/designer/AGENTS.md` for project conventions.
+- Read `/home/kris/designer/designs/AGENTS.md` for the design-doc format
   (metadata table, sections, `## Prompt` capturing the original prompt).
 - Read `/home/kris/designer/designs/README.md` for how designs are
   organized and to match tone.
@@ -366,7 +366,7 @@ explicit workflow steps.
   lint.
 - Design decisions, dependencies (none expected), known gaps,
   `## Prompt`.
-- Follow CLAUDE.md Markdown Style Guide: wrap 80-100 cols, one sentence
+- Follow AGENTS.md Markdown Style Guide: wrap 80-100 cols, one sentence
   per line.
 - Do NOT edit `designs/README.md`; I will synchronize it after all
   seven design docs land.
