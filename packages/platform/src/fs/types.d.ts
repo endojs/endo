@@ -100,12 +100,8 @@ export interface ContentStore {
  * so the filesystem-dependency contract stays self describing.
  */
 export interface ContentStoreFileWriter {
-  next: (
-    chunk: Uint8Array,
-  ) => Promise<IteratorResult<undefined, undefined>>;
-  return: (
-    value?: undefined,
-  ) => Promise<IteratorResult<undefined, undefined>>;
+  next: (chunk: Uint8Array) => Promise<IteratorResult<undefined, undefined>>;
+  return: (value?: undefined) => Promise<IteratorResult<undefined, undefined>>;
 }
 
 /**
