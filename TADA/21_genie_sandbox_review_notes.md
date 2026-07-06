@@ -85,7 +85,7 @@ Routed to [`25_genie_tools_vfs_endo_mount.md`](./25_genie_tools_vfs_endo_mount.m
 ## Clarifying question — daemon-side tools and ambient fs authority
 
 The current convention captured in
-`packages/genie/CLAUDE.md` § "Tools that need host fs access stay
+`packages/genie/AGENTS.md` § "Tools that need host fs access stay
 daemon-side" justifies its design with two points:
 
 > the slice's bind-mount lands on the same bytes the daemon-side tools

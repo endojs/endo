@@ -87,5 +87,5 @@ can look them up alongside `host-agent` and `workspace-mount`.
   § `spawnAgent` / `runLoop` for the existing introducedNames pattern.
 - [`packages/sandbox/README.md`](../packages/sandbox/README.md)
   § "Driver auto-registration".
-- [`packages/daemon/CLAUDE.md`](../packages/daemon/CLAUDE.md)
+- [`packages/daemon/AGENTS.md`](../packages/daemon/AGENTS.md)
   § "Guest Provisioning / introducedNames".

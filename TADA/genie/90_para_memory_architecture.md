@@ -99,7 +99,7 @@ PARA onto a **three-tier file-based memory system**:
 
 The AI agent memory space is converging on several patterns:
 
-- **File-based over vector-DB**: Claude Code (CLAUDE.md), Paperclip,
+- **File-based over vector-DB**: Claude Code (AGENTS.md), Paperclip,
   and many open-source agents use plain markdown files rather than
   vector databases.  This is transparent, version-controllable, and
   human-editable.

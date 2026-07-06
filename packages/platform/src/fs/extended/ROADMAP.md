@@ -293,7 +293,7 @@ The refactor naturally splits into phases that can land independently:
    for any daemon-side replacement is now in place.
 2. **`provideRemoteFs(path, petName, opts)` formula type.**
    Mirror `provideMount`'s formula lifecycle (disk-before-graph etc.
-   per `@endo/daemon/CLAUDE.md`).
+   per `@endo/daemon/AGENTS.md`).
 3. **`MountInterface`-compat wrapper.**
    Thin shim that satisfies the `EndoMount` interface guard by
    delegating to a `Filesystem`.

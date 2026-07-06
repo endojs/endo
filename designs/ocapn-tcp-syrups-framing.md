@@ -614,7 +614,7 @@ to a sequence of Syrup byte-string records. The new framing should
 live in a NEW sibling package to `@endo/netstring` (working name e.g.
 `@endo/byte-string` or `@endo/syrup-frame`; argue for the best name).
 
-Context to absorb: `designs/CLAUDE.md`, `designs/README.md`,
+Context to absorb: `designs/AGENTS.md`, `designs/README.md`,
 `designs/ocapn-network-transport-separation.md`,
 `designs/ocapn-tcp-for-test-extraction.md`, `packages/netstring/` in
 full, `packages/ocapn/` and `packages/ocapn-noise/` to identify TCP

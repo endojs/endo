@@ -20,7 +20,7 @@ The slice-mint capability surface that this design composes is
 specified in
 [`PLAN/endo_posix_sandbox.md`](./endo_posix_sandbox.md);
 the genie-side wiring that it extends lives in
-[`packages/genie/CLAUDE.md`](../packages/genie/CLAUDE.md) §
+[`packages/genie/AGENTS.md`](../packages/genie/AGENTS.md) §
 "Spawning rules" and § "Tools that need host fs access stay daemon-side".
 
 # Genie Sandbox: Whole-Tool Confinement Plan
@@ -55,7 +55,7 @@ the genie-side wiring that it extends lives in
 - Forcing dev-repl into the in-slice runtime architecture before it
   has a daemon to host CapTP edges.
   Dev-repl keeps the daemon-free path described in
-  [`packages/genie/CLAUDE.md`](../packages/genie/CLAUDE.md) §
+  [`packages/genie/AGENTS.md`](../packages/genie/AGENTS.md) §
   "Dev REPL local powers"; the new wiring is opt-in on that path.
 - Pulling an Endo distribution into arbitrary `oci:<ref>` rootfses.
   Distribution-into-image is a build-time concern;
@@ -656,10 +656,10 @@ A few details that recur across phases:
 - [`PLAN/endo_posix_sandbox.md`](./endo_posix_sandbox.md) — the
   slice-mint capability surface, network profiles, and operator
   prerequisites that this plan composes.
-- [`packages/genie/CLAUDE.md`](../packages/genie/CLAUDE.md) §
+- [`packages/genie/AGENTS.md`](../packages/genie/AGENTS.md) §
   "Spawning rules" — the spawner abstraction the in-slice agent
   composes with.
-- [`packages/genie/CLAUDE.md`](../packages/genie/CLAUDE.md) §
+- [`packages/genie/AGENTS.md`](../packages/genie/AGENTS.md) §
   "Tools that need host fs access stay daemon-side" — the current
   convention this plan revises (in Phase B.3 onwards, tools no
   longer "stay daemon-side"; they move into the slice agent).

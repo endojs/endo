@@ -98,4 +98,4 @@ in `test/factory.test.js` and `test/daemon-smoke.test.js` pass,
 - `packages/lal/src/agent.js` — closest precedent for a
   `make-unconfined` plugin shape.
 - `packages/daemon/src/types.js` — typedef style to mirror.
-- `CLAUDE.md` § "Hardened JavaScript (SES) Conventions".
+- `AGENTS.md` § "Hardened JavaScript (SES) Conventions".

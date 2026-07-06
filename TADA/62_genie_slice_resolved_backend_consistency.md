@@ -88,7 +88,7 @@ factory call or the rootfs-compatibility cross-check.
   please do not dedupe one of the call sites away") that names each
   caller, why the form-side pass short-circuits under `'auto'`, and
   why the slice-side pass catches the resolved-backend mismatch.
-  The matching prose in `packages/genie/CLAUDE.md` § "`rootfs`
+  The matching prose in `packages/genie/AGENTS.md` § "`rootfs`
   form field" mirrors the same explanation from the
   operator/integration side.
 

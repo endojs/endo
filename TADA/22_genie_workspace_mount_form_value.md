@@ -18,7 +18,7 @@ if (config.workspace) {
 
 This conflicts with the capability discipline that the rest of the genie /
 sandbox integration has been moving toward
-(see [`packages/genie/CLAUDE.md`](../packages/genie/CLAUDE.md) §
+(see [`packages/genie/AGENTS.md`](../packages/genie/AGENTS.md) §
 "Tools that need host fs access stay daemon-side").
 `setup.js` already mints a `workspace-mount` cap and introduces it under the pet
 name `workspace`; the form's `workspace:` field should be able to refer to that
@@ -70,7 +70,7 @@ cap by name instead of re-minting from a path.
   with a two-row table (absolute host path vs. introduced pet name)
   documenting the legacy / recommended split, the disambiguation rule,
   and the structured-error behaviour.
-- [x] Update `packages/genie/CLAUDE.md` § "Capabilities the genie guest
+- [x] Update `packages/genie/AGENTS.md` § "Capabilities the genie guest
   receives" so the row for `workspace` reflects that downstream agents may
   inherit the same cap rather than minting their own.
   Implementation: extended the `workspace` row to mention pet-name

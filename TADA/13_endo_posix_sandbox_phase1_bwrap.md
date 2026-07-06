@@ -143,7 +143,7 @@ or a `private` NAT'd network with the public-Internet egress filter.
 - `packages/daemon/src/mount.js` — `reader-ref` / `writer-ref`
   precedent.
 - `packages/familiar` test conventions for forking a daemon
-  per test (see `CLAUDE.md` § "Familiar (Electron shell)").
+  per test (see `AGENTS.md` § "Familiar (Electron shell)").
 
 ## Status notes
 

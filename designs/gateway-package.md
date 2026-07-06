@@ -110,7 +110,7 @@ await E(gateway).stop();
 ```
 
 `make({ ... })` returns a hardened exo with an `M.interface` guard
-(per `project/CLAUDE.md` § makeExo).
+(per `project/AGENTS.md` § makeExo).
 The exo exposes `start`, `stop`, `getBindAddress`, `getApps`,
 and feature-specific facets named per the Capability Surface
 section below.
@@ -182,7 +182,7 @@ ENDO_HTTP_ADDR=0.0.0.0:0 endo-gateway      # OS-assigned port
 The `ENDO_HTTP_ADDR` value is a host:port pair parseable by
 Node's `URL` (with the IPv6 brackets convention).
 The gateway parses it with the same `port !== '' ? Number(port) : default`
-rule called out in `project/CLAUDE.md` § Familiar to handle the
+rule called out in `project/AGENTS.md` § Familiar to handle the
 OS-assigned `:0` case correctly.
 
 `ENDO_HTTP_ADDR` is distinct from the existing `ENDO_ADDR`
@@ -279,7 +279,7 @@ style RST, EPIPE on the UDS) and prunes the registration on close.
 A defensive heartbeat (gateway pings the user daemon every 30s,
 prunes after three missed responses) covers the case where a user
 daemon is wedged but its bootstrap connection has not yet closed.
-Heartbeats reuse CapTP `__getMethodNames__()` (per `project/CLAUDE.md`
+Heartbeats reuse CapTP `__getMethodNames__()` (per `project/AGENTS.md`
 § CapTP introspection) rather than a bespoke `ping` method; the
 existing introspection round-trip is enough.
 
@@ -880,7 +880,7 @@ Familiar's bundled-fallback gateway):
 - **Electron architecture constraints**: the gateway is launched
   in the Electron main process (see *Cross-platform service shape*
   above).
-  Per `project/CLAUDE.md` § Familiar architecture constraints, the
+  Per `project/AGENTS.md` § Familiar architecture constraints, the
   Electron main process must not import `@endo/init` or `ses`; the
   `@endo/gateway` package therefore does not require either at the
   top level, and the SES-bearing parts of the daemon run in the

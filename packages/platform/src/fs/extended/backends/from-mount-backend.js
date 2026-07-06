@@ -124,7 +124,7 @@ harden(kindFromMethods);
 const probeMountChild = async cap => {
   try {
     // `__getMethodNames__` is the canonical CapTP introspection
-    // method (DESIGN.md / CLAUDE.md). Disable the lint rule that
+    // method (DESIGN.md / AGENTS.md). Disable the lint rule that
     // forbids leading/trailing underscores on identifiers — the
     // double-underscore form is part of the CapTP protocol.
     // eslint-disable-next-line no-underscore-dangle

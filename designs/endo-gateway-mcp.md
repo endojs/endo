@@ -648,7 +648,7 @@ existing ones.
    incidental `stdout` traffic.
    Bare `console.error` and `console.log` from tools (the latter
    in violation of the "libraries are silent by default" rule from
-   [packages/lal/CLAUDE.md](../packages/lal/CLAUDE.md)) map to MCP
+   [packages/lal/AGENTS.md](../packages/lal/AGENTS.md)) map to MCP
    `error` and `info` respectively.
    When the project adopts a structured logger
    ([anylogger](https://www.npmjs.com/package/anylogger) is the

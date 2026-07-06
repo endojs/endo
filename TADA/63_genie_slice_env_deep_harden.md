@@ -65,13 +65,13 @@ PR #148 makes.
   value is rejected with the agent-naming error before the factory
   is reached.  Both pass under `npx ava test/sandbox-slice-mint.test.js`.
 
-- [x] **CLAUDE.md note** under "Spawning rules" or a new "Slice-spec
+- [x] **AGENTS.md note** under "Spawning rules" or a new "Slice-spec
   boundary" sub-section: `env` (and any future structured input to
   `factory.make`) must be deep-copied + hardened on entry to
   `mintGenieSlice`.  Pin the rule so future additions don't reintroduce
   the gap.
 
-  Done: `packages/genie/CLAUDE.md` gained a "Slice-spec boundary:
+  Done: `packages/genie/AGENTS.md` gained a "Slice-spec boundary:
   deep-harden every structured input" sub-section under "Spawning
   rules" that pins the `env` discipline, shows the
   `harden({ __proto__: null, ...env })` recipe, names the TOCTOU

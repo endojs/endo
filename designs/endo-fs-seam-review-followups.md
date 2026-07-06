@@ -207,7 +207,7 @@ follow-up cleanup pass; entries are checked off as fixes land.
 
 - `synthesizePosixFs(_fs)` doesn't use `fs`; `attrs(node)` reads
   via E directly from the node remotable.
-- The CLAUDE.md guidance says don't rename intentionally-unused
+- The AGENTS.md guidance says don't rename intentionally-unused
   params with underscore (conflicts with `no-underscore-dangle`).
 - **Fix**: drop the parameter; make this `synthesizePosixFs()`.
 

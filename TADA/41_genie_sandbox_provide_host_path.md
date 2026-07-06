@@ -151,7 +151,7 @@ All deliverables landed; the daemon ships `provideHostPath` on
   — `SandboxPowers` shape.
 - [`packages/sandbox/src/factory.js`](../packages/sandbox/src/factory.js)
   — `resolveHostPath` helper that consumes the power.
-- [`packages/daemon/CLAUDE.md`](../packages/daemon/CLAUDE.md)
+- [`packages/daemon/AGENTS.md`](../packages/daemon/AGENTS.md)
   § "Storage Concepts / Mount" for the live mount surface this
   resolver bridges.
 - [`packages/daemon/src/host.js`](../packages/daemon/src/host.js)

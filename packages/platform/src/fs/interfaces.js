@@ -3,7 +3,7 @@
 import { M } from '@endo/patterns';
 
 // `help: help(method?) → string` is conventional on every capability
-// (see root CLAUDE.md): with no argument it returns a one-line description
+// (see root AGENTS.md): with no argument it returns a one-line description
 // of the cap; with a method name it documents that method.
 const HelpMethod = M.call().optional(M.string()).returns(M.string());
 

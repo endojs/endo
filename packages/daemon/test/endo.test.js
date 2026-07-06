@@ -6318,7 +6318,7 @@ test('Phase 6: guest.lookup("@node") rejects', async t => {
   const { host } = await prepareHost(t);
 
   // provideGuest returns the EndoGuest directly (lookup returns the
-  // handle, which lacks lookup/list/etc. — see daemon CLAUDE.md).
+  // handle, which lacks lookup/list/etc. — see daemon AGENTS.md).
   const guest = await E(host).provideGuest('alice');
 
   await t.throwsAsync(async () => E(guest).lookup('@node'), {

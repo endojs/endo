@@ -386,7 +386,7 @@ test.serial(
 // The full daemon-integration test (open chat, drag from nested directory to
 // root, pick "Move here", assert source name is gone and target name resolves
 // to same identifier) requires standing up a forked Endo daemon (per project
-// CLAUDE.md test discipline) and lives outside the surgical scope of this
+// AGENTS.md test discipline) and lives outside the surgical scope of this
 // PR — see this PR's top-level summary for the next: assayer escalation.
 // What this component-level test pins: the click handlers on "Link here"
 // and "Move here" call E(rootPowers).copy and E(rootPowers).move with the

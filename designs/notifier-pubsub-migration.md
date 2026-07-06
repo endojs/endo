@@ -325,7 +325,7 @@ It is a set of adapters that decide, per-direction and per-facet, what
 crosses the wire and what stays local.
 The set below enumerates the adapters this design defines.
 Each adapter is one module under `packages/exo-pubsub/` (no barrel
-exports, per the project `CLAUDE.md`).
+exports, per the project `AGENTS.md`).
 
 The set is organized by **direction** (what is local, what is passable)
 and by **facet** (publisher facet, topic facet).
@@ -844,7 +844,7 @@ The new packages' designs avoid re-creating that pain:
   Both packages are siblings of existing `@endo/*` packages in `packages/`,
   ship with the same `tsconfig.composite.json` / `tsconfig.build.json` /
   `package.json` shape as their siblings, and expose one module per
-  exported function (no barrel exports, per the project `CLAUDE.md`).
+  exported function (no barrel exports, per the project `AGENTS.md`).
 
 ## Durable pubsub deferred
 

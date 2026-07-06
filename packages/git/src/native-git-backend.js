@@ -27,7 +27,7 @@ import { GitTreeInterface } from '@endo/exo-git';
 
 // `TextDecoder` is portable across XS, browsers, and SES realms;
 // prefer it over `Buffer.from(...).toString('utf8')` per the project
-// portability preference (root CLAUDE.md § Modernisms).
+// portability preference (root AGENTS.md § Modernisms).
 const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
 
 /**

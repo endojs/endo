@@ -39,7 +39,7 @@ support entirely.  The dev-repl needs the former.
   - `makeLocalSandboxPowers()` → `{ powers, makeMountCapForPath, dispose }`
     - `powers`: a `SandboxPowers`-shaped exo built with `makeExo` +
       a small `M.interface()` guard so CapTP introspection works
-      (see `packages/genie/CLAUDE.md` § "Modules and exports" on
+      (see `packages/genie/AGENTS.md` § "Modules and exports" on
       `makeExo` vs `Far`).
     - `makeMountCapForPath(hostPath)`: returns a `Mount`-shaped exo
       pointing at the given host path; the cap is wired into the

@@ -503,7 +503,7 @@ trust model that no module ports cleanly without adaptation.
 4. **`ToolSpec`-style declarative tool schemas.**
    Endo's tools today are caplet methods discovered via CapTP
    introspection (`E(ref).__getMethodNames__()` per the project
-   `CLAUDE.md`).
+   `AGENTS.md`).
    Wrapping a caplet's method set in a forge-shape `ToolSpec`
    (name, description, parameter schema in JSON Schema) at the agent
    boundary would give the LLM a uniform tool-call shape regardless
@@ -603,7 +603,7 @@ trust model that no module ports cleanly without adaptation.
 - `packages/lal/agent.js` lines 938-988
   (`extractToolCallsFromContent`) and 1336-1395 (`runAgenticLoop`).
 - `packages/lal/README.md` (`LAL_MAX_MESSAGES`).
-- `packages/lal/CLAUDE.md` (manager-loop architecture).
+- `packages/lal/AGENTS.md` (manager-loop architecture).
 - `packages/fae/agent.js`, `packages/fae/driver.js`,
   `packages/fae/FAE-ARCHITECTURE.md`,
   `packages/fae/COMPARISON-FAE-LAL.md`.

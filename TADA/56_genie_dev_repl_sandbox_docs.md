@@ -21,7 +21,7 @@ Depends on TODO/53 / TODO/54 / TODO/55 having landed.
 - [x] Mirror the rootfs / backend-compatibility table from the
   daemon section so operators do not have to flip back and forth.
 
-### `packages/genie/CLAUDE.md`
+### `packages/genie/AGENTS.md`
 
 - [x] Add a "Dev REPL local powers" subsection under "Capabilities
   the genie guest receives" explaining that the dev-repl
@@ -49,7 +49,7 @@ Depends on TODO/53 / TODO/54 / TODO/55 having landed.
 ## Acceptance
 
 - `yarn docs` (or `tsc --build`) is clean.
-- `git grep -n -- '--sandbox'` covers the README, CLAUDE.md, and
+- `git grep -n -- '--sandbox'` covers the README, AGENTS.md, and
   the dev-repl JSDoc.
 - New contributors can answer "how do I make the dev-repl run
   bash inside a slice?" by reading the README alone.
@@ -65,10 +65,10 @@ TODO/53 / TODO/54 / TODO/55:
   worked `-w /tmp/foo --sandbox bwrap -c "..."` example.
 - README.md § "Backend / rootfs compatibility (dev-repl)" (line
   ~332) mirrors the daemon section's rootfs/backend matrix.
-- CLAUDE.md § "Dev REPL local powers" pins the
+- AGENTS.md § "Dev REPL local powers" pins the
   daemon-vs-dev-repl asymmetry table and cross-references
   `mintGenieSlice` / TODO/52.
-- CLAUDE.md § "Testing protocol" lists
+- AGENTS.md § "Testing protocol" lists
   `test:integration:dev-repl-sandbox` alongside
   `test:integration:sandbox-slice`.
 - `dev-repl.js`, `src/sandbox/local-powers.js`, and
@@ -77,7 +77,7 @@ TODO/53 / TODO/54 / TODO/55:
   identifies both call sites of `mintGenieSlice` respectively.
 
 `git grep -n -- '--sandbox' packages/genie/` covers README.md,
-CLAUDE.md, dev-repl.js, and the dev-repl-sandbox AVA test, so the
+AGENTS.md, dev-repl.js, and the dev-repl-sandbox AVA test, so the
 acceptance grep also passes.
 
 ## Out of scope

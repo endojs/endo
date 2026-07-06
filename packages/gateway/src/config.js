@@ -73,7 +73,7 @@ export const defaultGatewayConfig = harden({
  *   - IPv6: `[::1]:8920` -> { host: '::1', kind: 'ipv6', port: 8920 }
  *   - OS-assigned port: `127.0.0.1:0` keeps port `0`, not `8920`.
  *     The naive `Number(port) || default` collapses `0` to the
- *     default (see `project/CLAUDE.md` § Familiar), so the parser
+ *     default (see `project/AGENTS.md` § Familiar), so the parser
  *     uses the `port !== '' ? Number(port) : default` rule.
  *
  * @param {string} input
@@ -112,7 +112,7 @@ export const parseBindAddress = input => {
     }
   }
 
-  // Per `project/CLAUDE.md` § Familiar: port 0 is falsy in JS, so
+  // Per `project/AGENTS.md` § Familiar: port 0 is falsy in JS, so
   // the conditional has to test the string, not the number.
   const portString = input.slice(input.lastIndexOf(':') + 1);
   if (portString === '') {

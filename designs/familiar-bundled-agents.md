@@ -161,7 +161,7 @@ bundled as-is.
 ### SES Compatibility
 
 The agent bundles will run inside an already-locked-down SES worker. Per the
-CLAUDE.md architectural constraint:
+AGENTS.md architectural constraint:
 
 > Unconfined plugins (e.g., `web-server-node.js`) run inside an
 > already-locked-down worker and must **not** import `ses` or `@endo/init`

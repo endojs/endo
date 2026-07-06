@@ -17,7 +17,7 @@ consumed by `endo inbox` itself, not just the sleeps.
 ### 2. `ENDO_ADDR="127.0.0.1:0"` — XXX does this work? (line 62)
 
 Port 0 is OS-assigned, which is the standard trick for test isolation
-(see CLAUDE.md: "Port 0 is falsy in JavaScript").
+(see AGENTS.md: "Port 0 is falsy in JavaScript").
 The question is whether the daemon and CLI properly propagate the
 randomly assigned port.
 The gateway tests already use this pattern successfully, so it should
