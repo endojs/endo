@@ -107,7 +107,33 @@ export interface MountReadToolOptions {
   maxChars?: number;
 }
 
+export interface MountFsToolsOptions {
+  /**
+   * When `true`, omit the write (edit) slice from the returned tool set so a
+   * read-only deployment advertises only the read / list / stat tools.
+   * Defaults to `false`.
+   */
+  readOnly?: boolean;
+  /**
+   * Maximum number of UTF-8 characters the read tool returns before
+   * truncation, forwarded to `makeMountReadTool`. Defaults to 50,000; `0`
+   * disables the limit.
+   */
+  maxChars?: number;
+}
+
 export declare function makeMountReadTool(
   fs: ERef<Filesystem>,
   opts?: MountReadToolOptions,
 ): ToolRecord;
+
+export declare function makeMountListTool(fs: ERef<Filesystem>): ToolRecord;
+
+export declare function makeMountStatTool(fs: ERef<Filesystem>): ToolRecord;
+
+export declare function makeMountEditTool(fs: ERef<Filesystem>): ToolRecord;
+
+export declare function makeMountFsTools(
+  fs: ERef<Filesystem>,
+  opts?: MountFsToolsOptions,
+): ToolRecord[];
