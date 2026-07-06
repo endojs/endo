@@ -1,6 +1,7 @@
 import type { ERef } from '@endo/eventual-send';
 import type { Filesystem } from '@endo/platform/fs/extended';
 import type { EndoGit } from '@endo/exo-git';
+import type { EndoShell } from '@endo/exo-shell';
 import type { Pattern } from '@endo/patterns';
 
 /**
@@ -97,6 +98,39 @@ export declare function makeGitTool(
 
 export declare function makeGitMountTools(
   gitCap: ERef<GitMountToolCapability>,
+): ToolRecord[];
+
+/**
+ * The slice of `EndoShell` exposed to an LLM: `exec` (allowlisted, argv-only
+ * command execution) and `inspect` (report the policy bounds). The allowlist,
+ * sanitized env, timeout, and output cap are all enforced inside the `Shell`
+ * exo, so this surface adds no authority beyond what the capability already
+ * carries.
+ */
+export type ShellToolCapability = Pick<EndoShell, 'exec' | 'inspect'>;
+
+/** A command-string reject pattern; ported from genie's command-tool policy. */
+export type RejectPatternEntry = RegExp | { pattern: RegExp; reason?: string };
+
+/** A forbidden-flag entry; ported from genie's command-tool policy. */
+export type RejectFlagEntry = string | { flag: string; reason?: string };
+
+export interface ShellToolOptions {
+  /**
+   * Advisory command-string veto patterns applied in the tool layer before the
+   * call reaches `Shell.exec`. Hardening advice, not the boundary.
+   */
+  rejectPatterns?: RejectPatternEntry[];
+  /**
+   * Advisory forbidden-flag entries applied in the tool layer before the call
+   * reaches `Shell.exec`. Hardening advice, not the boundary.
+   */
+  rejectFlags?: RejectFlagEntry[];
+}
+
+export declare function makeShellTool(
+  shellCap: ERef<ShellToolCapability>,
+  options?: ShellToolOptions,
 ): ToolRecord[];
 
 export interface MountReadToolOptions {

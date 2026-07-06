@@ -3,7 +3,7 @@
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PassableBytesReader } from '@endo/exo-stream' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoDiagnostics, EndoGit, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, FormulaRecord, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoDiagnostics, EndoGit, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, FormulaRecord, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, ShellDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 /** @import { makeTraceAggregator } from './trace-aggregator.js' */
 
 import { E } from '@endo/eventual-send';
@@ -48,7 +48,7 @@ import {
   TracesInterface,
 } from './interfaces.js';
 import { hostHelp, makeHelp } from './help-text.js';
-import { assertValidTreeEntryName } from './mount.js';
+import { assertValidTreeEntryName, getMountBacking } from './mount.js';
 
 /**
  * @param {string} name
@@ -109,6 +109,7 @@ const normalizeHostOrGuestOptions = opts => {
  * @param {DaemonCore['formulateMount']} args.formulateMount
  * @param {DaemonCore['formulateScratchMount']} args.formulateScratchMount
  * @param {DaemonCore['formulateGit']} args.formulateGit
+ * @param {DaemonCore['formulateShell']} args.formulateShell
  * @param {DaemonCore['formulateGitCredential']} args.formulateGitCredential
  * @param {DaemonCore['formulateGitRemote']} args.formulateGitRemote
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
@@ -153,6 +154,7 @@ export const makeHostMaker = ({
   formulateMount,
   formulateScratchMount,
   formulateGit,
+  formulateShell,
   formulateGitCredential,
   formulateGitRemote,
   formulateInvitation,
@@ -449,6 +451,112 @@ export const makeHostMaker = ({
 
       const { value } = await formulateGit(mountId, tasks);
       return /** @type {EndoGit} */ (value);
+    };
+
+    /**
+     * Validate and normalize a caller-supplied `ShellPolicy` into the frozen
+     * record baked into the `shell` formula.  Rejects a malformed policy up
+     * front so a doomed formula is never persisted.
+     *
+     * @param {unknown} policy
+     * @returns {import('./types.js').ShellPolicy}
+     */
+    const normalizeShellPolicy = policy => {
+      if (!policy || typeof policy !== 'object') {
+        throw makeError(X`provideShell: policy must be an object`);
+      }
+      const { allowedCommands, timeoutMs, maxOutputBytes, env, searchPath } =
+        /** @type {Record<string, unknown>} */ (policy);
+      if (
+        !Array.isArray(allowedCommands) ||
+        allowedCommands.length === 0 ||
+        !allowedCommands.every(c => typeof c === 'string' && c.length > 0)
+      ) {
+        throw makeError(
+          X`provideShell: policy.allowedCommands must be a non-empty array of command-name strings`,
+        );
+      }
+      if (!Number.isInteger(timeoutMs) || /** @type {number} */ (timeoutMs) <= 0) {
+        throw makeError(
+          X`provideShell: policy.timeoutMs must be a positive integer`,
+        );
+      }
+      if (
+        !Number.isInteger(maxOutputBytes) ||
+        /** @type {number} */ (maxOutputBytes) <= 0
+      ) {
+        throw makeError(
+          X`provideShell: policy.maxOutputBytes must be a positive integer`,
+        );
+      }
+      /** @type {Record<string, string>} */
+      const normalizedEnv = {};
+      if (env !== undefined) {
+        if (typeof env !== 'object' || env === null || Array.isArray(env)) {
+          throw makeError(
+            X`provideShell: policy.env must be a record of string values`,
+          );
+        }
+        for (const [key, val] of Object.entries(env)) {
+          if (typeof val !== 'string') {
+            throw makeError(
+              X`provideShell: policy.env[${q(key)}] must be a string`,
+            );
+          }
+          normalizedEnv[key] = val;
+        }
+      }
+      const timeoutMsValue = /** @type {number} */ (timeoutMs);
+      const maxOutputBytesValue = /** @type {number} */ (maxOutputBytes);
+      /** @type {import('./types.js').ShellPolicy} */
+      const normalized = {
+        allowedCommands: harden([...allowedCommands]),
+        timeoutMs: timeoutMsValue,
+        maxOutputBytes: maxOutputBytesValue,
+        env: harden(normalizedEnv),
+      };
+      if (searchPath !== undefined) {
+        if (typeof searchPath !== 'string') {
+          throw makeError(X`provideShell: policy.searchPath must be a string`);
+        }
+        normalized.searchPath = searchPath;
+      }
+      return harden(normalized);
+    };
+
+    /** @type {EndoHost['provideShell']} */
+    const provideShell = async (mountCap, petName, policy) => {
+      const { namePath } = petNamePathFrom(petName);
+      const mountId = getIdForRef(mountCap);
+      if (mountId === undefined) {
+        throw makeError(
+          X`provideShell: first argument must be a daemon-minted mount cap`,
+        );
+      }
+      const normalizedPolicy = normalizeShellPolicy(policy);
+      // A child process holds OS-level write authority over its working tree;
+      // a read-only mount cannot bound that, and a "read-only shell" would
+      // misrepresent the authority actually granted.  Reject it before a
+      // formula is persisted (the maker re-checks at reincarnation).
+      const backing = getMountBacking(mountCap);
+      if (backing !== undefined && backing.readOnly) {
+        throw makeError(
+          X`provideShell: cannot construct a shell over a read-only mount`,
+        );
+      }
+
+      /** @type {DeferredTasks<ShellDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).storeIdentifier(namePath, identifiers.shellId),
+      );
+
+      const { value } = await formulateShell(
+        mountId,
+        normalizedPolicy,
+        tasks,
+      );
+      return value;
     };
 
     /** @type {EndoHost['provideBearerCredential']} */
@@ -2014,6 +2122,7 @@ export const makeHostMaker = ({
       provideMount,
       provideScratchMount,
       provideGit,
+      provideShell,
       provideGitRemote,
       provideGitClone,
       provideBearerCredential,

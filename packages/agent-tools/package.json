@@ -41,6 +41,10 @@
       "types": "./git-mount-tool.d.ts",
       "default": "./src/git-mount-tool.js"
     },
+    "./shell-tool.js": {
+      "types": "./shell-tool.d.ts",
+      "default": "./src/shell-tool.js"
+    },
     "./mount-fs.js": {
       "types": "./mount-fs.d.ts",
       "default": "./src/mount-fs.js"
@@ -60,6 +64,10 @@
     "./src/git-mount-tool.js": {
       "types": "./src/git-mount-tool.d.ts",
       "default": "./src/git-mount-tool.js"
+    },
+    "./src/shell-tool.js": {
+      "types": "./src/shell-tool.d.ts",
+      "default": "./src/shell-tool.js"
     },
     "./src/mount-fs.js": {
       "types": "./src/mount-fs.d.ts",
@@ -89,6 +97,7 @@
   "dependencies": {
     "@endo/eventual-send": "workspace:^",
     "@endo/exo-git": "workspace:^",
+    "@endo/exo-shell": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/platform": "workspace:^"

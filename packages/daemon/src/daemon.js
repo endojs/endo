@@ -27,6 +27,8 @@ import {
   makeGitRemote,
   makeUnavailableGitCredential,
 } from '@endo/exo-git';
+import { makeShell } from '@endo/exo-shell';
+import { makeHostSpawner } from '@endo/host-spawner';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
@@ -781,6 +783,8 @@ const makeDaemonCore = async (
       case 'scratch-mount':
         return [];
       case 'git':
+        return [['mount', formula.mountId]];
+      case 'shell':
         return [['mount', formula.mountId]];
       case 'git-credential':
         return [];
@@ -3033,6 +3037,51 @@ const makeDaemonCore = async (
         lineageOf,
       });
     },
+    shell: async ({ mountId, policy }, context) => {
+      context.thisDiesIfThatDies(mountId);
+      const mount = await provide(mountId);
+      const backing = getMountBacking(mount);
+      if (!backing) {
+        throw makeError(
+          X`Shell formula's mountId ${q(mountId)} does not name a daemon-minted mount`,
+        );
+      }
+      if (backing.kind !== 'physical') {
+        throw makeError(
+          X`Shell requires a physical mount, got ${q(backing.kind)}`,
+        );
+      }
+      // A child process holds OS-level write authority over its working tree;
+      // a read-only mount cannot bound that, so a "read-only shell" would
+      // misrepresent the authority actually granted.  Refuse it (design
+      // § Construction, point 3).  `provideShell` rejects earlier; this is the
+      // reincarnation-time defense so a persisted formula cannot smuggle one in.
+      if (backing.readOnly) {
+        throw makeError(
+          X`Shell requires a writable mount; refusing to construct a shell over a read-only mount`,
+        );
+      }
+      // PATH is policy-owned (baked at provideShell time) when supplied, else
+      // the host's PATH at incarnation; the child inherits nothing else from
+      // the host process env — only `policy.env` plus this PATH and `LC_ALL`.
+      const searchPath =
+        typeof policy.searchPath === 'string'
+          ? policy.searchPath
+          : process.env.PATH || '';
+      const baseEnv = harden({ PATH: searchPath, LC_ALL: 'C' });
+      const spawner = makeHostSpawner({ searchPath, defaultEnv: baseEnv });
+      return makeShell({
+        cwd: backing.currentDir,
+        policy: harden({
+          allowedCommands: harden([...policy.allowedCommands]),
+          timeoutMs: policy.timeoutMs,
+          maxOutputBytes: policy.maxOutputBytes,
+          env: harden({ ...(policy.env || {}) }),
+        }),
+        spawner,
+        readOnly: false,
+      });
+    },
     'git-credential': ({ kind, audience }, _context, id) => {
       const material = gitCredentialMaterialForId.get(id);
       const onRotate = rotated =>
@@ -4238,6 +4287,34 @@ const makeDaemonCore = async (
         const formula = harden({
           type: 'git',
           mountId,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateShell']} */
+  const formulateShell = async (mountId, policy, deferredTasks) => {
+    return /** @type {FormulateResult<import('./types.js').EndoShell>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          shellId: formatId({
+            number: formulaNumber,
+            node: localNodeNumber,
+          }),
+        });
+
+        /** @type {import('./types.js').ShellFormula} */
+        const formula = harden({
+          type: 'shell',
+          mountId,
+          policy,
         });
 
         return formulate(formulaNumber, formula);
@@ -6509,6 +6586,7 @@ const makeDaemonCore = async (
     formulateMount,
     formulateScratchMount,
     formulateGit,
+    formulateShell,
     formulateGitCredential,
     formulateGitRemote,
     formulateInvitation,

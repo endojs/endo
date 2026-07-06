@@ -267,6 +267,57 @@ export type GitFormula = {
   mountId: FormulaIdentifier;
 };
 
+/**
+ * Policy baked into a `shell` formula at `provideShell` time (formula-owned,
+ * like `GitRemote`'s endpoint policy), so the capability reconstitutes across
+ * daemon restart with the same bounds.  `env` and `searchPath` are host-private
+ * construction inputs and are never revealed by `Shell.inspect()`.
+ */
+export type ShellPolicy = {
+  allowedCommands: string[];
+  timeoutMs: number;
+  maxOutputBytes: number;
+  env?: Record<string, string>;
+  searchPath?: string;
+};
+
+export type ShellResult = {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  signal: string | null;
+  truncated: boolean;
+};
+
+export type ShellFormula = {
+  type: 'shell';
+  mountId: FormulaIdentifier;
+  policy: ShellPolicy;
+};
+
+/**
+ * Public `Shell` capability surface, minted by `EndoHost.provideShell` and
+ * `DaemonCore.formulateShell`.  Argv-only (`exec(command, args[])`); there is
+ * deliberately no shell-string mode.  `inspect()` reveals the policy bounds but
+ * never the host working directory, env passlist, or search path.
+ */
+export interface EndoShell {
+  inspect(): Promise<{
+    allowedCommands: string[];
+    timeoutMs: number;
+    maxOutputBytes: number;
+  }>;
+  exec(
+    command: string,
+    args: string[],
+    options?: { timeoutMs?: number },
+  ): Promise<ShellResult>;
+}
+
+export type ShellDeferredTaskParams = {
+  shellId: FormulaIdentifier;
+};
+
 export type GitCredentialFormula = {
   type: 'git-credential';
   kind: 'bearer' | 'basic';
@@ -690,6 +741,7 @@ export type Formula =
   | MountFormula
   | ScratchMountFormula
   | GitFormula
+  | ShellFormula
   | GitCredentialFormula
   | GitRemoteFormula
   | LookupFormula
@@ -1456,6 +1508,19 @@ export interface EndoHost extends EndoAgent {
   ): Promise<EndoMount>;
   provideScratchMount(petName: string | string[]): Promise<EndoMount>;
   provideGit(mountCap: EndoMount, petName: string | string[]): Promise<EndoGit>;
+  /**
+   * Derive an allowlisted, argv-only command-execution `Shell` from a
+   * **writable** mount.  The child working directory is resolved host-side
+   * (never guest-visible) and the `policy` — allowlist, sanitized-env passlist,
+   * timeout, and output cap — is baked into the formula so it survives restart.
+   * Rejects a read-only mount: a child process holds OS-level write authority a
+   * read-only mount cannot bound.  Host-only; not exposed to guests.
+   */
+  provideShell(
+    mountCap: EndoMount,
+    petName: string | string[],
+    policy: ShellPolicy,
+  ): Promise<EndoShell>;
   /**
    * Mint a `GitRemote` capability bound to `gitCap`, persist its
    * formula, and bind it to `petName`.  The remote enforces the
@@ -2469,6 +2534,12 @@ export interface DaemonCore {
     mountId: FormulaIdentifier,
     deferredTasks: DeferredTasks<GitDeferredTaskParams>,
   ) => FormulateResult<EndoGit>;
+
+  formulateShell: (
+    mountId: FormulaIdentifier,
+    policy: ShellPolicy,
+    deferredTasks: DeferredTasks<ShellDeferredTaskParams>,
+  ) => FormulateResult<EndoShell>;
 
   formulateGitCredential: (
     kind: GitCredentialFormula['kind'],

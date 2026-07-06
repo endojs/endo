@@ -298,6 +298,12 @@ export const HostInterface = M.interface('EndoHost', {
   provideGit: M.callWhen(M.remotable(), NameOrPathShape).returns(
     M.remotable('Git'),
   ),
+  // Derive an allowlisted command-execution Shell from a writable mount.
+  provideShell: M.callWhen(
+    M.remotable(),
+    NameOrPathShape,
+    M.recordOf(M.string(), M.any()),
+  ).returns(M.remotable('Shell')),
   // Mint a GitRemote capability that wraps a writable Git cap with a
   // policy-bound endpoint and (optional) credential.
   provideGitRemote: M.callWhen(
