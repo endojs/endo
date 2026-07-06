@@ -37,9 +37,10 @@ declare module '@endo/exo-shell' {
   export const makeShell: (powers: {
     cwd: string;
     policy: ShellPolicy;
-    spawner: any;
+    spawner: import('@endo/host-spawner').Spawner;
     readOnly?: boolean;
-  }) => any;
+    killGraceMs?: number;
+  }) => EndoShell;
 
   export const ShellInterface: object;
 }

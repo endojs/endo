@@ -26,6 +26,7 @@ declare module '@endo/host-spawner' {
   export const makeHostSpawner: (options?: {
     searchPath?: string;
     defaultEnv?: Record<string, string | undefined>;
+    killProcessGroup?: boolean;
   }) => Spawner;
 }
 

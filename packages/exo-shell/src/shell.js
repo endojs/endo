@@ -13,6 +13,14 @@ import { ShellInterface } from './interfaces.js';
  */
 
 /**
+ * Default grace period, in milliseconds, between the timeout's polite
+ * `SIGTERM` and the uncatchable `SIGKILL`.  A cooperative child gets this long
+ * to flush and exit on its own; an uncooperative one (a child that traps or
+ * ignores `SIGTERM`) is force-killed so `exec` cannot hang past its bound.
+ */
+const DEFAULT_KILL_GRACE_MS = 2000;
+
+/**
  * Drain an async-iterable byte stream into a UTF-8 string, bounded to
  * `maxBytes`.  Once the cap is reached the remaining chunks are still read to
  * EOF (so the child never blocks on a full pipe) but discarded, and the result
@@ -77,16 +85,25 @@ const drainBounded = async (stream, maxBytes) => {
  *
  * A read-only mount cannot bound a child process's OS-level write authority, so
  * a "read-only shell" would misrepresent the authority actually granted; the
- * maker refuses one outright (design § Construction, point 3).
+ * maker refuses one outright (design § Shell capability: the shell's authority
+ * is the working tree's write authority, which a read-only mount cannot back).
  *
  * @param {object} powers
  * @param {string} powers.cwd  Host working directory for spawned children.
  * @param {ShellPolicy & { env?: Record<string, string> }} powers.policy
  * @param {Spawner} powers.spawner
  * @param {boolean} [powers.readOnly]
+ * @param {number} [powers.killGraceMs]  Host-private grace between the timeout's
+ *   `SIGTERM` and the escalated `SIGKILL`; never revealed by `inspect()`.
  * @returns {EndoShell}
  */
-export const makeShell = ({ cwd, policy, spawner, readOnly = false }) => {
+export const makeShell = ({
+  cwd,
+  policy,
+  spawner,
+  readOnly = false,
+  killGraceMs = DEFAULT_KILL_GRACE_MS,
+}) => {
   if (readOnly) {
     throw makeError(
       X`Shell cannot be constructed over a read-only mount: a child process holds OS-level write authority a read-only mount cannot bound`,
@@ -117,6 +134,9 @@ export const makeShell = ({ cwd, policy, spawner, readOnly = false }) => {
     throw makeError(
       X`makeShell: policy.maxOutputBytes must be a positive integer`,
     );
+  }
+  if (!Number.isInteger(killGraceMs) || killGraceMs <= 0) {
+    throw makeError(X`makeShell: killGraceMs must be a positive integer`);
   }
 
   const allowed = new Set(allowedCommands);
@@ -166,16 +186,22 @@ export const makeShell = ({ cwd, policy, spawner, readOnly = false }) => {
       });
 
       let timedOut = false;
-      let killed = false;
-      const requestKill = () => {
-        if (!killed) {
-          killed = true;
-          void proc.kill('SIGTERM');
-        }
-      };
+      /** @type {ReturnType<typeof setTimeout> | undefined} */
+      let killTimer;
+      // On expiry, ask the child to terminate with `SIGTERM`; a child can trap
+      // or ignore it (and a forked descendant can hold the stdio pipes open),
+      // which would leave `proc.wait()` and the output drains pending forever —
+      // the timeout would not be a bound at all.  So after a grace window we
+      // escalate to the uncatchable `SIGKILL`.  The daemon spawner kills the
+      // whole process group, so a stubborn child and its descendants are reaped,
+      // their pipes reach EOF, and `exec` settles: the timeout is enforceable,
+      // not merely advisory.
       const timer = setTimeout(() => {
         timedOut = true;
-        requestKill();
+        void proc.kill('SIGTERM');
+        killTimer = setTimeout(() => {
+          void proc.kill('SIGKILL');
+        }, killGraceMs);
       }, effectiveTimeoutMs);
 
       /** @type {{ text: string, truncated: boolean }} */
@@ -192,6 +218,9 @@ export const makeShell = ({ cwd, policy, spawner, readOnly = false }) => {
         ]);
       } finally {
         clearTimeout(timer);
+        if (killTimer !== undefined) {
+          clearTimeout(killTimer);
+        }
       }
 
       const { code } = status;

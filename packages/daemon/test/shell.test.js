@@ -28,27 +28,36 @@ const provisionMount = async (t, { readOnly = false } = {}) => {
 };
 
 /**
- * Assemble a Shell exactly as the daemon `shell` formula maker does: reject a
- * read-only mount, resolve cwd from the mount backing, and drive execution
- * through the host spawner with a sanitized base env.  This exercises the
- * maker's composition without booting a full daemon (which needs a native
- * sqlite build unavailable in some CI sandboxes).
+ * Assemble a Shell exactly as the daemon `shell` formula maker does: resolve
+ * cwd from the mount backing and drive execution through the host spawner with
+ * a sanitized base env.  This exercises the maker's composition without booting
+ * a full daemon (which needs a native sqlite build unavailable in some CI
+ * sandboxes).
+ *
+ * The read-only refusal is deliberately *not* re-implemented here: the mount's
+ * `readOnly` flag is handed straight to `makeShell`, so the read-only test
+ * below pins the production guard inside `@endo/exo-shell` (reverting it reddens
+ * the test) rather than a copy local to this file.  The daemon's own
+ * provideShell / reincarnation-time read-only checks live behind a full daemon
+ * boot and are out of this composition test's reach; the exo-layer guard is the
+ * one this file can pin.  `killProcessGroup` mirrors the production maker so the
+ * timeout escalation reaps a SIGTERM-trapping child and its descendants.
  *
  * @param {object} mount
  * @param {import('@endo/exo-shell').ShellPolicy} policy
+ * @param {{ killGraceMs?: number }} [opts]
  */
-const makeShellLikeFormulaMaker = (mount, policy) => {
+const makeShellLikeFormulaMaker = (mount, policy, opts = {}) => {
   const backing = getMountBacking(mount);
   if (!backing) throw new Error('not a daemon-minted mount');
   if (backing.kind !== 'physical') throw new Error('not a physical mount');
-  if (backing.readOnly) {
-    throw new Error(
-      'Shell requires a writable mount; refusing a read-only mount',
-    );
-  }
   const searchPath = policy.searchPath || process.env.PATH || '';
   const baseEnv = harden({ PATH: searchPath, LC_ALL: 'C' });
-  const spawner = makeHostSpawner({ searchPath, defaultEnv: baseEnv });
+  const spawner = makeHostSpawner({
+    searchPath,
+    defaultEnv: baseEnv,
+    killProcessGroup: true,
+  });
   return makeShell({
     cwd: backing.currentDir,
     policy: harden({
@@ -58,6 +67,8 @@ const makeShellLikeFormulaMaker = (mount, policy) => {
       env: harden({ ...(policy.env || {}) }),
     }),
     spawner,
+    readOnly: backing.readOnly,
+    ...(opts.killGraceMs !== undefined ? { killGraceMs: opts.killGraceMs } : {}),
   });
 };
 
@@ -127,5 +138,34 @@ test('provideShell composition: inspect reveals policy bounds but no host path',
   t.false(
     JSON.stringify(revealed).includes(root),
     'the mount path did not leak',
+  );
+});
+
+test('provideShell composition: a real child that traps SIGTERM is force-killed at the timeout', async t => {
+  // The panel's repro end-to-end against a real host child: a process that
+  // installs a SIGTERM handler and never exits.  Without the SIGTERM→SIGKILL
+  // escalation (and the process-group kill on the daemon spawner) proc.wait()
+  // never settles and exec hangs forever; the timeout must force it down.
+  const { mount } = await provisionMount(t);
+  const shell = makeShellLikeFormulaMaker(
+    mount,
+    harden({ ...basePolicy, allowedCommands: ['node'], timeoutMs: 500 }),
+    { killGraceMs: 500 },
+  );
+  const start = Date.now();
+  const res = await shell.exec('node', [
+    '-e',
+    'process.on("SIGTERM", () => {}); setInterval(() => {}, 1e9);',
+  ]);
+  const elapsedMs = Date.now() - start;
+  t.true(
+    elapsedMs < 8000,
+    `exec settled at the timeout rather than hanging (took ${elapsedMs}ms)`,
+  );
+  t.is(res.exitCode, null);
+  t.is(
+    res.signal,
+    'SIGKILL',
+    'a SIGTERM-trapping child is reaped by the escalated SIGKILL',
   );
 });

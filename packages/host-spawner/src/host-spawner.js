@@ -181,12 +181,24 @@ const readableToAsyncIterable = stream => {
  * @param {Record<string, string | undefined>} [options.defaultEnv]
  *   Base environment merged into every spawn call.  Defaults to
  *   `process.env`.
+ * @param {boolean} [options.killProcessGroup]
+ *   When true (POSIX only), spawn each child as its own process-group
+ *   leader (`detached: true`) and route {@link ProcessLike.kill} to the
+ *   whole group (`process.kill(-pid, signal)`).  A caller that enforces a
+ *   timeout by escalating `SIGTERM` to `SIGKILL` (the `@endo/exo-shell`
+ *   Shell) needs this so a child that traps `SIGTERM` — or forks a
+ *   descendant holding the stdio pipes open — is actually reaped when the
+ *   deadline passes, rather than leaking and hanging `wait()`.  Defaults to
+ *   false so the historical single-process-kill behaviour (genie's command
+ *   tools) is unchanged.
  * @returns {Spawner}
  */
 export const makeHostSpawner = ({
   searchPath = process.env.PATH || '',
   defaultEnv = process.env,
+  killProcessGroup = false,
 } = {}) => {
+  const groupKill = killProcessGroup && process.platform !== 'win32';
   /** @type {Spawner} */
   const spawn = async (argv, opts = {}) => {
     if (!Array.isArray(argv) || argv.length === 0) {
@@ -244,6 +256,10 @@ export const makeHostSpawner = ({
         PATH: (opts.env && opts.env.PATH) || defaultEnv.PATH,
       },
       shell: useShell,
+      // `detached` makes the child a process-group leader (pgid === pid) so
+      // `kill` below can signal the whole tree; we keep the reference (no
+      // `unref`) because the caller awaits `wait()`.
+      ...(groupKill ? { detached: true } : {}),
     });
 
     /** @type {Promise<{ code: number | null; signal: string | null }>} */
@@ -262,7 +278,22 @@ export const makeHostSpawner = ({
       /** @param {string | number} [signal] */
       kill: async signal => {
         await null;
-        child.kill(/** @type {NodeJS.Signals | number | undefined} */ (signal));
+        const sig = /** @type {NodeJS.Signals | number | undefined} */ (
+          signal
+        );
+        if (groupKill && child.pid !== undefined) {
+          try {
+            // Signal the whole process group (negative pid) so a child that
+            // forked descendants — or that traps the signal itself — is
+            // reaped along with its tree.  ESRCH (group already gone) or an
+            // EPERM edge falls through to the single-process kill.
+            process.kill(-child.pid, /** @type {NodeJS.Signals} */ (sig));
+            return;
+          } catch {
+            // fall through to the direct child kill
+          }
+        }
+        child.kill(sig);
       },
     });
   };

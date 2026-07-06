@@ -22,7 +22,8 @@ import { makeTool } from './tool.js';
  * (`packages/genie/src/tools/command.js`).  These run in the tool layer,
  * *before* the call reaches `Shell.exec`, and are hardening advice — not the
  * boundary.  The boundary is the formula-owned allowlist enforced inside the
- * `Shell` exo (see the design's § The honest boundary).
+ * `Shell` exo (design § Shell capability); an allowlisted child is still an
+ * ordinary host process, so the veto is defense-in-depth, not confinement.
  *
  * @param {RejectPatternEntry[]} rejectPatterns
  * @param {RejectFlagEntry[]} rejectFlags

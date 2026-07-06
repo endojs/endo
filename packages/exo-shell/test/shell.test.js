@@ -10,9 +10,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import {
+  matches,
+  getInterfaceGuardPayload,
+  getMethodGuardPayload,
+} from '@endo/patterns';
 import { makeHostSpawner } from '@endo/host-spawner';
 
 import { makeShell } from '../src/shell.js';
+import { ShellInterface } from '../src/interfaces.js';
 
 /**
  * A fully controllable in-memory {@link Spawner}.  Each spawn records the argv
@@ -26,11 +32,14 @@ import { makeShell } from '../src/shell.js';
  *   code?: number | null,
  *   signal?: string | null,
  *   hang?: boolean,
+ *   ignoreSigterm?: boolean,
  * }} plan
  */
 const makeFakeSpawner = plan => {
   /** @type {{ argv: string[], opts: object }[]} */
   const calls = [];
+  /** @type {string[]} */
+  const killLog = [];
   /** @type {import('@endo/host-spawner').Spawner} */
   const spawner = async (argv, opts = {}) => {
     calls.push({ argv: [...argv], opts });
@@ -43,7 +52,6 @@ const makeFakeSpawner = plan => {
               for (const c of chunks) yield c;
             },
           };
-    let killSignal = null;
     const killed = {
       /** @type {(v: { code: number|null, signal: string|null }) => void} */
       resolve: () => {},
@@ -62,13 +70,19 @@ const makeFakeSpawner = plan => {
       stderr: toStream(script.stderr),
       wait: () => exited,
       kill: async signal => {
-        killSignal = signal == null ? 'SIGTERM' : String(signal);
+        const killSignal = signal == null ? 'SIGTERM' : String(signal);
+        killLog.push(killSignal);
+        // A child that traps SIGTERM only dies on the uncatchable SIGKILL —
+        // the shape the exo-shell timeout must escalate through.
+        if (script.ignoreSigterm && killSignal !== 'SIGKILL') {
+          return;
+        }
         // A hanging process resolves its exit when killed.
         killed.resolve({ code: null, signal: killSignal });
       },
     });
   };
-  return { spawner: harden(spawner), calls };
+  return { spawner: harden(spawner), calls, killLog };
 };
 
 const bytes = s => new TextEncoder().encode(s);
@@ -145,6 +159,44 @@ test('a hanging process is killed at the timeout and reports the signal', async 
   t.is(result.signal, 'SIGTERM');
 });
 
+test('a child that traps SIGTERM is escalated to SIGKILL, so exec cannot hang', async t => {
+  // Model the panel's repro: an allowlisted child that ignores SIGTERM (e.g.
+  // `bash -c 'trap "" TERM; sleep 3600'`).  Without escalation, proc.wait()
+  // would never settle and exec would hang forever; the timeout must force it
+  // down with the uncatchable SIGKILL.
+  const { spawner, killLog } = makeFakeSpawner(() => ({
+    hang: true,
+    ignoreSigterm: true,
+  }));
+  const shell = makeShell({
+    cwd: '/repo',
+    policy: harden({ ...basePolicy, timeoutMs: 20 }),
+    spawner,
+    killGraceMs: 20,
+  });
+  const result = await shell.exec('node', ['-e', 'while(true){}']);
+  t.is(result.exitCode, null);
+  t.is(result.signal, 'SIGKILL', 'the child was reaped by the escalated kill');
+  t.deepEqual(
+    killLog,
+    ['SIGTERM', 'SIGKILL'],
+    'SIGTERM was tried first, then escalated to SIGKILL',
+  );
+});
+
+test('makeShell rejects a non-positive killGraceMs', t => {
+  t.throws(
+    () =>
+      makeShell({
+        cwd: '/repo',
+        policy: basePolicy,
+        spawner: harden(async () => harden({ pid: 1, wait: async () => ({ code: 0, signal: null }), kill: async () => {} })),
+        killGraceMs: 0,
+      }),
+    { message: /killGraceMs must be a positive integer/ },
+  );
+});
+
 test('a per-call timeout may only narrow the policy, never widen it', async t => {
   const { spawner } = makeFakeSpawner(() => ({ hang: true }));
   const shell = makeShell({
@@ -183,6 +235,28 @@ test('inspect reveals the policy bounds but no host path (cwd/env/searchPath)', 
   t.false(serialized.includes('secret'), 'cwd path did not leak');
   t.false(serialized.includes('do-not-leak'), 'env value did not leak');
   t.false(serialized.includes('.local'), 'searchPath did not leak');
+});
+
+test("inspect's returns-guard is a closed record: a stray host-path field is rejected", t => {
+  // The guard is the defense-in-depth net that stops a regressed inspect()
+  // from leaking cwd / env / searchPath.  It only holds if ShellPolicyShape is
+  // a genuinely *closed* record — M.splitRecord is open by default, so this
+  // pins that the record was closed.  Reverting to the open shape makes the
+  // final assertion fail (an open record would accept the extra field).
+  const { methodGuards } = getInterfaceGuardPayload(
+    /** @type {any} */ (ShellInterface),
+  );
+  const { returnGuard } = getMethodGuardPayload(methodGuards.inspect);
+  const bounds = harden({
+    allowedCommands: ['echo'],
+    timeoutMs: 1000,
+    maxOutputBytes: 2048,
+  });
+  t.true(matches(bounds, returnGuard), 'the three named fields match');
+  t.false(
+    matches(harden({ ...bounds, cwd: '/secret/host/path' }), returnGuard),
+    'a stray host-path field is rejected by the closed record',
+  );
 });
 
 test('a read-only mount is refused: a shell that cannot mutate is not a shell', t => {

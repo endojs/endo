@@ -39,8 +39,13 @@
  * no shell-string mode on this surface.
  *
  * @typedef {object} EndoShell
- * @property {() => Promise<ShellPolicy>} inspect  Reveal the policy bounds
- *   (never `cwd`, `env`, or `searchPath`).
+ * @property {() => Promise<{
+ *   allowedCommands: string[],
+ *   timeoutMs: number,
+ *   maxOutputBytes: number,
+ * }>} inspect  Reveal only the three policy-bound fields; never the host-path
+ *   fields (`cwd`, `env`, `searchPath`).  Deliberately narrower than
+ *   `ShellPolicy`, which carries the host-private `env` / `searchPath`.
  * @property {(
  *   command: string,
  *   args: string[],

@@ -3054,7 +3054,7 @@ const makeDaemonCore = async (
       // A child process holds OS-level write authority over its working tree;
       // a read-only mount cannot bound that, so a "read-only shell" would
       // misrepresent the authority actually granted.  Refuse it (design
-      // § Construction, point 3).  `provideShell` rejects earlier; this is the
+      // § Shell capability).  `provideShell` rejects earlier; this is the
       // reincarnation-time defense so a persisted formula cannot smuggle one in.
       if (backing.readOnly) {
         throw makeError(
@@ -3069,7 +3069,15 @@ const makeDaemonCore = async (
           ? policy.searchPath
           : process.env.PATH || '';
       const baseEnv = harden({ PATH: searchPath, LC_ALL: 'C' });
-      const spawner = makeHostSpawner({ searchPath, defaultEnv: baseEnv });
+      // `killProcessGroup` so the exo-shell timeout's SIGTERM→SIGKILL
+      // escalation reaps a child that traps the signal (and any descendant it
+      // forked holding the stdio pipes), rather than leaking it and hanging
+      // `exec` past the deadline.
+      const spawner = makeHostSpawner({
+        searchPath,
+        defaultEnv: baseEnv,
+        killProcessGroup: true,
+      });
       return makeShell({
         cwd: backing.currentDir,
         policy: harden({
