@@ -9,13 +9,20 @@ import type { Pattern } from '@endo/patterns';
  *
  * Deliberately omits the destructive and history-rewriting methods of `EndoGit`
  * — `merge`, `rebase`, `restore`, `deleteBranch`, `renameBranch`, the `stash*`
- * family, and the working-tree/detach mutators (`add`, `switch`, `detach`,
- * `worktree`). Those carry authority a tool surface handed to a model should not
- * advertise: they can discard uncommitted work or rewrite shared history.
- * `commit`, `createBranch`, and `switchBranch` are included as the additive,
- * non-destructive write surface. Widening this `Pick` is a deliberate authority
- * decision, not a convenience — add a method only when the tool surface is meant
- * to grant it.
+ * family, and the working-tree/detach mutators (`switch`, `detach`). Those carry
+ * authority a tool surface handed to a model should not advertise: they can
+ * discard uncommitted work or rewrite shared history. `commit`, `createBranch`,
+ * and `switchBranch` are included as the additive, non-destructive write
+ * surface. Widening this `Pick` is a deliberate authority decision, not a
+ * convenience — add a method only when the tool surface is meant to grant it.
+ *
+ * This slice holds only the JSON-transparent methods whose hand-authored tool
+ * schemas map one-to-one onto their `GitInterface` guards (the divergence gate
+ * pins that parity). The two Phase 3 methods whose native signatures traffic in
+ * live capabilities — `status` (rows bearing mount-entry remotables) and `add`
+ * (an array of mount-entry remotables) — are served instead by
+ * {@link GitMountToolCapability} / `makeGitMountTools`, which bridge path
+ * strings to entries through the worktree mount.
  */
 export type GitToolCapability = Pick<
   EndoGit,
@@ -27,6 +34,21 @@ export type GitToolCapability = Pick<
   | 'createBranch'
   | 'switchBranch'
   | 'currentBranch'
+>;
+
+/**
+ * The mount-bridged slice of `EndoGit` behind `makeGitMountTools`: `status` and
+ * `add`, plus `worktree` (the mount the bridge mints `EndoMountEntry` values
+ * from). These two methods cannot live in {@link GitToolCapability} because
+ * their native signatures carry live capabilities — `status()` returns rows
+ * with `EndoMountEntry` / node remotables and `add()` takes an array of
+ * `EndoMountEntry` remotables — so their tool wire (JSON-safe rows out, path
+ * strings in) diverges from the raw `GitInterface` guard by design. `add` is the
+ * additive staging half of the commit loop; it stages but never discards.
+ */
+export type GitMountToolCapability = Pick<
+  EndoGit,
+  'status' | 'add' | 'worktree'
 >;
 
 export interface ToolSpec {
@@ -71,6 +93,10 @@ export declare function makeTool(spec: ToolSpec): ToolRecord;
 
 export declare function makeGitTool(
   gitCap: ERef<GitToolCapability>,
+): ToolRecord[];
+
+export declare function makeGitMountTools(
+  gitCap: ERef<GitMountToolCapability>,
 ): ToolRecord[];
 
 export interface MountReadToolOptions {

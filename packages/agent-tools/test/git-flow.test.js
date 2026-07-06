@@ -19,6 +19,7 @@ import { makeMount, lineageOf } from '@endo/daemon/src/mount.js';
 import { makeFilePowers } from '@endo/daemon/src/daemon-node-powers.js';
 
 import { makeGitTool } from '../src/git-tool.js';
+import { makeGitMountTools } from '../src/git-mount-tool.js';
 
 /**
  * Integration proof that `makeGitTool`'s agent-facing tool records drive a
@@ -28,13 +29,12 @@ import { makeGitTool } from '../src/git-tool.js';
  * a real on-disk repository: the records `invoke` correctly, the named→positional
  * marshal reaches the capability, and the capability's results flow back.
  *
- * The capability-heavy methods are deliberately NOT part of the tool slice and
- * are driven through the raw `Git` cap instead: `add` (its
- * `M.arrayOf(M.remotable())` arg awaits the handle-table / capref registry),
- * `status` (its non-empty rows mint remotable nodes), and `filesystemAt` (it
- * returns a live `Filesystem` remotable) all await the capref/result
- * serialization of a later PR. The in-slice, JSON-safe methods (`commit`, `log`,
- * the branch operations) go through the tool records.
+ * `add` and `status` — whose native signatures traffic in mount-entry
+ * remotables — are driven through the mount-bridged `makeGitMountTools` records
+ * (Phase 3: path strings in, JSON-safe rows out), while the in-slice JSON-safe
+ * methods (`commit`, `log`, the branch operations) go through `makeGitTool`.
+ * Only `filesystemAt` (it returns a live `Filesystem` remotable) is still driven
+ * through the raw cap, awaiting the result serialization of a later PR.
  */
 
 const execFileAsync = promisify(execFile);
@@ -105,27 +105,32 @@ const byNameOf = tools => name => {
   return found;
 };
 
-test('makeGitTool drives a real Git cap: stage → status → commit → log → filesystemAt', async t => {
-  const { repoRoot, mount, git } = await provisionGit(t);
+test('git tools drive a real Git cap: stage → status → commit → log → filesystemAt', async t => {
+  const { repoRoot, git } = await provisionGit(t);
   const byName = byNameOf(makeGitTool(git));
+  const byMountName = byNameOf(makeGitMountTools(git));
 
-  // Write and stage a file. `add` is not in the tool slice, so stage through
-  // the raw cap; the rest of the flow is driven through the tool records.
+  // Write and stage a file entirely through the mount-bridged `add` tool: it
+  // takes a path string, resolves it to a mount entry, and reaches the cap.
   await fs.promises.writeFile(
     path.join(repoRoot, 'greeting.txt'),
     'hello tools',
   );
-  const entry = await E(mount).entry(['greeting.txt']);
-  await E(git).add([entry]);
+  const added = await byMountName('add').invoke({ paths: ['greeting.txt'] });
+  t.is(added, 'Staged 1 path.');
 
-  // `status` is not part of the tool slice (its non-empty rows mint
-  // remotable nodes that await the capref/result serialization of a later
-  // PR), so read status through the raw cap; it reports the staged file.
-  const staged = await E(git).status();
-  t.true(
-    staged.some(row => row.path === 'greeting.txt'),
-    'status should report the staged file',
+  // `status` (mount-bridged tool) reports the staged file as JSON-safe rows,
+  // with no remotables on the wire.
+  const staged = /** @type {Array<{ path: string, index: string }>} */ (
+    await byMountName('status').invoke({})
   );
+  const stagedRow = staged.find(row => row.path === 'greeting.txt');
+  t.truthy(stagedRow, 'status should report the staged file');
+  t.is(stagedRow?.index, 'added');
+  for (const row of staged) {
+    t.false('entry' in row);
+    t.false('node' in row);
+  }
 
   // `commit` (tool) records it; the marshalled message reaches the cap.
   const commit = /** @type {{ oid: string, summary: string }} */ (
@@ -134,8 +139,10 @@ test('makeGitTool drives a real Git cap: stage → status → commit → log →
   t.regex(commit.oid, /^[0-9a-f]{7,64}$/);
   t.is(commit.summary, 'add greeting');
 
-  // Status (raw cap) is clean once the file is committed.
-  const afterStatus = await E(git).status();
+  // Status (mount-bridged tool) is clean once the file is committed.
+  const afterStatus = /** @type {Array<{ path: string }>} */ (
+    await byMountName('status').invoke({})
+  );
   t.false(
     afterStatus.some(row => row.path === 'greeting.txt'),
     'the committed file should no longer be dirty',
@@ -201,16 +208,28 @@ test('the runtime guard rejects a bad arg before reaching the live cap', async t
   await t.throwsAsync(() => byName('commit').invoke({ bogus: 'x' }));
 });
 
-test('the deferred add/restore methods are absent from the slice', t => {
+test('add/restore stay out of the JSON-transparent makeGitTool slice', t => {
   // The cap is only touched at invoke time, so an empty object suffices to
   // inspect the record names.
   const tools = makeGitTool(
     /** @type {import('../src/types.js').GitToolCapability} */ (harden({})),
   );
   const names = new Set(tools.map(tool => tool.name));
-  // `add`/`restore` take `M.arrayOf(M.remotable())` and stay out of the slice
-  // until the capref registry lands; this pins the contract that justifies the
-  // raw-cap staging above.
+  // `add`/`restore` take `M.arrayOf(M.remotable())`, so they cannot sit in the
+  // one-to-one guard-mapped slice. `add` is now served by the mount-bridged
+  // `makeGitMountTools` (proved above); `restore` remains deferred entirely.
   t.false(names.has('add'));
   t.false(names.has('restore'));
+  t.false(names.has('status'));
+
+  const mountToolNames = new Set(
+    makeGitMountTools(
+      /** @type {import('../src/types.js').GitMountToolCapability} */ (
+        harden({})
+      ),
+    ).map(tool => tool.name),
+  );
+  t.true(mountToolNames.has('add'));
+  t.true(mountToolNames.has('status'));
+  t.false(mountToolNames.has('restore'));
 });

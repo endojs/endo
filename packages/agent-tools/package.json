@@ -37,6 +37,10 @@
       "types": "./git-tool.d.ts",
       "default": "./src/git-tool.js"
     },
+    "./git-mount-tool.js": {
+      "types": "./git-mount-tool.d.ts",
+      "default": "./src/git-mount-tool.js"
+    },
     "./mount-fs.js": {
       "types": "./mount-fs.d.ts",
       "default": "./src/mount-fs.js"
@@ -52,6 +56,10 @@
     "./src/git-tool.js": {
       "types": "./src/git-tool.d.ts",
       "default": "./src/git-tool.js"
+    },
+    "./src/git-mount-tool.js": {
+      "types": "./src/git-mount-tool.d.ts",
+      "default": "./src/git-mount-tool.js"
     },
     "./src/mount-fs.js": {
       "types": "./src/mount-fs.d.ts",
