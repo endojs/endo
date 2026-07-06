@@ -215,7 +215,12 @@ test('mountList bridges through toPiAgentTool as JSON text', async t => {
     path: 'sub',
     entries: [{ name: 'nested.txt', kind: 'file' }],
   });
-  t.deepEqual(JSON.parse(result.content[0].text), {
+  // `toPiAgentTool` always emits a single text content (see `pi.js`); narrow
+  // the `TextContent | ImageContent` union to read its payload.
+  const listPayload = JSON.parse(
+    /** @type {{ text: string }} */ (result.content[0]).text,
+  );
+  t.deepEqual(listPayload, {
     path: 'sub',
     entries: [{ name: 'nested.txt', kind: 'file' }],
   });
