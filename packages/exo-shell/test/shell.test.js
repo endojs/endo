@@ -190,7 +190,13 @@ test('makeShell rejects a non-positive killGraceMs', t => {
       makeShell({
         cwd: '/repo',
         policy: basePolicy,
-        spawner: harden(async () => harden({ pid: 1, wait: async () => ({ code: 0, signal: null }), kill: async () => {} })),
+        spawner: harden(async () =>
+          harden({
+            pid: 1,
+            wait: async () => ({ code: 0, signal: null }),
+            kill: async () => {},
+          }),
+        ),
         killGraceMs: 0,
       }),
     { message: /killGraceMs must be a positive integer/ },

@@ -278,9 +278,7 @@ export const makeHostSpawner = ({
       /** @param {string | number} [signal] */
       kill: async signal => {
         await null;
-        const sig = /** @type {NodeJS.Signals | number | undefined} */ (
-          signal
-        );
+        const sig = /** @type {NodeJS.Signals | number | undefined} */ (signal);
         if (groupKill && child.pid !== undefined) {
           try {
             // Signal the whole process group (negative pid) so a child that

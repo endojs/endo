@@ -68,7 +68,9 @@ const makeShellLikeFormulaMaker = (mount, policy, opts = {}) => {
     }),
     spawner,
     readOnly: backing.readOnly,
-    ...(opts.killGraceMs !== undefined ? { killGraceMs: opts.killGraceMs } : {}),
+    ...(opts.killGraceMs !== undefined
+      ? { killGraceMs: opts.killGraceMs }
+      : {}),
   });
 };
 
