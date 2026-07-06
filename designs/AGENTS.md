@@ -112,4 +112,3 @@ Progress is tracked at two levels:
   dependency graph if it has dependencies or dependents, adding a
   per-design size/duration estimate, and updating the milestone totals
   and timeline if the new work changes the critical path.
-
