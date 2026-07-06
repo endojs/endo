@@ -2,7 +2,20 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
+/** @import { EndoMountEntry } from '@endo/exo-git' */
 /** @import { GitMountToolCapability, ToolRecord } from './types.js' */
+
+/**
+ * The one worktree-mount method this bridge needs: `entry(segments)` mints the
+ * `EndoMountEntry` remotable `Git.add` consumes. `@endo/exo-git` aliases
+ * `EndoMount` to `unknown` to stay free of a circular `@endo/daemon` type
+ * dependency (the full-fidelity `EndoMount` interface lives in `@endo/daemon`),
+ * so we name the single method we reach through the mount locally rather than
+ * importing that unreachable type.
+ *
+ * @typedef {object} WorktreeMount
+ * @property {(segments: string[]) => EndoMountEntry} entry
+ */
 
 import { E } from '@endo/eventual-send';
 import { M } from '@endo/patterns';
@@ -125,7 +138,7 @@ export const makeGitMountTools = gitCap => {
       // worktree mount, so `Git.add`'s lineage check accepts it. `callWhen`
       // does not deeply await array elements, so the entries must be settled
       // remotables — not promises — before the call.
-      const mount = await E(gitCap).worktree();
+      const mount = /** @type {WorktreeMount} */ (await E(gitCap).worktree());
       const entries = await Promise.all(
         paths.map(path => E(mount).entry(pathToSegments(path))),
       );
