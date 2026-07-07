@@ -1,4 +1,5 @@
-import type { Model } from '@earendil-works/pi-ai';
+import type { StreamFn } from '@earendil-works/pi-agent-core';
+import type { Model, Usage } from '@earendil-works/pi-ai';
 
 /**
  * Read the UTF-8 content of an `@endo/platform/fs`-style File capability. The
@@ -58,6 +59,44 @@ export interface GitScenario {
   }) => Promise<OutcomeReport>;
 }
 
+/**
+ * Summed provider usage observed during one agent run. This is based on
+ * `Usage` from pi-ai, narrowed to the eval reporting surface and extended with
+ * provider-reported reasoning tokens when available.
+ */
+export interface RunUsageMetrics extends Pick<
+  Usage,
+  'input' | 'output' | 'cacheRead' | 'cacheWrite' | 'totalTokens'
+> {
+  reasoning: number;
+  cost: Pick<Usage['cost'], 'total'>;
+}
+
+/**
+ * Metrics recorded from pi-agent-core events during one eval run.
+ *
+ * These values are diagnostic reporting only. Scenario outcome assertion
+ * remains the eval's pass/fail gate.
+ */
+export interface RunMetrics {
+  usage: RunUsageMetrics;
+  /** Count of completed turns, from `turn_end`. */
+  turns: number;
+  /** Count of completed assistant messages. */
+  assistantMessages: number;
+  /** Count of completed tool executions. */
+  toolExecutions: number;
+  /**
+   * Count of completed tool executions whose result was marked as an error.
+   */
+  toolExecutionErrors: number;
+  /**
+   * Elapsed wall time from `agent_start` through `agent_end`, or through the
+   * snapshot if the run is still active.
+   */
+  wallTimeMs: number;
+}
+
 export interface RunGitScenarioOptions {
   /** The model under eval (faux or live). */
   model: Model<string>;
@@ -78,9 +117,10 @@ export interface RunGitScenarioOptions {
   /** Resolve the model's API key. Omit for a faux/local model. */
   getApiKey?: import('../harness/credentials.js').GetApiKey;
   thinkingLevel?: import('../harness/model.js').ThinkingLevel;
-  streamFn?: import('@earendil-works/pi-agent-core').StreamFn;
+  streamFn?: StreamFn;
 }
 
 export interface RunGitScenarioResult {
   outcome: OutcomeReport;
+  metrics: RunMetrics;
 }

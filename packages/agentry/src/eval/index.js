@@ -8,6 +8,7 @@
 // Shared harness.
 export { runGitScenario } from './run.js';
 export { resolveEvalModelFromEnv } from './env-model.js';
+export { makeRunMetricsRecorder } from './metrics.js';
 
 // Per-eval public symbols, re-exported from each eval's folder.
 export {

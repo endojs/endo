@@ -31,8 +31,17 @@ assertion reads the repository's actual final state through the live `git`
 capability and checks it against the target, so it needs no in-compartment
 instrumentation and accepts any alternate-but-correct path.
 
-Capturing the run's events is still useful for debugging *why* a scenario
+Capturing the run's events is still useful for debugging _why_ a scenario
 failed, but it is a diagnostic, never the gate.
+
+## Metrics
+
+Every `runGitScenario` result includes `metrics` alongside `outcome`.
+The metrics record summed provider token usage, including reasoning tokens when reported, total provider cost, completed turns, assistant messages, tool executions, tool execution errors, and wall time for the agent run.
+They come from the same pi-agent-core event stream that powers diagnostics, so they report the real provider usage carried by assistant messages instead of estimating from transcript text.
+
+Metrics are recorded for comparison and reporting only.
+The scenario's outcome assertion remains the only pass/fail gate.
 
 ## Layout
 
@@ -49,8 +58,11 @@ Shared harness (this directory's root):
   harness and each eval's public symbols (the per-folder barrels).
 - `run.js` — `runGitScenario({ model, workspace, git, scenario, readText, ... })`:
   builds the real code-mode git-loop agent, runs the scenario prompt, and scores
-  by outcome assertion. Only the `model` differs between a no-LLM run and a live
-  run.
+  by outcome assertion while returning diagnostic run metrics. Only the `model`
+  differs between a no-LLM run and a live run.
+- `metrics.js` — `makeRunMetricsRecorder()`: subscribes to plain
+  pi-agent-core events and snapshots per-run usage, turn, tool execution, and
+  wall-time metrics.
 - `env-model.js` — `resolveEvalModelFromEnv(env)`: build a live model +
   `getApiKey` from the `ENDO_LLM_*` / `LAL_*` environment variables, or
   `undefined` when no credentials are present.

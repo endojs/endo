@@ -18,6 +18,7 @@ test('agentry subpaths resolve through package exports', async t => {
   t.is(typeof harnessModule.makePiAgent, 'function');
   t.is(typeof executeModule.makeCodeModeAgent, 'function');
   t.is(typeof evalModule.runGitScenario, 'function');
+  t.is(typeof evalModule.makeRunMetricsRecorder, 'function');
   t.is(typeof evalModule.makeStageAndCommitScenario, 'function');
   t.is(typeof evalModule.assertGitCommitOutcome, 'function');
   t.is(typeof evalModule.resolveEvalModelFromEnv, 'function');
