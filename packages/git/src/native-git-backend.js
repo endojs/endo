@@ -46,10 +46,14 @@ const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
  *   GitRef,
  *   GitRestoreOptions,
  * } from '@endo/exo-git'
- */
-
-/**
- * @typedef {{ kind: 'bearer', material: { token: string } } | { kind: 'basic', material: { username: string, password: string } }} NativeGitCredential
+ * @import {
+ *   GitRefUpdateResult,
+ *   GitTreeEntry,
+ *   NativeGitCredential,
+ *   RawStatusEntry,
+ *   RemoteRefspec,
+ *   RepositoryIdentity,
+ * } from './native-git-backend-types.js'
  */
 
 const execFileAsync = promisify(execFile);
@@ -431,26 +435,6 @@ const normalizeTreePath = args => {
 };
 harden(normalizeTreePath);
 
-/**
- * @typedef {object} GitTreeEntry
- * @property {string} mode
- * @property {'blob' | 'tree' | 'commit'} type
- * @property {string} oid
- * @property {number | undefined} size
- * @property {string} name
- */
-
-/**
- * @typedef {'created' | 'updated' | 'up-to-date' | 'fast-forward' | 'forced' | 'pruned' | 'rejected'} GitRefUpdateResult
- */
-
-/**
- * @typedef {object} RemoteRefspec
- * @property {boolean} force
- * @property {string} src
- * @property {string} dst
- */
-
 // Repository-local configurations that can execute code on read/write
 // paths and must be refused before any mutating operation runs.  The
 // public Git exo dispatches read-only methods (status, diff, log,
@@ -603,13 +587,6 @@ const pushPorcelainFlagToResult = flag => {
 harden(pushPorcelainFlagToResult);
 
 /**
- * @typedef {object} RepositoryIdentity
- * @property {string} commonDir
- * @property {string} configHash
- * @property {string} rootCommit
- */
-
-/**
  * @param {string} configText
  */
 const hashIdentityConfig = configText => {
@@ -744,14 +721,6 @@ const worktreeCodeToStatus = (code, indexCode) => {
       return 'clean';
   }
 };
-
-/**
- * @typedef {object} RawStatusEntry
- * @property {string} path  Repository-relative path with forward slashes.
- * @property {ReturnType<typeof indexCodeToStatus>} index
- * @property {ReturnType<typeof worktreeCodeToStatus>} worktree
- * @property {string} [renamedFrom]  When the index is 'renamed' or 'copied'.
- */
 
 /**
  * Construct the native-git backend.  The backend runs the system `git`
