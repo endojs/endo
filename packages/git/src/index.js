@@ -1,3 +1,7 @@
 // @ts-check
 
-export { makeNativeGitBackend, internalHelpers } from './native-git-backend.js';
+export {
+  gitClone,
+  makeNativeGitBackend,
+  internalHelpers,
+} from './native-git-backend.js';
