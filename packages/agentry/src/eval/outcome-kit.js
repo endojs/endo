@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { ReadText } from './types.js' */
+/** @import { OutcomeCheck, ReadText } from './types.js' */
 
 import { E } from '@endo/eventual-send';
 
@@ -12,18 +12,10 @@ import { E } from '@endo/eventual-send';
  * @param {string} name
  * @param {boolean} ok
  * @param {string} detail
- * @returns {{ name: string, ok: boolean, detail: string }}
+ * @returns {OutcomeCheck}
  */
 export const check = (name, ok, detail) => harden({ name, ok, detail });
 harden(check);
-
-/**
- * @typedef {object} OutcomeReport The structured result of an outcome
- *   assertion: a pass/fail per named check, plus an overall pass that holds only
- *   when every check holds.
- * @property {boolean} pass True only when every check holds.
- * @property {Array<{ name: string, ok: boolean, detail: string }>} checks
- */
 
 /**
  * Read the UTF-8 content of a tracked file at a git ref, or `undefined` when the

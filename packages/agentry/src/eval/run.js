@@ -1,32 +1,9 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { Model } from '@earendil-works/pi-ai' */
-/** @import { StreamFn } from '@earendil-works/pi-agent-core' */
-/** @import { GetApiKey } from '../harness/credentials.js' */
-/** @import { ThinkingLevel } from '../harness/model.js' */
-/** @import { GitScenario, ReadText } from './types.js' */
+/** @import { RunGitScenarioOptions, RunGitScenarioResult } from './types.js' */
 
 import { makeCodeModeGitLoopAgent } from '../execute/preset.js';
-
-/**
- * @typedef {object} RunGitScenarioOptions
- * @property {Model<string>} model The model under eval (faux or live).
- * @property {unknown} workspace A live writable `@endo/platform/fs` Filesystem
- *   over the scenario repository.
- * @property {unknown} git A live read/write `@endo/exo-git` Git capability over
- *   the same repository.
- * @property {GitScenario} scenario
- * @property {ReadText} readText Read a committed File's content as UTF-8; passed
- *   through to the scenario's outcome assertion.
- * @property {GetApiKey} [getApiKey] Resolve the model's API key. Omit for a
- *   faux/local model.
- * @property {ThinkingLevel} [thinkingLevel]
- * @property {StreamFn} [streamFn]
- *
- * @typedef {object} RunGitScenarioResult
- * @property {import('./outcome-kit.js').OutcomeReport} outcome
- */
 
 /**
  * Run one git code-mode scenario end to end and score it by outcome assertion.

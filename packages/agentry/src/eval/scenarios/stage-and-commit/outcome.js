@@ -1,21 +1,11 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { ReadText } from '../../types.js' */
-/** @import { OutcomeReport } from '../../outcome-kit.js' */
+/** @import { GitCommitTarget, OutcomeReport, ReadText } from '../../types.js' */
 
 import { E } from '@endo/eventual-send';
 
 import { check, readTrackedFileAt } from '../../outcome-kit.js';
-
-/**
- * @typedef {object} GitCommitTarget The end-state a stage-and-commit scenario is
- *   scored against.
- * @property {string} path Repository-relative path the scenario commits.
- * @property {string} content The exact UTF-8 content the committed file must
- *   carry at HEAD.
- * @property {string} message The exact commit message HEAD must carry.
- */
 
 /**
  * Score a git code-mode run by **outcome assertion**: read the repository's
