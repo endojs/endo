@@ -82,6 +82,29 @@ export const makeRelay = domain => {
   };
 
   /**
+   * Cancel an open request that has not yet been paired with a target peer.
+   *
+   * @param {import('ws').WebSocket} ws
+   * @param {number} ch
+   */
+  const removePendingOpen = (ws, ch) => {
+    for (const [target, pending] of pendingOpens.entries()) {
+      const filtered = pending.filter(
+        // eslint-disable-next-line @endo/restrict-comparison-operands
+        p => !(p.ws === ws && p.chId === ch),
+      );
+      if (filtered.length !== pending.length) {
+        if (filtered.length === 0) {
+          pendingOpens.delete(target);
+        } else {
+          pendingOpens.set(target, filtered);
+        }
+        return;
+      }
+    }
+  };
+
+  /**
    * @param {import('ws').WebSocket} ws
    * @param {Uint8Array} data
    */
@@ -302,6 +325,9 @@ export const makeRelay = domain => {
             otherConn.channels.delete(other.chId);
           }
           bridges.delete(bk);
+          conn.channels.delete(channelId);
+        } else {
+          removePendingOpen(ws, channelId);
           conn.channels.delete(channelId);
         }
         break;
