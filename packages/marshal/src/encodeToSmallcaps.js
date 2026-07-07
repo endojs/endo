@@ -81,7 +81,7 @@ const startsSpecial = encodedStr => {
   }
   // charCodeAt(0) and number compare is a bit faster.
   const code = encodedStr.charCodeAt(0);
-  // eslint-disable-next-line yoda
+
   return BANG <= code && code <= DASH;
 };
 

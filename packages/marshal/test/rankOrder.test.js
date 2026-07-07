@@ -2,7 +2,7 @@
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
-// eslint-disable-next-line import/no-extraneous-dependencies
+
 import { fc } from '@fast-check/ava';
 import { makeTagged } from '@endo/pass-style';
 import { makeArbitraries } from '@endo/pass-style/tools.js';

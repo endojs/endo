@@ -10,6 +10,7 @@
     "test",
     "test/_types.d.ts",
     "!**/*.d.ts",
-    "demo/**/*.js"
+    "demo/**/*.js",
+    "bin/endo.cjs"
   ]
 }

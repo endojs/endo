@@ -49,7 +49,7 @@ const encodeHex = bytes => {
 // does not affect the lookup.  `import` attributes for JSON would
 // be cleaner, but the SES-AVA harness in this workspace does not
 // yet support them uniformly.
-// eslint-disable-next-line no-underscore-dangle
+
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const fixture = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, '_oracle-vectors.json'), 'utf8'),

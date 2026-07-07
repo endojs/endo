@@ -259,7 +259,6 @@ export const makeSetCodecFromEntryCodec = (codecName, childCodec) => {
       syrupReader.enterSet();
       const result = new Set();
       while (!syrupReader.peekSetEnd()) {
-        // eslint-disable-next-line no-use-before-define
         const value = childCodec.read(syrupReader);
         result.add(value);
       }

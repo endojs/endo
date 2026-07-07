@@ -1,4 +1,3 @@
-/* global process */
 import os from 'os';
 import { inspect } from 'util';
 import { E } from '@endo/far';

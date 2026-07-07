@@ -18,7 +18,19 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+/**
+ * @import {SpawnOptions} from 'node:child_process';
+ */
+
 const execFileAsync = promisify(execFile);
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, '..');
+const distDir = path.join(repoRoot, 'dist');
+
+const tagFlag = process.argv.indexOf('--tag');
+const tag =
+  tagFlag >= 0 ? process.argv[tagFlag + 1] : process.env.npm_config_tag;
 
 /**
  * Read `name` and `version` from the package.json inside a published tarball.
@@ -66,9 +78,9 @@ const isPublished = async (name, version) => {
 
 /**
  * Run a command, inheriting stdio; reject on non-zero exit.
- * @param cmd
- * @param argv
- * @param options
+ * @param {string} cmd
+ * @param {string[]} argv
+ * @param {SpawnOptions} options
  */
 const run = (cmd, argv, options) =>
   new Promise((resolve, reject) => {
@@ -78,14 +90,6 @@ const run = (cmd, argv, options) =>
       code === 0 ? resolve() : reject(new Error(`${cmd} exited with ${code}`)),
     );
   });
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, '..');
-const distDir = path.join(repoRoot, 'dist');
-
-const tagFlag = process.argv.indexOf('--tag');
-const tag =
-  tagFlag >= 0 ? process.argv[tagFlag + 1] : process.env.npm_config_tag;
 
 // Always re-pack so the tarballs match HEAD. pack-all.mjs wipes dist/ at
 // the start of every run, so there is no way for a previous run's stale

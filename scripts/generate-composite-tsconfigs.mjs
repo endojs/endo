@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-/* eslint-disable @jessie.js/safe-await-separator */
-
-/* eslint-disable no-continue */
 
 /**
  * Generates per-package `tsconfig.composite.json` files and a root

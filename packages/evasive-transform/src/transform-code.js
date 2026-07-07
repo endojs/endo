@@ -137,7 +137,6 @@ export const evadeTemplates = p => {
     });
   };
 
-  // eslint-disable-next-line @endo/restrict-comparison-operands
   for (let i = 0; i < quasis.length; i += 1) {
     const quasi = quasis[i];
     // We're not currently preserving raw vs. cooked literal data.
@@ -166,7 +165,7 @@ export const evadeTemplates = p => {
     }
 
     // Add original expression between quasis
-    // eslint-disable-next-line @endo/restrict-comparison-operands
+
     if (i < node.expressions.length) {
       // @ts-ignore whatever was there, must still be allowed.
       newExpressions.push(node.expressions[i]);

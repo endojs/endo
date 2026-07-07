@@ -631,7 +631,7 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
       return Promise.resolve(0n);
     },
   };
-  // eslint-disable-next-line no-void
+
   void methods;
 }
 

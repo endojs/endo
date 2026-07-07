@@ -1,4 +1,3 @@
-/* global globalThis */
 import 'ses';
 
 import harden from '@endo/harden';

@@ -21,8 +21,6 @@
 
 // @ts-check
 
-/* global globalThis */
-
 const {
   Array,
   JSON,
@@ -105,7 +103,7 @@ const { bind } = functionPrototype;
  *
  * @type {<F extends (this: any, ...args: any[]) => any>(fn: F) => ((thisArg: ThisParameterType<F>, ...args: Parameters<F>) => ReturnType<F>)}
  */
-const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no-polymorphic-call
+const uncurryThis = bind.bind(bind.call);
 
 // See https://github.com/endojs/endo/issues/2930
 if (!('hasOwn' in Object)) {

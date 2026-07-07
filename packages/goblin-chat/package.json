@@ -81,22 +81,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "rules": {
-      "import/no-unresolved": [
-        "error",
-        {
-          "ignore": [
-            "ava",
-            "^@endo/ocapn(?:/.*)?$"
-          ]
-        }
-      ]
-    }
-  },
   "ava": {
     "files": [
       "test/**/*.test.*"

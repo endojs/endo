@@ -1,4 +1,3 @@
-/* global process */
 import '../index.js';
 import fs from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';

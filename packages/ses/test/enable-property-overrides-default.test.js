@@ -10,7 +10,7 @@ lockdown({
 
 test('enablePropertyOverrides - on', t => {
   overrideTester(t, 'Object', {}, ['toString', 'valueOf']);
-  // eslint-disable-next-line func-names, prefer-arrow-callback
+  // eslint-disable-next-line func-names
   overrideTester(t, 'Function', function () {}, [
     'toString',
     'constructor',
@@ -44,7 +44,7 @@ test('enablePropertyOverrides - on', t => {
     'message',
     'name',
   ]);
-  // eslint-disable-next-line func-names, prefer-arrow-callback
+  // eslint-disable-next-line func-names
   overrideTester(t, 'Promise', new Promise(function () {}), ['constructor']);
   overrideTester(t, 'JSON', JSON);
 });

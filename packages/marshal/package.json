@@ -59,9 +59,8 @@
     "babel-eslint": "^10.1.0",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-config-prettier": "catalog:dev",
+    "eslint-plugin-eslint-comments": "catalog:dev",
     "eslint-plugin-import": "catalog:dev",
     "ses": "workspace:^",
     "tsd": "^0.31.2",
@@ -78,11 +77,6 @@
     "src",
     "tools"
   ],
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ]
-  },
   "publishConfig": {
     "access": "public"
   },

@@ -18,7 +18,7 @@ const exitAssertions = (
     // Node.js exits with -1, which gets captured as either 0xff or 0xffffffff
     // depending on the platform. Truncation normalizes both of these to the
     // same expected code.
-    // eslint-disable-next-line no-bitwise
+
     let code;
     if (err && err.code === null) {
       code = null;

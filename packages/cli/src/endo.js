@@ -1,6 +1,5 @@
 // @ts-nocheck
-/* global process */
-/* eslint-disable no-await-in-loop, no-bitwise, no-throw-literal */
+/* eslint-disable no-bitwise, no-throw-literal */
 
 // Establish a perimeter:
 import '@endo/init';

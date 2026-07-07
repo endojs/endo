@@ -414,7 +414,7 @@ export const makeTcpNetLayer = async ({
     locationId: locationToLocationId(localLocation),
     connect: lookupOrConnect,
     shutdown,
-    // eslint-disable-next-line no-underscore-dangle
+
     _debug: {
       establishConnection: internalEstablishConnection,
     },

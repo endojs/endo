@@ -5,8 +5,6 @@
  * with tools like Node.js or Endo's bundle-source bundler.
  */
 
-/* global globalThis */
-
 const harden = Object[Symbol.for('harden')] ?? globalThis.harden;
 
 if (harden === undefined) {

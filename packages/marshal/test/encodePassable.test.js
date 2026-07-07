@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
+/* eslint-disable no-bitwise */
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';

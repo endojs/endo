@@ -1,5 +1,3 @@
-/* global globalThis */
-
 const {
   ArrayBuffer,
   Object,
@@ -411,7 +409,7 @@ if (optArrayBufferTransfer) {
     } else {
       buffer = optArrayBufferTransfer(buffer);
       const oldLength = buffer.byteLength;
-      // eslint-disable-next-line @endo/restrict-comparison-operands
+
       if (newLength <= oldLength) {
         buffer = arrayBufferSlice(buffer, 0, newLength);
       } else {
