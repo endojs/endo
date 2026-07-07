@@ -144,6 +144,9 @@
       "path": "packages/patterns/tsconfig.composite.json"
     },
     {
+      "path": "packages/platform/tsconfig.composite.json"
+    },
+    {
       "path": "packages/promise-kit/tsconfig.composite.json"
     },
     {

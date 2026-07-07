@@ -28,8 +28,12 @@
     "./fs/lite/types": "./src/fs/types.js",
     "./fs/node": "./src/fs-node/index.js",
     "./fs/extended": {
-      "types": "./src/fs/extended/types.d.ts",
+      "types": "./src/fs/extended/types-index.d.ts",
       "default": "./src/fs/extended/index.js"
+    },
+    "./fs/extended/types-index.js": {
+      "types": "./src/fs/extended/types-index.d.ts",
+      "default": "./src/fs/extended/types-index.js"
     },
     "./fs/extended/*": "./src/fs/extended/*",
     "./proc": "./src/proc.js",

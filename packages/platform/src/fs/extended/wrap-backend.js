@@ -53,6 +53,7 @@ import { makeNodeWatcherExo } from './shared/watcher-exo.js';
 
 /**
  * @import { FsBackend } from './backend-types.js'
+ * @import { Filesystem } from './types.js'
  */
 
 /**
@@ -136,6 +137,7 @@ const narrowStatPatch = patch => {
  *   description?: string,
  *   namedDirs?: Record<string, string[]>,
  * }} [opts]
+ * @returns {Filesystem}
  */
 export const wrapBackend = (backend, opts = {}) => {
   const caps = probeCapabilities(backend);
