@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /**
- * @import { GitRemoteEndpoint } from './git-remote.js'
+ * @import { GitRemote, GitRemoteEndpoint } from './git-remote-types.js'
  */
 
 /**
@@ -31,7 +31,7 @@
  *   Native constructive clone into `destPath` from the endpoint URL.
  * @param {(input: { destMount: object, destPath: string }) => Promise<object>} args.makeGit
  *   Build a writable `Git` over the freshly-cloned destination.
- * @param {(input: { git: object, endpoint: GitRemoteEndpoint }) => Promise<object>} args.makeRemote
+ * @param {(input: { git: object, endpoint: GitRemoteEndpoint }) => Promise<GitRemote>} args.makeRemote
  *   Bind `origin` as a `GitRemote` over endpoint x the new `Git`.
  */
 export const makeGitCloner = ({ endpoint, clone, makeGit, makeRemote }) => {
@@ -54,7 +54,7 @@ export const makeGitCloner = ({ endpoint, clone, makeGit, makeRemote }) => {
      * @param {object} input.destMount  The (empty) destination mount.
      * @param {string} input.destPath  Host path of `destMount`.
      * @param {AbortSignal} [input.signal]
-     * @returns {Promise<{ git: object, remote: object }>}
+     * @returns {Promise<{ git: object, remote: GitRemote }>}
      */
     async clone({ destMount, destPath, signal }) {
       if (typeof destPath !== 'string' || destPath.length === 0) {

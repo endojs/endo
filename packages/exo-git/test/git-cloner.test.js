@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { GitRemoteEndpoint } from '../src/git-remote.js' */
+/** @import { GitRemote, GitRemoteEndpoint } from '../src/git-remote-types.js' */
 
 import test from '@endo/ses-ava/prepare-endo.js';
 
@@ -16,6 +16,11 @@ const exampleCredential = () =>
     audience: 'https://github.com',
     token: 'test-token',
   });
+
+/** @param {object} value */
+const fakeRemote = value =>
+  /** @type {GitRemote} */ (/** @type {unknown} */ (harden(value)));
+harden(fakeRemote);
 
 test('makeGitRemoteEndpoint factors URL transport and credential authority', t => {
   const credential = exampleCredential();
@@ -69,23 +74,28 @@ test('makeGitCloner composes endpoint and destination into Git plus origin remot
         endpoint: /** @type {GitRemoteEndpoint} */ ({}),
         clone: async () => undefined,
         makeGit: async () => harden({}),
-        makeRemote: async () => harden({}),
+        makeRemote: async () => fakeRemote({}),
       }),
     { message: /requires a GitRemoteEndpoint/ },
   );
   t.throws(
     () =>
-      makeGitCloner({
-        endpoint,
-        // @ts-expect-error invalid negative-path fixture
-        clone: undefined,
-        makeGit: async () => harden({}),
-        makeRemote: async () => harden({}),
-      }),
+      makeGitCloner(
+        /** @type {Parameters<typeof makeGitCloner>[0]} */ (
+          /** @type {unknown} */ ({
+            endpoint,
+            clone: undefined,
+            makeGit: async () => harden({}),
+            makeRemote: async () => fakeRemote({}),
+          })
+        ),
+      ),
     { message: /requires a clone function/ },
   );
   /** @type {Array<Record<string, unknown>>} */
   const calls = [];
+  const gitCap = harden({ tag: 'git-cap' });
+  const remoteCap = fakeRemote({ remote: 'origin' });
   const cloner = makeGitCloner({
     endpoint,
     clone: async input => {
@@ -93,18 +103,18 @@ test('makeGitCloner composes endpoint and destination into Git plus origin remot
     },
     makeGit: async input => {
       calls.push(harden({ makeGit: input }));
-      return 'git-cap';
+      return gitCap;
     },
     makeRemote: async input => {
       calls.push(harden({ makeRemote: input }));
-      return harden({ remote: 'origin' });
+      return remoteCap;
     },
   });
   const destMount = harden({});
   const result = await cloner.clone({ destMount, destPath: '/tmp/clone' });
   t.deepEqual(result, {
-    git: 'git-cap',
-    remote: { remote: 'origin' },
+    git: gitCap,
+    remote: remoteCap,
   });
   t.is(calls.length, 3);
   t.like(calls[0].clone, {
@@ -113,7 +123,7 @@ test('makeGitCloner composes endpoint and destination into Git plus origin remot
     allowLocalFileTransport: true,
   });
   t.like(calls[2].makeRemote, {
-    git: 'git-cap',
+    git: gitCap,
     endpoint,
   });
 });
@@ -131,7 +141,7 @@ test('makeGitCloner resolves credential material for native clone', async t => {
       cloneCalls.push(harden(input));
     },
     makeGit: async () => harden({ git: 'cap' }),
-    makeRemote: async () => harden({ remote: 'origin' }),
+    makeRemote: async () => fakeRemote({ remote: 'origin' }),
   });
   await cloner.clone({
     destMount: harden({}),
