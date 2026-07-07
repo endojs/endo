@@ -15,13 +15,56 @@ import {
 } from '@earendil-works/pi-ai';
 
 import {
+  makeRunMetricsRecorder,
   makeStageAndCommitScenario,
   runGitScenario,
 } from '../../src/eval/index.js';
 import { readText } from '../_eval-fixture.js';
 import { provisionStageAndCommitRepo } from './_stage-and-commit-repo.js';
 
-/** @import { Model } from '@earendil-works/pi-ai' */
+/** @import { AssistantMessage, Model, Usage } from '@earendil-works/pi-ai' */
+
+/**
+ * @typedef {Omit<Partial<Usage>, 'cost'> & {
+ *   reasoning?: number,
+ *   cost?: Partial<Usage['cost']>,
+ * }} PartialUsage
+ */
+
+/**
+ * @param {PartialUsage} fields
+ * @returns {Usage & { reasoning?: number }}
+ */
+const usage = fields => ({
+  input: fields.input ?? 0,
+  output: fields.output ?? 0,
+  cacheRead: fields.cacheRead ?? 0,
+  cacheWrite: fields.cacheWrite ?? 0,
+  reasoning: fields.reasoning ?? 0,
+  totalTokens: fields.totalTokens ?? 0,
+  cost: {
+    input: fields.cost?.input ?? 0,
+    output: fields.cost?.output ?? 0,
+    cacheRead: fields.cost?.cacheRead ?? 0,
+    cacheWrite: fields.cost?.cacheWrite ?? 0,
+    total: fields.cost?.total ?? 0,
+  },
+});
+
+/**
+ * @param {Usage & { reasoning?: number }} messageUsage
+ * @returns {AssistantMessage}
+ */
+const assistantMessageWithUsage = messageUsage => ({
+  role: 'assistant',
+  content: [],
+  api: 'faux',
+  provider: 'faux',
+  model: 'faux-model',
+  usage: messageUsage,
+  stopReason: 'stop',
+  timestamp: 0,
+});
 
 /**
  * Register a per-test faux pi-ai provider seeded with `responses` and return
@@ -107,6 +150,69 @@ const executeOnceModel = (t, source) =>
     fauxAssistantMessage('done'),
   ]);
 
+test('run metrics recorder sums assistant usage and tool errors', t => {
+  const recorder = makeRunMetricsRecorder();
+  const first = assistantMessageWithUsage(
+    usage({
+      input: 11,
+      output: 13,
+      cacheRead: 17,
+      cacheWrite: 19,
+      reasoning: 29,
+      totalTokens: 60,
+      cost: { total: 23 },
+    }),
+  );
+  const second = assistantMessageWithUsage(
+    usage({
+      input: 2,
+      output: 3,
+      cacheRead: 5,
+      cacheWrite: 7,
+      reasoning: 11,
+      totalTokens: 17,
+      cost: { total: 4 },
+    }),
+  );
+
+  recorder.listener({ type: 'agent_start' });
+  recorder.listener({ type: 'message_end', message: first });
+  recorder.listener({ type: 'message_end', message: second });
+  recorder.listener({ type: 'turn_end', message: first, toolResults: [] });
+  recorder.listener({ type: 'turn_end', message: second, toolResults: [] });
+  recorder.listener({
+    type: 'tool_execution_end',
+    toolCallId: 'call-1',
+    toolName: 'execute',
+    result: {},
+    isError: false,
+  });
+  recorder.listener({
+    type: 'tool_execution_end',
+    toolCallId: 'call-2',
+    toolName: 'execute',
+    result: {},
+    isError: true,
+  });
+  recorder.listener({ type: 'agent_end', messages: [first, second] });
+
+  const metrics = recorder.snapshot();
+  t.deepEqual(metrics.usage, {
+    input: 13,
+    output: 16,
+    cacheRead: 22,
+    cacheWrite: 26,
+    reasoning: 40,
+    totalTokens: 77,
+    cost: { total: 27 },
+  });
+  t.is(metrics.turns, 2);
+  t.is(metrics.assistantMessages, 2);
+  t.is(metrics.toolExecutions, 2);
+  t.is(metrics.toolExecutionErrors, 1);
+  t.true(metrics.wallTimeMs >= 0);
+});
+
 test('outcome assertion passes when the scripted run reaches the target end-state', async t => {
   const scenario = makeStageAndCommitScenario();
   const { workspace, git } = await provisionStageAndCommitRepo(t, {
@@ -118,7 +224,7 @@ test('outcome assertion passes when the scripted run reaches the target end-stat
     stageAndCommitSource(scenario.expected.path, scenario.expected.message),
   );
 
-  const { outcome } = await runGitScenario({
+  const { outcome, metrics } = await runGitScenario({
     model,
     workspace,
     git,
@@ -140,6 +246,20 @@ test('outcome assertion passes when the scripted run reaches the target end-stat
       ['worktree-clean', true],
     ],
   );
+  t.is(metrics.turns, 2);
+  t.is(metrics.assistantMessages, 2);
+  t.is(metrics.toolExecutions, 1);
+  t.is(metrics.toolExecutionErrors, 0);
+  t.true(metrics.usage.input > 0);
+  t.true(metrics.usage.output > 0);
+  t.is(
+    metrics.usage.totalTokens,
+    metrics.usage.input +
+      metrics.usage.output +
+      metrics.usage.cacheRead +
+      metrics.usage.cacheWrite,
+  );
+  t.true(metrics.wallTimeMs >= 0);
 });
 
 test('outcome assertion fails the commit-message check when the wrong message is used', async t => {
