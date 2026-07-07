@@ -39,6 +39,9 @@
       "path": "../far/tsconfig.composite.json"
     },
     {
+      "path": "../git/tsconfig.composite.json"
+    },
+    {
       "path": "../harden/tsconfig.composite.json"
     },
     {

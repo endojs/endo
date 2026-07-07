@@ -19,14 +19,14 @@
   },
   "type": "module",
   "main": "./src/index.js",
-  "types": "./types.d.ts",
+  "types": "./src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./types.d.ts",
+      "types": "./src/index.d.ts",
       "default": "./src/index.js"
     },
     "./src/native-git-backend.js": {
-      "types": "./types.d.ts",
+      "types": "./src/native-git-backend.d.ts",
       "default": "./src/native-git-backend.js"
     },
     "./package.json": "./package.json"
@@ -34,9 +34,10 @@
   "scripts": {
     "build": "exit 0",
     "test": "exit 0",
-    "lint": "yarn lint:eslint",
+    "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
-    "lint:eslint": "eslint '**/*.js'"
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc"
   },
   "dependencies": {
     "@endo/base64": "workspace:^",
@@ -51,7 +52,8 @@
   "devDependencies": {
     "@endo/init": "workspace:^",
     "ava": "catalog:dev",
-    "eslint": "catalog:dev"
+    "eslint": "catalog:dev",
+    "typescript": "catalog:dev"
   },
   "ava": {
     "files": [

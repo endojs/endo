@@ -1966,7 +1966,10 @@ test('Git.status reports merge conflicts with mount entries', async t => {
   }
   t.is(row.index, 'conflicted');
   t.is(row.worktree, 'conflicted');
-  t.deepEqual(await E(row.entry).segments(), ['conflict.txt']);
+  const entry = /** @type {import('../src/types.js').EndoMountEntry} */ (
+    row.entry
+  );
+  t.deepEqual(await E(entry).segments(), ['conflict.txt']);
   // The conflicted entry is a file, so its live node exposes `text()`.
   const node = /** @type {import('../src/types.js').EndoMountFile} */ (
     row.node
@@ -2001,7 +2004,10 @@ test('Git.status wraps backend rows into GitStatusEntry with mount entries', asy
   t.is(row.worktree, 'untracked');
   // The entry is an EndoMountEntry minted on the bound mount.  Its
   // segments reflect the repo-relative path split by `/`.
-  t.deepEqual(await E(row.entry).segments(), ['src', 'new.js']);
+  const entry = /** @type {import('../src/types.js').EndoMountEntry} */ (
+    row.entry
+  );
+  t.deepEqual(await E(entry).segments(), ['src', 'new.js']);
   t.true(await E(mount).has(row.entry));
   // `src/new.js` resolves to an EndoMountFile.
   const node = /** @type {import('../src/types.js').EndoMountFile} */ (
