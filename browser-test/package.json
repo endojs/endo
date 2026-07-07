@@ -9,19 +9,5 @@
   "devDependencies": {
     "@playwright/test": "1.60.0",
     "@types/node": "^20.11.16"
-  },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "parserOptions": {
-      "sourceType": "script"
-    },
-    "rules": {
-      "import/extensions": "off"
-    },
-    "env": {
-      "node": true
-    }
   }
 }

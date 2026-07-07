@@ -1,21 +1,13 @@
 /* eslint-disable no-continue */
-/**
- * Disallow exporting the same local binding under multiple names (value space only).
- * Allows single alias (e.g. `export { foo as bar }`).
- * Ignores re-exports (`export { x as y } from 'mod'`, `export * from 'mod'`)
- * and TS type exports.
- */
+import { createRule } from '../create-rule.js';
 
-'use strict';
-
-/** @type {import('eslint').Rule.RuleModule} */
-module.exports = {
+export default createRule({
+  name: 'no-multi-name-local-export',
   meta: {
     type: 'problem',
     docs: {
       description:
         'Disallow exporting the same local binding under multiple names (local value exports only).',
-      recommended: false,
     },
     schema: [],
     messages: {
@@ -23,11 +15,11 @@ module.exports = {
         "Local binding '{{local}}' is exported under multiple names: {{names}}.",
     },
   },
-
+  defaultOptions: [],
   create(context) {
-    const sourceCode = context.sourceCode ?? context.getSourceCode(); // v9/v8 compat
+    const sourceCode = context.sourceCode ?? context.getSourceCode();
 
-    /** @type {Map<localName, Set<exportedNames>>} */
+    /** Tracks each local name → set of exported names seen so far. */
     const seen = new Map();
 
     const add = (localName, exportedName, node) => {
@@ -57,25 +49,21 @@ module.exports = {
 
     return {
       ExportNamedDeclaration(node) {
-        // Skip re-exports and type-only exports
+        // Skip re-exports and type-only exports.
         if (node.source) return;
         if (node.exportKind === 'type') return;
 
-        // Track declaration exports (e.g. `export const a = 1;`)
         if (node.declaration) {
           const d = node.declaration;
 
-          // function/class declarations
           if (
             (d.type === 'FunctionDeclaration' ||
               d.type === 'ClassDeclaration') &&
-            d.id &&
-            d.id.type === 'Identifier'
+            d.id?.type === 'Identifier'
           ) {
             add(d.id.name, d.id.name, node);
           }
 
-          // variable declarations (handles destructuring too)
           if (d.type === 'VariableDeclaration') {
             for (const v of sourceCode.getDeclaredVariables(d)) {
               if (v && typeof v.name === 'string') {
@@ -84,12 +72,7 @@ module.exports = {
             }
           }
 
-          // Optional TS value-space cases (safe no-ops in plain JS)
-          if (
-            d.type === 'TSEnumDeclaration' &&
-            d.id &&
-            d.id.type === 'Identifier'
-          ) {
+          if (d.type === 'TSEnumDeclaration' && d.id?.type === 'Identifier') {
             add(d.id.name, d.id.name, node);
           }
         }
@@ -97,7 +80,6 @@ module.exports = {
         if (!node.specifiers) return;
 
         for (const spec of node.specifiers) {
-          // Skip type-only specifiers (TS)
           if (spec.exportKind === 'type') continue;
           if (spec.type !== 'ExportSpecifier') continue;
 
@@ -105,13 +87,9 @@ module.exports = {
           const exportedName = getName(spec.exported);
           if (!localName || !exportedName) continue;
 
-          // Note: `export { x as default }` counts because it's a named export alias.
           add(localName, exportedName, spec);
         }
       },
-
-      // Deliberately ignore `export default …` so it doesn't count as another name.
-      // ExportDefaultDeclaration() {}
     };
   },
-};
+});
