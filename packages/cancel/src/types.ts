@@ -1,12 +1,10 @@
 /**
- * A cancellation token that is a `Promise<never>`.
+ * A cancellation token that never fulfills.
  */
 export type Cancelled = Promise<never>;
 
 /**
  * A function that triggers cancellation.
- *
- * @param reason - Optional reason for cancellation.
  */
 export type Cancel = (reason?: Error) => void;
 
@@ -16,29 +14,27 @@ export type Cancel = (reason?: Error) => void;
 export type IsCancelled = () => boolean;
 
 /**
- * The result of `makeCancelKit()`, containing the cancellation token, the
- * cancel function, and a synchronous observation function.
+ * The result of `makeCancelKit()`.
  */
-export type CancelKit = {
+export interface CancelKit {
   /** The cancellation token. */
   cancelled: Cancelled;
   /** Function to trigger cancellation. */
   cancel: Cancel;
   /** Function to synchronously check cancellation state. */
   isCancelled: IsCancelled;
-};
+}
 
 /**
  * Callback for `allMap` and `anyMap` operations.
- *
- * @param value - The current value.
- * @param index - The current index.
- * @param cancelled - Cancellation token for this operation.
- * @param isCancelled - Synchronous cancellation check.
  */
 export type CancellableCallback<T, R> = (
+  /** The current value. */
   value: T,
+  /** The current index. */
   index: number,
+  /** Cancellation token for this operation. */
   cancelled: Cancelled,
+  /** Synchronous cancellation check. */
   isCancelled: IsCancelled,
 ) => R | Promise<R>;
