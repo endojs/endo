@@ -628,6 +628,16 @@ export const makeHostMaker = ({
           X`provideGitClone: destMount must be a daemon-minted mount cap`,
         );
       }
+      const destFormula = await getFormulaForId(destMountId);
+      if (
+        (destFormula.type === 'mount' ||
+          destFormula.type === 'scratch-mount') &&
+        destFormula.readOnly
+      ) {
+        throw makeError(
+          X`provideGitClone: destMount must be writable; read-only mounts cannot be clone destinations`,
+        );
+      }
       const endpointRecord =
         /** @type {{ url?: unknown, credential?: unknown, allowLocalFileTransport?: unknown }} */ (
           endpointOptions

@@ -890,6 +890,36 @@ test.serial(
   },
 );
 
+test.serial(
+  'EndoHost.provideGitClone rejects read-only destination without mutation',
+  async t => {
+    const { root } = await provisionGitContext(t);
+    const remoteRoot = await provisionBareRemote(t, root);
+    const remoteUrl = pathToFileURL(remoteRoot).href;
+    const { host } = await provisionHostContext(t);
+
+    const destMount = await E(host).provideScratchMount(
+      'read-only-clone-destination',
+      { readOnly: true },
+    );
+    const destPath = await E(host).provideHostPath(destMount);
+    t.deepEqual(await fs.promises.readdir(destPath), []);
+
+    await t.throwsAsync(
+      E(host).provideGitClone({
+        destMount,
+        endpoint: {
+          url: remoteUrl,
+          allowLocalFileTransport: true,
+        },
+      }),
+      { message: /destMount must be writable/ },
+    );
+
+    t.deepEqual(await fs.promises.readdir(destPath), []);
+  },
+);
+
 test('GitRemote enforces allowedDirections at the call boundary', async t => {
   const { git } = await provisionGitContext(t);
   // Fetch-only policy: push must be refused before transport is reached.
