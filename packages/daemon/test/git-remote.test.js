@@ -22,7 +22,9 @@ import {
   makeBasicCredential,
   makeBearerCredential,
   makeGit,
+  makeGitCloner,
   makeGitRemote,
+  makeGitRemoteEndpoint,
   makeNotYetImplementedBackend,
   makeUnavailableGitCredential,
   revokeGitCredential,
@@ -579,6 +581,83 @@ test('GitCredentialController.rotate during in-flight fetch prevents stale succe
   );
   t.like(audit[1], { type: 'fetch', outcome: 'error' });
   t.like(audit[2], { type: 'fetch', outcome: 'ok' });
+});
+
+test('GitCloner fences HTTPS credential changes during in-flight clone', async t => {
+  /**
+   * @param {'rotate' | 'revoke'} change
+   * @param {RegExp} expected
+   */
+  const exerciseChange = async (change, expected) => {
+    const credential = exampleCredential();
+    const credentialController = getGitCredentialController(credential);
+    t.truthy(credentialController);
+    const endpoint = makeGitRemoteEndpoint({
+      url: 'https://github.com/example/repo.git',
+      credential,
+    });
+    /** @type {AbortSignal | undefined} */
+    let cloneSignal;
+    /** @type {unknown} */
+    let cloneCredential;
+    /** @type {(value?: unknown) => void} */
+    let cloneStartedResolve = () => {};
+    const cloneStarted = new Promise(resolve => {
+      cloneStartedResolve = resolve;
+    });
+    /** @type {(value: unknown) => void} */
+    let cloneResolve = () => {};
+    const cloneResult = new Promise(resolve => {
+      cloneResolve = resolve;
+    });
+    let makeGitCalled = false;
+    let makeRemoteCalled = false;
+    const cloner = makeGitCloner({
+      endpoint,
+      clone: async input => {
+        cloneCredential = /** @type {{ credential?: unknown }} */ (input)
+          .credential;
+        cloneSignal = /** @type {{ signal?: AbortSignal }} */ (input).signal;
+        cloneStartedResolve();
+        return cloneResult;
+      },
+      makeGit: async () => {
+        makeGitCalled = true;
+        return Far('FakeGit', {});
+      },
+      makeRemote: async () => {
+        makeRemoteCalled = true;
+        return /** @type {import('@endo/exo-git').GitRemote} */ (
+          /** @type {unknown} */ (Far('FakeRemote', {}))
+        );
+      },
+    });
+
+    const cloneP = cloner.clone({
+      destMount: Far('FakeMount', {}),
+      destPath: '/tmp/clone-destination',
+    });
+    await cloneStarted;
+    t.deepEqual(
+      cloneCredential,
+      harden({ kind: 'bearer', material: harden({ token: 'test-token' }) }),
+    );
+    t.false(cloneSignal?.aborted);
+    if (change === 'rotate') {
+      await E(credentialController).rotate({ token: 'new-token' });
+    } else {
+      await E(credentialController).revoke();
+    }
+    t.true(cloneSignal?.aborted);
+    cloneResolve('ok');
+
+    await t.throwsAsync(cloneP, { message: expected });
+    t.false(makeGitCalled);
+    t.false(makeRemoteCalled);
+  };
+
+  await exerciseChange('rotate', /changed during clone/);
+  await exerciseChange('revoke', /revoked during clone/);
 });
 
 test('GitRemoteController.revoke during in-flight pull aborts before local integration', async t => {

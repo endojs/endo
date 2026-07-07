@@ -15,15 +15,13 @@ export type GitRemoteEndpoint = {
   protocol: string;
   requiresCredential: boolean;
   allowLocalFileTransport: boolean;
-  ensureCredentialUsable: () =>
-    | { kind: string; material: unknown }
-    | undefined;
+  ensureCredentialUsable: () => { kind: string; material: unknown } | undefined;
   captureCredentialVersion: () => number | undefined;
   assertCredentialUnchanged: (
     operation: string,
     version: number | undefined,
   ) => void;
-  watchChange: (onChange: () => void) => void;
+  watchChange: (onChange: () => void) => (() => void) | undefined;
 };
 
 export type GitRemotePolicy = {

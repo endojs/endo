@@ -540,8 +540,9 @@ export const makeGitRemoteEndpoint = ({
    */
   const watchChange = onChange => {
     if (credentialRecord !== undefined) {
-      credentialRecord.watchChange(onChange);
+      return credentialRecord.watchChange(onChange);
     }
+    return undefined;
   };
 
   return harden({

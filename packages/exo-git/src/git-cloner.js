@@ -57,23 +57,50 @@ export const makeGitCloner = ({ endpoint, clone, makeGit, makeRemote }) => {
      * @returns {Promise<{ git: object, remote: GitRemote }>}
      */
     async clone({ destMount, destPath, signal }) {
+      await null;
       if (typeof destPath !== 'string' || destPath.length === 0) {
         throw new Error('GitCloner clone requires a destPath string');
+      }
+      const credentialVersion = endpoint.captureCredentialVersion();
+      const abortController = new AbortController();
+      const unwatchCredential = endpoint.watchChange(() => {
+        abortController.abort();
+      });
+      const abortFromInput = () => {
+        abortController.abort();
+      };
+      if (signal !== undefined) {
+        if (signal.aborted) {
+          abortController.abort();
+        } else {
+          signal.addEventListener('abort', abortFromInput, { once: true });
+        }
       }
       // Constructive: there is no repo yet; the clone creates the
       // worktree at destPath from the endpoint authority.
       const credential = endpoint.ensureCredentialUsable();
-      await clone({
-        url: endpoint.url,
-        destPath,
-        allowLocalFileTransport: endpoint.allowLocalFileTransport,
-        ...(credential === undefined ? {} : { credential }),
-        signal,
-      });
+      try {
+        await clone({
+          url: endpoint.url,
+          destPath,
+          allowLocalFileTransport: endpoint.allowLocalFileTransport,
+          ...(credential === undefined ? {} : { credential }),
+          signal: abortController.signal,
+        });
+      } catch (err) {
+        endpoint.assertCredentialUnchanged('clone', credentialVersion);
+        throw err;
+      } finally {
+        unwatchCredential?.();
+        signal?.removeEventListener('abort', abortFromInput);
+      }
+      endpoint.assertCredentialUnchanged('clone', credentialVersion);
       // The destination is now a worktree; derive its `Git`.
       const git = await makeGit({ destMount, destPath });
+      endpoint.assertCredentialUnchanged('clone', credentialVersion);
       // Compose: endpoint x Git -> origin-pre-bound `GitRemote`.
       const remote = await makeRemote({ git, endpoint });
+      endpoint.assertCredentialUnchanged('clone', credentialVersion);
       return harden({ git, remote });
     },
   });
