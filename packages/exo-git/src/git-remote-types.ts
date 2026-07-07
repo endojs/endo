@@ -1,5 +1,31 @@
 export type GitDirection = 'fetch' | 'push';
 
+/**
+ * The reusable "authority to talk to this remote" half of a
+ * GitRemote.
+ *
+ * `GitRemote` composes `GitRemoteEndpoint` with an existing `Git`, and
+ * clone composes `GitRemoteEndpoint` with an empty destination mount.
+ * This is host-private because `ensureCredentialUsable()` exposes
+ * native credential material.
+ */
+export type GitRemoteEndpoint = {
+  url: string;
+  origin: string;
+  protocol: string;
+  requiresCredential: boolean;
+  allowLocalFileTransport: boolean;
+  ensureCredentialUsable: () =>
+    | { kind: string; material: unknown }
+    | undefined;
+  captureCredentialVersion: () => number | undefined;
+  assertCredentialUnchanged: (
+    operation: string,
+    version: number | undefined,
+  ) => void;
+  watchChange: (onChange: () => void) => void;
+};
+
 export type GitRemotePolicy = {
   /**
    * Host-controlled remote endpoint URL. Guests cannot mutate this

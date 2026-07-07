@@ -18,6 +18,7 @@ import { assertGitCredentialForUrl } from './git-credential.js';
  *   GitRemote,
  *   GitRemoteAuditEvent,
  *   GitRemoteController,
+ *   GitRemoteEndpoint,
  *   GitRemoteKit,
  *   GitRemotePolicy,
  * } from './git-remote-types.js'
@@ -451,14 +452,129 @@ export const getGitRemoteController = remote =>
 harden(getGitRemoteController);
 
 /**
- * @type {(args: {
- *   git: object,
- *   name: string,
- *   policy: GitRemotePolicy,
- *   revoked?: boolean,
- *   credential?: object,
- *   onStateChange?: (state: { policy: GitRemotePolicy, revoked: boolean }) => Promise<void> | void,
- * }) => GitRemoteKit}
+ * Factor the reusable `{ url, transport, credential }` sub-bundle out of
+ * `GitRemote` as a repo-less `GitRemoteEndpoint` ("authority to talk to
+ * this remote").  Both operations then fall out of composition:
+ * `GitRemote` is `GitRemoteEndpoint` x an existing `Git` (fetch / pull /
+ * push), and clone is `GitRemoteEndpoint` x an empty destination mount
+ * (returns a fresh `Git`).
+ *
+ * The endpoint owns url normalization and the credential lifecycle
+ * (resolution, the usable-material check, version fencing, and change
+ * notification) that `makeGitRemote` previously inlined.  It carries no
+ * `Git`, no refspecs, and no directions: those are repo-binding policy
+ * that stays on `GitRemote`.  `url` and `allowLocalFileTransport` are
+ * immutable for a remote's lifetime (no controller setter mutates
+ * them), so a `GitRemote` builds its endpoint once at construction.
+ *
+ * @param {object} args
+ * @param {string} args.url  Remote endpoint URL (https, or file when
+ *   `allowLocalFileTransport`).
+ * @param {object} [args.credential]  Daemon-minted Git credential cap.
+ * @param {boolean} [args.allowLocalFileTransport]
+ * @returns {GitRemoteEndpoint}
+ */
+export const makeGitRemoteEndpoint = ({
+  url,
+  credential,
+  allowLocalFileTransport = false,
+}) => {
+  const normalizedUrl = normalizeRemoteUrl(url, allowLocalFileTransport);
+  const parsed = new URL(normalizedUrl);
+  const requiresCredential = parsed.protocol === 'https:';
+  if (!requiresCredential && credential !== undefined) {
+    throw new Error('GitRemote credentials require https remotes');
+  }
+  const credentialRecord =
+    credential === undefined
+      ? undefined
+      : assertGitCredentialForUrl(credential, parsed.origin, {
+          allowRevoked: true,
+        });
+  if (requiresCredential && credentialRecord === undefined) {
+    throw new Error('GitRemote HTTPS remotes require a Git credential cap');
+  }
+
+  const ensureCredentialUsable = () => {
+    if (requiresCredential) {
+      const record = assertGitCredentialForUrl(
+        /** @type {object} */ (credential),
+        parsed.origin,
+      );
+      return harden({ kind: record.kind, material: record.getMaterial() });
+    }
+    return undefined;
+  };
+
+  const captureCredentialVersion = () =>
+    requiresCredential && credentialRecord !== undefined
+      ? credentialRecord.getVersion()
+      : undefined;
+
+  /**
+   * @param {string} operation
+   * @param {number | undefined} version
+   */
+  const assertCredentialUnchanged = (operation, version) => {
+    if (requiresCredential && credentialRecord !== undefined) {
+      const currentCredentialRecord = assertGitCredentialForUrl(
+        /** @type {object} */ (credential),
+        parsed.origin,
+        { allowRevoked: true },
+      );
+      if (currentCredentialRecord.getVersion() !== version) {
+        if (currentCredentialRecord.isRevoked()) {
+          throw new Error(
+            `Git credential for ${q(currentCredentialRecord.audience)} was revoked during ${operation}`,
+          );
+        }
+        throw new Error(
+          `Git credential for ${q(currentCredentialRecord.audience)} changed during ${operation}`,
+        );
+      }
+    }
+  };
+
+  /**
+   * @param {() => void} onChange
+   */
+  const watchChange = onChange => {
+    if (credentialRecord !== undefined) {
+      credentialRecord.watchChange(onChange);
+    }
+  };
+
+  return harden({
+    url: normalizedUrl,
+    origin: parsed.origin,
+    protocol: parsed.protocol,
+    requiresCredential,
+    allowLocalFileTransport,
+    ensureCredentialUsable,
+    captureCredentialVersion,
+    assertCredentialUnchanged,
+    watchChange,
+  });
+};
+harden(makeGitRemoteEndpoint);
+
+/**
+ * Mint a paired (guest-held, host-held) facet for one remote endpoint.
+ *
+ * This facet is the policy gate for remote use.  It validates endpoint,
+ * direction, and refspec policy before delegating to the local Git
+ * backend's bounded native data plane.
+ *
+ * @param {object} args
+ * @param {object} args.git  The local `Git` capability this remote is
+ *   bound to.  Guest operations on the remote always compose with this
+ *   Git; revoking the local Git collects the remote too.
+ * @param {string} args.name  Remote name (typically 'origin').
+ * @param {GitRemotePolicy} args.policy
+ * @param {boolean} [args.revoked]
+ * @param {object} [args.credential]
+ * @param {(state: { policy: GitRemotePolicy, revoked: boolean }) => Promise<void> | void} [args.onStateChange]
+ * @returns {GitRemoteKit}
  */
 export const makeGitRemote = ({
   git,
@@ -491,17 +607,17 @@ export const makeGitRemote = ({
   // mutable struct here and freeze each read view we hand out.
   /** @type {GitRemotePolicy} */
   let currentPolicy = normalizePolicy({ name, policy });
-  const url = new URL(currentPolicy.url);
-  const requiresCredential = url.protocol === 'https:';
-  const credentialRecord =
-    credential === undefined
-      ? undefined
-      : assertGitCredentialForUrl(credential, url.origin, {
-          allowRevoked: true,
-        });
-  if (requiresCredential && credentialRecord === undefined) {
-    throw new Error('GitRemote HTTPS remotes require a Git credential cap');
-  }
+  // GitRemote = GitRemoteEndpoint x existing Git: the endpoint owns the
+  // `{ url, transport, credential }` sub-bundle and its credential
+  // lifecycle; this maker keeps the repo-binding policy (directions,
+  // refspecs) and composes with the bound `git` below.  `url` and
+  // `allowLocalFileTransport` never change after construction, so the
+  // endpoint is built once.
+  const endpoint = makeGitRemoteEndpoint({
+    url: currentPolicy.url,
+    credential,
+    allowLocalFileTransport: currentPolicy.allowLocalFileTransport,
+  });
 
   let revoked = initialRevoked;
   let operationEpoch = 0;
@@ -533,9 +649,7 @@ export const makeGitRemote = ({
     };
   };
 
-  if (credentialRecord !== undefined) {
-    credentialRecord.watchChange(abortActiveOperations);
-  }
+  endpoint.watchChange(abortActiveOperations);
 
   const persistState = async (nextPolicy, nextRevoked) => {
     await null;
@@ -559,24 +673,12 @@ export const makeGitRemote = ({
     }
   };
 
-  const ensureCredentialUsable = () => {
-    if (requiresCredential) {
-      const record = assertGitCredentialForUrl(
-        /** @type {object} */ (credential),
-        url.origin,
-      );
-      return harden({ kind: record.kind, material: record.getMaterial() });
-    }
-    return undefined;
-  };
+  const ensureCredentialUsable = () => endpoint.ensureCredentialUsable();
 
   const captureOperationFence = () =>
     harden({
       epoch: operationEpoch,
-      credentialVersion:
-        requiresCredential && credentialRecord !== undefined
-          ? credentialRecord.getVersion()
-          : undefined,
+      credentialVersion: endpoint.captureCredentialVersion(),
     });
 
   const assertOperationFence = (operation, fence) => {
@@ -588,23 +690,7 @@ export const makeGitRemote = ({
         `GitRemote ${q(name)} policy changed during ${operation}`,
       );
     }
-    if (requiresCredential && credentialRecord !== undefined) {
-      const currentCredentialRecord = assertGitCredentialForUrl(
-        /** @type {object} */ (credential),
-        url.origin,
-        { allowRevoked: true },
-      );
-      if (currentCredentialRecord.getVersion() !== fence.credentialVersion) {
-        if (currentCredentialRecord.isRevoked()) {
-          throw new Error(
-            `Git credential for ${q(currentCredentialRecord.audience)} was revoked during ${operation}`,
-          );
-        }
-        throw new Error(
-          `Git credential for ${q(currentCredentialRecord.audience)} changed during ${operation}`,
-        );
-      }
-    }
+    endpoint.assertCredentialUnchanged(operation, fence.credentialVersion);
   };
 
   const operationError = (operation, fence, err) => {
