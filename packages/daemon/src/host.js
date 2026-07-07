@@ -23,11 +23,16 @@ import {
 } from './pet-name.js';
 import {
   assertFormulaNumber,
-  assertNodeNumber,
   parseId,
   formatId,
 } from './formula-identifier.js';
-import { formatLocator, idFromLocator, internalizeLocator } from './locator.js';
+import {
+  formatLocator,
+  formatLocatorWithHints,
+  idFromLocator,
+  internalizeLocator,
+  parseLocator,
+} from './locator.js';
 import { toHex, fromHex } from './hex.js';
 import { makePetSitter } from './pet-sitter.js';
 
@@ -1371,60 +1376,49 @@ export const makeHostMaker = ({
       // directory must already exist.
       const { namePath: guestNamePath, petName: guestLeaf } =
         petNamePathFrom(guestName);
+      const {
+        number: invitationNumber,
+        node: peerKey,
+        hints,
+      } = parseLocator(invitationLocator);
       const url = new URL(invitationLocator);
-      const daemonNode = url.hostname;
-      // Path components are `@`-delimited and URL-encoded.  The first
-      // component is the invitation's formula address; the rest are
-      // connection hints.
-      const [invitationNumber, ...addresses] = url.pathname
-        .replace(/^\//, '')
-        .split('@')
-        .map(decodeURIComponent);
       const remoteHandleNumber = url.searchParams.get('from');
-      // The remote handle's node may differ from the daemon node when
+      // The remote handle's node may differ from the peer key when
       // agent keys are used as formula nodes.
       const remoteHandleNodeParam = url.searchParams.get('fromNode');
 
-      daemonNode || assert.Fail`Invitation must have a hostname`;
       if (!remoteHandleNumber) {
         throw makeError(`Invitation must have a "from" parameter`);
       }
-      if (!invitationNumber) {
-        throw makeError(`Invitation must include a formula number`);
-      }
-      assertNodeNumber(daemonNode);
       assertFormulaNumber(remoteHandleNumber);
-      assertFormulaNumber(invitationNumber);
 
       /** @type {PeerInfo} */
       const peerInfo = {
-        node: daemonNode,
-        addresses,
+        node: peerKey,
+        addresses: hints,
       };
       // eslint-disable-next-line no-use-before-define
       await addPeerInfo(peerInfo);
 
       // Register the remote agent key so we can route to its daemon.
-      if (remoteHandleNodeParam && remoteHandleNodeParam !== daemonNode) {
-        writeRemoteAgentKey(remoteHandleNodeParam, daemonNode);
+      if (remoteHandleNodeParam && remoteHandleNodeParam !== peerKey) {
+        writeRemoteAgentKey(remoteHandleNodeParam, peerKey);
       }
 
       const invitationId = formatId({
         number: invitationNumber,
-        node: daemonNode,
+        node: peerKey,
       });
 
       const { number: handleNumber, node: handleNode } = parseId(handleId);
       // eslint-disable-next-line no-use-before-define
       const { addresses: hostAddresses } = await getPeerInfo();
-      // Build the handle locator with `@`-delimited URL-encoded path
-      // components: the first component is the handle's formula number,
-      // and subsequent components are connection hints.
-      const handlePath = [handleNumber, ...hostAddresses]
-        .map(encodeURIComponent)
-        .join('@');
-      const handleUrl = new URL(`endo://${localNodeNumber}/${handlePath}`);
-      handleUrl.searchParams.set('type', 'handle');
+      const handleLocatorWithoutHandleNode = formatLocatorWithHints(
+        formatId({ number: handleNumber, node: localNodeNumber }),
+        'handle',
+        hostAddresses,
+      );
+      const handleUrl = new URL(handleLocatorWithoutHandleNode);
       // Include the handle's node if it differs from the daemon node
       // (i.e. it uses an agent key).
       if (handleNode !== localNodeNumber) {
@@ -1468,7 +1462,7 @@ export const makeHostMaker = ({
       // Store the remote handle under guestName for mail delivery.
       // Use the handle's actual node (which may be an agent key) if
       // provided, falling back to the daemon node.
-      const remoteHandleNode = remoteHandleNodeParam || daemonNode;
+      const remoteHandleNode = remoteHandleNodeParam || peerKey;
       const remoteHandleId = formatId({
         number: /** @type {import('./types.js').FormulaNumber} */ (
           remoteHandleNumber
@@ -1534,21 +1528,21 @@ export const makeHostMaker = ({
       return peerInfo;
     };
 
-    /** @type {EndoHost['locateForSharing']} */
-    const locateForSharing = async (...petNamePath) => {
+    /** @type {EndoHost['locateWithHints']} */
+    const locateWithHints = async (...petNamePath) => {
       return E(directory).locate(...petNamePath);
     };
 
     /** @type {EndoHost['adoptFromLocator']} */
     const adoptFromLocator = async (locator, petNameOrPath) => {
       const { namePath } = petNamePathFrom(petNameOrPath);
-      const { id, addresses } = internalizeLocator(locator);
-      if (addresses.length > 0) {
+      const { id, hints } = internalizeLocator(locator);
+      if (hints.length > 0) {
         const { node: nodeNumber } = parseId(id);
         /** @type {PeerInfo} */
         const peerInfo = {
           node: nodeNumber,
-          addresses,
+          addresses: hints,
         };
         await addPeerInfo(peerInfo);
       }
@@ -1926,7 +1920,7 @@ export const makeHostMaker = ({
       addPeerInfo,
       listKnownPeers,
       followPeerChanges,
-      locateForSharing,
+      locateWithHints,
       adoptFromLocator,
       deliver,
       makeChannel: makeChannelCmd,

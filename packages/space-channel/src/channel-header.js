@@ -111,7 +111,7 @@ harden(lockoutMsToSlider);
 
 /**
  * Resolve a shareable `endo://` locator for a channel pet name, preferring the
- * host's `locateForSharing` and falling back to `locate` (guest / directory).
+ * host's `locateWithHints` and falling back to `locate` (guest / directory).
  * Returns null if no usable locator can be produced.
  *
  * @param {unknown} powers
@@ -123,10 +123,10 @@ const resolveLocator = async (powers, channelPetName, viewMode) => {
   let rawLocator;
   try {
     rawLocator = await E(
-      /** @type {{ locateForSharing: (...args: string[]) => Promise<string> }} */ (
+      /** @type {{ locateWithHints: (...args: string[]) => Promise<string> }} */ (
         powers
       ),
-    ).locateForSharing(channelPetName);
+    ).locateWithHints(channelPetName);
   } catch {
     rawLocator = await E(
       /** @type {{ locate: (...args: string[]) => Promise<string> }} */ (

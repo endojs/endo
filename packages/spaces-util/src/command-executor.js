@@ -678,7 +678,7 @@ export const createCommandExecutor = ({
           console.log(
             `[Chat] Generating shareable locator for "${petNameStr}"...`,
           );
-          const locator = await E(powers).locateForSharing(...pathParts);
+          const locator = await E(powers).locateWithHints(...pathParts);
           if (!locator) {
             throw new Error(`No value found for "${petNameStr}"`);
           }

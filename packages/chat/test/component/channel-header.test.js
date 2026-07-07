@@ -123,8 +123,8 @@ const makeMocks = ({ members = [], heatConfig = null } = {}) => {
   });
 
   const powers = Far('Powers', {
-    locateForSharing(petName) {
-      calls.push({ method: 'locateForSharing', args: [petName] });
+    locateWithHints(petName) {
+      calls.push({ method: 'locateWithHints', args: [petName] });
       return Promise.resolve(`endo://localhost/?id=${petName}`);
     },
     locate(petName) {
@@ -313,9 +313,9 @@ test.serial(
 
     click($container.querySelector('[data-action="link"]'));
 
-    await waitFor(() => calls.some(c => c.method === 'locateForSharing'));
+    await waitFor(() => calls.some(c => c.method === 'locateWithHints'));
     t.true(
-      calls.some(c => c.method === 'locateForSharing'),
+      calls.some(c => c.method === 'locateWithHints'),
       'should resolve a shareable locator',
     );
     await waitFor(() => !$container.querySelector('.invite-delivery-modal'));

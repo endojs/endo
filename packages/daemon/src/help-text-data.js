@@ -134,8 +134,8 @@ export const helpTextEntries = harden([
         "getPeerInfo() -> Promise<{node: string, addresses: string[]}>\nGet this node's peer information for sharing with others.",
       addPeerInfo:
         'addPeerInfo(peerInfo) -> Promise<void>\nAdd information about a remote peer.\npeerInfo: { node: string, addresses: string[] }',
-      locateForSharing:
-        'locateForSharing(...petNamePath) -> Promise<string | undefined>\nLocate a formula and return a locator URL with connection hints.\nThe returned locator includes network addresses from all registered netlayers,\nallowing remote peers to connect and access the value.\nExample: locateForSharing("my-channel") returns a shareable locator URL.',
+      locateWithHints:
+        'locateWithHints(...petNamePath) -> Promise<string | undefined>\nLocate a formula and return a locator URL with connection hints.\nThe returned locator includes network addresses from all registered netlayers,\nallowing remote peers to connect and access the value.\nExample: locateWithHints("my-channel") returns a shareable locator URL.',
       adoptFromLocator:
         'adoptFromLocator(locator, petNameOrPath) -> Promise<void>\nAdopt a value from a locator that includes connection hints.\nParses the locator to extract peer info, establishes a connection if needed,\nand writes the formula ID into the local pet store.\nExample: adoptFromLocator("endo://node.../formula@hint?type=channel", "remote-channel")',
       invite:

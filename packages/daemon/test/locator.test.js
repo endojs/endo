@@ -6,6 +6,8 @@ import {
   assertValidLocator,
   formatLocator,
   formatLocatorForSharing,
+  formatLocatorWithHints,
+  hintsFromLocator,
   idFromLocator,
   parseLocator,
   externalizeId,
@@ -130,38 +132,46 @@ test('parseLocator - hint containing `/` and `?` round-trips', t => {
   t.deepEqual(parsed.hints, [hint]);
 });
 
-test('formatLocatorForSharing', t => {
+test('formatLocatorWithHints', t => {
   const id = formatId({ number: validId, node: validNode });
-  const addresses = ['iroh+captp0:///peer1', 'tcp+captp0://127.0.0.1:8940'];
-  const locator = formatLocatorForSharing(id, validType, addresses);
+  const hints = ['iroh+captp0:///peer1', 'tcp+captp0://127.0.0.1:8940'];
+  const locator = formatLocatorWithHints(id, validType, hints);
   t.true(locator.startsWith('endo://'));
   const parsed = parseLocator(locator);
   t.is(parsed.number, validId);
   t.is(parsed.node, validNode);
   t.is(parsed.formulaType, validType);
-  t.deepEqual(parsed.hints, addresses);
-  const extractedAddresses = addressesFromLocator(locator);
-  t.deepEqual(extractedAddresses, addresses);
+  t.deepEqual(parsed.hints, hints);
+  const extractedHints = hintsFromLocator(locator);
+  t.deepEqual(extractedHints, hints);
 });
 
-test('formatLocatorForSharing - no addresses', t => {
+test('formatLocatorWithHints - no hints', t => {
   const id = formatId({ number: validId, node: validNode });
-  const locator = formatLocatorForSharing(id, validType, []);
+  const locator = formatLocatorWithHints(id, validType, []);
   t.is(locator, formatLocator(id, validType));
-  t.deepEqual(addressesFromLocator(locator), []);
+  t.deepEqual(hintsFromLocator(locator), []);
 });
 
-test('formatLocatorForSharing - hint with `@` round-trips', t => {
+test('formatLocatorWithHints - hint with `@` round-trips', t => {
   const id = formatId({ number: validId, node: validNode });
-  const addresses = ['tcp:user@example.com:8920'];
-  const locator = formatLocatorForSharing(id, validType, addresses);
+  const hints = ['tcp:user@example.com:8920'];
+  const locator = formatLocatorWithHints(id, validType, hints);
   // The `@` inside the hint is URL-encoded so it does not split the path.
   t.true(locator.includes('user%40example.com'));
-  t.deepEqual(addressesFromLocator(locator), addresses);
+  t.deepEqual(hintsFromLocator(locator), hints);
 });
 
-test('addressesFromLocator - plain locator returns empty', t => {
-  t.deepEqual(addressesFromLocator(makeLocator()), []);
+test('hintsFromLocator - plain locator returns empty', t => {
+  t.deepEqual(hintsFromLocator(makeLocator()), []);
+});
+
+test('previous connection-hint helper names remain aliases', t => {
+  const id = formatId({ number: validId, node: validNode });
+  const hints = ['tcp:user@example.com:8920'];
+  const locator = formatLocatorForSharing(id, validType, hints);
+  t.is(locator, formatLocatorWithHints(id, validType, hints));
+  t.deepEqual(addressesFromLocator(locator), hintsFromLocator(locator));
 });
 
 // --- externalizeId, internalizeLocator ---
@@ -233,10 +243,11 @@ test('externalizeId / internalizeLocator round-trip preserves remote node', t =>
 
 test('internalizeLocator extracts connection hints', t => {
   const id = formatId({ number: validId, node: validNode });
-  const addresses = ['tcp://127.0.0.1:8940', 'ws://example.com'];
-  const locator = formatLocatorForSharing(id, validType, addresses);
+  const hints = ['tcp://127.0.0.1:8940', 'ws://example.com'];
+  const locator = formatLocatorWithHints(id, validType, hints);
   const result = internalizeLocator(locator);
-  t.deepEqual(result.addresses, addresses);
+  t.deepEqual(result.hints, hints);
+  t.deepEqual(result.addresses, hints);
 });
 
 // --- Format verification ---

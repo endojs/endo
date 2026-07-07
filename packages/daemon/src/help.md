@@ -435,12 +435,12 @@ Get this node's peer information for sharing with others.
 Add information about a remote peer.
 peerInfo: { node: string, addresses: string[] }
 
-## locateForSharing(...petNamePath) -> Promise<string | undefined>
+## locateWithHints(...petNamePath) -> Promise<string | undefined>
 
 Locate a formula and return a locator URL with connection hints.
 The returned locator includes network addresses from all registered netlayers,
 allowing remote peers to connect and access the value.
-Example: locateForSharing("my-channel") returns a shareable locator URL.
+Example: locateWithHints("my-channel") returns a shareable locator URL.
 
 ## adoptFromLocator(locator, petNameOrPath) -> Promise<void>
 

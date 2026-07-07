@@ -1600,8 +1600,8 @@ export interface EndoHost extends EndoAgent {
     intervalMs: number,
     label?: string,
   ): Promise<unknown>;
-  /** Locate a formula with connection hints for sharing with remote peers. */
-  locateForSharing(...petNamePath: string[]): Promise<string | undefined>;
+  /** Locate a formula with connection hints. */
+  locateWithHints(...petNamePath: string[]): Promise<string | undefined>;
   /** Adopt a value from a locator that includes connection hints. */
   adoptFromLocator(
     locator: string,
