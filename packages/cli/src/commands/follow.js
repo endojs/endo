@@ -1,5 +1,3 @@
-/* global process */
-
 import os from 'os';
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon';

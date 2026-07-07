@@ -1,5 +1,3 @@
-/* global globalThis */
-
 // The post lockdown thunk.
 export default () => {
   // Even on non-v8, we tame the start compartment's Error constructor so

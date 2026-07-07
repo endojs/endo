@@ -1,4 +1,3 @@
-/* eslint-disable no-underscore-dangle */
 // import "./ses-lockdown.js";
 import 'ses';
 import test from 'ava';

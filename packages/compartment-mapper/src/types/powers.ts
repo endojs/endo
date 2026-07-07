@@ -7,8 +7,6 @@
  * @module
  */
 
-/* eslint-disable no-use-before-define */
-
 import type { SomeObject } from './typescript.js';
 
 // #region read

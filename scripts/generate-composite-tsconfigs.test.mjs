@@ -1,4 +1,3 @@
-/* eslint-disable @jessie.js/safe-await-separator */
 /**
  * Tests for {@link generate-composite-tsconfigs.mjs}
  *

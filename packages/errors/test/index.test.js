@@ -4,7 +4,9 @@ import test from 'ava';
 import { assert, throwRedacted } from '../index.js';
 
 test('throwRedacted', t => {
+  // eslint-disable-next-line no-constant-binary-expression
   t.notThrows(() => true || throwRedacted`Should not be thrown`);
+  // eslint-disable-next-line no-constant-binary-expression
   t.throws(() => false || throwRedacted`Should be thrown`, {
     message: 'Should be thrown',
   });

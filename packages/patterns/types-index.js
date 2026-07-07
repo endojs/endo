@@ -18,5 +18,5 @@ import {
 const _matchesCompat = _m;
 /** @type {(specimen: unknown, patt: import('./src/types.js').Pattern, label?: string | number) => void} */
 const _mustMatchCompat = _mm;
-// eslint-disable-next-line no-void
+
 (void _matchesCompat, _mustMatchCompat);

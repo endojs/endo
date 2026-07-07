@@ -1,5 +1,5 @@
 // @ts-check
-/* global globalThis, window, document */
+/* global window, document */
 
 import '@endo/init/debug.js';
 import harden from '@endo/harden';

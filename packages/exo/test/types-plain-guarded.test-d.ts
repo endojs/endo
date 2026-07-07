@@ -1,4 +1,4 @@
-/* eslint-disable no-lone-blocks, no-empty-function */
+/* eslint-disable no-empty-function */
 import { expectAssignable, expectType } from 'tsd';
 import type { Passable, RemotableObject } from '@endo/pass-style';
 import type { RemotableBrand } from '@endo/eventual-send';

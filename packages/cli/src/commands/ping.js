@@ -1,4 +1,3 @@
-/* global process */
 import os from 'os';
 import { E } from '@endo/far';
 import { whereEndoSock } from '@endo/where';

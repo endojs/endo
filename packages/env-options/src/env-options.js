@@ -1,4 +1,3 @@
-/* global globalThis */
 // @ts-check
 
 // `@endo/env-options` needs to be imported quite early, and so should
@@ -84,7 +83,7 @@ export const makeEnvironmentCaptor = (aGlobal, dropNames = false) => {
           arrayPush(capturedEnvironmentOptionNames, optionName);
         }
         const optionValue = globalEnv[optionName];
-        // eslint-disable-next-line @endo/no-polymorphic-call
+
         typeof optionValue === 'string' ||
           Fail`Environment option named ${q(
             optionName,

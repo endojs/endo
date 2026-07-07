@@ -221,7 +221,6 @@ const makeArchiveImportHookMaker = (
         });
       }
 
-      // eslint-disable-next-line no-await-in-loop
       const { record } = await parse(
         moduleBytes,
         moduleSpecifier,

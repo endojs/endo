@@ -1,4 +1,3 @@
-/* global globalThis */
 // This module assumes the existence of a non-standard `assert` host object.
 // SES version 0.11.0 introduces this global object and entangles it
 // with the `console` host object in scope when it initializes,

@@ -88,7 +88,7 @@ export const make = async (_powers, context) => {
         } else if (request.url === `/${accessToken}/bootstrap.js`) {
           // TODO readable mutable file formula (with watcher?)
           // Behold, recursion:
-          // eslint-disable-next-line no-use-before-define
+
           return {
             status: 200,
             headers: { 'Content-Type': 'application/javascript' },

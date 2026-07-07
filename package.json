@@ -31,6 +31,7 @@
     "eslint-plugin-jsdoc": "^50.8.0",
     "eslint-plugin-unicorn": "^56.0.1",
     "globals": "^17.6.0",
+    "js-yaml": "^5.2.1",
     "prettier": "^3.8.3",
     "ses": "workspace:^",
     "source-map": "^0.7.6",

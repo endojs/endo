@@ -58,13 +58,13 @@ const sameValueZero = (x, y) => x === y || is(x, y);
  * @returns {RankComparison}
  */
 const trivialComparator = (left, right) =>
-  // eslint-disable-next-line no-nested-ternary, @endo/restrict-comparison-operands
+  // eslint-disable-next-line no-nested-ternary
   left < right ? -1 : left === right ? 0 : 1;
 harden(trivialComparator);
 
 // Apparently eslint confused about whether the function can ever exit
 // without an explicit return.
-// eslint-disable-next-line jsdoc/require-returns-check
+
 /**
  * @param {string} left
  * @param {string} right
@@ -104,9 +104,8 @@ harden(compareByCodePoints);
  * @returns {RankComparison}
  */
 export const compareNumerics = (left, right) => {
-  // eslint-disable-next-line @endo/restrict-comparison-operands
   if (left < right) return -1;
-  // eslint-disable-next-line @endo/restrict-comparison-operands
+
   if (left > right) return 1;
   if (NumberIsNaN(left) === NumberIsNaN(right)) return 0;
   if (NumberIsNaN(right)) return -1;
@@ -194,9 +193,7 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
         passStyleRanks[rightStyle].index,
       );
     }
-    /* eslint-disable @endo/restrict-comparison-operands --
-     * We know `left` and `right` are comparable.
-     */
+
     switch (leftStyle) {
       case 'remotable': {
         return compareRemotables(left, right);
@@ -327,7 +324,6 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
         throw Fail`Unrecognized passStyle: ${q(leftStyle)}`;
       }
     }
-    /* eslint-enable */
   };
 
   /** @type {RankCompare} */

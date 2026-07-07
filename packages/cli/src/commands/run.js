@@ -1,4 +1,3 @@
-/* global globalThis, process */
 import url from 'url';
 import os from 'os';
 import harden from '@endo/harden';

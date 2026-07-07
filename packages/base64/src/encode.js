@@ -1,6 +1,5 @@
 // @ts-check
 /* eslint no-bitwise: ["off"] */
-/* global globalThis */
 
 import { alphabet64, padding } from './common.js';
 

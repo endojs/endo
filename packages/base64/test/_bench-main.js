@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* eslint-disable no-restricted-globals */
+
 /* global print */
 
 // This is a quick and dirty benchmark to encode and decode base64, intended to
@@ -23,9 +23,7 @@ async function main() {
       if (performance.now) {
         return performance.now.bind(performance);
       }
-    } catch (_err) {
-      // eslint-disable-next-line no-empty
-    }
+    } catch (_err) {}
     return Date.now;
   })();
 

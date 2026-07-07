@@ -36,7 +36,7 @@ export const servePrivatePortHttp = (
       } else if (request.url === '/bootstrap.js') {
         // TODO readable mutable file formula (with watcher?)
         // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
+
         const webPageJs = await E(endoBootstrap).webPageJs();
         return {
           status: 200,
@@ -97,7 +97,7 @@ export const servePrivatePortHttp = (
           throw new Error(`Invalid host ${host}`);
         }
         const [_, formulaNumber, portNumber] = match;
-        // eslint-disable-next-line no-use-before-define
+
         if (assignedHttpPort !== +portNumber) {
           console.error(
             'Connected browser misreported port number in host header',
@@ -110,7 +110,6 @@ export const servePrivatePortHttp = (
               console.error(error);
             });
         } else {
-          // eslint-disable-next-line no-use-before-define
           E(endoBootstrap)
             .importAndEndowInWebPage(webBootstrap, formulaNumber)
             .catch(error => {

@@ -20,9 +20,9 @@ if (typeof abandon === 'function') {
   /** @param {Error} reason */
   raise = reason => {
     // Check `console` each time `raise` is called.
-    // eslint-disable-next-line no-restricted-globals
+
     if (typeof console === 'object' && typeof console.error === 'function') {
-      // eslint-disable-next-line @endo/no-polymorphic-call, no-restricted-globals
+      // eslint-disable-next-line @endo/no-polymorphic-call
       console.error('Failed because:', reason);
     }
     abandon(1);

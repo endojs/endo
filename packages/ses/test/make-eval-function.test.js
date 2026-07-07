@@ -1,5 +1,3 @@
-/* global globalThis */
-
 import '../index.js';
 import './_lockdown-safe.js';
 import test from 'ava';
