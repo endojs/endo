@@ -1,5 +1,3 @@
-/* global setImmediate */
-
 /* A note on our GC terminology:
  *
  * We define four states for any JS object to be in:

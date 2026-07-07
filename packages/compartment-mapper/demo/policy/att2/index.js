@@ -5,6 +5,7 @@ const { create, assign, fromEntries, entries, defineProperties } = Object;
 
 // minimal implementation of LavaMoat-style globals attenuator with write propagation
 let globalOverrides = create(null);
+// eslint-disable-next-line no-shadow-restricted-names
 export const attenuateGlobals = (params, originalObject, globalThis) => {
   const policy = params[0];
   console.log('Attenuator2 called', params);

@@ -76,7 +76,6 @@ export {
   getNamedMethodGuards,
 } from './src/patterns/getGuardPayloads.js';
 
-// eslint-disable-next-line import/export
 export * from './types-index.js';
 
 // /////////////////////////// Deprecated //////////////////////////////////////

@@ -1,4 +1,3 @@
-/* eslint-disable no-shadow */
 /* eslint-disable import/no-dynamic-require */
 
 /**

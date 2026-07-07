@@ -1,4 +1,3 @@
-/* global globalThis, process */
 import fs from 'fs';
 import url from 'url';
 import os from 'os';

@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global globalThis */
 
 import test from 'ava';
 import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';

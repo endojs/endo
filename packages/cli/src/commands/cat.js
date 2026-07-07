@@ -1,5 +1,3 @@
-/* global process */
-
 import os from 'os';
 import { E } from '@endo/eventual-send';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';

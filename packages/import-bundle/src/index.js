@@ -1,4 +1,3 @@
-/* global globalThis */
 /// <reference types="ses"/>
 
 import harden from '@endo/harden';

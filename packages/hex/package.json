@@ -66,11 +66,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ]
-  },
   "typeCoverage": {
     "atLeast": 95
   }

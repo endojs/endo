@@ -13,7 +13,6 @@
  * @module
  */
 
-/* global globalThis */
 /* eslint-disable no-restricted-globals */
 
 // We cannot use globalThis as the local name since it would capture the

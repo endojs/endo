@@ -9,7 +9,7 @@ const throws = thunk => {
   try {
     thunk();
     return false;
-  } catch (er) {
+  } catch (_err) {
     return true;
   }
 };

@@ -1,4 +1,3 @@
-/* global globalThis */
 import {
   getEnvironmentOption,
   environmentOptionsListHas,

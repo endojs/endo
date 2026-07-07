@@ -1,5 +1,3 @@
-/* global globalThis */
-
 // Modeled on `PassStyleOfEndowmentSymbol` of `@endo/pass-style`.
 export const PanicEndowmentSymbol = Symbol.for('@endo panic');
 

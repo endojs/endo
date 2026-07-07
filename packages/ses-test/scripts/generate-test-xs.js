@@ -1,4 +1,3 @@
-/* eslint-env node */
 import 'ses';
 import { promises as fs } from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';

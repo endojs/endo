@@ -1,5 +1,3 @@
-/* global process */
-
 process.env.ENDO_DELIVERY_BREAKPOINTS = `{
   "Bob": {
     "foo": "*"

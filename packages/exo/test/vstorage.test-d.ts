@@ -1,4 +1,3 @@
-/* eslint-disable no-lone-blocks, no-empty-function */
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { expectAssignable, expectType } from 'tsd';
 

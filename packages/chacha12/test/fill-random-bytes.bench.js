@@ -1,6 +1,4 @@
-/* eslint-disable no-bitwise, @endo/restrict-comparison-operands, no-fallthrough, default-case, no-plusplus, no-continue */
-/* global process */
-
+/* eslint-disable no-bitwise, no-fallthrough, default-case, no-plusplus, no-continue */
 // Benchmark: candidate inner-loop variants for the byte copy in
 // `fillRandomBytes` (`packages/chacha12/src/chacha12.js`).
 // The current implementation copies keystream bytes one at a time:

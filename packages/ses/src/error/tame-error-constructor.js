@@ -46,7 +46,7 @@ export default function tameErrorConstructor(
      * @this {ErrorConstructor}
      * @param {...any} rest
      */
-    // eslint-disable-next-line no-shadow
+
     const ResultError = function Error(...rest) {
       let error;
       if (new.target === undefined) {

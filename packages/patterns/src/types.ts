@@ -1,5 +1,4 @@
 /// <reference types="ses"/>
-/* eslint-disable no-use-before-define */
 
 import type { Rejector } from '@endo/errors/rejector.js';
 import type { RemotableBrand } from '@endo/eventual-send';

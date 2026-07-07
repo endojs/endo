@@ -1,4 +1,3 @@
-/* global globalThis */
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test from '@endo/ses-ava/test.js';
 

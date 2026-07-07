@@ -6,6 +6,7 @@
     "src/exports.d.ts",
     "src/types.ts",
     "test",
-    "!**/*.d.ts"
+    "!**/*.d.ts",
+    "bin/bundle-source.cjs"
   ]
 }

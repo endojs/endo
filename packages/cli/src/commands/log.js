@@ -1,5 +1,4 @@
 // @ts-check
-/* global process, setTimeout, clearTimeout, setInterval, clearInterval, Buffer */
 /* eslint-disable no-await-in-loop */
 
 import fs from 'fs';

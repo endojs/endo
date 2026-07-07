@@ -1,3 +1,4 @@
+/* eslint-disable no-shadow-restricted-names */
 /**
  * Provides mechanisms for interacting with Compartment Map runtime policies.
  *

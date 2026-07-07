@@ -1,6 +1,5 @@
 // @ts-nocheck
 /// <reference types="ses"/>
-/* global globalThis */
 
 import test from 'ava';
 import { repairIntrinsics } from '../src/lockdown.js';

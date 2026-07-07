@@ -1,4 +1,3 @@
-/* global process */
 /* eslint-disable no-continue */
 
 import os from 'os';

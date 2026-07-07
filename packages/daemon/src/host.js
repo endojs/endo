@@ -1368,7 +1368,6 @@ export const makeHostMaker = ({
           : `unconfined:${specifier}`);
 
       // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
       const { value } = await formulateUnconfined(
         hostId,
         handleId,

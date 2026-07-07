@@ -7,8 +7,6 @@
 // The archive may need to be regenerated if the test fixture and assertions
 // have been changed.
 
-/* global process */
-
 import 'ses';
 import fs from 'fs';
 import crypto from 'crypto';

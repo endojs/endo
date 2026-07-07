@@ -3,8 +3,6 @@
 // This script demonstrates the use of computeSourceMapLocation in Node.js to
 // employ the Endo source map cache for debugging.
 
-/* eslint-disable */
-
 import 'ses';
 import url from 'url';
 import bundleSource from '@endo/bundle-source';

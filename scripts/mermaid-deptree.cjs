@@ -1,4 +1,3 @@
-/* eslint-env es2022, node */
 // @ts-check
 
 /**
@@ -15,11 +14,12 @@
  *
  * @module
  */
-const { Stats } = require('node:fs');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const PACKAGE_JSON = 'package.json';
+
+/** @import {Stats} from 'node:fs'; */
 
 /**
  * Dependency type
@@ -42,6 +42,25 @@ const PACKAGE_JSON = 'package.json';
  *
  * @typedef {Record<string, Node[]>} DependencyGraph
  */
+
+/**
+ * Asserts the given path `dir` points to a directory.
+ * @param {string} dir
+ * @returns {Promise<void>}
+ */
+const assertIsDir = async dir => {
+  /** @type {Stats} */
+  let stat;
+  try {
+    stat = await fs.stat(dir);
+  } catch (error) {
+    throw new Error(`Error: "${dir}" does not exist`, { cause: error });
+  }
+
+  if (!stat.isDirectory()) {
+    throw new Error(`"${dir}" is not a directory`);
+  }
+};
 
 /**
  * Recursively reads all `package.json` files in the `node_modules` directory
@@ -169,6 +188,9 @@ config:
         case 'optionalPeer':
           line += `-.-`;
           break;
+        default:
+          console.error(`Ignoring unknown dependency type: ${type}`);
+          return;
       }
       if (type !== 'production') {
         line += ` |"\`_${type}_\`"|`;
@@ -181,25 +203,6 @@ config:
   lines.push('classDef default white-space:nowrap', '```');
   return lines.join('\n');
 }
-
-/**
- * Asserts the given path `dir` points to a directory.
- * @param {string} dir
- * @returns {Promise<void>}
- */
-const assertIsDir = async dir => {
-  /** @type {Stats} */
-  let stat;
-  try {
-    stat = await fs.stat(dir);
-  } catch (error) {
-    throw new Error(`Error: "${dir}" does not exist`, { cause: error });
-  }
-
-  if (!stat.isDirectory()) {
-    throw new Error(`"${dir}" is not a directory`);
-  }
-};
 
 const printUsage = () => {
   console.error(

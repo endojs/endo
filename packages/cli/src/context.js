@@ -1,5 +1,3 @@
-/* global process */
-
 import { makeCancelKit } from '@endo/cancel';
 import { E } from '@endo/eventual-send';
 import { whereEndoSock } from '@endo/where';

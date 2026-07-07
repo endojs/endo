@@ -1,5 +1,3 @@
-/* global globalThis */
-
 import '../index.js';
 import './_lockdown-safe.js';
 import test from 'ava';
@@ -47,10 +45,8 @@ test('globalObject', t => {
   const descs = Object.getOwnPropertyDescriptors(globalObject);
   for (const [name, desc] of Object.entries(descs)) {
     if (name === 'Infinity') {
-      // eslint-disable-next-line no-restricted-globals
       t.true(!isFinite(desc.value), `${name} should be Infinity`);
     } else if (name === 'NaN') {
-      // eslint-disable-next-line no-restricted-globals
       t.true(isNaN(desc.value), `${name} should be NaN`);
     } else if (name === 'undefined') {
       t.is(desc.value, undefined, `${name} should be undefined`);

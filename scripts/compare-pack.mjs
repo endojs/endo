@@ -25,10 +25,22 @@
  * the current checkout is untouched.
  */
 import { execFile, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  readFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+
+/**
+ * @import {SpawnOptions} from 'node:child_process';
+ */
 
 const execFileAsync = promisify(execFile);
 
@@ -70,14 +82,26 @@ const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 // not honor shell aliases/functions or per-directory PATH hooks (direnv, nvm,
 // vite-plus, volta), so a bare `'yarn'` ENOENTs in setups where the interactive
 // shell injects yarn lazily. Pin both worktrees to the same real binary.
+// eslint-disable-next-line consistent-return
 const resolveYarn = async () => {
   // 1. vite-plus stashes yarn at a deterministic path keyed by the version in
   //    `package.json#packageManager`. Prefer this so we get the exact pinned
   //    version even when nothing's on PATH.
-  const pkg = JSON.parse(readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+  const pkg = JSON.parse(
+    readFileSync(path.join(repoRoot, 'package.json'), 'utf8'),
+  );
   const m = /^yarn@(\d[\w.-]*)/.exec(pkg.packageManager ?? '');
   if (m) {
-    const vitePlus = path.join(process.env.HOME ?? '', '.vite-plus', 'package_manager', 'yarn', m[1], 'yarn', 'bin', 'yarn');
+    const vitePlus = path.join(
+      process.env.HOME ?? '',
+      '.vite-plus',
+      'package_manager',
+      'yarn',
+      m[1],
+      'yarn',
+      'bin',
+      'yarn',
+    );
     if (existsSync(vitePlus)) return vitePlus;
   }
   // 2. Fall back to PATH lookup for contributors not using vite-plus.
@@ -86,29 +110,29 @@ const resolveYarn = async () => {
     const p = stdout.trim();
     if (p) return p;
   } catch {}
-  process.stderr.write('compare-pack: could not find `yarn` (not on PATH and not in ~/.vite-plus)\n');
+  process.stderr.write(
+    'compare-pack: could not find `yarn` (not on PATH and not in ~/.vite-plus)\n',
+  );
   process.exit(127);
 };
 const yarnBin = await resolveYarn();
 
-/** Inherit stdio; reject on non-zero exit. */
+/**
+ * Run a command, inheriting stdio; reject on non-zero exit.
+ * @param {string} cmd
+ * @param {string[]} argv
+ * @param {SpawnOptions} options
+ */
 const run = (cmd, argv, options = {}) =>
   new Promise((resolve, reject) => {
     const child = spawn(cmd, argv, { stdio: 'inherit', ...options });
     child.once('error', reject);
     child.once('exit', code =>
-      code === 0 ? resolve() : reject(new Error(`${cmd} ${argv.join(' ')} exited with ${code}`)),
+      code === 0
+        ? resolve()
+        : reject(new Error(`${cmd} ${argv.join(' ')} exited with ${code}`)),
     );
   });
-
-/** Capture stdout; reject on non-zero exit. */
-const capture = async (cmd, argv, options = {}) => {
-  const { stdout } = await execFileAsync(cmd, argv, {
-    maxBuffer: 64 * 1024 * 1024,
-    ...options,
-  });
-  return stdout;
-};
 
 const workRoot = mkdtempSync(path.join(tmpdir(), 'endo-pack-compare-'));
 const legacyRoot = path.join(workRoot, 'legacy-worktree');
@@ -126,7 +150,12 @@ const cleanup = () => {
   }
   // Worktree must be removed via git so .git/worktrees metadata is cleaned.
   try {
-    execFile('git', ['worktree', 'remove', '--force', legacyRoot], { cwd: repoRoot }, () => {});
+    execFile(
+      'git',
+      ['worktree', 'remove', '--force', legacyRoot],
+      { cwd: repoRoot },
+      () => {},
+    );
   } catch {}
   try {
     rmSync(workRoot, { recursive: true, force: true });
@@ -138,19 +167,34 @@ process.on('SIGINT', () => process.exit(130));
 // ---- Build legacy tarballs from `--ref` --------------------------------
 
 process.stderr.write(`compare-pack: creating worktree at ${ref}...\n`);
-await run('git', ['worktree', 'add', '--detach', legacyRoot, ref], { cwd: repoRoot });
+await run('git', ['worktree', 'add', '--detach', legacyRoot, ref], {
+  cwd: repoRoot,
+});
 
-process.stderr.write('compare-pack: yarn install in legacy worktree (this is slow)...\n');
+process.stderr.write(
+  'compare-pack: yarn install in legacy worktree (this is slow)...\n',
+);
 await run(yarnBin, ['install', '--immutable'], { cwd: legacyRoot });
 
-process.stderr.write('compare-pack: running legacy pack flow (prepack + yarn pack)...\n');
+process.stderr.write(
+  'compare-pack: running legacy pack flow (prepack + yarn pack)...\n',
+);
 // Match what master's CI ran: per-workspace `yarn pack` (which honors
 // prepack/postpack hooks). Use `workspaces foreach <subcommand>` rather than
 // `exec yarn …` so we don't spawn an inner bare `yarn` — that would ENOENT
 // under runtime managers (vite-plus, volta) that don't put yarn on PATH.
 await run(
   yarnBin,
-  ['workspaces', 'foreach', '--all', '--no-private', '--topological', 'pack', '--out', path.join(legacyTarballs, '%s-%v.tgz')],
+  [
+    'workspaces',
+    'foreach',
+    '--all',
+    '--no-private',
+    '--topological',
+    'pack',
+    '--out',
+    path.join(legacyTarballs, '%s-%v.tgz'),
+  ],
   { cwd: legacyRoot },
 );
 
@@ -169,7 +213,10 @@ for (const name of readdirSync(path.join(repoRoot, 'dist'))) {
 
 // ---- Pair tarballs by package name -------------------------------------
 
-/** Strip the `-X.Y.Z[-pre].tgz` suffix to get a stable key. */
+/**
+ * Strip the `-X.Y.Z[-pre].tgz` suffix to get a stable key.
+ * @param {string} filename
+ */
 const keyOf = filename => filename.replace(/-\d[^/]*\.tgz$/, '');
 
 const indexDir = dir => {
@@ -187,12 +234,15 @@ const indexDir = dir => {
 const normalizeKey = k => k.replace(/^@/, '').replace('/', '-');
 
 const legacyByKey = new Map();
-for (const [k, v] of indexDir(legacyTarballs)) legacyByKey.set(normalizeKey(k), v);
+for (const [k, v] of indexDir(legacyTarballs))
+  legacyByKey.set(normalizeKey(k), v);
 const newByKey = new Map();
 for (const [k, v] of indexDir(newTarballs)) newByKey.set(normalizeKey(k), v);
 
 const allKeys = new Set([...legacyByKey.keys(), ...newByKey.keys()]);
-const keysToProcess = [...allKeys].sort().filter(k => only.size === 0 || only.has(k));
+const keysToProcess = [...allKeys]
+  .sort()
+  .filter(k => only.size === 0 || only.has(k));
 
 // ---- Per-package diff --------------------------------------------------
 
@@ -245,8 +295,8 @@ for (const key of keysToProcess) {
   const removed = [...legacyFiles].filter(f => !nextFiles.has(f)).sort();
   const common = [...nextFiles].filter(f => legacyFiles.has(f)).sort();
 
-  if (added.length) console.log('  + ' + added.join('\n  + '));
-  if (removed.length) console.log('  - ' + removed.join('\n  - '));
+  if (added.length) console.log(`  + ${added.join('\n  + ')}`);
+  if (removed.length) console.log(`  - ${removed.join('\n  - ')}`);
 
   let changedCount = 0;
   for (const rel of common) {
@@ -257,9 +307,17 @@ for (const key of keysToProcess) {
     const a = readFileSync(path.join(legacyExtract, rel));
     const b = readFileSync(path.join(nextExtract, rel));
     if (a.equals(b)) continue;
-    changedCount++;
+    changedCount += 1;
     try {
-      await run('diff', ['-u', '--label', `${ref}/${rel}`, '--label', `HEAD/${rel}`, path.join(legacyExtract, rel), path.join(nextExtract, rel)]);
+      await run('diff', [
+        '-u',
+        '--label',
+        `${ref}/${rel}`,
+        '--label',
+        `HEAD/${rel}`,
+        path.join(legacyExtract, rel),
+        path.join(nextExtract, rel),
+      ]);
     } catch {
       // diff exits 1 on differences; that's expected.
     }

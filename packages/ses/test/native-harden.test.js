@@ -1,7 +1,6 @@
 import { mockHarden, mockHardened } from './_harden-mockery.js';
 import { assertFakeFrozen } from './_lockdown-harden-unsafe.js';
 
-// eslint-disable-next-line import/order
 import test from 'ava';
 
 test('mocked globalThis.harden', t => {

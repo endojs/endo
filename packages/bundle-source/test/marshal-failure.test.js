@@ -1,4 +1,3 @@
-/* global globalThis */
 /* eslint-disable no-eval */
 // @ts-check
 import test from '@endo/ses-ava/prepare-endo.js';

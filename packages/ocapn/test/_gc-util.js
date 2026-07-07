@@ -1,6 +1,4 @@
 // @ts-check
-/* global globalThis, setTimeout, setImmediate, FinalizationRegistry */
-
 import v8 from 'node:v8';
 import vm from 'node:vm';
 

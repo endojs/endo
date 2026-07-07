@@ -90,23 +90,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "rules": {
-      "import/no-unresolved": [
-        "error",
-        {
-          "ignore": [
-            "^@endo/ocapn/",
-            "^@endo/ocapn-noise/",
-            "^@endo/ses-ava/"
-          ]
-        }
-      ]
-    }
-  },
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",

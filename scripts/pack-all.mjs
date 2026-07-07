@@ -27,6 +27,10 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * @import {SpawnOptions} from 'node:child_process';
+ */
+
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const distDir = path.join(repoRoot, 'dist');
 
@@ -58,15 +62,18 @@ const workspaces = listStdout
 if (existsSync(distDir)) rmSync(distDir, { recursive: true, force: true });
 mkdirSync(distDir, { recursive: true });
 
-/** Run a child process to completion, inheriting stdio. */
+/**
+ * Run a command, inheriting stdio; reject on non-zero exit.
+ * @param {string} cmd
+ * @param {string[]} argv
+ * @param {SpawnOptions} options
+ */
 const run = (cmd, argv, options) =>
   new Promise((resolve, reject) => {
     const child = spawn(cmd, argv, { stdio: 'inherit', ...options });
     child.once('error', reject);
     child.once('exit', code =>
-      code === 0
-        ? resolve()
-        : reject(new Error(`${cmd} exited with ${code}`)),
+      code === 0 ? resolve() : reject(new Error(`${cmd} exited with ${code}`)),
     );
   });
 

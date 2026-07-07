@@ -445,7 +445,7 @@ export const makeWebSocketNetLayer = async ({
     locationId: locationToLocationId(localLocation),
     connect,
     shutdown,
-    // eslint-disable-next-line no-underscore-dangle
+
     _debug: {
       designatorPublicKey,
     },

@@ -31,9 +31,10 @@ const { values } = parseArgs({
 const isMajor = values.major;
 const checkPins = values['check-pins'];
 const parsedMinAgeDays = Number.parseInt(values['min-age-days'] || '5', 10);
-const minAgeDays = Number.isFinite(parsedMinAgeDays) && parsedMinAgeDays > 0
-  ? parsedMinAgeDays
-  : 0;
+const minAgeDays =
+  Number.isFinite(parsedMinAgeDays) && parsedMinAgeDays > 0
+    ? parsedMinAgeDays
+    : 0;
 const minAgeMs = minAgeDays * 24 * 60 * 60 * 1000;
 const reportPath = values.report || '/tmp/action-pin-report.md';
 const resolvedReportPath = reportPath.startsWith('/')
@@ -128,7 +129,10 @@ function getCommitDate(repo, sha) {
       .trim();
     const data = JSON.parse(out);
     const dateStr =
-      data && data.commit && data.commit.committer && data.commit.committer.date;
+      data &&
+      data.commit &&
+      data.commit.committer &&
+      data.commit.committer.date;
     if (dateStr) {
       const date = new Date(dateStr);
       if (!Number.isNaN(date.getTime())) {
@@ -176,7 +180,8 @@ function visitNode(node, path, onPair) {
       const keyScalar = item.key && CST.resolveAsScalar(item.key);
       const key = keyScalar ? String(keyScalar.value) : null;
       if (key) onPair(item, path, key);
-      if (item.value) visitNode(item.value, key ? [...path, key] : path, onPair);
+      if (item.value)
+        visitNode(item.value, key ? [...path, key] : path, onPair);
     }
     return;
   }
@@ -194,7 +199,8 @@ function visitNode(node, path, onPair) {
         const keyScalar = item.key && CST.resolveAsScalar(item.key);
         const key = keyScalar ? String(keyScalar.value) : null;
         if (key) onPair(item, path, key);
-        if (item.value) visitNode(item.value, key ? [...path, key] : path, onPair);
+        if (item.value)
+          visitNode(item.value, key ? [...path, key] : path, onPair);
       }
     } else {
       for (const item of node.items || []) {
@@ -206,7 +212,12 @@ function visitNode(node, path, onPair) {
 }
 
 function isStepUsesPath(path) {
-  return path.length >= 4 && path[0] === 'jobs' && path[2] === 'steps' && path[3] === '[]';
+  return (
+    path.length >= 4 &&
+    path[0] === 'jobs' &&
+    path[2] === 'steps' &&
+    path[3] === '[]'
+  );
 }
 
 function isJobUsesPath(path) {
@@ -223,7 +234,6 @@ for (const file of files) {
   const parser = new YAML.Parser();
   const cst = [...parser.parse(original)];
   const doc = cst[0];
-  let updated = false;
   const edits = [];
 
   visitNode(doc, [], (item, nodePath, key) => {
@@ -301,7 +311,6 @@ for (const file of files) {
         newSha,
         tag,
       });
-      updated = true;
     }
 
     if (addComments && (!commentText || commentIsVersion)) {
@@ -313,7 +322,6 @@ for (const file of files) {
             end: commentToken.offset + commentToken.source.length,
             text: desiredComment,
           });
-          updated = true;
         }
         const spaceToken = value.end[commentTokenIndex - 1];
         if (!spaceToken || spaceToken.type !== 'space') {
@@ -322,14 +330,12 @@ for (const file of files) {
             end: commentToken.offset,
             text: ' ',
           });
-          updated = true;
         } else if (spaceToken.source !== ' ') {
           edits.push({
             start: spaceToken.offset,
             end: spaceToken.offset + spaceToken.source.length,
             text: ' ',
           });
-          updated = true;
         }
       } else {
         const endTokens = value.end || [];
@@ -351,9 +357,12 @@ for (const file of files) {
           const insertAt = newlineToken
             ? newlineToken.offset
             : value.offset + value.source.length;
-          edits.push({ start: insertAt, end: insertAt, text: ` ${desiredComment}` });
+          edits.push({
+            start: insertAt,
+            end: insertAt,
+            text: ` ${desiredComment}`,
+          });
         }
-        updated = true;
       }
     }
   });
@@ -369,7 +378,9 @@ if (checkPins) {
   if (unpinned.length > 0) {
     console.error('Unpinned GitHub Actions found:');
     for (const entry of unpinned) console.error(`- ${entry}`);
-    console.error('Run: node scripts/update-action-pins.mjs and commit results.');
+    console.error(
+      'Run: node scripts/update-action-pins.mjs and commit results.',
+    );
     process.exitCode = 1;
   } else {
     console.log('All GitHub Actions are pinned to SHAs.');
@@ -398,9 +409,7 @@ if (report.length > 0) {
     lines.push('');
     lines.push('## Skipped (age gate)');
     for (const entry of skipped) {
-      lines.push(
-        `- ${entry.actionPath} (${entry.tag}): ${entry.reason}`,
-      );
+      lines.push(`- ${entry.actionPath} (${entry.tag}): ${entry.reason}`);
     }
   }
   const reportText = `${lines.join('\n')}\n`;
@@ -412,9 +421,7 @@ if (report.length > 0) {
     lines.push('');
     lines.push('## Skipped (age gate)');
     for (const entry of skipped) {
-      lines.push(
-        `- ${entry.actionPath} (${entry.tag}): ${entry.reason}`,
-      );
+      lines.push(`- ${entry.actionPath} (${entry.tag}): ${entry.reason}`);
     }
   } else {
     lines.push('No changes detected.');

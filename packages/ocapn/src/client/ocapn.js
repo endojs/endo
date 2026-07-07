@@ -152,7 +152,7 @@ const makeOcapnCommsKit = ({
     for (const observer of messageObservers) {
       try {
         observer('send', message);
-      } catch (err) {
+      } catch (_err) {
         // Ignore observer errors
       }
     }

@@ -4,8 +4,6 @@
  * @module
  */
 
-/* eslint-disable no-use-before-define */
-
 import type { LiteralUnion, SomeObject } from './typescript.js';
 
 export type PackageNamingKit = {

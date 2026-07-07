@@ -1,5 +1,3 @@
-/* global globalThis */
-
 import harden from '@endo/harden';
 import { makeReleasingExecutorKit } from './src/promise-executor-kit.js';
 import { memoRace } from './src/memo-race.js';

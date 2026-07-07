@@ -1,5 +1,4 @@
 // @ts-check
-/* eslint-disable import/no-unresolved */
 
 /**
  * `useGoblinChat` — React hook that owns the OCapN-side state machine and

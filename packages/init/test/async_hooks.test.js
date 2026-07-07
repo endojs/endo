@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* global globalThis, $262, process */
+/* global $262 */
 
 // Use a package self-reference to go through the "exports" resolution
 // Use the debug-async-hooks entrypoint which includes the async_hooks patch

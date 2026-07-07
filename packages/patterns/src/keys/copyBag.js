@@ -105,7 +105,6 @@ export const confirmBagEntries = (bagEntries, reject) => {
 };
 harden(confirmBagEntries);
 
-// eslint-disable-next-line jsdoc/require-returns-check -- doesn't understand asserts
 /**
  * @param {[Passable,bigint][]} bagEntries
  * @returns {asserts bagEntries is [Passable,bigint][]}

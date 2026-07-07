@@ -53,7 +53,6 @@ export const getAnonymousIntrinsics = () => {
 
   // 21.1.5.2 The %StringIteratorPrototype% Object
 
-  // eslint-disable-next-line no-new-wrappers
   const StringIteratorObject = iterateString(new String());
   const StringIteratorPrototype = getPrototypeOf(StringIteratorObject);
 
@@ -65,7 +64,6 @@ export const getAnonymousIntrinsics = () => {
 
   // 22.1.5.2 The %ArrayIteratorPrototype% Object
 
-  // eslint-disable-next-line no-array-constructor
   const ArrayIteratorObject = iterateArray([]);
   const ArrayIteratorPrototype = getPrototypeOf(ArrayIteratorObject);
 

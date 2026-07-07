@@ -1,5 +1,4 @@
 // @ts-check
-/* eslint-disable import/no-unresolved */
 
 /**
  * Hosting helper for the goblin-chat TUI.

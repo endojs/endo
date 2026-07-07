@@ -60,11 +60,6 @@
     "*.js",
     "*.ts"
   ],
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ]
-  },
   "ava": {
     "files": [
       "test/**/*.test.js"

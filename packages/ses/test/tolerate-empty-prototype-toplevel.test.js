@@ -1,4 +1,3 @@
-/* global globalThis */
 import test from 'ava';
 import '../index.js';
 

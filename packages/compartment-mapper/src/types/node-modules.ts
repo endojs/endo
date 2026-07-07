@@ -25,7 +25,6 @@ import { ATTENUATORS_COMPARTMENT } from '../policy-format.js';
  * @see {@link https://github.com/sindresorhus/type-fest/blob/850b33c4dd292e0ff8cff039ee167d69be324fce/source/package-json.d.ts#L227-L248 | type-fest ExportConditions}
  */
 export type ExportConditions = {
-  // eslint-disable-next-line no-use-before-define
   [condition: string]: Exports;
 };
 

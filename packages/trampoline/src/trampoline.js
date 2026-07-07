@@ -4,7 +4,7 @@
  */
 const { getPrototypeOf } = Object;
 const { bind } = Function.prototype;
-const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no-polymorphic-call
+const uncurryThis = bind.bind(bind.call);
 export const { prototype: generatorPrototype } = getPrototypeOf(
   // eslint-disable-next-line no-empty-function, func-names
   function* () {},

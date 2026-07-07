@@ -1366,7 +1366,7 @@ export const compartmentMapForNodeModules_ = async (
   for (const { location: additionalLocation } of additionalLocations) {
     try {
       assertFileUrlString(additionalLocation);
-    } catch (error) {
+    } catch (_error) {
       throw new TypeError(
         `Invalid additional location: ${q(additionalLocation)}; must be a file URL string`,
       );

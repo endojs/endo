@@ -1,4 +1,3 @@
-/* global process */
 import test from 'ava';
 import { $ } from 'execa';
 import fs from 'fs';

@@ -436,7 +436,6 @@ export const makeTcpNetLayer = async ({
     sendSessionHandshake: (connection, captpVersion, selfIdentity, codec) => {
       sendHandshake(connection, selfIdentity, captpVersion, codec);
     },
-    // eslint-disable-next-line no-underscore-dangle
     _debug: {
       establishConnection: internalEstablishConnection,
     },

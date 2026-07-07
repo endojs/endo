@@ -1,5 +1,3 @@
-/* global setTimeout */
-
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeSerialJobs } from '../src/serial-jobs.js';

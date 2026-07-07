@@ -1,4 +1,3 @@
-/* global Buffer */
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { spawn } from 'child_process';

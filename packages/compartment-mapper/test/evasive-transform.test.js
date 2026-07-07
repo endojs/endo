@@ -2,7 +2,7 @@
 
 import 'ses';
 import test from 'ava';
-// eslint-disable-next-line import/no-extraneous-dependencies
+
 import { evadeCensor, evadeCensorSync } from '@endo/evasive-transform';
 import { loadLocation, importLocation } from '../src/import.js';
 

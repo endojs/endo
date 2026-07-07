@@ -1,8 +1,6 @@
 /* eslint-disable jsdoc/require-returns-type */
-/* eslint-disable jsdoc/require-param-type */
-/* eslint-disable no-redeclare */
 import { expectAssignable, expectType } from 'tsd';
-import { syncTrampoline, asyncTrampoline } from '../src/trampoline.js';
+import { asyncTrampoline, syncTrampoline } from '../src/trampoline.js';
 
 function* simple<TResult extends string | Promise<string>>(
   thunk: (arg: string) => TResult,

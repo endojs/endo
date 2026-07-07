@@ -62,11 +62,6 @@
     "src",
     "tools"
   ],
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ]
-  },
   "publishConfig": {
     "access": "public"
   },

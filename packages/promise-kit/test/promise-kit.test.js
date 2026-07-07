@@ -1,5 +1,3 @@
-/* globals globalThis, FinalizationRegistry, setImmediate */
-
 import test from 'ava';
 
 import v8 from 'node:v8';

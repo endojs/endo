@@ -1,6 +1,4 @@
 // @ts-check
-/* global setTimeout */
-
 import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { Far, makeTagged } from '@endo/marshal';
