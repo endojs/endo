@@ -108,7 +108,7 @@ export type ReadableTreeView = unknown;
  * package.
  */
 export type EndoGit = {
-  worktree: () => EndoMount;
+  worktree: () => Promise<EndoMount>;
   status: () => Promise<GitStatusEntry[]>;
   diff: (options?: GitDiffOptions) => Promise<string>;
   log: (options?: GitLogOptions) => Promise<GitCommit[]>;

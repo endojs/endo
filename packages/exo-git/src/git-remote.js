@@ -16,6 +16,7 @@ import { assertGitCredentialForUrl } from './git-credential.js';
  * @import {
  *   GitDirection,
  *   GitRemote,
+ *   GitRemoteAuditEvent,
  *   GitRemoteController,
  *   GitRemoteKit,
  *   GitRemotePolicy,

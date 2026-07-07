@@ -35,9 +35,21 @@ const OPTIONS_PROP = harden({
   description: 'Options record passed through to the underlying git command.',
 });
 
-// `RefArgShape = M.or(M.string(), M.recordOf(M.string(), M.any()))`.
+// `RefArgShape = M.or(M.string(), GitRefShape)`.
 const REF_PROP = harden({
-  anyOf: [{ type: 'string' }, { type: 'object' }],
+  anyOf: [
+    { type: 'string' },
+    {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        kind: { enum: ['branch', 'tag', 'commit', 'detached'] },
+        oid: { type: 'string' },
+      },
+      required: ['name', 'kind'],
+      additionalProperties: false,
+    },
+  ],
   description:
     'A git ref: either a ref string (branch/tag/commit/"HEAD") or a ' +
     'structured ref record.',

@@ -4,7 +4,6 @@ import { M } from '@endo/patterns';
 
 // #region Shape primitives
 
-const RefArgShape = M.or(M.string(), M.recordOf(M.string(), M.any()));
 const GitDirectionShape = M.or(M.eq('fetch'), M.eq('push'));
 
 const GitIndexStatusShape = M.or(
@@ -50,6 +49,7 @@ const GitRefShape = M.splitRecord(
     oid: M.string(),
   },
 );
+const RefArgShape = M.or(M.string(), GitRefShape);
 
 const GitCommitShape = M.splitRecord(
   {
