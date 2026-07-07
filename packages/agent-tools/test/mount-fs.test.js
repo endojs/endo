@@ -221,12 +221,16 @@ test('parameters and inputSchema advertise the mountReadText required path', t =
 
 test('rejects extra arguments before any filesystem send', async t => {
   let touched = false;
-  const filesystem = Far('UntouchedFilesystem', {
-    root() {
-      touched = true;
-      throw new Error('filesystem should not be touched');
-    },
-  });
+  const filesystem = /** @type {Filesystem} */ (
+    /** @type {unknown} */ (
+      Far('UntouchedFilesystem', {
+        root() {
+          touched = true;
+          throw new Error('filesystem should not be touched');
+        },
+      })
+    )
+  );
   const tool = makeMountReadTool(filesystem);
 
   const err = await t.throwsAsync(() =>
