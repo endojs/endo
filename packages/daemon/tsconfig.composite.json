@@ -30,6 +30,9 @@
       "path": "../exo/tsconfig.composite.json"
     },
     {
+      "path": "../exo-git/tsconfig.composite.json"
+    },
+    {
       "path": "../exo-stream/tsconfig.composite.json"
     },
     {

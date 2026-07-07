@@ -331,6 +331,10 @@ test('GitRemote passes HTTPS credential material to backend transport only', asy
   });
   const remoteController = getGitRemoteController(remote);
   t.truthy(remoteController);
+  const liveRemoteController =
+    /** @type {import('@endo/exo-git').GitRemoteController} */ (
+      remoteController
+    );
 
   t.false(JSON.stringify(await E(remote).inspect()).includes('test-token'));
   await E(remote).fetch();
@@ -351,7 +355,7 @@ test('GitRemote passes HTTPS credential material to backend transport only', asy
   await t.throwsAsync(E(remote).fetch(), {
     message: /credential .* revoked/,
   });
-  const remoteAudit = JSON.stringify(await E(remoteController).audit());
+  const remoteAudit = JSON.stringify(await E(liveRemoteController).audit());
   t.false(remoteAudit.includes('test-token'));
   t.false(remoteAudit.includes('rotated-token'));
   const credentialView = JSON.stringify(

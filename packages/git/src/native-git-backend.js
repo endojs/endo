@@ -45,7 +45,7 @@ const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
  *   GitRebaseInput,
  *   GitRef,
  *   GitRestoreOptions,
- * } from '@endo/exo-git/src/types.js'
+ * } from '@endo/exo-git'
  */
 
 /**
