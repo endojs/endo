@@ -4305,7 +4305,7 @@ const makeDaemonCore = async (
     policy,
     deferredTasks,
   ) => {
-    return /** @type {FormulateResult<unknown>} */ (
+    return /** @type {FormulateResult<import('@endo/exo-git').GitRemote>} */ (
       withFormulaGraphLock(async () => {
         await null;
         const formulaNumber = /** @type {FormulaNumber} */ (

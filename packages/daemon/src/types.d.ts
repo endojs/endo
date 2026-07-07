@@ -4,6 +4,7 @@ import type { FarRef } from '@endo/eventual-send';
 import type { CapTPOptions } from '@endo/captp';
 import type { Reader, Writer, Stream } from '@endo/stream';
 import type { PassableBytesReader, StreamNode } from '@endo/exo-stream';
+import type { GitRemote } from '@endo/exo-git';
 
 // Branded string types for pet names and special names
 declare const PetNameBrand: unique symbol;
@@ -1481,7 +1482,22 @@ export interface EndoHost extends EndoAgent {
       allowLocalFileTransport?: boolean;
       credential?: unknown;
     },
-  ): Promise<unknown>;
+  ): Promise<GitRemote>;
+  /**
+   * Host-only constructive clone. Composes a repo-less remote endpoint
+   * with an empty destination mount, returning a fresh Git cap and an
+   * origin-pre-bound GitRemote. The returned origin remote is bound
+   * for fetch and push over `refs/heads/*` only. This leaves the later
+   * guest-held GitCloner facet as an additive delegate.
+   */
+  provideGitClone(opts: {
+    destMount: EndoMount;
+    endpoint: {
+      url: string;
+      credential?: unknown;
+      allowLocalFileTransport?: boolean;
+    };
+  }): Promise<{ git: EndoGit; remote: GitRemote }>;
   /**
    * Mint a bearer-token `GitCredential` capability scoped to
    * `audience` (a URL origin) and bind it to `petName`.  Material
@@ -2467,7 +2483,7 @@ export interface DaemonCore {
     name: string,
     policy: GitRemoteFormula['policy'],
     deferredTasks: DeferredTasks<GitRemoteDeferredTaskParams>,
-  ) => FormulateResult<unknown>;
+  ) => FormulateResult<GitRemote>;
 
   formulateInvitation: (
     hostAgentId: FormulaIdentifier,
