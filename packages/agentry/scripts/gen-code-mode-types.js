@@ -118,8 +118,9 @@ writeArtifact({
   outPath: '../src/execute/git-types.js',
   exportName: 'gitCodeModeTypeDeclarations',
   descriptorFile: 'git.js',
-  sourceDoc: ` *   - git / gitReadOnly: packages/exo-git/types.d.ts (the \`EndoGit\` alias),
- *     printed by the typescript compiler API (TypeScript-canonical).`,
+  sourceDoc: ` *   - git / gitReadOnly: packages/exo-git/src/types.ts (the \`EndoGit\`
+ *     type alias), printed by the typescript compiler API
+ *     (TypeScript-canonical).`,
   declarations: buildGitTypeDeclarations(),
 });
 

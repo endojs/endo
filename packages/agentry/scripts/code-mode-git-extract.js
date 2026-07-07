@@ -3,12 +3,11 @@
 
 /**
  * Git-specific code-mode type extraction: the `git` and `gitReadOnly`
- * declarations, built with the generic TypeScript renderer
- * ({@link extractTsModuleIR}) from the hand-written `@endo/exo-git` types.
+ * declarations, built with the generic TypeScript renderer from
+ * `@endo/exo-git`'s checked TypeScript typedef source.
  *
- * `git` reads the hand-written TypeScript at `packages/exo-git/types.d.ts` (the
- * `EndoGit` alias), which is full-fidelity: named parameters, no lossy
- * positional guards. This is the TypeScript path for this exo; the divergence
+ * `git` reads `packages/exo-git/src/types.ts` (the `EndoGit` alias), which is
+ * full-fidelity: named parameters, no lossy positional guards. The divergence
  * gate keeps it from drifting from the runtime `GitInterface` guard.
  *
  * The read-only vs read-write `git` split is a code-mode prompt-surface POLICY
@@ -23,13 +22,15 @@
  * layer; the divergence gate keeps the printed git types aligned with it.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import {
-  extractTsModuleIR,
+  extractTsFileTextIR,
   renderDeclaration,
 } from './code-mode-type-extract.js';
 
-const GIT_DTS_URL = new URL('../../exo-git/types.d.ts', import.meta.url);
-const GIT_MODULE = '@endo/exo-git';
+const GIT_TYPES_TS_URL = new URL('../../exo-git/src/types.ts', import.meta.url);
 const GIT_ROOT_TYPE = 'EndoGit';
 
 /**
@@ -58,26 +59,32 @@ export const GIT_READONLY_MEMBERS = harden([
 harden(GIT_READONLY_MEMBERS);
 
 /**
- * Build the `git` and `gitReadOnly` IRs from the hand-written `EndoGit`
- * TypeScript alias; the read-only IR is the same source narrowed to
+ * Build the `git` and `gitReadOnly` IRs from the checked `EndoGit` JSDoc
+ * typedef; the read-only IR is the same source narrowed to
  * {@link GIT_READONLY_MEMBERS}.
  *
  * @returns {{ git: import('./code-mode-type-extract.js').GlobalTypeIR, gitReadOnly: import('./code-mode-type-extract.js').GlobalTypeIR }}
  */
 export const buildGitIRs = () =>
-  harden({
-    git: extractTsModuleIR({
-      dtsUrl: GIT_DTS_URL,
-      moduleName: GIT_MODULE,
-      rootType: GIT_ROOT_TYPE,
-    }),
-    gitReadOnly: extractTsModuleIR({
-      dtsUrl: GIT_DTS_URL,
-      moduleName: GIT_MODULE,
-      rootType: GIT_ROOT_TYPE,
-      memberFilter: GIT_READONLY_MEMBERS,
-    }),
-  });
+  harden(
+    (() => {
+      const fileName = fileURLToPath(GIT_TYPES_TS_URL);
+      const text = readFileSync(fileName, 'utf8');
+      return {
+        git: extractTsFileTextIR({
+          fileName,
+          text,
+          rootType: GIT_ROOT_TYPE,
+        }),
+        gitReadOnly: extractTsFileTextIR({
+          fileName,
+          text,
+          rootType: GIT_ROOT_TYPE,
+          memberFilter: GIT_READONLY_MEMBERS,
+        }),
+      };
+    })(),
+  );
 harden(buildGitIRs);
 
 /**

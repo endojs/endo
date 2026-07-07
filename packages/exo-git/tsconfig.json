@@ -3,10 +3,9 @@
   "include": [
     "*.js",
     "*.ts",
-    "prompts",
-    "providers",
-    "src",
+    "src/**/*.js",
+    "src/**/*.ts",
     "test",
-    "tools"
+    "types-index.d.ts"
   ]
 }

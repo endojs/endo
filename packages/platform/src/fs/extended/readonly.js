@@ -27,12 +27,22 @@ import {
   XattrsInterface,
 } from './type-guards.js';
 
+/**
+ * @import {
+ *   Directory,
+ *   File,
+ *   Filesystem,
+ *   NodeWatcher,
+ *   Xattrs,
+ * } from './types.js'
+ */
+
 const denied = method =>
   makeError(X`EACCES: ${method} not permitted on a read-only Filesystem`);
 
 /**
- * @param {object} inner    a endo-fs `Filesystem` cap
- * @returns {object}        a read-only `Filesystem` cap
+ * @param {Filesystem} inner a endo-fs `Filesystem` cap
+ * @returns {Filesystem} a read-only `Filesystem` cap
  */
 export const readOnly = inner => {
   // eslint-disable-next-line no-use-before-define
@@ -41,7 +51,8 @@ export const readOnly = inner => {
 harden(readOnly);
 
 /**
- * @param {object} inner
+ * @param {Filesystem} inner
+ * @returns {Filesystem}
  */
 const makeReadOnlyFilesystem = inner => {
   return makeExo('Filesystem', FilesystemInterface, {
@@ -69,7 +80,8 @@ const makeReadOnlyFilesystem = inner => {
 };
 
 /**
- * @param {object} dir
+ * @param {Directory} dir
+ * @returns {Directory}
  */
 const makeReadOnlyDirectory = dir => {
   return makeExo('Directory', DirectoryInterface, {

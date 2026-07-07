@@ -69,6 +69,9 @@
       "path": "packages/exo/tsconfig.composite.json"
     },
     {
+      "path": "packages/exo-git/tsconfig.composite.json"
+    },
+    {
       "path": "packages/exo-playwright/tsconfig.composite.json"
     },
     {
@@ -82,6 +85,9 @@
     },
     {
       "path": "packages/gateway/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/git/tsconfig.composite.json"
     },
     {
       "path": "packages/goblin-chat/tsconfig.composite.json"
@@ -142,6 +148,9 @@
     },
     {
       "path": "packages/patterns/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/platform/tsconfig.composite.json"
     },
     {
       "path": "packages/promise-kit/tsconfig.composite.json"

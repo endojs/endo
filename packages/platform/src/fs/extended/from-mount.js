@@ -14,11 +14,13 @@
 import { wrapBackend } from './wrap-backend.js';
 import { makeFromMountBackend } from './backends/from-mount-backend.js';
 
+/** @import { Filesystem } from './types.js' */
+
 /**
  * Project an `@endo/daemon` Mount cap into a endo-fs `Filesystem`.
  *
  * @param {object} rootMount
- * @returns {object}
+ * @returns {Filesystem}
  */
 export const mountAsFilesystem = rootMount =>
   wrapBackend(makeFromMountBackend(rootMount), {

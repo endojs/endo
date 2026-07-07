@@ -14,10 +14,12 @@
 import { wrapBackend } from './wrap-backend.js';
 import { makeInMemoryBackend } from './backends/in-memory-backend.js';
 
+/** @import { Filesystem } from './types.js' */
+
 /**
  * Build an in-memory `Filesystem` cap.
  *
- * @returns {object}
+ * @returns {Filesystem}
  */
 export const makeInMemoryFilesystem = () =>
   wrapBackend(makeInMemoryBackend(), { description: 'in-memory FS' });

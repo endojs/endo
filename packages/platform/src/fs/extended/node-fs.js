@@ -15,13 +15,15 @@
 import { wrapBackend } from './wrap-backend.js';
 import { makeNodeFsBackend } from './backends/node-fs-backend.js';
 
+/** @import { Filesystem } from './types.js' */
+
 /**
  * Build a `Filesystem` rooted at an absolute `rootPath` on the host
  * filesystem. Symlink containment (`realpath` must stay inside
  * `rootPath`) is enforced by the backend.
  *
  * @param {{ rootPath: string }} opts
- * @returns {object}
+ * @returns {Filesystem}
  */
 export const makeNodeFilesystem = ({ rootPath }) =>
   wrapBackend(makeNodeFsBackend({ rootPath }), {

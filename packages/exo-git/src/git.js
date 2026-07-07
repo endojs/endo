@@ -304,8 +304,9 @@ export const makeGit = ({ mount, backend, readOnly = false, lineageOf }) => {
   /** @type {EndoGit} */
   let selfExo;
 
-  const exo = makeExo('Git', GitInterface, {
-    worktree() {
+  /** @type {EndoGit} */
+  const gitMethods = {
+    async worktree() {
       return worktreeAuthority();
     },
 
@@ -404,7 +405,10 @@ export const makeGit = ({ mount, backend, readOnly = false, lineageOf }) => {
     },
 
     async log(options = {}) {
-      return backend.log(options);
+      const { ref, ...rest } = /** @type {GitLogOptions} */ (options);
+      const resolved = /** @type {GitBackendLogOptions} */ ({ ...rest });
+      if (ref !== undefined) resolved.ref = refName(ref);
+      return backend.log(resolved);
     },
 
     async show(ref) {
@@ -553,7 +557,9 @@ export const makeGit = ({ mount, backend, readOnly = false, lineageOf }) => {
       }
       return makeGit({ mount, backend, readOnly: true, lineageOf });
     },
-  });
+  };
+
+  const exo = makeExo('Git', GitInterface, gitMethods);
 
   const typed = /** @type {EndoGit} */ (/** @type {unknown} */ (exo));
   gitReadOnly.set(typed, readOnly);

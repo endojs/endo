@@ -296,7 +296,10 @@ silently excluded; their types resolve through normal `package.json`
 output locations but track build state independently. If you've run `prepack`
 for any package and then switch to the composite build (or vice versa), you
 may see TS5055 "would overwrite input file" errors caused by stale outputs.
-Run `yarn clean` to reset.
+Run `yarn clean` instead of `yarn build:types:clean` to reset in this case:
+`yarn build:types:clean` only runs TypeScript's project-reference clean, so it
+does not remove stale declaration files that TypeScript has started treating as
+inputs.
 
 ## Familiar (Electron shell)
 

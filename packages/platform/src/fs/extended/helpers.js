@@ -17,6 +17,11 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 /**
+ * @import { ERef } from '@endo/eventual-send'
+ * @import { Directory, File } from './types.js'
+ */
+
+/**
  * Walk a path from `root` segment-by-segment, returning a promise
  * that resolves to the final `Directory` or `File` cap.
  *
@@ -30,9 +35,9 @@ import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
  *
  * is one CapTP batch (two `lookup`s + one `read`), not three.
  *
- * @param {object} root  starting Directory cap (may be a promise)
+ * @param {ERef<Directory>} root  starting Directory cap
  * @param {string[]} path
- * @returns {Promise<object>}
+ * @returns {ERef<Directory | File>}
  */
 export const walk = (root, path) =>
   path.reduce((dir, name) => E(dir).lookup(name), root);

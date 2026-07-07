@@ -13,73 +13,14 @@ import { getGitBackend, isGitReadOnly } from './git.js';
 import { assertGitCredentialForUrl } from './git-credential.js';
 
 /**
- * @typedef {'fetch' | 'push'} GitDirection
- */
-
-/**
- * @typedef {object} GitRemotePolicy
- * @property {string} url
- *   Host-controlled remote endpoint URL.  Guests cannot mutate this
- *   field at call time; only `GitRemoteController.revoke()` or future
- *   controller methods adjust the binding.
- * @property {GitDirection[]} allowedDirections
- * @property {string[]} fetchRefspecs
- * @property {string[]} pushRefspecs
- * @property {string[]} [allowedBranches]
- * @property {boolean} [allowForcePush]
- * @property {boolean} [allowTags]
- * @property {boolean} [allowDelete]
- * @property {boolean} [allowLocalFileTransport]
- */
-
-/**
- * Audit-log entry shape.  Every entry carries `sequence` and `type`;
- * the additional fields are type-discriminated.  The union form below
- * narrows on `type` so consumers of `audit()` can branch without
- * casting.
- *
- * @typedef {object} GitRemoteAuditEventBase
- * @property {number} sequence
- */
-
-/**
- * @typedef {GitRemoteAuditEventBase & {
- *   type: 'create' | 'revoke' | 'policy',
- *   policy: ReturnType<() => GitRemotePolicy & { name: string }>,
- *   revoked: boolean,
- *   method?: string,
- * }} GitRemotePolicyAuditEvent
- */
-
-/**
- * @typedef {GitRemoteAuditEventBase & {
- *   type: 'fetch' | 'pull' | 'push',
- *   outcome: 'ok',
- *   updatedRefs?: unknown,
- *   integration?: 'up-to-date' | 'fast-forward' | 'merge' | 'rebase',
- *   head?: unknown,
- * }} GitRemoteOperationSuccessAuditEvent
- */
-
-/**
- * `appliedLocally` records that the pull's local integration step
- * mutated HEAD before a later policy / credential / revoke event
- * forced the operation to throw.  Callers learn the operation failed;
- * the audit log names which side effect already landed on the
- * worktree.
- *
- * @typedef {GitRemoteAuditEventBase & {
- *   type: 'fetch' | 'pull' | 'push',
- *   outcome: 'error',
- *   message: string,
- *   appliedLocally?: boolean,
- * }} GitRemoteOperationFailureAuditEvent
- */
-
-/**
- * @typedef {GitRemotePolicyAuditEvent
- *   | GitRemoteOperationSuccessAuditEvent
- *   | GitRemoteOperationFailureAuditEvent} GitRemoteAuditEvent
+ * @import {
+ *   GitDirection,
+ *   GitRemote,
+ *   GitRemoteAuditEvent,
+ *   GitRemoteController,
+ *   GitRemoteKit,
+ *   GitRemotePolicy,
+ * } from './git-remote-types.js'
  */
 
 const DEFAULT_POLICY = harden(
@@ -501,33 +442,23 @@ const remoteControllers = new WeakMap();
 const AUDIT_LIMIT = 128;
 
 /**
- * Host-private accessor: returns the controller exo paired with a
- * daemon-minted remote exo, or undefined for spoofs / fakes.
- *
- * @param {unknown} remote
- * @returns {object | undefined}
+ * @type {(remote: unknown) => GitRemoteController | undefined}
  */
 export const getGitRemoteController = remote =>
-  remoteControllers.get(/** @type {object} */ (remote));
+  /** @type {GitRemoteController | undefined} */ (
+    remoteControllers.get(/** @type {object} */ (remote))
+  );
 harden(getGitRemoteController);
 
 /**
- * Mint a paired (guest-held, host-held) facet for one remote endpoint.
- *
- * This facet is the policy gate for remote use.  It validates endpoint,
- * direction, and refspec policy before delegating to the local Git
- * backend's bounded native data plane.
- *
- * @param {object} args
- * @param {object} args.git  The local `Git` capability this remote is
- *   bound to.  Guest operations on the remote always compose with this
- *   Git; revoking the local Git collects the remote too.
- * @param {string} args.name  Remote name (typically 'origin').
- * @param {GitRemotePolicy} args.policy
- * @param {boolean} [args.revoked]
- * @param {object} [args.credential]
- * @param {(state: { policy: GitRemotePolicy, revoked: boolean }) => Promise<void> | void} [args.onStateChange]
- * @returns {{ remote: object, controller: object }}
+ * @type {(args: {
+ *   git: object,
+ *   name: string,
+ *   policy: GitRemotePolicy,
+ *   revoked?: boolean,
+ *   credential?: object,
+ *   onStateChange?: (state: { policy: GitRemotePolicy, revoked: boolean }) => Promise<void> | void,
+ * }) => GitRemoteKit}
  */
 export const makeGitRemote = ({
   git,
@@ -1213,6 +1144,11 @@ export const makeGitRemote = ({
   // Register the controller in the host-private companion map.
   remoteControllers.set(remote, controller);
 
-  return harden({ remote, controller });
+  const typedRemote = /** @type {GitRemote} */ (remote);
+  const typedController = /** @type {GitRemoteController} */ (controller);
+  return harden({
+    remote: typedRemote,
+    controller: typedController,
+  });
 };
 harden(makeGitRemote);

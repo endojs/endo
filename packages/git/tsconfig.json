@@ -3,10 +3,8 @@
   "include": [
     "*.js",
     "*.ts",
-    "prompts",
-    "providers",
-    "src",
-    "test",
-    "tools"
+    "src/**/*.js",
+    "src/**/*.ts",
+    "test"
   ]
 }

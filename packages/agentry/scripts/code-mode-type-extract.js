@@ -99,6 +99,28 @@ harden(renderDeclaration);
 // #region TypeScript renderer (`type` -> declaration, via the typescript printer)
 
 /**
+ * @param {string} fileName
+ * @param {string} text
+ * @returns {{ sourceFile: ts.SourceFile, aliasMap: Map<string, ts.TypeAliasDeclaration> }}
+ */
+const parseTypeAliases = (fileName, text) => {
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  /** @type {Map<string, ts.TypeAliasDeclaration>} */
+  const aliasMap = new Map();
+  for (const stmt of sourceFile.statements) {
+    if (ts.isTypeAliasDeclaration(stmt)) {
+      aliasMap.set(stmt.name.text, stmt);
+    }
+  }
+  return { sourceFile, aliasMap };
+};
+
+/**
  * @param {URL} dtsUrl
  * @param {string} moduleName
  * @returns {{ sourceFile: ts.SourceFile, aliasMap: Map<string, ts.TypeAliasDeclaration> }}
@@ -139,31 +161,28 @@ const parseDtsModule = (dtsUrl, moduleName) => {
 };
 
 /**
- * The TypeScript renderer: build a {@link GlobalTypeIR} by parsing a
- * hand-written `.d.ts`, locating the named root `type` alias inside a
- * `declare module`, and printing the kept members and the supporting aliases
- * they reach with the `typescript` printer.
+ * Build a {@link GlobalTypeIR} by locating the named root `type` alias in a
+ * parsed TypeScript declaration source, then printing the kept members and the
+ * supporting aliases they reach with the `typescript` printer.
  *
  * With a `memberFilter`, only the named members (and the types they reach) are
  * kept; this is how a read-only or otherwise narrowed variant is produced from
  * the same source.
  *
  * @param {object} config
- * @param {URL} config.dtsUrl URL of the `.d.ts` to read.
- * @param {string} config.moduleName The `declare module '<name>'` the root type
- *   lives in.
+ * @param {ts.SourceFile} config.sourceFile
+ * @param {Map<string, ts.TypeAliasDeclaration>} config.aliasMap
  * @param {string} config.rootType Name of the root `type` alias to print.
  * @param {string[]} [config.memberFilter] When set, keep only these members.
  * @returns {GlobalTypeIR}
  */
-export const extractTsModuleIR = ({
-  dtsUrl,
-  moduleName,
+const extractTsAliasesIR = ({
+  sourceFile,
+  aliasMap,
   rootType,
   memberFilter,
 }) => {
   const printer = ts.createPrinter({ removeComments: true });
-  const { sourceFile, aliasMap } = parseDtsModule(dtsUrl, moduleName);
   const rootAlias = aliasMap.get(rootType);
   if (!rootAlias || !ts.isTypeLiteralNode(rootAlias.type)) {
     throw new Error(`${rootType} is not a type literal`);
@@ -225,7 +244,51 @@ export const extractTsModuleIR = ({
 
   return harden({ rootName: rootType, members, auxTypes });
 };
+harden(extractTsAliasesIR);
+
+/**
+ * The TypeScript renderer for a hand-written `.d.ts` with a `declare module`.
+ *
+ * @param {object} config
+ * @param {URL} config.dtsUrl URL of the `.d.ts` to read.
+ * @param {string} config.moduleName The `declare module '<name>'` the root type
+ *   lives in.
+ * @param {string} config.rootType Name of the root `type` alias to print.
+ * @param {string[]} [config.memberFilter] When set, keep only these members.
+ * @returns {GlobalTypeIR}
+ */
+export const extractTsModuleIR = ({
+  dtsUrl,
+  moduleName,
+  rootType,
+  memberFilter,
+}) => {
+  const { sourceFile, aliasMap } = parseDtsModule(dtsUrl, moduleName);
+  return extractTsAliasesIR({ sourceFile, aliasMap, rootType, memberFilter });
+};
 harden(extractTsModuleIR);
+
+/**
+ * The TypeScript renderer for a declaration source with top-level exported
+ * `type` aliases, such as checked `.ts` typedef hosts.
+ *
+ * @param {object} config
+ * @param {string} config.fileName Source filename for TypeScript diagnostics.
+ * @param {string} config.text Declaration source text.
+ * @param {string} config.rootType Name of the root `type` alias to print.
+ * @param {string[]} [config.memberFilter] When set, keep only these members.
+ * @returns {GlobalTypeIR}
+ */
+export const extractTsFileTextIR = ({
+  fileName,
+  text,
+  rootType,
+  memberFilter,
+}) => {
+  const { sourceFile, aliasMap } = parseTypeAliases(fileName, text);
+  return extractTsAliasesIR({ sourceFile, aliasMap, rootType, memberFilter });
+};
+harden(extractTsFileTextIR);
 
 // #endregion
 

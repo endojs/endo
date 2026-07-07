@@ -7,8 +7,9 @@
  * Regenerate with: yarn workspace agentry gen:code-mode-types
  *
  * Source of truth:
- *   - git / gitReadOnly: packages/exo-git/types.d.ts (the `EndoGit` alias),
- *     printed by the typescript compiler API (TypeScript-canonical).
+ *   - git / gitReadOnly: packages/exo-git/src/types.ts (the `EndoGit`
+ *     type alias), printed by the typescript compiler API
+ *     (TypeScript-canonical).
  *
  * The generic extraction and rendering live in
  * scripts/code-mode-type-extract.js; this exo's source configuration lives in
@@ -24,7 +25,7 @@
 export const gitCodeModeTypeDeclarations = harden({
   git: {
     aux: `type EndoGit = {
-  worktree: () => EndoMount;
+  worktree: () => Promise<EndoMount>;
   status: () => Promise<GitStatusEntry[]>;
   diff: (options?: GitDiffOptions) => Promise<string>;
   log: (options?: GitLogOptions) => Promise<GitCommit[]>;
@@ -92,7 +93,7 @@ type GitRebaseInput = {
 };
 type GitRef = {
     name: string;
-    kind: string;
+    kind: 'branch' | 'tag' | 'commit' | 'detached';
     oid?: string;
 };
 type GitRestoreOptions = {
@@ -118,7 +119,7 @@ type ReadableTreeView = unknown;`,
   },
   gitReadOnly: {
     aux: `type EndoGit = {
-  worktree: () => EndoMount;
+  worktree: () => Promise<EndoMount>;
   status: () => Promise<GitStatusEntry[]>;
   diff: (options?: GitDiffOptions) => Promise<string>;
   log: (options?: GitLogOptions) => Promise<GitCommit[]>;
@@ -155,7 +156,7 @@ type GitLogOptions = {
 };
 type GitRef = {
     name: string;
-    kind: string;
+    kind: 'branch' | 'tag' | 'commit' | 'detached';
     oid?: string;
 };
 type GitStatusEntry = {

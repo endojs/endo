@@ -65,6 +65,7 @@ import {
 /**
  * @typedef {import('./cas.js').ContentAddressedStore} ContentAddressedStore
  * @typedef {{ algorithm: string, hash: string, size: bigint }} BlobInfo
+ * @import { Filesystem } from './types.js'
  */
 
 /**
@@ -72,9 +73,9 @@ import {
  * `Filesystem` cap that's structurally indistinguishable from a
  * primitive one (composes with `chroot`, `compose`, `readOnly`, …).
  *
- * @param {object} inner  any `Filesystem` cap
+ * @param {Filesystem} inner  any `Filesystem` cap
  * @param {ContentAddressedStore} cas
- * @returns {object}      a caching `Filesystem` cap
+ * @returns {Filesystem}      a caching `Filesystem` cap
  */
 export const withCachedReads = (inner, cas) => {
   // Dedupe concurrent background populates of the same hash so two

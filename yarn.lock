@@ -1834,6 +1834,7 @@ __metadata:
     "@endo/stream": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
+    typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
 
@@ -2057,6 +2058,7 @@ __metadata:
     "@endo/stream": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
+    typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
 
