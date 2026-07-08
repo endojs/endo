@@ -12,6 +12,7 @@ import { makeShell } from '@endo/exo-shell';
 import { makeHostSpawner } from '@endo/host-spawner';
 
 import { makeFilePowers } from '../src/daemon-node-powers.js';
+import { normalizeShellPolicy } from '../src/host.js';
 import { getMountBacking, makeMount } from '../src/mount.js';
 
 /**
@@ -51,7 +52,7 @@ const makeShellLikeFormulaMaker = (mount, policy, opts = {}) => {
   const backing = getMountBacking(mount);
   if (!backing) throw new Error('not a daemon-minted mount');
   if (backing.kind !== 'physical') throw new Error('not a physical mount');
-  const searchPath = policy.searchPath || process.env.PATH || '';
+  const searchPath = policy.searchPath || '';
   const baseEnv = harden({ PATH: searchPath, LC_ALL: 'C' });
   const spawner = makeHostSpawner({
     searchPath,
@@ -74,7 +75,19 @@ const makeShellLikeFormulaMaker = (mount, policy, opts = {}) => {
   });
 };
 
-const basePolicy = harden({
+/**
+ * @param {string} dir
+ * @param {string} name
+ * @param {string} output
+ */
+const writeExecutable = async (dir, name, output) => {
+  await fs.promises.mkdir(dir, { recursive: true });
+  const file = path.join(dir, name);
+  await fs.promises.writeFile(file, `#!/bin/sh\nprintf %s '${output}'\n`);
+  await fs.promises.chmod(file, 0o755);
+};
+
+const basePolicy = normalizeShellPolicy({
   allowedCommands: ['printenv', 'pwd', 'printf'],
   timeoutMs: 10_000,
   maxOutputBytes: 65_536,
@@ -141,6 +154,38 @@ test('provideShell composition: inspect reveals policy bounds but no host path',
     JSON.stringify(revealed).includes(root),
     'the mount path did not leak',
   );
+});
+
+test('provideShell composition: omitted searchPath is baked before reincarnation', async t => {
+  const { root, mount } = await provisionMount(t);
+  const firstBin = path.join(root, 'first-bin');
+  const secondBin = path.join(root, 'second-bin');
+  const command = 'shell-path-probe';
+  await writeExecutable(firstBin, command, 'first');
+  await writeExecutable(secondBin, command, 'second');
+
+  const originalPath = process.env.PATH;
+  process.env.PATH = firstBin;
+  t.teardown(() => {
+    if (originalPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = originalPath;
+    }
+  });
+  const persistedPolicy = normalizeShellPolicy({
+    allowedCommands: [command],
+    timeoutMs: 10_000,
+    maxOutputBytes: 65_536,
+    env: { CI: 'true' },
+  });
+
+  process.env.PATH = secondBin;
+  const shell = makeShellLikeFormulaMaker(mount, persistedPolicy);
+
+  const result = await shell.exec(command, []);
+  t.is(result.exitCode, 0);
+  t.is(result.stdout, 'first');
 });
 
 test('provideShell composition: a real child that traps SIGTERM is force-killed at the timeout', async t => {

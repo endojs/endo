@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="ses"/>
+/* global process */
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PassableBytesReader } from '@endo/exo-stream' */
@@ -87,6 +88,76 @@ const normalizeHostOrGuestOptions = opts => {
     ...(agentName !== undefined && { agentName }),
   };
 };
+
+/**
+ * Validate and normalize a caller-supplied `ShellPolicy` into the frozen record
+ * baked into the `shell` formula.  Rejects a malformed policy up front so a
+ * doomed formula is never persisted.
+ *
+ * @param {unknown} policy
+ * @returns {import('./types.js').ShellPolicy}
+ */
+export const normalizeShellPolicy = policy => {
+  if (!policy || typeof policy !== 'object') {
+    throw makeError(X`provideShell: policy must be an object`);
+  }
+  const { allowedCommands, timeoutMs, maxOutputBytes, env, searchPath } =
+    /** @type {Record<string, unknown>} */ (policy);
+  if (
+    !Array.isArray(allowedCommands) ||
+    allowedCommands.length === 0 ||
+    !allowedCommands.every(c => typeof c === 'string' && c.length > 0)
+  ) {
+    throw makeError(
+      X`provideShell: policy.allowedCommands must be a non-empty array of command-name strings`,
+    );
+  }
+  if (!Number.isInteger(timeoutMs) || /** @type {number} */ (timeoutMs) <= 0) {
+    throw makeError(
+      X`provideShell: policy.timeoutMs must be a positive integer`,
+    );
+  }
+  if (
+    !Number.isInteger(maxOutputBytes) ||
+    /** @type {number} */ (maxOutputBytes) <= 0
+  ) {
+    throw makeError(
+      X`provideShell: policy.maxOutputBytes must be a positive integer`,
+    );
+  }
+  /** @type {Record<string, string>} */
+  const normalizedEnv = {};
+  if (env !== undefined) {
+    if (typeof env !== 'object' || env === null || Array.isArray(env)) {
+      throw makeError(
+        X`provideShell: policy.env must be a record of string values`,
+      );
+    }
+    for (const [key, val] of Object.entries(env)) {
+      if (typeof val !== 'string') {
+        throw makeError(
+          X`provideShell: policy.env[${q(key)}] must be a string`,
+        );
+      }
+      normalizedEnv[key] = val;
+    }
+  }
+  const normalizedSearchPath =
+    searchPath === undefined ? process.env.PATH || '' : searchPath;
+  if (typeof normalizedSearchPath !== 'string') {
+    throw makeError(X`provideShell: policy.searchPath must be a string`);
+  }
+  const timeoutMsValue = /** @type {number} */ (timeoutMs);
+  const maxOutputBytesValue = /** @type {number} */ (maxOutputBytes);
+  return harden({
+    allowedCommands: harden([...allowedCommands]),
+    timeoutMs: timeoutMsValue,
+    maxOutputBytes: maxOutputBytesValue,
+    env: harden(normalizedEnv),
+    searchPath: normalizedSearchPath,
+  });
+};
+harden(normalizeShellPolicy);
 
 /**
  * @param {object} args
@@ -451,80 +522,6 @@ export const makeHostMaker = ({
 
       const { value } = await formulateGit(mountId, tasks);
       return /** @type {EndoGit} */ (value);
-    };
-
-    /**
-     * Validate and normalize a caller-supplied `ShellPolicy` into the frozen
-     * record baked into the `shell` formula.  Rejects a malformed policy up
-     * front so a doomed formula is never persisted.
-     *
-     * @param {unknown} policy
-     * @returns {import('./types.js').ShellPolicy}
-     */
-    const normalizeShellPolicy = policy => {
-      if (!policy || typeof policy !== 'object') {
-        throw makeError(X`provideShell: policy must be an object`);
-      }
-      const { allowedCommands, timeoutMs, maxOutputBytes, env, searchPath } =
-        /** @type {Record<string, unknown>} */ (policy);
-      if (
-        !Array.isArray(allowedCommands) ||
-        allowedCommands.length === 0 ||
-        !allowedCommands.every(c => typeof c === 'string' && c.length > 0)
-      ) {
-        throw makeError(
-          X`provideShell: policy.allowedCommands must be a non-empty array of command-name strings`,
-        );
-      }
-      if (
-        !Number.isInteger(timeoutMs) ||
-        /** @type {number} */ (timeoutMs) <= 0
-      ) {
-        throw makeError(
-          X`provideShell: policy.timeoutMs must be a positive integer`,
-        );
-      }
-      if (
-        !Number.isInteger(maxOutputBytes) ||
-        /** @type {number} */ (maxOutputBytes) <= 0
-      ) {
-        throw makeError(
-          X`provideShell: policy.maxOutputBytes must be a positive integer`,
-        );
-      }
-      /** @type {Record<string, string>} */
-      const normalizedEnv = {};
-      if (env !== undefined) {
-        if (typeof env !== 'object' || env === null || Array.isArray(env)) {
-          throw makeError(
-            X`provideShell: policy.env must be a record of string values`,
-          );
-        }
-        for (const [key, val] of Object.entries(env)) {
-          if (typeof val !== 'string') {
-            throw makeError(
-              X`provideShell: policy.env[${q(key)}] must be a string`,
-            );
-          }
-          normalizedEnv[key] = val;
-        }
-      }
-      const timeoutMsValue = /** @type {number} */ (timeoutMs);
-      const maxOutputBytesValue = /** @type {number} */ (maxOutputBytes);
-      /** @type {import('./types.js').ShellPolicy} */
-      const normalized = {
-        allowedCommands: harden([...allowedCommands]),
-        timeoutMs: timeoutMsValue,
-        maxOutputBytes: maxOutputBytesValue,
-        env: harden(normalizedEnv),
-      };
-      if (searchPath !== undefined) {
-        if (typeof searchPath !== 'string') {
-          throw makeError(X`provideShell: policy.searchPath must be a string`);
-        }
-        normalized.searchPath = searchPath;
-      }
-      return harden(normalized);
     };
 
     /** @type {EndoHost['provideShell']} */
@@ -2201,3 +2198,4 @@ export const makeHostMaker = ({
 
   return makeHost;
 };
+harden(makeHostMaker);

@@ -3061,13 +3061,11 @@ const makeDaemonCore = async (
           X`Shell requires a writable mount; refusing to construct a shell over a read-only mount`,
         );
       }
-      // PATH is policy-owned (baked at provideShell time) when supplied, else
-      // the host's PATH at incarnation; the child inherits nothing else from
-      // the host process env — only `policy.env` plus this PATH and `LC_ALL`.
+      // PATH is policy-owned and baked at provideShell time.  A legacy formula
+      // without `searchPath` gets an empty path rather than reincarnating with
+      // ambient daemon process authority.
       const searchPath =
-        typeof policy.searchPath === 'string'
-          ? policy.searchPath
-          : process.env.PATH || '';
+        typeof policy.searchPath === 'string' ? policy.searchPath : '';
       const baseEnv = harden({ PATH: searchPath, LC_ALL: 'C' });
       // `killProcessGroup` so the exo-shell timeout's SIGTERM→SIGKILL
       // escalation reaps a child that traps the signal (and any descendant it
