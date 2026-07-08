@@ -25,7 +25,7 @@
 export const gitCodeModeTypeDeclarations = harden({
   git: {
     aux: `type EndoGit = {
-  worktree: () => Promise<EndoMount>;
+  worktree: () => Promise<EndoMount | ReadableTreeView>;
   status: () => Promise<GitStatusEntry[]>;
   diff: (options?: GitDiffOptions) => Promise<string>;
   log: (options?: GitLogOptions) => Promise<GitCommit[]>;
@@ -119,7 +119,7 @@ type ReadableTreeView = unknown;`,
   },
   gitReadOnly: {
     aux: `type EndoGit = {
-  worktree: () => Promise<EndoMount>;
+  worktree: () => Promise<EndoMount | ReadableTreeView>;
   status: () => Promise<GitStatusEntry[]>;
   diff: (options?: GitDiffOptions) => Promise<string>;
   log: (options?: GitLogOptions) => Promise<GitCommit[]>;
