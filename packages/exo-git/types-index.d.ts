@@ -1,5 +1,4 @@
 export type * from './src/types.js';
-export type * from './src/git-remote-types.js';
 export {
   makeGit,
   isGitReadOnly,

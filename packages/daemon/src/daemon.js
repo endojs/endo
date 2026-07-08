@@ -1,4 +1,5 @@
 // @ts-check
+/** @import { EndoGit } from '@endo/exo-git' */
 /* eslint-disable no-await-in-loop */
 /* global clearTimeout, process, setTimeout */
 
@@ -107,7 +108,7 @@ import { getUnredactedStackString } from './unredacted-stack.js';
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { ArchiveTreeMethods } from './tar-checkin.js' */
-/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGit, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LogChunk, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
+/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LogChunk, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
 
 /**
  * @typedef {{ kind: 'bearer', token: string } | { kind: 'basic', username: string, password: string }} GitCredentialMaterial

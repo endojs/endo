@@ -1,10 +1,11 @@
 // @ts-check
+/** @import { EndoGit } from '@endo/exo-git' */
 /// <reference types="ses"/>
 /* global process */
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PassableBytesReader } from '@endo/exo-stream' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoDiagnostics, EndoGit, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, FormulaRecord, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, ShellDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoDiagnostics, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, FormulaRecord, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, ShellDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 /** @import { makeTraceAggregator } from './trace-aggregator.js' */
 
 import { E } from '@endo/eventual-send';
