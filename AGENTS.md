@@ -186,33 +186,44 @@ The project uses `plugin:@endo/internal` which extends `prettier`,
 This enforces harden-exports, restricts plus operands, and requires PascalCase
 for interfaces.
 
-## Testing
+## Commands
 
-- Runtime tests: `yarn test` (uses `ava`)
-- Type tests: `yarn lint:types` (uses `tsd` — test files are `test/types.test-d.ts`)
-- Lint: `yarn lint` (runs both `lint:types` and `lint:eslint`)
-- Yarn 4 via corepack: `npx corepack yarn install`
-- Package tests: `cd packages/<name> && npx ava`
-- Daemon integration tests:
-  `cd packages/daemon && npx ava test/endo.test.js --timeout=120s`
-- Syntax check without SES runtime: `node --check <file.js>`
-- Full module loading requires the Endo daemon because SES lockdown provides
-  `harden` as a global.
+- Install dependencies with `corepack yarn install`.
+  CI enables Corepack shims before running an immutable Yarn install; use the
+  direct Corepack form in locked-down shells that cannot write global shims.
+- Run `yarn format` at the root to apply Prettier to `.github` and `packages`.
+- Run root lint with `yarn lint` when the change is cross-cutting.
+  Root lint runs Prettier, repository ESLint, and shell checks; it does not run
+  typechecking.
+- Run package lint with `yarn workspace <pkg-name> lint` or
+  `yarn --cwd packages/<name> lint`.
+  Package lint usually runs `lint:types` and `lint:eslint`; check the package
+  scripts when the distinction matters.
+- Run typechecking with `yarn lint:types` in the changed package, or
+  `yarn build:types` at the root when exported declarations or cross-package
+  types may have changed.
+- Run `yarn docs` at the root when API docs or exported type surfaces may have
+  changed.
+  This is a CI gate, including for documentation-only PRs, and catches broken
+  `@import` specifiers, missing exported members, and cross-package type drift.
+- Run package tests from the root with
+  `yarn workspace <pkg-name> test <file>`, or equivalently with
+  `yarn --cwd packages/<name> test <file>`.
+  Test timeouts are configured per package; do not add ad-hoc AVA timeout
+  overrides unless you are deliberately changing that package's test behavior.
 
-Always run `yarn lint` in each package you've modified before committing.
+Full module loading may require the Endo daemon because SES lockdown provides
+`harden` as a global.
 
 ### Pre-PR checklist
 
 Reviewers repeatedly flag the same classes of fix-up.
 Running the following before pushing avoids the churn:
 
-- `yarn format` — Prettier drift is the single most common review nit.
-- `yarn lint` in the changed package (and root, if the changes are
-  cross-cutting) — catches ESLint-only rules such as `harden-exports` and
-  `no-underscore-dangle`.
-- `yarn docs` or `tsc --build` — catches missing members on exported
-  interfaces, type-too-narrow/too-wide drift, and broken `@import` specifiers.
-- The package's `npx ava` — at least the tests nearest the change.
+- The relevant commands from the Commands section above.
+  At minimum, format, package lint, typechecking, and the nearest package tests.
+- Root `yarn docs` when public API docs or exported type surfaces may have
+  changed.
 - If the change adds or updates a dependency, commit `yarn.lock` in its own
   commit, separately from the `package.json` change, with the message
   `chore: Update yarn.lock`.
@@ -300,39 +311,6 @@ Run `yarn clean` instead of `yarn build:types:clean` to reset in this case:
 `yarn build:types:clean` only runs TypeScript's project-reference clean, so it
 does not remove stale declaration files that TypeScript has started treating as
 inputs.
-
-## Familiar (Electron shell)
-
-### Testing
-
-- Unit tests:
-  `npx ava packages/daemon/test/gateway.test.js packages/daemon/test/formula-identifier.test.js --timeout=90s`
-- Build: `cd packages/familiar && yarn bundle && yarn package`
-- Lint: `cd packages/familiar && yarn lint`
-- Gateway tests fork a full daemon per test.
-  They must be `test.serial` to avoid resource contention.
-- Tests set `ENDO_ADDR=127.0.0.1:0` so the gateway binds to an OS-assigned port,
-  avoiding conflicts with a running daemon on the default port 8920.
-- Kill leftover daemon processes between test runs:
-  `pkill -f "daemon-node.*packages/daemon/tmp"` and
-  `rm -rf packages/daemon/tmp/`.
-- Worker logs are in
-  `packages/daemon/tmp/<test>/state/worker/<id>/worker.log`.
-  Check these when the APPS formula hangs silently.
-
-### Architecture constraints
-
-- The Electron main process must never import `@endo/init` or `ses`.
-  SES lockdown freezes Electron internals.
-- Unconfined plugins (e.g., `web-server-node.js`) run inside an
-  already-locked-down worker and must not import `ses` or `@endo/init`
-  themselves; doing so causes double-lockdown errors.
-- Electron Forge requires `electron` in `devDependencies` to detect the version.
-  If it is only in `dependencies`, packaging fails with "Could not find any
-  Electron packages in devDependencies".
-- Port 0 (OS-assigned) is falsy in JavaScript.
-  Use `port !== '' ? Number(port) : default` instead of
-  `Number(port) || default`.
 
 ## Markdown style
 
