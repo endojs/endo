@@ -1,0 +1,75 @@
+{
+  "name": "@endo/exo-shell",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Remotable exo glue and interface guard for an EndoShell capability — a writable-mount-scoped, allowlisted, argv-only command executor. Portable across SES realms; pair with @endo/host-spawner (or a sandbox spawner) for the process-execution engine.",
+  "keywords": [
+    "endo",
+    "exo",
+    "shell"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/exo-shell"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./types-index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types-index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./src/shell.js": {
+      "types": "./src/shell.d.ts",
+      "default": "./src/shell.js"
+    },
+    "./src/interfaces.js": {
+      "types": "./src/interfaces.d.ts",
+      "default": "./src/interfaces.js"
+    },
+    "./types-index.js": {
+      "types": "./types-index.d.ts",
+      "default": "./types-index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc"
+  },
+  "dependencies": {
+    "@endo/errors": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/patterns": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/host-spawner": "workspace:^",
+    "@endo/init": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev",
+    "typescript": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "60s"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}

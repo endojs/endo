@@ -33,6 +33,9 @@
       "path": "../exo-git/tsconfig.composite.json"
     },
     {
+      "path": "../exo-shell/tsconfig.composite.json"
+    },
+    {
       "path": "../exo-stream/tsconfig.composite.json"
     },
     {
@@ -46,6 +49,9 @@
     },
     {
       "path": "../hex/tsconfig.composite.json"
+    },
+    {
+      "path": "../host-spawner/tsconfig.composite.json"
     },
     {
       "path": "../import-bundle/tsconfig.composite.json"

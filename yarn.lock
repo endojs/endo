@@ -1236,6 +1236,7 @@ __metadata:
     "@endo/daemon": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo-git": "workspace:^"
+    "@endo/exo-shell": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/git": "workspace:^"
     "@endo/init": "workspace:^"
@@ -1651,11 +1652,13 @@ __metadata:
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
     "@endo/exo-git": "workspace:^"
+    "@endo/exo-shell": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/git": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/hex": "workspace:^"
+    "@endo/host-spawner": "workspace:^"
     "@endo/import-bundle": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/marshal": "workspace:^"
@@ -1861,6 +1864,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/exo-shell@workspace:^, @endo/exo-shell@workspace:packages/exo-shell":
+  version: 0.0.0-use.local
+  resolution: "@endo/exo-shell@workspace:packages/exo-shell"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/host-spawner": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/exo-stream@workspace:^, @endo/exo-stream@workspace:packages/exo-stream":
   version: 0.0.0-use.local
   resolution: "@endo/exo-stream@workspace:packages/exo-stream"
@@ -2029,6 +2048,7 @@ __metadata:
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
+    "@endo/host-spawner": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/marshal": "workspace:^"
     "@endo/pass-style": "workspace:^"
@@ -2158,6 +2178,18 @@ __metadata:
     "@endo/stream-node": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/host-spawner@workspace:^, @endo/host-spawner@workspace:packages/host-spawner":
+  version: 0.0.0-use.local
+  resolution: "@endo/host-spawner@workspace:packages/host-spawner"
+  dependencies:
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+    typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
 

@@ -75,6 +75,9 @@
       "path": "packages/exo-playwright/tsconfig.composite.json"
     },
     {
+      "path": "packages/exo-shell/tsconfig.composite.json"
+    },
+    {
       "path": "packages/exo-stream/tsconfig.composite.json"
     },
     {
@@ -97,6 +100,9 @@
     },
     {
       "path": "packages/hex/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/host-spawner/tsconfig.composite.json"
     },
     {
       "path": "packages/immutable-arraybuffer/tsconfig.composite.json"
