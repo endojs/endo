@@ -391,6 +391,40 @@ is the integration pass that demonstrates the pillar.
   `filesystemAt` — with a shell-tool build step (`npm test`) in the
   middle. That single pass demonstrates the M3 pillar.
 
+### Phase 5: Commit-metadata history verbs (agentry eval lane)
+
+These phases extend the local `Git` capability for the agentry code-mode
+stack-surgery eval lane, per
+[agentry-git-verb-gaps](agentry-git-verb-gaps.md).
+
+- [ ] `commit({ amend })` and `reword(ref, message)` across all surfaces
+  at once: exo + `GitInterface` guard + `GitBackend` + native impl +
+  code-mode regen (`packages/agentry/src/execute/git-types.js`) + JSON
+  tools (the `commit` tool's optional `options.amend`; `reword` on the
+  JSON-safe ref convention).
+- [ ] Extend the `473b718b3` contract test (branch
+  `docs/agentry-git-rebase-evals`) so the exo type, `GitInterface`,
+  `packages/exo-git/src/types.js`, `types.d.ts`, and the generated
+  code-mode declarations cannot drift.
+- [ ] Tests: read-only rejection for each mutator; non-interactive
+  editor behavior for reword.
+
+### Phase 6: Stack-replay and conflict resolution (agentry eval lane)
+
+Grouped because replay produces the conflicts the selection verb resolves;
+per [agentry-git-verb-gaps](agentry-git-verb-gaps.md).
+
+- [ ] `cherryPick(ref, options?)` and `rebase({ autosquash })` for
+  `mode: 'start'` across all surfaces, including JSON (cherryPick ref +
+  options; autosquash-start as a structured op; control modes stay
+  code-mode-only).
+- [ ] `checkoutConflict(entries, side)` across all surfaces:
+  `entriesToRepoPaths` lineage + `ours`/`theirs` index-stage; JSON as
+  `checkoutConflict({ paths, side })` resolving strings to authenticated
+  `EndoMountEntry` values (the capability method stays entry-based).
+- [ ] Tests: read-only rejection per mutator, autosquash-flag validation,
+  conflict-side path lineage, conflict-stop for cherryPick.
+
 ## Dependencies
 
 | Design | Relationship |
