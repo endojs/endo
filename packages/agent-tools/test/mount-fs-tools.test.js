@@ -100,6 +100,8 @@ overBackings('mountList returns sorted name/kind entries', async (t, make) => {
       await tool.invoke({ path: 'sub' })
     );
   t.deepEqual(subListing.entries, [{ name: 'nested.txt', kind: 'file' }]);
+  // Every list record leaves the tool hardened.
+  t.true(Object.isFrozen(subListing));
 });
 
 overBackings('mountStat reports kind and size', async (t, make) => {
@@ -113,10 +115,14 @@ overBackings('mountStat reports kind and size', async (t, make) => {
   // 'alpha' is five UTF-8 bytes; size is decimal-string-encoded from a bigint.
   t.is(fileStat.size, '5');
 
-  const dirStat = /** @type {{ kind: string }} */ (
+  const dirStat = /** @type {{ kind: string, size?: string }} */ (
     await tool.invoke({ path: 'sub' })
   );
   t.is(dirStat.kind, 'directory');
+  // The base seam reports a directory's size as the decimal-string-encoded 0,
+  // and every stat record is hardened before it leaves the tool.
+  t.is(dirStat.size, '0');
+  t.true(Object.isFrozen(dirStat));
 
   const rootStat = /** @type {{ kind: string }} */ (
     await tool.invoke({ path: '' })
@@ -157,6 +163,101 @@ overBackings(
     t.is(await readTool.invoke({ path: 'a.txt' }), 'tiny');
   },
 );
+
+overBackings(
+  'every file tool rejects a "../" escape at the capability',
+  async (t, make) => {
+    const filesystem = make(seedTree(t));
+    // Each tool's description advertises that "../" escapes are rejected. The
+    // rejection is the `Filesystem` capability's — `pathToSegments` leaves ".."
+    // intact so the cap throws `EINVAL: name ".." reserved` — surfaced
+    // identically through read / list / stat / edit rather than a brittle
+    // string check in the tool.
+    await t.throwsAsync(
+      () => makeMountReadTool(filesystem).invoke({ path: '../escape' }),
+      { message: /name "\.\." reserved/ },
+      'mountReadText rejects a "../" escape',
+    );
+    await t.throwsAsync(
+      () => makeMountListTool(filesystem).invoke({ path: '../escape' }),
+      { message: /name "\.\." reserved/ },
+      'mountList rejects a "../" escape',
+    );
+    await t.throwsAsync(
+      () => makeMountStatTool(filesystem).invoke({ path: '../escape' }),
+      { message: /name "\.\." reserved/ },
+      'mountStat rejects a "../" escape',
+    );
+    await t.throwsAsync(
+      () =>
+        makeMountEditTool(filesystem).invoke({
+          path: '../escape',
+          content: 'x',
+        }),
+      { message: /name "\.\." reserved/ },
+      'mountWriteText rejects a "../" escape',
+    );
+  },
+);
+
+overBackings(
+  'mountWriteText under a missing parent throws (no intermediate dirs)',
+  async (t, make) => {
+    const filesystem = make(seedTree(t));
+    // The whole-blob write walks to the leaf's parent directory; when that
+    // parent does not exist the cap reports ENOENT rather than creating it.
+    await t.throwsAsync(
+      () =>
+        makeMountEditTool(filesystem).invoke({
+          path: 'no-such-dir/child.txt',
+          content: 'x',
+        }),
+      { message: /ENOENT/ },
+    );
+  },
+);
+
+overBackings('mountList on a file throws', async (t, make) => {
+  const filesystem = make(seedTree(t));
+  // Listing resolves to `Directory.list`; a File node exposes no such method,
+  // so the cap rejects rather than silently returning an empty listing.
+  await t.throwsAsync(
+    () => makeMountListTool(filesystem).invoke({ path: 'a.txt' }),
+    { message: /no method "list"/ },
+  );
+});
+
+overBackings(
+  'mountWriteText rejects a root-family path',
+  async (t, make) => {
+    const filesystem = make(seedTree(t));
+    await null;
+    // "/", "//", and "/." all collapse to zero `walk` segments — the mount
+    // root, which has no parent directory to write a child into.
+    for (const rootPath of ['/', '//', '/.']) {
+      // eslint-disable-next-line no-await-in-loop
+      await t.throwsAsync(
+        () =>
+          makeMountEditTool(filesystem).invoke({ path: rootPath, content: 'x' }),
+        { message: /cannot write the mount root/ },
+        `mountWriteText rejects "${rootPath}"`,
+      );
+    }
+  },
+);
+
+overBackings('mountWriteText writes empty content', async (t, make) => {
+  const root = seedTree(t);
+  const filesystem = make(root);
+  const editTool = makeMountEditTool(filesystem);
+  const readTool = makeMountReadTool(filesystem);
+
+  const message = await editTool.invoke({ path: 'blank.txt', content: '' });
+  t.is(message, 'Wrote 0 bytes to blank.txt');
+  t.is(fs.readFileSync(path.join(root, 'blank.txt'), 'utf-8'), '');
+  // A zero-length file reads back as the empty string, not an error.
+  t.is(await readTool.invoke({ path: 'blank.txt' }), '');
+});
 
 test('a readOnly() Filesystem fails edit closed but still reads/lists/stats', async t => {
   const filesystem = readOnly(makeNodeFilesystem({ rootPath: seedTree(t) }));
@@ -246,4 +347,25 @@ test('the file tools reject unexpected argument keys and bad types', async t => 
       }),
     { message: /extra/ },
   );
+
+  // The read-side list and stat tools enforce the same discipline: a non-string
+  // path and an unexpected argument key are both rejected before any capability
+  // send, exactly as `mountWriteText` does above.
+  for (const [label, makeReadSideTool] of /** @type {const} */ ([
+    ['mountList', makeMountListTool],
+    ['mountStat', makeMountStatTool],
+  ])) {
+    // eslint-disable-next-line no-await-in-loop
+    await t.throwsAsync(
+      () => makeReadSideTool(filesystem).invoke({ path: 42 }),
+      { message: new RegExp(`${label} requires a string path`) },
+      `${label} rejects a non-string path`,
+    );
+    // eslint-disable-next-line no-await-in-loop
+    await t.throwsAsync(
+      () => makeReadSideTool(filesystem).invoke({ path: '', extra: 1 }),
+      { message: new RegExp(`unexpected ${label} argument key`) },
+      `${label} rejects an unexpected key`,
+    );
+  }
 });
