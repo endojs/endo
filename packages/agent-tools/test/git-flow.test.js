@@ -273,7 +273,9 @@ test('a "../" escape in an add path is contained by the mount, clamped at the wo
   // git-binary stack. The `..` pops but is clamped at the worktree root, so the
   // path resolves to `contained.txt` at the root: staging SUCCEEDS and stays
   // inside the repo rather than escaping upward.
-  const added = await byMountName('add').invoke({ paths: ['../contained.txt'] });
+  const added = await byMountName('add').invoke({
+    paths: ['../contained.txt'],
+  });
   t.is(added, 'Staged 1 path.');
 
   // `status` reports the file at its root-relative path — no leading `..`, no
