@@ -572,8 +572,11 @@ test('NativeGitBackend.assertRepositoryRoot rejects a non-worktree directory', a
   // No `.git` here, so `git rev-parse --show-toplevel` errors out and
   // the backend surfaces a structured failure rather than silently
   // operating against the user's surrounding repository.
+  // If the temp directory itself sits under a Git worktree, Git may
+  // instead find that parent and the backend rejects the root mismatch.
   await t.throwsAsync(backend.assertRepositoryRoot(), {
-    message: /not a git repository|repository root|rev-parse failed/i,
+    message:
+      /not a git repository|repository root|rev-parse failed|worktree root mismatch/i,
   });
 });
 
@@ -1066,29 +1069,45 @@ if (includes('fetch')) {
   const fd = Number.parseInt(process.env.ENDO_GIT_ASKPASS_FD || '', 10);
   const helper = process.env.GIT_ASKPASS || '';
   const stdio = ['ignore', 'pipe', 'ignore', fd];
-  const username = childProcess.execFileSync(helper, ['Username for test:'], {
-    env: process.env,
-    encoding: 'utf8',
-    stdio,
-  });
-  const password = childProcess.execFileSync(helper, ['Password for test:'], {
-    env: process.env,
-    encoding: 'utf8',
-    stdio,
-  });
   const envText = Object.values(process.env).join('\\0');
-  fs.writeFileSync(
-    ${JSON.stringify(reportPath)},
-    JSON.stringify({
+  const baseReport = {
       argvIncludesSecret: process.argv.join('\\0').includes(${JSON.stringify(secret)}),
       envIncludesSecret: envText.includes(${JSON.stringify(secret)}),
       hasSocketEnv: Object.hasOwn(process.env, 'ENDO_GIT_ASKPASS_SOCKET'),
       helperBasename: path.basename(helper),
       fd: process.env.ENDO_GIT_ASKPASS_FD,
+  };
+  const writeReport = report => {
+    fs.writeFileSync(${JSON.stringify(reportPath)}, JSON.stringify(report));
+  };
+  writeReport({ ...baseReport, phase: 'fetch-start' });
+  let username;
+  let password;
+  try {
+    username = childProcess.execFileSync(helper, ['Username for test:'], {
+      env: process.env,
+      encoding: 'utf8',
+      stdio,
+    });
+    password = childProcess.execFileSync(helper, ['Password for test:'], {
+      env: process.env,
+      encoding: 'utf8',
+      stdio,
+    });
+  } catch (error) {
+    writeReport({
+      ...baseReport,
+      phase: 'askpass-error',
+      error: String(error && error.stack || error),
+    });
+    throw error;
+  }
+  writeReport({
+      ...baseReport,
+      phase: 'askpass-complete',
       usernameMatched: username === 'x-access-token',
       passwordMatched: password === ${JSON.stringify(secret)},
-    }),
-  );
+  });
   console.error('fake fetch failed after credential probe');
   process.exit(1);
 }
@@ -1118,7 +1137,17 @@ process.exit(1);
       process.env.PATH = originalPath;
     }
 
-    const report = JSON.parse(await fs.promises.readFile(reportPath, 'utf8'));
+    let reportText;
+    try {
+      reportText = await fs.promises.readFile(reportPath, 'utf8');
+    } catch (error) {
+      t.fail(
+        `fake git did not write credential probe report: ${/** @type {Error} */ (error).message}`,
+      );
+      return;
+    }
+    const report = JSON.parse(reportText);
+    t.is(report.phase, 'askpass-complete');
     t.false(report.argvIncludesSecret);
     t.false(report.envIncludesSecret);
     t.false(report.hasSocketEnv);
