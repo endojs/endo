@@ -22,7 +22,7 @@
  */
 
 import { spawn as childSpawn } from 'child_process';
-import * as fs from 'fs';
+import { stat } from 'node:fs/promises';
 import { join } from 'path';
 
 import harden from '@endo/harden';
@@ -111,7 +111,7 @@ const whichProgram = async (prog, searchPath) => {
     const candidate = join(dir, prog);
     try {
       // eslint-disable-next-line no-await-in-loop
-      const stats = await fs.promises.stat(candidate);
+      const stats = await stat(candidate);
       // eslint-disable-next-line no-bitwise
       const isExecutable = (stats.mode & 0o111) !== 0;
       // A directory in the search path can carry the exec bit, so confirm the
