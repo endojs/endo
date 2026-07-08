@@ -15,6 +15,10 @@ host-controlled allowlist of origins. Prevents data exfiltration to
 attacker-controlled servers while enabling web research and API access.
 Foundation for the OAuth capability and productivity integrations.
 
+This capability is realized by `@endo/exo-http-client`, which layers exo facets
+and optional trust-on-first-bind policy over the shared
+[`@endo/http-confine`](http-confine.md) confinement core.
+
 ## Capability Shape
 
 ```ts

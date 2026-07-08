@@ -72,6 +72,9 @@
       "path": "packages/exo-git/tsconfig.composite.json"
     },
     {
+      "path": "packages/exo-http-client/tsconfig.composite.json"
+    },
+    {
       "path": "packages/exo-playwright/tsconfig.composite.json"
     },
     {
