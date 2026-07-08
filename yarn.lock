@@ -1842,6 +1842,29 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/exo-http-client@workspace:packages/exo-http-client":
+  version: 0.0.0-use.local
+  resolution: "@endo/exo-http-client@workspace:packages/exo-http-client"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/http-confine": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/pass-style": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    prettier: "npm:^3.5.3"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/exo-playwright@workspace:packages/exo-playwright":
   version: 0.0.0-use.local
   resolution: "@endo/exo-playwright@workspace:packages/exo-playwright"
@@ -2189,6 +2212,22 @@ __metadata:
     "@endo/init": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/http-confine@workspace:^, @endo/http-confine@workspace:packages/http-confine":
+  version: 0.0.0-use.local
+  resolution: "@endo/http-confine@workspace:packages/http-confine"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    prettier: "npm:^3.5.3"
+    ses: "workspace:^"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
