@@ -44,13 +44,20 @@ const execFileAsync = promisify(execFile);
  * on `main`. Mirrors `packages/daemon/test/git.test.js`'s helper.
  *
  * @param {import('ava').ExecutionContext} t
+ * @param {string} [rootPath] Use this pre-existing directory as the worktree
+ *   root instead of a fresh `mkdtemp`. The caller owns its lifecycle (teardown),
+ *   letting a test control the worktree's *parent* — needed to prove a `../`
+ *   escape cannot reach a file above the root.
  * @returns {Promise<string>} the worktree root path
  */
-const provisionGitWorktree = async t => {
-  const root = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), 'agent-tools-git-'),
-  );
-  t.teardown(() => fs.promises.rm(root, { recursive: true, force: true }));
+const provisionGitWorktree = async (t, rootPath) => {
+  await null;
+  const root =
+    rootPath ??
+    (await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-tools-git-')));
+  if (rootPath === undefined) {
+    t.teardown(() => fs.promises.rm(root, { recursive: true, force: true }));
+  }
   await execFileAsync('git', ['init', '-q', '-b', 'main'], { cwd: root });
   // Pin signing off so the setup is independent of a user-global
   // `commit.gpgSign`. (The exo backend supplies its own author identity and
@@ -84,9 +91,11 @@ const provisionGitWorktree = async t => {
  * worktree, a `NativeGitBackend`, and `makeGit`.
  *
  * @param {import('ava').ExecutionContext} t
+ * @param {string} [rootPath] Forwarded to `provisionGitWorktree` when a test
+ *   needs to control the worktree root's parent directory.
  */
-const provisionGit = async t => {
-  const repoRoot = await provisionGitWorktree(t);
+const provisionGit = async (t, rootPath) => {
+  const repoRoot = await provisionGitWorktree(t, rootPath);
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
   const backend = makeNativeGitBackend({ repoRoot });
@@ -232,4 +241,62 @@ test('add/restore stay out of the JSON-transparent makeGitTool slice', t => {
   t.true(mountToolNames.has('add'));
   t.true(mountToolNames.has('status'));
   t.false(mountToolNames.has('restore'));
+});
+
+test('a "../" escape in an add path is contained by the mount, clamped at the worktree root', async t => {
+  // Lay out an OUTER directory holding two same-named files: one *above* the
+  // worktree root (the escape target — it must never be reached) and one at the
+  // root inside the repo. If a leading `..` escaped its confinement, `add`
+  // would resolve to the outer file; the mount clamps `..` at the root, so it
+  // resolves to the in-repo file instead. Sharing the basename makes the
+  // difference observable in the staged blob's bytes.
+  const outer = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'agent-tools-git-escape-'),
+  );
+  t.teardown(() => fs.promises.rm(outer, { recursive: true, force: true }));
+  await fs.promises.writeFile(
+    path.join(outer, 'contained.txt'),
+    'OUTSIDE THE WORKTREE — must never be staged',
+  );
+  const repoRoot = path.join(outer, 'worktree');
+  await fs.promises.mkdir(repoRoot);
+
+  const { git } = await provisionGit(t, repoRoot);
+  const byMountName = byNameOf(makeGitMountTools(git));
+
+  await fs.promises.writeFile(
+    path.join(repoRoot, 'contained.txt'),
+    'inside the worktree',
+  );
+
+  // Drive `add` with a `../`-bearing path through the real tool → mount → Git →
+  // git-binary stack. The `..` pops but is clamped at the worktree root, so the
+  // path resolves to `contained.txt` at the root: staging SUCCEEDS and stays
+  // inside the repo rather than escaping upward.
+  const added = await byMountName('add').invoke({ paths: ['../contained.txt'] });
+  t.is(added, 'Staged 1 path.');
+
+  // `status` reports the file at its root-relative path — no leading `..`, no
+  // outer path — proving the segment was clamped, not preserved as an escape.
+  const staged = /** @type {Array<{ path: string, index: string }>} */ (
+    await byMountName('status').invoke({})
+  );
+  const row = staged.find(entry => entry.path === 'contained.txt');
+  t.truthy(row, 'the clamped path should stage the in-repo root file');
+  t.is(row?.index, 'added');
+  t.false(
+    staged.some(entry => entry.path.includes('..')),
+    'no staged path should retain a ".." segment',
+  );
+
+  // The load-bearing proof: the STAGED bytes are the in-repo file's, not the
+  // identically-named file one level above the worktree. The escape was
+  // contained at the capability, not by a string check in the tool.
+  const { stdout: stagedBytes } = await execFileAsync(
+    'git',
+    ['show', ':contained.txt'],
+    { cwd: repoRoot },
+  );
+  t.is(stagedBytes, 'inside the worktree');
+  t.not(stagedBytes, 'OUTSIDE THE WORKTREE — must never be staged');
 });
