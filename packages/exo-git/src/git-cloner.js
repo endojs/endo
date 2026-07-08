@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /**
- * @import { GitRemote, GitRemoteEndpoint } from './git-remote-types.js'
+ * @import { GitRemote, GitRemoteEndpoint } from './types.js'
  */
 
 /**

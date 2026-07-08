@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { GitRemote, GitRemoteEndpoint } from '../src/git-remote-types.js' */
+/** @import { GitRemote, GitRemoteEndpoint } from '../src/types.js' */
 
 import test from '@endo/ses-ava/prepare-endo.js';
 
