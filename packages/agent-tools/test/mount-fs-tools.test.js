@@ -227,24 +227,21 @@ overBackings('mountList on a file throws', async (t, make) => {
   );
 });
 
-overBackings(
-  'mountWriteText rejects a root-family path',
-  async (t, make) => {
-    const filesystem = make(seedTree(t));
-    await null;
-    // "/", "//", and "/." all collapse to zero `walk` segments — the mount
-    // root, which has no parent directory to write a child into.
-    for (const rootPath of ['/', '//', '/.']) {
-      // eslint-disable-next-line no-await-in-loop
-      await t.throwsAsync(
-        () =>
-          makeMountEditTool(filesystem).invoke({ path: rootPath, content: 'x' }),
-        { message: /cannot write the mount root/ },
-        `mountWriteText rejects "${rootPath}"`,
-      );
-    }
-  },
-);
+overBackings('mountWriteText rejects a root-family path', async (t, make) => {
+  const filesystem = make(seedTree(t));
+  await null;
+  // "/", "//", and "/." all collapse to zero `walk` segments — the mount
+  // root, which has no parent directory to write a child into.
+  for (const rootPath of ['/', '//', '/.']) {
+    // eslint-disable-next-line no-await-in-loop
+    await t.throwsAsync(
+      () =>
+        makeMountEditTool(filesystem).invoke({ path: rootPath, content: 'x' }),
+      { message: /cannot write the mount root/ },
+      `mountWriteText rejects "${rootPath}"`,
+    );
+  }
+});
 
 overBackings('mountWriteText writes empty content', async (t, make) => {
   const root = seedTree(t);
