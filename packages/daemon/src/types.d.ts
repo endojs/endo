@@ -4,7 +4,7 @@ import type { FarRef } from '@endo/eventual-send';
 import type { CapTPOptions } from '@endo/captp';
 import type { Reader, Writer, Stream } from '@endo/stream';
 import type { PassableBytesReader, StreamNode } from '@endo/exo-stream';
-import type { GitRemote } from '@endo/exo-git';
+import type { EndoGit, GitRemote } from '@endo/exo-git';
 
 // Branded string types for pet names and special names
 declare const PetNameBrand: unique symbol;
@@ -120,7 +120,7 @@ export type MignonicPowers = {
   };
 };
 
-type IdRecord = {
+export type IdRecord = {
   number: FormulaNumber;
   node: NodeNumber;
 };
@@ -144,7 +144,7 @@ export type RetentionPath = import('./graph.js').RetentionPath;
 export type RetentionPathDelta =
   import('./retention-path-accumulator.js').RetentionPathDelta;
 
-type EndoFormula = {
+export type EndoFormula = {
   type: 'endo';
   networks: FormulaIdentifier;
   pins: FormulaIdentifier;
@@ -153,11 +153,11 @@ type EndoFormula = {
   leastAuthority: FormulaIdentifier;
 };
 
-type LoopbackNetworkFormula = {
+export type LoopbackNetworkFormula = {
   type: 'loopback-network';
 };
 
-type WorkerFormula = {
+export type WorkerFormula = {
   type: 'worker';
   label?: string;
   trustedShims?: string[];
@@ -207,13 +207,13 @@ type LeastAuthorityFormula = {
   type: 'least-authority';
 };
 
-type MarshalFormula = {
+export type MarshalFormula = {
   type: 'marshal';
   body: any;
   slots: Array<FormulaIdentifier>;
 };
 
-type EvalFormula = {
+export type EvalFormula = {
   type: 'eval';
   worker: FormulaIdentifier;
   source: string;
@@ -233,7 +233,7 @@ export type EvalDeferredTaskParams = {
   workerId: FormulaIdentifier;
 };
 
-type ReadableBlobFormula = {
+export type ReadableBlobFormula = {
   type: 'readable-blob';
   content: string;
 };
@@ -242,7 +242,7 @@ export type ReadableBlobDeferredTaskParams = {
   readableBlobId: FormulaIdentifier;
 };
 
-type ReadableTreeFormula = {
+export type ReadableTreeFormula = {
   type: 'readable-tree';
   content: string;
 };
@@ -251,13 +251,13 @@ export type ReadableTreeDeferredTaskParams = {
   readableTreeId: FormulaIdentifier;
 };
 
-type MountFormula = {
+export type MountFormula = {
   type: 'mount';
   path: string;
   readOnly: boolean;
 };
 
-type ScratchMountFormula = {
+export type ScratchMountFormula = {
   type: 'scratch-mount';
   readOnly: boolean;
 };
@@ -343,203 +343,6 @@ export type GitRemoteFormula = {
   revoked?: boolean;
 };
 
-// Public Git capability surface.  These types describe the inputs and
-// outputs of the `Git` exo's methods (see `src/interfaces.js` for the
-// runtime guard and `src/git.js` for the implementation); they are part
-// of the package's public API and live here rather than in `src/git.js`
-// so downstream consumers can reach them without importing implementation
-// modules.
-
-export type GitRef = {
-  name: string;
-  kind: 'branch' | 'tag' | 'commit' | 'detached';
-  oid?: string;
-};
-
-export type GitCommit = {
-  oid: string;
-  summary: string;
-  author?: string;
-  committedAt?: number;
-};
-
-export type GitIndexStatus =
-  | 'clean'
-  | 'added'
-  | 'modified'
-  | 'deleted'
-  | 'renamed'
-  | 'copied'
-  | 'conflicted';
-
-export type GitWorktreeStatus =
-  | 'clean'
-  | 'modified'
-  | 'deleted'
-  | 'untracked'
-  | 'ignored'
-  | 'conflicted';
-
-export type GitStatusEntry = {
-  /**
-   * An `EndoMountEntry` for the path.  The entry is the authority-bearing
-   * reference; `path` is presentation data only.
-   */
-  entry: EndoMountEntry;
-  path: string;
-  index: GitIndexStatus;
-  worktree: GitWorktreeStatus;
-  /**
-   * Present when a live worktree object currently exists for the path.
-   * A writable `Git` mints the node through the writable worktree mount
-   * (an `EndoMount` sub-mount or `EndoMountFile`); a read-only `Git`
-   * mints it through the structural read-only worktree view, so the
-   * node is then a `ReadableTreeView` or `ReadableBlobView`.  The wider
-   * union keeps the read-only case from type-checking a `writeText`
-   * that would reject at runtime.
-   */
-  node?: EndoMount | EndoMountFile | ReadableTreeView | ReadableBlobView;
-  renamedFrom?: string;
-};
-
-export type GitDiffOptions = {
-  cached?: boolean;
-  base?: GitRef | string;
-  head?: GitRef | string;
-  entries?: EndoMountEntry[];
-  paths?: string[];
-};
-
-export type GitLogOptions = {
-  /** `git log -n <count>` / `--max-count=<count>`.  Positive integer. */
-  maxCount?: number;
-  /** Branch, tag, oid, or any commit-ish git itself accepts. */
-  ref?: GitRef | string;
-  /**
-   * `git log --since=<approxidate>`.  Accepts the same approxidate
-   * forms git itself parses (`"2 weeks ago"`, `"2026-01-01"`, an RFC
-   * 3339 timestamp).
-   */
-  since?: string;
-  /**
-   * `git log --until=<approxidate>`.  Same accepted forms as `since`.
-   */
-  until?: string;
-};
-
-export type GitRestoreOptions = {
-  /**
-   * Restore from the index (default: false, which restores from the
-   * worktree).
-   */
-  staged?: boolean;
-};
-
-export type GitCreateBranchOptions = {
-  /** Revision at which to create the branch. */
-  startPoint?: string;
-  /** Switch to the new branch after creation. */
-  switchAfterCreate?: boolean;
-};
-
-export type GitDeleteBranchOptions = {
-  /** Pass `-D` instead of `-d`. */
-  force?: boolean;
-};
-
-export type GitMergeOptions = {
-  /** Pass `--ff-only`. */
-  fastForwardOnly?: boolean;
-  /** Pass `--no-ff`. */
-  noFastForward?: boolean;
-};
-
-export type GitRebaseInput = {
-  /**
-   * The backend throws when this is missing or any other value, so the
-   * boundary accepts the unconstrained shape that the public Git exo's
-   * runtime guard admits.
-   */
-  mode?: 'start' | 'continue' | 'abort' | 'skip';
-  /** Required when `mode === 'start'`. */
-  upstream?: string;
-};
-
-export type GitStashPushOptions = {
-  message?: string;
-  entries?: EndoMountEntry[];
-  paths?: string[];
-  includeUntracked?: boolean;
-};
-
-/**
- * Public `Git` capability surface, minted by `EndoHost.provideGit` and
- * `DaemonCore.formulateGit`.  The implementation lives in
- * `src/git.js` (the `makeGit` factory) and the runtime guard is the
- * `GitInterface` exo in `src/interfaces.js`.
- *
- * The capability is a thin wrapper over a `GitBackend` (today
- * `NativeGitBackend`); path-bearing inputs are passed as
- * `EndoMountEntry` values that the exo resolves to repo-relative
- * paths before reaching the backend.  Mutation methods reject when
- * the cap was obtained via `readOnly()` or derived from a read-only
- * worktree mount.
- */
-export interface EndoGit {
-  /**
-   * The worktree authority this cap carries.  A writable Git returns
-   * the writable `EndoMount`; a read-only Git returns a structural
-   * read-only `ReadableTree` view so the attenuated cap cannot hand a
-   * caller a writable worktree.
-   */
-  worktree(): Promise<EndoMount | ReadableTreeView>;
-  status(): Promise<GitStatusEntry[]>;
-  diff(options?: GitDiffOptions): Promise<string>;
-  log(options?: GitLogOptions): Promise<GitCommit[]>;
-  show(ref: GitRef | string): Promise<string>;
-  revParse(ref: GitRef | string): Promise<GitRef>;
-  add(entries: EndoMountEntry[]): Promise<void>;
-  restore(
-    entries: EndoMountEntry[],
-    options?: GitRestoreOptions,
-  ): Promise<void>;
-  commit(message: string): Promise<GitCommit>;
-  currentBranch(): Promise<GitRef | undefined>;
-  branches(): Promise<GitRef[]>;
-  createBranch(name: string, options?: GitCreateBranchOptions): Promise<GitRef>;
-  deleteBranch(name: string, options?: GitDeleteBranchOptions): Promise<void>;
-  renameBranch(from: string, to: string): Promise<void>;
-  switchBranch(name: string): Promise<void>;
-  detach(ref: GitRef | string): Promise<void>;
-  switch(ref: GitRef | string): Promise<void>;
-  merge(ref: GitRef | string, options?: GitMergeOptions): Promise<string>;
-  rebase(input: GitRebaseInput): Promise<string>;
-  stashPush(options?: GitStashPushOptions): Promise<string>;
-  stashList(): Promise<string[]>;
-  stashShow(index?: number): Promise<string>;
-  stashApply(index?: number): Promise<void>;
-  stashPop(index?: number): Promise<void>;
-  stashDrop(index?: number): Promise<void>;
-  /**
-   * Returns an `EndoGitTree`-shaped view of the given tree-ish; blob
-   * children expose a `ReadableBlob`-shaped surface.  The tree also
-   * exposes `archiveTar()` for streaming the immutable tree as a tar.
-   */
-  tree(ref: GitRef | string): Promise<EndoGitTree>;
-  /**
-   * Returns an `@endo/platform/fs/extended` `Filesystem` lazily backed by the git
-   * object database at the resolved tree of `ref`.  The Filesystem is
-   * immutable; mutating verbs throw `EACCES`.  See
-   * `designs/endo-fs-from-git.md`.
-   */
-  filesystemAt(ref: GitRef | string): Promise<unknown>;
-  /**
-   * Returns an attenuated `EndoGit` whose mutation methods reject.
-   * If this cap is already read-only, returns the same cap.
-   */
-  readOnly(): EndoGit;
-}
-
 export type MountDeferredTaskParams = {
   mountId: FormulaIdentifier;
 };
@@ -560,7 +363,7 @@ export type GitRemoteDeferredTaskParams = {
   gitRemoteId: FormulaIdentifier;
 };
 
-type LookupFormula = {
+export type LookupFormula = {
   type: 'lookup';
 
   /**
@@ -575,7 +378,7 @@ type LookupFormula = {
   path: NamePath;
 };
 
-type MakeUnconfinedFormula = {
+export type MakeUnconfinedFormula = {
   type: 'make-unconfined';
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
@@ -585,7 +388,7 @@ type MakeUnconfinedFormula = {
   // TODO formula slots
 };
 
-type MakeArchiveFormula = {
+export type MakeArchiveFormula = {
   type: 'make-archive';
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
@@ -595,7 +398,7 @@ type MakeArchiveFormula = {
   // TODO formula slots
 };
 
-type MakeFromTreeFormula = {
+export type MakeFromTreeFormula = {
   type: 'make-from-tree';
   worker: FormulaIdentifier;
   powers: FormulaIdentifier;
@@ -612,14 +415,14 @@ export type MakeCapletDeferredTaskParams = {
   workerId: FormulaIdentifier;
 };
 
-type PeerFormula = {
+export type PeerFormula = {
   type: 'peer';
   networks: FormulaIdentifier;
   node: NodeNumber;
   addresses: Array<string>;
 };
 
-type HandleFormula = {
+export type HandleFormula = {
   type: 'handle';
   agent: FormulaIdentifier;
 };
@@ -628,20 +431,20 @@ type KnownPeersStoreFormula = {
   type: 'known-peers-store';
 };
 
-type PetStoreFormula = {
+export type PetStoreFormula = {
   type: 'pet-store';
 };
 
-type MailboxStoreFormula = {
+export type MailboxStoreFormula = {
   type: 'mailbox-store';
 };
 
-type MailHubFormula = {
+export type MailHubFormula = {
   type: 'mail-hub';
   store: FormulaIdentifier;
 };
 
-type MessageFormula = {
+export type MessageFormula = {
   type: 'message';
   messageType: 'request' | 'package' | 'definition' | 'form' | 'value';
   messageId: FormulaNumber;
@@ -663,27 +466,27 @@ type MessageFormula = {
 };
 
 // Pending is represented by the absence of a status entry in the promise store.
-type PromiseFormula = {
+export type PromiseFormula = {
   type: 'promise';
   store: FormulaIdentifier;
 };
 
-type ResolverFormula = {
+export type ResolverFormula = {
   type: 'resolver';
   store: FormulaIdentifier;
 };
 
-type PetInspectorFormula = {
+export type PetInspectorFormula = {
   type: 'pet-inspector';
   petStore: FormulaIdentifier;
 };
 
-type DirectoryFormula = {
+export type DirectoryFormula = {
   type: 'directory';
   petStore: FormulaIdentifier;
 };
 
-type ChannelFormula = {
+export type ChannelFormula = {
   type: 'channel';
   handle: FormulaIdentifier;
   creatorAgent: FormulaIdentifier;
@@ -709,7 +512,7 @@ export type ChannelMessage = {
   replyType?: string;
 };
 
-type InvitationFormula = {
+export type InvitationFormula = {
   type: 'invitation';
   hostAgent: FormulaIdentifier;
   hostHandle: FormulaIdentifier;
@@ -2263,7 +2066,7 @@ export type DaemonicPowers = {
   filePowers: FilePowers;
 };
 
-type FormulateResult<T> = Promise<{
+export type FormulateResult<T> = Promise<{
   id: FormulaIdentifier;
   value: T;
 }>;
