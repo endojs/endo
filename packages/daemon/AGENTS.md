@@ -95,6 +95,20 @@ daemon rather than supplied by the user.
 
 The gateway (`src/daemon.js` line ~851) rejects requests for non-local node IDs with `"Gateway can only provide local values"`. After a daemon restart, the node number changes, so any client holding a stale formula ID from a previous session will hit this error.
 
+## Testing
+
+- Run package tests from the root with
+  `yarn workspace @endo/daemon test test/endo.test.js`.
+  The daemon AVA config sets a 5 minute timeout, so do not add shorter
+  one-off timeout flags.
+- Gateway, daemon, and fork-based tests must be `test.serial` because they fork
+  a full daemon per test and share filesystem state.
+- Tests set `ENDO_ADDR=127.0.0.1:0` so the gateway binds to an OS-assigned port,
+  avoiding conflicts with a running daemon on the default port 8920.
+- Worker logs are in
+  `packages/daemon/tmp/<test>/state/worker/<id>/worker.log`.
+  Check these when daemon-backed scenarios hang silently.
+
 ## Merge Policy
 
 Never use `--ours` or `--theirs` strategies when merging. All conflicts must be resolved manually by understanding both sides of the change.

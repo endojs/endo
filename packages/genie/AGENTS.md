@@ -362,10 +362,10 @@ A change in any one of them needs the chain re-validated.
 
 ```sh
 # Genie unit tests (spawners, command tool, memory, etc.)
-cd packages/genie && npx ava
+yarn workspace @endo/genie test
 
 # Sandbox unit tests (factory, drivers, blocked ranges)
-cd packages/sandbox && npx ava
+yarn workspace @endo/sandbox test
 ```
 
 These run on any OS and do not require `bubblewrap`.
@@ -374,18 +374,10 @@ backend-agnostic factory contract, and the egress filter regression.
 
 ### Integration path (Linux + bubblewrap)
 
-```sh
-# Workspace tool scenario — daemon + setup.js + LLM round-trip.
-cd packages/genie && yarn test:integration
-
-# Sandbox slice scenario — verifies bash actually runs in a slice
-# (daemon path).
-cd packages/genie && yarn test:integration:sandbox-slice
-
-# Same probe shape, dev-repl path — verifies bash actually runs in a
-# slice when invoked through `dev-repl.js -c` instead of the daemon.
-cd packages/genie && yarn test:integration:dev-repl-sandbox
-```
+Run the `@endo/genie` integration scripts from the root with
+`yarn workspace @endo/genie <script>`.
+The relevant scripts are `test:integration`, `test:integration:sandbox-slice`,
+and `test:integration:dev-repl-sandbox`.
 
 The `sandbox-slice` scenario boots a real Endo daemon, runs `setup.js`
 with `GENIE_WORKSPACE=$tmpdir`, waits for the agent to announce
