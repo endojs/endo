@@ -143,6 +143,9 @@ Never mix `self` and `facets` in the same context type.
 Group imports: external `@endo/*` packages first, then local imports, separated
 by a blank line.
 Sort imports within each group.
+Prefer named imports from Node built-ins and other modules, especially when a
+file needs only one capability.
+Example: `import { stat } from 'node:fs/promises';` over `import * as fs from 'fs';` and `fs.promises.stat()`
 
 ### Modules and exports
 
