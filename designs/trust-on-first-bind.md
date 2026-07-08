@@ -84,7 +84,9 @@ The states:
   Promotable back to Unknown by the controller holder if the deny was
   a transient mistake.
 - **Revoked.** Previously Pinned-Allow, now refused.
-  In-flight requests that were already past the policy check abort.
+  New requests are refused; in-flight requests that were already past
+  the policy check continue unless the holder revokes the whole
+  capability.
 
 The controller's `fetch`/`open`/`exec` entry point is
 shaped as:
