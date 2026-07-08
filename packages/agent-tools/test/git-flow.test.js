@@ -19,6 +19,7 @@ import { makeMount, lineageOf } from '@endo/daemon/src/mount.js';
 import { makeFilePowers } from '@endo/daemon/src/daemon-node-powers.js';
 
 import { makeGitTool } from '../src/git-tool.js';
+import { makeGitMountTools } from '../src/git-mount-tool.js';
 
 /**
  * Integration proof that `makeGitTool`'s agent-facing tool records drive a
@@ -28,13 +29,12 @@ import { makeGitTool } from '../src/git-tool.js';
  * a real on-disk repository: the records `invoke` correctly, the named→positional
  * marshal reaches the capability, and the capability's results flow back.
  *
- * The capability-heavy methods are deliberately NOT part of the tool slice and
- * are driven through the raw `Git` cap instead: `add` (its
- * `M.arrayOf(M.remotable())` arg awaits the handle-table / capref registry),
- * `status` (its non-empty rows mint remotable nodes), and `filesystemAt` (it
- * returns a live `Filesystem` remotable) all await the capref/result
- * serialization of a later PR. The in-slice, JSON-safe methods (`commit`, `log`,
- * the branch operations) go through the tool records.
+ * `add` and `status` — whose native signatures traffic in mount-entry
+ * remotables — are driven through the mount-bridged `makeGitMountTools` records
+ * (Phase 3: path strings in, JSON-safe rows out), while the in-slice JSON-safe
+ * methods (`commit`, `log`, the branch operations) go through `makeGitTool`.
+ * Only `filesystemAt` (it returns a live `Filesystem` remotable) is still driven
+ * through the raw cap, awaiting the result serialization of a later PR.
  */
 
 const execFileAsync = promisify(execFile);
@@ -44,13 +44,20 @@ const execFileAsync = promisify(execFile);
  * on `main`. Mirrors `packages/daemon/test/git.test.js`'s helper.
  *
  * @param {import('ava').ExecutionContext} t
+ * @param {string} [rootPath] Use this pre-existing directory as the worktree
+ *   root instead of a fresh `mkdtemp`. The caller owns its lifecycle (teardown),
+ *   letting a test control the worktree's *parent* — needed to prove a `../`
+ *   escape cannot reach a file above the root.
  * @returns {Promise<string>} the worktree root path
  */
-const provisionGitWorktree = async t => {
-  const root = await fs.promises.mkdtemp(
-    path.join(os.tmpdir(), 'agent-tools-git-'),
-  );
-  t.teardown(() => fs.promises.rm(root, { recursive: true, force: true }));
+const provisionGitWorktree = async (t, rootPath) => {
+  await null;
+  const root =
+    rootPath ??
+    (await fs.promises.mkdtemp(path.join(os.tmpdir(), 'agent-tools-git-')));
+  if (rootPath === undefined) {
+    t.teardown(() => fs.promises.rm(root, { recursive: true, force: true }));
+  }
   await execFileAsync('git', ['init', '-q', '-b', 'main'], { cwd: root });
   // Pin signing off so the setup is independent of a user-global
   // `commit.gpgSign`. (The exo backend supplies its own author identity and
@@ -84,9 +91,11 @@ const provisionGitWorktree = async t => {
  * worktree, a `NativeGitBackend`, and `makeGit`.
  *
  * @param {import('ava').ExecutionContext} t
+ * @param {string} [rootPath] Forwarded to `provisionGitWorktree` when a test
+ *   needs to control the worktree root's parent directory.
  */
-const provisionGit = async t => {
-  const repoRoot = await provisionGitWorktree(t);
+const provisionGit = async (t, rootPath) => {
+  const repoRoot = await provisionGitWorktree(t, rootPath);
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
   const backend = makeNativeGitBackend({ repoRoot });
@@ -105,27 +114,32 @@ const byNameOf = tools => name => {
   return found;
 };
 
-test('makeGitTool drives a real Git cap: stage → status → commit → log → filesystemAt', async t => {
-  const { repoRoot, mount, git } = await provisionGit(t);
+test('git tools drive a real Git cap: stage → status → commit → log → filesystemAt', async t => {
+  const { repoRoot, git } = await provisionGit(t);
   const byName = byNameOf(makeGitTool(git));
+  const byMountName = byNameOf(makeGitMountTools(git));
 
-  // Write and stage a file. `add` is not in the tool slice, so stage through
-  // the raw cap; the rest of the flow is driven through the tool records.
+  // Write and stage a file entirely through the mount-bridged `add` tool: it
+  // takes a path string, resolves it to a mount entry, and reaches the cap.
   await fs.promises.writeFile(
     path.join(repoRoot, 'greeting.txt'),
     'hello tools',
   );
-  const entry = await E(mount).entry(['greeting.txt']);
-  await E(git).add([entry]);
+  const added = await byMountName('add').invoke({ paths: ['greeting.txt'] });
+  t.is(added, 'Staged 1 path.');
 
-  // `status` is not part of the tool slice (its non-empty rows mint
-  // remotable nodes that await the capref/result serialization of a later
-  // PR), so read status through the raw cap; it reports the staged file.
-  const staged = await E(git).status();
-  t.true(
-    staged.some(row => row.path === 'greeting.txt'),
-    'status should report the staged file',
+  // `status` (mount-bridged tool) reports the staged file as JSON-safe rows,
+  // with no remotables on the wire.
+  const staged = /** @type {Array<{ path: string, index: string }>} */ (
+    await byMountName('status').invoke({})
   );
+  const stagedRow = staged.find(row => row.path === 'greeting.txt');
+  t.truthy(stagedRow, 'status should report the staged file');
+  t.is(stagedRow?.index, 'added');
+  for (const row of staged) {
+    t.false('entry' in row);
+    t.false('node' in row);
+  }
 
   // `commit` (tool) records it; the marshalled message reaches the cap.
   const commit = /** @type {{ oid: string, summary: string }} */ (
@@ -134,8 +148,10 @@ test('makeGitTool drives a real Git cap: stage → status → commit → log →
   t.regex(commit.oid, /^[0-9a-f]{7,64}$/);
   t.is(commit.summary, 'add greeting');
 
-  // Status (raw cap) is clean once the file is committed.
-  const afterStatus = await E(git).status();
+  // Status (mount-bridged tool) is clean once the file is committed.
+  const afterStatus = /** @type {Array<{ path: string }>} */ (
+    await byMountName('status').invoke({})
+  );
   t.false(
     afterStatus.some(row => row.path === 'greeting.txt'),
     'the committed file should no longer be dirty',
@@ -201,16 +217,88 @@ test('the runtime guard rejects a bad arg before reaching the live cap', async t
   await t.throwsAsync(() => byName('commit').invoke({ bogus: 'x' }));
 });
 
-test('the deferred add/restore methods are absent from the slice', t => {
+test('add/restore stay out of the JSON-transparent makeGitTool slice', t => {
   // The cap is only touched at invoke time, so an empty object suffices to
   // inspect the record names.
   const tools = makeGitTool(
     /** @type {import('../src/types.js').GitToolCapability} */ (harden({})),
   );
   const names = new Set(tools.map(tool => tool.name));
-  // `add`/`restore` take `M.arrayOf(M.remotable())` and stay out of the slice
-  // until the capref registry lands; this pins the contract that justifies the
-  // raw-cap staging above.
+  // `add`/`restore` take `M.arrayOf(M.remotable())`, so they cannot sit in the
+  // one-to-one guard-mapped slice. `add` is now served by the mount-bridged
+  // `makeGitMountTools` (proved above); `restore` remains deferred entirely.
   t.false(names.has('add'));
   t.false(names.has('restore'));
+  t.false(names.has('status'));
+
+  const mountToolNames = new Set(
+    makeGitMountTools(
+      /** @type {import('../src/types.js').GitMountToolCapability} */ (
+        harden({})
+      ),
+    ).map(tool => tool.name),
+  );
+  t.true(mountToolNames.has('add'));
+  t.true(mountToolNames.has('status'));
+  t.false(mountToolNames.has('restore'));
+});
+
+test('a "../" escape in an add path is contained by the mount, clamped at the worktree root', async t => {
+  // Lay out an OUTER directory holding two same-named files: one *above* the
+  // worktree root (the escape target — it must never be reached) and one at the
+  // root inside the repo. If a leading `..` escaped its confinement, `add`
+  // would resolve to the outer file; the mount clamps `..` at the root, so it
+  // resolves to the in-repo file instead. Sharing the basename makes the
+  // difference observable in the staged blob's bytes.
+  const outer = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'agent-tools-git-escape-'),
+  );
+  t.teardown(() => fs.promises.rm(outer, { recursive: true, force: true }));
+  await fs.promises.writeFile(
+    path.join(outer, 'contained.txt'),
+    'OUTSIDE THE WORKTREE — must never be staged',
+  );
+  const repoRoot = path.join(outer, 'worktree');
+  await fs.promises.mkdir(repoRoot);
+
+  const { git } = await provisionGit(t, repoRoot);
+  const byMountName = byNameOf(makeGitMountTools(git));
+
+  await fs.promises.writeFile(
+    path.join(repoRoot, 'contained.txt'),
+    'inside the worktree',
+  );
+
+  // Drive `add` with a `../`-bearing path through the real tool → mount → Git →
+  // git-binary stack. The `..` pops but is clamped at the worktree root, so the
+  // path resolves to `contained.txt` at the root: staging SUCCEEDS and stays
+  // inside the repo rather than escaping upward.
+  const added = await byMountName('add').invoke({
+    paths: ['../contained.txt'],
+  });
+  t.is(added, 'Staged 1 path.');
+
+  // `status` reports the file at its root-relative path — no leading `..`, no
+  // outer path — proving the segment was clamped, not preserved as an escape.
+  const staged = /** @type {Array<{ path: string, index: string }>} */ (
+    await byMountName('status').invoke({})
+  );
+  const row = staged.find(entry => entry.path === 'contained.txt');
+  t.truthy(row, 'the clamped path should stage the in-repo root file');
+  t.is(row?.index, 'added');
+  t.false(
+    staged.some(entry => entry.path.includes('..')),
+    'no staged path should retain a ".." segment',
+  );
+
+  // The load-bearing proof: the STAGED bytes are the in-repo file's, not the
+  // identically-named file one level above the worktree. The escape was
+  // contained at the capability, not by a string check in the tool.
+  const { stdout: stagedBytes } = await execFileAsync(
+    'git',
+    ['show', ':contained.txt'],
+    { cwd: repoRoot },
+  );
+  t.is(stagedBytes, 'inside the worktree');
+  t.not(stagedBytes, 'OUTSIDE THE WORKTREE — must never be staged');
 });
