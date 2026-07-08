@@ -105,6 +105,9 @@
       "path": "packages/host-spawner/tsconfig.composite.json"
     },
     {
+      "path": "packages/http-confine/tsconfig.composite.json"
+    },
+    {
       "path": "packages/immutable-arraybuffer/tsconfig.composite.json"
     },
     {
