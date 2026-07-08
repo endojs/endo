@@ -15,6 +15,10 @@ import {
   makeGitTool,
   makeGitMountTools,
   makeMountReadTool,
+  makeMountListTool,
+  makeMountStatTool,
+  makeMountEditTool,
+  makeMountFsTools,
 } from '@endo/agent-tools';
 ```
 
@@ -136,24 +140,49 @@ const gitTools = [...makeGitTool(git), ...makeGitMountTools(git)];
 schema-to-guard divergence gate stays intact; `makeGitMountTools`'s tool wire
 diverges from the raw `Git` guard by design.
 
-## Filesystem Tool
+## Filesystem Tools
 
-`makeMountReadTool(fs)` builds one read-only `mountReadText` tool over an
-`@endo/platform/fs/extended` `Filesystem` capability:
+The file-tool set covers read, list, stat, and edit over an
+`@endo/platform/fs/extended` `Filesystem` capability. The same set serves the
+live worktree (`mountAsFilesystem(mount)`) and history (`Git.filesystemAt(ref)`)
+unchanged, because both present the same `Filesystem` shape. Each tool holds the
+capability, not a path string: containment, symlink handling, attenuation,
+subtree scoping, and fail-closed revocation are the capability's guarantees.
+
+| Maker | Tool `name` | Slice |
+|---|---|---|
+| `makeMountReadTool(fs, opts?)` | `mountReadText` | read (bounded UTF-8 text; 50k-char default cap, `maxChars: 0` disables) |
+| `makeMountListTool(fs)` | `mountList` | read (name/kind entries of a directory) |
+| `makeMountStatTool(fs)` | `mountStat` | read (kind and size / mtime / atime; `bigint`s decimal-string-encoded) |
+| `makeMountEditTool(fs)` | `mountWriteText` | write (whole-file create-or-overwrite) |
+
+`makeMountFsTools(fs, opts?)` composes the whole set as a `ToolRecord[]`:
 
 ```js
 import { readOnly } from '@endo/platform/fs/extended';
-import { makeMountReadTool } from '@endo/agent-tools/mount-fs.js';
+import { makeMountFsTools } from '@endo/agent-tools/mount-fs.js';
 
-const readTool = makeMountReadTool(readOnly(projectFs));
-const content = await readTool.execute({ path: 'README.md' });
+// Writable agent: read + list + stat + edit.
+const tools = makeMountFsTools(projectFs);
+
+// Read-only agent: the edit tool is filtered out at construction, so it is
+// never advertised to the model. Attenuate the capability as well so an edit
+// also fails closed at the cap.
+const readOnlyTools = makeMountFsTools(readOnly(projectFs), { readOnly: true });
 ```
 
-The tool reads UTF-8 text by walking the filesystem tree, opening the final
-file, and reading a bounded byte range. The supplied `Filesystem` capability
-enforces containment, symlink handling, attenuation, subtree scoping, and
-revocation. The tool retains the same 50k character text cap as the existing
-file reader.
+The read / list / stat tools carry a build-time `scope: 'read'` tag and the edit
+tool `scope: 'write'`. When `opts.readOnly` is set the write slice is dropped at
+construction; the `scope` tag is build-time only and never reaches the wire
+schema the model receives (the same discipline `makeGitTool` applies via
+`isGitReadOnly`). Because a `Filesystem` capability is an `ERef` with no
+synchronous read-only probe, the host declares the attenuation through
+`opts.readOnly` rather than by cap inspection.
+
+Inherited `Filesystem` limits apply: whole-file reads and writes (no partial
+range at the mount backing), no POSIX mode / uid / gid, and directory `size`
+reported as the base seam's `0`. The edit tool overwrites an existing-or-new
+child of an existing directory; it does not create intermediate directories.
 
 ## Schema Conformance
 
