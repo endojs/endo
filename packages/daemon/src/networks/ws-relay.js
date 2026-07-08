@@ -43,6 +43,13 @@ const protocol = 'ws-relay+captp0';
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const INITIAL_RECONNECT_DELAY_MS = 1000;
+const DEFAULT_OPEN_TIMEOUT_MS = 30_000;
+
+/** @param {unknown} reason */
+const formatReason = reason =>
+  reason instanceof Error
+    ? `${reason.name}: ${reason.message}`
+    : String(reason);
 
 /**
  * Build a channel-to-stream adapter. Each multiplexed channel becomes
@@ -101,6 +108,15 @@ export const make = async (
     throw new Error('ws-relay network requires WS_RELAY_DOMAIN in env');
   }
 
+  const configuredOpenTimeoutMs = Number(env.WS_RELAY_OPEN_TIMEOUT_MS);
+  const openTimeoutMs =
+    env.WS_RELAY_OPEN_TIMEOUT_MS === undefined ||
+    env.WS_RELAY_OPEN_TIMEOUT_MS === ''
+      ? DEFAULT_OPEN_TIMEOUT_MS
+      : Number.isFinite(configuredOpenTimeoutMs) && configuredOpenTimeoutMs > 0
+        ? configuredOpenTimeoutMs
+        : DEFAULT_OPEN_TIMEOUT_MS;
+
   const localNodeIdBytes = fromHex(localNodeId);
 
   /**
@@ -133,6 +149,39 @@ export const make = async (
   let stopped = false;
 
   const { promise: stoppedPromise, resolve: resolveStopped } = makePromiseKit();
+
+  /**
+   * @param {Promise<void>} closed
+   * @param {string} label
+   * @param {() => void} onClosed
+   */
+  const trackConnectionClosed = (closed, label, onClosed) => {
+    const observedClosed = closed.then(
+      () => undefined,
+      reason => {
+        if (!stopped) {
+          console.warn(
+            `Endo daemon ${label} over ${protocol} closed with error: ${formatReason(reason)}`,
+          );
+        }
+      },
+    );
+    connectionClosedPromises.add(observedClosed);
+    observedClosed
+      .then(
+        () => {
+          connectionClosedPromises.delete(observedClosed);
+          onClosed();
+        },
+        error => {
+          connectionClosedPromises.delete(observedClosed);
+          console.error(
+            `Endo daemon ${label} close observer failed: ${formatReason(error)}`,
+          );
+        },
+      )
+      .catch(() => {});
+  };
 
   /**
    * @param {number} channelId
@@ -201,9 +250,7 @@ export const make = async (
     );
 
     const closedRace = Promise.race([closed, capTpClosed]);
-    connectionClosedPromises.add(closedRace);
-    closedRace.finally(() => {
-      connectionClosedPromises.delete(closedRace);
+    trackConnectionClosed(closedRace, 'inbound relay connection', () => {
       console.log(
         `Endo daemon closed relay connection ${connectionNumber} over ${protocol} at ${new Date().toISOString()}`,
       );
@@ -389,7 +436,7 @@ export const make = async (
       currentWs = null;
     }
     closeAllChannels();
-    await Promise.all(Array.from(connectionClosedPromises));
+    await Promise.allSettled(Array.from(connectionClosedPromises));
     resolveStopped(undefined);
   };
 
@@ -448,11 +495,30 @@ export const make = async (
       resolve: resolveOpen,
       reject: rejectOpen,
     } = makePromiseKit();
+    opened.catch(() => {});
     pendingOpens.set(channelId, { resolve: resolveOpen, reject: rejectOpen });
 
-    currentWs.send(encodeOpen(channelId, targetNodeIdBytes));
+    const openTimer = setTimeout(() => {
+      if (!pendingOpens.has(channelId)) {
+        return;
+      }
+      pendingOpens.delete(channelId);
+      sendClose(channelId);
+      rejectOpen(
+        new Error(`Timed out opening relay channel to ${targetNodeId}`),
+      );
+    }, openTimeoutMs);
 
-    await opened;
+    try {
+      currentWs.send(encodeOpen(channelId, targetNodeIdBytes));
+      await opened;
+    } catch (error) {
+      pendingOpens.delete(channelId);
+      sendClose(channelId);
+      throw error;
+    } finally {
+      clearTimeout(openTimer);
+    }
 
     console.log(
       `Endo daemon connected ${connectionNumber} over ${protocol} at ${new Date().toISOString()}`,
@@ -470,9 +536,7 @@ export const make = async (
     );
 
     const closedRace = Promise.race([closed, capTpClosed]);
-    connectionClosedPromises.add(closedRace);
-    closedRace.finally(() => {
-      connectionClosedPromises.delete(closedRace);
+    trackConnectionClosed(closedRace, 'outbound relay connection', () => {
       cancelConnection();
       console.log(
         `Endo daemon closed outbound relay connection ${connectionNumber} over ${protocol} at ${new Date().toISOString()}`,

@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* global process, setTimeout */
+/* global clearTimeout, process, setTimeout */
 
 // Establish a perimeter:
 // eslint-disable-next-line import/order
@@ -189,8 +189,14 @@ const prepareHost = async t => {
  * @param {import('ava').ExecutionContext<any>} t
  * @param {string} relayUrl
  * @param {string} relayDomain
+ * @param {Record<string, string>} [extraEnv]
  */
-const prepareHostWithWsRelay = async (t, relayUrl, relayDomain) => {
+const prepareHostWithWsRelay = async (
+  t,
+  relayUrl,
+  relayDomain,
+  extraEnv = {},
+) => {
   const { host } = await prepareHost(t);
 
   const servicePath = path.join(dirname, 'src', 'networks', 'ws-relay.js');
@@ -202,6 +208,7 @@ const prepareHostWithWsRelay = async (t, relayUrl, relayDomain) => {
     env: {
       WS_RELAY_URL: relayUrl,
       WS_RELAY_DOMAIN: relayDomain,
+      ...extraEnv,
     },
   });
   await E(host).move(['ws-relay-network'], ['@nets', 'ws-relay']);
@@ -359,6 +366,7 @@ test.serial(
         t,
         relay.relayUrl,
         relay.relayDomain,
+        { WS_RELAY_OPEN_TIMEOUT_MS: '1000' },
       );
 
       // Fabricate a peer info with a bogus node ID that is not connected
@@ -389,17 +397,22 @@ test.serial(
 
       // The lookup should reject, not hang indefinitely.
       // We race against a timeout to catch infinite hangs.
+      let timeoutId;
       const timeout = new Promise((_resolve, reject) => {
-        setTimeout(
+        timeoutId = setTimeout(
           () => reject(new Error('Timed out waiting for failure')),
-          30_000,
+          10_000,
         );
       });
 
-      await t.throwsAsync(
-        () => Promise.race([E(hostA).lookup(['bogus']), timeout]),
-        { message: /.*/ },
-      );
+      try {
+        await t.throwsAsync(
+          () => Promise.race([E(hostA).lookup(['bogus']), timeout]),
+          { message: /Timed out opening relay channel/u },
+        );
+      } finally {
+        clearTimeout(timeoutId);
+      }
     } finally {
       await relay.teardown();
     }
