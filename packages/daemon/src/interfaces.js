@@ -305,6 +305,11 @@ export const HostInterface = M.interface('EndoHost', {
     NameOrPathShape,
     M.recordOf(M.string(), M.any()),
   ).returns(M.remotable('GitRemote')),
+  // Host-only constructive clone. The endpoint is a repo-less remote
+  // authority; destMount is an empty daemon-minted destination mount.
+  provideGitClone: M.callWhen(M.recordOf(M.string(), M.any())).returns(
+    M.recordOf(M.string(), M.remotable()),
+  ),
   // Mint daemon-private Git credential capabilities.
   provideBearerCredential: M.callWhen(
     NameOrPathShape,

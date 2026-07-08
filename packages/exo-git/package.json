@@ -38,6 +38,10 @@
       "types": "./src/git-remote.d.ts",
       "default": "./src/git-remote.js"
     },
+    "./src/git-cloner.js": {
+      "types": "./src/git-cloner.d.ts",
+      "default": "./src/git-cloner.js"
+    },
     "./src/git-credential.js": {
       "types": "./src/git-credential.d.ts",
       "default": "./src/git-credential.js"
@@ -54,7 +58,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "test": "exit 0",
+    "test": "ava",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'",
@@ -72,6 +76,7 @@
   },
   "devDependencies": {
     "@endo/init": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev",
     "typescript": "catalog:dev"

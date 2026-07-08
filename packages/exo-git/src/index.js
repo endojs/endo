@@ -9,7 +9,13 @@ export {
 
 export { makeGitFsBackend } from './git-filesystem.js';
 
-export { makeGitRemote, getGitRemoteController } from './git-remote.js';
+export {
+  makeGitRemoteEndpoint,
+  makeGitRemote,
+  getGitRemoteController,
+} from './git-remote.js';
+
+export { makeGitCloner } from './git-cloner.js';
 
 export {
   makeBasicCredential,

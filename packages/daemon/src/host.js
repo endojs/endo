@@ -13,7 +13,10 @@ import {
   getGitCredentialController as getGitCredentialControllerForCap,
   getGitRemoteController as getGitRemoteControllerForCap,
   isGitReadOnly,
+  makeGitCloner,
+  makeGitRemoteEndpoint,
 } from '@endo/exo-git';
+import { gitClone } from '@endo/git';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import {
   assertPetName,
@@ -608,6 +611,120 @@ export const makeHostMaker = ({
         tasks,
       );
       return value;
+    };
+
+    /** @type {EndoHost['provideGitClone']} */
+    const provideGitClone = async opts => {
+      if (!opts || typeof opts !== 'object') {
+        throw makeError(X`provideGitClone: options must be an object`);
+      }
+      if (typeof opts.endpoint !== 'object' || opts.endpoint === null) {
+        throw makeError(X`provideGitClone: endpoint must be an object`);
+      }
+      const { destMount, endpoint: endpointOptions } = opts;
+      const destMountId = getIdForRef(destMount);
+      if (destMountId === undefined) {
+        throw makeError(
+          X`provideGitClone: destMount must be a daemon-minted mount cap`,
+        );
+      }
+      const destFormula = await getFormulaForId(destMountId);
+      if (
+        (destFormula.type === 'mount' ||
+          destFormula.type === 'scratch-mount') &&
+        destFormula.readOnly
+      ) {
+        throw makeError(
+          X`provideGitClone: destMount must be writable; read-only mounts cannot be clone destinations`,
+        );
+      }
+      const endpointRecord =
+        /** @type {{ url?: unknown, credential?: unknown, allowLocalFileTransport?: unknown }} */ (
+          endpointOptions
+        );
+      if (typeof endpointRecord.url !== 'string') {
+        throw makeError(X`provideGitClone: endpoint.url must be a string`);
+      }
+      if (
+        endpointRecord.allowLocalFileTransport !== undefined &&
+        typeof endpointRecord.allowLocalFileTransport !== 'boolean'
+      ) {
+        throw makeError(
+          X`provideGitClone: endpoint.allowLocalFileTransport must be a boolean`,
+        );
+      }
+      /** @type {FormulaIdentifier | undefined} */
+      let credentialId;
+      if (endpointRecord.credential !== undefined) {
+        credentialId = getIdForRef(endpointRecord.credential);
+        if (credentialId === undefined) {
+          throw makeError(
+            X`provideGitClone: endpoint.credential must be a daemon-minted Git credential cap`,
+          );
+        }
+      }
+      const credential =
+        endpointRecord.credential === undefined
+          ? undefined
+          : /** @type {object} */ (endpointRecord.credential);
+      const endpoint = makeGitRemoteEndpoint({
+        url: endpointRecord.url,
+        credential,
+        allowLocalFileTransport:
+          endpointRecord.allowLocalFileTransport === undefined
+            ? false
+            : endpointRecord.allowLocalFileTransport,
+      });
+      const destPath = await getMountHostPath(
+        /** @type {FormulaIdentifier} */ (destMountId),
+      );
+      /** @type {FormulaIdentifier | undefined} */
+      let clonedGitId;
+      const cloner = makeGitCloner({
+        endpoint,
+        clone: gitClone,
+        makeGit: async () => {
+          /** @type {DeferredTasks<GitDeferredTaskParams>} */
+          const tasks = makeDeferredTasks();
+          const { value, id } = await formulateGit(destMountId, tasks);
+          clonedGitId = id;
+          return value;
+        },
+        makeRemote: async ({ endpoint: remoteEndpoint }) => {
+          await null;
+          if (clonedGitId === undefined) {
+            throw makeError(X`provideGitClone: cloned Git id was not minted`);
+          }
+          const policy = harden({
+            url: remoteEndpoint.url,
+            allowedDirections: harden(
+              /** @type {Array<'fetch' | 'push'>} */ (['fetch', 'push']),
+            ),
+            fetchRefspecs: harden(['+refs/heads/*:refs/remotes/origin/*']),
+            pushRefspecs: harden(['refs/heads/*:refs/heads/*']),
+            allowLocalFileTransport: remoteEndpoint.allowLocalFileTransport,
+          });
+          /** @type {DeferredTasks<GitRemoteDeferredTaskParams>} */
+          const tasks = makeDeferredTasks();
+          const { value } = await formulateGitRemote(
+            clonedGitId,
+            credentialId,
+            'origin',
+            policy,
+            tasks,
+          );
+          return value;
+        },
+      });
+      const { git, remote } = await cloner.clone({
+        destMount,
+        destPath,
+      });
+      const gitCap = /** @type {EndoGit} */ (git);
+      return harden({
+        git: gitCap,
+        remote,
+      });
     };
 
     /** @type {EndoHost['storeValue']} */
@@ -1898,6 +2015,7 @@ export const makeHostMaker = ({
       provideScratchMount,
       provideGit,
       provideGitRemote,
+      provideGitClone,
       provideBearerCredential,
       provideBasicCredential,
       getGitCredentialController,

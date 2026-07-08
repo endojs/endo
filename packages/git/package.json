@@ -33,7 +33,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "test": "exit 0",
+    "test": "ava",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'",
@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@endo/init": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev",
     "typescript": "catalog:dev"

@@ -6,13 +6,15 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify as nodePromisify } from 'node:util';
 
 import { E } from '@endo/eventual-send';
-import { Far } from '@endo/pass-style';
 import { makeNativeGitBackend } from '@endo/git';
+import { Far } from '@endo/pass-style';
+import { makePromiseKit } from '@endo/promise-kit';
 import {
   assertGitCredentialForUrl,
   getGitCredentialController,
@@ -20,12 +22,15 @@ import {
   makeBasicCredential,
   makeBearerCredential,
   makeGit,
+  makeGitCloner,
   makeGitRemote,
+  makeGitRemoteEndpoint,
   makeNotYetImplementedBackend,
   makeUnavailableGitCredential,
   revokeGitCredential,
 } from '@endo/exo-git';
 
+import { start, stop, purge, makeEndoClient } from '../index.js';
 import { makeFilePowers } from '../src/daemon-node-powers.js';
 import { lineageOf, makeMount } from '../src/mount.js';
 
@@ -35,6 +40,44 @@ const exampleCredential = () =>
     audience: 'https://github.com',
     token: 'test-token',
   });
+
+/**
+ * @param {import('ava').ExecutionContext} t
+ */
+const provisionHostContext = async t => {
+  const root = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), 'git-clone-daemon-'),
+  );
+  const config = {
+    statePath: path.join(root, 'state'),
+    ephemeralStatePath: path.join(root, 'run'),
+    cachePath: path.join(root, 'cache'),
+    sockPath:
+      process.platform === 'win32'
+        ? String.raw`\\?\pipe\endo-git-clone-${path.basename(root)}.sock`
+        : path.join(root, 'endo.sock'),
+    address: '127.0.0.1:0',
+    pets: new Map(),
+    values: new Map(),
+    gcEnabled: true,
+  };
+  const { reject: cancel, promise: cancelled } = makePromiseKit();
+  cancelled.catch(() => {});
+  await purge(config);
+  await start(config);
+  const { getBootstrap, closed } = await makeEndoClient(
+    'client',
+    config.sockPath,
+    cancelled,
+  );
+  closed.catch(() => {});
+  t.teardown(async () => {
+    await stop(config);
+    cancel(Error('teardown'));
+    await fs.promises.rm(root, { recursive: true, force: true });
+  });
+  return { host: E(getBootstrap()).host(), config };
+};
 
 /**
  * @param {import('ava').ExecutionContext} t
@@ -540,6 +583,83 @@ test('GitCredentialController.rotate during in-flight fetch prevents stale succe
   t.like(audit[2], { type: 'fetch', outcome: 'ok' });
 });
 
+test('GitCloner fences HTTPS credential changes during in-flight clone', async t => {
+  /**
+   * @param {'rotate' | 'revoke'} change
+   * @param {RegExp} expected
+   */
+  const exerciseChange = async (change, expected) => {
+    const credential = exampleCredential();
+    const credentialController = getGitCredentialController(credential);
+    t.truthy(credentialController);
+    const endpoint = makeGitRemoteEndpoint({
+      url: 'https://github.com/example/repo.git',
+      credential,
+    });
+    /** @type {AbortSignal | undefined} */
+    let cloneSignal;
+    /** @type {unknown} */
+    let cloneCredential;
+    /** @type {(value?: unknown) => void} */
+    let cloneStartedResolve = () => {};
+    const cloneStarted = new Promise(resolve => {
+      cloneStartedResolve = resolve;
+    });
+    /** @type {(value: unknown) => void} */
+    let cloneResolve = () => {};
+    const cloneResult = new Promise(resolve => {
+      cloneResolve = resolve;
+    });
+    let makeGitCalled = false;
+    let makeRemoteCalled = false;
+    const cloner = makeGitCloner({
+      endpoint,
+      clone: async input => {
+        cloneCredential = /** @type {{ credential?: unknown }} */ (input)
+          .credential;
+        cloneSignal = /** @type {{ signal?: AbortSignal }} */ (input).signal;
+        cloneStartedResolve();
+        return cloneResult;
+      },
+      makeGit: async () => {
+        makeGitCalled = true;
+        return Far('FakeGit', {});
+      },
+      makeRemote: async () => {
+        makeRemoteCalled = true;
+        return /** @type {import('@endo/exo-git').GitRemote} */ (
+          /** @type {unknown} */ (Far('FakeRemote', {}))
+        );
+      },
+    });
+
+    const cloneP = cloner.clone({
+      destMount: Far('FakeMount', {}),
+      destPath: '/tmp/clone-destination',
+    });
+    await cloneStarted;
+    t.deepEqual(
+      cloneCredential,
+      harden({ kind: 'bearer', material: harden({ token: 'test-token' }) }),
+    );
+    t.false(cloneSignal?.aborted);
+    if (change === 'rotate') {
+      await E(credentialController).rotate({ token: 'new-token' });
+    } else {
+      await E(credentialController).revoke();
+    }
+    t.true(cloneSignal?.aborted);
+    cloneResolve('ok');
+
+    await t.throwsAsync(cloneP, { message: expected });
+    t.false(makeGitCalled);
+    t.false(makeRemoteCalled);
+  };
+
+  await exerciseChange('rotate', /changed during clone/);
+  await exerciseChange('revoke', /revoked during clone/);
+});
+
 test('GitRemoteController.revoke during in-flight pull aborts before local integration', async t => {
   /** @type {AbortSignal | undefined} */
   let fetchSignal;
@@ -694,6 +814,111 @@ test('GitRemote push round-trips to an independent fetcher over file://', async 
   );
   t.is(blob, payload);
 });
+
+test.serial(
+  'EndoHost.provideGitClone clones file endpoint into a Git plus origin remote',
+  async t => {
+    const { root } = await provisionGitContext(t);
+    const remoteRoot = await provisionBareRemote(t, root);
+    const remoteUrl = pathToFileURL(remoteRoot).href;
+    const { host } = await provisionHostContext(t);
+
+    const destMount = await E(host).provideScratchMount('clone-destination');
+    await t.throwsAsync(
+      E(host).provideGitClone({
+        destMount: Far('NotMount', {}),
+        endpoint: { url: remoteUrl, allowLocalFileTransport: true },
+      }),
+      { message: /destMount must be a daemon-minted mount cap/ },
+    );
+    await t.throwsAsync(
+      E(host).provideGitClone({
+        destMount,
+        endpoint: /** @type {any} */ ({
+          url: remoteUrl,
+          allowLocalFileTransport: 'true',
+        }),
+      }),
+      { message: /endpoint\.allowLocalFileTransport must be a boolean/ },
+    );
+    await t.throwsAsync(
+      E(host).provideGitClone({
+        destMount,
+        endpoint: /** @type {any} */ ({
+          url: 1,
+          allowLocalFileTransport: true,
+        }),
+      }),
+      { message: /endpoint\.url must be a string/ },
+    );
+    const { git, remote } = await E(host).provideGitClone({
+      destMount,
+      endpoint: {
+        url: remoteUrl,
+        allowLocalFileTransport: true,
+      },
+    });
+
+    t.is((await E(git).currentBranch()).name, 'main');
+    t.deepEqual(await E(git).status(), []);
+    t.like(await E(remote).inspect(), {
+      allowedDirections: ['fetch', 'push'],
+      fetchRefspecs: ['+refs/heads/*:refs/remotes/origin/*'],
+      pushRefspecs: ['refs/heads/*:refs/heads/*'],
+    });
+
+    await E(destMount).writeText(['clone.txt'], 'clone wrote back\n');
+    const entry = await E(destMount).entry(['clone.txt']);
+    await E(git).add([entry]);
+    await E(git).commit('test: clone writeback');
+    const pushResult = await E(remote).push({
+      source: 'refs/heads/main',
+      destination: 'refs/heads/main',
+    });
+    t.like([...pushResult.updatedRefs][0], {
+      remote: 'refs/heads/main',
+      result: 'fast-forward',
+    });
+
+    const { stdout } = await execFileAsync('git', [
+      '--git-dir',
+      remoteRoot,
+      'show',
+      'main:clone.txt',
+    ]);
+    t.is(stdout, 'clone wrote back\n');
+  },
+);
+
+test.serial(
+  'EndoHost.provideGitClone rejects read-only destination without mutation',
+  async t => {
+    const { root } = await provisionGitContext(t);
+    const remoteRoot = await provisionBareRemote(t, root);
+    const remoteUrl = pathToFileURL(remoteRoot).href;
+    const { host } = await provisionHostContext(t);
+
+    const destMount = await E(host).provideScratchMount(
+      'read-only-clone-destination',
+      { readOnly: true },
+    );
+    const destPath = await E(host).provideHostPath(destMount);
+    t.deepEqual(await fs.promises.readdir(destPath), []);
+
+    await t.throwsAsync(
+      E(host).provideGitClone({
+        destMount,
+        endpoint: {
+          url: remoteUrl,
+          allowLocalFileTransport: true,
+        },
+      }),
+      { message: /destMount must be writable/ },
+    );
+
+    t.deepEqual(await fs.promises.readdir(destPath), []);
+  },
+);
 
 test('GitRemote enforces allowedDirections at the call boundary', async t => {
   const { git } = await provisionGitContext(t);
