@@ -495,7 +495,9 @@ pure confinement core) and `@endo/exo-http-client` (the `HttpClient` /
 
 These phases extend the local `Git` capability for the agentry code-mode
 stack-surgery eval lane, per
-[agentry-git-verb-gaps](agentry-git-verb-gaps.md).
+[agentry-git-verb-gaps](agentry-git-verb-gaps.md). The acceptance contract is
+the `stack-surgery` scenario in `designs/agentry-git-eval-scenarios.md` (draft
+PR #636, branch `design/agentry-git-eval-scenarios`).
 
 - [ ] `commit({ amend })` and `reword(ref, message)` across all surfaces
   at once: exo + `GitInterface` guard + `GitBackend` + native impl +
@@ -512,7 +514,9 @@ stack-surgery eval lane, per
 ### Phase 6: Stack-replay and conflict resolution (agentry eval lane)
 
 Grouped because replay produces the conflicts the selection verb resolves;
-per [agentry-git-verb-gaps](agentry-git-verb-gaps.md).
+per [agentry-git-verb-gaps](agentry-git-verb-gaps.md). The acceptance contract
+is the `stack-surgery` scenario in `designs/agentry-git-eval-scenarios.md`
+(draft PR #636, branch `design/agentry-git-eval-scenarios`).
 
 - [ ] `cherryPick(ref, options?)` and `rebase({ autosquash })` for
   `mode: 'start'` across all surfaces, including JSON (cherryPick ref +

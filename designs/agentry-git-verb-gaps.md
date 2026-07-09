@@ -16,9 +16,12 @@ settles the capability-to-tool map: a local `Git` capability derived from an
 `EndoMount` is the authority for local repository mutation, code mode receives
 the generated `git` global, and the JSON tool slice stays curated.
 
-The gap is narrow. Add only the local history-editing verbs that the eval
-scenarios cannot express through the existing `status`, `add`, `restore`,
-`commit`, `merge`, `rebase`, `stash`, and historical-read methods.
+The gap is narrow. Add only the local history-editing verbs that
+`designs/agentry-git-eval-scenarios.md` (draft PR #636, branch
+`design/agentry-git-eval-scenarios`) names for its `stack-surgery` scenario
+and cannot express through the existing `status`, `add`, `restore`, `commit`,
+`merge`, `rebase`, `stash`, and historical-read methods. That scenario is the
+acceptance contract for these verbs.
 
 ## In Scope
 
@@ -183,9 +186,17 @@ The narrower surface already covers the intended workflows:
   and stack movement.
 - `commit(..., { amend: true })`, `reword`, and autosquash cover history cleanup.
 
+The mixed-commit split that motivated a reset-like verb is expressible without
+one. Create a branch at the mixed commit's parent with
+`createBranch(name, { startPoint: <parent-of-mixed-commit>, switchAfterCreate:
+true })`, read the old patch through `filesystemAt(ref)`, write the selected
+parts into the workspace, `add` and `commit`, then `cherryPick` the rest of the
+stack.
+
 A future design may add a structured, non-broad stack movement primitive if an
-eval proves it cannot be expressed otherwise. That primitive should not be named
-`reset` unless it carries Git's full footgun honestly.
+eval proves it cannot be expressed otherwise. That escape hatch now has a named
+eval: the `stack-surgery` scenario. That primitive should not be named `reset`
+unless it carries Git's full footgun honestly.
 
 ## Out-of-Scope Disposition
 
