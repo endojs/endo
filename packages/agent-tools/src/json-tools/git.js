@@ -72,6 +72,41 @@ const COMMIT_PROP = harden({
   description: 'The commit message.',
 });
 
+const CHERRY_PICK_OPTIONS_PROP = harden({
+  type: 'object',
+  properties: {
+    noCommit: {
+      type: 'boolean',
+      description: 'Apply the patch to the index and worktree without committing.',
+    },
+  },
+  required: [],
+  additionalProperties: false,
+});
+
+const REBASE_START_INPUT_PROP = harden({
+  type: 'object',
+  properties: {
+    mode: { const: 'start' },
+    upstream: {
+      type: 'string',
+      description: 'The upstream ref to replay the current branch onto.',
+    },
+    autosquash: {
+      type: 'boolean',
+      description: 'Fold fixup!/squash! commits during the replay.',
+    },
+  },
+  required: ['mode', 'upstream'],
+  additionalProperties: false,
+});
+
+const REBASE_START_INPUT_SHAPE = M.splitRecord(
+  { mode: 'start', upstream: M.string() },
+  { autosquash: M.boolean() },
+  {},
+);
+
 /**
  * This package intentionally exposes only a curated JSON-safe writable Git slice
  * for now. Methods that remotely accept capabilities or can return
@@ -179,6 +214,24 @@ const gitHistoryToolSchemas = harden({
       additionalProperties: false,
     },
   },
+  cherryPick: {
+    description: 'Replay an existing commit onto the current branch.',
+    parameters: {
+      type: 'object',
+      properties: { ref: REF_PROP, options: CHERRY_PICK_OPTIONS_PROP },
+      required: ['ref'],
+      additionalProperties: false,
+    },
+  },
+  rebase: {
+    description: 'Replay the current branch onto an upstream ref.',
+    parameters: {
+      type: 'object',
+      properties: { input: REBASE_START_INPUT_PROP },
+      required: ['input'],
+      additionalProperties: false,
+    },
+  },
 });
 
 /**
@@ -194,6 +247,11 @@ const gitHistoryToolMethods = harden(
     Object.keys(gitHistoryToolSchemas)
   ),
 );
+
+/** @type {Partial<Record<keyof GitHistoryToolCapability, Pattern[]>>} */
+const gitHistoryToolArgGuards = harden({
+  rebase: harden([REBASE_START_INPUT_SHAPE]),
+});
 
 /**
  * Positional arg guards for a method, required first and then optional.
@@ -221,14 +279,15 @@ const positionalArgGuards = method => {
  *   needs.
  * @param {(keyof GitToolDispatch)[]} methods
  * @param {Partial<Record<keyof GitToolDispatch, { description: string, parameters: object }>>} schemas
+ * @param {Partial<Record<keyof GitToolDispatch, Pattern[]>>} argGuardsByMethod
  * @returns {ToolRecord[]}
  */
-const makeGitTools = (gitCap, methods, schemas) => {
+const makeGitTools = (gitCap, methods, schemas, argGuardsByMethod = {}) => {
   const records = methods.map(method => {
     const schema = /** @type {{ description: string, parameters: object }} */ (
       schemas[method]
     );
-    const argGuards = positionalArgGuards(method);
+    const argGuards = argGuardsByMethod[method] || positionalArgGuards(method);
     // The schema's declared property order is the positional argument order,
     // matching the convention `makeTool` applies to the named-args record.
     const paramNames = Object.keys(
@@ -278,5 +337,10 @@ harden(makeGitTool);
  * @returns {ToolRecord[]}
  */
 export const makeGitHistoryTool = gitCap =>
-  makeGitTools(gitCap, gitHistoryToolMethods, gitHistoryToolSchemas);
+  makeGitTools(
+    gitCap,
+    gitHistoryToolMethods,
+    gitHistoryToolSchemas,
+    gitHistoryToolArgGuards,
+  );
 harden(makeGitHistoryTool);

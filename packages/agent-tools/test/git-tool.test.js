@@ -81,6 +81,14 @@ const makeHistoryStubGit = calls =>
       calls.push(['reword', ...a]);
       return { oid: 'x', summary: a[1] };
     },
+    cherryPick: async (...a) => {
+      calls.push(['cherryPick', ...a]);
+      return '';
+    },
+    rebase: async (...a) => {
+      calls.push(['rebase', ...a]);
+      return '';
+    },
   });
 
 test('makeGitTool builds one record per non-remotable-slice method', t => {
@@ -174,7 +182,12 @@ test('the schemas advertise real, declarative property names', t => {
 test('makeGitHistoryTool requires an explicit elevated capability', async t => {
   const calls = [];
   const tools = makeGitHistoryTool(makeHistoryStubGit(calls));
-  t.deepEqual(tools.map(tool => tool.name).sort(), ['commit', 'reword']);
+  t.deepEqual(tools.map(tool => tool.name).sort(), [
+    'cherryPick',
+    'commit',
+    'rebase',
+    'reword',
+  ]);
   const byName = name => {
     const found = tools.find(tool => tool.name === name);
     if (!found) throw new Error(`no history tool named ${name}`);
@@ -186,9 +199,18 @@ test('makeGitHistoryTool requires an explicit elevated capability', async t => {
     options: harden({ amend: true }),
   });
   await byName('reword').invoke({ ref: 'HEAD~1', message: 'new subject' });
+  await byName('cherryPick').invoke({
+    ref: 'side',
+    options: harden({ noCommit: true }),
+  });
+  await byName('rebase').invoke({
+    input: harden({ mode: 'start', upstream: 'main', autosquash: true }),
+  });
   t.deepEqual(calls, [
     ['commit', 'amended message', { amend: true }],
     ['reword', 'HEAD~1', 'new subject'],
+    ['cherryPick', 'side', { noCommit: true }],
+    ['rebase', { mode: 'start', upstream: 'main', autosquash: true }],
   ]);
 });
 

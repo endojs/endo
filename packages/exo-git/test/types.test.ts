@@ -2,6 +2,7 @@ import { makeGit } from '../src/git.js';
 import type { GitBackend } from '../src/git.js';
 import type {
   Filesystem,
+  GitCherryPickOptions,
   GitCommit,
   GitCommitOptions,
   GitCreateBranchOptions,
@@ -166,6 +167,10 @@ type ExpectedWritableEndoGit = ExpectedReadOnlyEndoGit & {
   restore: (entries: PathEntry[], options?: GitRestoreOptions) => Promise<void>;
   commit: (message: string, options?: GitCommitOptions) => Promise<GitCommit>;
   reword: (ref: GitRef | string, message: string) => Promise<GitCommit>;
+  cherryPick: (
+    ref: GitRef | string,
+    options?: GitCherryPickOptions,
+  ) => Promise<string>;
   createBranch: (
     name: string,
     options?: GitCreateBranchOptions,

@@ -13,7 +13,7 @@ import type { Pattern } from '@endo/patterns';
  * `WritableEndoGit`
  * — `merge`, `rebase`, `restore`, `deleteBranch`, `renameBranch`, the `stash*`
  * family, the working-tree/detach mutators (`switch`, `detach`), and history
- * rewrites (`commit` with `amend`, `reword`).
+ * rewrites (`commit` with `amend`, `reword`, `cherryPick`, `rebase`).
  * Those carry authority a tool
  * surface handed to a model should not advertise: they can discard uncommitted
  * work or rewrite shared history. `commit` is included only through the default
@@ -45,11 +45,11 @@ export type GitToolCapability = Pick<
 /**
  * Explicitly elevated history-rewrite slice for `makeGitHistoryTool`.
  * Hosts must opt into constructing these tools; the default `makeGitTool`
- * inventory does not advertise either operation.
+ * inventory does not advertise these operations.
  */
 export type GitHistoryToolCapability = Pick<
   WritableEndoGit,
-  'commit' | 'reword'
+  'commit' | 'reword' | 'cherryPick' | 'rebase'
 >;
 
 /**

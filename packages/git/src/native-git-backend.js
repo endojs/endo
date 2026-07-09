@@ -38,6 +38,7 @@ const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
  *   GitBackendStashPushOptions,
  * } from '@endo/exo-git/src/git.js'
  * @import {
+ *   GitCherryPickOptions,
  *   GitCommit,
  *   GitCommitOptions,
  *   GitCreateBranchOptions,
@@ -2478,6 +2479,25 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
     },
 
     /**
+     * @param {string} ref
+     * @param {GitCherryPickOptions} [opts]
+     * @returns {Promise<string>}
+     */
+    cherryPick: async (ref, opts = {}) => {
+      const target = requireRevision(ref, 'cherryPick.ref');
+      await assertNoExecutableRepoConfig();
+      const args = ['cherry-pick'];
+      if (opts.noCommit !== undefined && typeof opts.noCommit !== 'boolean') {
+        throw new Error('cherryPick.noCommit must be a boolean');
+      }
+      if (opts.noCommit) {
+        args.push('--no-commit');
+      }
+      args.push('--end-of-options', target);
+      return runGit(args);
+    },
+
+    /**
      * @returns {Promise<GitRef | undefined>}
      */
     currentBranch: async () => {
@@ -2627,11 +2647,32 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
     rebase: async input => {
       await assertNoExecutableRepoConfig();
       if (input.mode === 'start') {
-        return runGit([
-          'rebase',
+        const args = ['rebase'];
+        if (input.autosquash !== undefined) {
+          if (typeof input.autosquash !== 'boolean') {
+            throw new Error('rebase.autosquash must be a boolean');
+          }
+          if (input.autosquash) {
+            args.push('--autosquash', '--interactive');
+          }
+        }
+        args.push(
           '--end-of-options',
           requireRevision(input.upstream, 'rebase.upstream'),
-        ]);
+        );
+        return runGit(args);
+      }
+      if (
+        Object.prototype.hasOwnProperty.call(input, 'autosquash') &&
+        input.autosquash !== undefined
+      ) {
+        throw new Error('rebase.autosquash is only valid for mode start');
+      }
+      if (
+        Object.prototype.hasOwnProperty.call(input, 'upstream') &&
+        input.upstream !== undefined
+      ) {
+        throw new Error('rebase.upstream is only valid for mode start');
       }
       if (input.mode === 'continue') {
         return runGit(['rebase', '--continue']);

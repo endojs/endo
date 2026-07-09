@@ -70,6 +70,29 @@ const GitCommitOptionsShape = M.splitRecord(
   harden({}),
 );
 
+const GitCherryPickOptionsShape = M.splitRecord(
+  {},
+  { noCommit: M.boolean() },
+  harden({}),
+);
+
+const GitRebaseStartInputShape = M.splitRecord(
+  { mode: 'start', upstream: M.string() },
+  { autosquash: M.boolean() },
+  harden({}),
+);
+
+const GitRebaseControlInputShape = M.splitRecord(
+  { mode: M.or('continue', 'abort', 'skip') },
+  {},
+  harden({}),
+);
+
+const GitRebaseInputShape = M.or(
+  GitRebaseStartInputShape,
+  GitRebaseControlInputShape,
+);
+
 // #endregion
 
 export const GitInterface = M.interface('Git', {
@@ -95,6 +118,9 @@ export const GitInterface = M.interface('Git', {
     .optional(GitCommitOptionsShape)
     .returns(GitCommitShape),
   reword: M.callWhen(RefArgShape, M.string()).returns(GitCommitShape),
+  cherryPick: M.callWhen(RefArgShape)
+    .optional(GitCherryPickOptionsShape)
+    .returns(M.string()),
   currentBranch: M.callWhen().returns(M.or(GitRefShape, M.undefined())),
   branches: M.callWhen().returns(M.arrayOf(GitRefShape)),
   createBranch: M.callWhen(M.string())
@@ -110,7 +136,7 @@ export const GitInterface = M.interface('Git', {
   merge: M.callWhen(RefArgShape)
     .optional(M.recordOf(M.string(), M.any()))
     .returns(M.string()),
-  rebase: M.callWhen(M.recordOf(M.string(), M.any())).returns(M.string()),
+  rebase: M.callWhen(GitRebaseInputShape).returns(M.string()),
   stashPush: M.callWhen()
     .optional(M.recordOf(M.string(), M.any()))
     .returns(M.string()),

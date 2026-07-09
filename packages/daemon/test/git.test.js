@@ -118,7 +118,7 @@ test('Git exo advertises the full GitInterface', async t => {
   }
 
   // Mutation
-  for (const name of ['add', 'restore', 'commit', 'reword']) {
+  for (const name of ['add', 'restore', 'commit', 'reword', 'cherryPick']) {
     t.true(methods.includes(name), `Git should advertise ${name}`);
   }
 
@@ -207,6 +207,17 @@ test('Git.readOnly() attenuates mutating operations but preserves reads', async 
   await t.throwsAsync(E(runtimeReadOnlyGit).reword('HEAD', 'should fail'), {
     message: /read-only Git capability/,
   });
+  await t.throwsAsync(E(runtimeReadOnlyGit).cherryPick('HEAD'), {
+    message: /read-only Git capability/,
+  });
+  await t.throwsAsync(
+    E(runtimeReadOnlyGit).rebase({
+      mode: 'start',
+      upstream: 'main',
+      autosquash: true,
+    }),
+    { message: /read-only Git capability/ },
+  );
   await t.throwsAsync(E(runtimeReadOnlyGit).switchBranch('main'), {
     message: /read-only Git capability/,
   });
@@ -1177,6 +1188,123 @@ test('Git.reword accepts HEAD while detached but rejects an ancestor', async t =
   });
 });
 
+test('Git.cherryPick replays a commit through the native backend', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  await execFileAsync('git', ['switch', '-c', 'side'], { cwd: repoRoot });
+  await fs.promises.writeFile(path.join(repoRoot, 'side.txt'), 'side\n');
+  await execFileAsync('git', ['add', 'side.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'side commit',
+    ],
+    { cwd: repoRoot },
+  );
+  const sideOid = (await E(git).revParse('HEAD')).oid || '';
+  await execFileAsync('git', ['switch', 'main'], { cwd: repoRoot });
+
+  await E(git).cherryPick(sideOid);
+
+  t.is(
+    await fs.promises.readFile(path.join(repoRoot, 'side.txt'), 'utf8'),
+    'side\n',
+  );
+  const log = await E(git).log({ maxCount: 2 });
+  t.deepEqual(
+    log.map(commit => commit.summary),
+    ['side commit', 'init commit'],
+  );
+});
+
+test('Git.cherryPick noCommit applies without creating a commit', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  const initialHead = (await E(git).revParse('HEAD')).oid;
+  await execFileAsync('git', ['switch', '-c', 'side'], { cwd: repoRoot });
+  await fs.promises.writeFile(path.join(repoRoot, 'pending.txt'), 'pending\n');
+  await execFileAsync('git', ['add', 'pending.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'pending commit',
+    ],
+    { cwd: repoRoot },
+  );
+  const sideOid = (await E(git).revParse('HEAD')).oid || '';
+  await execFileAsync('git', ['switch', 'main'], { cwd: repoRoot });
+
+  await E(git).cherryPick(sideOid, { noCommit: true });
+
+  t.is((await E(git).revParse('HEAD')).oid, initialHead);
+  const status = await E(git).status();
+  const pending = status.find(row => row.path === 'pending.txt');
+  t.truthy(pending);
+  t.is(pending && pending.index, 'added');
+});
+
+test('NativeGitBackend.cherryPick stops cleanly on conflict', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await fs.promises.writeFile(path.join(repoRoot, 'conflict.txt'), 'base\n');
+  await execFileAsync('git', ['add', 'conflict.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'base file'],
+    { cwd: repoRoot },
+  );
+
+  await execFileAsync('git', ['switch', '-c', 'side'], { cwd: repoRoot });
+  await fs.promises.writeFile(path.join(repoRoot, 'conflict.txt'), 'side\n');
+  await execFileAsync('git', ['add', 'conflict.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'side edit'],
+    { cwd: repoRoot },
+  );
+  const sideOid = (
+    await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot })
+  ).stdout.trim();
+
+  await execFileAsync('git', ['switch', 'main'], { cwd: repoRoot });
+  await fs.promises.writeFile(path.join(repoRoot, 'conflict.txt'), 'main\n');
+  await execFileAsync('git', ['add', 'conflict.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'main edit'],
+    { cwd: repoRoot },
+  );
+
+  const backend = makeNativeGitBackend({ repoRoot });
+  await t.throwsAsync(() => backend.cherryPick(sideOid), {
+    message: /cherry-pick failed|CONFLICT/,
+  });
+  const status = await backend.status();
+  const conflicted = status.find(row => row.path === 'conflict.txt');
+  t.truthy(conflicted);
+  t.is(conflicted && conflicted.index, 'conflicted');
+  t.is(conflicted && conflicted.worktree, 'conflicted');
+});
+
 test('Git scaffold methods all surface a clear "not yet implemented"', async t => {
   const mount = await provisionMount(t);
   const backend = makeNotYetImplementedBackend();
@@ -1194,6 +1322,9 @@ test('Git scaffold methods all surface a clear "not yet implemented"', async t =
     message: /not yet implemented/,
   });
   await t.throwsAsync(E(git).reword('HEAD', 'msg'), {
+    message: /not yet implemented/,
+  });
+  await t.throwsAsync(E(git).cherryPick('HEAD'), {
     message: /not yet implemented/,
   });
   await t.throwsAsync(E(git).branches(), { message: /not yet implemented/ });
@@ -2312,6 +2443,71 @@ test('NativeGitBackend.rebase rebases a local branch onto upstream', async t => 
   t.deepEqual(
     commits.map(commit => commit.summary),
     ['feature commit', 'main commit'],
+  );
+});
+
+test('NativeGitBackend.rebase supports autosquash on start', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  await execFileAsync('git', ['switch', '-c', 'feature'], { cwd: repoRoot });
+  await fs.promises.writeFile(path.join(repoRoot, 'topic.txt'), 'one\n');
+  await execFileAsync('git', ['add', 'topic.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'topic'],
+    { cwd: repoRoot },
+  );
+  await fs.promises.writeFile(path.join(repoRoot, 'topic.txt'), 'two\n');
+  await execFileAsync('git', ['add', 'topic.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'fixup! topic',
+    ],
+    { cwd: repoRoot },
+  );
+  await execFileAsync('git', ['switch', 'main'], { cwd: repoRoot });
+  await fs.promises.writeFile(path.join(repoRoot, 'main.txt'), 'main\n');
+  await execFileAsync('git', ['add', 'main.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'main'],
+    { cwd: repoRoot },
+  );
+  await execFileAsync('git', ['switch', 'feature'], { cwd: repoRoot });
+
+  const backend = makeNativeGitBackend({ repoRoot });
+  await backend.rebase({ mode: 'start', upstream: 'main', autosquash: true });
+
+  const commits = await backend.log({ maxCount: 3 });
+  t.deepEqual(
+    commits.map(commit => commit.summary),
+    ['topic', 'main', 'init commit'],
+  );
+  t.is(
+    await fs.promises.readFile(path.join(repoRoot, 'topic.txt'), 'utf8'),
+    'two\n',
+  );
+});
+
+test('NativeGitBackend.rebase rejects autosquash outside start mode', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const backend = makeNativeGitBackend({ repoRoot });
+
+  await Promise.all(
+    ['continue', 'abort', 'skip'].map(mode =>
+      t.throwsAsync(
+        () => backend.rebase(/** @type {any} */ ({ mode, autosquash: true })),
+        {
+          message: /autosquash is only valid for mode start/,
+        },
+      ),
+    ),
   );
 });
 

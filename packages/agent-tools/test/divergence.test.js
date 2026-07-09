@@ -33,6 +33,23 @@ const ajv = new Ajv({ strict: false });
  * @param {string} method
  */
 const guardShapeFor = method => {
+  if (method === 'rebase') {
+    return {
+      requiredCount: 1,
+      guards: harden([
+        M.splitRecord(
+          {
+            mode: 'start',
+            upstream: M.string(),
+          },
+          {
+            autosquash: M.boolean(),
+          },
+          {},
+        ),
+      ]),
+    };
+  }
   const { methodGuards } = getInterfaceGuardPayload(
     /** @type {InterfaceGuard} */ (GitInterface),
   );
@@ -106,6 +123,9 @@ const slotRecords = harden([
   // Open-object option records.
   { slot0: { a: 1, b: 2 } },
   { slot0: { nested: { x: 1 } } },
+  { slot0: { mode: 'start', upstream: 'main' } },
+  { slot0: { mode: 'start', upstream: 'main', autosquash: true } },
+  { slot0: { mode: 'continue', autosquash: true } },
   { slot0: harden({ author: 'alice', oneline: true, maxCount: 10 }) },
   { slot0: 'a', slot1: { a: 1, b: 2 } },
   { slot0: 'a', slot1: { nested: { x: 1 } } },
