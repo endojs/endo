@@ -73,8 +73,11 @@ const DEV_REPL = resolve(PACKAGE_DIR, 'dev-repl.js');
 // hierarchy, so we resolve the package's entry point to an absolute
 // `file://…` URL up front via `import.meta.resolve` (which respects
 // the ESM `exports` field, unlike `require.resolve`) and embed the
-// URL in the generated script.
-const PI_AI_URL = import.meta.resolve('@earendil-works/pi-ai');
+// URL in the generated script.  As of pi-ai 0.80, the faux-provider
+// registration API (`registerFauxProvider`) lives on the `/compat`
+// entrypoint; it re-exports the root surface too, so `fauxAssistantMessage`
+// and `fauxToolCall` still resolve from the same URL.
+const PI_AI_URL = import.meta.resolve('@earendil-works/pi-ai/compat');
 
 // ---------------------------------------------------------------------------
 // Skip probes — only bwrap / userns, no LLM-reachability probes

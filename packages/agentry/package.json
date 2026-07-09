@@ -51,8 +51,8 @@
     "test:live": "ava --config ava-live.config.js"
   },
   "dependencies": {
-    "@earendil-works/pi-agent-core": "^0.79.0",
-    "@earendil-works/pi-ai": "^0.79.0",
+    "@earendil-works/pi-agent-core": "^0.80.3",
+    "@earendil-works/pi-ai": "^0.80.3",
     "@endo/agent-tools": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo-git": "workspace:^",

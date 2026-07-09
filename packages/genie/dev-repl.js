@@ -61,7 +61,7 @@ import { makeError, q, X } from '@endo/errors';
 import { E } from '@endo/eventual-send';
 import { make as makeSandboxFactoryFromPowers } from '@endo/sandbox';
 /** @import { RootfsSpec, SandboxHandle } from '@endo/sandbox/types.js' */
-import { registerBuiltInApiProviders } from '@earendil-works/pi-ai';
+import { registerBuiltInApiProviders } from '@earendil-works/pi-ai/compat';
 /** @import { Api, Model } from '@earendil-works/pi-ai' */
 /** @import { Agent as PiAgent } from '@earendil-works/pi-agent-core' */
 

@@ -33,7 +33,7 @@ import { M } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
-import { registerBuiltInApiProviders } from '@earendil-works/pi-ai';
+import { registerBuiltInApiProviders } from '@earendil-works/pi-ai/compat';
 
 import { runAgentRound } from './src/agent/index.js';
 import { makeGenieAgents } from './src/loop/agents.js';
