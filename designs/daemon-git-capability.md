@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-18 |
-| **Updated** | 2026-05-29 |
+| **Updated** | 2026-07-06 |
 | **Author** | 0xPatrick (prompted) |
 | **Status** | Proposed (Phases 0-5 + bulk-archive landed via #364/#365/#367, hardening via #371) |
 
@@ -703,7 +703,7 @@ Complete the required phases from [daemon-mount-capabilities](daemon-mount-capab
 - [ ] Replace path-root Fae git provisioning with a thin adapter over granted `Git`.
 - [ ] Add Lal / Genie registration over the capability rather than over process wrappers.
 - [ ] Deprecate direct path-string git tool creation once capability-based provisioning exists.
-- [ ] Update [daemon-agent-tools](daemon-agent-tools.md) to point at the revised model.
+- [x] Update [daemon-agent-tools](daemon-agent-tools.md) to point at the revised model (2026-07-06 reconciliation pass: that doc now maps every tool group onto `EndoMount` / `Filesystem` / `Git` / `GitRemote` and carries the remaining Shell-capability delta).
 
 ### Phase 7: Structured Result Shapes
 

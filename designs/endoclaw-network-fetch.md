@@ -3,10 +3,36 @@
 | | |
 |---|---|
 | **Created** | 2026-03-03 |
-| **Updated** | 2026-03-03 |
+| **Updated** | 2026-07-08 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Not Started |
+| **Status** | In Progress |
 | **Parent** | [endoclaw](endoclaw.md) |
+
+## Status
+
+The `HttpClient` / `HttpClientControl` capability shape specified here is
+realized, but the daemon-side provisioning wiring that hands the capability to
+agents is not yet built, so this design is In Progress.
+
+PR #566 landed two packages on `llm`:
+
+- [`@endo/http-confine`](http-confine.md) — the pure confinement core, enforcing
+  origin, method, rate, redirect, timeout, and byte-cap limits with no exo or
+  daemon dependency.
+- `@endo/exo-http-client` — the `HttpClient` / `HttpClientControl` exo facets
+  over that core (`makeHttpClientAndControl`), plus
+  `makeTrustOnFirstBindPolicyAdapter`, the TOFU policy adapter described in
+  [`trust-on-first-bind`](trust-on-first-bind.md).
+
+What remains: the daemon `provideHttpClient` provisioning and the
+`makeHttpTool` agent-tool binding that expose the capability to agents.
+That wiring is tracked as the Network (HTTP) tier (Phase 3.6) in
+[`daemon-agent-tools`](daemon-agent-tools.md).
+
+The single-`HttpClient`-formula provisioning shape sketched below is superseded
+in part by the controller-plus-client split decided in
+[`cli-http-client`](cli-http-client.md); the capability facets themselves are
+unchanged.
 
 ## Summary
 
