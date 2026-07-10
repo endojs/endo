@@ -1,0 +1,85 @@
+{
+  "description": "Canonical mount fixture tree, shared across the Node and Rust/XS glob and grep case-table runners. A declarative manifest rather than a checked-in tree so it can carry empty directories, denied credential names, a binary probe, an escaping symlink, and names in unusual Unicode planes — none of which travel well in git — and so a Rust test can materialize the identical tree. Each record is { path, type: 'file' | 'directory' | 'symlink', content?, encoding?, target?, optional? }. `content` is UTF-8 text unless `encoding` is 'base64'. A symlink's `target` is interpreted relative to the link's own directory; `optional: true` records are skipped on platforms that cannot create them, and the case tables mark the expectations that depend on them. `entries` materialize under the mount root; `outsideRoot` materialize in the mount root's *parent* so the escaping symlink resolves to a real sibling above confinement — a runner reading only `entries` would create a dangling link and pass the confinement cases vacuously. The `deniedSegments`-covering entries (every name in mount-glob-contract.json `deny.segments`, plus the case-fold probe `.SSH`) are present so a port that under-denies surfaces them in `*`/`**` and fails; because denial filters them, they do not appear in any enumeration expectation.",
+  "entries": [
+    { "path": "src", "type": "directory" },
+    { "path": "src/nested", "type": "directory" },
+    { "path": "src/nested/deeper", "type": "directory" },
+    { "path": "docs", "type": "directory" },
+    { "path": "empty", "type": "directory" },
+    { "path": "[bracket]", "type": "directory" },
+
+    { "path": "README.md", "type": "file", "content": "# Fixture\n" },
+    { "path": "package.json", "type": "file", "content": "{ \"name\": \"mount-fixture\" }\n" },
+    { "path": "data.json", "type": "file", "content": "{\n  \"name\": \"fixture\",\n  \"version\": 1,\n  \"nested\": { \"flag\": true, \"list\": [1, 2, 3] }\n}\n" },
+    { "path": "notes.txt", "type": "file", "content": "first line\nsecond line\nthird line\n" },
+    { "path": "a+b.txt", "type": "file", "content": "literal plus in the name\n" },
+    { "path": ".gitignore", "type": "file", "content": "node_modules\n" },
+
+    { "path": "src/index.js", "type": "file", "content": "export const index = 1;\n" },
+    { "path": "src/util.js", "type": "file", "content": "export const util = 2;\n" },
+    { "path": "src/main.rs", "type": "file", "content": "fn main() {}\n" },
+    { "path": "src/README.md", "type": "file", "content": "# src\n" },
+    { "path": "src/nested/deep.js", "type": "file", "content": "export const deep = 3;\n" },
+    { "path": "src/nested/deeper/deepest.js", "type": "file", "content": "export const deepest = 4;\n" },
+
+    { "path": "docs/a.md", "type": "file", "content": "# a\n" },
+    { "path": "docs/B.md", "type": "file", "content": "# B\n" },
+    {
+      "path": "docs/img.png",
+      "type": "file",
+      "encoding": "base64",
+      "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+    },
+
+    { "path": "[bracket]/b.txt", "type": "file", "content": "inside a bracket-named directory\n" },
+
+    { "path": "probes", "type": "directory" },
+    { "path": "probes/q?", "type": "file", "content": "literal question mark in the name\n" },
+    { "path": "probes/qX", "type": "file", "content": "control for the literal-? probe\n" },
+    { "path": "probes/ab", "type": "file", "content": "matches a*b with nothing between\n" },
+    { "path": "probes/afoob", "type": "file", "content": "matches a*b with chars between\n" },
+    { "path": "probes/{a,b}", "type": "file", "content": "literal braces and comma in the name\n" },
+    { "path": "probes/a", "type": "file", "content": "control for the brace-expansion probe\n" },
+    { "path": "probes/b", "type": "file", "content": "control for the brace-expansion probe\n" },
+
+    { "path": "sort-📄", "type": "file", "content": "astral name (U+1F4C4, a surrogate pair); sorts BEFORE the high-BMP name by UTF-16 code unit but AFTER it by code point\n" },
+    { "path": "sort-", "type": "file", "content": "high-BMP name (U+E000, private use, no Unicode normalization); sorts AFTER the astral name by UTF-16 code unit but BEFORE it by code point\n" },
+
+    { "path": ".ssh", "type": "directory" },
+    { "path": ".ssh/id_rsa", "type": "file", "content": "PRIVATE KEY — must never surface\n" },
+    { "path": ".aws", "type": "directory" },
+    { "path": ".aws/credentials", "type": "file", "content": "[default]\naws_secret_access_key = must-never-surface\n" },
+    { "path": ".env", "type": "file", "content": "SECRET=must-never-surface\n" },
+
+    { "path": ".azure", "type": "directory" },
+    { "path": ".azure/token", "type": "file", "content": "must-never-surface\n" },
+    { "path": ".gcloud", "type": "directory" },
+    { "path": ".config", "type": "directory" },
+    { "path": ".config/settings", "type": "file", "content": "must-never-surface\n" },
+    { "path": ".gnupg", "type": "directory" },
+    { "path": ".gnupg/secring", "type": "file", "content": "must-never-surface\n" },
+    { "path": ".password-store", "type": "directory" },
+    { "path": ".docker", "type": "directory" },
+    { "path": ".docker/config.json", "type": "file", "content": "must-never-surface\n" },
+    { "path": ".kube", "type": "directory" },
+    { "path": ".kube/config", "type": "file", "content": "must-never-surface\n" },
+    { "path": ".terraform", "type": "directory" },
+    { "path": ".npmrc", "type": "file", "content": "//registry.example/:_authToken=must-never-surface\n" },
+    { "path": ".env.local", "type": "file", "content": "SECRET=must-never-surface\n" },
+    { "path": ".env.production", "type": "file", "content": "SECRET=must-never-surface\n" },
+
+    { "path": ".SSH", "type": "directory" },
+    { "path": ".SSH/id_rsa", "type": "file", "content": "case-fold probe: denied case-insensitively\n" },
+
+    {
+      "path": "escape",
+      "type": "symlink",
+      "target": "../escape-target",
+      "optional": true
+    }
+  ],
+  "outsideRoot": [
+    { "path": "escape-target", "type": "directory" },
+    { "path": "escape-target/secret.txt", "type": "file", "content": "outside the mount\n" }
+  ]
+}

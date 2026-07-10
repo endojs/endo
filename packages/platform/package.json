@@ -32,6 +32,14 @@
       "types": "./src/fs/types.d.ts"
     },
     "./fs/node": "./src/fs-node/index.js",
+    "./fs/search": "./src/fs/search.js",
+    "./fs/search.types": {
+      "types": "./src/fs/search.types.d.ts"
+    },
+    "./fs/search.types.js": {
+      "types": "./src/fs/search.types.d.ts"
+    },
+    "./fs/node/search": "./src/fs-node/search.js",
     "./fs/extended": {
       "types": "./src/fs/extended/types-index.d.ts",
       "default": "./src/fs/extended/index.js"
