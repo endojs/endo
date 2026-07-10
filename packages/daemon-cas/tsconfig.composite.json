@@ -9,6 +9,9 @@
       "path": "../harden/tsconfig.composite.json"
     },
     {
+      "path": "../platform/tsconfig.composite.json"
+    },
+    {
       "path": "../stream/tsconfig.composite.json"
     }
   ]
