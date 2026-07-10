@@ -273,7 +273,8 @@ LLM-agent stack).*
 | [endoclaw-oauth](endoclaw-oauth.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [endoclaw-proactive-messages](endoclaw-proactive-messages.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [endoclaw-skill-registry](endoclaw-skill-registry.md) | 2026-03-03 | 2026-03-03 | Not Started |
-| [endoclaw-timer](endoclaw-timer.md) | 2026-03-03 | 2026-03-18 | In Progress |
+| [endoclaw-timer](endoclaw-timer.md) | 2026-03-03 | 2026-07-10 | Superseded by [endo-reminder](endo-reminder.md) |
+| [endo-reminder](endo-reminder.md) | 2026-07-10 | 2026-07-10 | Not Started |
 | [endoclaw-voice](endoclaw-voice.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [endoclaw-webhooks](endoclaw-webhooks.md) | 2026-03-03 | 2026-03-03 | Not Started |
 | [daemon-locator-terminology](daemon-locator-terminology.md) | 2026-02-24 | 2026-02-24 | Not Started |
@@ -421,7 +422,7 @@ flowchart TD
     end
 
     subgraph Agent Capabilities
-        etimer[endoclaw-timer]
+        ereminder[endo-reminder]
         efetch[endo-fetch base]
         cfetch[confined-fetch]
         eoauth[endoclaw-oauth]
@@ -434,7 +435,7 @@ flowchart TD
         esheets[exo-google-sheets]
         efetch --> cfetch
         cfetch --> eoauth
-        etimer --> eproactive
+        ereminder --> eproactive
         eoauth --> ebridge
         eoauth --> eproactive
         eoauth --> esheets
@@ -666,7 +667,7 @@ capabilities available to agents.
 | daemon-locator-terminology | Not Started | Clean locator API; unblocked |
 | daemon-rename-to-manager | Not Started | Rename `daemon.js`/`Daemon`/`MignonicPowers` to `manager.js`/`Manager`/`WorkerPowers` to align JS with Rust `endor` nomenclature |
 | daemon-xs-worker-snapshot | In Progress | XS heap snapshot/restore; Phases 1-2 implemented — streaming CAS write/read, suspend/resume supervisor integration, CBOR control verbs; 12 passing tests; Phase 2 integration test and ephemeral GC roots remaining |
-| endoclaw-timer | In Progress | **Strategic:** Core capability concern — SES removes `setTimeout`/`setInterval`; Timer is the only way agents get scheduled execution. Prerequisite for proactive behavior. First implementation in `@endo/genie`. |
+| endo-reminder (supersedes endoclaw-timer) | Not Started | **Strategic:** Core capability concern — SES removes `setTimeout`/`setInterval`; the message scheduler is the only way agents get scheduled execution. Prerequisite for proactive behavior. Redrafted per PR #609 review as the unconfined plugin `@endo/reminder` over the virtual file system. |
 | endo-fetch (supersedes endoclaw-network-fetch) | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. The landed capability is `@endo/exo-http-client` over `@endo/http-confine` (#566). Provisioning uses an unfettered `@endo/fetch` base, endowed with a state directory to `@endo/confined-fetch`, which exposes the policy-bound client ([endo-fetch](endo-fetch.md)); `makeHttpTool` follows in [`daemon-agent-tools`](daemon-agent-tools.md) Phase 3.6. |
 | ~~daemon-cross-peer-gc~~ | **Complete** | Replaced the proposed CRDT-of-pet-stores with a one-way retention-set sync per peer connection (`retention-accumulator.js`, `EndoGateway.followRetentionSet`, SQLite `retention` table). Solves the GC gap; bidirectional shared namespace deferred as YAGNI. |
 | ~~daemon-guest-eval-simplification~~ | **Implemented** | Eval-proposal handshake removed; guest eval delegates directly to `formulateEval`. Type-system cleanup and regression test in PR #92. |
@@ -1263,7 +1264,7 @@ have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
 | ~~filesystem-watchers~~ (design) | S | — | 3 | ✅ Design merged (PR #115); implementation TBD |
 | daemon-locator-terminology | S | 1 day | 3 | locator.js + host.js changes |
 | daemon-rename-to-manager | S | 1 day | 3 | Mechanical rename; design merged (PR #85); implementation TBD |
-| endoclaw-timer | S-M | 3 days | 3 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
+| endo-reminder (supersedes endoclaw-timer) | S-M | 3 days | 3 | `@endo/reminder` message-scheduler plugin: reminder delivery, VFS durable store, host-controlled limits, integration-owned revival; core logic ports from PR #609's head |
 | ~~daemon-guest-eval-simplification~~ | — | — | 3 | ✅ Implemented (PR #92, ~2 hours actual; well under 1-day estimate) |
 | endo-fetch (supersedes endoclaw-network-fetch) | S-M | ~1-2 days | 3 | `@endo/fetch` unconfined base provides direct HTTP; `@endo/confined-fetch` receives that base plus a VFS state directory, adds policy + TOFU persistence through `@endo/exo-http-client`, and revives through `@pins`; `makeHttpTool` binds only the confined client ([`daemon-agent-tools`](daemon-agent-tools.md) Phase 3.6) |
 | ~~ci-no-npm-lifecycle~~ | S | — | 2 | ✅ Complete (PR #126 merged 2026-05-15) |
@@ -1355,7 +1356,7 @@ date of this pass.
 |-----------|-----------------|-----------------|----------------------------------|
 | M1: AI Agent Experience (was M0) | 0 | **Complete** | — |
 | M2: Project Hygiene (was M½) | 0 | **Complete** | — |
-| M3: Remote Access & Tools (was M1) | 18 (`gateway-package`, `daemon-docker-selfhost`, `daemon-agent-tools`, `endo-agent-tools`, `agentry-agent-builder`, `agentry-git-verb-gaps`, `agentry-git-eval-scenarios`, `daemon-mount`, `daemon-worker-import-from-mount`, `registry-capability`, `mvs-resolver`, `snapshot-mapper`, `filesystem-watchers`, `daemon-locator-terminology`, `daemon-rename-to-manager`, `daemon-xs-worker-snapshot`, `endoclaw-timer`, `endo-fetch` (was `endoclaw-network-fetch`)) | 9-13 weeks | 11-15 weeks |
+| M3: Remote Access & Tools (was M1) | 18 (`gateway-package`, `daemon-docker-selfhost`, `daemon-agent-tools`, `endo-agent-tools`, `agentry-agent-builder`, `agentry-git-verb-gaps`, `agentry-git-eval-scenarios`, `daemon-mount`, `daemon-worker-import-from-mount`, `registry-capability`, `mvs-resolver`, `snapshot-mapper`, `filesystem-watchers`, `daemon-locator-terminology`, `daemon-rename-to-manager`, `daemon-xs-worker-snapshot`, `endo-reminder` (was `endoclaw-timer`), `endo-fetch` (was `endoclaw-network-fetch`)) | 9-13 weeks | 11-15 weeks |
 | M4: Networking (was M2) | 7 (`ocapn-network-transport-separation`, `ocapn-tcp-for-test-extraction`, `ocapn-tcp-syrups-framing`, `cbors`, `cbor-codec`, `ocapn-noise-cryptographic-review`, `daemon-agent-network-identity`) | 4-5 weeks | 5-7 weeks |
 | M5: Public Hosting & Billing (was M7) | 4 in-flight on PR #356 stack (`gateway-package` counted under M3; `gateway-packaging-ci`, `gateway-aws-deployment`, `gateway-aws-attuned` counted here) + 3 design gaps (`gateway-oauth-bonding`, `gateway-key-recovery`, `gateway-stripe-adapter`) | 4-6 weeks design + impl | merge cadence of PRs #343 and #356 |
 | M6: MCP Bridge Hosting (was Milestone B) | 1 net-new (`endo-gateway-mcp` impl); cross-milestone slices in M3 (P0) and M5 (P2/P3/P4 gaps) | ~2 weeks own work + ~6-9 weeks across P0-P4 | gated by M3 gateway-package phases 2/7/8 merge cadence |
@@ -1470,7 +1471,7 @@ pre-empt later milestones.
 
 | Design | Milestone | Rationale |
 |--------|-----------|-----------|
-| endoclaw-timer | M3 (was M1) | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
+| endo-reminder (was endoclaw-timer) | M3 (was M1) | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. The message scheduler is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. Redrafted as an unconfined plugin per the PR #609 review. |
 | endo-fetch (was endoclaw-network-fetch) | M3 (was M1) | **Foundation for all external access.** M3 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. The direct `@endo/fetch` base is explicitly attenuated into `@endo/confined-fetch` with a state directory. |
 
 **Progress as of 2026-06-15 (targeted post-event M2 closure):** The
