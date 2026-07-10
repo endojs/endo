@@ -141,11 +141,19 @@ with no location, so only the holder of the snapshot tree can
 perform the walk-up that
 [mvs-resolver](mvs-resolver.md) § *Workspace resolution*
 describes.
-Before calling `resolve`, `mapSnapshot` walks up from the entry
-package's directory in the snapshot tree looking for a parent
+Keeping discovery here also keeps the resolver at least authority:
+it is handed only the workspace subtree it may read, never a
+handle onto the tree above it.
+This layer is therefore the **sole** home of `workspaces`-glob
+evaluation: `mapSnapshot` walks up from the entry package's
+directory in the snapshot tree looking for a parent
 `package.json` whose `workspaces` globs name the entry as a
-member; when one is found, `mapSnapshot` passes that directory's
-tree handle as the `workspaceRoot` option to `resolve`.
+member, and it expands those globs once, here.
+When a root is found, `mapSnapshot` passes as the `workspaceRoot`
+option both that directory's tree handle **and the enumerated
+member set** (the glob-expansion result), so the resolver matches
+`workspace:` specifiers against a ready-made member list by name
+and never re-evaluates a glob.
 When none is found, `resolve` is called without `workspaceRoot`,
 and any `workspace:` specifier in the graph rejects with the
 clean no-enclosing-workspace-root error the resolver defines.

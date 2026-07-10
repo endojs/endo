@@ -491,11 +491,16 @@ This section is the **canonical, dependency-ordered build plan
 for the whole four-layer stack** (reconciled and accepted
 2026-07-10; the four designs' statuses flipped from Proposed to
 Not Started together).
-The sibling designs number their phases against this sequence:
-[registry-capability](registry-capability.md) § Phase 1 and
-§ Phase 5, [mvs-resolver](mvs-resolver.md) (lands inside
-Phase 1), and [snapshot-mapper](snapshot-mapper.md) (lands as
-Phase 2) all refer to the numbering below.
+It lives here, in the integration-layer peer rather than in the
+neutral [designs/README.md](README.md) roadmap, because this
+design is already the coordinator that ties the four layers'
+phases together; placing the whole-stack sequence in the
+coordinator keeps it beside the dispatch flow it orders.
+The sibling designs number their phases against this sequence.
+[registry-capability](registry-capability.md) refers to it for
+its § Phase 1 and § Phase 5, [mvs-resolver](mvs-resolver.md)
+lands inside Phase 1, and [snapshot-mapper](snapshot-mapper.md)
+lands as Phase 2; all three point at the numbering below.
 
 | Phase | Owning design | Deliverable | Builds on |
 |-------|---------------|-------------|-----------|
@@ -506,17 +511,30 @@ Phase 2) all refer to the numbering below.
 | 5 | [registry-capability](registry-capability.md) | Rust-backed `EndoRegistry` drop-in over [endor-npm-registry-proxy](endor-npm-registry-proxy.md) | Phase 1 shape; the Rust daemon lane (separate lane, not on the JS critical path) |
 | 6 | this design (deferred) | XS-hosted compartment-mapper | Out-of-tree [endor-run-expanded](endor-run-expanded.md) § Phase 4 / 5 work |
 
-Phases 1 through 4 are the serial critical path; the job's exit
-criterion (a worker can `importLocation` an npm-style package
-tree from a mount) is met at the end of **Phase 2** for a
-worker-facet caller against a `readable-tree`, and at the end of
-**Phase 3** for the end-user surface (`endo run <mount>`).
+Phases 1 through 4 are the serial critical path.
+The job's exit criterion (a worker can `importLocation` an
+npm-style package tree from a mount) is reached in stages, and
+the stages differ by the *kind* of source, not just the caller.
+Phase 2 satisfies it for a worker-facet caller against a
+pre-snapshotted `readable-tree` source; Phase 3 delivers the
+end-user surface (`endo run <mount>`) against that same
+pre-snapshotted or otherwise-immutable source; Phase 4 delivers
+it against a *live* `EndoMount`, which is where the
+snapshot-before-import step and the `thisDiesIfThatDies` lifetime
+coupling a mutable mount requires actually land.
+The full "from a live mount" criterion is therefore satisfied at
+**Phase 4**; Phases 2 and 3 satisfy it only for a source that is
+already an immutable snapshot.
 Phases 5 and 6 are parallel-lane follow-ups that gate nothing in
 the JS lane.
 Phases 1 through 4 land against already-shipped substrate: the
 CAS bus verbs, `makeFromTree`, and `EndoMount.snapshot()` are on
-`llm` today, so no phase below waits on another design's
-implementation.
+`llm` today, so no phase below waits on **unlanded** substrate or
+on a design **outside this stack**.
+The intra-stack `Builds on` ordering in the table above still
+holds (Phase 2 does build on Phase 1, and so on); what is ruled
+out is a dependency on work that has not yet shipped, so all four
+phases can start as soon as the stack is scheduled.
 
 Each phase ends with at least one passing daemon integration test
 (`packages/daemon/test/endo.test.js`).
@@ -547,11 +565,14 @@ Add `MakeFromPackageFormula` to the formula union and the
 dispatcher case.
 
 Phase 2's test fixtures pass a `readable-tree` source, for which
-the dispatch body's snapshot step is a no-op by contract; the
-live-`EndoMount` snapshot path and its lifetime coupling are
-Phase 4's deliverable.
-The dispatch-body sketch above shows the complete (post-Phase-4)
-shape.
+the dispatch body's snapshot step is a no-op by contract: a
+`readable-tree` is already an immutable snapshot, so snapshotting
+it again yields the same tree and adds no lifetime obligation,
+whereas a live `EndoMount` can still mutate and so Phase 4 must
+snapshot it before import.
+The live-`EndoMount` snapshot path and its lifetime coupling are
+therefore Phase 4's deliverable; the dispatch-body sketch above
+shows the complete (post-Phase-4) shape.
 
 Integration tests at this phase:
 

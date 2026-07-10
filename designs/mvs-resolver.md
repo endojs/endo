@@ -155,14 +155,29 @@ The walk-up search below is performed by the **mapper layer**
 ([snapshot-mapper](snapshot-mapper.md) § *Workspace-root
 discovery*), which holds the snapshot tree; the resolver receives
 its outcome as the `workspaceRoot` option on
-`EndoRegistry.resolve` and only reads *within* the discovered
-workspace (the entry `package.json` reaches `resolve` as opaque
-bytes with no location, so the resolver cannot perform the
-walk-up itself).
+`EndoRegistry.resolve`.
+The split is a least-authority boundary, not merely an
+accident of encoding: the resolver is handed only the discovered
+workspace subtree and its enumerated members, so it *cannot* and
+*must not* read the filesystem above the workspace root.
+The entry `package.json` reaches `resolve` as opaque bytes with
+no location precisely so the resolver has no handle with which to
+walk outside its scope; narrowing the resolver's authority to the
+workspace subtree is the point, and the byte-passing is how that
+boundary is enforced.
+Because the glob-matching that turns a `workspaces` field into a
+concrete member set is a hazard when it lives in two places with
+divergent semantics, it lives in **one** place: the mapper
+evaluates the `workspaces` globs during discovery, and
+`workspaceRoot` carries the already-enumerated member directories
+into `resolve`.
+The resolver therefore matches a `workspace:` specifier against
+that enumerated member list by package name; it never
+re-evaluates a glob.
 
-The first cut resolves workspace specifiers by searching for the
-parent `package.json` whose `workspaces` array (or the equivalent
-`workspaces.packages` glob list for the historical
+The mapper's first cut resolves workspace specifiers by searching
+for the parent `package.json` whose `workspaces` array (or the
+equivalent `workspaces.packages` glob list for the historical
 yarn-classic shape) names the importer's workspace member:
 
 1. Starting at the importer's package directory, walk up the
@@ -380,6 +395,16 @@ The MVS-specific shape tests this design adds:
   The resolution carries `lib-b` as a workspace member entry
   (no version segment), and a subsequent `mapSnapshot` pass
   emits the workspace member at its versionless location.
+  Note the phase seam this parallels the Phase-2-fixture-vs-Phase-4
+  live-mount stance the canonical plan pins: because
+  workspace-root **discovery** (the walk-up and glob expansion)
+  is the mapper's Phase 2 work, Phase 1 exercises this resolver
+  branch by **injecting** the `workspaceRoot` option (the
+  enumerated member set) directly, with no walk-up.
+  True end-to-end workspace coverage (discovery plus resolution
+  against a live entry tree) first lands at Phase 2, where the
+  mapper supplies `workspaceRoot`; the same multi-member fixture
+  is reused there.
 - **Workspace member version mismatch diagnostic.**
   A fixture where an importer declares
   `'lib-b': '^2.0.0'` but the workspace member's on-disk

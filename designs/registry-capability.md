@@ -158,12 +158,32 @@ workspace: true }` and **no `integrity` field**: its `treeRef`
 is the member's subtree of the entry snapshot, not a
 registry-fetched CAS tree, and there is no upstream attestation
 to cross-check.
-`resolutionHash` hashes each registry-resolved key with its
-`integrity` string and each workspace key with its `treeRef`
-content hash, so a workspace edit changes the hash exactly as a
-version bump does; the snapshot identity triple in
+
+`workspace: true` is the **single discriminant of record**: a
+consumer distinguishes a workspace member from a registry entry
+by testing that boolean flag and nothing else.
+The bare-name key shape and the absence of `integrity` are
+*derived* consequences of the same fact, not co-equal switches to
+branch on; in particular a consumer must **not** parse the key
+(`key.split('@')` is ambiguous because scoped names such as
+`@endo/patterns` already carry an `@`, so a bare-name key and an
+`<name>@<version>` key are not structurally distinguishable
+without semver-validating the trailing segment).
+The `version` field is retained on a workspace entry but is
+**advisory** for a member whose key drops the version segment:
+the synthesized layout addresses the member by its bare name, so
+`version` informs diagnostics rather than location.
+
+`resolutionHash` reads that same discriminant: it hashes each
+registry-resolved key (`workspace` absent) with its `integrity`
+string and each workspace key (`workspace: true`) with its
+`treeRef` content hash, so a workspace edit changes the hash
+exactly as a version bump does.
+The snapshot identity triple in
 [snapshot-mapper](snapshot-mapper.md) additionally carries
-`entrySnapshotHash`, which covers the same bytes.
+`entrySnapshotHash`, which hashes the whole entry snapshot and so
+covers a superset of the bytes `resolutionHash` folds in from any
+one member subtree.
 
 ### Interaction model: who calls what, when
 
