@@ -20,9 +20,13 @@
 > (`packages/lal/tools/fs.js` + the dispatch case in
 > `packages/lal/tool-dispatch.js`), operating on a tree capability through the
 > landed `readText`/`writeText` shape rather than a bare `File` — consistent
-> with the sibling `readText`/`writeText` tools. Still open: the Chat UI
-> render-side diff preview, and promoting the tool onto a dedicated `File`
-> capability if/when `Dir.lookup(name) → File` lands.
+> with the sibling `readText`/`writeText` tools. The landed result shape is
+> `{ applied, diff }` (Lal) or a diff-annotated summary string (Fae); the
+> non-unique-match and overlap cases surface as thrown structured errors, not
+> as a `conflicts` field on the returned record — superseding the older
+> `{ applied, diff, conflicts }` sketch in the § Design tool surface below.
+> Still open: the Chat UI render-side diff preview, and promoting the tool onto
+> a dedicated `File` capability if/when `Dir.lookup(name) → File` lands.
 
 ## Motivation
 

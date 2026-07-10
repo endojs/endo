@@ -99,11 +99,13 @@ test('editText rejects a non-unique oldText without writing', async t => {
 
 test('editText validates that edits is an array of oldText/newText records', async t => {
   const { run } = makeStub({ 'a.txt': 'hi\n' });
-  await t.throwsAsync(() =>
-    run('editText', {
-      petNameOrPath: 'workspace',
-      fileName: 'a.txt',
-      edits: [{ oldText: 'hi' }],
-    }),
+  await t.throwsAsync(
+    () =>
+      run('editText', {
+        petNameOrPath: 'workspace',
+        fileName: 'a.txt',
+        edits: [{ oldText: 'hi' }],
+      }),
+    { message: /editText args/ },
   );
 });

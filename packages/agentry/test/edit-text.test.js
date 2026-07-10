@@ -151,3 +151,73 @@ test('normalizeEdits prefers the edits array when present', t => {
 test('normalizeEdits throws when nothing is provided', t => {
   t.throws(() => normalizeEdits({}), { message: /either an .edits. array/ });
 });
+
+test('normalizeEdits returns a hardened result', t => {
+  t.is(Object.isFrozen(normalizeEdits({ oldText: 'a', newText: 'b' })), true);
+  const edits = [{ oldText: 'a', newText: 'b' }];
+  normalizeEdits({ edits });
+  t.is(Object.isFrozen(edits), true);
+});
+
+test('a single pair with an omitted newText is rejected (no silent delete)', t => {
+  // normalizeEdits requires both halves of the single-pair shape, so an omitted
+  // newText is rejected up front rather than silently deleting oldText.
+  t.throws(() => normalizeEdits({ oldText: 'foo' }), {
+    message: /to be strings/,
+  });
+});
+
+test('an explicit empty newText deletes the matched text', t => {
+  const { content } = applyEdits(
+    'foobar\n',
+    normalizeEdits({
+      oldText: 'foo',
+      newText: '',
+    }),
+  );
+  t.is(content, 'bar\n');
+});
+
+test('computeUnifiedDiff renders a pure insertion hunk', t => {
+  const diff = computeUnifiedDiff('a\nb\n', 'a\nX\nb\n');
+  t.regex(diff, /^@@ -1,2 \+1,3 @@$/m);
+  t.regex(diff, /^\+X$/m);
+});
+
+test('computeUnifiedDiff renders a pure deletion hunk', t => {
+  const diff = computeUnifiedDiff('a\nX\nb\n', 'a\nb\n');
+  t.regex(diff, /^@@ -1,3 \+1,2 @@$/m);
+  t.regex(diff, /^-X$/m);
+});
+
+test('computeUnifiedDiff handles a change at the first line', t => {
+  const diff = computeUnifiedDiff('a\nb\nc\n', 'A\nb\nc\n');
+  t.regex(diff, /^@@ -1,3 \+1,3 @@$/m);
+  t.regex(diff, /^-a$/m);
+  t.regex(diff, /^\+A$/m);
+});
+
+test('computeUnifiedDiff handles a change at the last line', t => {
+  const diff = computeUnifiedDiff('a\nb\nc\n', 'a\nb\nC\n');
+  t.regex(diff, /^@@ -1,3 \+1,3 @@$/m);
+  t.regex(diff, /^-c$/m);
+  t.regex(diff, /^\+C$/m);
+});
+
+test('computeUnifiedDiff handles a file with no trailing newline', t => {
+  const diff = computeUnifiedDiff('a\nb\nc', 'a\nB\nc');
+  t.regex(diff, /^@@ -1,3 \+1,3 @@$/m);
+  t.regex(diff, /^-b$/m);
+  t.regex(diff, /^\+B$/m);
+});
+
+test('computeUnifiedDiff emits two hunks when changes are far apart', t => {
+  const before = 'a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\n';
+  const after = 'a\nB\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nN\no\n';
+  const diff = computeUnifiedDiff(before, after);
+  t.is((diff.match(/^@@ /gm) || []).length, 2);
+  t.regex(diff, /^-b$/m);
+  t.regex(diff, /^\+B$/m);
+  t.regex(diff, /^-n$/m);
+  t.regex(diff, /^\+N$/m);
+});

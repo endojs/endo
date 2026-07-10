@@ -300,7 +300,7 @@ export const applyEdits = (original, edits, options = {}) => {
   for (let k = 1; k < ordered.length; k += 1) {
     if (ordered[k].start < ordered[k - 1].end) {
       throw new Error(
-        `Edits overlap in ${fileName}: two edits target the same or adjacent text. Apply them separately or merge them into one edit.`,
+        `Edits overlap in ${fileName}: two edits target the same or overlapping text. Apply them separately or merge them into one edit.`,
       );
     }
   }
@@ -336,10 +336,20 @@ harden(applyEdits);
  */
 export const normalizeEdits = ({ oldText, newText, edits }) => {
   if (Array.isArray(edits) && edits.length > 0) {
-    return edits;
+    return harden(edits);
   }
   if (oldText !== undefined || newText !== undefined) {
-    return [{ oldText: oldText ?? '', newText: newText ?? '' }];
+    // Require both halves of the single-pair shape (no `?? ''` coercion): an
+    // omitted newText is rejected here rather than silently deleting oldText,
+    // matching the `edits` array shape and Lal's required `newText`. An
+    // explicit `newText: ''` (a deletion) still passes. The guard also narrows
+    // both to `string`, so the returned literal is a `TextEdit[]`.
+    if (typeof oldText !== 'string' || typeof newText !== 'string') {
+      throw new Error(
+        'A single edit requires both `oldText` and `newText` to be strings.',
+      );
+    }
+    return harden([{ oldText, newText }]);
   }
   throw new Error(
     'Provide either an `edits` array or a single `oldText`/`newText` pair.',

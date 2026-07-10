@@ -373,12 +373,14 @@ export const makeExecuteTool = powers => {
         ) {
           throw new Error('petNameOrPath, fileName, and edits are required');
         }
-        // Read-modify-write through the tree capability. The single
-        // `await` on the read keeps the read-modify-write from interleaving
-        // with a concurrent tool call mid-computation: `applyEdits` is
-        // synchronous, so no other turn runs between read and write except
-        // the eventual-send hop to `writeText`, which the capability
-        // serializes per the daemon-agent-tools contract.
+        // Read-modify-write through the tree capability. `applyEdits` is
+        // synchronous, so nothing interleaves *within* the transform, but the
+        // read and the write are two separate eventual-send hops, so the pair
+        // is not atomic: two concurrent editText/writeText calls on the same
+        // file can both read the same original and the later write wins
+        // (last-writer-wins). The capability serializes each individual
+        // writeText, not the read-modify-write pair; a caller needing
+        // atomicity must serialize at a higher level.
         const capability = await E(powers).lookup(petNameOrPath);
         const original = await E(capability).readText(fileName);
         const {
