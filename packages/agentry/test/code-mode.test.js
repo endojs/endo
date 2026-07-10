@@ -257,6 +257,8 @@ test('makeCodeModeAgent configures one history-rewrite git capability', async t 
     ),
   );
   t.true(systemPrompt.includes('reword:'));
+  t.true(systemPrompt.includes('cherryPick:'));
+  t.true(systemPrompt.includes('rebase:'));
 });
 
 test('makeCodeModeAgent rejects ordinary Git for history-rewrite mode', async t => {

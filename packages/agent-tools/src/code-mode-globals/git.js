@@ -41,7 +41,7 @@ export const makeGitGlobal = ({
     description: readOnly
       ? 'Read-only @endo/exo-git Git capability for repository inspection.'
       : historyRewrite
-        ? 'History-rewrite @endo/exo-git Git capability for amend and reword.'
+        ? 'History-rewrite @endo/exo-git Git capability for amend, reword, cherry-pick, and rebase.'
         : 'Read/write @endo/exo-git Git capability for repository changes.',
     declaration: readOnly
       ? gitDeclarations.gitReadOnly

@@ -523,6 +523,7 @@ export const makeGit = (
 
     async cherryPick(ref, options = {}) {
       assertWritable('cherryPick');
+      assertHistoryRewrite('cherryPick');
       return backend.cherryPick(refName(ref), options);
     },
 
@@ -571,6 +572,7 @@ export const makeGit = (
 
     async rebase(input) {
       assertWritable('rebase');
+      assertHistoryRewrite('rebase');
       return backend.rebase(input);
     },
 

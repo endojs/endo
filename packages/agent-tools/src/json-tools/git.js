@@ -11,6 +11,7 @@ import { E } from '@endo/eventual-send';
 import {
   getInterfaceGuardPayload,
   getMethodGuardPayload,
+  M,
 } from '@endo/patterns';
 import { GitInterface } from '@endo/exo-git';
 
@@ -77,7 +78,8 @@ const CHERRY_PICK_OPTIONS_PROP = harden({
   properties: {
     noCommit: {
       type: 'boolean',
-      description: 'Apply the patch to the index and worktree without committing.',
+      description:
+        'Apply the patch to the index and worktree without committing.',
     },
   },
   required: [],

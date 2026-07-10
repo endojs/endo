@@ -887,6 +887,12 @@ test('Git history rewrite authority defaults off and can be elevated', async t =
   await t.throwsAsync(E(git).reword(first.oid, 'blocked reword'), {
     message: /without history-rewrite authority/,
   });
+  await t.throwsAsync(E(git).cherryPick(first.oid), {
+    message: /without history-rewrite authority/,
+  });
+  await t.throwsAsync(E(git).rebase({ mode: 'start', upstream: 'main' }), {
+    message: /without history-rewrite authority/,
+  });
 
   await fs.promises.writeFile(path.join(repoRoot, 'history.txt'), 'two\n');
   await E(git).add([entry]);
@@ -1193,7 +1199,10 @@ test('Git.cherryPick replays a commit through the native backend', async t => {
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
   const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend, lineageOf });
+  const git = makeGit(
+    { mount, backend, lineageOf },
+    { allowHistoryRewrite: true },
+  );
 
   await execFileAsync('git', ['switch', '-c', 'side'], { cwd: repoRoot });
   await fs.promises.writeFile(path.join(repoRoot, 'side.txt'), 'side\n');
@@ -1232,7 +1241,10 @@ test('Git.cherryPick noCommit applies without creating a commit', async t => {
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
   const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend, lineageOf });
+  const git = makeGit(
+    { mount, backend, lineageOf },
+    { allowHistoryRewrite: true },
+  );
 
   const initialHead = (await E(git).revParse('HEAD')).oid;
   await execFileAsync('git', ['switch', '-c', 'side'], { cwd: repoRoot });
