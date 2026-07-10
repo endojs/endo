@@ -1,0 +1,45 @@
+{
+  "description": "Normative constants and semantics for EndoMount.glob, shared across the Node reference (src/mount.js, exercised by mount-glob.test.js) and the Rust/XS parity runners. The fixture is mount-fixture-manifest.json and the pinned case matrix is mount-glob-cases.json; this file pins the *rules* those cases assume so a port cannot pick a divergent constant — a smaller/absent result cap, a case-sensitive or under-populated deny set, a natural code-point sort, `?` as a wildcard — and still pass the table. The Node runner asserts src/mount.js's exported `defaultDeniedSegments` and `GLOB_MAX_RESULTS` equal the values here, so code and contract cannot drift.",
+  "deny": {
+    "caseInsensitive": true,
+    "note": "A candidate directory-entry name is denied when its lowercase form is in `segments`. Denied names never resolve, list, or surface through glob/grep, even when named literally (`glob('.ssh/*')` is `[]`, not an error). A creation-time deniedSegments option REPLACES this set (callers extend it by spreading it); an empty option disables denial entirely. Case-insensitivity is load-bearing: the fixture carries `.SSH` (uppercase) and the case table pins it to `[]`; a case-sensitive port surfaces it in `*`/`**` and fails.",
+    "segments": [
+      ".ssh",
+      ".aws",
+      ".azure",
+      ".gcloud",
+      ".config",
+      ".gnupg",
+      ".password-store",
+      ".docker",
+      ".npmrc",
+      ".env",
+      ".env.local",
+      ".env.production",
+      ".kube",
+      ".terraform"
+    ]
+  },
+  "limits": {
+    "GLOB_MAX_RESULTS": 10000,
+    "truncation": "post-sort",
+    "note": "glob returns at most GLOB_MAX_RESULTS paths. The full result set is sorted by UTF-16 code unit FIRST, then the first GLOB_MAX_RESULTS are kept — the surviving set is the sorted prefix, deterministic across platforms and never a walk-order-dependent slice. Truncation is silent: this API surfaces no caller-visible signal that a result set was capped (the streaming search variants are the durable answer to larger sets). A port that caps during the walk, omits the cap, or truncates before sorting diverges."
+  },
+  "sort": {
+    "order": "utf-16-code-unit",
+    "note": "Final results are ordered by JS Array.prototype.sort's default comparator = ascending UTF-16 code unit, NOT Unicode code point / UTF-8 byte order. The two orders diverge for astral names (>= U+10000, encoded as a surrogate pair whose leading unit is in U+D800..U+DBFF): an astral name sorts BEFORE a high-BMP name in U+E000..U+FFFF by UTF-16 code unit but AFTER it by code point. The fixture carries `sort-<U+1F4C4>` (astral) and `sort-<U+E000>` (high-BMP, private use) and the case table pins `sort-*` to the UTF-16 order; a Rust port collating by natural `str` Ord (code point / UTF-8) yields the reverse and fails. Collate by UTF-16 code unit (e.g. compare `str::encode_utf16` sequences)."
+  },
+  "matcher": {
+    "metacharacters": ["*", "**"],
+    "starMatchesLeadingDot": true,
+    "starSpansSlash": false,
+    "questionMarkIsLiteral": true,
+    "braceExpansion": false,
+    "note": "`*` matches zero or more characters within one segment, never `/`, and DOES match leading-dot names (a documented divergence from POSIX glob). `**` is special only as a whole segment: it matches zero or more directory levels, and a trailing `**` additionally matches file descendants (not only directories). Embedded in a segment (`a**b`) a run of `*` collapses to a single within-segment `*`. Every other character — `?`, `[`, `]`, `{`, `}`, `,`, `+`, … — is a literal: `?` is NOT a single-character wildcard and `{a,b}` is NOT brace expansion (both sharp divergences from POSIX shells). Matching is a linear greedy two-pointer scan with a single star-backtrack — no backtracking RegExp — so it is O(n·m) and trivially reproducible cross-language."
+  },
+  "symlink": {
+    "confinement": "An entry whose realpath escapes the mount root is silently excluded from every glob result and never traversed, mirroring list(). Sub-views are confined to their own sub-root and cannot navigate above it (`..` reaches nothing).",
+    "cycle": "record-once",
+    "cycleNote": "A symlink resolving (via realpath) to a directory already on the current descent path (a cycle such as `self -> .` inside the confined root, which confinement/is-directory checks both follow and so cannot exclude) is recorded once as an entry under a trailing `**` and never re-entered, so the `**` walk terminates instead of spinning `self/self/…` until PATH_MAX. A port must guard the descent by physical (realpath) ancestor identity, not by lexical path."
+  }
+}

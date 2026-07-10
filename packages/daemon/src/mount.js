@@ -13,6 +13,8 @@ import { mapReader } from '@endo/stream';
 import {
   ReadableBlobRangeInterface,
   ReadableTreeInterface,
+  provideSearch,
+  GLOB_MAX_RESULTS,
 } from '@endo/platform/fs/lite';
 import { toSafeNumber } from '@endo/platform/fs/extended/shared/helpers.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
@@ -28,6 +30,11 @@ import {
   MountFileInterface,
   MountInterface,
 } from './interfaces.js';
+
+// Re-exported from the platform search engine (the eager `glob()` collector's
+// post-sort cap). Kept as a `mount.js` export so consumers and the
+// cross-language contract test bind to the one canonical constant.
+export { GLOB_MAX_RESULTS };
 
 const mountEntryRecords = new WeakMap();
 const mountRecords = new WeakMap();
@@ -786,6 +793,35 @@ const makeMountExo = ctx => {
         }
       }
       return harden(confined);
+    },
+
+    // Enumerate the mount-face-relative paths matching a glob `pattern`, sorted
+    // by UTF-16 code unit and capped at `GLOB_MAX_RESULTS`. The walk, the
+    // two-metacharacter dialect, the ReDoS-safe matcher, symlink-cycle
+    // termination, deny filtering, and confinement all live in the platform
+    // engine (`@endo/platform/fs/search`); this method is the eager
+    // flatten-and-cap collector over its batch generator. A `subView`'s glob
+    // sees only its own sub-root because the face's `confinementRoot` is the
+    // walk boundary, and the revocation gate wraps the call.
+    async glob(pattern) {
+      await null;
+      assertLive();
+      const search = provideSearch(filePowers);
+      /** @type {string[]} */
+      const paths = [];
+      for await (const batch of search.globPaths(currentDir, pattern, {
+        deniedSegments:
+          deniedSegments === undefined ? undefined : [...deniedSegments],
+        confinementRoot,
+      })) {
+        paths.push(...batch);
+        if (paths.length >= GLOB_MAX_RESULTS) {
+          break;
+        }
+      }
+      // The engine yields the full UTF-16-sorted sequence; the cap is applied
+      // post-sort so the dropped set is deterministic across platforms.
+      return harden(paths.slice(0, GLOB_MAX_RESULTS));
     },
 
     async lookup(pathArg) {

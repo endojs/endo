@@ -633,6 +633,9 @@ export const MountInterface = M.interface('EndoMount', {
   // remotables consistently across CapTP.
   has: M.call().rest(M.any()).returns(M.promise()),
   list: M.call().rest(PathSegmentsShape).returns(M.promise()),
+  // Recursive glob search, delegated to the platform engine. Daemon-local
+  // extension beyond the ReadableTree surface.
+  glob: M.call(M.string()).returns(M.promise()),
   lookup: M.call(PathArgShape).returns(M.promise()),
   // `maybeLookup` is async in every mount implementation, so retain the
   // promise boundary here even though the shared name-hub record is broader.

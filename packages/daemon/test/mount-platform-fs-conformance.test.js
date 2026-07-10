@@ -202,6 +202,8 @@ const ENDOMOUNT_EXTENSIONS = [
   'makeFile',
   'subView',
   'maybeLookup',
+  // Recursive glob search, delegated to the @endo/platform search engine.
+  'glob',
   // Declared as part of the name-hub contract but throws ENOSYS until a
   // filesystem watcher is wired (filesystem-watchers.md) — see § C1.
   'followNameChanges',
