@@ -139,10 +139,18 @@ test('concurrent first-writes share a single open (no leaked handle)', async t =
       };
     },
   };
-  const writer = makeSessionWriter({ path: '/state/sessions/g/1_s.jsonl', fs: countingFs });
+  const writer = makeSessionWriter({
+    path: '/state/sessions/g/1_s.jsonl',
+    fs: countingFs,
+  });
   await Promise.all([
     writer.writeHeader({ sessionId: 's', createdAt: 1 }),
-    writer.append({ type: 'message', id: 'a:0', parentId: null, message: { role: 'user', content: 'hi' } }),
+    writer.append({
+      type: 'message',
+      id: 'a:0',
+      parentId: null,
+      message: { role: 'user', content: 'hi' },
+    }),
   ]);
   await writer.close();
   t.is(opens, 1, 'the file is opened exactly once despite the race');
