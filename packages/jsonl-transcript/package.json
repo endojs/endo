@@ -1,0 +1,67 @@
+{
+  "name": "@endo/jsonl-transcript",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Append-only, Pi-compatible JSONL projection of a Lal reply-chain transcript graph",
+  "keywords": [
+    "endo",
+    "pi",
+    "jsonl",
+    "transcript",
+    "session",
+    "conversation",
+    "tree"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/jsonl-transcript"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "types": "./types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types.d.ts",
+      "default": "./index.js"
+    },
+    "./entries.js": "./src/entries.js",
+    "./session-path.js": "./src/session-path.js",
+    "./writer.js": "./src/writer.js",
+    "./reader.js": "./src/reader.js",
+    "./project.js": "./src/project.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc",
+    "test": "ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ava"
+  },
+  "devDependencies": {
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "typescript": "catalog:dev"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  }
+}
