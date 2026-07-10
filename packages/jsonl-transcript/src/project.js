@@ -123,14 +123,13 @@ export const topoOrder = nodes => {
   const stack = [...(childrenOf.get(null) || [])].reverse();
   while (stack.length > 0) {
     const node = /** @type {TranscriptNode} */ (stack.pop());
-    if (visited.has(node.messageId)) {
-      continue;
-    }
-    visited.add(node.messageId);
-    ordered.push(node);
-    const children = childrenOf.get(node.messageId) || [];
-    for (let i = children.length - 1; i >= 0; i -= 1) {
-      stack.push(children[i]);
+    if (!visited.has(node.messageId)) {
+      visited.add(node.messageId);
+      ordered.push(node);
+      const children = childrenOf.get(node.messageId) || [];
+      for (let i = children.length - 1; i >= 0; i -= 1) {
+        stack.push(children[i]);
+      }
     }
   }
   return ordered;

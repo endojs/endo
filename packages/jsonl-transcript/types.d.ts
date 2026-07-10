@@ -102,7 +102,10 @@ export interface WriterFileHandle {
 
 /** The injectable filesystem seam the session writer stands on. */
 export interface WriterFs {
-  mkdir(path: string, options: { recursive: boolean }): Promise<unknown>;
+  mkdir(
+    path: string,
+    options: { recursive: boolean; mode?: number },
+  ): Promise<unknown>;
   readFile(path: string): Promise<Uint8Array>;
   truncate(path: string, length: number): Promise<unknown>;
   open(path: string, flags: string, mode: number): Promise<WriterFileHandle>;
