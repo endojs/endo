@@ -34,7 +34,10 @@ const grepCases = JSON.parse(
   fs.readFileSync(new URL('./mount-grep-cases.json', import.meta.url), 'utf8'),
 );
 const contract = JSON.parse(
-  fs.readFileSync(new URL('./mount-glob-contract.json', import.meta.url), 'utf8'),
+  fs.readFileSync(
+    new URL('./mount-glob-contract.json', import.meta.url),
+    'utf8',
+  ),
 );
 
 /** The engine's deny set is the contract's segment list (already lowercased). */
@@ -76,7 +79,10 @@ test('glob case table runs against the engine (flattened == mount expectation)',
     );
     ran += 1;
   }
-  t.true(ran >= 30, `expected the glob case table to be substantial, ran ${ran}`);
+  t.true(
+    ran >= 30,
+    `expected the glob case table to be substantial, ran ${ran}`,
+  );
 });
 
 test('grep case table runs against the engine via the glob→grep composition', async t => {
@@ -110,7 +116,10 @@ test('grep case table runs against the engine via the glob→grep composition', 
     );
     ran += 1;
   }
-  t.true(ran >= 10, `expected the grep case table to be substantial, ran ${ran}`);
+  t.true(
+    ran >= 10,
+    `expected the grep case table to be substantial, ran ${ran}`,
+  );
 });
 
 test('grep accepts a Promise<Array> of paths (CapTP composition)', async t => {
@@ -127,7 +136,11 @@ test('grep accepts a Promise<Array> of paths (CapTP composition)', async t => {
   t.deepEqual(result, [
     { file: 'src/index.js', line: 1, text: 'export const index = 1;' },
     { file: 'src/nested/deep.js', line: 1, text: 'export const deep = 3;' },
-    { file: 'src/nested/deeper/deepest.js', line: 1, text: 'export const deepest = 4;' },
+    {
+      file: 'src/nested/deeper/deepest.js',
+      line: 1,
+      text: 'export const deepest = 4;',
+    },
     { file: 'src/util.js', line: 1, text: 'export const util = 2;' },
   ]);
 });
@@ -263,10 +276,24 @@ test('compileGlobSegment is linear and bounded on a ReDoS-style pattern', t => {
 });
 
 test('isConservativeRegex accepts the portable subset and rejects ECMA-only constructs', t => {
-  for (const source of ['^export', '1;$', '[24]', 'index|util', 'a{2,4}b', '\\bword\\b']) {
+  for (const source of [
+    '^export',
+    '1;$',
+    '[24]',
+    'index|util',
+    'a{2,4}b',
+    '\\bword\\b',
+  ]) {
     t.true(isConservativeRegex(source), `${source} is conservative`);
   }
-  for (const source of ['(?=x)', '(?!x)', '(?<=x)', '(?<name>x)', '(x)\\1', '\\p{L}']) {
+  for (const source of [
+    '(?=x)',
+    '(?!x)',
+    '(?<=x)',
+    '(?<name>x)',
+    '(x)\\1',
+    '\\p{L}',
+  ]) {
     t.false(isConservativeRegex(source), `${source} is not conservative`);
   }
 });

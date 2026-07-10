@@ -413,7 +413,12 @@ export const makeSearch = powers => {
           if (await powers.isDirectory(childPath)) {
             if (real !== undefined && !ancestorsReal.has(real)) {
               const descentAncestors = new Set([...ancestorsReal, real]);
-              await walk(remaining, childPath, [...prefix, name], descentAncestors);
+              await walk(
+                remaining,
+                childPath,
+                [...prefix, name],
+                descentAncestors,
+              );
             } else if (rest.length === 0) {
               // A cyclic (or unresolvable) directory under a trailing `**` is
               // still a valid entry: recorded once, never re-entered.
@@ -518,8 +523,12 @@ export const makeSearch = powers => {
    */
   async function* grepFiles(root, regexSource, paths, options = {}) {
     await null;
-    const { deniedSegments, confinementRoot = root, maxResults, batchSize } =
-      options;
+    const {
+      deniedSegments,
+      confinementRoot = root,
+      maxResults,
+      batchSize,
+    } = options;
     const batchLimit = clampBatchSize(batchSize);
     const denySet = toDenySet(deniedSegments);
     const confinementRootReal = await maybeRealPath(powers, confinementRoot);
