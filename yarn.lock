@@ -2320,6 +2320,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/jsonl-transcript@workspace:packages/jsonl-transcript":
+  version: 0.0.0-use.local
+  resolution: "@endo/jsonl-transcript@workspace:packages/jsonl-transcript"
+  dependencies:
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/lal@workspace:^, @endo/lal@workspace:packages/lal":
   version: 0.0.0-use.local
   resolution: "@endo/lal@workspace:packages/lal"
