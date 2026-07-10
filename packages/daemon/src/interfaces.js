@@ -307,9 +307,9 @@ export const HostInterface = M.interface('EndoHost', {
     )
     .returns(M.promise()),
   // Derive a local Git capability from an authorized mount.
-  provideGit: M.callWhen(M.remotable(), NameOrPathShape).returns(
-    M.remotable('Git'),
-  ),
+  provideGit: M.callWhen(M.remotable(), NameOrPathShape)
+    .optional(M.splitRecord({}, { allowHistoryRewrite: M.boolean() }))
+    .returns(M.remotable('Git')),
   // Derive an allowlisted command-execution Shell from a writable mount.
   provideShell: M.callWhen(
     M.remotable(),

@@ -269,6 +269,11 @@ export type ScratchMountFormula = {
 export type GitFormula = {
   type: 'git';
   mountId: FormulaIdentifier;
+  /**
+   * Formula-owned history-rewrite authority survives deincarnation and restart.
+   * Absence retains the backward-compatible default denial.
+   */
+  allowHistoryRewrite?: boolean;
 };
 
 /**
@@ -1317,7 +1322,11 @@ export interface EndoHost extends EndoAgent {
     petName: string | string[],
     opts?: { readOnly?: boolean; deniedSegments?: string[] },
   ): Promise<EndoMount>;
-  provideGit(mountCap: EndoMount, petName: string | string[]): Promise<EndoGit>;
+  provideGit(
+    mountCap: EndoMount,
+    petName: string | string[],
+    options?: { allowHistoryRewrite?: boolean },
+  ): Promise<EndoGit>;
   /**
    * Derive an allowlisted, argv-only command-execution `Shell` from a
    * **writable** mount.  The child working directory is resolved host-side
@@ -2344,6 +2353,7 @@ export interface DaemonCore {
 
   formulateGit: (
     mountId: FormulaIdentifier,
+    allowHistoryRewrite: boolean,
     deferredTasks: DeferredTasks<GitDeferredTaskParams>,
   ) => FormulateResult<EndoGit>;
 
