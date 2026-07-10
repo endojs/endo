@@ -43,7 +43,9 @@ test('grep variant case table via the glob→grep composition (Rust/Node parity 
     const paths =
       options.glob === undefined ? undefined : E(mount).glob(options.glob);
     const grepOptions =
-      options.maxResults === undefined ? {} : { maxResults: options.maxResults };
+      options.maxResults === undefined
+        ? {}
+        : { maxResults: options.maxResults };
     // eslint-disable-next-line no-await-in-loop
     const result = await E(mount).grep(testCase.pattern, paths, grepOptions);
     t.deepEqual(
