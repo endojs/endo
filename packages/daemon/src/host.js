@@ -161,13 +161,49 @@ export const normalizeShellPolicy = policy => {
 harden(normalizeShellPolicy);
 
 const HTTP_CLIENT_POLICY_MODES = harden(['strict', 'tofu-auto']);
+const HTTP_ORIGIN_SCHEMES = harden(['http:', 'https:']);
+
+/**
+ * Pin an allowlist entry to the exact origin shape the `HttpClient` exo accepts
+ * (`@endo/http-confine`'s `parseAllowedOrigins`): a well-formed `http:`/`https:`
+ * URL whose serialized origin (scheme://host[:port], default ports normalized
+ * away) equals the entry verbatim — no path, query, or fragment.  Mirrored here
+ * so `provideHttpClient` rejects a path-bearing or off-scheme origin up front
+ * rather than persisting a formula the exo will reject on every incarnation.
+ *
+ * @param {string} origin
+ */
+const assertHttpClientOrigin = origin => {
+  let parsed;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    throw makeError(
+      X`provideHttpClient: policy.allowedOrigins entry ${q(
+        origin,
+      )} must be a valid http(s) origin`,
+    );
+  }
+  if (
+    !HTTP_ORIGIN_SCHEMES.includes(parsed.protocol) ||
+    parsed.origin !== origin
+  ) {
+    throw makeError(
+      X`provideHttpClient: policy.allowedOrigins entry ${q(
+        origin,
+      )} must be exactly an http(s) origin (scheme://host[:port], no path, query, or fragment)`,
+    );
+  }
+};
 
 /**
  * Validate and normalize a caller-supplied HTTP-client policy into the frozen
  * record baked into the `http-client` formula at `provideHttpClient` time
  * (formula-owned, like `GitRemote`'s endpoint policy), so the capability
  * reconstitutes across daemon restart with identical bounds.  Rejects a
- * malformed policy up front so a doomed formula is never persisted.
+ * malformed policy up front — including a path-bearing origin or an unsafe
+ * integer limit the exo would reject at incarnation — so a doomed formula is
+ * never persisted.
  *
  * `policyMode` is restricted to the modes a formula-owned policy can honor on
  * its own across a restart: `strict` (only the static allowlist is reachable)
@@ -197,6 +233,9 @@ export const normalizeHttpClientPolicy = policy => {
         X`provideHttpClient: policy.allowedOrigins must be an array of non-empty origin strings`,
       );
     }
+    for (const origin of allowedOrigins) {
+      assertHttpClientOrigin(origin);
+    }
     normalizedOrigins = [...allowedOrigins];
   }
 
@@ -205,22 +244,22 @@ export const normalizeHttpClientPolicy = policy => {
   const normalizedMaxRequestsPerMinute =
     maxRequestsPerMinute === undefined ? 60 : maxRequestsPerMinute;
   if (
-    !Number.isInteger(normalizedMaxRequestsPerMinute) ||
+    !Number.isSafeInteger(normalizedMaxRequestsPerMinute) ||
     /** @type {number} */ (normalizedMaxRequestsPerMinute) <= 0
   ) {
     throw makeError(
-      X`provideHttpClient: policy.maxRequestsPerMinute must be a positive integer`,
+      X`provideHttpClient: policy.maxRequestsPerMinute must be a positive safe integer`,
     );
   }
 
   const normalizedMaxResponseBytes =
     maxResponseBytes === undefined ? 1024 * 1024 : maxResponseBytes;
   if (
-    !Number.isInteger(normalizedMaxResponseBytes) ||
+    !Number.isSafeInteger(normalizedMaxResponseBytes) ||
     /** @type {number} */ (normalizedMaxResponseBytes) <= 0
   ) {
     throw makeError(
-      X`provideHttpClient: policy.maxResponseBytes must be a positive integer`,
+      X`provideHttpClient: policy.maxResponseBytes must be a positive safe integer`,
     );
   }
 

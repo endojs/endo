@@ -115,6 +115,41 @@ test('normalizeHttpClientPolicy rejects a non-origin allowlist entry', t => {
   );
 });
 
+test('normalizeHttpClientPolicy rejects a path-bearing origin up front (would doom the formula at incarnation)', t => {
+  t.throws(
+    () =>
+      normalizeHttpClientPolicy({
+        allowedOrigins: ['https://api.example.com/v1'],
+      }),
+    { message: /must be exactly an http\(s\) origin/ },
+  );
+});
+
+test('normalizeHttpClientPolicy rejects an off-scheme origin', t => {
+  t.throws(
+    () => normalizeHttpClientPolicy({ allowedOrigins: ['ftp://files.example'] }),
+    { message: /must be exactly an http\(s\) origin/ },
+  );
+});
+
+test('normalizeHttpClientPolicy rejects an unsafe-integer limit the exo would reject', t => {
+  t.throws(
+    () =>
+      normalizeHttpClientPolicy({
+        allowedOrigins: ['https://api.example.com'],
+        maxResponseBytes: Number.MAX_SAFE_INTEGER + 1,
+      }),
+    { message: /maxResponseBytes must be a positive safe integer/ },
+  );
+});
+
+test('normalizeHttpClientPolicy accepts an origin with an explicit non-default port', t => {
+  const policy = normalizeHttpClientPolicy({
+    allowedOrigins: ['https://api.example.com:8443'],
+  });
+  t.deepEqual(policy.allowedOrigins, ['https://api.example.com:8443']);
+});
+
 test('provideHttpClient composition: a fetch to an allowlisted origin succeeds', async t => {
   const { fetch, calls } = makeFakeFetch({ body: '{"ok":true}' });
   const { client } = makeHttpClientLikeFormulaMaker(basePolicy, fetch);

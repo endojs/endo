@@ -16,7 +16,10 @@ import {
   getMethodGuardPayload,
 } from '@endo/patterns';
 import { Far } from '@endo/pass-style';
-import { HttpClientInterface } from '@endo/exo-http-client';
+import {
+  HttpClientInterface,
+  HttpResponseInterface,
+} from '@endo/exo-http-client';
 
 import { makeHttpTool } from '../src/http-tool.js';
 
@@ -149,6 +152,39 @@ test('schema ⟷ guard agree for http.fetch', t => {
 
 test('schema ⟷ guard agree for http.allowedOrigins', t => {
   checkAgreement(t, toolsByName().allowedOrigins, allowedOriginsRecords);
+});
+
+// --- output-side pin: projectResponse ⟷ HttpResponseInterface ---------------
+// The `fetch` tool's `execute` projects the live `HttpResponse` remotable to a
+// JSON record by calling this fixed set of accessors (see `projectResponse` in
+// src/http-tool.js). Nothing on the input side pins this output seam, so a
+// rename of any of these methods on `HttpResponse` would surface only as a
+// runtime throw and the advertised return shape would silently go stale. Pin
+// the accessors the projection depends on against the guards the exo actually
+// enforces, exactly as the input schema is pinned against `HttpClientInterface`
+// — this is the reason the PR exports `HttpResponseInterface`. Keep this list in
+// sync with `projectResponse`.
+const projectedResponseMethods = harden([
+  'status',
+  'statusText',
+  'ok',
+  'url',
+  'headers',
+  'truncated',
+  'text',
+]);
+
+test('projectResponse accessors are pinned to HttpResponseInterface', t => {
+  const { methodGuards } = getInterfaceGuardPayload(
+    /** @type {InterfaceGuard} */ (HttpResponseInterface),
+  );
+  const declared = new Set(Object.keys(methodGuards));
+  for (const method of projectedResponseMethods) {
+    t.true(
+      declared.has(method),
+      `HttpResponse.${method} must exist on HttpResponseInterface (projectResponse depends on it)`,
+    );
+  }
 });
 
 // --- dispatch + response bridging -------------------------------------------
