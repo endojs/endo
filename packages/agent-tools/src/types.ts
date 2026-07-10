@@ -5,17 +5,20 @@ import type { EndoShell } from '@endo/exo-shell';
 import type { Pattern } from '@endo/patterns';
 
 /**
- * The read- and branch-navigation slice of `EndoGit` the git tool catalog
- * exposes to an LLM.
+ * The read, branch-navigation, and additive-commit slice of `EndoGit` that
+ * the default git tool catalog exposes to an LLM.
  *
  * Deliberately omits the destructive and history-rewriting methods of `EndoGit`
  * — `merge`, `rebase`, `restore`, `deleteBranch`, `renameBranch`, the `stash*`
- * family, and the working-tree/detach mutators (`switch`, `detach`). Those carry
- * authority a tool surface handed to a model should not advertise: they can
- * discard uncommitted work or rewrite shared history. `commit`, `createBranch`,
- * and `switchBranch` are included as the additive, non-destructive write
- * surface. Widening this `Pick` is a deliberate authority decision, not a
- * convenience — add a method only when the tool surface is meant to grant it.
+ * family, the working-tree/detach mutators (`switch`, `detach`), and history
+ * rewrites (`commit` with `amend`, `reword`).
+ * Those carry authority a tool
+ * surface handed to a model should not advertise: they can discard uncommitted
+ * work or rewrite shared history. `commit` is included only through the default
+ * maker's message-only schema, so it creates a new commit.
+ * Widening this `Pick`
+ * is a deliberate authority decision, not a convenience — add a method only
+ * when the tool surface is meant to grant it.
  *
  * This slice holds only the JSON-transparent methods whose hand-authored tool
  * schemas map one-to-one onto their `GitInterface` guards (the divergence gate
@@ -36,6 +39,13 @@ export type GitToolCapability = Pick<
   | 'switchBranch'
   | 'currentBranch'
 >;
+
+/**
+ * Explicitly elevated history-rewrite slice for `makeGitHistoryTool`.
+ * Hosts must opt into constructing these tools; the default `makeGitTool`
+ * inventory does not advertise either operation.
+ */
+export type GitHistoryToolCapability = Pick<EndoGit, 'commit' | 'reword'>;
 
 /**
  * The mount-bridged slice of `EndoGit` behind `makeGitMountTools`: `status` and
@@ -94,6 +104,10 @@ export declare function makeTool(spec: ToolSpec): ToolRecord;
 
 export declare function makeGitTool(
   gitCap: ERef<GitToolCapability>,
+): ToolRecord[];
+
+export declare function makeGitHistoryTool(
+  gitCap: ERef<GitHistoryToolCapability>,
 ): ToolRecord[];
 
 export declare function makeGitMountTools(

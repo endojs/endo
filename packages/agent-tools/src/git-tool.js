@@ -3,9 +3,9 @@
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { InterfaceGuard, Pattern } from '@endo/patterns' */
-/** @import { GitToolCapability, ToolRecord } from './types.js' */
+/** @import { GitHistoryToolCapability, GitToolCapability, ToolRecord } from './types.js' */
 
-/** @typedef {Record<keyof GitToolCapability, (...args: unknown[]) => Promise<unknown>>} GitToolDispatch */
+/** @typedef {Record<keyof GitToolCapability | keyof GitHistoryToolCapability, (...args: unknown[]) => Promise<unknown>>} GitToolDispatch */
 
 import { E } from '@endo/eventual-send';
 import {
@@ -55,6 +55,23 @@ const REF_PROP = harden({
     'structured ref record.',
 });
 
+const COMMIT_OPTIONS_PROP = harden({
+  type: 'object',
+  properties: {
+    amend: {
+      type: 'boolean',
+      description: 'Amend HEAD instead of creating a new commit.',
+    },
+  },
+  required: [],
+  additionalProperties: false,
+});
+
+const COMMIT_PROP = harden({
+  type: 'string',
+  description: 'The commit message.',
+});
+
 /**
  * This package intentionally exposes only a curated JSON-safe `EndoGit` slice
  * for now. Methods that remotely accept capabilities or can return
@@ -96,7 +113,7 @@ const gitToolSchemas = harden({
     parameters: {
       type: 'object',
       properties: {
-        message: { type: 'string', description: 'The commit message.' },
+        message: COMMIT_PROP,
       },
       required: ['message'],
       additionalProperties: false,
@@ -136,11 +153,46 @@ const gitToolSchemas = harden({
   },
 });
 
+/** @type {Record<keyof GitHistoryToolCapability, { description: string, parameters: object }>} */
+const gitHistoryToolSchemas = harden({
+  commit: {
+    description: 'Record staged changes, or amend HEAD when requested.',
+    parameters: {
+      type: 'object',
+      properties: {
+        message: COMMIT_PROP,
+        options: COMMIT_OPTIONS_PROP,
+      },
+      required: ['message'],
+      additionalProperties: false,
+    },
+  },
+  reword: {
+    description: 'Replace a commit message while keeping its patch unchanged.',
+    parameters: {
+      type: 'object',
+      properties: {
+        ref: REF_PROP,
+        message: { type: 'string', description: 'The replacement message.' },
+      },
+      required: ['ref', 'message'],
+      additionalProperties: false,
+    },
+  },
+});
+
 /**
  * @type {(keyof GitToolCapability)[]}
  */
 const gitToolMethods = harden(
   /** @type {(keyof GitToolCapability)[]} */ (Object.keys(gitToolSchemas)),
+);
+
+/** @type {(keyof GitHistoryToolCapability)[]} */
+const gitHistoryToolMethods = harden(
+  /** @type {(keyof GitHistoryToolCapability)[]} */ (
+    Object.keys(gitHistoryToolSchemas)
+  ),
 );
 
 /**
@@ -163,15 +215,19 @@ const positionalArgGuards = method => {
 /**
  * Build agent-tool records for a live `Git` capability.
  *
- * @param {ERef<GitToolCapability>} gitCap
+ * @param {ERef<GitToolCapability | GitHistoryToolCapability>} gitCap
  *   A live `Git` capability. The exo `Git` cap is reached by dynamic method
  *   name through `E`, so this records only the invocation shape this maker
  *   needs.
+ * @param {(keyof GitToolDispatch)[]} methods
+ * @param {Partial<Record<keyof GitToolDispatch, { description: string, parameters: object }>>} schemas
  * @returns {ToolRecord[]}
  */
-export const makeGitTool = gitCap => {
-  const records = gitToolMethods.map(method => {
-    const schema = gitToolSchemas[method];
+const makeGitTools = (gitCap, methods, schemas) => {
+  const records = methods.map(method => {
+    const schema = /** @type {{ description: string, parameters: object }} */ (
+      schemas[method]
+    );
     const argGuards = positionalArgGuards(method);
     // The schema's declared property order is the positional argument order,
     // matching the convention `makeTool` applies to the named-args record.
@@ -194,7 +250,7 @@ export const makeGitTool = gitCap => {
         ) {
           positional.pop();
         }
-        const gitMethod = /** @type {keyof GitToolCapability} */ (method);
+        const gitMethod = /** @type {keyof GitToolDispatch} */ (method);
         const git = /** @type {GitToolDispatch} */ (E(gitCap));
         return git[gitMethod](...positional);
       },
@@ -202,4 +258,25 @@ export const makeGitTool = gitCap => {
   });
   return harden(records);
 };
+
+/**
+ * Build the default attenuated agent-tool records for a live `Git` capability.
+ *
+ * @param {ERef<GitToolCapability>} gitCap
+ * @returns {ToolRecord[]}
+ */
+export const makeGitTool = gitCap =>
+  makeGitTools(gitCap, gitToolMethods, gitToolSchemas);
 harden(makeGitTool);
+
+/**
+ * Build explicitly elevated history-rewrite tool records for a live `Git`
+ * capability.
+ * Hosts must opt in to exposing these operations to a model.
+ *
+ * @param {ERef<GitHistoryToolCapability>} gitCap
+ * @returns {ToolRecord[]}
+ */
+export const makeGitHistoryTool = gitCap =>
+  makeGitTools(gitCap, gitHistoryToolMethods, gitHistoryToolSchemas);
+harden(makeGitHistoryTool);

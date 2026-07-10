@@ -1,1 +1,1 @@
-export { makeGitTool } from './src/git-tool.js';
+export { makeGitHistoryTool, makeGitTool } from './src/git-tool.js';

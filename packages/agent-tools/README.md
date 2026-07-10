@@ -12,6 +12,7 @@ arguments before dispatching to a capability.
 ```js
 import {
   makeTool,
+  makeGitHistoryTool,
   makeGitTool,
   makeGitMountTools,
   makeMountReadTool,
@@ -30,7 +31,7 @@ Subpath exports are also available:
 
 ```js
 import { makeTool } from '@endo/agent-tools/tool.js';
-import { makeGitTool } from '@endo/agent-tools/git-tool.js';
+import { makeGitHistoryTool, makeGitTool } from '@endo/agent-tools/git-tool.js';
 import { makeGitMountTools } from '@endo/agent-tools/git-mount-tool.js';
 import { makeMountReadTool } from '@endo/agent-tools/mount-fs.js';
 ```
@@ -107,6 +108,22 @@ The current slice exposes:
 - `switchBranch`
 - `currentBranch`
 
+The default `commit` tool creates a new commit and does not accept
+`options.amend`.
+History rewriting is intentionally excluded from this default inventory.
+Hosts that deliberately grant that authority can construct the separate
+elevated tool set:
+
+```js
+const historyTools = makeGitHistoryTool(git);
+```
+
+It exposes `commit` with `options.amend` and `reword`.
+Do not combine this set with `makeGitTool` without resolving the duplicate
+`commit` tool name in the host's catalog.
+The host controls whether a model sees the normal commit-only or elevated
+history-rewrite variant.
+
 This slice holds only the JSON-transparent methods whose hand-authored tool
 schema maps one-to-one onto their `GitInterface` guard. Methods whose native
 signatures traffic in live capabilities — `status` (its rows carry mount-entry
@@ -130,7 +147,7 @@ const mountTools = makeGitMountTools(git);
   the worktree root rather than escaping it; a path that addresses only the
   root (`.`, `/`) is rejected.
 
-The two makers compose into the full status/diff/log/add/commit surface:
+The normal makers compose into the full status/diff/log/add/commit surface:
 
 ```js
 const gitTools = [...makeGitTool(git), ...makeGitMountTools(git)];
