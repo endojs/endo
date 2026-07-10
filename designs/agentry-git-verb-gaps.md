@@ -27,9 +27,9 @@ acceptance contract for these verbs.
 
 | Workflow need | EndoGit shape | Code-mode shape | JSON tool slice |
 |---|---|---|---|
-| Commit amend | extend `commit(message, options?)` with `{ amend?: true }` | generated from the `EndoGit` type | include as the existing `commit` tool's optional `options.amend` |
+| Commit amend | extend `commit(message, options?)` with `{ amend?: true }` | generated from the `EndoGit` type | expose through explicit `makeGitHistoryTool` |
 | Cherry-pick | `cherryPick(ref, options?)` | generated from the `EndoGit` type | include with string or structured ref plus JSON options |
-| Reword commit | `reword(ref, message)` | generated from the `EndoGit` type | include with string or structured ref plus message |
+| Reword commit | `reword(ref, message)` | generated from the `EndoGit` type | expose through explicit `makeGitHistoryTool` using a JSON-safe ref |
 | Rebase autosquash | extend `rebase(input)` with `{ autosquash?: boolean }` for `mode: 'start'` | generated from the `EndoGit` type | include the `mode: 'start'` autosquash case |
 | Conflict-side selection | `checkoutConflict(entries, side)` with `side: 'ours' \| 'theirs'` | generated from the `EndoGit` type | include as `paths: string[]`, resolved to entries by the tool |
 
@@ -142,11 +142,11 @@ Code mode receives all five additions automatically by regenerating
 This is the first consumer because stack-surgery eval scenarios can hold
 `EndoMountEntry` values from `status()` and can sequence `rebase` control calls.
 
-The JSON tool slice should also include the first-cut mutators whose wire
-arguments are plain JSON:
+The explicit elevated JSON history-tool slice includes the first-cut mutators
+whose wire arguments are plain JSON:
 
-- `commit(message, options?)` grows the optional `options.amend` flag on the
-  existing `commit` tool.
+- `commit(message, options?)` exposes the optional `options.amend` flag through
+  `makeGitHistoryTool`, not the default `makeGitTool` inventory.
 - `cherryPick(ref, options?)` and `reword(ref, message)` use the same
   JSON-safe ref convention as `show`, `merge`, `createBranch({ startPoint })`,
   and other ref-bearing git tools.

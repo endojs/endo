@@ -499,17 +499,19 @@ stack-surgery eval lane, per
 the `stack-surgery` scenario in `designs/agentry-git-eval-scenarios.md` (draft
 PR #636, branch `design/agentry-git-eval-scenarios`).
 
-- [ ] `commit({ amend })` and `reword(ref, message)` across all surfaces
-  at once: exo + `GitInterface` guard + `GitBackend` + native impl +
-  code-mode regen (`packages/agentry/src/execute/git-types.js`) + JSON
-  tools (the `commit` tool's optional `options.amend`; `reword` on the
-  JSON-safe ref convention).
+- [x] `commit({ amend })` and `reword(ref, message)` across the local Git and
+  code-mode surfaces: exo + `GitInterface` guard + `GitBackend` + native impl +
+  code-mode regen (`packages/agentry/src/execute/git-types.js`).
+  The default
+  JSON tool inventory retains only new-commit creation; an explicit
+  `makeGitHistoryTool` maker exposes amend and reword when a host deliberately
+  grants history-rewrite authority.
 - [ ] Extend the `473b718b3` contract test (branch
   `docs/agentry-git-rebase-evals`) so the exo type, `GitInterface`,
   `packages/exo-git/src/types.js`, `types.d.ts`, and the generated
   code-mode declarations cannot drift.
-- [ ] Tests: read-only rejection for each mutator; non-interactive
-  editor behavior for reword.
+- [x] Tests: read-only rejection for each mutator; non-interactive editor
+  behavior, branch attachment, and merge-topology preservation for reword.
 
 ### Phase 6: Stack-replay and conflict resolution (agentry eval lane)
 
