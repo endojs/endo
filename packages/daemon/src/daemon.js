@@ -84,7 +84,7 @@ import {
   makeHelp,
   readableTreeHelp,
 } from './help-text.js';
-import { getMountBacking, lineageOf, makeMount } from './mount.js';
+import { getMountBacking, lineageOf, makeRevocableMount } from './mount.js';
 
 // Sorted:
 import {
@@ -2965,7 +2965,7 @@ const makeDaemonCore = async (
       makeEval(worker, source, names, values, context),
     'readable-blob': ({ content }) => makeReadableBlob(content),
     'readable-tree': ({ content }) => makeReadableTree(content),
-    mount: async ({ path: mountPath, readOnly }) => {
+    mount: async ({ path: mountPath, readOnly, deniedSegments }, context) => {
       // Verify the mount path exists.
       const pathExists = await filePowers.exists(mountPath);
       if (!pathExists) {
@@ -2975,28 +2975,47 @@ const makeDaemonCore = async (
       if (!isDir) {
         throw new Error(`Mount path is not a directory: ${q(mountPath)}`);
       }
-      return makeMount({
+      const { mount, control } = makeRevocableMount({
         rootPath: mountPath,
         readOnly,
         filePowers,
         snapshotTree: snapshotMountTree,
         snapshotFile: snapshotMountFile,
+        deniedSegments,
       });
+      // Tie revocation to the mount formula's lifetime: when the formula is
+      // cancelled, the caretaker trips the shared liveness flag and every
+      // derived face begins throwing. The control stays captive in this
+      // closure — callers only ever receive `mount`.
+      context.onCancel(() => {
+        /** @type {{ revoke: () => void }} */ (control).revoke();
+      });
+      return mount;
     },
-    'scratch-mount': async ({ readOnly }, _context, _id, formulaNumber) => {
+    'scratch-mount': async (
+      { readOnly, deniedSegments },
+      context,
+      _id,
+      formulaNumber,
+    ) => {
       const rootPath = filePowers.joinPath(
         persistencePowers.statePath,
         'mounts',
         /** @type {string} */ (formulaNumber),
       );
       await filePowers.makePath(rootPath);
-      return makeMount({
+      const { mount, control } = makeRevocableMount({
         rootPath,
         readOnly,
         filePowers,
         snapshotTree: snapshotMountTree,
         snapshotFile: snapshotMountFile,
+        deniedSegments,
       });
+      context.onCancel(() => {
+        /** @type {{ revoke: () => void }} */ (control).revoke();
+      });
+      return mount;
     },
     git: async ({ mountId }, context) => {
       context.thisDiesIfThatDies(mountId);
@@ -4220,7 +4239,12 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateMount']} */
-  const formulateMount = async (mountPath, readOnly, deferredTasks) => {
+  const formulateMount = async (
+    mountPath,
+    readOnly,
+    deferredTasks,
+    deniedSegments = undefined,
+  ) => {
     return /** @type {FormulateResult<EndoMount>} */ (
       withFormulaGraphLock(async () => {
         await null;
@@ -4235,11 +4259,17 @@ const makeDaemonCore = async (
           }),
         });
 
+        // The `deniedSegments` field is included only when overridden, so a
+        // default mount keeps its historical persisted formula shape (the
+        // on-disk record stays byte-identical to the pre-deny era). Formula
+        // numbers are random, not content-addressed, so this is about the
+        // record's shape and backward-compatibility, not formula identity.
         /** @type {import('./types.js').MountFormula} */
         const formula = harden({
           type: 'mount',
           path: mountPath,
           readOnly,
+          ...(deniedSegments !== undefined ? { deniedSegments } : {}),
         });
 
         return formulate(formulaNumber, formula);
@@ -4248,7 +4278,11 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateScratchMount']} */
-  const formulateScratchMount = async (readOnly, deferredTasks) => {
+  const formulateScratchMount = async (
+    readOnly,
+    deferredTasks,
+    deniedSegments = undefined,
+  ) => {
     return /** @type {FormulateResult<EndoMount>} */ (
       withFormulaGraphLock(async () => {
         await null;
@@ -4267,6 +4301,7 @@ const makeDaemonCore = async (
         const formula = harden({
           type: 'scratch-mount',
           readOnly,
+          ...(deniedSegments !== undefined ? { deniedSegments } : {}),
         });
 
         return formulate(formulaNumber, formula);

@@ -6357,6 +6357,55 @@ test('mount symlink - all symlink types together in one listing', async t => {
   t.is(entries.length, 4); // 2 real + 2 internal
 });
 
+test('mount denies sensitive segments through the mount formula', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-deny');
+  await createMountFixture(mountPath, {
+    '.ssh/id_rsa': 'private key',
+    '.env': 'TOKEN=secret',
+    '.gitignore': 'node_modules\n',
+    'README.md': 'readme',
+  });
+
+  await E(host).provideMount(mountPath, 'deny-mount');
+  const mount = await E(host).lookup(['deny-mount']);
+
+  // The listing hides every denied name but keeps the ordinary dotfile.
+  t.deepEqual(await E(mount).list(), ['.gitignore', 'README.md']);
+  // Direct access to a denied path throws the restricted-path error.
+  await t.throwsAsync(() => E(mount).readText(['.ssh', 'id_rsa']), {
+    message: /restricted path/,
+  });
+  await t.throwsAsync(() => E(mount).readText('.env'), {
+    message: /restricted path/,
+  });
+});
+
+test('cancelling the mount formula revokes live mount and file handles', async t => {
+  const { host, config } = await prepareHost(t);
+
+  const mountPath = path.join(config.statePath, '..', 'mount-test-revoke');
+  await createMountFixture(mountPath, {
+    'src/index.js': 'export default 1;',
+    'top.txt': 'top',
+  });
+
+  await E(host).provideMount(mountPath, 'revoke-mount');
+  const mount = await E(host).lookup(['revoke-mount']);
+  // Hand out live faces before cancelling the formula.
+  const subView = await E(mount).subView('src');
+  const file = await E(mount).lookup(['src', 'index.js']);
+  t.is(await E(file).text(), 'export default 1;');
+
+  // Cancelling the formula runs the daemon's onCancel hook, which revokes.
+  await E(host).cancel('revoke-mount');
+
+  await t.throwsAsync(() => E(mount).list(), { message: /revoked/ });
+  await t.throwsAsync(() => E(subView).list(), { message: /revoked/ });
+  await t.throwsAsync(() => E(file).text(), { message: /revoked/ });
+});
+
 test('readLog streams daemon logs', async t => {
   const { cancel, cancelled, config } = await prepareConfig(t);
   const { getBootstrap, closed } = await makeEndoClient(

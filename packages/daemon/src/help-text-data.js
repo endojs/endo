@@ -222,7 +222,7 @@ export const helpTextEntries = harden([
   [
     'EndoMount',
     {
-      '': 'EndoMount - Live mutable access to a filesystem directory.\n\nAll paths are confined to the mount root. Symlinks that escape\nthe root are invisible. Use readOnly() for an attenuated view.',
+      '': 'EndoMount - Live mutable access to a filesystem directory.\n\nAll paths are confined to the mount root. Symlinks that escape\nthe root are invisible. Use readOnly() for an attenuated view.\n\nWell-known credential and configuration names (such as .ssh, .aws,\n.env, and .gnupg) are restricted: naming one in a path throws\n"Access denied", and list() and followNameChanges() omit them.\nMatching is case-insensitive. Ordinary dotfiles like .gitignore stay\naccessible. The set can be replaced when the mount is created.',
       help: 'help(methodName?) -> string\nGet documentation for this interface or a specific method.',
       has: 'has(...pathSegments | entry) -> Promise<boolean>\nCheck if a path exists within the mount.\nEither pass path segments (has("dir", "file.txt")) or a single EndoMountEntry.',
       list: 'list(...pathSegments) -> Promise<string[]>\nList directory entries at the given path.\nEach argument is one path segment: list("subdir").\nCall with no arguments to list the root.\nEntries with symlinks escaping the mount root are excluded.',
