@@ -1,6 +1,7 @@
 export type * from './src/types.js';
 export {
   makeGit,
+  isGitHistoryRewrite,
   isGitReadOnly,
   getGitBackend,
   makeNotYetImplementedBackend,

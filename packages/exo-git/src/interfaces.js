@@ -62,6 +62,14 @@ const GitCommitShape = M.splitRecord(
   },
 );
 
+const GitCommitOptionsShape = M.splitRecord(
+  {},
+  {
+    amend: M.boolean(),
+  },
+  harden({}),
+);
+
 // #endregion
 
 export const GitInterface = M.interface('Git', {
@@ -83,7 +91,10 @@ export const GitInterface = M.interface('Git', {
   restore: M.callWhen(M.arrayOf(M.remotable()))
     .optional(M.recordOf(M.string(), M.any()))
     .returns(M.undefined()),
-  commit: M.callWhen(M.string()).returns(GitCommitShape),
+  commit: M.callWhen(M.string())
+    .optional(GitCommitOptionsShape)
+    .returns(GitCommitShape),
+  reword: M.callWhen(RefArgShape, M.string()).returns(GitCommitShape),
   currentBranch: M.callWhen().returns(M.or(GitRefShape, M.undefined())),
   branches: M.callWhen().returns(M.arrayOf(GitRefShape)),
   createBranch: M.callWhen(M.string())
