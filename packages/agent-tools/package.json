@@ -45,6 +45,10 @@
       "types": "./shell-tool.d.ts",
       "default": "./src/shell-tool.js"
     },
+    "./http-tool.js": {
+      "types": "./http-tool.d.ts",
+      "default": "./src/http-tool.js"
+    },
     "./mount-fs.js": {
       "types": "./mount-fs.d.ts",
       "default": "./src/mount-fs.js"
@@ -68,6 +72,10 @@
     "./src/shell-tool.js": {
       "types": "./src/shell-tool.d.ts",
       "default": "./src/shell-tool.js"
+    },
+    "./src/http-tool.js": {
+      "types": "./src/http-tool.d.ts",
+      "default": "./src/http-tool.js"
     },
     "./src/mount-fs.js": {
       "types": "./src/mount-fs.d.ts",
@@ -97,6 +105,7 @@
   "dependencies": {
     "@endo/eventual-send": "workspace:^",
     "@endo/exo-git": "workspace:^",
+    "@endo/exo-http-client": "workspace:^",
     "@endo/exo-shell": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/patterns": "workspace:^",

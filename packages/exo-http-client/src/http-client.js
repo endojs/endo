@@ -49,7 +49,13 @@ const DEFAULT_POLICY_PROMPT_TIMEOUT_MS = 30_000;
 const DEFAULT_AUDIT_LIMIT = 1024;
 const DEFAULT_BINDING_LIMIT = 1024;
 
-const FetchOptionsShape = M.splitRecord(
+/**
+ * The optional second argument of `HttpClient.fetch`.  Exported so tool
+ * adapters (`@endo/agent-tools`' `makeHttpTool`) can pin their hand-authored
+ * wire schema against the very guard the exo enforces, rather than a hand-typed
+ * copy that could drift.
+ */
+export const FetchOptionsShape = M.splitRecord(
   {},
   {
     method: M.string(),
@@ -98,7 +104,7 @@ const PolicyShape = M.splitRecord(
   {},
 );
 
-const HttpResponseInterface = M.interface('HttpResponse', {
+export const HttpResponseInterface = M.interface('HttpResponse', {
   status: M.call().returns(M.number()),
   statusText: M.call().returns(M.string()),
   ok: M.call().returns(M.boolean()),
@@ -111,7 +117,7 @@ const HttpResponseInterface = M.interface('HttpResponse', {
   help: M.call().returns(M.string()),
 });
 
-const HttpClientInterface = M.interface('HttpClient', {
+export const HttpClientInterface = M.interface('HttpClient', {
   fetch: M.callWhen(M.string())
     .optional(FetchOptionsShape)
     .returns(M.remotable()),
@@ -119,7 +125,7 @@ const HttpClientInterface = M.interface('HttpClient', {
   help: M.call().returns(M.string()),
 });
 
-const HttpClientControlInterface = M.interface('HttpClientControl', {
+export const HttpClientControlInterface = M.interface('HttpClientControl', {
   inspect: M.call().returns(PolicyShape),
   setAllowedOrigins: M.call(M.arrayOf(M.string())).returns(),
   addAllowedOrigin: M.call(M.string()).returns(),

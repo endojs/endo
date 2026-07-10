@@ -316,6 +316,17 @@ export const HostInterface = M.interface('EndoHost', {
     NameOrPathShape,
     M.recordOf(M.string(), M.any()),
   ).returns(M.remotable('Shell')),
+  // Mint a confined outbound-HTTP client from a host-owned `fetch` seam. No
+  // mount arg: the Network tier is rooted in the fetch seam, not a mount.
+  provideHttpClient: M.callWhen(
+    NameOrPathShape,
+    M.recordOf(M.string(), M.any()),
+  ).returns(M.remotable('HttpClient')),
+  // Host-side control facet for a daemon-minted HttpClient cap (policy
+  // mutation, revocation, binding/audit inspection); retained host-side.
+  getHttpClientControl: M.callWhen(M.remotable()).returns(
+    M.remotable('HttpClientControl'),
+  ),
   // Mint a GitRemote capability that wraps a writable Git cap with a
   // policy-bound endpoint and (optional) credential.
   provideGitRemote: M.callWhen(
