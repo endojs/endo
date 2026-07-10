@@ -3,15 +3,15 @@
 | | |
 |---|---|
 | **Created** | 2026-06-02 |
-| **Updated** | 2026-06-02 |
+| **Updated** | 2026-07-10 |
 | **Author** | endolinbot (prompted) |
-| **Status** | Proposed |
+| **Status** | Not Started |
 
 ## Summary
 
 A daemon-specific variation on `compartment-mapper.mapNodeModules`
 that takes a pair of daemon capabilities (an `EndoRegistry`
-resolution and an `EndoMount` or `readable-tree` entry source) and
+capability and an `EndoMount` or `readable-tree` entry source) and
 produces a `CompartmentMap` whose locations follow the
 compartment-mapper *archive* precedent: a top-level
 `compartment-map.json` plus peer directories named by package
@@ -125,6 +125,30 @@ mapSnapshot({
   readPowers: ReadPowers;             // wired via makeMountReadPowers
 }>;
 ```
+
+`mapSnapshot`'s first act is a single
+`E(registry).resolve(packageJsonBytes, { workspaceRoot })` call;
+the resolve call is where the graph walk happens (in the
+resolver, per this design's Non-Goals), and the mapper consumes
+the returned `resolution.packagesByKey` without re-walking.
+
+### Workspace-root discovery
+
+Workspace-root discovery lives in this layer, not in the
+resolver and not in the integration layer: the entry
+`package.json` reaches `EndoRegistry.resolve` as opaque bytes
+with no location, so only the holder of the snapshot tree can
+perform the walk-up that
+[mvs-resolver](mvs-resolver.md) § *Workspace resolution*
+describes.
+Before calling `resolve`, `mapSnapshot` walks up from the entry
+package's directory in the snapshot tree looking for a parent
+`package.json` whose `workspaces` globs name the entry as a
+member; when one is found, `mapSnapshot` passes that directory's
+tree handle as the `workspaceRoot` option to `resolve`.
+When none is found, `resolve` is called without `workspaceRoot`,
+and any `workspace:` specifier in the graph rejects with the
+clean no-enclosing-workspace-root error the resolver defines.
 
 The output trio is what the next stage in the integration flow
 consumes: `importLocation` (when starting a fresh caplet) and a
@@ -326,7 +350,10 @@ unnamed is fair game.
 
 This lane lands as Phase 2 of the integration stack
 (after the [registry-capability](registry-capability.md) Phase 1
-lands the JS reference `EndoRegistry`):
+lands the JS reference `EndoRegistry`); the canonical
+dependency-ordered build plan (accepted 2026-07-10) is
+[daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
+§ *Phased Implementation*:
 
 1. Add `packages/daemon/src/worker-import.js` exporting
    `makeMountReadPowers`.
@@ -497,3 +524,11 @@ integration layer's Phase 2 entry (the worker dispatch); see
 > collide.
 > Fold the synthesized-`ReadPowers` caching question into the
 > registry's caching scope.
+
+Sequencing pass 2026-07-10: accepted (Proposed to Not Started)
+together with the three sibling stack designs; workspace-root
+discovery is pinned to this layer (§ *Workspace-root discovery*
+above) and the single-`resolve`-call contract is made explicit.
+Canonical build order:
+[daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
+§ *Phased Implementation*.

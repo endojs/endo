@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-06-02 |
-| **Updated** | 2026-06-02 |
+| **Updated** | 2026-07-10 |
 | **Author** | endolinbot (prompted) |
-| **Status** | Proposed |
+| **Status** | Not Started |
 
 ## Summary
 
@@ -150,6 +150,15 @@ A `package.json` may declare a workspace dependency through the
 In a mount that contains the whole workspace, those references
 must resolve to the sibling subdirectory rather than to the
 registry.
+
+The walk-up search below is performed by the **mapper layer**
+([snapshot-mapper](snapshot-mapper.md) § *Workspace-root
+discovery*), which holds the snapshot tree; the resolver receives
+its outcome as the `workspaceRoot` option on
+`EndoRegistry.resolve` and only reads *within* the discovered
+workspace (the entry `package.json` reaches `resolve` as opaque
+bytes with no location, so the resolver cannot perform the
+walk-up itself).
 
 The first cut resolves workspace specifiers by searching for the
 parent `package.json` whose `workspaces` array (or the equivalent
@@ -340,7 +349,10 @@ Notes on the sketch:
 
 This algorithm lands as Phase 1 of the integration stack, inside
 the JS reference implementation of
-[registry-capability](registry-capability.md) § Phase 1.
+[registry-capability](registry-capability.md) § Phase 1; the
+canonical dependency-ordered build plan (accepted 2026-07-10) is
+[daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
+§ *Phased Implementation*.
 That section enumerates the test surface (lookup, resolve,
 fetch).
 The MVS-specific shape tests this design adds:
@@ -477,3 +489,11 @@ The MVS-specific shape tests this design adds:
 > a parent `package.json` with `workspaces` enabled where the
 > workspace member is named; make `peerDependencies` and
 > `optionalDependencies` in scope and test accordingly.
+
+Sequencing pass 2026-07-10: accepted (Proposed to Not Started)
+together with the three sibling stack designs; workspace-root
+discovery is assigned to the mapper layer (the resolver consumes
+the `workspaceRoot` option, it does not perform the walk-up).
+Canonical build order:
+[daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
+§ *Phased Implementation*.

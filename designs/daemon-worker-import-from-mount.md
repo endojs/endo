@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-05-22 |
-| **Updated** | 2026-06-02 |
+| **Updated** | 2026-07-10 |
 | **Author** | endolinbot (prompted) |
-| **Status** | Proposed |
+| **Status** | Not Started |
 
 ## Summary
 
@@ -374,6 +374,14 @@ makeFromPackage: async (
 };
 ```
 
+Workspace-root discovery (the walk up from the entry package
+directory described in [mvs-resolver](mvs-resolver.md)
+§ *Workspace resolution*) happens inside `mapSnapshot`, which
+holds the snapshot tree; the integration layer does not perform
+it and does not thread a `workspaceRoot` option of its own.
+See [snapshot-mapper](snapshot-mapper.md) § *Workspace-root
+discovery* for the assignment.
+
 The XS worker's `daemon facet` gains the same method but routes
 the `read` function through the supervisor's CAS bindings (see
 *XS bridging* below).
@@ -479,6 +487,37 @@ sequenceDiagram
 
 ## Phased Implementation
 
+This section is the **canonical, dependency-ordered build plan
+for the whole four-layer stack** (reconciled and accepted
+2026-07-10; the four designs' statuses flipped from Proposed to
+Not Started together).
+The sibling designs number their phases against this sequence:
+[registry-capability](registry-capability.md) § Phase 1 and
+§ Phase 5, [mvs-resolver](mvs-resolver.md) (lands inside
+Phase 1), and [snapshot-mapper](snapshot-mapper.md) (lands as
+Phase 2) all refer to the numbering below.
+
+| Phase | Owning design | Deliverable | Builds on |
+|-------|---------------|-------------|-----------|
+| 1 | [registry-capability](registry-capability.md) + [mvs-resolver](mvs-resolver.md) | `packages/daemon/src/registry.js` (MVS walk + `RegistryTable` + tarball fetch), `EndoRegistry` exo, `RegistryFormula`, required `HostFormula.registry` + migration pass, `@registry` special name | Landed substrate only: CAS bus verbs, `EndoMount` (`packages/daemon/src/mount.js`) |
+| 2 | [snapshot-mapper](snapshot-mapper.md) + this design | `makeMountReadPowers`, `mapSnapshot`, the `compartment-mapper` package-descriptor-walker extension point; worker-facet `makeFromPackage` dispatch + `MakeFromPackageFormula` | Phase 1 (`resolve` produces the `RegistryResolution` the mapper consumes) |
+| 3 | this design | `EndoHost.makeFromPackage`, `EndoHost.makeFromMount`, CLI `endo run <mount>` / `endo make <mount>`, `--offline` / `--registry` flags | Phase 2 (worker dispatch is what the host method reaches) |
+| 4 | this design | Live-mount snapshot-before-import + `thisDiesIfThatDies` lifetime coupling + retention-link tests | Phase 3; `EndoMount.snapshot()` (already landed in `packages/daemon/src/mount.js`) |
+| 5 | [registry-capability](registry-capability.md) | Rust-backed `EndoRegistry` drop-in over [endor-npm-registry-proxy](endor-npm-registry-proxy.md) | Phase 1 shape; the Rust daemon lane (separate lane, not on the JS critical path) |
+| 6 | this design (deferred) | XS-hosted compartment-mapper | Out-of-tree [endor-run-expanded](endor-run-expanded.md) § Phase 4 / 5 work |
+
+Phases 1 through 4 are the serial critical path; the job's exit
+criterion (a worker can `importLocation` an npm-style package
+tree from a mount) is met at the end of **Phase 2** for a
+worker-facet caller against a `readable-tree`, and at the end of
+**Phase 3** for the end-user surface (`endo run <mount>`).
+Phases 5 and 6 are parallel-lane follow-ups that gate nothing in
+the JS lane.
+Phases 1 through 4 land against already-shipped substrate: the
+CAS bus verbs, `makeFromTree`, and `EndoMount.snapshot()` are on
+`llm` today, so no phase below waits on another design's
+implementation.
+
 Each phase ends with at least one passing daemon integration test
 (`packages/daemon/test/endo.test.js`).
 The phases below stitch the three preceding layers' phases into
@@ -506,6 +545,13 @@ calling `mapSnapshot` and then `importLocation` against the
 returned `ReadPowers`.
 Add `MakeFromPackageFormula` to the formula union and the
 dispatcher case.
+
+Phase 2's test fixtures pass a `readable-tree` source, for which
+the dispatch body's snapshot step is a no-op by contract; the
+live-`EndoMount` snapshot path and its lifetime coupling are
+Phase 4's deliverable.
+The dispatch-body sketch above shows the complete (post-Phase-4)
+shape.
 
 Integration tests at this phase:
 
@@ -679,3 +725,13 @@ peer directories named by package), the corresponding
 conditional `exports` through `importLocation` rather than
 through the dependency-graph walk per
 [mvs-resolver](mvs-resolver.md) § *Anti-design steers*.
+
+Sequencing pass 2026-07-10 (maintainer-directed reconciliation):
+the four stack designs are accepted together (Proposed to Not
+Started), the *Phased Implementation* preamble above becomes the
+canonical dependency-ordered build plan for the stack,
+workspace-root discovery is assigned to the mapper layer, the
+workspace-member entry shape is pinned in
+[registry-capability](registry-capability.md)
+§ *Capability shape*, and Phase 2's readable-tree fixture stance
+vs Phase 4's live-mount snapshot is made explicit.

@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-06-02 |
-| **Updated** | 2026-06-02 |
+| **Updated** | 2026-07-10 |
 | **Author** | endolinbot (prompted) |
-| **Status** | Proposed |
+| **Status** | Not Started |
 
 ## Summary
 
@@ -145,6 +145,25 @@ type RegistryResolution = {
   resolutionHash: string;
 };
 ```
+
+**Workspace-member entries.**
+When the resolution was produced with a `workspaceRoot` (per
+[mvs-resolver](mvs-resolver.md) § *Workspace resolution*),
+workspace members appear in `packagesByKey` under their **bare
+package name** with no version segment (`lib-b`,
+`@endo/patterns`), matching the versionless peer-directory rule
+in [snapshot-mapper](snapshot-mapper.md) § *Synthesized layout*.
+A workspace entry carries `{ name, version, treeRef,
+workspace: true }` and **no `integrity` field**: its `treeRef`
+is the member's subtree of the entry snapshot, not a
+registry-fetched CAS tree, and there is no upstream attestation
+to cross-check.
+`resolutionHash` hashes each registry-resolved key with its
+`integrity` string and each workspace key with its `treeRef`
+content hash, so a workspace edit changes the hash exactly as a
+version bump does; the snapshot identity triple in
+[snapshot-mapper](snapshot-mapper.md) additionally carries
+`entrySnapshotHash`, which covers the same bytes.
 
 ### Interaction model: who calls what, when
 
@@ -438,6 +457,11 @@ implements, [snapshot-mapper](snapshot-mapper.md) is the next
 implementation phase, and
 [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
 ties the phases together with phase-numbered cross-references.
+The canonical dependency-ordered build plan for the whole stack
+(accepted 2026-07-10) is
+[daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
+§ *Phased Implementation*; this document's Phase 1 and Phase 5
+are that plan's phases 1 and 5.
 
 ### Phase 5: Rust-backed `EndoRegistry` (drop-in)
 
@@ -545,3 +569,12 @@ parity between the lanes.
 > contents, bounded growth) with a hard retention link from the
 > snapshot mapper's captured formulas into the CAS preventing
 > eviction of anything reachable from a snapshot.
+
+Sequencing pass 2026-07-10: accepted (Proposed to Not Started)
+together with the three sibling stack designs; the
+workspace-member entry shape in `RegistryResolution` is pinned
+above (bare-name key, `workspace: true`, no `integrity`, hash
+contribution via the member subtree's content hash).
+Canonical build order:
+[daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
+§ *Phased Implementation*.
