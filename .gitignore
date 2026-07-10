@@ -106,6 +106,7 @@ api-docs
 !packages/daemon/src/bus-xs-host-globals.d.ts
 !packages/daemon/src/types.d.ts
 !packages/daemon/types.d.ts
+!packages/daemon-cas/types.d.ts
 !packages/git/types.d.ts
 !packages/exo-git/types.d.ts
 !packages/eventual-send/src/exports.d.ts
@@ -117,6 +118,7 @@ api-docs
 !packages/lp32/types.d.ts
 !packages/pass-style/src/types.d.ts
 !packages/patterns/types-index.d.ts
+!packages/platform/src/fs/types.d.ts
 !packages/preact-container/src/renderer.d.ts
 !packages/preact-container/src/compartment.d.ts
 !packages/sandbox/src/types.d.ts
