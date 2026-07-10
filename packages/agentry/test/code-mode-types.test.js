@@ -12,6 +12,7 @@ import { fsCodeModeTypeDeclarations } from '../src/execute/fs-types.js';
 import {
   buildGitTypeDeclarations,
   buildGitIRs,
+  GIT_HISTORY_MEMBERS,
   GIT_READONLY_MEMBERS,
 } from '../scripts/code-mode-git-extract.js';
 import {
@@ -54,16 +55,17 @@ test('generated fs-types.js is up to date with its source', t => {
   }
 });
 
-// Guard divergence gate: the TypeScript-canonical git declaration must
-// enumerate exactly the methods the runtime `GitInterface` guard enforces, so
-// the printed types cannot silently drift from the enforcement layer.
-test('git declarations cover exactly the GitInterface guard methods', t => {
+// The base declaration stays guard-canonical except for the deliberately
+// attenuated history-rewrite methods. `gitHistory` carries those separately.
+test('git declarations split the GitInterface history-rewrite method', t => {
   const { git } = buildGitIRs();
   const tsMembers = git.members.map(member => member.name).sort();
   const guardMethods = Object.keys(
     getInterfaceGuardPayload(/** @type {InterfaceGuard} */ (GitInterface))
       .methodGuards,
-  ).sort();
+  )
+    .filter(name => !GIT_HISTORY_MEMBERS.includes(name) || name === 'commit')
+    .sort();
   t.deepEqual(tsMembers, guardMethods);
 });
 
@@ -85,6 +87,30 @@ test('read-only git is a subset of read-write git and omits mutators', t => {
   t.false(gitCodeModeTypeDeclarations.gitReadOnly.aux.includes('commit:'));
   t.true(readOnly.includes('log'));
   t.true(readOnly.includes('diff'));
+});
+
+test('base and history git declarations split history rewrite authority', t => {
+  const { git, gitHistory } = buildGitIRs();
+  const baseCommit = git.members.find(member => member.name === 'commit');
+  if (baseCommit === undefined) {
+    t.fail('base git declaration must include commit');
+    return;
+  }
+  t.is(baseCommit.signature, '(message: string) => Promise<GitCommit>');
+  for (const name of GIT_HISTORY_MEMBERS) {
+    if (name !== 'commit') {
+      t.false(git.members.some(member => member.name === name));
+    }
+  }
+  t.deepEqual(
+    gitHistory.members.map(member => member.name).sort(),
+    [...GIT_HISTORY_MEMBERS].sort(),
+  );
+  t.true(
+    gitHistory.members.some(member =>
+      member.signature.includes('GitCommitOptions'),
+    ),
+  );
 });
 
 // The FS `.d.ts` is a stub, so `workspace` is derived from the interface

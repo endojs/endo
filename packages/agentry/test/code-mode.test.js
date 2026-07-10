@@ -114,14 +114,15 @@ const provisionGitWorktree = async t => {
  * `mountEntryRecords` WeakMap.
  *
  * @param {import('ava').ExecutionContext} t
+ * @param {boolean} [allowHistoryRewrite]
  */
-const makeRealGit = async t => {
+const makeRealGit = async (t, allowHistoryRewrite = false) => {
   const repoRoot = await provisionGitWorktree(t);
   const workspace = makeNodeFilesystem({ rootPath: repoRoot });
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
   const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend, lineageOf });
+  const git = makeGit({ mount, backend, lineageOf }, { allowHistoryRewrite });
   return harden({ repoRoot, workspace, git });
 };
 
@@ -237,6 +238,37 @@ test('a typed global injects its generated declaration into the prompt', t => {
   t.true(systemPrompt.includes('type Directory = {'));
   // The runtime introspection fallback is still advertised.
   t.true(systemPrompt.includes('__getMethodNames__'));
+});
+
+test('makeCodeModeAgent configures one history-rewrite git capability', async t => {
+  const { workspace, git } = await makeRealGit(t, true);
+  const { globals, systemPrompt } = makeCodeModeAgent({
+    model: fauxModel(t, []),
+    powers: { workspace, git, gitMode: 'historyRewrite' },
+  });
+  t.deepEqual(
+    globals.map(global => global.name),
+    ['workspace', 'git'],
+  );
+  t.true(systemPrompt.includes('declare const git: EndoGitHistory;'));
+  t.true(
+    systemPrompt.includes(
+      'commit: (message: string, options?: GitCommitOptions) => Promise<GitCommit>;',
+    ),
+  );
+  t.true(systemPrompt.includes('reword:'));
+});
+
+test('makeCodeModeAgent rejects ordinary Git for history-rewrite mode', async t => {
+  const { workspace, git } = await makeRealGit(t);
+  t.throws(
+    () =>
+      makeCodeModeAgent({
+        model: fauxModel(t, []),
+        powers: { workspace, git, gitMode: 'historyRewrite' },
+      }),
+    { message: /requires a Git capability with history-rewrite authority/ },
+  );
 });
 
 test('makeCodeModeAgent injects typed git + workspace declarations from powers', async t => {

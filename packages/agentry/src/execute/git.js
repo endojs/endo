@@ -7,8 +7,8 @@ import { gitCodeModeTypeDeclarations } from './git-types.js';
 
 /**
  * The git exo's per-mode generated TypeScript declarations, keyed by code-mode
- * surface: `git` (read/write) and `gitReadOnly` (inspection verbs only). A
- * consumer composing its own code-mode agent can read these directly to inject
+ * surface: ordinary read/write, history rewrite, and read-only inspection.
+ * A consumer composing its own code-mode agent can read these directly to inject
  * git types into a hand-built global.
  */
 export { gitCodeModeTypeDeclarations };
@@ -25,17 +25,28 @@ export { gitCodeModeTypeDeclarations };
  * @param {string | string[]} [options.petName] Pet name to look the capability
  *   up by; defaults to `name`.
  * @param {boolean} [options.readOnly] Select the read-only prompt surface.
+ * @param {boolean} [options.historyRewrite] Select the history-rewrite prompt
+ *   surface.
  * @returns {CodeModeGlobal}
  */
-export const makeGitGlobal = ({ name, petName = name, readOnly = false }) =>
+export const makeGitGlobal = ({
+  name,
+  petName = name,
+  readOnly = false,
+  historyRewrite = false,
+}) =>
   harden({
     name,
     petName,
     description: readOnly
       ? 'Read-only @endo/exo-git Git capability for repository inspection.'
-      : 'Read/write @endo/exo-git Git capability for repository changes.',
+      : historyRewrite
+        ? 'History-rewrite @endo/exo-git Git capability for amend and reword.'
+        : 'Read/write @endo/exo-git Git capability for repository changes.',
     declaration: readOnly
       ? gitCodeModeTypeDeclarations.gitReadOnly
-      : gitCodeModeTypeDeclarations.git,
+      : historyRewrite
+        ? gitCodeModeTypeDeclarations.gitHistory
+        : gitCodeModeTypeDeclarations.git,
   });
 harden(makeGitGlobal);

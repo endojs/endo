@@ -8,7 +8,7 @@
 /** @import { CodeModeExecute, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from './tool.js' */
 
 import { E } from '@endo/eventual-send';
-import { isGitReadOnly } from '@endo/exo-git';
+import { isGitHistoryRewrite, isGitReadOnly } from '@endo/exo-git';
 
 import { defineAgent } from '../define-agent.js';
 import { getAmbientEnv, makeEnvCredentials } from '../harness/credentials.js';
@@ -53,7 +53,7 @@ const lookupRequiredPower = (powers, petName, label) => {
  * @property {string} [workspacePetName]
  * @property {CodeModePower} [git]
  * @property {string} [gitPetName]
- * @property {'readOnly' | 'readWrite'} [gitMode]
+ * @property {'readOnly' | 'readWrite' | 'historyRewrite'} [gitMode]
  * @property {CodeModeGlobal[]} [namedPowers]
  *
  * @typedef {object} MakeCodeModeAgentOptions
@@ -79,10 +79,9 @@ const lookupRequiredPower = (powers, petName, label) => {
  * This builder only chooses WHICH globals to inject from the configured powers;
  * the per-exo specifics (descriptions, generated declarations, the read-only
  * member policy) live in `git.js` and `fs.js`, which this delegates to. The
- * read-only vs read-write split is a prompt-surface policy: `gitMode:
- * 'readOnly'` selects the `gitReadOnly` declaration (inspection verbs only),
- * while the runtime read-only enforcement stays the exo guard. `namedPowers`
- * stay name-only unless the caller attached its own `declaration`.
+ * `gitMode` selects the one configured Git capability's prompt surface.
+ * Runtime authority remains with that capability; `namedPowers` stay name-only
+ * unless the caller attached its own `declaration`.
  *
  * @param {CodeModePowers} powers
  * @returns {CodeModeGlobal[]}
@@ -106,6 +105,7 @@ const makeCodeModeGlobals = (powers = {}) => {
         name: petNameToBindingName(gitPetName, 'git'),
         petName: gitPetName,
         readOnly: powers.gitMode === 'readOnly',
+        historyRewrite: powers.gitMode === 'historyRewrite',
       }),
     );
   }
@@ -139,6 +139,14 @@ const resolveConfiguredPowers = (powers, lookupPowers) => {
       if (gitReadOnly === false) {
         throw new Error(
           'code-mode gitMode readOnly requires an already read-only Git capability',
+        );
+      }
+    }
+    if (powers.gitMode === 'historyRewrite') {
+      const gitHistoryRewrite = isGitHistoryRewrite(resolved[gitName]);
+      if (gitHistoryRewrite === false) {
+        throw new Error(
+          'code-mode gitMode historyRewrite requires a Git capability with history-rewrite authority',
         );
       }
     }
