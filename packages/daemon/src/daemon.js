@@ -3017,7 +3017,7 @@ const makeDaemonCore = async (
       });
       return mount;
     },
-    git: async ({ mountId }, context) => {
+    git: async ({ mountId, allowHistoryRewrite = false }, context) => {
       context.thisDiesIfThatDies(mountId);
       const mount = await provide(mountId);
       const backing = getMountBacking(mount);
@@ -3046,16 +3046,18 @@ const makeDaemonCore = async (
         repoRoot: backing.physicalRoot,
       });
       await backend.assertRepositoryRoot();
-      return makeGit({
-        // `provide(mountId)` returns a union of cap types; the
-        // `getMountBacking` check above guarantees an `EndoMount`,
-        // but TS can't narrow through it.
-        // eslint-disable-next-line object-shorthand
-        mount: /** @type {object} */ (mount),
-        backend,
-        readOnly: backing.readOnly,
-        lineageOf,
-      });
+      return makeGit(
+        {
+          // `provide(mountId)` returns a union of cap types; the
+          // `getMountBacking` check above guarantees an `EndoMount`,
+          // but TS can't narrow through it.
+          // eslint-disable-next-line object-shorthand
+          mount: /** @type {object} */ (mount),
+          backend,
+          lineageOf,
+        },
+        { readOnly: backing.readOnly, allowHistoryRewrite },
+      );
     },
     shell: async ({ mountId, policy }, context) => {
       context.thisDiesIfThatDies(mountId);
@@ -4310,7 +4312,7 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateGit']} */
-  const formulateGit = async (mountId, deferredTasks) => {
+  const formulateGit = async (mountId, allowHistoryRewrite, deferredTasks) => {
     return /** @type {FormulateResult<EndoGit>} */ (
       withFormulaGraphLock(async () => {
         await null;
@@ -4329,6 +4331,7 @@ const makeDaemonCore = async (
         const formula = harden({
           type: 'git',
           mountId,
+          ...(allowHistoryRewrite && { allowHistoryRewrite: true }),
         });
 
         return formulate(formulaNumber, formula);

@@ -61,6 +61,10 @@ export type GitRestoreOptions = {
   staged?: boolean;
 };
 
+export type GitCommitOptions = {
+  amend?: boolean;
+};
+
 export type GitCreateBranchOptions = {
   startPoint?: string;
   switchAfterCreate?: boolean;
@@ -233,7 +237,8 @@ export type EndoGit = {
     entries: EndoMountEntry[],
     options?: GitRestoreOptions,
   ) => Promise<void>;
-  commit: (message: string) => Promise<GitCommit>;
+  commit: (message: string, options?: GitCommitOptions) => Promise<GitCommit>;
+  reword: (ref: GitRef | string, message: string) => Promise<GitCommit>;
   currentBranch: () => Promise<GitRef | undefined>;
   branches: () => Promise<GitRef[]>;
   createBranch: (

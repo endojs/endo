@@ -4555,6 +4555,58 @@ const makeArchiveTree = archiveBytes =>
     },
   });
 
+testNeedsNodeWorker(
+  'provideGit persists history-rewrite authority in its formula',
+  async t => {
+    const { host, config } = await prepareHost(t);
+    const repoPath = path.join(
+      config.statePath,
+      '..',
+      'git-history-policy-repo',
+    );
+    await createGitFixture(repoPath);
+    await fs.promises.writeFile(
+      path.join(repoPath, 'history.txt'),
+      'history rewrite target\n',
+    );
+    await git(repoPath, ['add', 'history.txt']);
+    await git(repoPath, [
+      '-c',
+      'user.email=t@t',
+      '-c',
+      'user.name=T',
+      'commit',
+      '-m',
+      'history rewrite target',
+    ]);
+
+    const mount = await E(host).provideMount(repoPath, 'git-history-worktree');
+    const ordinaryGit = await E(host).provideGit(mount, 'git-ordinary');
+    const gitHistory = await E(host).provideGit(mount, 'git-history', {
+      allowHistoryRewrite: true,
+    });
+
+    await t.throwsAsync(
+      E(ordinaryGit).reword('HEAD', 'blocked ordinary rewrite'),
+      {
+        message: /without history-rewrite authority/,
+      },
+    );
+    const amended = await E(gitHistory).commit('amended before cancel', {
+      amend: true,
+    });
+    t.is(amended.summary, 'amended before cancel');
+
+    await E(host).cancel('git-history');
+    const reincarnated = await E(host).lookup('git-history');
+    const reworded = await E(reincarnated).reword(
+      'HEAD',
+      'reworded after reification',
+    );
+    t.is(reworded.summary, 'reworded after reification');
+  },
+);
+
 test('provideGit tree exposes immutable commit contents', async t => {
   const { host, config } = await prepareHost(t);
 

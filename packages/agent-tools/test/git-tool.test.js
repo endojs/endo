@@ -7,10 +7,10 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { Far } from '@endo/pass-style';
 
-import { makeGitTool } from '../src/git-tool.js';
+import { makeGitHistoryTool, makeGitTool } from '../src/git-tool.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { GitToolCapability } from '../src/types.js' */
+/** @import { GitHistoryToolCapability, GitToolCapability } from '../src/types.js' */
 
 const SLICE = [
   'log',
@@ -66,6 +66,22 @@ const makeStubGit = calls => {
   };
   return Far('StubGit', stubGit);
 };
+
+/**
+ * @param {unknown[][]} calls
+ * @returns {ERef<GitHistoryToolCapability>}
+ */
+const makeHistoryStubGit = calls =>
+  Far('HistoryStubGit', {
+    commit: async (...a) => {
+      calls.push(['commit', ...a]);
+      return { oid: 'x', summary: a[0] };
+    },
+    reword: async (...a) => {
+      calls.push(['reword', ...a]);
+      return { oid: 'x', summary: a[1] };
+    },
+  });
 
 test('makeGitTool builds one record per non-remotable-slice method', t => {
   const tools = makeGitTool(makeStubGit([]));
@@ -153,6 +169,37 @@ test('the schemas advertise real, declarative property names', t => {
   t.deepEqual(propsOf('switchBranch'), ['branch']);
   t.deepEqual(propsOf('log'), ['options']);
   t.deepEqual(propsOf('diff'), ['options']);
+});
+
+test('makeGitHistoryTool requires an explicit elevated capability', async t => {
+  const calls = [];
+  const tools = makeGitHistoryTool(makeHistoryStubGit(calls));
+  t.deepEqual(tools.map(tool => tool.name).sort(), ['commit', 'reword']);
+  const byName = name => {
+    const found = tools.find(tool => tool.name === name);
+    if (!found) throw new Error(`no history tool named ${name}`);
+    return found;
+  };
+
+  await byName('commit').invoke({
+    message: 'amended message',
+    options: harden({ amend: true }),
+  });
+  await byName('reword').invoke({ ref: 'HEAD~1', message: 'new subject' });
+  t.deepEqual(calls, [
+    ['commit', 'amended message', { amend: true }],
+    ['reword', 'HEAD~1', 'new subject'],
+  ]);
+});
+
+test('makeGitTool rejects history-rewrite options', async t => {
+  const tools = makeGitTool(makeStubGit([]));
+  const commit = tools.find(tool => tool.name === 'commit');
+  if (!commit) throw new Error('no commit tool');
+  await t.throwsAsync(
+    commit.invoke({ message: 'not an amendment', options: { amend: true } }),
+    { message: /options/ },
+  );
 });
 
 test('invoke resolves named args by their real property names', async t => {

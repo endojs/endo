@@ -39,6 +39,7 @@ const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
  * } from '@endo/exo-git/src/git.js'
  * @import {
  *   GitCommit,
+ *   GitCommitOptions,
  *   GitCreateBranchOptions,
  *   GitDeleteBranchOptions,
  *   GitMergeOptions,
@@ -97,6 +98,10 @@ const GIT_MAX_BUFFER = 1024 * 1024;
 const TOOL_OUTPUT_LIMIT = 50_000;
 const MIN_GIT_VERSION = harden([2, 30, 0]);
 const GIT_ASKPASS_FD = 3;
+// Stable, NUL-delimited fields parsed into the public GitCommit record:
+// full OID, subject, author name, and committer time in Unix seconds.
+// Git subjects cannot contain NUL, unlike tabs and newlines.
+const GIT_COMMIT_LOG_FORMAT = '--pretty=tformat:%H%x00%s%x00%an%x00%ct%x00';
 const gitAskpassHelperPath = fileURLToPath(
   new URL('git-askpass-helper.cjs', import.meta.url),
 );
@@ -1733,6 +1738,29 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
   };
 
   /**
+   * @param {string} ref
+   * @returns {Promise<GitCommit>}
+   */
+  const readCommitRecord = async ref => {
+    const raw = await runGitRaw([
+      'log',
+      '-1',
+      GIT_COMMIT_LOG_FORMAT,
+      '--end-of-options',
+      ref,
+    ]);
+    const [oid, summary, author, committedAtStr] = raw.split('\0');
+    return harden({
+      oid,
+      summary,
+      author,
+      committedAt: committedAtStr
+        ? Number.parseInt(committedAtStr, 10)
+        : undefined,
+    });
+  };
+
+  /**
    * @param {string} blobOid
    * @returns {unknown}
    */
@@ -2040,7 +2068,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
      * @returns {Promise<GitCommit[]>}
      */
     log: async (options = {}) => {
-      const args = ['log', '--pretty=format:%H%x09%s%x09%an%x09%ct'];
+      const args = ['log', GIT_COMMIT_LOG_FORMAT];
       if (typeof options.maxCount === 'number') {
         if (!Number.isInteger(options.maxCount) || options.maxCount <= 0) {
           throw new Error('log.maxCount must be a positive integer');
@@ -2063,26 +2091,27 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         args.push('--end-of-options', requireRevision(options.ref, 'log.ref'));
       }
       const rawLog = await runGitRaw(args);
-      const stdout = rawLog.trim();
-      if (stdout === '') {
+      if (rawLog === '') {
         return harden([]);
       }
       /** @type {GitCommit[]} */
       const commits = [];
-      for (const line of stdout.split('\n')) {
-        if (line !== '') {
-          const [oid, summary, author, committedAtStr] = line.split('\t');
-          commits.push(
-            harden({
-              oid,
-              summary,
-              author,
-              committedAt: committedAtStr
-                ? Number.parseInt(committedAtStr, 10)
-                : undefined,
-            }),
-          );
-        }
+      const fields = rawLog.split('\0');
+      for (let index = 0; index + 3 < fields.length; index += 4) {
+        const [oid, summary, author, committedAtStr] = fields.slice(
+          index,
+          index + 4,
+        );
+        commits.push(
+          harden({
+            oid: oid.trim(),
+            summary,
+            author,
+            committedAt: committedAtStr
+              ? Number.parseInt(committedAtStr, 10)
+              : undefined,
+          }),
+        );
       }
       return harden(commits);
     },
@@ -2177,30 +2206,154 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
      * Returns a `GitCommit` record reflecting the new HEAD.
      *
      * @param {string} message
+     * @param {GitCommitOptions} [opts]
      * @returns {Promise<GitCommit>}
      */
-    commit: async message => {
+    commit: async (message, opts = {}) => {
       requireNonEmptyString(message, 'commit message');
       await assertNoExecutableRepoConfig();
       // -m embeds the message inline; --allow-empty-message is left off
       // so the daemon does not silently accept blank messages.
-      await runGit(['commit', '-m', message]);
+      const args = ['commit'];
+      if (opts.amend !== undefined && typeof opts.amend !== 'boolean') {
+        throw new Error('commit.amend must be a boolean');
+      }
+      if (opts.amend) {
+        args.push('--amend');
+      }
+      args.push('-m', message);
+      await runGit(args);
+      if (opts.amend) {
+        // Amending the root commit changes the identity anchor.
+        // The rewrite
+        // above is ours, so adopt its new identity before the readback.
+        const resolvedRepoRoot = await fs.promises.realpath(repoRoot);
+        repositoryIdentity = await captureRepositoryIdentity(resolvedRepoRoot);
+      }
       // Read back the new HEAD's record so the caller learns the oid.
-      const rawHead = await runGitRaw([
-        'log',
-        '-1',
-        '--pretty=format:%H%x09%s%x09%an%x09%ct',
+      return readCommitRecord('HEAD');
+    },
+
+    /**
+     * Replace one commit's message without invoking an editor.
+     * The target commit is recreated with the same tree and parents, then any descendants
+     * on the current HEAD are replayed onto the replacement commit.
+     *
+     * @param {string} ref
+     * @param {string} message
+     * @returns {Promise<GitCommit>}
+     */
+    reword: async (ref, message) => {
+      const target = requireRevision(ref, 'reword.ref');
+      requireNonEmptyString(message, 'reword message');
+      await assertNoExecutableRepoConfig();
+
+      const targetOid = (
+        await runGitRaw([
+          'rev-parse',
+          '--verify',
+          '--end-of-options',
+          `${target}^{commit}`,
+        ])
+      ).trim();
+      const headOid = (
+        await runGitRaw([
+          'rev-parse',
+          '--verify',
+          '--end-of-options',
+          'HEAD^{commit}',
+        ])
+      ).trim();
+
+      let branch;
+      if (targetOid !== headOid) {
+        try {
+          branch = (
+            await runGitRaw(['symbolic-ref', '--quiet', '--short', 'HEAD'])
+          ).trim();
+        } catch {
+          throw new Error(
+            'reword of an ancestor requires a checked-out branch',
+          );
+        }
+        if (branch === '') {
+          throw new Error(
+            'reword of an ancestor requires a checked-out branch',
+          );
+        }
+
+        try {
+          await runGitRaw(['merge-base', '--is-ancestor', targetOid, headOid]);
+        } catch {
+          throw new Error('reword.ref must name HEAD or an ancestor of HEAD');
+        }
+      }
+
+      const treeOid = (
+        await runGitRaw([
+          'rev-parse',
+          '--verify',
+          '--end-of-options',
+          `${targetOid}^{tree}`,
+        ])
+      ).trim();
+      const parentsText = (
+        await runGitRaw(['show', '-s', '--format=%P', targetOid])
+      ).trim();
+      const authorText = await runGitRaw([
+        'show',
+        '-s',
+        '--format=%an%x00%ae%x00%aI',
+        targetOid,
       ]);
-      const out = rawHead.trim();
-      const [oid, summary, author, committedAtStr] = out.split('\t');
-      return harden({
-        oid,
-        summary,
-        author,
-        committedAt: committedAtStr
-          ? Number.parseInt(committedAtStr, 10)
-          : undefined,
-      });
+      const [authorName, authorEmail, authorDate] = authorText
+        .replace(/\n$/u, '')
+        .split('\0');
+      const args = ['commit-tree', treeOid];
+      for (const parent of parentsText === '' ? [] : parentsText.split(' ')) {
+        args.push('-p', parent);
+      }
+      args.push('-m', message);
+      const replacementOid = (
+        await runGitRaw(args, {
+          GIT_AUTHOR_NAME: authorName,
+          GIT_AUTHOR_EMAIL: authorEmail,
+          GIT_AUTHOR_DATE: authorDate,
+        })
+      ).trim();
+      if (targetOid === headOid) {
+        // update-ref changes either the attached branch or detached HEAD without
+        // consulting the index, so staged content cannot enter this rewrite.
+        await runGit(['update-ref', 'HEAD', replacementOid, targetOid]);
+        // Rewording the root commit intentionally changes the identity anchor
+        // that protects against a repository being swapped beneath this cap.
+        // Refresh it only after this backend performed the rewrite itself.
+        const resolvedRepoRoot = await fs.promises.realpath(repoRoot);
+        repositoryIdentity = await captureRepositoryIdentity(resolvedRepoRoot);
+        return readCommitRecord('HEAD');
+      }
+      if (branch === undefined) {
+        throw new Error('reword of an ancestor requires a checked-out branch');
+      }
+      try {
+        await runGit([
+          'rebase',
+          '--rebase-merges',
+          '--onto',
+          replacementOid,
+          targetOid,
+          branch,
+        ]);
+      } catch (error) {
+        // Keep a failed rewrite from leaving the caller's repository mid-rebase.
+        await runGit(['rebase', '--abort']).catch(() => undefined);
+        throw error;
+      }
+      // Rewording a root commit through rebase changes the identity anchor.
+      // Refresh it after the successful rewrite before performing the readback.
+      const resolvedRepoRoot = await fs.promises.realpath(repoRoot);
+      repositoryIdentity = await captureRepositoryIdentity(resolvedRepoRoot);
+      return readCommitRecord(replacementOid);
     },
 
     /**

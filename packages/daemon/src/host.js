@@ -519,7 +519,7 @@ export const makeHostMaker = ({
     };
 
     /** @type {EndoHost['provideGit']} */
-    const provideGit = async (mountCap, petName) => {
+    const provideGit = async (mountCap, petName, options = {}) => {
       const { namePath } = petNamePathFrom(petName);
       const mountId = getIdForRef(mountCap);
       if (mountId === undefined) {
@@ -534,7 +534,8 @@ export const makeHostMaker = ({
         E(directory).storeIdentifier(namePath, identifiers.gitId),
       );
 
-      const { value } = await formulateGit(mountId, tasks);
+      const { allowHistoryRewrite = false } = options;
+      const { value } = await formulateGit(mountId, allowHistoryRewrite, tasks);
       return /** @type {EndoGit} */ (value);
     };
 
@@ -804,7 +805,7 @@ export const makeHostMaker = ({
         makeGit: async () => {
           /** @type {DeferredTasks<GitDeferredTaskParams>} */
           const tasks = makeDeferredTasks();
-          const { value, id } = await formulateGit(destMountId, tasks);
+          const { value, id } = await formulateGit(destMountId, false, tasks);
           clonedGitId = id;
           return value;
         },

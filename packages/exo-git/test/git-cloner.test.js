@@ -101,8 +101,8 @@ test('makeGitCloner composes endpoint and destination into Git plus origin remot
     clone: async input => {
       calls.push(harden({ clone: input }));
     },
-    makeGit: async input => {
-      calls.push(harden({ makeGit: input }));
+    makeGit: async (powers, opts) => {
+      calls.push(harden({ makeGit: harden({ powers, opts }) }));
       return gitCap;
     },
     makeRemote: async input => {
@@ -121,6 +121,10 @@ test('makeGitCloner composes endpoint and destination into Git plus origin remot
     url: 'file:///tmp/repo.git',
     destPath: '/tmp/clone',
     allowLocalFileTransport: true,
+  });
+  t.deepEqual(calls[1].makeGit, {
+    powers: { destMount, destPath: '/tmp/clone' },
+    opts: {},
   });
   t.like(calls[2].makeRemote, {
     git: gitCap,

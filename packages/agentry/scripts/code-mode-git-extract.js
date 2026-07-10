@@ -2,7 +2,7 @@
 /// <reference types="ses"/>
 
 /**
- * Git-specific code-mode type extraction: the `git` and `gitReadOnly`
+ * Git-specific code-mode type extraction: the `git`, `gitHistory`, and `gitReadOnly`
  * declarations, built with the generic TypeScript renderer from
  * `@endo/exo-git`'s checked TypeScript typedef source.
  *
@@ -33,6 +33,25 @@ import {
 const GIT_TYPES_TS_URL = new URL('../../exo-git/src/types.ts', import.meta.url);
 const GIT_ROOT_TYPE = 'EndoGit';
 
+export const GIT_HISTORY_MEMBERS = harden(['commit', 'reword']);
+harden(GIT_HISTORY_MEMBERS);
+
+/**
+ * Attenuate a canonical method signature by dropping its optional final
+ * options argument while retaining the extracted parameter and return types.
+ *
+ * @param {string} signature
+ * @returns {string}
+ */
+const withoutOptionalFinalArgument = signature => {
+  const attenuated = signature.replace(/, [^,]+\?: [^)]+(?=\) =>)/u, '');
+  if (attenuated === signature) {
+    throw new Error(`expected an optional final argument in ${signature}`);
+  }
+  return attenuated;
+};
+harden(withoutOptionalFinalArgument);
+
 /**
  * The read-only code-mode git prompt surface: the inspection verbs. Mutating
  * verbs (`add`, `restore`, `commit`, branch/stash mutations, `merge`, `rebase`,
@@ -59,23 +78,54 @@ export const GIT_READONLY_MEMBERS = harden([
 harden(GIT_READONLY_MEMBERS);
 
 /**
- * Build the `git` and `gitReadOnly` IRs from the checked `EndoGit` JSDoc
+ * Build the `git`, `gitHistory`, and `gitReadOnly` IRs from the checked `EndoGit` JSDoc
  * typedef; the read-only IR is the same source narrowed to
  * {@link GIT_READONLY_MEMBERS}.
  *
- * @returns {{ git: import('./code-mode-type-extract.js').GlobalTypeIR, gitReadOnly: import('./code-mode-type-extract.js').GlobalTypeIR }}
+ * @returns {{ git: import('./code-mode-type-extract.js').GlobalTypeIR, gitHistory: import('./code-mode-type-extract.js').GlobalTypeIR, gitReadOnly: import('./code-mode-type-extract.js').GlobalTypeIR }}
  */
 export const buildGitIRs = () =>
   harden(
     (() => {
       const fileName = fileURLToPath(GIT_TYPES_TS_URL);
       const text = readFileSync(fileName, 'utf8');
+      const git = extractTsFileTextIR({
+        fileName,
+        text,
+        rootType: GIT_ROOT_TYPE,
+      });
+      const gitHistory = extractTsFileTextIR({
+        fileName,
+        text,
+        rootType: GIT_ROOT_TYPE,
+        memberFilter: GIT_HISTORY_MEMBERS,
+      });
+      const commit = git.members.find(member => member.name === 'commit');
+      if (commit === undefined) {
+        throw new Error('EndoGit must define commit');
+      }
       return {
-        git: extractTsFileTextIR({
-          fileName,
-          text,
-          rootType: GIT_ROOT_TYPE,
+        git: harden({
+          rootName: 'EndoGit',
+          members: git.members
+            .filter(
+              member =>
+                !GIT_HISTORY_MEMBERS.includes(member.name) ||
+                member.name === 'commit',
+            )
+            .map(member =>
+              member.name === 'commit'
+                ? harden({
+                    ...commit,
+                    signature: withoutOptionalFinalArgument(commit.signature),
+                  })
+                : member,
+            ),
+          auxTypes: git.auxTypes.filter(
+            type => type.name !== 'GitCommitOptions',
+          ),
         }),
+        gitHistory: harden({ ...gitHistory, rootName: 'EndoGitHistory' }),
         gitReadOnly: extractTsFileTextIR({
           fileName,
           text,
@@ -88,14 +138,15 @@ export const buildGitIRs = () =>
 harden(buildGitIRs);
 
 /**
- * Render the `git` and `gitReadOnly` `{ aux, body }` declaration strings.
+ * Render the `git`, `gitHistory`, and `gitReadOnly` `{ aux, body }` declaration strings.
  *
- * @returns {Record<'git' | 'gitReadOnly', { aux: string, body: string }>}
+ * @returns {Record<'git' | 'gitHistory' | 'gitReadOnly', { aux: string, body: string }>}
  */
 export const buildGitTypeDeclarations = () => {
   const irs = buildGitIRs();
   return harden({
     git: renderDeclaration(irs.git),
+    gitHistory: renderDeclaration(irs.gitHistory),
     gitReadOnly: renderDeclaration(irs.gitReadOnly),
   });
 };

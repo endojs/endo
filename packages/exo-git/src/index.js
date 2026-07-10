@@ -2,6 +2,7 @@
 
 export {
   makeGit,
+  isGitHistoryRewrite,
   isGitReadOnly,
   getGitBackend,
   makeNotYetImplementedBackend,

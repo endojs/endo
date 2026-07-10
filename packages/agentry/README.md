@@ -78,11 +78,17 @@ import { makeCodeModeAgent } from '@endo/agentry/execute';
 
 const { agent } = makeCodeModeAgent({
   model,
-  powers: { workspace, git, gitMode: 'readOnly' }, // or 'readWrite'
+  powers: { workspace, git, gitMode: 'historyRewrite' },
 });
 await agent.prompt('Inspect the current branch.');
 await agent.waitForIdle();
 ```
+
+`gitMode` is `'readOnly'`, `'readWrite'` (the default), or
+`'historyRewrite'`.
+The history-rewrite mode requires a Git capability minted with explicit
+history-rewrite authority and advertises the elevated `gitHistory` surface,
+including amend and reword operations.
 
 The model-facing tool surface is intentionally one tool:
 `execute({ source, resultName? })`. Workspace and Git operations happen inside
