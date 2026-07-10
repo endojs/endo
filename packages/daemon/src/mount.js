@@ -15,6 +15,7 @@ import {
   ReadableTreeInterface,
   provideSearch,
   GLOB_MAX_RESULTS,
+  GREP_MAX_RESULTS,
 } from '@endo/platform/fs/lite';
 import { toSafeNumber } from '@endo/platform/fs/extended/shared/helpers.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
@@ -822,6 +823,41 @@ const makeMountExo = ctx => {
       // The engine yields the full UTF-16-sorted sequence; the cap is applied
       // post-sort so the dropped set is deterministic across platforms.
       return harden(paths.slice(0, GLOB_MAX_RESULTS));
+    },
+
+    // Search file contents under this mount face for an ECMAScript RegExp
+    // source (no flags), yielding `{ file, line, text }` records with 1-based
+    // line numbers and CRLF-normalized text. `paths` is the set of files to
+    // search — a `string[]` (or, via CapTP, a `Promise<string[]>` the exo
+    // awaits per the `M.await` guard), so glob is an independent producer of
+    // paths that composes into grep: `E(mount).grep('TODO', E(mount).glob(g))`.
+    // Omitting `paths` searches every file under the face's root. Each supplied
+    // path that is denied, escapes confinement, is a directory, or is
+    // unreadable is skipped silently — the uniform envelope that makes
+    // glob-produced and hand-supplied paths behave identically. The walk, deny
+    // filtering, confinement, and CRLF normalization live in the platform
+    // engine (`@endo/platform/fs/search`); this method is the eager
+    // flatten-and-cap collector over its batch generator, with the revocation
+    // gate wrapping the call and a `subView`'s grep scoped to its sub-root.
+    async grep(pattern, paths = undefined, options = {}) {
+      await null;
+      assertLive();
+      const { maxResults = GREP_MAX_RESULTS } = options;
+      const search = provideSearch(filePowers);
+      /** @type {Array<{ file: string, line: number, text: string }>} */
+      const matches = [];
+      for await (const batch of search.grepFiles(currentDir, pattern, paths, {
+        deniedSegments:
+          deniedSegments === undefined ? undefined : [...deniedSegments],
+        confinementRoot,
+        maxResults,
+      })) {
+        matches.push(...batch);
+        if (matches.length >= maxResults) {
+          break;
+        }
+      }
+      return harden(matches.slice(0, maxResults));
     },
 
     async lookup(pathArg) {

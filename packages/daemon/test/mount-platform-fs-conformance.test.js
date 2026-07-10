@@ -204,6 +204,10 @@ const ENDOMOUNT_EXTENSIONS = [
   'maybeLookup',
   // Recursive glob search, delegated to the @endo/platform search engine.
   'glob',
+  // Content search, delegated to the @endo/platform search engine. `paths`
+  // (a glob result) is an independent argument, so glob and grep compose
+  // without grep owning glob.
+  'grep',
   // Declared as part of the name-hub contract but throws ENOSYS until a
   // filesystem watcher is wired (filesystem-watchers.md) — see § C1.
   'followNameChanges',

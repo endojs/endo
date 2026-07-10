@@ -636,6 +636,20 @@ export const MountInterface = M.interface('EndoMount', {
   // Recursive glob search, delegated to the platform engine. Daemon-local
   // extension beyond the ReadableTree surface.
   glob: M.call(M.string()).returns(M.promise()),
+  // Content search, delegated to the platform engine. `paths` is optional and
+  // consumed with an implied `await` (`M.callWhen` + `M.await`), so a caller
+  // may pipe a `glob` promise straight in — `grep(pattern, glob(g))` — and the
+  // exo awaits and shape-checks it to a `string[]` before the method runs.
+  // Omitting `paths` searches every file under the face's root. `options`
+  // carries `maxResults` (there is no `glob` option: glob is decoupled, an
+  // independent producer of the `paths` array). See
+  // designs/platform-search-pushdown.md § "The Array surface".
+  grep: M.callWhen(M.string())
+    .optional(
+      M.await(M.arrayOf(M.string())),
+      M.splitRecord({}, { maxResults: M.number() }),
+    )
+    .returns(M.array()),
   lookup: M.call(PathArgShape).returns(M.promise()),
   // `maybeLookup` is async in every mount implementation, so retain the
   // promise boundary here even though the shared name-hub record is broader.
