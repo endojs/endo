@@ -5,10 +5,7 @@ import type { CapTPOptions } from '@endo/captp';
 import type { Reader, Writer, Stream } from '@endo/stream';
 import type { PassableBytesReader, StreamNode } from '@endo/exo-stream';
 import type { EndoGit, GitRemote } from '@endo/exo-git';
-import type {
-  HttpClient,
-  HttpClientControl,
-} from '@endo/exo-http-client';
+import type { HttpClient, HttpClientControl } from '@endo/exo-http-client';
 
 // Branded string types for pet names and special names
 declare const PetNameBrand: unique symbol;

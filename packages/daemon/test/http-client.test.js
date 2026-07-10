@@ -110,7 +110,8 @@ test('normalizeHttpClientPolicy rejects a policyMode that needs a live authority
 
 test('normalizeHttpClientPolicy rejects a non-origin allowlist entry', t => {
   t.throws(
-    () => normalizeHttpClientPolicy({ allowedOrigins: ['https://ok.example', 42] }),
+    () =>
+      normalizeHttpClientPolicy({ allowedOrigins: ['https://ok.example', 42] }),
     { message: /allowedOrigins must be an array of non-empty origin strings/ },
   );
 });
@@ -127,7 +128,8 @@ test('normalizeHttpClientPolicy rejects a path-bearing origin up front (would do
 
 test('normalizeHttpClientPolicy rejects an off-scheme origin', t => {
   t.throws(
-    () => normalizeHttpClientPolicy({ allowedOrigins: ['ftp://files.example'] }),
+    () =>
+      normalizeHttpClientPolicy({ allowedOrigins: ['ftp://files.example'] }),
     { message: /must be exactly an http\(s\) origin/ },
   );
 });
