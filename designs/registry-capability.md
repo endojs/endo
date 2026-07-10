@@ -85,11 +85,23 @@ interface EndoRegistry {
     packageJson: Uint8Array,
     options?: {
       offline?: boolean;
-      // When the entry package is a workspace member, the pet
-      // name (or EndoMount handle) of the enclosing workspace
-      // root.  Enables `workspace:` specifier resolution per
-      // `mvs-resolver.md` § Workspace resolution.
-      workspaceRoot?: string | EndoMount;
+      // When the entry package is a workspace member, the enclosing
+      // workspace root *and* its already-enumerated members.  The
+      // mapper is the single evaluator of the `workspaces` globs
+      // (see `snapshot-mapper.md` § Workspace-root discovery); it
+      // passes both the root's tree handle and a name-keyed member
+      // map, so the resolver matches `workspace:` specifiers against
+      // a ready-made member list by package name and never
+      // re-evaluates a glob.  The option name is `workspaceRoot` but
+      // its value carries both halves; the shape is pinned here so
+      // the two consuming layers cannot drift.  Enables `workspace:`
+      // specifier resolution per `mvs-resolver.md` § Workspace
+      // resolution.
+      workspaceRoot?: {
+        root: string | EndoMount;    // the workspace-root tree handle
+        // package name -> that member's subtree (glob-expansion result)
+        members: Record<string, EndoReadableTree>;
+      };
     },
   ): Promise<RegistryResolution>;
 

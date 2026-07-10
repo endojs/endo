@@ -527,14 +527,22 @@ The full "from a live mount" criterion is therefore satisfied at
 already an immutable snapshot.
 Phases 5 and 6 are parallel-lane follow-ups that gate nothing in
 the JS lane.
-Phases 1 through 4 land against already-shipped substrate: the
-CAS bus verbs, `makeFromTree`, and `EndoMount.snapshot()` are on
-`llm` today, so no phase below waits on **unlanded** substrate or
-on a design **outside this stack**.
+Unlike Phases 1 through 4, they *do* build on designs outside
+this stack (Phase 5 on [endor-npm-registry-proxy](endor-npm-registry-proxy.md),
+Phase 6 on [endor-run-expanded](endor-run-expanded.md) § Phase 4 / 5),
+which is why they run as parallel lanes rather than on the serial
+critical path.
+Phases 1 through 4, by contrast, land against already-shipped
+substrate: the CAS bus verbs, `makeFromTree`, and
+`EndoMount.snapshot()` are on `llm` today, so no Phase-1-through-4
+step waits on **unlanded** substrate or on a design **outside
+this stack**.
 The intra-stack `Builds on` ordering in the table above still
 holds (Phase 2 does build on Phase 1, and so on); what is ruled
-out is a dependency on work that has not yet shipped, so all four
-phases can start as soon as the stack is scheduled.
+out is a dependency on work that has not yet shipped.
+The stack can therefore start as soon as it is scheduled (nothing
+external blocks Phase 1), and each subsequent phase begins when
+its predecessor lands.
 
 Each phase ends with at least one passing daemon integration test
 (`packages/daemon/test/endo.test.js`).

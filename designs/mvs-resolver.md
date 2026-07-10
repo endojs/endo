@@ -169,11 +169,16 @@ Because the glob-matching that turns a `workspaces` field into a
 concrete member set is a hazard when it lives in two places with
 divergent semantics, it lives in **one** place: the mapper
 evaluates the `workspaces` globs during discovery, and
-`workspaceRoot` carries the already-enumerated member directories
-into `resolve`.
+`workspaceRoot` carries the already-enumerated members into
+`resolve` as a `{ root, members }` pair whose `members` is a
+name-keyed map (`package name -> member subtree`), not a bare
+directory list the resolver would have to read names from (the
+shape is pinned in
+[registry-capability](registry-capability.md) § *Capability
+shape*).
 The resolver therefore matches a `workspace:` specifier against
-that enumerated member list by package name; it never
-re-evaluates a glob.
+that name-keyed member map directly; it never re-evaluates a glob
+and never reads a member's `package.json` `name` for itself.
 
 The mapper's first cut resolves workspace specifiers by searching
 for the parent `package.json` whose `workspaces` array (or the
@@ -190,14 +195,21 @@ yarn-classic shape) names the importer's workspace member:
    When it is, that level is the workspace root.
 4. If no, continue walking up until either a workspace root is
    found or the mount root is reached.
-5. If no workspace root is found and any importer used a
-   `workspace:` specifier, reject with a clean error
-   ("workspace dependency declared but no enclosing workspace
-   root").
+5. If no workspace root is found, the mapper calls `resolve`
+   without a `workspaceRoot` option and stops here.
+   The mapper does discovery only (walk-up plus glob) and cannot
+   know whether any importer used a `workspace:` specifier; that
+   fact is visible only during the dependency-graph walk, which
+   this pass assigns to the resolver.
 
-The discovered workspace root supplies the `workspaceRoot`
-option to `EndoRegistry.resolve` so the workspace branch of the
-algorithm above can look up sibling members.
+The reject for a stranded `workspace:` specifier is therefore the
+**resolver's**, not the mapper's: when the resolver walks the
+graph, encounters a `workspace:` specifier, and no `workspaceRoot`
+was supplied, it raises the clean error ("workspace dependency
+declared but no enclosing workspace root").
+When a workspace root *is* found, the discovered root supplies the
+`workspaceRoot` option to `EndoRegistry.resolve` so the workspace
+branch of the algorithm above can look up sibling members.
 
 Workspace members differ from registry-resolved packages in two
 ways:
@@ -277,17 +289,26 @@ const resolve = async (packageJsonBytes, options = {}) => {
     const edge = frontier.shift();
     const { name, range, source, importer } = edge;
 
-    // workspace: specifier? resolve from workspaceRoot's siblings.
+    // workspace: specifier? resolve from the enumerated members.
     if (isWorkspaceSpecifier(range)) {
-      const workspacePj = await readWorkspaceMemberPackageJson(
-        workspaceRoot, name,
-      );
-      if (workspacePj === undefined) {
+      if (workspaceRoot === undefined) {
+        // The mapper found no enclosing workspace root, yet an
+        // importer used a `workspace:` specifier.  This reject is
+        // the resolver's: only the graph walk sees the specifier
+        // (see "Workspace resolution").
         throw makeError(
-          X`workspace dependency ${q(name)} not found in workspace at ${
-            q(workspaceRoot)}`,
+          X`workspace dependency ${
+            q(name)} declared but no enclosing workspace root`,
         );
       }
+      const memberTree = workspaceRoot.members[name];
+      if (memberTree === undefined) {
+        throw makeError(
+          X`workspace dependency ${q(name)} not found in workspace at ${
+            q(workspaceRoot.root)}`,
+        );
+      }
+      const workspacePj = await readWorkspaceMemberPackageJson(memberTree);
       // Workspace members carry no version segment and short-circuit
       // version selection; see "Workspace resolution" below.
       upsertWorkspaceMember(resolved, name, workspacePj);
@@ -395,11 +416,12 @@ The MVS-specific shape tests this design adds:
   The resolution carries `lib-b` as a workspace member entry
   (no version segment), and a subsequent `mapSnapshot` pass
   emits the workspace member at its versionless location.
-  Note the phase seam this parallels the Phase-2-fixture-vs-Phase-4
-  live-mount stance the canonical plan pins: because
-  workspace-root **discovery** (the walk-up and glob expansion)
-  is the mapper's Phase 2 work, Phase 1 exercises this resolver
-  branch by **injecting** the `workspaceRoot` option (the
+  Note the phase seam here: this parallels the canonical plan's
+  Phase 2 readable-tree fixture stance versus Phase 4 live-mount
+  snapshot.
+  Because workspace-root **discovery** (the walk-up and glob
+  expansion) is the mapper's Phase 2 work, Phase 1 exercises this
+  resolver branch by **injecting** the `workspaceRoot` option (the
   enumerated member set) directly, with no walk-up.
   True end-to-end workspace coverage (discovery plus resolution
   against a live entry tree) first lands at Phase 2, where the
@@ -411,6 +433,14 @@ The MVS-specific shape tests this design adds:
   `package.json` has `version: '1.0.0'`; the resolution still
   prefers the workspace member, and the resolution carries a
   diagnostic listing the mismatch.
+- **Workspace specifier with no enclosing root (reject path).**
+  A fixture whose entry `package.json` declares a `workspace:`
+  dependency, called with **no** `workspaceRoot` option (the
+  mapper found no enclosing workspace root); `resolve` rejects
+  with the clean no-enclosing-workspace-root error.
+  This exercises the resolver-owned reject the discovery
+  reassignment creates (§ *Workspace resolution*), the one failure
+  mode injecting `workspaceRoot` directly cannot cover.
 - **`peerDependencies` satisfied.**
   A fixture where `pkg-a` declares
   `peerDependencies: { 'react': '^18.0.0' }` and the entry
