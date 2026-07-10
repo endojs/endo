@@ -54,14 +54,16 @@ const completePrefixLength = bytes => {
 export const makeSessionWriter = ({ path, mode = 0o600, fs = nodeFs }) => {
   /** @type {{ write(data: string): Promise<unknown>, close(): Promise<void> } | null} */
   let handle = null;
+  /** The in-flight open, memoized so concurrent first-writes share one open. */
+  /** @type {Promise<void> | null} */
+  let opening = null;
   /** Whether the file was empty (a fresh session) when this writer opened it. */
   let startedEmpty = false;
 
-  const ensureOpen = async () => {
-    if (handle !== null) {
-      return;
-    }
-    await fs.mkdir(dirOf(path), { recursive: true });
+  const openNow = async () => {
+    // The parent directory is private (0700) to match the 0600 file: the
+    // session file names it holds carry timestamps and session ids.
+    await fs.mkdir(dirOf(path), { recursive: true, mode: 0o700 });
     let existingLength = 0;
     try {
       const existing = await fs.readFile(path);
@@ -79,6 +81,23 @@ export const makeSessionWriter = ({ path, mode = 0o600, fs = nodeFs }) => {
     }
     startedEmpty = existingLength === 0;
     handle = await fs.open(path, 'a', mode);
+  };
+
+  // Memoize the in-flight open so concurrent first-writes (writeHeader and an
+  // append racing on a fresh file) share ONE fs.open instead of each opening a
+  // handle and leaking all but the last. A failed open clears the latch so a
+  // later call can retry rather than await a rejected promise forever.
+  const ensureOpen = async () => {
+    if (handle !== null) {
+      return;
+    }
+    if (opening === null) {
+      opening = openNow().catch(error => {
+        opening = null;
+        throw error;
+      });
+    }
+    await opening;
   };
 
   /**
@@ -111,6 +130,7 @@ export const makeSessionWriter = ({ path, mode = 0o600, fs = nodeFs }) => {
     },
     async close() {
       await null;
+      opening = null;
       if (handle !== null) {
         const current = handle;
         handle = null;

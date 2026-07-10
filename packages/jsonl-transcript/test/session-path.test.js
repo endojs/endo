@@ -40,3 +40,19 @@ test('slugSegment neutralizes path separators so an id cannot escape the tree', 
   t.is(slugSegment('a/b'), 'a-b');
   t.is(slugSegment('01975f-ab.CD_9'), '01975f-ab.CD_9');
 });
+
+test('slugSegment neutralizes a bare dot-run or empty segment', t => {
+  // `.` and `..` survive the character filter (both chars are kept) but name
+  // the current or parent directory; the `_` prefix makes them literal names.
+  t.is(slugSegment('..'), '_..');
+  t.is(slugSegment('.'), '_.');
+  t.is(slugSegment(''), '_');
+});
+
+test('a `..` guest id cannot escape the sessions tree', t => {
+  const dir = sessionDirPath('/state', '..');
+  t.is(dir, '/state/sessions/_..');
+  // The composed path stays under sessions/, not up at the state root.
+  t.true(dir.startsWith('/state/sessions/'));
+  t.false(dir.split('/').includes('..'), 'no traversing `..` segment survives');
+});

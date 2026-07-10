@@ -158,6 +158,52 @@ test('non-standard roles project to custom entries and restore their message', t
   ]);
 });
 
+test('topoOrder handles a deep linear chain without overflowing the stack', t => {
+  // A long agent session is a chain thousands of nodes deep; a recursive walk
+  // would throw RangeError well before this length.
+  /** @type {Map<string, TranscriptNode>} */
+  const nodes = new Map();
+  const depth = 50_000;
+  for (let i = 0; i < depth; i += 1) {
+    nodes.set(`m${i}`, {
+      messageId: `m${i}`,
+      parentMessageId: i === 0 ? null : `m${i - 1}`,
+      messages: [{ role: 'user', content: `turn ${i}` }],
+    });
+  }
+  const order = topoOrder(nodes);
+  t.is(order.length, depth, 'every node is ordered, none dropped');
+  t.is(order[0].messageId, 'm0');
+  t.is(order[depth - 1].messageId, `m${depth - 1}`);
+});
+
+test('topoOrder terminates on a parentMessageId cycle instead of looping', t => {
+  // A corrupt graph where two non-rooted nodes are each other's parent must not
+  // spin; the visited guard bounds the walk.
+  /** @type {Map<string, TranscriptNode>} */
+  const nodes = new Map();
+  nodes.set('root', {
+    messageId: 'root',
+    parentMessageId: null,
+    messages: [{ role: 'system', content: 'ok' }],
+  });
+  nodes.set('a', {
+    messageId: 'a',
+    parentMessageId: 'b',
+    messages: [{ role: 'user', content: 'a' }],
+  });
+  nodes.set('b', {
+    messageId: 'b',
+    parentMessageId: 'a',
+    messages: [{ role: 'user', content: 'b' }],
+  });
+  const order = topoOrder(nodes);
+  t.true(
+    order.map(n => n.messageId).includes('root'),
+    'the rooted node is ordered and the call returns rather than hanging',
+  );
+});
+
 test('an alias node stored under a second key is projected only once', t => {
   const nodes = makeGraph();
   // Lal duplicates a node under the outbound messageId; the object identity and

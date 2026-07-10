@@ -16,11 +16,23 @@ const SESSIONS = 'sessions';
  * UUIDs in practice, so this is a guard against a malformed id escaping the
  * sessions tree, not a general sanitizer.
  *
+ * A segment that is empty or made up only of dots is a case the character
+ * filter alone does not catch: `.` and `..` survive it unchanged (both
+ * characters are in the keep-set) yet name the current or parent directory
+ * rather than a child, so `sessions/..` would escape to the state root and an
+ * empty segment would collapse the guest namespace. Such a segment is prefixed
+ * with `_`, yielding a literal, non-traversing name.
+ *
  * @param {string} segment
  * @returns {string}
  */
-export const slugSegment = segment =>
-  String(segment).replace(/[^A-Za-z0-9._-]/g, '-');
+export const slugSegment = segment => {
+  const slug = String(segment).replace(/[^A-Za-z0-9._-]/g, '-');
+  if (slug === '' || /^\.+$/.test(slug)) {
+    return `_${slug}`;
+  }
+  return slug;
+};
 
 /**
  * The directory that holds one guest's session files.

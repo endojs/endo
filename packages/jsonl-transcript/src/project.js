@@ -111,16 +111,28 @@ export const topoOrder = nodes => {
       bucket.push(node);
     }
   }
+  // Iterative pre-order walk (parent before children, children left-to-right):
+  // a long linear transcript is thousands of nodes deep, so a recursive walk
+  // would overflow the stack. The `visited` set makes a `parentMessageId` cycle
+  // (a corrupt graph) terminate instead of dropping or looping on its nodes.
   /** @type {TranscriptNode[]} */
   const ordered = [];
-  /** @param {string | null} parent */
-  const visit = parent => {
-    for (const node of childrenOf.get(parent) || []) {
-      ordered.push(node);
-      visit(node.messageId);
+  /** @type {Set<string>} */
+  const visited = new Set();
+  /** @type {TranscriptNode[]} */
+  const stack = [...(childrenOf.get(null) || [])].reverse();
+  while (stack.length > 0) {
+    const node = /** @type {TranscriptNode} */ (stack.pop());
+    if (visited.has(node.messageId)) {
+      continue;
     }
-  };
-  visit(null);
+    visited.add(node.messageId);
+    ordered.push(node);
+    const children = childrenOf.get(node.messageId) || [];
+    for (let i = children.length - 1; i >= 0; i -= 1) {
+      stack.push(children[i]);
+    }
+  }
   return ordered;
 };
 

@@ -18,8 +18,9 @@ which is the format this projection tracks.
 
 - `<ENDO_STATE>` is the daemon state directory (`ENDO_STATE_PATH`).
 - One directory per guest, one file per session.
-- `<timestamp>` is zero-padded epoch millis, so the lexical order of file names
-  matches chronological order.
+- `<timestamp>` is epoch millis zero-padded to 14 digits, so the lexical order
+  of file names matches chronological order (13-digit millis today pad to 14 and
+  stay 14 digits until the year 2286, keeping the width fixed across that range).
 - Files are mode `0600`.
 
 `sessionFilePath(statePath, guestId, { timestamp, sessionId })` composes this
@@ -33,6 +34,14 @@ by two entries is a branch point. The tree mirrors the in-memory Lal reply-chain
 transcript graph, whose nodes link by daemon `messageId` / `replyTo`.
 
 `type` is one of `header`, `message`, `compaction`, `branchSummary`, `custom`.
+
+This projection currently **constructs and reconstructs** `header`, `message`,
+and `custom`. `compaction` and `branchSummary` are Pi format-level kinds
+documented here for completeness: the reader passes them through unharmed (they
+are preserved in the file), but this package does not yet emit them and
+`loadTranscriptNodes` does not fold them back into the in-memory graph. Emitting
+and reconstructing them arrives with the compaction wiring, a later phase of the
+design.
 
 `JSON.stringify` escapes any newline inside a string value, so every entry is a
 single physical line and `\n` is an unambiguous record delimiter.
@@ -95,10 +104,11 @@ to the right subtree.
 
 ### `compaction`
 
-Written when iterative compaction elides a run of entries. `firstKeptEntryId`
-points at the oldest entry retained after the summary; the elided entries stay
-in the file for offline inspection, while the in-memory graph is rebuilt with
-the summary `message` in their place.
+Reserved for iterative compaction (a later phase, not yet emitted by this
+package). It would be written when compaction elides a run of entries.
+`firstKeptEntryId` points at the oldest entry retained after the summary; the
+elided entries stay in the file for offline inspection, while the in-memory
+graph is rebuilt with the summary `message` in their place.
 
 ```json
 {
@@ -112,7 +122,8 @@ the summary `message` in their place.
 
 ### `branchSummary`
 
-A condensed stand-in for a pruned branch.
+A condensed stand-in for a pruned branch (also reserved for a later phase, not
+yet emitted by this package).
 
 ```json
 {

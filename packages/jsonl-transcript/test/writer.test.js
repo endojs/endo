@@ -97,3 +97,55 @@ test('a torn final line from a crash mid-append is recovered on reopen', async t
   const last = graph.entries[1];
   t.is(last.type === 'message' && last.message.content, 'recovered');
 });
+
+test('readSessionFile of a nonexistent path yields an empty graph', async t => {
+  const path = await tmpPath(); // never written
+  const graph = await readSessionFile({ path });
+  t.is(graph.header, null);
+  t.is(graph.entries.length, 0);
+});
+
+test('concurrent first-writes share a single open (no leaked handle)', async t => {
+  // Count fs.open calls through an injected filesystem seam. Racing the first
+  // header and first append on a fresh file must open the file exactly once;
+  // without the in-flight-open latch each caller would open its own handle.
+  let opens = 0;
+  let closes = 0;
+  /** @type {string[]} */
+  const lines = [];
+  /** @type {import('../types.js').WriterFs} */
+  const countingFs = {
+    async mkdir() {
+      return undefined;
+    },
+    async readFile() {
+      const err = /** @type {NodeJS.ErrnoException} */ (new Error('ENOENT'));
+      err.code = 'ENOENT';
+      throw err;
+    },
+    async truncate() {
+      return undefined;
+    },
+    async open() {
+      opens += 1;
+      return {
+        async write(data) {
+          lines.push(data);
+          return { bytesWritten: data.length };
+        },
+        async close() {
+          closes += 1;
+        },
+      };
+    },
+  };
+  const writer = makeSessionWriter({ path: '/state/sessions/g/1_s.jsonl', fs: countingFs });
+  await Promise.all([
+    writer.writeHeader({ sessionId: 's', createdAt: 1 }),
+    writer.append({ type: 'message', id: 'a:0', parentId: null, message: { role: 'user', content: 'hi' } }),
+  ]);
+  await writer.close();
+  t.is(opens, 1, 'the file is opened exactly once despite the race');
+  t.is(closes, 1, 'the single handle is closed once');
+  t.is(lines.length, 2, 'both the header and the message were written');
+});
