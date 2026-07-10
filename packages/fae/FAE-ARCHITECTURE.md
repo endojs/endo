@@ -69,7 +69,7 @@ packages/fae/
     ├── timestamp.js            # Example: current time
     ├── read-file.js            # FaeTool: read files under root
     ├── write-file.js           # FaeTool: write files under root
-    ├── edit-file.js            # FaeTool: edit files under root
+    ├── edit.js                 # FaeTool: edit files by exact-text replacement
     ├── list-dir.js             # FaeTool: list directory under root
     └── run-command.js          # FaeTool: run shell commands in root
 ```
@@ -254,7 +254,7 @@ Unsandboxed modules that produce `FaeTool` exo objects. Created via
 | `math` | Arithmetic operations |
 | `readFile` | Read files under a fixed root directory |
 | `writeFile` | Write files under a fixed root directory |
-| `editFile` | String replacement editing |
+| `edit` | Exact-text replacement editing (single or batched), returns a unified diff |
 | `listDir` | List directory contents |
 | `runCommand` | Execute shell commands with timeout |
 

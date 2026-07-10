@@ -49,6 +49,7 @@
     "timeout": "2m"
   },
   "dependencies": {
+    "@endo/agentry": "workspace:^",
     "@endo/conversation-tree": "workspace:^",
     "@endo/daemon": "workspace:^",
     "@endo/errors": "workspace:^",

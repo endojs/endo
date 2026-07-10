@@ -42,4 +42,25 @@ export const fsToolDefs = harden([
       content: M.string(),
     }),
   },
+  {
+    name: 'editText',
+    summary:
+      'Edit a text file in a capability (WritableTree, etc.) by exact-string ' +
+      'replacement, without re-sending the whole file. Each edit replaces a ' +
+      'uniquely-matching `oldText` with `newText`; pass several edits to apply ' +
+      'them in one call (they must not overlap). Line endings and a leading BOM ' +
+      'are preserved, and a unified diff of the change is returned. ' +
+      'Arguments: petNameOrPath, fileName (string), edits (array of ' +
+      '{ oldText, newText }).',
+    params: M.splitRecord({
+      petNameOrPath: NameOrPathShape,
+      fileName: M.string(),
+      edits: M.arrayOf(
+        M.splitRecord({
+          oldText: M.string(),
+          newText: M.string(),
+        }),
+      ),
+    }),
+  },
 ]);

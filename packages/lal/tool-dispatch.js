@@ -18,6 +18,7 @@
 import { mustMatch } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { toolResultToSmallcaps, smallcapsMarshal } from '@endo/agentry/harness';
+import { applyEdits } from '@endo/agentry/edit-text';
 
 import { tools } from './tools/index.js';
 
@@ -362,6 +363,31 @@ export const makeExecuteTool = powers => {
         }
         const capability = await E(powers).lookup(petNameOrPath);
         return E(capability).writeText(fileName, content);
+      }
+      case 'editText': {
+        const { petNameOrPath, fileName, edits } = args;
+        if (
+          petNameOrPath === undefined ||
+          fileName === undefined ||
+          edits === undefined
+        ) {
+          throw new Error('petNameOrPath, fileName, and edits are required');
+        }
+        // Read-modify-write through the tree capability. The single
+        // `await` on the read keeps the read-modify-write from interleaving
+        // with a concurrent tool call mid-computation: `applyEdits` is
+        // synchronous, so no other turn runs between read and write except
+        // the eventual-send hop to `writeText`, which the capability
+        // serializes per the daemon-agent-tools contract.
+        const capability = await E(powers).lookup(petNameOrPath);
+        const original = await E(capability).readText(fileName);
+        const {
+          content: updated,
+          diff,
+          applied,
+        } = applyEdits(original, edits, { fileName });
+        await E(capability).writeText(fileName, updated);
+        return harden({ applied, diff });
       }
 
       // Code evaluation
