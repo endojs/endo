@@ -286,13 +286,25 @@ export const HostInterface = M.interface('EndoHost', {
   storeValue: M.call(M.any(), NameOrPathShape).returns(M.promise()),
   // Check in a remote readable-tree Exo, storing content-addressed
   storeTree: M.call(M.remotable(), NameOrPathShape).returns(M.promise()),
-  // Mount an external directory
+  // Mount an external directory. `deniedSegments` replaces the mount's
+  // default restricted-segment set (an empty array disables denial).
   provideMount: M.call(M.string(), NameOrPathShape)
-    .optional(M.splitRecord({}, { readOnly: M.boolean() }))
+    .optional(
+      M.splitRecord(
+        {},
+        { readOnly: M.boolean(), deniedSegments: M.arrayOf(M.string()) },
+      ),
+    )
     .returns(M.promise()),
-  // Create a daemon-managed scratch mount
+  // Create a daemon-managed scratch mount. `deniedSegments` replaces the
+  // mount's default restricted-segment set (an empty array disables denial).
   provideScratchMount: M.call(NameOrPathShape)
-    .optional(M.splitRecord({}, { readOnly: M.boolean() }))
+    .optional(
+      M.splitRecord(
+        {},
+        { readOnly: M.boolean(), deniedSegments: M.arrayOf(M.string()) },
+      ),
+    )
     .returns(M.promise()),
   // Derive a local Git capability from an authorized mount.
   provideGit: M.callWhen(M.remotable(), NameOrPathShape).returns(
@@ -665,6 +677,16 @@ export const MountEntryInterface = M.interface('EndoMountEntry', {
   segments: M.call().returns(PathSegmentsShape),
   displayPath: M.call().returns(M.string()),
   child: M.call(M.string()).returns(MountEntryShape),
+  help: M.call().optional(M.string()).returns(M.string()),
+});
+
+// The caretaker facet returned (paired with the mount) by
+// `makeRevocableMount`. `revoke()` flips the shared liveness record so the
+// mount and every face derived from it begin throwing `Mount has been
+// revoked`. The daemon keeps this facet captive and wires it to the mount
+// formula's `context.onCancel`; it is not currently handed to callers.
+export const MountControlInterface = M.interface('EndoMountControl', {
+  revoke: M.call().returns(),
   help: M.call().optional(M.string()).returns(M.string()),
 });
 

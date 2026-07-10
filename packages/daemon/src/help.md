@@ -722,6 +722,12 @@ Example: lookup(["assets", "style.css"]) → EndoReadable
 All paths are confined to the mount root. Symlinks that escape
 the root are invisible. Use readOnly() for an attenuated view.
 
+Well-known credential and configuration names (such as .ssh, .aws,
+.env, and .gnupg) are restricted: naming one in a path throws
+"Access denied", and list() and followNameChanges() omit them.
+Matching is case-insensitive. Ordinary dotfiles like .gitignore stay
+accessible. The set can be replaced when the mount is created.
+
 ## help(methodName?) -> string
 
 Get documentation for this interface or a specific method.

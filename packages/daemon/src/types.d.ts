@@ -255,11 +255,15 @@ export type MountFormula = {
   type: 'mount';
   path: string;
   readOnly: boolean;
+  // Restricted-segment set replacing the mount's default; present only when
+  // overridden at creation, so a default mount keeps its historical shape.
+  deniedSegments?: string[];
 };
 
 export type ScratchMountFormula = {
   type: 'scratch-mount';
   readOnly: boolean;
+  deniedSegments?: string[];
 };
 
 export type GitFormula = {
@@ -1307,9 +1311,12 @@ export interface EndoHost extends EndoAgent {
   provideMount(
     path: string,
     petName: string | string[],
-    opts?: { readOnly?: boolean },
+    opts?: { readOnly?: boolean; deniedSegments?: string[] },
   ): Promise<EndoMount>;
-  provideScratchMount(petName: string | string[]): Promise<EndoMount>;
+  provideScratchMount(
+    petName: string | string[],
+    opts?: { readOnly?: boolean; deniedSegments?: string[] },
+  ): Promise<EndoMount>;
   provideGit(mountCap: EndoMount, petName: string | string[]): Promise<EndoGit>;
   /**
    * Derive an allowlisted, argv-only command-execution `Shell` from a
@@ -2326,11 +2333,13 @@ export interface DaemonCore {
     mountPath: string,
     readOnly: boolean,
     deferredTasks: DeferredTasks<MountDeferredTaskParams>,
+    deniedSegments?: string[],
   ) => FormulateResult<EndoMount>;
 
   formulateScratchMount: (
     readOnly: boolean,
     deferredTasks: DeferredTasks<ScratchMountDeferredTaskParams>,
+    deniedSegments?: string[],
   ) => FormulateResult<EndoMount>;
 
   formulateGit: (

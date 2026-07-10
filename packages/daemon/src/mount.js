@@ -10,6 +10,7 @@
 import { E } from '@endo/eventual-send';
 import { q } from '@endo/errors';
 import { makeExo } from '@endo/exo';
+import { makePromiseKit } from '@endo/promise-kit';
 import { encodeBase64 } from '@endo/base64';
 import { mapReader } from '@endo/stream';
 import {
@@ -25,6 +26,7 @@ import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { fromHex } from './hex.js';
 import { mountHelp, mountFileHelp, makeHelp } from './help-text.js';
 import {
+  MountControlInterface,
   MountEntryInterface,
   MountFileInterface,
   MountInterface,
@@ -32,6 +34,11 @@ import {
 
 const mountEntryRecords = new WeakMap();
 const mountRecords = new WeakMap();
+
+// Unique wake token an open `followNameChanges` stream races against its
+// mount's revocation signal; a symbol so it is discriminable from every
+// possible watcher iterator result.
+const revokedSentinel = Symbol('mount-revoked');
 
 /**
  * Wrap a byte range as a `PassableBytesReader` (what `fetch` returns). An empty
@@ -133,6 +140,85 @@ export const getEntryPhysicalPath = entry =>
 harden(getEntryPhysicalPath);
 
 /**
+ * The default defense-in-depth deny set: segment names that a mount refuses
+ * to resolve, list, or surface through a change stream, matched
+ * case-insensitively. These are the well-known homedir credential and
+ * configuration directories/files a confined guest has no business naming
+ * when a mount root sits above them.
+ *
+ * Denial is **name-based**, not target-based: it matches the literal path
+ * segments a caller supplies and the names `readDirectory` reports, not the
+ * realpath a segment resolves to. It therefore denies a directly-named
+ * restricted segment but does not, on its own, block reaching the same inode
+ * through an in-root symlink under a non-restricted name, nor does it restrict
+ * the mount root itself (only its children). This is why the layer is
+ * defense-in-depth *behind* confinement (`isConfinedPath`) rather than a
+ * standalone boundary: the mount API exposes no symlink-creation power, so a
+ * guest cannot forge such an alias, but a pre-existing one in the mounted tree
+ * is not caught here.
+ *
+ * A creation-time `deniedSegments` option **replaces** this set (callers
+ * extend it by spreading `defaultDeniedSegments`; an empty iterable disables
+ * denial entirely). Exported so callers can build on the canonical list
+ * rather than restating it.
+ *
+ * @type {readonly string[]}
+ */
+export const defaultDeniedSegments = harden([
+  '.ssh',
+  '.aws',
+  '.azure',
+  '.gcloud',
+  '.config',
+  '.gnupg',
+  '.password-store',
+  '.docker',
+  '.npmrc',
+  '.env',
+  '.env.local',
+  '.env.production',
+  '.kube',
+  '.terraform',
+]);
+
+/**
+ * Resolve the effective denied-segment set for a mount. `undefined` selects
+ * the default; any provided iterable (including an empty one, which disables
+ * denial) REPLACES the default. Matching is case-insensitive, so the returned
+ * set holds lowercased names and callers lowercase the candidate before
+ * probing it.
+ *
+ * @param {Iterable<string> | undefined} deniedSegments
+ * @returns {Set<string>}
+ */
+const resolveDeniedSegments = deniedSegments => {
+  const source =
+    deniedSegments === undefined ? defaultDeniedSegments : deniedSegments;
+  return new Set([...source].map(name => name.toLowerCase()));
+};
+harden(resolveDeniedSegments);
+
+/**
+ * Throw `Access denied` when a resolved path names a restricted segment.
+ * Enforced at path resolution so any method that names a denied segment in a
+ * path argument (`readText`, `lookup`, `remove`, `makeFile`, `entry`, …)
+ * throws, while `list()` and `followNameChanges` filter denied names out of
+ * their enumerations separately.
+ *
+ * @param {string} segment
+ * @param {Set<string> | undefined} deniedSegments
+ */
+const assertSegmentAllowed = (segment, deniedSegments) => {
+  if (
+    deniedSegments !== undefined &&
+    deniedSegments.has(segment.toLowerCase())
+  ) {
+    throw new Error(`Access denied: ${q(segment)} is a restricted path`);
+  }
+};
+harden(assertSegmentAllowed);
+
+/**
  * Validate a single path segment.
  * Rejects '/', '\', '\0', and empty strings.
  *
@@ -189,9 +275,16 @@ harden(assertValidTreeEntryName);
  * @param {string} confinementRoot
  * @param {string[]} segments
  * @param {FilePowers} filePowers
+ * @param {Set<string>} [deniedSegments]
  * @returns {string}
  */
-const resolveSegments = (currentDir, confinementRoot, segments, filePowers) => {
+const resolveSegments = (
+  currentDir,
+  confinementRoot,
+  segments,
+  filePowers,
+  deniedSegments = undefined,
+) => {
   let resolved = currentDir;
   for (const segment of segments) {
     if (segment === '.') {
@@ -205,6 +298,7 @@ const resolveSegments = (currentDir, confinementRoot, segments, filePowers) => {
       }
     } else {
       assertValidSegment(segment);
+      assertSegmentAllowed(segment, deniedSegments);
       resolved = filePowers.joinPath(resolved, segment);
     }
   }
@@ -217,9 +311,14 @@ harden(resolveSegments);
  *
  * @param {string[]} baseSegments
  * @param {string[]} segments
+ * @param {Set<string>} [deniedSegments]
  * @returns {string[]}
  */
-const normalizeSegments = (baseSegments, segments) => {
+const normalizeSegments = (
+  baseSegments,
+  segments,
+  deniedSegments = undefined,
+) => {
   const normalized = [...baseSegments];
   for (const segment of segments) {
     if (segment === '.') {
@@ -228,6 +327,7 @@ const normalizeSegments = (baseSegments, segments) => {
       normalized.pop();
     } else {
       assertValidSegment(segment);
+      assertSegmentAllowed(segment, deniedSegments);
       normalized.push(segment);
     }
   }
@@ -403,6 +503,13 @@ harden(resolvePhysicalPath);
  * @property {string} description
  * @property {(tree: object) => Promise<object>} [snapshotTree]
  * @property {(path: string) => Promise<object>} [snapshotFile]
+ * @property {Set<string>} [deniedSegments] Lowercased restricted-segment set
+ *   shared across every derived face; undefined means no denial.
+ * @property {{ revoked: boolean, whenRevoked: Promise<undefined> }} [revocation]
+ *   Mutable liveness record shared across every derived face; undefined means
+ *   the mount is never revocable. `whenRevoked` settles when `revoke()` runs,
+ *   so an open stream can wake promptly rather than waiting on the next
+ *   coincidental filesystem event.
  */
 
 /**
@@ -422,28 +529,69 @@ const makeMountExo = ctx => {
     description,
     snapshotTree,
     snapshotFile,
+    deniedSegments,
+    revocation,
   } = ctx;
 
+  // Liveness gate shared by every method. A revocable mount carries a
+  // mutable `revocation` record on its `ctx`; the `...ctx` spread that
+  // derives sub-views, entries, files, and read-only views shares that one
+  // record, so a single `control.revoke()` trips every derived face at once.
+  // A plain (non-revocable) mount has no record and this is a no-op.
+  const assertLive = () => {
+    if (revocation !== undefined && revocation.revoked) {
+      throw new Error('Mount has been revoked');
+    }
+  };
+
   const assertWritable = () => {
+    assertLive();
     if (readOnly) {
       throw new Error('Mount is read-only');
     }
   };
 
   /**
+   * Whether an enumerated child name is restricted (case-insensitive). Used
+   * to hide denied names from `list()` and `followNameChanges`, which surface
+   * names that were never passed as path arguments and so never reached
+   * `assertSegmentAllowed`.
+   *
+   * @param {string} name
+   */
+  const isDenied = name =>
+    deniedSegments !== undefined && deniedSegments.has(name.toLowerCase());
+
+  /**
    * @param {string[]} segments
    * @returns {string}
    */
-  const resolve = segments =>
-    resolveSegments(currentDir, confinementRoot, segments, filePowers);
+  const resolve = segments => {
+    assertLive();
+    return resolveSegments(
+      currentDir,
+      confinementRoot,
+      segments,
+      filePowers,
+      deniedSegments,
+    );
+  };
 
   /**
    * Resolve mount-root-relative segments.
    *
    * @param {string[]} segments
    */
-  const resolveFromRoot = segments =>
-    resolveSegments(confinementRoot, confinementRoot, segments, filePowers);
+  const resolveFromRoot = segments => {
+    assertLive();
+    return resolveSegments(
+      confinementRoot,
+      confinementRoot,
+      segments,
+      filePowers,
+      deniedSegments,
+    );
+  };
 
   /**
    * @param {string | string[] | object} pathArg
@@ -451,7 +599,7 @@ const makeMountExo = ctx => {
    */
   const segmentsFromPathArg = pathArg => {
     if (Array.isArray(pathArg)) {
-      return normalizeSegments(currentSegments, pathArg);
+      return normalizeSegments(currentSegments, pathArg, deniedSegments);
     }
     if (typeof pathArg === 'object' && pathArg !== null) {
       const record = mountEntryRecords.get(pathArg);
@@ -466,7 +614,7 @@ const makeMountExo = ctx => {
     if (typeof pathArg !== 'string') {
       throw new Error(`Path must be a string, array, or mount entry`);
     }
-    return normalizeSegments(currentSegments, [pathArg]);
+    return normalizeSegments(currentSegments, [pathArg], deniedSegments);
   };
 
   /**
@@ -479,12 +627,16 @@ const makeMountExo = ctx => {
    */
   const segmentsFromEntryPathArg = pathArg => {
     if (Array.isArray(pathArg)) {
-      return normalizeSegments(currentSegments, pathArg);
+      return normalizeSegments(currentSegments, pathArg, deniedSegments);
     }
     if (typeof pathArg !== 'string') {
       throw new Error('entry() path must be a string or array');
     }
-    return normalizeSegments(currentSegments, pathArg.split('/'));
+    return normalizeSegments(
+      currentSegments,
+      pathArg.split('/'),
+      deniedSegments,
+    );
   };
 
   /**
@@ -519,7 +671,11 @@ const makeMountExo = ctx => {
         throw new Error('has() path segments must be strings');
       }
     }
-    return normalizeSegments(currentSegments, /** @type {string[]} */ (args));
+    return normalizeSegments(
+      currentSegments,
+      /** @type {string[]} */ (args),
+      deniedSegments,
+    );
   };
 
   /**
@@ -549,6 +705,7 @@ const makeMountExo = ctx => {
       filePowers,
       confinementRoot,
       snapshotFile,
+      revocation,
     );
   };
 
@@ -581,6 +738,7 @@ const makeMountExo = ctx => {
 
     async has(...args) {
       await null;
+      assertLive();
       const pathSegments = segmentsFromHasArgs(args);
       if (pathSegments.length === 0) {
         return true;
@@ -600,6 +758,14 @@ const makeMountExo = ctx => {
       const entries = await filePowers.readDirectory(target);
       const confined = [];
       for (const entry of entries.sort()) {
+        // Restricted names never appear in a listing, even though naming
+        // one directly in a path would throw. `list()` enumerates children
+        // that were never passed through `assertSegmentAllowed`, so it
+        // filters them here.
+        if (isDenied(entry)) {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
         const entryPath = filePowers.joinPath(target, entry);
         // eslint-disable-next-line no-await-in-loop
         if (await isConfinedPath(entryPath, confinementRoot, filePowers)) {
@@ -621,6 +787,9 @@ const makeMountExo = ctx => {
     // resolution failure yields `undefined` rather than throwing.
     async maybeLookup(pathArg) {
       await null;
+      // A revoked mount throws rather than masquerading the revocation as a
+      // benign "absent" undefined; the gate runs before the swallowing try.
+      assertLive();
       const segments = segmentsFromPathArg(pathArg);
       try {
         return await openExisting(resolveFromRoot(segments), segments);
@@ -667,6 +836,7 @@ const makeMountExo = ctx => {
     },
 
     entry(pathArg) {
+      assertLive();
       return makeEntry(segmentsFromEntryPathArg(pathArg));
     },
 
@@ -792,9 +962,12 @@ const makeMountExo = ctx => {
        * `makeIteratorRef` triggers when a remote subscription
        * closes).
        */
+      // `resolve` is liveness-gated, so invoking `followNameChanges` on an
+      // already-revoked mount throws here, synchronously.
       const target = resolve(pathSegments);
       /** @returns {AsyncGenerator<MountNameChange, undefined, undefined>} */
       const generate = async function* generate() {
+        assertLive();
         await assertConfined(target, confinementRoot, filePowers);
 
         const watcher = filePowers.watchDirectory(target);
@@ -803,6 +976,12 @@ const makeMountExo = ctx => {
           const known = new Map();
           const entries = await filePowers.readDirectory(target);
           for (const name of entries.sort()) {
+            // Restricted names appear in neither the snapshot batch nor the
+            // diff stream, mirroring `list()`.
+            if (isDenied(name)) {
+              // eslint-disable-next-line no-continue
+              continue;
+            }
             const childPath = filePowers.joinPath(target, name);
             // eslint-disable-next-line no-await-in-loop
             if (await isConfinedPath(childPath, confinementRoot, filePowers)) {
@@ -814,28 +993,66 @@ const makeMountExo = ctx => {
             }
           }
 
-          for await (const event of watcher.events) {
-            const childPath = filePowers.joinPath(target, event.name);
-            // eslint-disable-next-line no-await-in-loop
-            const present = await filePowers.exists(childPath);
-            // eslint-disable-next-line no-await-in-loop
-            const confined =
-              present &&
+          // Race each event pull against the revocation signal so a revoke
+          // that lands while the stream is parked awaiting the next filesystem
+          // event wakes it immediately, rather than stranding the stream until
+          // the directory next happens to change (or forever, if it never
+          // does). A plain (non-revocable) mount has no signal and just
+          // iterates the watcher directly.
+          const eventIterator = watcher.events[Symbol.asyncIterator]();
+          /** @type {Promise<typeof revokedSentinel> | undefined} */
+          const revokedSignal =
+            revocation !== undefined
+              ? revocation.whenRevoked.then(() => revokedSentinel)
+              : undefined;
+          try {
+            for (;;) {
+              // A revoke mid-stream fails the change stream rather than
+              // continuing to leak the directory's evolution.
+              assertLive();
               // eslint-disable-next-line no-await-in-loop
-              (await isConfinedPath(childPath, confinementRoot, filePowers));
-            if (confined && !known.has(event.name)) {
+              const next = await (revokedSignal
+                ? Promise.race([eventIterator.next(), revokedSignal])
+                : eventIterator.next());
+              if (next === revokedSentinel) {
+                // The signal woke us; the re-check trips the revoked gate and
+                // throws. The `break` is unreachable in practice (the signal
+                // only fires on revoke) but keeps the loop from spinning and
+                // narrows `next` to an iterator result below.
+                assertLive();
+                break;
+              }
+              if (next.done) {
+                break;
+              }
+              const event = next.value;
+              if (isDenied(event.name)) {
+                // eslint-disable-next-line no-continue
+                continue;
+              }
+              const childPath = filePowers.joinPath(target, event.name);
               // eslint-disable-next-line no-await-in-loop
-              const isDir = await filePowers.isDirectory(childPath);
-              const type = isDir ? 'directory' : 'file';
-              known.set(event.name, type);
-              yield harden({ add: event.name, type });
-            } else if (!confined && known.has(event.name)) {
-              known.delete(event.name);
-              yield harden({ remove: event.name });
+              const present = await filePowers.exists(childPath);
+              const confined =
+                present &&
+                // eslint-disable-next-line no-await-in-loop
+                (await isConfinedPath(childPath, confinementRoot, filePowers));
+              if (confined && !known.has(event.name)) {
+                // eslint-disable-next-line no-await-in-loop
+                const isDir = await filePowers.isDirectory(childPath);
+                const type = isDir ? 'directory' : 'file';
+                known.set(event.name, type);
+                yield harden({ add: event.name, type });
+              } else if (!confined && known.has(event.name)) {
+                known.delete(event.name);
+                yield harden({ remove: event.name });
+              }
+              // Otherwise the event was a same-name in-place mutation
+              // (file contents changed, or a quick remove/re-add that
+              // the debounce window collapsed); name-set is unchanged.
             }
-            // Otherwise the event was a same-name in-place mutation
-            // (file contents changed, or a quick remove/re-add that
-            // the debounce window collapsed); name-set is unchanged.
+          } finally {
+            await eventIterator.return?.();
           }
         } finally {
           watcher.cancel();
@@ -845,6 +1062,7 @@ const makeMountExo = ctx => {
     },
 
     readOnly() {
+      assertLive();
       // Structural narrowing: return a ReadableTree view, not an
       // EndoMount.  Mount-specific extensions (`entry`, `stat`,
       // `displayPath`, `readText`, `makeFile`) are removed from the
@@ -861,6 +1079,7 @@ const makeMountExo = ctx => {
     },
 
     async snapshot() {
+      assertLive();
       if (snapshotTree === undefined) {
         throw new Error('snapshot() is not available for this mount');
       }
@@ -1037,20 +1256,30 @@ harden(makeReadableTreeView);
  * @returns {object}
  */
 const makeMountEntryExo = ctx => {
-  const { entrySegments, rootId } = ctx;
+  const { entrySegments, rootId, deniedSegments, revocation } = ctx;
+
+  const assertLive = () => {
+    if (revocation !== undefined && revocation.revoked) {
+      throw new Error('Mount has been revoked');
+    }
+  };
 
   const help = makeHelp({});
 
   return makeExo('EndoMountEntry', MountEntryInterface, {
     help,
     segments() {
+      assertLive();
       return harden([...entrySegments]);
     },
     displayPath() {
+      assertLive();
       return entrySegments.length === 0 ? '.' : entrySegments.join('/');
     },
     child(name) {
+      assertLive();
       assertValidSegment(name);
+      assertSegmentAllowed(name, deniedSegments);
       const childSegments = [...entrySegments, name];
       const child = makeMountEntryExo({
         ...ctx,
@@ -1066,6 +1295,7 @@ const makeMountEntryExo = ctx => {
             ctx.confinementRoot,
             childSegments,
             ctx.filePowers,
+            deniedSegments,
           ),
         }),
       );
@@ -1083,6 +1313,9 @@ harden(makeMountEntryExo);
  * @param {FilePowers} filePowers
  * @param {string} confinementRoot
  * @param {(path: string) => Promise<object>} [snapshotFile]
+ * @param {{ revoked: boolean, whenRevoked: Promise<undefined> }} [revocation]
+ *   Liveness record shared with the minting mount; a flip trips this file
+ *   handle too.
  * @returns {object}
  */
 const makeMountFileExo = (
@@ -1091,8 +1324,16 @@ const makeMountFileExo = (
   filePowers,
   confinementRoot,
   snapshotFile = undefined,
+  revocation = undefined,
 ) => {
+  const assertLive = () => {
+    if (revocation !== undefined && revocation.revoked) {
+      throw new Error('Mount has been revoked');
+    }
+  };
+
   const assertWritable = () => {
+    assertLive();
     if (readOnly) {
       throw new Error('Mount is read-only');
     }
@@ -1105,6 +1346,7 @@ const makeMountFileExo = (
 
     async text() {
       await null;
+      assertLive();
       await assertConfined(filePath, confinementRoot, filePowers);
       return filePowers.readFileText(filePath);
     },
@@ -1113,10 +1355,18 @@ const makeMountFileExo = (
     streamBase64(synPromise) {
       /** @returns {AsyncGenerator<Uint8Array>} */
       const readConfined = async function* readConfinedFile() {
+        assertLive();
         await assertConfined(filePath, confinementRoot, filePowers);
         const reader = filePowers.makeFileReader(filePath);
         try {
           for (;;) {
+            // Re-check liveness every chunk: a revoke that lands mid-read
+            // stops delivering the remaining bytes rather than draining the
+            // file to completion. A file reader advances chunk-by-chunk (it
+            // never parks indefinitely the way `followNameChanges` does on a
+            // directory watcher), so the per-chunk gate suffices — no
+            // revocation-signal race is needed to wake it.
+            assertLive();
             // eslint-disable-next-line no-await-in-loop
             const result = await reader.next();
             if (result.done) {
@@ -1136,6 +1386,7 @@ const makeMountFileExo = (
 
     async json() {
       await null;
+      assertLive();
       await assertConfined(filePath, confinementRoot, filePowers);
       const text = await filePowers.readFileText(filePath);
       return JSON.parse(text);
@@ -1171,6 +1422,7 @@ const makeMountFileExo = (
 
     async stat() {
       await null;
+      assertLive();
       await assertConfined(filePath, confinementRoot, filePowers);
       return filePowers.statPath(filePath);
     },
@@ -1191,6 +1443,7 @@ const makeMountFileExo = (
     // reading a live face. See designs/fs-interface-consolidation.md § C4.
     async getInfo() {
       await null;
+      assertLive();
       await assertConfined(filePath, confinementRoot, filePowers);
       const [hashHex, fileStat] = await Promise.all([
         filePowers.sha256(filePath),
@@ -1209,6 +1462,7 @@ const makeMountFileExo = (
      */
     async fetch(offset, length) {
       await null;
+      assertLive();
       await assertConfined(filePath, confinementRoot, filePowers);
       // Validate at the bigint→Number boundary (same `toSafeNumber` the
       // extended `BlobRef.fetch` uses) so negative or out-of-range windows
@@ -1222,6 +1476,7 @@ const makeMountFileExo = (
     },
 
     async snapshot() {
+      assertLive();
       if (snapshotFile === undefined) {
         throw new Error('snapshot() is not available for this mount file');
       }
@@ -1230,16 +1485,19 @@ const makeMountFileExo = (
     },
 
     readOnly() {
+      assertLive();
       // Structural narrowing: return a ReadableBlob view, not an
       // EndoMountFile.  Mount-specific surface (`stat`, `snapshot`)
       // is removed; callers that need it keep a reference to the
-      // un-attenuated mount file.
+      // un-attenuated mount file. The same `revocation` record flows in
+      // so the derived read-only face revokes together with its origin.
       const readOnlyFile = makeMountFileExo(
         filePath,
         true,
         filePowers,
         confinementRoot,
         snapshotFile,
+        revocation,
       );
       return makeReadableBlobView(readOnlyFile);
     },
@@ -1297,6 +1555,12 @@ harden(makeReadableBlobView);
  * @param {FilePowers} opts.filePowers
  * @param {(tree: object) => Promise<object>} [opts.snapshotTree]
  * @param {(path: string) => Promise<object>} [opts.snapshotFile]
+ * @param {Iterable<string>} [opts.deniedSegments] Restricted-segment set that
+ *   REPLACES `defaultDeniedSegments` (an empty iterable disables denial);
+ *   undefined selects the default.
+ * @param {{ revoked: boolean, whenRevoked: Promise<undefined> }} [opts.revocation]
+ *   Liveness record shared across every derived face; `makeRevocableMount`
+ *   supplies it. Undefined means the mount is never revocable.
  * @returns {object}
  */
 export const makeMount = ({
@@ -1305,6 +1569,8 @@ export const makeMount = ({
   filePowers,
   snapshotTree = undefined,
   snapshotFile = undefined,
+  deniedSegments = undefined,
+  revocation = undefined,
 }) => {
   const prefix = readOnly ? 'Read-only mount' : 'Mount';
   /** @type {MountContext} */
@@ -1318,8 +1584,51 @@ export const makeMount = ({
     description: `${prefix} at ${rootPath}`,
     snapshotTree,
     snapshotFile,
+    deniedSegments: resolveDeniedSegments(deniedSegments),
+    revocation,
   };
 
   return makeMountExo(ctx);
 };
 harden(makeMount);
+
+/**
+ * Create a mount paired with a caretaker facet that can revoke it.
+ *
+ * The mount is minted over a fresh, mutable `revocation` record; the returned
+ * `control` is an `EndoMountControl` exo whose `revoke()` flips
+ * `revocation.revoked`. Because the record is shared through the mount's `ctx`
+ * spread, a single `revoke()` trips the `assertLive()` gate on the root mount
+ * and every face derived from it — sub-views, entries, opened files,
+ * `readOnly()` views, `makeDirectory` results, and any open `followNameChanges`
+ * stream. The daemon's `mount` / `scratch-mount` formulas wire
+ * `context.onCancel(() => control.revoke())`, tying revocation to formula
+ * cancellation, and keep the `control` captive so only the daemon can revoke.
+ *
+ * @param {Parameters<typeof makeMount>[0]} opts
+ * @returns {{ mount: object, control: object }}
+ */
+export const makeRevocableMount = opts => {
+  // `whenRevoked` settles the instant `revoke()` runs, so an open
+  // `followNameChanges` stream parked on the next filesystem event wakes and
+  // fails promptly instead of hanging until the directory happens to change.
+  const { promise: whenRevoked, resolve: signalRevoked } =
+    /** @type {import('@endo/promise-kit').PromiseKit<undefined>} */ (
+      makePromiseKit()
+    );
+  const revocation = { revoked: false, whenRevoked };
+  const mount = makeMount({ ...opts, revocation });
+  const control = makeExo('EndoMountControl', MountControlInterface, {
+    revoke() {
+      revocation.revoked = true;
+      signalRevoked(undefined);
+    },
+    help(method) {
+      return method === undefined
+        ? 'EndoMountControl: revoke() the paired mount and every face derived from it.'
+        : `No documentation for method ${q(method)}.`;
+    },
+  });
+  return harden({ mount, control });
+};
+harden(makeRevocableMount);

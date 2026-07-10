@@ -412,9 +412,11 @@ export const makeHostMaker = ({
      * @param {NameOrPath} petName
      * @param {object} [options]
      * @param {boolean} [options.readOnly]
+     * @param {string[]} [options.deniedSegments] - Restricted-segment set that
+     *   replaces the mount's default (an empty array disables denial).
      */
     const provideMount = async (mountPath, petName, options = {}) => {
-      const { readOnly = false } = options;
+      const { readOnly = false, deniedSegments } = options;
       const { namePath } = petNamePathFrom(petName);
 
       /** @type {DeferredTasks<MountDeferredTaskParams>} */
@@ -423,7 +425,12 @@ export const makeHostMaker = ({
         E(directory).storeIdentifier(namePath, identifiers.mountId),
       );
 
-      const { value } = await formulateMount(mountPath, readOnly, tasks);
+      const { value } = await formulateMount(
+        mountPath,
+        readOnly,
+        tasks,
+        deniedSegments,
+      );
       return value;
     };
 
@@ -475,9 +482,11 @@ export const makeHostMaker = ({
      * @param {NameOrPath} petName
      * @param {object} [options]
      * @param {boolean} [options.readOnly]
+     * @param {string[]} [options.deniedSegments] - Restricted-segment set that
+     *   replaces the mount's default (an empty array disables denial).
      */
     const provideScratchMount = async (petName, options = {}) => {
-      const { readOnly = false } = options;
+      const { readOnly = false, deniedSegments } = options;
       const { namePath } = petNamePathFrom(petName);
 
       /** @type {DeferredTasks<ScratchMountDeferredTaskParams>} */
@@ -486,7 +495,11 @@ export const makeHostMaker = ({
         E(directory).storeIdentifier(namePath, identifiers.scratchMountId),
       );
 
-      const { value } = await formulateScratchMount(readOnly, tasks);
+      const { value } = await formulateScratchMount(
+        readOnly,
+        tasks,
+        deniedSegments,
+      );
       return value;
     };
 
