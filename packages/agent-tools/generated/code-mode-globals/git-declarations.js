@@ -49,7 +49,6 @@ export const gitDeclarations = harden({
   detach: (ref: GitRef | string) => Promise<void>;
   switch: (ref: GitRef | string) => Promise<void>;
   merge: (ref: GitRef | string, options?: GitMergeOptions) => Promise<string>;
-  rebase: (input: GitRebaseInput) => Promise<string>;
   stashPush: (options?: GitStashPushOptions) => Promise<string>;
   stashApply: (index?: number) => Promise<void>;
   stashPop: (index?: number) => Promise<void>;
@@ -145,10 +144,6 @@ type GitLogOptions = {
 type GitMergeOptions = {
     fastForwardOnly?: boolean;
     noFastForward?: boolean;
-};
-type GitRebaseInput = {
-    mode?: 'start' | 'continue' | 'abort' | 'skip';
-    upstream?: string;
 };
 type GitRef = {
     name: string;
@@ -299,6 +294,11 @@ type GitXattrs = {
     aux: `type EndoGitHistory = {
   commit: (message: string, options?: GitCommitOptions) => Promise<GitCommit>;
   reword: (ref: GitRef | string, message: string) => Promise<GitCommit>;
+  cherryPick: (ref: GitRef | string, options?: GitCherryPickOptions) => Promise<string>;
+  rebase: (input: GitRebaseInput) => Promise<string>;
+};
+type GitCherryPickOptions = {
+    noCommit?: boolean;
 };
 type GitCommit = {
     oid: string;
@@ -308,6 +308,15 @@ type GitCommit = {
 };
 type GitCommitOptions = {
     amend?: boolean;
+};
+type GitRebaseInput = {
+    mode: 'start';
+    upstream: string;
+    autosquash?: boolean;
+} | {
+    mode: 'continue' | 'abort' | 'skip';
+    upstream?: never;
+    autosquash?: never;
 };
 type GitRef = {
     name: string;

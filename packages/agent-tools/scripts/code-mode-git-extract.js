@@ -92,10 +92,22 @@ export const buildGitIRs = () =>
     (() => {
       const fileName = fileURLToPath(GIT_TYPES_TS_URL);
       const text = readFileSync(fileName, 'utf8');
+      const fullGit = extractTsFileTextIR({
+        fileName,
+        text,
+        rootType: GIT_ROOT_TYPE,
+      });
       const git = extractTsFileTextIR({
         fileName,
         text,
         rootType: GIT_ROOT_TYPE,
+        memberFilter: fullGit.members
+          .filter(
+            member =>
+              !GIT_HISTORY_MEMBERS.includes(member.name) ||
+              member.name === 'commit',
+          )
+          .map(member => member.name),
       });
       const gitHistory = extractTsFileTextIR({
         fileName,

@@ -106,7 +106,7 @@ const REBASE_START_INPUT_PROP = harden({
 const REBASE_START_INPUT_SHAPE = M.splitRecord(
   { mode: 'start', upstream: M.string() },
   { autosquash: M.boolean() },
-  {},
+  harden({}),
 );
 
 /**
@@ -250,11 +250,6 @@ const gitHistoryToolMethods = harden(
   ),
 );
 
-/** @type {Partial<Record<keyof GitHistoryToolCapability, Pattern[]>>} */
-const gitHistoryToolArgGuards = harden({
-  rebase: harden([REBASE_START_INPUT_SHAPE]),
-});
-
 /**
  * Positional arg guards for a method, required first and then optional.
  * `getMethodGuardPayload` unwraps the `M.callWhen` await-arg wrappers.
@@ -271,6 +266,13 @@ const positionalArgGuards = method => {
   );
   return harden([...argGuards, ...(optionalArgGuards || [])]);
 };
+
+/** @type {Partial<Record<keyof GitHistoryToolCapability, Pattern[]>>} */
+const gitHistoryToolArgGuards = harden({
+  rebase: harden([
+    M.and(positionalArgGuards('rebase')[0], REBASE_START_INPUT_SHAPE),
+  ]),
+});
 
 /**
  * Build agent-tool records for a live `Git` capability.

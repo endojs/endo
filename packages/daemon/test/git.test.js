@@ -24,6 +24,8 @@ import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { makeFilePowers } from '../src/manager-node-powers.js';
 import { lineageOf, makeMount } from '../src/mount.js';
 
+/** @import { GitRebaseInput } from '@endo/exo-git' */
+
 const execFileAsync = nodePromisify(execFile);
 
 /**
@@ -2514,7 +2516,12 @@ test('NativeGitBackend.rebase rejects autosquash outside start mode', async t =>
   await Promise.all(
     ['continue', 'abort', 'skip'].map(mode =>
       t.throwsAsync(
-        () => backend.rebase(/** @type {any} */ ({ mode, autosquash: true })),
+        () =>
+          backend.rebase(
+            /** @type {GitRebaseInput} */ (
+              /** @type {unknown} */ ({ mode, autosquash: true })
+            ),
+          ),
         {
           message: /autosquash is only valid for mode start/,
         },

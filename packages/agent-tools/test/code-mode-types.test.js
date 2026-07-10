@@ -198,6 +198,16 @@ test('base and history git declarations split history rewrite authority', t => {
       member.signature.includes('GitCommitOptions'),
     ),
   );
+  for (const historyOnlyType of [
+    'GitCommitOptions',
+    'GitCherryPickOptions',
+    'GitRebaseInput',
+  ]) {
+    t.false(
+      git.auxTypes.some(type => type.name === historyOnlyType),
+      `base git declaration should omit ${historyOnlyType}`,
+    );
+  }
 });
 
 // The FS `.d.ts` is a stub, so `workspace` is derived from the interface

@@ -6,7 +6,7 @@ import '@endo/init/debug.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { InterfaceGuard, Pattern } from '@endo/patterns' */
-/** @import { GitToolCapability, ToolRecord } from '../src/types.js' */
+/** @import { GitHistoryToolCapability, GitToolCapability, ToolRecord } from '../src/types.js' */
 
 import test from 'ava';
 import { Ajv } from 'ajv';
@@ -19,7 +19,7 @@ import {
 import { Far } from '@endo/pass-style';
 import { GitInterface } from '@endo/exo-git';
 
-import { makeGitTool } from '../src/json-tools/git.js';
+import { makeGitHistoryTool, makeGitTool } from '../src/json-tools/git.js';
 
 /**
  * Conformance checks for hand-authored JSON Schemas and runtime guards.
@@ -33,10 +33,25 @@ const ajv = new Ajv({ strict: false });
  * @param {string} method
  */
 const guardShapeFor = method => {
-  if (method === 'rebase') {
-    return {
-      requiredCount: 1,
-      guards: harden([
+  const { methodGuards } = getInterfaceGuardPayload(
+    /** @type {InterfaceGuard} */ (GitInterface),
+  );
+  const { argGuards, optionalArgGuards } = getMethodGuardPayload(
+    methodGuards[method],
+  );
+  const optional = optionalArgGuards || [];
+  const shape = {
+    requiredCount: argGuards.length,
+    guards: harden([...argGuards, ...optional]),
+  };
+  if (method !== 'rebase') {
+    return shape;
+  }
+  return {
+    ...shape,
+    guards: harden([
+      M.and(
+        shape.guards[0],
         M.splitRecord(
           {
             mode: 'start',
@@ -45,21 +60,10 @@ const guardShapeFor = method => {
           {
             autosquash: M.boolean(),
           },
-          {},
+          harden({}),
         ),
-      ]),
-    };
-  }
-  const { methodGuards } = getInterfaceGuardPayload(
-    /** @type {InterfaceGuard} */ (GitInterface),
-  );
-  const { argGuards, optionalArgGuards } = getMethodGuardPayload(
-    methodGuards[method],
-  );
-  const optional = optionalArgGuards || [];
-  return {
-    requiredCount: argGuards.length,
-    guards: harden([...argGuards, ...optional]),
+      ),
+    ]),
   };
 };
 
@@ -125,10 +129,13 @@ const slotRecords = harden([
   { slot0: { nested: { x: 1 } } },
   { slot0: { mode: 'start', upstream: 'main' } },
   { slot0: { mode: 'start', upstream: 'main', autosquash: true } },
+  { slot0: { mode: 'continue' } },
   { slot0: { mode: 'continue', autosquash: true } },
   { slot0: harden({ author: 'alice', oneline: true, maxCount: 10 }) },
   { slot0: 'a', slot1: { a: 1, b: 2 } },
   { slot0: 'a', slot1: { nested: { x: 1 } } },
+  { slot0: 'a', slot1: { amend: true } },
+  { slot0: 'a', slot1: { noCommit: true } },
   { slot0: 'a', slot1: harden({ track: true, startPoint: 'main' }) },
 ]);
 
@@ -174,6 +181,13 @@ const gitTools = makeGitTool(
   ),
 );
 
+const gitHistoryTools = makeGitHistoryTool(
+  // This test inspects schemas and guards; it never invokes the capability.
+  /** @type {ERef<GitHistoryToolCapability>} */ (
+    /** @type {unknown} */ (Far('InertGitHistory', {}))
+  ),
+);
+
 /**
  * For one git tool, assert its hand-authored JSON Schema and its runtime guard
  * agree on every candidate args record.
@@ -200,13 +214,21 @@ const schemaGuardAgree = test.macro({
     }
     t.true(checked > 0);
   },
-  title(_providedTitle, /** @type {ToolRecord} */ tool) {
-    return `schema ⟷ guard agree for git.${tool.name}`;
+  title(providedTitle, /** @type {ToolRecord} */ tool) {
+    return providedTitle || `schema ⟷ guard agree for git.${tool.name}`;
   },
 });
 
 for (const tool of gitTools) {
   test(schemaGuardAgree, tool);
+}
+
+for (const tool of gitHistoryTools) {
+  test(
+    `schema ⟷ guard agree for gitHistory.${tool.name}`,
+    schemaGuardAgree,
+    tool,
+  );
 }
 
 // --- bigint synthetic case ----------------------------------------------
