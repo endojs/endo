@@ -1236,6 +1236,7 @@ __metadata:
     "@endo/daemon": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo-git": "workspace:^"
+    "@endo/exo-http-client": "workspace:^"
     "@endo/exo-shell": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/git": "workspace:^"
@@ -1669,6 +1670,7 @@ __metadata:
     "@endo/eventual-send": "workspace:^"
     "@endo/exo": "workspace:^"
     "@endo/exo-git": "workspace:^"
+    "@endo/exo-http-client": "workspace:^"
     "@endo/exo-shell": "workspace:^"
     "@endo/exo-stream": "workspace:^"
     "@endo/far": "workspace:^"
@@ -1859,7 +1861,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/exo-http-client@workspace:packages/exo-http-client":
+"@endo/exo-http-client@workspace:^, @endo/exo-http-client@workspace:packages/exo-http-client":
   version: 0.0.0-use.local
   resolution: "@endo/exo-http-client@workspace:packages/exo-http-client"
   dependencies:
