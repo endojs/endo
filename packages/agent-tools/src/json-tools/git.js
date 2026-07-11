@@ -14,6 +14,7 @@ import {
   M,
 } from '@endo/patterns';
 import { GitInterface } from '@endo/exo-git';
+import { GitRebaseStartInputShape } from '@endo/exo-git/src/interfaces.js';
 
 import { makeTool } from '../tool.js';
 
@@ -102,12 +103,6 @@ const REBASE_START_INPUT_PROP = harden({
   required: ['mode', 'upstream'],
   additionalProperties: false,
 });
-
-const REBASE_START_INPUT_SHAPE = M.splitRecord(
-  { mode: 'start', upstream: M.string() },
-  { autosquash: M.boolean() },
-  harden({}),
-);
 
 /**
  * This package intentionally exposes only a curated JSON-safe writable Git slice
@@ -270,7 +265,7 @@ const positionalArgGuards = method => {
 /** @type {Partial<Record<keyof GitHistoryToolCapability, Pattern[]>>} */
 const gitHistoryToolArgGuards = harden({
   rebase: harden([
-    M.and(positionalArgGuards('rebase')[0], REBASE_START_INPUT_SHAPE),
+    M.and(positionalArgGuards('rebase')[0], GitRebaseStartInputShape),
   ]),
 });
 

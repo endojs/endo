@@ -76,11 +76,12 @@ const GitCherryPickOptionsShape = M.splitRecord(
   harden({}),
 );
 
-const GitRebaseStartInputShape = M.splitRecord(
+export const GitRebaseStartInputShape = M.splitRecord(
   { mode: 'start', upstream: M.string() },
   { autosquash: M.boolean() },
   harden({}),
 );
+harden(GitRebaseStartInputShape);
 
 const GitRebaseControlInputShape = M.splitRecord(
   { mode: M.or('continue', 'abort', 'skip') },

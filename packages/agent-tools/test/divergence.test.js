@@ -18,6 +18,7 @@ import {
 } from '@endo/patterns';
 import { Far } from '@endo/pass-style';
 import { GitInterface } from '@endo/exo-git';
+import { GitRebaseStartInputShape } from '@endo/exo-git/src/interfaces.js';
 
 import { makeGitHistoryTool, makeGitTool } from '../src/json-tools/git.js';
 
@@ -49,21 +50,7 @@ const guardShapeFor = method => {
   }
   return {
     ...shape,
-    guards: harden([
-      M.and(
-        shape.guards[0],
-        M.splitRecord(
-          {
-            mode: 'start',
-            upstream: M.string(),
-          },
-          {
-            autosquash: M.boolean(),
-          },
-          harden({}),
-        ),
-      ),
-    ]),
+    guards: harden([M.and(shape.guards[0], GitRebaseStartInputShape)]),
   };
 };
 

@@ -208,6 +208,7 @@ test('makeGitHistoryTool requires an explicit elevated capability', async t => {
   });
   await t.throwsAsync(
     byName('rebase').invoke({ input: harden({ mode: 'abort' }) }),
+    { message: /rebase input.*missing properties.*upstream/ },
   );
   t.deepEqual(calls, [
     ['commit', 'amended message', { amend: true }],

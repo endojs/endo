@@ -194,9 +194,8 @@ const makeGitEnv = repoRoot => ({
   // command completes non-interactively.  Takes precedence over any
   // repository-local `core.editor`.
   GIT_EDITOR: 'true',
-  // The same no-op for the rebase todo-list editor, should an
-  // interactive rebase ever be wired in.  Takes precedence over any
-  // repository-local `sequence.editor`.
+  // The same no-op for the interactive rebase used by the autosquash path.
+  // Takes precedence over any repository-local `sequence.editor`.
   GIT_SEQUENCE_EDITOR: ':',
   // Suppress the opportunistic index refresh that read commands
   // (status, diff) otherwise perform.  Without this, a "read-only"
@@ -2654,6 +2653,8 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
           }
           if (input.autosquash) {
             args.push('--autosquash', '--interactive');
+          } else {
+            args.push('--no-autosquash');
           }
         }
         args.push(
