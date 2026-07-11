@@ -141,8 +141,9 @@ reminder-store/
     <id>.json          # one document per reminder; nextTickAt is absolute epoch ms
 ```
 
-Writes use write-then-`move` for atomic replacement where the backing does
-not already guarantee atomic `write` (open question 1).
+Writes use write-then-`move` within the store directory for atomic
+replacement. The atomicity of a direct `write` varies by backing and is not
+relied upon; write-then-`move` within a directory is (design decision 9).
 
 ### Wake-on-restart: retention by the integration
 
@@ -159,10 +160,12 @@ explicit and integration-owned:
   time (or a later `storeIdentifier` into `@pins`) is sufficient. On the
   next boot, `revivePins()` provides the identifier, the worker incarnates
   the plugin, and `make()` runs recovery.
-- The **Familiar app** and the **online Gateway** each own this retention for
-  their deployments, out of band; daemon core gains no reminder-specific
-  revival logic. Which of the two documents the first worked integration is
-  open question 2.
+- For now the retention is **user-driven**: the user follows the
+  `@endo/reminder` README instructions to place the reminder service in
+  `@pins` for incarnation-on-start (design decision 10). The **Familiar app**
+  and the **online Gateway** may each own this retention automatically for
+  their deployments later, out of band; daemon core gains no
+  reminder-specific revival logic either way.
 - **Unpinning decommissions.** Removing the pin means the scheduler does not
   wake next boot; its durable store remains until the integration deletes it.
 
@@ -210,7 +213,8 @@ deliver a single catch-up reminder message, persist, re-arm.
 | [platform-fs](platform-fs.md) | The virtual file system providing the durable store |
 | [fs-interface-reconciliation](fs-interface-reconciliation.md) | The reconciled writable-tree verbs the store contract names |
 | [endoclaw-proactive-messages](endoclaw-proactive-messages.md) | Depends on this design (composes scheduled messages with data capabilities and `send()`) |
-| [familiar-daemon-bundling](familiar-daemon-bundling.md), [endo-gateway](endo-gateway.md) | Candidate owners of the live-reference retention (open question 2) |
+| [familiar-daemon-bundling](familiar-daemon-bundling.md), [endo-gateway](endo-gateway.md) | Candidate future owners of the live-reference retention (user-driven via README for now, design decision 10) |
+| SturdyRef modelling ([#539](https://github.com/endojs/endo-but-for-bots/pull/539), [#521](https://github.com/endojs/endo-but-for-bots/pull/521), [#541](https://github.com/endojs/endo-but-for-bots/pull/541)) | Phase 2 `send` + `storeValue` delivery is gated on it (see *Gating dependency: SturdyRef modelling*) |
 
 ## Implementation Phases
 
@@ -222,9 +226,11 @@ test suite running on `makeInMemoryFilesystem`.
 
 ### Phase 2: Delivery and response (S)
 
-Reminder-message delivery through the powers' mail surface with the one-shot
-`ReminderResponse` attached (resolving open question 3), firing timeout with
-auto-resolve, exponential backoff on reschedule.
+Reminder-message delivery through the powers' mail surface via `send` with
+the one-shot `ReminderResponse` attached, the service retaining the response
+(and any data capabilities) via `storeValue` (design decision 11), firing
+timeout with auto-resolve, exponential backoff on reschedule. This phase is
+gated on SturdyRef progress (see *Gating dependency: SturdyRef modelling*).
 
 ### Phase 3: Integration and revival (S)
 
@@ -262,23 +268,72 @@ demonstrating restart-survival end to end.
 8. Considered and rejected: keeping the daemon-formula integration of #609.
    Reason: the review; the feature does not benefit from deep daemon
    integration.
+9. **Atomic replacement is write-then-`move`, not backing-level atomic
+   `write`.** Maintainer review of this PR (2026-07-11): the atomicity of a
+   direct `write` varies by implementation and cannot be relied upon;
+   write-then-`move` within a directory can be. Resolves former open
+   question 1.
+10. **The reference `@pins` recipe lives in the package README, user-driven
+    for now.** Maintainer review (2026-07-11): for now we rely on the user to
+    follow the `@endo/reminder` README instructions to place the reminder
+    service in `@pins` for incarnation-on-start. No integration owns the
+    retention automatically yet (the Familiar app / online Gateway remain
+    candidate future owners). Resolves former open question 2.
+11. **Delivery is `send`, retaining capabilities via `storeValue`.**
+    Maintainer review (2026-07-11): the mail verb is `send`; because `send`
+    requires the sender to retain the capabilities it attaches, the reminder
+    service retains the one-shot `ReminderResponse` (and any data
+    capabilities) via `storeValue`, which holds durable values anonymously
+    under a single name. Resolves former open question 3, and is **gated on
+    SturdyRef progress** — see the next-but-one section.
 
 ## Open Questions
 
-1. What is the exact durable-store contract: which
-   `@endo/platform/fs/extended` verbs must the granted directory support,
-   and is atomic replacement expressed as write-then-`move` or delegated to
-   a backing-level atomic `write`?
-2. Which integration owns live-reference retention first, the Familiar app
-   or the online Gateway, and does the reference `@pins` recipe live in the
-   package README or in that integration's design?
-3. Which mail verb delivers a reminder message with its one-shot
-   `ReminderResponse` attached? `EndoGuest`'s `send` requires attachments to
-   be named in the sender's store first; `sendValue` is a reply verb. The
-   fallback is direct eventual-send to a subscriber capability granted at
-   provisioning, at the cost of the mailbox's persistence and replay.
-4. Should reminder ids reuse the daemon's random-hex id discipline from
+1. Should reminder ids reuse the daemon's random-hex id discipline from
    #609's injected id generator, or the platform's content-addressed ids?
+
+## Gating dependency: SturdyRef modelling
+
+Design decision 11 (delivery via `send` + `storeValue`) depends on SturdyRef
+modelling maturing far enough that the reminder service can (a) obtain a
+SturdyRef for a durable value it holds under `storeValue`, by-value or
+by-name, without knowing the value's identifier or locator, and (b) later
+pass that SturdyRef in place of a pet name when it `send`s the reminder
+message. The maintainer flagged (2026-07-11) that this reminder increases the
+urgency of that modelling. State of the SturdyRef work in this repo:
+
+| Design / PR | State | Relationship |
+|---|---|---|
+| [#510](https://github.com/endojs/endo-but-for-bots/pull/510) design: sturdy-refs in pass-style + endor-syscall retention | closed | Origin design; the `endor`-syscall retention direction was abandoned |
+| [#511](https://github.com/endojs/endo-but-for-bots/pull/511) design: sturdy-refs + `FinalizationRegistry` retention | open | Competing retention plan; its "competing plans" framing is withdrawn per #539 |
+| [#539](https://github.com/endojs/endo-but-for-bots/pull/539) design: on-demand enlivenment via the closely-held OCapN network capability | open (draft) | Current design: `'sturdyref'` pass-style + OCapN boxing + read-side pet-name-path substitute + on-demand enlivenment |
+| [#521](https://github.com/endojs/endo-but-for-bots/pull/521) feat(pass-style): first-class `'sturdyref'` pass-style; ocapn defers | open (draft) | Pass-style + `@endo/ocapn` implementation slice of the design |
+| [#541](https://github.com/endojs/endo-but-for-bots/pull/541) feat(daemon): SturdyRef read-side threading + retention edges | open | Daemon read-side threading (`lookup`/`identify`/`locate`/`evaluate`); write/send guards intentionally untouched |
+
+**Covered** by the above: a first-class `'sturdyref'` pass-style category;
+OCapN wire boxing/unboxing and on-demand enlivenment; and threading a
+SturdyRef through the daemon **read-side** facet methods
+(`lookup`/`identify`/`locate`/`evaluate`/`makeUnconfined`) so a confined
+guest can name a formula without a locator or a pet name.
+
+**Gaps** this reminder needs closed, not covered by any current design or PR:
+
+1. **Obtaining a SturdyRef for a durable value, by-name or by-value.** The
+   designs mint a SturdyRef from a locator and enliven one on demand, but
+   none exposes a daemon verb that hands back a SturdyRef for an existing
+   durable value the agent already holds or stored under `storeValue`. The
+   reminder service needs exactly this to turn a `storeValue`'d response
+   capability into a sendable reference. (Maintainer requirement (b).)
+2. **The write/send side of pet-name-path substitution.** #541 threads
+   SturdyRefs through the read-side guards only and explicitly leaves the
+   write/rename guards untouched; `send`/`sendValue` do not yet accept a
+   SturdyRef in place of a pet name for the attachment being sent. Delivery
+   via `send` needs that write-side surface. (Maintainer requirement (a).)
+
+Until both gaps close, Phase 2 delivery falls back to the direct
+eventual-send-to-a-subscriber-capability option (a subscriber capability
+granted at provisioning), at the cost of the mailbox's persistence and
+replay.
 
 ## Prompt
 
