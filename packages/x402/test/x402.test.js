@@ -57,6 +57,10 @@ const mockFacilitator = {
   }),
 };
 
+/**
+ * @param {number} status
+ * @param {{ json?: any, headers?: Record<string, string> }} [options]
+ */
 const makeResponse = (status, { json, headers = {} } = {}) => ({
   status,
   ok: status >= 200 && status < 300,
@@ -66,17 +70,19 @@ const makeResponse = (status, { json, headers = {} } = {}) => ({
 });
 
 // A fetch backed by a paywall: 402 until a valid X-PAYMENT arrives.
-const makePaywallFetch = paywall => async (url, init = {}) => {
-  const header = new Headers(init.headers || {}).get('X-PAYMENT');
-  const result = await paywall.collect(header);
-  if (!result.ok) {
-    return makeResponse(402, { json: result.challenge });
-  }
-  return makeResponse(200, {
-    json: { ok: true },
-    headers: { [paywall.paymentResponseHeader]: result.settlementHeader },
-  });
-};
+const makePaywallFetch =
+  paywall =>
+  async (url, init = {}) => {
+    const header = new Headers(init.headers || {}).get('X-PAYMENT');
+    const result = await paywall.collect(header);
+    if (!result.ok) {
+      return makeResponse(402, { json: result.challenge });
+    }
+    return makeResponse(200, {
+      json: { ok: true },
+      headers: { [paywall.paymentResponseHeader]: result.settlementHeader },
+    });
+  };
 
 test('header codec round-trips JSON', t => {
   const value = { a: 1, b: 'two', c: [3, { d: true }] };
@@ -118,7 +124,10 @@ test('selectExactRequirement honors network filter and maxValue cap', t => {
     { scheme: 'exact', network: 'eip155:8453', amount: '5000' },
     { scheme: 'exact', network: 'eip155:84532', amount: '10000' },
   ];
-  t.is(selectExactRequirement(accepts, { network: 'eip155:84532' }).amount, '10000');
+  t.is(
+    selectExactRequirement(accepts, { network: 'eip155:84532' }).amount,
+    '10000',
+  );
   t.is(selectExactRequirement(accepts, { maxValue: 6000n }).amount, '5000');
   t.is(selectExactRequirement(accepts, { maxValue: 100n }), undefined);
 });
@@ -133,17 +142,14 @@ test('client pays a paywall challenge end to end', async t => {
   });
   const { seen, signer } = makeMockSigner();
   const client = makeX402Client({
-    fetch: makePaywallFetch(paywall),
+    fetch: /** @type {typeof fetch} */ (makePaywallFetch(paywall)),
     signer,
     now: () => 1_800_000_000,
     makeNonce: () => `0x${'11'.repeat(32)}`,
   });
 
-  const { paid, response, requirement, payment } = await client.fetchWithPayment(
-    RESOURCE,
-    {},
-    { network: 'eip155:84532' },
-  );
+  const { paid, response, requirement, payment } =
+    await client.fetchWithPayment(RESOURCE, {}, { network: 'eip155:84532' });
 
   t.true(paid);
   t.is(response.status, 200);
@@ -171,7 +177,7 @@ test('client refuses when price exceeds maxValue', async t => {
   });
   const { signer } = makeMockSigner();
   const client = makeX402Client({
-    fetch: makePaywallFetch(paywall),
+    fetch: /** @type {typeof fetch} */ (makePaywallFetch(paywall)),
     signer,
     now: () => 1_800_000_000,
     makeNonce: () => `0x${'11'.repeat(32)}`,
@@ -243,11 +249,11 @@ test('escrow deposit + release settles the held authorization', async t => {
   );
   const ticket = await escrow.deposit({ paymentPayload, requirements });
   t.is(ticket.payer, PAYER);
-  t.is(escrow.status(ticket.id).status, 'held');
+  t.is(escrow.status(ticket.id)?.status, 'held');
 
   const released = await escrow.release(ticket.id);
   t.is(released.settlement.success, true);
-  t.is(escrow.status(ticket.id).status, 'released');
+  t.is(escrow.status(ticket.id)?.status, 'released');
 });
 
 test('escrow abort refunds by inaction and blocks later release', async t => {
@@ -264,7 +270,7 @@ test('escrow abort refunds by inaction and blocks later release', async t => {
 
   const refunded = escrow.abort(ticket.id);
   t.true(refunded.refunded);
-  t.is(escrow.status(ticket.id).status, 'aborted');
+  t.is(escrow.status(ticket.id)?.status, 'aborted');
   await t.throwsAsync(() => escrow.release(ticket.id), {
     message: /already aborted/,
   });
