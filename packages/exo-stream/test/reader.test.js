@@ -4,13 +4,16 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 import { Far } from '@endo/pass-style';
+import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 import assert from 'node:assert/strict';
 
 import { readerFromIterator } from '../reader-from-iterator.js';
 import { iterateReader } from '../iterate-reader.js';
 
+/** @import { ERef } from '@endo/eventual-send' */
 /** @import { Passable } from '@endo/pass-style' */
+/** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { ReaderIterator, StreamNode } from '../types.js' */
 
 test('passable reader round-trip', async t => {
@@ -45,6 +48,48 @@ test('passable reader round-trip', async t => {
     t.deepEqual(results[i], values[i]);
   }
 });
+
+test('reader rejects an invalid synchronization node without an unhandled producer rejection', async t => {
+  const readerRef = readerFromIterator([1]);
+  const invalidNode = /** @type {ERef<StreamNode>} */ (
+    /** @type {unknown} */ (Promise.resolve(undefined))
+  );
+
+  await t.throwsAsync(() => readerRef.stream(invalidNode), {
+    message: /invalid node/,
+  });
+});
+
+test.serial(
+  'reader observes an abandoned acknowledgement rejection',
+  async t => {
+    /** @type {unknown[]} */
+    const unhandledReasons = [];
+    /** @param {unknown} reason */
+    const onUnhandledRejection = reason => {
+      unhandledReasons.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandledRejection);
+    t.teardown(() => {
+      process.off('unhandledRejection', onUnhandledRejection);
+    });
+
+    /** @type {PromiseKit<StreamNode>} */
+    const { promise: synTail, resolve: synTailResolve } = makePromiseKit();
+    const readerRef = readerFromIterator([1]);
+    const acknowledgement = await readerRef.stream(
+      Promise.resolve(harden({ value: undefined, promise: synTail })),
+    );
+
+    t.is(acknowledgement.value, 1);
+    synTailResolve(
+      /** @type {StreamNode} */ (/** @type {unknown} */ (undefined)),
+    );
+    await delay(0);
+
+    t.deepEqual(unhandledReasons, []);
+  },
+);
 
 test('empty passable reader', async t => {
   async function* emptyIterator() {
