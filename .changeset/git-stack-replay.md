@@ -2,7 +2,7 @@
 '@endo/git': minor
 '@endo/exo-git': major
 '@endo/agent-tools': minor
-'@endo/agentry': minor
+'@endo/agentry': major
 ---
 
 Add cherry-pick and structured autosquash rebase operations to the Git APIs.
