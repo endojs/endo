@@ -2,6 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { GitScenario } from '../../types.js' */
+/** @import { GitCommitTarget } from './types.js' */
 
 import { assertGitCommitOutcome } from './outcome.js';
 
@@ -21,7 +22,7 @@ import { assertGitCommitOutcome } from './outcome.js';
  * @param {string} [options.content] The untracked file's content. Default a
  *   one-line README.
  * @param {string} [options.message] The commit message the agent must use.
- * @returns {GitScenario}
+ * @returns {GitScenario<GitCommitTarget>}
  */
 export const makeStageAndCommitScenario = ({
   path = 'README.md',

@@ -16,9 +16,9 @@ import {
 
 import {
   makeRunMetricsRecorder,
-  makeStageAndCommitScenario,
   runGitScenario,
 } from '../../src/eval/index.js';
+import { makeStageAndCommitScenario } from '../../src/eval/scenarios/stage-and-commit/index.js';
 import { readText } from '../_eval-fixture.js';
 import { provisionStageAndCommitRepo } from './_stage-and-commit-repo.js';
 

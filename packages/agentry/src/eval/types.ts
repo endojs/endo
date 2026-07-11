@@ -29,29 +29,17 @@ export interface OutcomeReport {
 }
 
 /**
- * The end-state a stage-and-commit scenario is scored against.
- */
-export interface GitCommitTarget {
-  /** Repository-relative path the scenario commits. */
-  path: string;
-  /** The exact UTF-8 content the committed file must carry at HEAD. */
-  content: string;
-  /** The exact commit message HEAD must carry. */
-  message: string;
-}
-
-/**
  * A git code-mode eval scenario: a self-contained, model-agnostic description
  * of one task plus its outcome assertion. The same scenario is driven by a
  * scripted faux model (the no-LLM assertion-path test) and by a live model (a
  * credentialed run), so it holds no model and no provisioning — only the
  * prompt, the target end-state, and the cap-based assertion.
  */
-export interface GitScenario {
+export interface GitScenario<Expected = unknown> {
   name: string;
   /** The user turn handed to the code-mode agent. */
   prompt: string;
-  expected: GitCommitTarget;
+  expected: Expected;
   assertOutcome: (args: {
     git: unknown;
     workspace: unknown;
@@ -97,7 +85,7 @@ export interface RunMetrics {
   wallTimeMs: number;
 }
 
-export interface RunGitScenarioOptions {
+export interface RunGitScenarioOptions<Expected = unknown> {
   /** The model under eval (faux or live). */
   model: Model<string>;
   /**
@@ -108,7 +96,7 @@ export interface RunGitScenarioOptions {
    * A live read/write `@endo/exo-git` Git capability over the same repository.
    */
   git: unknown;
-  scenario: GitScenario;
+  scenario: GitScenario<Expected>;
   /**
    * Read a committed File's content as UTF-8; passed through to the scenario's
    * outcome assertion.

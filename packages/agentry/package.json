@@ -58,6 +58,7 @@
     "@earendil-works/pi-agent-core": "^0.80.3",
     "@earendil-works/pi-ai": "^0.80.3",
     "@endo/agent-tools": "workspace:^",
+    "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo-git": "workspace:^",
     "@endo/far": "workspace:^",
@@ -75,6 +76,7 @@
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev",
+    "fast-check": "^4.9.0",
     "typescript": "catalog:dev"
   },
   "files": [

@@ -54,8 +54,8 @@ so each eval gets its own folder.
 
 Shared harness (this directory's root):
 
-- `index.js` — the `@endo/agentry/eval` export surface: re-exports the shared
-  harness and each eval's public symbols (the per-folder barrels).
+- `index.js` — the `@endo/agentry/eval` export surface: re-exports only the
+  shared harness.
 - `run.js` — `runGitScenario({ model, workspace, git, scenario, readText, ... })`:
   builds the real code-mode git-loop agent, runs the scenario prompt, and scores
   by outcome assertion while returning diagnostic run metrics. Only the `model`
@@ -66,32 +66,45 @@ Shared harness (this directory's root):
 - `env-model.js` — `resolveEvalModelFromEnv(env)`: build a live model +
   `getApiKey` from the `ENDO_LLM_*` / `LAL_*` environment variables, or
   `undefined` when no credentials are present.
-- `types.js` — `GitScenario`, `ReadText`: the contract every scenario
-  implements.
+- `types.js` — shared contracts such as `GitScenario`, `ReadText`, outcome
+  reports, and runner options.
 - `outcome-kit.js` — the shared outcome primitives: `check()`, the `OutcomeReport`
   shape, and the small shared readers (`readTrackedFileAt` reads a tracked file
   at a ref through `filesystemAt`; `branchLog` resolves a branch's commit list).
   Per-eval scorers build on these so each stays short. Cap-based and portable;
   the byte reader is injected.
 
-Per-eval content (one folder under `scenarios/`):
+Per-eval content is internal to this package (one folder under `scenarios/`):
 
+- `scenarios/conflict-rebase/` — the conflict-rebase eval: `scenario.js`
+  asks the agent to rebase a feature branch onto `integration`, resolve the
+  `app.txt` conflict with the requested combined wording, and preserve both
+  notes; `outcome.js` verifies the branch topology, replayed summaries and
+  fresh oids, caller-supplied post-resolution patches, exact final tree and file
+  content, clean status, and completed rebase state.
+  `types.ts` keeps the conflict-rebase target shape beside its scenario and
+  scorer.
+  Its folder-local barrel connects the implementation to the package's tests
+  and live-eval registry; these scenario-specific symbols are not part of the
+  `@endo/agentry/eval` public API.
 - `scenarios/stage-and-commit/` — the minimal-success eval: `scenario.js`
   (`makeStageAndCommitScenario(...)`, stage an untracked file and commit it with
   a given message), `outcome.js` (`assertGitCommitOutcome(...)`, the scorer that
   reads HEAD's commit message, the file tracked at HEAD and its content, and the
-  working-tree status), and `index.js` (the two-line barrel re-exporting both).
+  working-tree status), `types.ts` (the local target shape), and `index.js` (the
+  folder-local barrel).
 
 A scenario's no-LLM assertion-path test and its per-eval repository fixture live
 together under `test/eval/` (see "Running" below), mirroring this source layout.
 
 ## Running
 
-- **No credentials (anywhere):** `test/eval/stage-and-commit.test.js` runs the
-  full harness with a scripted faux provider standing in for the model. This is
-  the assertion-path test; it needs no network and no secrets, and each eval's
-  test co-locates with its per-eval repository fixture (`_stage-and-commit-repo.js`)
-  under `test/eval/`. It runs under the default `yarn test`.
+- **No credentials (anywhere):** `test/eval/*.test.js` runs the full harness
+  with a scripted faux provider standing in for the model.
+  These are the assertion-path tests; they need no network and no secrets, and
+  each eval's test co-locates with its per-eval repository fixture under
+  `test/eval/`.
+  They run under the default `yarn test`.
 - **Live model (credentialed host):** `test/eval-live.test.js` runs the same
   scenarios and scorers against a real provider, table-driven over a registry
   with one row per eval. It is **not** part of the default `yarn test`: it runs

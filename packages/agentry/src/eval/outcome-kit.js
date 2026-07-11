@@ -4,6 +4,7 @@
 /** @import { OutcomeCheck, ReadText } from './types.js' */
 
 import { E } from '@endo/eventual-send';
+import { Fail } from '@endo/errors';
 
 /**
  * One outcome check: a named pass/fail with a human-readable detail string.
@@ -41,10 +42,16 @@ harden(check);
  */
 export const readTrackedFileAt = async ({ git, readText, ref, path }) => {
   const gitRef = /** @type {any} */ (git);
+  const parts = Reflect.apply(String.prototype.split, path, ['/']);
+  parts.every(part => part !== '' && part !== '..') ||
+    Fail`path must be a non-empty relative path without "..": ${path}`;
   try {
     const committedFs = await E(gitRef).filesystemAt(ref);
     const committedRoot = await E(committedFs).root();
-    const file = await E(committedRoot).lookup(path);
+    const file = await parts.reduce(
+      (nodeP, part) => E(nodeP).lookup(part),
+      committedRoot,
+    );
     return await readText(file);
   } catch (err) {
     const message = /** @type {Error} */ (err)?.message ?? '';

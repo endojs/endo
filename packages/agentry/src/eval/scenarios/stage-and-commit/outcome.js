@@ -1,7 +1,8 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { GitCommitTarget, OutcomeReport, ReadText } from '../../types.js' */
+/** @import { OutcomeReport, ReadText } from '../../types.js' */
+/** @import { GitCommitTarget } from './types.js' */
 
 import { E } from '@endo/eventual-send';
 
