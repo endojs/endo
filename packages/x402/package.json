@@ -1,0 +1,84 @@
+{
+  "name": "@endo/x402",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An ocap-style x402 payment connector for Base — pay for and sell HTTP resources with USDC over the HTTP 402 protocol.",
+  "keywords": [
+    "x402",
+    "payment",
+    "base",
+    "usdc",
+    "http-402",
+    "ocap",
+    "endo"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/x402#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/x402"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./src/constants.js": "./src/constants.js",
+    "./src/codec.js": "./src/codec.js",
+    "./src/authorization.js": "./src/authorization.js",
+    "./src/client.js": "./src/client.js",
+    "./src/facilitator.js": "./src/facilitator.js",
+    "./src/seller.js": "./src/seller.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
+    "test": "ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "test:xs": "exit 0"
+  },
+  "dependencies": {
+    "@endo/base64": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/lockdown": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "tsd": "catalog:dev",
+    "typescript": "catalog:dev"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "src",
+    "demo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
+  }
+}
