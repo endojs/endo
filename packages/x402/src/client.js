@@ -104,6 +104,42 @@ export const makeX402Client = ({
    * @param {RequestInit} [init]
    * @param {{ network?: string, maxValue?: bigint | string | number }} [opts]
    */
+  /**
+   * Build and sign a payment payload for one requirement, *without*
+   * submitting it. This is the escrow-friendly primitive: the returned
+   * payload is a signed EIP-3009 authorization that a holder can settle
+   * later (release) or let expire (refund), so a neutral agent can hold
+   * it in escrow while never taking custody of funds.
+   *
+   * @param {any} requirement the chosen `accepts[]` entry
+   * @param {any} [resource] the resource descriptor to echo back
+   * @returns {Promise<any>} a `PaymentPayload`
+   */
+  const createPayment = async (requirement, resource) => {
+    const nowSeconds = now();
+    const validAfter = 0;
+    const validBefore =
+      nowSeconds + (Number(requirement.maxTimeoutSeconds) || 60);
+    const nonce = makeNonce();
+
+    const { authorization, typedData } = buildExactEvmAuthorization({
+      requirement,
+      from: signer.address,
+      nonce,
+      validAfter,
+      validBefore,
+    });
+
+    const signature = await signer.signTypedData(typedData);
+
+    return harden({
+      x402Version: X402_VERSION,
+      resource,
+      accepted: requirement,
+      payload: { signature, authorization },
+    });
+  };
+
   const fetchWithPayment = async (url, init = {}, opts = {}) => {
     const first = await fetch(url, init);
     if (first.status !== 402) {
@@ -122,28 +158,7 @@ export const makeX402Client = ({
       );
     }
 
-    const nowSeconds = now();
-    const validAfter = 0;
-    const validBefore =
-      nowSeconds + (Number(requirement.maxTimeoutSeconds) || 60);
-    const nonce = makeNonce();
-
-    const { authorization, typedData } = buildExactEvmAuthorization({
-      requirement,
-      from: signer.address,
-      nonce,
-      validAfter,
-      validBefore,
-    });
-
-    const signature = await signer.signTypedData(typedData);
-
-    const paymentPayload = harden({
-      x402Version: X402_VERSION,
-      resource: challenge.resource,
-      accepted: requirement,
-      payload: { signature, authorization },
-    });
+    const paymentPayload = await createPayment(requirement, challenge.resource);
 
     const headers = new Headers(init.headers || {});
     headers.set(PAYMENT_HEADER, encodeHeaderObject(paymentPayload));
@@ -162,6 +177,6 @@ export const makeX402Client = ({
     return { response: paid, paid: true, requirement, payment };
   };
 
-  return harden({ fetchWithPayment });
+  return harden({ fetchWithPayment, createPayment });
 };
 harden(makeX402Client);

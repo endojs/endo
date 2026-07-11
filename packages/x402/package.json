@@ -34,6 +34,7 @@
     "./src/client.js": "./src/client.js",
     "./src/facilitator.js": "./src/facilitator.js",
     "./src/seller.js": "./src/seller.js",
+    "./src/escrow.js": "./src/escrow.js",
     "./package.json": "./package.json"
   },
   "scripts": {

@@ -88,6 +88,38 @@ const { paid, response, payment } = await client.fetchWithPayment(
 The client refuses rather than paying when no offered requirement fits the
 caller's `network`/`maxValue` constraints.
 
+## Escrow exchange (the main use case)
+
+x402's `exact` scheme is itself an escrow primitive. The payer signs an
+EIP-3009 authorization — a *deferred* instrument that moves no funds until
+someone submits it and voids after its `validBefore` deadline. A neutral
+agent can **hold** the signed authorization and either **release** it
+(settle) once the counter-obligation is met, or **abort** / let it expire
+so no funds ever move. The agent never takes custody of funds; the worst a
+malicious one can do is settle a transfer the payer already authorized
+(bounded by amount and deadline) or refuse to (the payer keeps the money).
+
+```js
+import { makeX402Client, makeEscrowAgent } from '@endo/x402';
+
+const client = makeX402Client({ fetch, signer });
+const escrow = makeEscrowAgent({ facilitator });
+
+// Buyer signs an authorization for the agreed requirement — no live 402.
+const payment = await client.createPayment(requirement, { url: resource });
+
+// Agent holds it (verified but unsettled — nothing has moved on-chain).
+const { id } = await escrow.deposit({ paymentPayload: payment, requirements });
+
+// On delivery confirmation, release settles to the seller...
+await escrow.release(id);
+// ...or on dispute/timeout, abort — the payer is refunded by inaction.
+// escrow.abort(id);
+```
+
+A two-legged atomic swap layers two escrows: each party deposits an
+authorization and a coordinator releases both only once both are held.
+
 ## Wiring a real signer
 
 The `signer` is deliberately abstract so the key can live behind whatever
@@ -112,6 +144,10 @@ is free to refuse.
 - `makePaywall({ payTo, amount, facilitator, network?, asset?, resource?,
   description?, maxTimeoutSeconds? })` → `{ requirement, challenge, collect,
   paymentResponseHeader }`
+- `makeX402Client(...).createPayment(requirement, resource?)` → a signed
+  `PaymentPayload` to submit later (the escrow-friendly primitive).
+- `makeEscrowAgent({ facilitator, now? })` → `{ deposit, release, abort,
+  status }`
 - `makeFacilitatorClient({ fetch, baseUrl, headers? })` → `{ verify, settle,
   supported }`
 - `buildExactEvmAuthorization({ requirement, from, nonce, validAfter,

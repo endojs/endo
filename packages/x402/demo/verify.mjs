@@ -19,6 +19,7 @@ globalThis.harden ||= Object.freeze;
 
 const { makeX402Client } = await import('../src/client.js');
 const { makePaywall } = await import('../src/seller.js');
+const { makeEscrowAgent } = await import('../src/escrow.js');
 const { decodeHeaderObject } = await import('../src/codec.js');
 const { resolveNetwork } = await import('../src/constants.js');
 
@@ -187,3 +188,59 @@ assert(refused, 'client should refuse when the price exceeds maxValue');
 console.log('x402 connector end-to-end verify: PASS');
 console.log(`  settled ${payment.amount} atomic USDC to ${PAY_TO}`);
 console.log(`  on ${payment.network} (tx ${payment.transaction.slice(0, 12)}...)`);
+
+// ---- Escrow exchange: the payer signs an authorization the escrow agent
+// holds and releases only on delivery — and, in the abort case, never
+// settles, so the payer is refunded by inaction. Both legs run over the
+// same primitives, proving x402 is a usable escrow rail. ----
+const escrowRequirement = paywall.requirement();
+
+// (a) Happy path: deposit -> release settles to the recipient.
+const escrow = makeEscrowAgent({ facilitator, now: () => 1_800_000_000 });
+const escrowClient = makeX402Client({
+  fetch,
+  signer,
+  now: () => 1_800_000_000,
+  makeNonce: () => `0x${'22'.repeat(32)}`,
+});
+const escrowedPayment = await escrowClient.createPayment(
+  escrowRequirement,
+  { url: RESOURCE },
+);
+const ticket = await escrow.deposit({
+  paymentPayload: escrowedPayment,
+  requirements: escrowRequirement,
+});
+assert(ticket.payer === PAYER, 'escrow deposit payer mismatch');
+assert(escrow.status(ticket.id).status === 'held', 'deposit should be held');
+const released = await escrow.release(ticket.id);
+assert(released.settlement.success === true, 'escrow release should settle');
+assert(escrow.status(ticket.id).status === 'released', 'status should be released');
+
+// (b) Refund path: a second deposit is aborted; funds never move.
+const abortClient = makeX402Client({
+  fetch,
+  signer,
+  now: () => 1_800_000_000,
+  makeNonce: () => `0x${'33'.repeat(32)}`,
+});
+const abortPayment = await abortClient.createPayment(escrowRequirement, {
+  url: RESOURCE,
+});
+const abortTicket = await escrow.deposit({
+  paymentPayload: abortPayment,
+  requirements: escrowRequirement,
+});
+const refunded = escrow.abort(abortTicket.id);
+assert(refunded.refunded === true, 'abort should refund by inaction');
+let releaseAfterAbortRejected = false;
+try {
+  await escrow.release(abortTicket.id);
+} catch (error) {
+  releaseAfterAbortRejected = /already aborted/.test(error.message);
+}
+assert(releaseAfterAbortRejected, 'cannot release an aborted escrow');
+
+console.log('x402 escrow exchange verify: PASS');
+console.log(`  released escrow ${released.id.slice(0, 10)}... to ${PAY_TO}`);
+console.log(`  aborted escrow ${abortTicket.id.slice(0, 10)}... — payer refunded`);

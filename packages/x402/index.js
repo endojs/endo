@@ -11,3 +11,4 @@ export { buildExactEvmAuthorization } from './src/authorization.js';
 export { makeX402Client, selectExactRequirement } from './src/client.js';
 export { makeFacilitatorClient } from './src/facilitator.js';
 export { makePaywall } from './src/seller.js';
+export { makeEscrowAgent } from './src/escrow.js';

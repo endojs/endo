@@ -12,6 +12,7 @@ import {
   selectExactRequirement,
   makeX402Client,
   makePaywall,
+  makeEscrowAgent,
   resolveNetwork,
 } from '../index.js';
 
@@ -207,4 +208,79 @@ test('paywall.collect rejects a malformed payment header', async t => {
   const result = await paywall.collect('!!!not-base64-json!!!');
   t.false(result.ok);
   t.is(result.reason, 'malformed-payment');
+});
+
+// A requirement usable directly, without a live 402 round-trip.
+const escrowRequirement = () => ({
+  scheme: 'exact',
+  network: resolveNetwork('base-sepolia').caip2,
+  amount: `${PRICE}`,
+  asset: resolveNetwork('base-sepolia').usdc,
+  payTo: PAY_TO,
+  maxTimeoutSeconds: 60,
+  extra: { name: 'USD Coin', version: '2' },
+});
+
+const makeEscrowClient = nonceByte =>
+  makeX402Client({
+    fetch: async () => {
+      throw new Error('unused');
+    },
+    signer: makeMockSigner().signer,
+    now: () => 1_800_000_000,
+    makeNonce: () => `0x${nonceByte.repeat(32)}`,
+  });
+
+test('escrow deposit + release settles the held authorization', async t => {
+  const escrow = makeEscrowAgent({
+    facilitator: mockFacilitator,
+    now: () => 1_800_000_000,
+  });
+  const requirements = escrowRequirement();
+  const paymentPayload = await makeEscrowClient('22').createPayment(
+    requirements,
+    { url: RESOURCE },
+  );
+  const ticket = await escrow.deposit({ paymentPayload, requirements });
+  t.is(ticket.payer, PAYER);
+  t.is(escrow.status(ticket.id).status, 'held');
+
+  const released = await escrow.release(ticket.id);
+  t.is(released.settlement.success, true);
+  t.is(escrow.status(ticket.id).status, 'released');
+});
+
+test('escrow abort refunds by inaction and blocks later release', async t => {
+  const escrow = makeEscrowAgent({
+    facilitator: mockFacilitator,
+    now: () => 1_800_000_000,
+  });
+  const requirements = escrowRequirement();
+  const paymentPayload = await makeEscrowClient('33').createPayment(
+    requirements,
+    { url: RESOURCE },
+  );
+  const ticket = await escrow.deposit({ paymentPayload, requirements });
+
+  const refunded = escrow.abort(ticket.id);
+  t.true(refunded.refunded);
+  t.is(escrow.status(ticket.id).status, 'aborted');
+  await t.throwsAsync(() => escrow.release(ticket.id), {
+    message: /already aborted/,
+  });
+});
+
+test('escrow refuses to release an expired authorization', async t => {
+  const requirements = escrowRequirement();
+  const paymentPayload = await makeEscrowClient('44').createPayment(
+    requirements,
+    { url: RESOURCE },
+  );
+  // Deposit under a clock inside the window, then release past validBefore.
+  const escrow = makeEscrowAgent({
+    facilitator: mockFacilitator,
+    now: () => 1_800_000_000 + 120,
+  });
+  const ticket = await escrow.deposit({ paymentPayload, requirements });
+  await t.throwsAsync(() => escrow.release(ticket.id), { message: /expired/ });
 });
