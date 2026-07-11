@@ -40,6 +40,12 @@ Every `runGitScenario` result includes `metrics` alongside `outcome`.
 The metrics record summed provider token usage, including reasoning tokens when reported, total provider cost, completed turns, assistant messages, tool executions, tool execution errors, and wall time for the agent run.
 They come from the same pi-agent-core event stream that powers diagnostics, so they report the real provider usage carried by assistant messages instead of estimating from transcript text.
 
+Callers that need durable diagnostics can pass `onEvent` to receive the same
+agent events. The live test uses this seam to write sanitized event summaries
+and one result record per scenario to the directory named by
+`ENDO_EVAL_ARTIFACT_DIR`; it does not copy prompts, generated code, or
+capability-bearing result details.
+
 Metrics are recorded for comparison and reporting only.
 The scenario's outcome assertion remains the only pass/fail gate.
 
@@ -58,8 +64,9 @@ Shared harness (this directory's root):
   shared harness.
 - `run.js` — `runGitScenario({ model, workspace, git, scenario, readText, ... })`:
   builds the real code-mode git-loop agent, runs the scenario prompt, and scores
-  by outcome assertion while returning diagnostic run metrics. Only the `model`
-  differs between a no-LLM run and a live run.
+  by outcome assertion while returning diagnostic run metrics. An optional
+  `onEvent` listener receives the agent event stream. Only the `model` differs
+  between a no-LLM run and a live run.
 - `metrics.js` — `makeRunMetricsRecorder()`: subscribes to plain
   pi-agent-core events and snapshots per-run usage, turn, tool execution, and
   wall-time metrics.

@@ -32,6 +32,7 @@ export const runGitScenario = async ({
   getApiKey,
   thinkingLevel,
   streamFn,
+  onEvent,
 }) => {
   const agent = makeCodeModeGitLoopAgent({
     model,
@@ -46,11 +47,14 @@ export const runGitScenario = async ({
   // directly rather than through eventual-send, matching the code-mode tests.
   const metricsRecorder = makeRunMetricsRecorder();
   const unsubscribeMetrics = agent.subscribe(metricsRecorder.listener);
+  const unsubscribeEvents =
+    onEvent === undefined ? undefined : agent.subscribe(onEvent);
   await null; // safe-await-separator
   try {
     await agent.prompt(scenario.prompt);
     await agent.waitForIdle();
   } finally {
+    unsubscribeEvents?.();
     unsubscribeMetrics();
   }
 

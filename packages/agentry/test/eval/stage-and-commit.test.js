@@ -223,6 +223,8 @@ test('outcome assertion passes when the scripted run reaches the target end-stat
     t,
     stageAndCommitSource(scenario.expected.path, scenario.expected.message),
   );
+  /** @type {string[]} */
+  const events = [];
 
   const { outcome, metrics } = await runGitScenario({
     model,
@@ -230,6 +232,9 @@ test('outcome assertion passes when the scripted run reaches the target end-stat
     git,
     scenario,
     readText,
+    onEvent: event => {
+      events.push(event.type);
+    },
   });
 
   t.true(
@@ -260,6 +265,9 @@ test('outcome assertion passes when the scripted run reaches the target end-stat
       metrics.usage.cacheWrite,
   );
   t.true(metrics.wallTimeMs >= 0);
+  t.true(events.includes('agent_start'));
+  t.true(events.includes('tool_execution_start'));
+  t.true(events.includes('agent_end'));
 });
 
 test('outcome assertion fails the commit-message check when the wrong message is used', async t => {
