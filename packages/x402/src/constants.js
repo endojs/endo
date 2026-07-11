@@ -47,7 +47,7 @@ export const NETWORKS = harden({
   'base-sepolia': {
     alias: 'base-sepolia',
     caip2: 'eip155:84532',
-    chainId: 84532,
+    chainId: 84_532,
     usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
   },
 });

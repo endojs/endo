@@ -59,10 +59,13 @@ export const selectExactRequirement = (accepts, opts = {}) => {
   const { network, maxValue } = opts;
   const cap = maxValue === undefined ? undefined : BigInt(maxValue);
   for (const entry of accepts || []) {
-    if (entry.scheme !== EXACT_SCHEME) continue;
-    if (network !== undefined && entry.network !== network) continue;
-    if (cap !== undefined && BigInt(entry.amount) > cap) continue;
-    return entry;
+    if (
+      entry.scheme === EXACT_SCHEME &&
+      (network === undefined || entry.network === network) &&
+      (cap === undefined || BigInt(entry.amount) <= cap)
+    ) {
+      return entry;
+    }
   }
   return undefined;
 };
@@ -168,10 +171,7 @@ export const makeX402Client = ({
     let payment;
     const settlementHeader = paid.headers.get(PAYMENT_RESPONSE_HEADER);
     if (settlementHeader) {
-      payment = decodeHeaderObject(
-        settlementHeader,
-        PAYMENT_RESPONSE_HEADER,
-      );
+      payment = decodeHeaderObject(settlementHeader, PAYMENT_RESPONSE_HEADER);
     }
 
     return { response: paid, paid: true, requirement, payment };

@@ -39,6 +39,15 @@ export const makeEscrowAgent = ({ facilitator, now = defaultNow }) => {
   }
 
   // id (the authorization nonce, unique per payment) -> record.
+  /**
+   * @typedef {{
+   *   paymentPayload: any,
+   *   requirements: any,
+   *   status: 'held' | 'released' | 'aborted' | 'expired',
+   *   expiresAt: number,
+   * }} EscrowRecord
+   */
+  /** @type {Map<string, EscrowRecord>} */
   const held = new Map();
 
   /**
@@ -78,7 +87,7 @@ export const makeEscrowAgent = ({ facilitator, now = defaultNow }) => {
     });
   };
 
-  const require_ = id => {
+  const mustGet = id => {
     const record = held.get(id);
     if (record === undefined) {
       throw new Error(`x402 escrow: no such escrow ${id}`);
@@ -94,7 +103,7 @@ export const makeEscrowAgent = ({ facilitator, now = defaultNow }) => {
    * @returns {Promise<{ id: string, settlement: any }>}
    */
   const release = async id => {
-    const record = require_(id);
+    const record = mustGet(id);
     if (record.status !== 'held') {
       throw new Error(`x402 escrow: ${id} already ${record.status}`);
     }
@@ -125,7 +134,7 @@ export const makeEscrowAgent = ({ facilitator, now = defaultNow }) => {
    * @returns {{ id: string, refunded: true, expiresAt: number }}
    */
   const abort = id => {
-    const record = require_(id);
+    const record = mustGet(id);
     if (record.status !== 'held') {
       throw new Error(`x402 escrow: ${id} already ${record.status}`);
     }
