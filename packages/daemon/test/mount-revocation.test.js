@@ -12,7 +12,7 @@ import { E } from '@endo/eventual-send';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 
-import { makeFilePowers } from '../src/daemon-node-powers.js';
+import { makeFilePowers } from '../src/manager-node-powers.js';
 import {
   makeMount,
   makeRevocableMount,

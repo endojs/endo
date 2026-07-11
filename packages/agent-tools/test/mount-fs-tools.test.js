@@ -17,7 +17,7 @@ import {
   readOnly,
 } from '@endo/platform/fs/extended';
 import { makeMount } from '@endo/daemon/src/mount.js';
-import { makeFilePowers } from '@endo/daemon/src/daemon-node-powers.js';
+import { makeFilePowers } from '@endo/daemon/src/manager-node-powers.js';
 
 import {
   makeMountReadTool,
