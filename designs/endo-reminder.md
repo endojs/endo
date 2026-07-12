@@ -77,7 +77,7 @@ maker-table entry. The plugin module exports the standard unconfined-caplet
 maker:
 
 ```js
-export const make = (powers, context) => { /* returns the reminder service */ };
+export const make = (powers, context, { env }) => { /* returns the reminder service */ };
 ```
 
 provisioned by any host through the existing generic pathway:
@@ -110,9 +110,17 @@ Node worker it runs in.
 
 1. **Durable store**: `E(powers).lookup('reminder-store')` must resolve to a
    writable virtual-file-system directory (next section).
-2. **Recipient**: the scheduler is bound to one recipient agent (the
-   one-scheduler-per-agent decision carries over); reminder messages are
-   delivered through the powers' mail surface to that recipient.
+2. **Recipient**: the scheduler is bound to one recipient — a **subscriber
+   capability resolved by name through `powers`**,
+   `E(powers).lookup('reminder-recipient')`, the same durable-name pathway as
+   the store (the one-scheduler-per-agent decision carries over). Phase 2
+   delivers each reminder message by eventual-send to that subscriber
+   capability, carrying the one-shot `ReminderResponse` as an argument. Because
+   the capability is re-resolved by name on every `make()`, it is re-obtained
+   on restart rather than held only in memory, and nothing durable is passed
+   through a mailbox — which is exactly why the Phase 2 baseline needs no
+   SturdyRef modelling (contrast the gated Phase 4 `send` path, which retains
+   the response via `storeValue`).
 3. **Limits**: initial `maxActive` / `minPeriodMs` arrive via the `env`
    option of `makeUnconfined`; thereafter `ReminderControl` adjusts them and
    the store persists them.
@@ -145,7 +153,10 @@ reminder-store/
 
 Writes use write-then-`move` within the store directory for atomic
 replacement. The atomicity of a direct `write` varies by backing and is not
-relied upon; write-then-`move` within a directory is (design decision 9).
+relied upon; instead the plugin **requires atomic within-directory `move`** of
+the store backing as a store contract. Because the plugin cannot tell what backs
+the directory, this is stated as an obligation the backing must meet, not an
+inherent VFS guarantee it can verify (design decision 9).
 
 At the expected cardinality — one scheduler per recipient agent, a handful of
 reminders — the absence of a `next_tick_at` index costs nothing: recovery is an
@@ -177,14 +188,16 @@ persisted per-reminder fields, ported from #165 without its formula packaging
   than carried by reference from `endoclaw-timer`: `initialMs`, `maxMs`,
   `multiplier`, and a **`jitterFraction`** (full jitter, per AWS "Exponential
   Backoff and Jitter"), with `consecutiveFailures` persisted alongside so
-  backoff state survives restart. Full jitter is what prevents a retry
-  thundering herd when many reminders co-fail against one downstream. The
-  defaults reproduce `endoclaw-timer`'s `min(1000, periodMs/10) · 2^n` with a
-  nonzero jitter fraction added (design decision 16).
+  backoff state survives restart. Full jitter de-synchronizes retries when
+  several reminders co-fail against one downstream and would otherwise realign
+  their backoff on restart — cheap insurance even at this design's small
+  cardinality (a handful of reminders, design decision 13). The defaults
+  reproduce `endoclaw-timer`'s `min(1000, periodMs/10) * 2^n` with a nonzero
+  jitter fraction added (design decision 16).
 
 ### Wake-on-restart: retention by the integration
 
-The daemon eagerly revives exactly one collection at boot: `revivePins()`
+The daemon eagerly revives exactly one caplet collection at boot: `revivePins()`
 provides every identifier in the `@pins` directory, incarnating each formula
 (`packages/daemon/src/daemon.js`, `revivePins`). Everything else revives
 lazily on demand. A plugin caplet therefore wakes on restart if and only if
@@ -209,13 +222,13 @@ explicit and integration-owned:
 ```mermaid
 sequenceDiagram
     participant Boot as daemon boot
-    participant Pins as "@pins directory"
+    participant Pins as @pins
     participant Worker as node worker
     participant R as @endo/reminder make()
     participant VFS as reminder-store (VFS)
     Boot->>Pins: revivePins(): provide each member
     Pins->>Worker: incarnate pinned caplet formula
-    Worker->>R: import plugin, make(powers, context)
+    Worker->>R: import plugin, make(powers, context, { env })
     R->>VFS: read config.json + reminders/
     R->>R: coalesce missed ticks, re-arm timers
     R-->>Boot: reminder messages resume
@@ -250,17 +263,24 @@ exported facets support it by design rather than being retrofitted. Two
 candidate surfaces, both portable from #165's fully-specified ergonomics:
 
 - an **`endo reminder`** family — `endo reminder add <recipient> --every
-  <period> [--message …] [--catch-up skip|coalesce]`, `endo reminder list`,
+  <period> [--message ...] [--catch-up skip|coalesce]`, `endo reminder list`,
   `endo reminder pause|resume|cancel <id>` — mapping one-to-one onto
   `ReminderScheduler` / `ReminderControl`; or
 - **`endo send --every <period>` / `--at <time>` / `--on <schedule>`**, folding
   scheduling into the existing send verb (the #165 shape).
 
-Either way the facet methods already cover the verbs — `makeReminder(label,
+The facet methods cover the per-reminder verbs — `makeReminder(label,
 periodMs, opts)`, `list`, and each `Reminder`'s `setPeriod` / `cancel` / `info`,
 plus the `ReminderControl` limits — with the per-reminder `opts`
-(`catchUpPolicy`, `annotation`, `backoff`) surfaced as flags. The follow-up
-wires a CLI onto them and adds no new capability.
+(`catchUpPolicy`, `annotation`, `backoff`) surfaced as flags and the reminder
+`label` supplied positionally or defaulted from `--message`. Two dimensions the
+CLI sketch adds are deliberately **not** per-reminder facet arguments, and the
+follow-up owns them: the `<recipient>` selects *which* scheduler (one is bound
+per recipient at provisioning, §Powers), so the CLI routes to the right service
+rather than passing a recipient into `makeReminder`; and a hosted CLI needs a
+discovery path to reach each recipient's scheduler. The follow-up wires a CLI
+onto these facets and adds no new *scheduling* capability, but it does own the
+scheduler-selection and discovery surface the facets alone do not express.
 
 ## Dependencies
 
@@ -271,26 +291,27 @@ wires a CLI onto them and adds no new capability.
 | [platform-fs](platform-fs.md) | The virtual file system providing the durable store |
 | [fs-interface-reconciliation](fs-interface-reconciliation.md) | The reconciled writable-tree verbs the store contract names |
 | [endoclaw-proactive-messages](endoclaw-proactive-messages.md) | Depends on this design (composes scheduled messages with data capabilities and `send()`) |
-| [familiar-daemon-bundling](familiar-daemon-bundling.md), [endo-gateway](endo-gateway.md) | Candidate future owners of the live-reference retention (user-driven via README for now, design decision 10) |
+| [familiar-daemon-bundling](familiar-daemon-bundling.md), [gateway-package](gateway-package.md) | Candidate future owners of the live-reference retention (user-driven via README for now, design decision 10) |
 | SturdyRef modelling ([#539](https://github.com/endojs/endo-but-for-bots/pull/539), [#521](https://github.com/endojs/endo-but-for-bots/pull/521), [#541](https://github.com/endojs/endo-but-for-bots/pull/541)) | Gates only the Phase 4 `send` + `storeValue` delivery upgrade; the Phase 2 subscriber-capability baseline is ungated (see *Gating dependency: SturdyRef modelling*) |
 
 ## Implementation Phases
 
 ### Phase 1: Package and core scheduler (S)
 
-`packages/reminder` with `make(powers, context)`, the scheduler core ported
+`packages/reminder` with `make(powers, context, { env })`, the scheduler core ported
 from #609's head onto the VFS store contract, facet guards, limits, and the
 test suite running on `makeInMemoryFilesystem`.
 
 ### Phase 2: Delivery and response — subscriber-capability baseline (S)
 
-Reminder-message delivery through the powers' mail surface with the one-shot
-`ReminderResponse` attached, firing timeout with auto-resolve, and jittered
-exponential backoff on reschedule (see *Per-reminder behavior*). Delivery in
-this phase is the **ungated baseline**: an eventual-send to a **subscriber
-capability granted at provisioning** (design decision 11), which retains no
-durable capability and therefore needs no SturdyRef modelling. This is the
-critical path, and it does not block on unmerged work.
+Reminder-message delivery by eventual-send to the subscriber capability
+(§Powers, item 2) with the one-shot `ReminderResponse` attached, firing timeout
+with auto-resolve, and jittered exponential backoff on reschedule (see
+*Per-reminder behavior*). Delivery in this phase is the **ungated baseline**: an
+eventual-send to a **subscriber capability resolved by name through `powers`**
+(design decision 11), which retains no durable capability and therefore needs no
+SturdyRef modelling. This is the critical path, and it does not block on unmerged
+work.
 
 ### Phase 3: Integration and revival (S)
 
@@ -334,14 +355,16 @@ ship without it.
 7. **Package name `@endo/reminder`.** The maintainer's chosen name. The
    project style guides mandate no naming prefix for CapTP-surfaced
    packages, so no conflict arises.
-8. Considered and rejected: keeping the daemon-formula integration of #609.
-   Reason: the review; the feature does not benefit from deep daemon
+8. **Considered and rejected: keeping the daemon-formula integration of
+   #609.** Reason: the review; the feature does not benefit from deep daemon
    integration.
 9. **Atomic replacement is write-then-`move`, not backing-level atomic
    `write`.** Maintainer review of this PR (2026-07-11): the atomicity of a
-   direct `write` varies by implementation and cannot be relied upon;
-   write-then-`move` within a directory can be. Resolves former open
-   question 1.
+   direct `write` varies by implementation and cannot be relied upon.
+   Atomic within-directory `move` is instead **required of the store backing**
+   as a store contract the plugin depends on — not an inherent VFS guarantee, and
+   not one the plugin can verify, since it cannot tell what backs the directory.
+   Resolves former open question 1.
 10. **The reference `@pins` recipe lives in the package README, user-driven
     for now.** Maintainer review (2026-07-11): for now we rely on the user to
     follow the `@endo/reminder` README instructions to place the reminder
@@ -421,12 +444,12 @@ guest can name a formula without a locator or a pet name.
    none exposes a daemon verb that hands back a SturdyRef for an existing
    durable value the agent already holds or stored under `storeValue`. The
    reminder service needs exactly this to turn a `storeValue`'d response
-   capability into a sendable reference. (Maintainer requirement (b).)
+   capability into a sendable reference. (Maintainer requirement (a).)
 2. **The write/send side of pet-name-path substitution.** #541 threads
    SturdyRefs through the read-side guards only and explicitly leaves the
    write/rename guards untouched; `send`/`sendValue` do not yet accept a
    SturdyRef in place of a pet name for the attachment being sent. Delivery
-   via `send` needs that write-side surface. (Maintainer requirement (a).)
+   via `send` needs that write-side surface. (Maintainer requirement (b).)
 
 Until both gaps close, the Phase 4 `send` + `storeValue` upgrade is simply not
 built; the **Phase 2 subscriber-capability baseline** (design decision 11)
