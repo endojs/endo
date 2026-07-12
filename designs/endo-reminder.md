@@ -138,12 +138,49 @@ superseded design's persistence section with the formula removed:
 reminder-store/
   config.json          # { maxActive, minPeriodMs, paused } — formerly formula fields
   reminders/
-    <id>.json          # one document per reminder; nextTickAt is absolute epoch ms
+    <id>.json          # one document per reminder; nextTickAt is absolute epoch
+                       #   ms; also catchUpPolicy, annotation, and the backoff
+                       #   params + consecutiveFailures (see below)
 ```
 
 Writes use write-then-`move` within the store directory for atomic
 replacement. The atomicity of a direct `write` varies by backing and is not
 relied upon; write-then-`move` within a directory is (design decision 9).
+
+At the expected cardinality — one scheduler per recipient agent, a handful of
+reminders — the absence of a `next_tick_at` index costs nothing: recovery is an
+O(N) directory scan over a tiny N. The superseded reactor + schedule design
+([#165](https://github.com/endojs/endo-but-for-bots/pull/165)) indexed recovery
+in sqlite; that rationale is moot at this cardinality, so a future reader should
+not reach for a database reflexively (design decision 13).
+
+### Per-reminder behavior: catch-up, annotation, backoff
+
+Three behaviors the superseded design under-specified become explicit,
+persisted per-reminder fields, ported from #165 without its formula packaging
+(they are pure content in the durable store and the `make()` recovery path):
+
+- **`catchUpPolicy`** — how a reminder treats ticks missed while the daemon was
+  down. The default is **`coalesce`** (one catch-up message spanning the whole
+  gap, carried over from `endoclaw-timer`). At least **`skip`** (drop stale
+  ticks entirely — the right default for a "still alive?" heartbeat that gains
+  nothing from replaying the past) is offered alongside it. The fuller #165
+  vocabulary — `backfill`, `batch`, `suspend` (from the CloudFlare Queues
+  catch-up model) — is reserved as named future values, where `suspend` surfaces
+  an unbounded backlog as a fault instead of silently masking it (design
+  decision 14).
+- **`annotation`** — what a coalesced message conveys. Defaults to a **count**
+  (`[fired N times]`, making explicit the `missedTicks` count `endoclaw-timer`
+  already carries); optionally the **list of scheduled timestamps** it stands in
+  for. Per-reminder (design decision 15).
+- **`backoff`** — the reschedule-backoff parameters, named and persisted rather
+  than carried by reference from `endoclaw-timer`: `initialMs`, `maxMs`,
+  `multiplier`, and a **`jitterFraction`** (full jitter, per AWS "Exponential
+  Backoff and Jitter"), with `consecutiveFailures` persisted alongside so
+  backoff state survives restart. Full jitter is what prevents a retry
+  thundering herd when many reminders co-fail against one downstream. The
+  defaults reproduce `endoclaw-timer`'s `min(1000, periodMs/10) · 2^n` with a
+  nonzero jitter fraction added (design decision 16).
 
 ### Wake-on-restart: retention by the integration
 
@@ -185,9 +222,10 @@ sequenceDiagram
 ```
 
 Recovery inside `make()` is the superseded design's startup-recovery
-procedure verbatim, with "formula fields" replaced by `config.json`: skip
-arming when paused; otherwise compute `missedTicks` per active reminder,
-deliver a single catch-up reminder message, persist, re-arm.
+procedure, with "formula fields" replaced by `config.json`: skip arming when
+paused; otherwise apply each active reminder's `catchUpPolicy` to the ticks
+missed while down (`coalesce` into one message annotated per its `annotation`
+field, or `skip`), persist, re-arm — see *Per-reminder behavior* above.
 
 ### What becomes of PR #609
 
@@ -198,11 +236,31 @@ deliver a single catch-up reminder message, persist, re-arm.
 - Every daemon integration file in #609 (`daemon.js`, `formula-type.js`,
   `types.d.ts`, `host.js`, `interfaces.js`) drops entirely, as do the
   `endo interval` CLI commands; the generic `endo make-unconfined` pathway
-  suffices to provision the plugin. A dedicated CLI verb is out of scope
-  (follow-up to be filed if wanted).
+  suffices to provision the plugin. A dedicated CLI verb is a follow-up, whose
+  target shape is sketched below (*Eventual user surface*) so the plugin's
+  facets are designed to support it rather than retrofitted.
 - The #609 test suite ports onto the in-memory VFS backing.
 - PR #609 itself is superseded by this design; its disposition (close, or
   redraft its head onto a build of this design) rests with the maintainer.
+
+### Eventual user surface (sketch)
+
+The CLI verb is a follow-up, but the target shape is named now so the plugin's
+exported facets support it by design rather than being retrofitted. Two
+candidate surfaces, both portable from #165's fully-specified ergonomics:
+
+- an **`endo reminder`** family — `endo reminder add <recipient> --every
+  <period> [--message …] [--catch-up skip|coalesce]`, `endo reminder list`,
+  `endo reminder pause|resume|cancel <id>` — mapping one-to-one onto
+  `ReminderScheduler` / `ReminderControl`; or
+- **`endo send --every <period>` / `--at <time>` / `--on <schedule>`**, folding
+  scheduling into the existing send verb (the #165 shape).
+
+Either way the facet methods already cover the verbs — `makeReminder(label,
+periodMs, opts)`, `list`, and each `Reminder`'s `setPeriod` / `cancel` / `info`,
+plus the `ReminderControl` limits — with the per-reminder `opts`
+(`catchUpPolicy`, `annotation`, `backoff`) surfaced as flags. The follow-up
+wires a CLI onto them and adds no new capability.
 
 ## Dependencies
 
@@ -214,7 +272,7 @@ deliver a single catch-up reminder message, persist, re-arm.
 | [fs-interface-reconciliation](fs-interface-reconciliation.md) | The reconciled writable-tree verbs the store contract names |
 | [endoclaw-proactive-messages](endoclaw-proactive-messages.md) | Depends on this design (composes scheduled messages with data capabilities and `send()`) |
 | [familiar-daemon-bundling](familiar-daemon-bundling.md), [endo-gateway](endo-gateway.md) | Candidate future owners of the live-reference retention (user-driven via README for now, design decision 10) |
-| SturdyRef modelling ([#539](https://github.com/endojs/endo-but-for-bots/pull/539), [#521](https://github.com/endojs/endo-but-for-bots/pull/521), [#541](https://github.com/endojs/endo-but-for-bots/pull/541)) | Phase 2 `send` + `storeValue` delivery is gated on it (see *Gating dependency: SturdyRef modelling*) |
+| SturdyRef modelling ([#539](https://github.com/endojs/endo-but-for-bots/pull/539), [#521](https://github.com/endojs/endo-but-for-bots/pull/521), [#541](https://github.com/endojs/endo-but-for-bots/pull/541)) | Gates only the Phase 4 `send` + `storeValue` delivery upgrade; the Phase 2 subscriber-capability baseline is ungated (see *Gating dependency: SturdyRef modelling*) |
 
 ## Implementation Phases
 
@@ -224,19 +282,30 @@ deliver a single catch-up reminder message, persist, re-arm.
 from #609's head onto the VFS store contract, facet guards, limits, and the
 test suite running on `makeInMemoryFilesystem`.
 
-### Phase 2: Delivery and response (S)
+### Phase 2: Delivery and response — subscriber-capability baseline (S)
 
-Reminder-message delivery through the powers' mail surface via `send` with
-the one-shot `ReminderResponse` attached, the service retaining the response
-(and any data capabilities) via `storeValue` (design decision 11), firing
-timeout with auto-resolve, exponential backoff on reschedule. This phase is
-gated on SturdyRef progress (see *Gating dependency: SturdyRef modelling*).
+Reminder-message delivery through the powers' mail surface with the one-shot
+`ReminderResponse` attached, firing timeout with auto-resolve, and jittered
+exponential backoff on reschedule (see *Per-reminder behavior*). Delivery in
+this phase is the **ungated baseline**: an eventual-send to a **subscriber
+capability granted at provisioning** (design decision 11), which retains no
+durable capability and therefore needs no SturdyRef modelling. This is the
+critical path, and it does not block on unmerged work.
 
 ### Phase 3: Integration and revival (S)
 
 The pinning recipe documented in the package README, recovery on
 incarnation, and one worked integration (Familiar app or online Gateway)
 demonstrating restart-survival end to end.
+
+### Phase 4: Mailbox delivery via `send` + `storeValue` (S, gated)
+
+An upgrade that routes delivery through the powers' `send` verb, the service
+retaining the one-shot `ReminderResponse` (and any data capabilities) via
+`storeValue` (design decision 12), buying the mailbox's persistence and replay
+over the Phase 2 baseline. This phase — and only this phase — is gated on
+SturdyRef progress (see *Gating dependency: SturdyRef modelling*); Phases 1–3
+ship without it.
 
 ## Design Decisions
 
@@ -279,13 +348,41 @@ demonstrating restart-survival end to end.
     service in `@pins` for incarnation-on-start. No integration owns the
     retention automatically yet (the Familiar app / online Gateway remain
     candidate future owners). Resolves former open question 2.
-11. **Delivery is `send`, retaining capabilities via `storeValue`.**
-    Maintainer review (2026-07-11): the mail verb is `send`; because `send`
+11. **Delivery baseline is a subscriber capability granted at provisioning,
+    not `send`.** This design review (2026-07-12, maintainer-agreed via the
+    [dispatch comment](https://github.com/endojs/endo-but-for-bots/pull/682#issuecomment-4951968957)):
+    the headline delivery path must not block on four unmerged draft PRs when an
+    ungated path exists. Phase 2 delivers by eventual-send to a **subscriber
+    capability granted at provisioning** — retaining no durable capability, so
+    no SturdyRef gate — the way #165's canned-send reactor holds its send
+    endowment directly. This supersedes the former resolution (below) that made
+    `send` + `storeValue` the baseline; that path becomes a later, gated
+    upgrade (decision 12).
+12. **`send` + `storeValue` delivery is a later, gated phase (Phase 4).**
+    Maintainer review (2026-07-11) fixed the mail verb as `send`; because `send`
     requires the sender to retain the capabilities it attaches, the reminder
-    service retains the one-shot `ReminderResponse` (and any data
-    capabilities) via `storeValue`, which holds durable values anonymously
-    under a single name. Resolves former open question 3, and is **gated on
-    SturdyRef progress** — see the next-but-one section.
+    service retains the one-shot `ReminderResponse` (and any data capabilities)
+    via `storeValue`, which holds durable values anonymously under a single
+    name. That path buys the mailbox's persistence and replay but is **gated on
+    SturdyRef progress** (see *Gating dependency: SturdyRef modelling*); it
+    layers over the Phase 2 subscriber-capability baseline rather than replacing
+    it. (Formerly decision 11, resolving open question 3.)
+13. **No recovery index; O(N) directory scan at this cardinality.** This design
+    review (2026-07-12): one scheduler per recipient, a handful of reminders, so
+    #165's sqlite indexed-recovery rationale is moot; the VFS-over-database
+    choice is deliberate here.
+14. **Named catch-up policies, per reminder (`coalesce` default, `skip`
+    offered).** This design review (2026-07-12): ported from #165's
+    catch-up vocabulary; `backfill` / `batch` / `suspend` reserved as named
+    future values. See *Per-reminder behavior*.
+15. **Coalesced-message annotation is specified: count by default, timestamps
+    optionally.** This design review (2026-07-12): #682 said "a single catch-up
+    message" without stating what it conveys; #165's aggregation section is
+    ported. See *Per-reminder behavior*.
+16. **Backoff parameters named and persisted, with full jitter.** This design
+    review (2026-07-12): `initialMs` / `maxMs` / `multiplier` / `jitterFraction`
+    plus persisted `consecutiveFailures`, ported from #165; full jitter guards
+    against a co-fail thundering herd. See *Per-reminder behavior*.
 
 ## Open Questions
 
@@ -294,8 +391,9 @@ demonstrating restart-survival end to end.
 
 ## Gating dependency: SturdyRef modelling
 
-Design decision 11 (delivery via `send` + `storeValue`) depends on SturdyRef
-modelling maturing far enough that the reminder service can (a) obtain a
+Design decision 12 (the Phase 4 `send` + `storeValue` delivery upgrade) depends
+on SturdyRef modelling maturing far enough that the reminder service can (a)
+obtain a
 SturdyRef for a durable value it holds under `storeValue`, by-value or
 by-name, without knowing the value's identifier or locator, and (b) later
 pass that SturdyRef in place of a pet name when it `send`s the reminder
@@ -330,10 +428,11 @@ guest can name a formula without a locator or a pet name.
    SturdyRef in place of a pet name for the attachment being sent. Delivery
    via `send` needs that write-side surface. (Maintainer requirement (a).)
 
-Until both gaps close, Phase 2 delivery falls back to the direct
-eventual-send-to-a-subscriber-capability option (a subscriber capability
-granted at provisioning), at the cost of the mailbox's persistence and
-replay.
+Until both gaps close, the Phase 4 `send` + `storeValue` upgrade is simply not
+built; the **Phase 2 subscriber-capability baseline** (design decision 11)
+carries all delivery, at the cost of the mailbox's persistence and replay. The
+critical path is therefore never blocked on this modelling — the gate governs an
+enhancement, not the feature.
 
 ## Prompt
 
@@ -363,3 +462,16 @@ replay.
 > or differentiate. It isn't making a command."
 >
 > Inline on `interval-scheduler.js` (`@module interval-scheduler`): "Omit."
+>
+> Design review of PR #682 (2026-07-12, maintainer-agreed via
+> [comment](https://github.com/endojs/endo-but-for-bots/pull/682#issuecomment-4951968957),
+> concluding [review](https://github.com/endojs/endo-but-for-bots/pull/682#pullrequestreview-4680373156)):
+> recover from #165, before build, the operational richness that does not
+> depend on formula packaging — named catch-up policies (at least `skip` vs
+> `coalesce`), explicit jittered backoff parameters (with persisted
+> `consecutiveFailures`), the coalesced-message annotation (count by default,
+> timestamps optionally), a sketched eventual CLI surface, and a one-line
+> persistence-scale note — and, most importantly, decouple the delivery path
+> from the SturdyRef gate by making direct subscriber-capability delivery the
+> baseline. All are content ports into the plugin's durable store and `make()`
+> recovery; none reintroduces a formula.
