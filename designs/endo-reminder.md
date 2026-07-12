@@ -371,14 +371,14 @@ ship without it.
     service in `@pins` for incarnation-on-start. No integration owns the
     retention automatically yet (the Familiar app / online Gateway remain
     candidate future owners). Resolves former open question 2.
-11. **Delivery baseline is a subscriber capability granted at provisioning,
-    not `send`.** This design review (2026-07-12, maintainer-agreed via the
+11. **Delivery baseline is a subscriber capability resolved by name through
+    `powers`, not `send`.** This design review (2026-07-12, maintainer-agreed via the
     [dispatch comment](https://github.com/endojs/endo-but-for-bots/pull/682#issuecomment-4951968957)):
     the headline delivery path must not block on four unmerged draft PRs when an
     ungated path exists. Phase 2 delivers by eventual-send to a **subscriber
-    capability granted at provisioning** — retaining no durable capability, so
-    no SturdyRef gate — the way #165's canned-send reactor holds its send
-    endowment directly. This supersedes the former resolution (below) that made
+    capability resolved by name through the `powers` granted at provisioning**
+    (§Powers item 2) — retaining no durable capability, so no SturdyRef gate —
+    the way #165's canned-send reactor holds its send endowment directly. This supersedes the former resolution (below) that made
     `send` + `storeValue` the baseline; that path becomes a later, gated
     upgrade (decision 12).
 12. **`send` + `storeValue` delivery is a later, gated phase (Phase 4).**
