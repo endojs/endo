@@ -208,6 +208,9 @@ const ENDOMOUNT_EXTENSIONS = [
   // (a glob result) is an independent argument, so glob and grep compose
   // without grep owning glob.
   'grep',
+  // Fused glob+grep composition. Reference impl composes the delegated
+  // glob/grep surface; a native powers layer may push it down as one call.
+  'glorp',
   // Declared as part of the name-hub contract but throws ENOSYS until a
   // filesystem watcher is wired (filesystem-watchers.md) — see § C1.
   'followNameChanges',

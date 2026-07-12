@@ -650,6 +650,14 @@ export const MountInterface = M.interface('EndoMount', {
       M.splitRecord({}, { maxResults: M.number() }),
     )
     .returns(M.array()),
+  // Fused glob+grep composition. Both patterns are required positionals (unlike
+  // grep's optional `paths`), so the operation can be pushed down to native code
+  // as a single fused enumerate-and-scan call. The reference implementation
+  // composes the delegated surface: `grep(grepPattern, glob(globPattern))`. See
+  // designs/platform-search-pushdown.md § "The Array surface".
+  glorp: M.call(M.string(), M.string())
+    .optional(M.splitRecord({}, { maxResults: M.number() }))
+    .returns(M.promise()),
   lookup: M.call(PathArgShape).returns(M.promise()),
   // `maybeLookup` is async in every mount implementation, so retain the
   // promise boundary here even though the shared name-hub record is broader.

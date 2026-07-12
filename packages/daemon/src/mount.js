@@ -860,6 +860,27 @@ const makeMountExo = ctx => {
       return harden(matches.slice(0, maxResults));
     },
 
+    // Fused glob+grep: enumerate the files matching the `glob` pattern and
+    // search them for the `grep` pattern, returning grep's `{ file, line, text }`
+    // records. Both patterns are required positionals (unlike grep's optional
+    // `paths`), so the whole operation is expressible as a single call whose two
+    // patterns a native filesystem layer can push down and fuse into one
+    // enumerate-and-scan pass — no glob result set round-trips through JS. The
+    // reference implementation here composes the decoupled surface directly:
+    // `grep(grepPattern, glob(globPattern))` — the same `grep(pattern, glob(g))`
+    // seam grep already exposes, with grep awaiting the glob promise as its
+    // `paths` argument. A native powers layer may override `glorp` with a single
+    // fused call.
+    async glorp(glob, grep, options = {}) {
+      await null;
+      assertLive();
+      const { maxResults = GREP_MAX_RESULTS } = options;
+      // eslint-disable-next-line no-invalid-this
+      const paths = await this.self.glob(glob);
+      // eslint-disable-next-line no-invalid-this
+      return this.self.grep(grep, paths, { maxResults });
+    },
+
     async lookup(pathArg) {
       await null;
       const segments = segmentsFromPathArg(pathArg);
