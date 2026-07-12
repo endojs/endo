@@ -3046,6 +3046,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/x402@workspace:packages/x402":
+  version: 0.0.0-use.local
+  resolution: "@endo/x402@workspace:packages/x402"
+  dependencies:
+    "@endo/base64": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    tsd: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/zip@workspace:^, @endo/zip@workspace:packages/zip":
   version: 0.0.0-use.local
   resolution: "@endo/zip@workspace:packages/zip"
