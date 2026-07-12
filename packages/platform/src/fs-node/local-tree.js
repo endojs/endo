@@ -114,7 +114,11 @@ export const makeLocalTree = (dirPath, options = {}) => {
               const childRel = harden([...relSegments, entry.name]);
               if (entry.isDirectory()) {
                 entries.push(harden({ path: childRel, type: 'directory' }));
-                await walk(path.join(absPath, entry.name), childRel, walkDepth + 1);
+                await walk(
+                  path.join(absPath, entry.name),
+                  childRel,
+                  walkDepth + 1,
+                );
               } else {
                 entries.push(harden({ path: childRel, type: 'file' }));
               }

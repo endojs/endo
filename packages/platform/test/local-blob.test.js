@@ -135,7 +135,9 @@ test('LocalBlob.rangeReadText clamps past-the-end and handles the trailing newli
 
 test('LocalBlob.rangeReadText rejects a negative or non-integer line index', async t => {
   const blob = makeLocalBlob(makeTempFile(t, 'a\nb\n'));
-  await t.throwsAsync(() => E(blob).rangeReadText(-1, 2), { message: /EINVAL/ });
+  await t.throwsAsync(() => E(blob).rangeReadText(-1, 2), {
+    message: /EINVAL/,
+  });
   await t.throwsAsync(() => E(blob).rangeReadText(0, 1.5), {
     message: /EINVAL/,
   });
