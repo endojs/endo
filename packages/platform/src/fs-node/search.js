@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import harden from '@endo/harden';
 
+import { makeMaybeRealPath } from '../fs/confinement.js';
+
 /** @import { SearchPowers } from '../fs/search.types.js' */
 
 /**
@@ -32,14 +34,9 @@ export const makeNodeSearchPowers = (nodeFs = fs) => {
     },
     readFileText: candidate => promises.readFile(candidate, 'utf8'),
     joinPath: (...segments) => path.join(...segments),
-    maybeRealPath: async candidate => {
-      await null;
-      try {
-        return await promises.realpath(candidate);
-      } catch {
-        return undefined;
-      }
-    },
+    // The shared classifier: a missing referent resolves to `undefined`, any
+    // other realpath rejection propagates (`../fs/confinement.js`).
+    maybeRealPath: makeMaybeRealPath(candidate => promises.realpath(candidate)),
   });
 };
 harden(makeNodeSearchPowers);

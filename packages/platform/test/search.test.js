@@ -21,7 +21,6 @@ import {
   provideSearch,
   compileGlobSegment,
   parseGlobPattern,
-  isConservativeRegex,
   GLOB_MAX_RESULTS,
 } from '../src/fs/search.js';
 import { makeNodeSearchPowers } from '../src/fs-node/search.js';
@@ -273,27 +272,4 @@ test('compileGlobSegment is linear and bounded on a ReDoS-style pattern', t => {
   t.true(compileGlobSegment('*')('.hidden'));
   t.true(compileGlobSegment('q?')('q?'));
   t.false(compileGlobSegment('q?')('qX'));
-});
-
-test('isConservativeRegex accepts the portable subset and rejects ECMA-only constructs', t => {
-  for (const source of [
-    '^export',
-    '1;$',
-    '[24]',
-    'index|util',
-    'a{2,4}b',
-    '\\bword\\b',
-  ]) {
-    t.true(isConservativeRegex(source), `${source} is conservative`);
-  }
-  for (const source of [
-    '(?=x)',
-    '(?!x)',
-    '(?<=x)',
-    '(?<name>x)',
-    '(x)\\1',
-    '\\p{L}',
-  ]) {
-    t.false(isConservativeRegex(source), `${source} is not conservative`);
-  }
 });

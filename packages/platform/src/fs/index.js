@@ -28,9 +28,10 @@ export {
   provideSearch,
   compileGlobSegment,
   parseGlobPattern,
-  isConservativeRegex,
   DEFAULT_BATCH_SIZE,
   MAX_BATCH_SIZE,
   GLOB_MAX_RESULTS,
   GREP_MAX_RESULTS,
 } from './search.js';
+
+export { makeMaybeRealPath, isPathWithin } from './confinement.js';

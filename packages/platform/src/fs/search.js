@@ -46,6 +46,8 @@
 
 import harden from '@endo/harden';
 
+import { isPathWithin, makeMaybeRealPath } from './confinement.js';
+
 /** @import { SearchPowers, Search, GlobOptions, GrepOptions, GrepMatch } from './search.types.js' */
 
 /**
@@ -210,79 +212,6 @@ export const parseGlobPattern = pattern => {
 harden(parseGlobPattern);
 
 /**
- * Whether `regexSource` is inside the conservative subset a non-ECMA-262 native
- * regex engine (e.g. the Rust `regex` crate under the XS supervisor) can be
- * trusted to evaluate identically. The subset is literals, character classes,
- * anchors, alternation, grouping, and bounded quantifiers; it excludes the
- * ECMA-262-specific constructs a native engine either lacks or evaluates with
- * different corner semantics — lookaround, backreferences, named groups, and
- * Unicode property escapes.
- *
- * This is the seam the future native-grep pushdown (a follow-up layer, not this
- * stack) consults: `provideSearch` on a platform with a native grep evaluates
- * the pattern here and falls back to the normative JS engine for anything
- * outside the subset. It is deliberately an implementation-defined allowlist
- * rather than a pinned grammar until that follow-up forces precision; when in
- * doubt it answers `false` (JS is always a safe fallback).
- *
- * @param {string} regexSource
- * @returns {boolean}
- */
-export const isConservativeRegex = regexSource => {
-  // Reject the constructs a portable native engine cannot be trusted to mirror.
-  // Each is matched on the raw source; a false negative only costs a JS
-  // fallback, never correctness.
-  const nonPortable = [
-    /\(\?[=!]/, // lookahead (?= (?!
-    /\(\?<[=!]/, // lookbehind (?<= (?<!
-    /\(\?<[A-Za-z_$]/, // named capture group (?<name>
-    /\\k</, // named backreference \k<name>
-    /\\[1-9]/, // numeric backreference \1 … \9
-    /\\[pP]\{/, // Unicode property escape \p{…} \P{…}
-  ];
-  return !nonPortable.some(re => re.test(regexSource));
-};
-harden(isConservativeRegex);
-
-/**
- * Resolve `path` to its symlink-free physical path, or `undefined` when it
- * cannot be resolved (removed mid-walk, broken symlink). Used both to detect
- * symlink cycles by physical identity and to enforce confinement, without
- * aborting the whole walk on a transient error.
- *
- * @param {SearchPowers} powers
- * @param {string} path
- * @returns {Promise<string | undefined>}
- */
-const maybeRealPath = async (powers, path) => {
-  await null;
-  try {
-    return await powers.maybeRealPath(path);
-  } catch {
-    return undefined;
-  }
-};
-
-/**
- * Whether `realPath` (an already-resolved physical path, or `undefined`) is
- * contained within the resolved confinement root. An unresolvable path is never
- * confined. A missing (`undefined`) confinement root confines nothing.
- *
- * @param {string | undefined} realPath
- * @param {string | undefined} confinementRootReal
- * @returns {boolean}
- */
-const isWithin = (realPath, confinementRootReal) => {
-  if (realPath === undefined || confinementRootReal === undefined) {
-    return false;
-  }
-  return (
-    realPath === confinementRootReal ||
-    realPath.startsWith(`${confinementRootReal}/`)
-  );
-};
-
-/**
  * Create a search engine over a narrow read `powers` contract. The engine holds
  * no ambient authority; `root` and `confinementRoot` are passed per call.
  *
@@ -319,7 +248,7 @@ export const makeSearch = powers => {
     const batchLimit = clampBatchSize(batchSize);
     const denySet = toDenySet(deniedSegments);
     const patternSegments = parseGlobPattern(pattern);
-    const confinementRootReal = await maybeRealPath(powers, confinementRoot);
+    const confinementRootReal = await powers.maybeRealPath(confinementRoot);
 
     /** @type {Set<string>} */
     const results = new Set();
@@ -346,8 +275,8 @@ export const makeSearch = powers => {
      */
     const resolveChild = async childPath => {
       await null;
-      const real = await maybeRealPath(powers, childPath);
-      return { real, confined: isWithin(real, confinementRootReal) };
+      const real = await powers.maybeRealPath(childPath);
+      return { real, confined: isPathWithin(real, confinementRootReal) };
     };
 
     /**
@@ -458,7 +387,7 @@ export const makeSearch = powers => {
       }
     };
 
-    const rootReal = await maybeRealPath(powers, root);
+    const rootReal = await powers.maybeRealPath(root);
     const initialAncestors = new Set(rootReal === undefined ? [] : [rootReal]);
     await walk(patternSegments, root, [], initialAncestors);
 
@@ -531,7 +460,7 @@ export const makeSearch = powers => {
     } = options;
     const batchLimit = clampBatchSize(batchSize);
     const denySet = toDenySet(deniedSegments);
-    const confinementRootReal = await maybeRealPath(powers, confinementRoot);
+    const confinementRootReal = await powers.maybeRealPath(confinementRoot);
     // ECMAScript RegExp source with no flags.
     const regex = new RegExp(regexSource);
 
@@ -554,8 +483,8 @@ export const makeSearch = powers => {
           continue;
         }
         const filePath = powers.joinPath(root, ...segments);
-        const real = await maybeRealPath(powers, filePath);
-        if (!isWithin(real, confinementRootReal)) {
+        const real = await powers.maybeRealPath(filePath);
+        if (!isPathWithin(real, confinementRootReal)) {
           continue;
         }
         if (await powers.isDirectory(filePath)) {
@@ -616,14 +545,10 @@ export const provideSearch = filePowers => {
     isDirectory: filePowers.isDirectory,
     readFileText: filePowers.readFileText,
     joinPath: filePowers.joinPath,
-    maybeRealPath: async path => {
-      await null;
-      try {
-        return await filePowers.realPath(path);
-      } catch {
-        return undefined;
-      }
-    },
+    // Adapt the throwing `realPath` into the engine's `maybeRealPath` contract
+    // with the shared classifier (`./confinement.js`), so a missing referent
+    // resolves to `undefined` while a real bug propagates.
+    maybeRealPath: makeMaybeRealPath(filePowers.realPath),
   });
 };
 harden(provideSearch);
