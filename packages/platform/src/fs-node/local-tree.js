@@ -6,7 +6,7 @@ import path from 'node:path';
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
 
-import { ReadableTreeInterface } from '../fs/interfaces.js';
+import { ReadableTreeRecursiveInterface } from '../fs/interfaces.js';
 import { makeLocalBlob } from './local-blob.js';
 
 const ALWAYS_IGNORED = harden(new Set(['.git']));
@@ -37,7 +37,7 @@ export const makeLocalTree = (dirPath, options = {}) => {
 
     return makeExo(
       'LocalTree',
-      ReadableTreeInterface,
+      ReadableTreeRecursiveInterface,
       /** @type {any} */ ({
         /**
          * @param {...string} names
@@ -68,6 +68,61 @@ export const makeLocalTree = (dirPath, options = {}) => {
             )
             .map(entry => entry.name)
             .sort();
+        },
+        /**
+         * Recursive listing of the subtree under the optional sub-path.
+         * Returns every descendant as a `{ path, type }` record — `path`
+         * relative to the queried node, lexically sorted, each directory
+         * emitted before its own children. Symlinks and `.git` are skipped
+         * (matching `list`); size and host stat fields are omitted (see
+         * interfaces.js `recursiveListMethodGuards`).
+         *
+         * @param {...string} names
+         * @returns {Promise<Array<{ path: string[], type: 'file' | 'directory' }>>}
+         */
+        listTree: async (...names) => {
+          const startPath =
+            names.length === 0 ? currentPath : path.join(currentPath, ...names);
+
+          /** @type {Array<{ path: string[], type: 'file' | 'directory' }>} */
+          const entries = [];
+
+          /**
+           * @param {string} absPath
+           * @param {string[]} relSegments
+           * @param {number} walkDepth
+           */
+          const walk = async (absPath, relSegments, walkDepth) => {
+            if (walkDepth > maxDepth) {
+              throw new Error(
+                `Maximum directory depth (${maxDepth}) exceeded at ${absPath}`,
+              );
+            }
+            const dirEntries = await fs.promises.readdir(absPath, {
+              withFileTypes: true,
+            });
+            const kept = dirEntries
+              .filter(
+                entry =>
+                  !ignored.has(entry.name) &&
+                  !entry.isSymbolicLink() &&
+                  (entry.isFile() || entry.isDirectory()),
+              )
+              // eslint-disable-next-line no-nested-ternary
+              .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+            for (const entry of kept) {
+              const childRel = harden([...relSegments, entry.name]);
+              if (entry.isDirectory()) {
+                entries.push(harden({ path: childRel, type: 'directory' }));
+                await walk(path.join(absPath, entry.name), childRel, walkDepth + 1);
+              } else {
+                entries.push(harden({ path: childRel, type: 'file' }));
+              }
+            }
+          };
+
+          await walk(startPath, [], 0);
+          return harden(entries);
         },
         /**
          * @param {string | string[]} petNamePath
@@ -103,7 +158,7 @@ export const makeLocalTree = (dirPath, options = {}) => {
         /** @param {string} [method] */
         help: method =>
           method === undefined
-            ? 'LocalTree: read-only view of a host directory tree (has, list, lookup).'
+            ? 'LocalTree: read-only view of a host directory tree (has, list, listTree, lookup).'
             : `No documentation for method ${method}.`,
       }),
     );
