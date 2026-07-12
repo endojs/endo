@@ -1,6 +1,10 @@
 import type { ERef } from '@endo/eventual-send';
 import type { Filesystem } from '@endo/platform/fs/extended';
-import type { WritableEndoGit, WritableGitWorktree } from '@endo/exo-git';
+import type {
+  GitRemote,
+  WritableEndoGit,
+  WritableGitWorktree,
+} from '@endo/exo-git';
 import type { EndoShell } from '@endo/exo-shell';
 import type { HttpClient, HttpResponse } from '@endo/exo-http-client';
 import type { Pattern } from '@endo/patterns';
@@ -67,6 +71,22 @@ export type GitMountToolCapability = Pick<WritableEndoGit, 'status' | 'add'> & {
   worktree: () => Promise<WritableGitWorktree>;
 };
 
+/**
+ * The push-tier slice of a `GitRemote` exposed to an LLM: `fetch`, `pull`, and
+ * `push` (the network + credential layer, daemon-agent-tools § Phase 3), plus
+ * the credential-free `inspect` that reports the remote's policy bounds. This
+ * is the full guest-facing `GitRemote` surface; the policy-bearing
+ * `GitRemoteController` (which mutates directions, refspecs, and revocation)
+ * stays host-side and is never an agent-facing tool. A read-only `Git` cannot
+ * construct a `GitRemote` at all, so the read tier structurally excludes push —
+ * there is no attenuation to perform here, and this surface adds no authority
+ * beyond what the granted `GitRemote` already carries.
+ */
+export type GitRemoteToolCapability = Pick<
+  GitRemote,
+  'inspect' | 'fetch' | 'pull' | 'push'
+>;
+
 export interface ToolSpec {
   /** Tool name advertised to callers. */
   name: string;
@@ -128,6 +148,10 @@ export declare function makeGitHistoryTool(
 
 export declare function makeGitMountTools(
   gitCap: ERef<GitMountToolCapability>,
+): ToolRecord[];
+
+export declare function makeGitRemoteTool(
+  remoteCap: ERef<GitRemoteToolCapability>,
 ): ToolRecord[];
 
 /**
