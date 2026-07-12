@@ -73,16 +73,19 @@ test('glorp(g, p) equals grep(p, glob(g))', async t => {
     [...composed],
     'the fused call and the explicit composition return the same records',
   );
-  t.deepEqual([...fused], [
-    { file: 'src/index.js', line: 1, text: 'export const index = 1;' },
-    { file: 'src/nested/deep.js', line: 1, text: 'export const deep = 3;' },
-    {
-      file: 'src/nested/deeper/deepest.js',
-      line: 1,
-      text: 'export const deepest = 4;',
-    },
-    { file: 'src/util.js', line: 1, text: 'export const util = 2;' },
-  ]);
+  t.deepEqual(
+    [...fused],
+    [
+      { file: 'src/index.js', line: 1, text: 'export const index = 1;' },
+      { file: 'src/nested/deep.js', line: 1, text: 'export const deep = 3;' },
+      {
+        file: 'src/nested/deeper/deepest.js',
+        line: 1,
+        text: 'export const deepest = 4;',
+      },
+      { file: 'src/util.js', line: 1, text: 'export const util = 2;' },
+    ],
+  );
 });
 
 test('glorp honors maxResults', async t => {
