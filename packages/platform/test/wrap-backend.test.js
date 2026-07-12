@@ -602,7 +602,9 @@ const makeHookedBackend = () => {
   const entryFor = path => {
     if (path.length === 0) return { kind: 'directory', oid: OID_TREE };
     const bytes = files.get(path.join('/'));
-    return bytes === undefined ? undefined : { kind: 'file', oid: OID_BLOB, bytes };
+    return bytes === undefined
+      ? undefined
+      : { kind: 'file', oid: OID_BLOB, bytes };
   };
   return harden({
     async kind(path) {

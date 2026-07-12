@@ -374,8 +374,7 @@ export const wrapBackend = (backend, opts = {}) => {
   const xattrsExoFor = path =>
     makeXattrsExo({ xattrTable, fireLocal, lockKeyOf, path });
   /** @param {string[]} dirPath */
-  const cursorExoFor = dirPath =>
-    makeCursorExo({ backend, dirPath, qidOf });
+  const cursorExoFor = dirPath => makeCursorExo({ backend, dirPath, qidOf });
   /** @param {string[]} path */
   const watcherExoFor = path =>
     makeNodeWatcherExo({
