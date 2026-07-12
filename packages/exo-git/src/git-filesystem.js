@@ -22,6 +22,13 @@
  * are not cached here; callers that want CAS-backed caching compose
  * `withCachedReads(fs, cas)` in endo-fs.
  *
+ * The backend also implements the optional content-address hooks
+ * `qidFor` / `blobInfoFor` (see designs/endo-fs-from-git.md Goal 2):
+ * wrap-backend probes for them and, when present, sources the QID
+ * `pathId` from the git object OID and the `BlobRef` hash from the
+ * `git-sha1` blob OID, so same-blob identity survives across paths and
+ * refs instead of degrading to the path-hash / SHA-256 defaults.
+ *
  * See `designs/endo-fs-from-git.md` for the contract.
  */
 
@@ -115,6 +122,29 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
   /** @type {Map<string, Promise<ResolvedEntry>>} */
   const pathCache = new Map();
 
+  // Synchronous mirror of `pathCache`, holding only the *resolved,
+  // non-null* entries.  `qidFor`/`blobInfoFor` (below) need the git
+  // OID for a path *synchronously* — `Node.getQid()` is a sync getter
+  // in the `@endo/platform` wrap-backend contract — but `resolvePath`
+  // is async.  Every path whose exo wrap-backend hands out has already
+  // been walked (`lookup`/`list` await `backend.kind` first), so its
+  // OID is available here by the time `getQid`/`snapshot` runs.  The
+  // root (`[]`) is seeded eagerly because `Filesystem.root()` mints the
+  // root Directory exo without a resolve.  A miss (a path minted by
+  // some future non-resolving route) returns `undefined`, and
+  // wrap-backend falls back to its path-hash `synthQid` — content
+  // identity degrades to path identity rather than throwing.
+  /** @type {Map<string, NonNullable<ResolvedEntry>>} */
+  const resolvedSync = new Map();
+  resolvedSync.set(
+    '',
+    /** @type {NonNullable<ResolvedEntry>} */ ({
+      kind: 'directory',
+      oid: treeOid,
+      size: 0,
+    }),
+  );
+
   /**
    * Walk the tree from the root to `path`, returning the
    * content-addressed entry record (kind + OID + size) or `null`
@@ -158,9 +188,18 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
       });
     })();
     pathCache.set(key, promise);
+    // Populate the synchronous mirror as soon as the walk resolves
+    // (registered here, before any `await resolvePath(...)` caller
+    // attaches its own continuation, so the mirror is warm by the time
+    // the awaiting `kind`/`read` continuation mints or reads the exo).
     // Same rejection-eviction rule as `lsTreeCached`: a transient
     // failure mid-walk must not pin a poisoned promise.
-    promise.catch(() => pathCache.delete(key));
+    promise.then(
+      entry => {
+        if (entry !== null) resolvedSync.set(key, entry);
+      },
+      () => pathCache.delete(key),
+    );
     return promise;
   };
 
@@ -192,10 +231,26 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
           // eslint-disable-next-line no-continue
           continue;
         }
+        const childKind = e.type === 'tree' ? 'directory' : 'file';
+        // Warm the synchronous OID mirror for each listed child before
+        // yielding it, so wrap-backend's `Cursor` can stamp the same
+        // content-addressed `qid` on the listing entry (via `qidFor`)
+        // that a later `lookup(name).getQid()` would return — otherwise
+        // the listing would carry a path-hash qid while the walked cap
+        // carried the OID qid, and a 9p `Treaddir`→`Twalk` would see two
+        // different identities for one node.
+        resolvedSync.set(
+          [...dirPath, e.name].join('\0'),
+          /** @type {NonNullable<ResolvedEntry>} */ ({
+            kind: childKind,
+            oid: e.oid,
+            size: e.size ?? 0,
+          }),
+        );
         yield /** @type {DirEntry} */ (
           harden({
             name: e.name,
-            kind: e.type === 'tree' ? 'directory' : 'file',
+            kind: childKind,
           })
         );
       }
@@ -310,6 +365,55 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
         totalBytes: 0n,
         freeBytes: 0n,
       });
+    },
+
+    // ---- Content-address hooks (see designs/endo-fs-from-git.md Goal 2) ----
+    //
+    // Optional `FsBackend` methods that wrap-backend probes for by
+    // existence.  They restore git's content-addressed identity to the
+    // `Filesystem` view: the QID `pathId` becomes the git object OID,
+    // and the `BlobRef` hash becomes the `git-sha1` blob OID.  Two paths
+    // (or two refs) that resolve to the same blob therefore report the
+    // same QID and the same `BlobRef` hash — the deduplication and
+    // cross-restart identity the shared `synthQid` (path hash) / SHA-256
+    // fallbacks cannot give.  Both read the synchronous `resolvedSync`
+    // mirror; a miss returns `undefined` and wrap-backend falls back to
+    // its default synthesis.
+
+    /**
+     * Synthesize a content-addressed `Qid` for `path`: `pathId` is the
+     * git object OID (tree OID for a directory, blob OID for a file) as
+     * a BigInt.  `version` is `0n` — git objects are immutable, so a
+     * given OID never changes meaning.
+     *
+     * @param {string[]} path
+     * @param {NodeKind} kind
+     */
+    qidFor(path, kind) {
+      const entry = resolvedSync.get(path.join('\0'));
+      if (entry === undefined) return undefined;
+      return harden({
+        type: kind,
+        pathId: BigInt(`0x${entry.oid}`),
+        version: 0n,
+      });
+    },
+
+    /**
+     * Report the git-native content hash for a blob path: the
+     * `git-sha1` OID itself (git hashes the framed payload
+     * `blob <size>\0<bytes>`, so this is NOT the SHA-256 of the raw
+     * bytes — a consumer comparing hashes across sources must
+     * distinguish `git-sha1` from `sha256`).  Returns `undefined` for a
+     * non-file path (or a cold cache), so wrap-backend falls back to its
+     * SHA-256-over-captured-bytes `BlobRef`.
+     *
+     * @param {string[]} path
+     */
+    blobInfoFor(path) {
+      const entry = resolvedSync.get(path.join('\0'));
+      if (entry === undefined || entry.kind !== 'file') return undefined;
+      return harden({ algorithm: 'git-sha1', hash: entry.oid });
     },
   });
 };

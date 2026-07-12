@@ -25,8 +25,13 @@ import { synthQid } from './qid.js';
  * @param {object} opts
  * @param {FsBackend} opts.backend
  * @param {string[]} opts.dirPath
+ * @param {(path: string[], kind: import('../backend-types.js').NodeKind) => any} [opts.qidOf]
+ *   optional QID synthesizer (defaults to the path-hash `synthQid`).
+ *   wrap-backend passes its content-address-aware `qidOf` so a listing
+ *   entry's `qid` matches the one a later `lookup(name).getQid()` would
+ *   return (e.g. a git OID rather than a path hash).
  */
-export const makeCursorExo = ({ backend, dirPath }) => {
+export const makeCursorExo = ({ backend, dirPath, qidOf = synthQid }) => {
   /** @type {AsyncIterator<DirEntry> | null} */
   let iter = null;
   let exhausted = false;
@@ -46,7 +51,7 @@ export const makeCursorExo = ({ backend, dirPath }) => {
     harden({
       name: entry.name,
       kind: entry.kind,
-      qid: synthQid([...dirPath, entry.name], entry.kind),
+      qid: qidOf([...dirPath, entry.name], entry.kind),
     });
 
   return makeExo('Cursor', CursorInterface, {

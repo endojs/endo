@@ -71,6 +71,14 @@ const probeCapabilities = backend => {
     rename: typeof b.rename === 'function',
     watch: typeof b.watch === 'function',
     statfs: typeof b.statfs === 'function',
+    // Content-address hooks: a backend that knows a stronger identity
+    // than a path (e.g. a git object OID) can supply it. `qidFor`
+    // overrides the synthesized `synthQid(path, kind)` for `getQid`;
+    // `blobInfoFor` overrides the SHA-256-over-bytes `BlobRef` hash.
+    // Both fall back to the default when the method is absent OR when a
+    // present method returns `undefined` for a given path.
+    qidFor: typeof b.qidFor === 'function',
+    blobInfoFor: typeof b.blobInfoFor === 'function',
   });
 };
 
@@ -143,6 +151,19 @@ export const wrapBackend = (backend, opts = {}) => {
   const caps = probeCapabilities(backend);
   const description = opts.description ?? 'wrapBackend-built Filesystem';
   const namedDirs = harden({ ...(opts.namedDirs ?? {}) });
+
+  // `getQid` is a synchronous getter — `readOnly()` forwards it sync
+  // and 9p-server pipelines it — so its QID source must be sync too.
+  // A content-address backend may supply `qidFor(path, kind)` returning
+  // a stronger (e.g. git-OID-based) `Qid`; a missing method or a
+  // per-path `undefined` falls back to the path-hash `synthQid`.
+  const qidOf = (path, kind) => {
+    if (caps.qidFor) {
+      const supplied = /** @type {any} */ (backend).qidFor(path, kind);
+      if (supplied !== undefined) return supplied;
+    }
+    return synthQid(path, kind);
+  };
 
   // Vat-local advisory lock table, keyed by joined path.
   // Real OS-level locks live in the future PosixFs extension (F15).
@@ -353,7 +374,8 @@ export const wrapBackend = (backend, opts = {}) => {
   const xattrsExoFor = path =>
     makeXattrsExo({ xattrTable, fireLocal, lockKeyOf, path });
   /** @param {string[]} dirPath */
-  const cursorExoFor = dirPath => makeCursorExo({ backend, dirPath });
+  const cursorExoFor = dirPath =>
+    makeCursorExo({ backend, dirPath, qidOf });
   /** @param {string[]} path */
   const watcherExoFor = path =>
     makeNodeWatcherExo({
@@ -610,7 +632,7 @@ export const wrapBackend = (backend, opts = {}) => {
       },
       // ---- Legacy: wide-shape attrs + Qid + sidecar xattrs ----
       getQid() {
-        return synthQid(path, 'file');
+        return qidOf(path, 'file');
       },
       async getAttrs() {
         const st = await readFileStat(path);
@@ -727,9 +749,18 @@ export const wrapBackend = (backend, opts = {}) => {
           throw makeError(X`ENOENT: ${q(path.join('/'))}`);
         }
         const bytes = await backend.read(path);
+        // A content-address backend may supply the native content hash
+        // (e.g. git's `git-sha1` blob OID) via `blobInfoFor`; when it
+        // does we stamp `{ algorithm, hash }` onto the BlobRef instead
+        // of hashing the captured bytes with SHA-256. A missing method
+        // or a per-path `undefined` falls back to the default SHA-256.
+        const infoOverride = caps.blobInfoFor
+          ? /** @type {any} */ (backend).blobInfoFor(path)
+          : undefined;
         return makeBlobRefExo(
           bytes,
           `BlobRef: snapshot of ${path.join('/') || '/'}.`,
+          infoOverride,
         );
       },
       help(method) {
@@ -780,7 +811,7 @@ export const wrapBackend = (backend, opts = {}) => {
       },
       // ---- Legacy: wide-shape attrs + Qid + sidecar xattrs ----
       getQid() {
-        return synthQid(path, 'directory');
+        return qidOf(path, 'directory');
       },
       async getAttrs() {
         const k = await backend.kind(path);

@@ -585,3 +585,107 @@ test('copy onto an existing directory merges (does not replace)', async t => {
   const merged = await E(root).lookup(['b', 'from-src.txt']);
   t.is((await E(merged).getQid()).type, 'file');
 });
+
+// ---------- content-address hooks: qidFor / blobInfoFor ----------
+
+// A minimal read-only backend whose two paths point at one "blob" (a
+// stand-in for a git object OID). It advertises the optional content-
+// address hooks so wrapBackend sources QID pathIds and BlobRef hashes
+// from the OID instead of the path hash / SHA-256 defaults.
+const OID_BLOB = 'ab'.repeat(20); // 40 hex chars, like a git sha1
+const OID_TREE = 'cd'.repeat(20);
+const makeHookedBackend = () => {
+  const files = new Map([
+    ['x.txt', utf8('same content\n')],
+    ['y.txt', utf8('same content\n')],
+  ]);
+  const entryFor = path => {
+    if (path.length === 0) return { kind: 'directory', oid: OID_TREE };
+    const bytes = files.get(path.join('/'));
+    return bytes === undefined ? undefined : { kind: 'file', oid: OID_BLOB, bytes };
+  };
+  return harden({
+    async kind(path) {
+      const e = entryFor(path);
+      return e === undefined ? undefined : e.kind;
+    },
+    async *list(dirPath) {
+      if (dirPath.length !== 0) return;
+      for (const name of files.keys()) yield harden({ name, kind: 'file' });
+    },
+    async read(path) {
+      const e = entryFor(path);
+      return e !== undefined && e.kind === 'file' ? e.bytes : new Uint8Array(0);
+    },
+    async write() {
+      throw Error('EROFS');
+    },
+    async makeDirectory() {
+      throw Error('EROFS');
+    },
+    async remove() {
+      throw Error('EROFS');
+    },
+    qidFor(path, kind) {
+      const e = entryFor(path);
+      if (e === undefined) return undefined;
+      return harden({ type: kind, pathId: BigInt(`0x${e.oid}`), version: 0n });
+    },
+    blobInfoFor(path) {
+      const e = entryFor(path);
+      if (e === undefined || e.kind !== 'file') return undefined;
+      return harden({ algorithm: 'git-sha1', hash: e.oid });
+    },
+  });
+};
+
+test('wrapBackend: qidFor hook sources QID pathId from the backend OID', async t => {
+  const fs = wrapBackend(makeHookedBackend());
+  const root = await E(fs).root();
+
+  const rootQid = await E(root).getQid();
+  t.is(rootQid.type, 'directory');
+  t.is(rootQid.pathId, BigInt(`0x${OID_TREE}`));
+  t.is(rootQid.version, 0n);
+
+  // Two distinct paths onto one blob → one QID pathId.
+  const x = await E(root).lookup('x.txt');
+  const y = await E(root).lookup('y.txt');
+  const xQid = await E(x).getQid();
+  const yQid = await E(y).getQid();
+  t.is(xQid.pathId, BigInt(`0x${OID_BLOB}`));
+  t.is(xQid.pathId, yQid.pathId);
+});
+
+test('wrapBackend: blobInfoFor hook sets BlobRef algorithm + hash', async t => {
+  const fs = wrapBackend(makeHookedBackend());
+  const root = await E(fs).root();
+  const x = await E(root).lookup('x.txt');
+  const y = await E(root).lookup('y.txt');
+
+  const xInfo = await E(await E(x).snapshot()).getInfo();
+  const yInfo = await E(await E(y).snapshot()).getInfo();
+  t.is(xInfo.algorithm, 'git-sha1');
+  t.is(xInfo.hash, OID_BLOB);
+  t.is(xInfo.size, BigInt('same content\n'.length));
+  // Same blob → same BlobRef hash across paths.
+  t.is(xInfo.hash, yInfo.hash);
+});
+
+test('wrapBackend: without hooks, QID + BlobRef fall back to path hash / sha256', async t => {
+  // The plain in-memory backend advertises neither hook, so identity
+  // degrades to the path-hash synthQid and SHA-256 BlobRef — two paths
+  // with identical content get DIFFERENT QIDs (path identity).
+  const fs = makeFs();
+  const root = await E(fs).root();
+  await E(root).write('x.txt', 'same content\n');
+  await E(root).write('y.txt', 'same content\n');
+  const x = await E(root).lookup('x.txt');
+  const y = await E(root).lookup('y.txt');
+  const xQid = await E(x).getQid();
+  const yQid = await E(y).getQid();
+  t.not(xQid.pathId, yQid.pathId, 'path-hash QID distinguishes the two paths');
+
+  const info = await E(await E(x).snapshot()).getInfo();
+  t.is(info.algorithm, 'sha256');
+});

@@ -25,15 +25,33 @@ Phase 1 + 2 + 3 + a slice of Phase 4 landed on `claude/adoring-planck-GmRX2`, re
 The on-disk design was revised after rebase: the upstream `@endo/endo-fs` seam refactor introduced `FsBackend` + `wrapBackend(...)`.
 The original plan called for hand-rolling the full `Filesystem` / `Directory` / `File` / `OpenFile` exo graph; that turned into a tiny `FsBackend` adapter (6 required + 2 optional methods, ~150 lines) and the upstream `wrapBackend` builds the rest.
 
-Two original design choices were dropped as a consequence:
+Two original design choices were dropped as a consequence, then **restored
+in the Phase 5 follow-up** via a backend-supplied QID/hash hook on
+`wrapBackend` (the `synthQidFromOid`-style option this Status section
+anticipated), landed on `llm`:
 
-1. **QID `pathId` is no longer the git OID as BigInt.**
-   `wrapBackend` synthesizes QIDs via `synthQid(path, kind)` from a path hash.
-   Two paths pointing at the same blob therefore report different QIDs — git-style content-address equivalence is not preserved at this layer.
-2. **`BlobRef.algorithm` is `'sha256'`, not `'git-sha1'`.**
-   The shared `makeBlobRefExo` SHA-256s the captured bytes; the git blob OID is not exposed through the `BlobRef` surface.
+1. **QID `pathId` is the git object OID as a BigInt (restored).**
+   `wrapBackend` probes the backend for an optional `qidFor(path, kind)`
+   (a synchronous content-address hook) and uses it when present; the
+   git-tree backend (`packages/exo-git/src/git-filesystem.js`) supplies a
+   `Qid` whose `pathId` is the tree/blob OID. A backend that omits the hook
+   still falls back to the path-hash `synthQid(path, kind)`. Two paths (or
+   two refs) that resolve to the same blob therefore report the same QID
+   again — content-address equivalence is preserved.
+2. **`BlobRef.algorithm` is `'git-sha1'` for the git-tree backend (restored).**
+   `wrapBackend`'s `File.snapshot()` probes the optional `blobInfoFor(path)`
+   hook; the git backend returns `{ algorithm: 'git-sha1', hash: <blobOid> }`,
+   so the `BlobRef` carries the git blob OID (git hashes the framed payload
+   `blob <size>\0<bytes>`). Backends without the hook keep the default
+   SHA-256-over-captured-bytes `BlobRef`.
 
-Both can be reintroduced as a Phase 5 follow-up (a `synthQidFromOid` option on `wrapBackend`, or a wrap-backend extension hook that lets a backend supply its own QID / hash), but the trade-off — ~200 lines of bespoke exo plumbing versus reusing the shared seam — went the other way given the seam refactor's recent simplification.
+The hook is ~40 lines on the git side plus a small probe on the wrap-backend
+side — far less than the ~200 lines of bespoke exo plumbing a hand-rolled
+graph would have cost, because the sync OID is sourced from the backend's
+existing path-resolution cache. Two Phase 5 sub-items remain deferred:
+SHA-256-format repo detection (`extensions.objectFormat = sha256` →
+`algorithm: 'git-sha256'`; see Phase 5 below) and paged directory listing
+(Phase 6).
 
 ## Summary
 
@@ -41,8 +59,8 @@ Add a method `Git.filesystemAt(ref)` to `EndoGit` that returns an `@endo/endo-fs
 The Filesystem is immutable: blob reads stream via `git cat-file blob` and directory listings stream via `git ls-tree`.
 
 > The text below describes the original design intent — Section §1 in the prompt was for the version that hand-rolled the `Filesystem` / `Directory` / `File` / `OpenFile` exo graph.
-> The shipped implementation targets the upstream `wrapBackend(...)` seam instead and is described in the `## Status` section above; the QID-from-OID and `git-sha1` BlobRef claims in this section are NOT what shipped.
-> See the Status section for the authoritative current contract.
+> The shipped implementation targets the upstream `wrapBackend(...)` seam instead and is described in the `## Status` section above.
+> The QID-from-OID and `git-sha1` BlobRef claims in this section were initially dropped but are now **restored** through the Phase 5 `qidFor` / `blobInfoFor` backend hooks (see the Status section, which is the authoritative current contract).
 
 `Git.filesystemAt` is the first daemon-side bridge between the `Git` capability and the `@endo/endo-fs` filesystem vocabulary.
 The daemon's `EndoMount` and `@endo/endo-fs`'s `Filesystem` remain separate surfaces — the existing one-way `from-mount.js` adapter in `endo-fs` is the only bridge between them, and this design does not unify them.
@@ -140,14 +158,18 @@ Blob bytes are NOT cached at this layer; callers that want a CAS-backed cache co
 
 ### QID and BlobRef contracts
 
-> **Superseded by the `## Status` section.**
-> The shipped implementation delegates QID and `BlobRef` synthesis to `wrapBackend`, so:
-> - `qid.pathId` is the path hash from `synthQid(path, kind)`, not the git OID.
-> - `BlobRef.getInfo()` reports `algorithm: 'sha256'` (SHA-256 of the captured bytes), not `git-sha1`; the git OID is not exposed through the `BlobRef` shape.
+> **See the `## Status` section for the authoritative contract.**
+> The QID and `BlobRef` synthesis is delegated to `wrapBackend`, which now
+> probes the git-tree backend's Phase 5 content-address hooks:
+> - `qid.pathId` is the git object OID as a BigInt, supplied via `qidFor(path, kind)`.
+> - `BlobRef.getInfo()` reports `algorithm: 'git-sha1'` with `hash` the git blob OID, supplied via `blobInfoFor(path)`.
 >
-> The original design called for the shape below, which would require either a hand-rolled exo graph (the wrap-backend rewrite eliminated) or a backend-supplied QID / hash hook on `wrapBackend` (deferred).
+> This matches the shape below (the original design intent). It was briefly
+> dropped in favor of the path-hash `synthQid` / SHA-256 defaults when the
+> wrap-backend seam refactor landed, then restored by the backend hook rather
+> than a hand-rolled exo graph.
 
-The original intent was:
+The shape (now the shipped contract) is:
 
 ```ts
 // File QID
@@ -172,8 +194,8 @@ The original intent was:
 }
 ```
 
-The `git-sha1` vs `sha256` distinction would have been load-bearing: git's hash is over the framed payload (`blob <size>\0<bytes>`), not the raw bytes, so a downstream consumer comparing hashes across sources must distinguish `git-sha1(framed)` from `sha256(raw)`.
-With the shipped shape, callers that need git-OID identity must consult the parent `Git` cap or the design's deferred backend-hook follow-up.
+The `git-sha1` vs `sha256` distinction is load-bearing: git's hash is over the framed payload (`blob <size>\0<bytes>`), not the raw bytes, so a downstream consumer comparing hashes across sources must distinguish `git-sha1(framed)` from `sha256(raw)`.
+The shipped `blobInfoFor` hook stamps `algorithm: 'git-sha1'`, so callers can rely on `BlobRef.getInfo().hash` matching the git blob OID directly. (Detecting a `sha256`-format repository to spell `git-sha256` is the still-deferred Phase 5 sub-item.)
 
 ### Brands
 
@@ -269,8 +291,8 @@ The existing `backend.tree(ref) → ReadableTree` keeps its shape unchanged; `fi
 `Git.filesystemAt(ref)` returns an ephemeral exo (no formula persistence), matching `Git.tree(ref)`.
 Daemon restart causes any cap holders to re-derive the Filesystem from the parent `Git` formula by calling `filesystemAt(ref)` again.
 The brand changes across restart.
-The shipped `wrapBackend` implementation hashes captured bytes with SHA-256 and does NOT expose the git blob OID through `BlobRef` (see the `## Status` section), so callers that need cross-restart identity cannot rely on `BlobRef.getInfo().hash` matching the git OID directly.
-Pair `Git.filesystemAt(ref)` with `Git.resolveTree(ref)` / `lsTree(treeOid)` from the backend contract (or hold the parent `Git` cap) to recover OID-level identity until the Phase 5 wrap-backend hook lets the git-FS supply its own hashes.
+Even so, content-address identity is stable across restart: the QID `pathId` and the `BlobRef.getInfo().hash` are sourced from the git object OID (via the `qidFor` / `blobInfoFor` hooks — see the `## Status` section), so a blob keeps the same QID and hash no matter which brand-changing Filesystem instance produced it, or which ref reached it.
+The brand identifies the *instance*; the OID identifies the *content*.
 
 ## Dependencies
 
@@ -313,10 +335,11 @@ The daemon package takes a new dependency on `@endo/endo-fs` to import its inter
 - [ ] Cross-FS `rename` throws `EXDEV` from brand mismatch.
 - [ ] Document the integration patterns in the package README or DESIGN.
 
-### Phase 5 (deferred): SHA-256 repo support
+### Phase 5: Content-address QID/hash hook + SHA-256 repo support
 
-- [ ] Detect `extensions.objectFormat = sha256` in `.git/config` and set `BlobRef.algorithm = 'git-sha256'` accordingly.
-- [ ] Adjust `pathId` derivation if needed (sha256 OIDs are 64 hex chars, fits in BigInt fine).
+- [x] Backend-supplied QID/hash hook on `wrapBackend`: optional `qidFor(path, kind)` (sync, sources QID `pathId` from the git OID) and `blobInfoFor(path)` (sources the `BlobRef` `{ algorithm: 'git-sha1', hash }` from the git blob OID), probed by existence with path-hash `synthQid` / SHA-256 fallbacks. The git-tree backend supplies both from its path-resolution cache. Tests: same-blob QID + hash equivalence across paths and across refs (`packages/daemon/test/git.test.js`), plus the hook seam over a fake backend (`packages/platform/test/wrap-backend.test.js`).
+- [ ] (still deferred) Detect `extensions.objectFormat = sha256` in `.git/config` and set `blobInfoFor` → `algorithm: 'git-sha256'` accordingly.
+- [ ] (still deferred) Adjust `pathId` derivation if needed (sha256 OIDs are 64 hex chars, fits in BigInt fine).
 
 ### Phase 6 (deferred): Paged directory listing
 

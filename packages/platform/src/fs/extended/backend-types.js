@@ -160,12 +160,21 @@
  * @property {(src: string[], dst: string[]) => Promise<void>} [rename]
  * @property {(path: string[]) => AsyncIterable<WatchEvent>} [watch]
  * @property {() => Promise<{ blockSize?: bigint, totalBlocks?: bigint, freeBlocks?: bigint, totalBytes?: bigint, freeBytes?: bigint, files?: bigint, directories?: bigint }>} [statfs]
+ * @property {(path: string[], kind: NodeKind) => (import('./types.ts').Qid | undefined)} [qidFor]
+ * @property {(path: string[]) => ({ algorithm: string, hash: string } | undefined)} [blobInfoFor]
  */
 
-// `hash?` was probed but never wired through any consumer.
-// `BlobRef` does its own SHA-256 over captured bytes
-// (`shared/blobref.js`); reintroduce a hash optional once a real
-// porcelain method (`File.contentHash()`?) wants it.
+// **`qidFor?` / `blobInfoFor?` — content-address hooks.** `getQid` is a
+// synchronous getter and `BlobRef` does its own SHA-256 over captured
+// bytes (`shared/blobref.js`) by default. A backend that knows a
+// stronger identity than a path — e.g. the git-tree backend, whose
+// object OIDs are content-addressed — supplies `qidFor(path, kind)`
+// (sync, returning a `Qid` whose `pathId` is the OID) and/or
+// `blobInfoFor(path)` (returning `{ algorithm, hash }`, e.g.
+// `git-sha1` + the blob OID). wrap-backend probes both by existence and
+// falls back to `synthQid` / SHA-256 when a method is absent OR returns
+// `undefined` for a given path. `qidFor` must answer synchronously
+// (from a memoized resolution), matching `getQid`'s sync contract.
 
 // This module is types-only. Exporting an empty object keeps it as a
 // `.js` module that ts-check and JSDoc consumers can `@import` from.
