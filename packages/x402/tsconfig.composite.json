@@ -4,5 +4,9 @@
   "compilerOptions": {
     "composite": true
   },
-  "references": []
+  "references": [
+    {
+      "path": "../base64/tsconfig.composite.json"
+    }
+  ]
 }

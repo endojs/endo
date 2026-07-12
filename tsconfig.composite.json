@@ -207,6 +207,9 @@
       "path": "packages/where/tsconfig.composite.json"
     },
     {
+      "path": "packages/x402/tsconfig.composite.json"
+    },
+    {
       "path": "packages/zip/tsconfig.composite.json"
     }
   ]
