@@ -367,7 +367,7 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
       });
     },
 
-    // ---- Content-address hooks (see designs/endo-fs-from-git.md Goal 2) ----
+    // Content-address hooks (see designs/endo-fs-from-git.md Goal 2).
     //
     // Optional `FsBackend` methods that wrap-backend probes for by
     // existence.  They restore git's content-addressed identity to the
@@ -375,7 +375,7 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
     // and the `BlobRef` hash becomes the `git-sha1` blob OID.  Two paths
     // (or two refs) that resolve to the same blob therefore report the
     // same QID and the same `BlobRef` hash — the deduplication and
-    // cross-restart identity the shared `synthQid` (path hash) / SHA-256
+    // cross-ref identity the shared `synthQid` (path hash) / SHA-256
     // fallbacks cannot give.  Both read the synchronous `resolvedSync`
     // mirror; a miss returns `undefined` and wrap-backend falls back to
     // its default synthesis.
@@ -386,15 +386,33 @@ export const makeGitFsBackend = ({ backend, treeOid }) => {
      * a BigInt.  `version` is `0n` — git objects are immutable, so a
      * given OID never changes meaning.
      *
+     * The full OID is a 160-bit (`git-sha1`) / 256-bit (`git-sha256`)
+     * value, wider than 9p's uint64 `qid.path`.  The exo/CapTP layer
+     * observes the full-width identity; the 9p seam
+     * (`@endo/9p-server`) folds it to the low 64 bits.  Equal OID →
+     * equal folded value, so listing/walk dedup survives, but at the
+     * wire cross-blob distinctness is 64-bit, on par with `synthQid`.
+     *
+     * A missing mirror entry returns `undefined` (→ `synthQid`
+     * fallback); a present-but-malformed OID likewise degrades rather
+     * than throwing `BigInt` synchronously into the sync `getQid`
+     * getter, honoring the never-throw contract the fallback documents.
+     *
      * @param {string[]} path
      * @param {NodeKind} kind
      */
     qidFor(path, kind) {
       const entry = resolvedSync.get(path.join('\0'));
       if (entry === undefined) return undefined;
+      let pathId;
+      try {
+        pathId = BigInt(`0x${entry.oid}`);
+      } catch {
+        return undefined;
+      }
       return harden({
         type: kind,
-        pathId: BigInt(`0x${entry.oid}`),
+        pathId,
         version: 0n,
       });
     },

@@ -10,7 +10,7 @@
  * consumers (9p-server's `Treaddir` reads `{ name, qid }`) work
  * unchanged against any wrapBackend-built `Filesystem`.
  *
- * @import { FsBackend, DirEntry } from '../backend-types.js'
+ * @import { FsBackend, DirEntry, NodeKind } from '../backend-types.js'
  */
 
 import { makeExo } from '@endo/exo';
@@ -25,7 +25,7 @@ import { synthQid } from './qid.js';
  * @param {object} opts
  * @param {FsBackend} opts.backend
  * @param {string[]} opts.dirPath
- * @param {(path: string[], kind: import('../backend-types.js').NodeKind) => any} [opts.qidOf]
+ * @param {(path: string[], kind: NodeKind) => any} [opts.qidOf]
  *   optional QID synthesizer (defaults to the path-hash `synthQid`).
  *   wrap-backend passes its content-address-aware `qidOf` so a listing
  *   entry's `qid` matches the one a later `lookup(name).getQid()` would

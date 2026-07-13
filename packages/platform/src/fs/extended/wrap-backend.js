@@ -71,14 +71,11 @@ const probeCapabilities = backend => {
     rename: typeof b.rename === 'function',
     watch: typeof b.watch === 'function',
     statfs: typeof b.statfs === 'function',
-    // Content-address hooks: a backend that knows a stronger identity
-    // than a path (e.g. a git object OID) can supply it. `qidFor`
-    // overrides the synthesized `synthQid(path, kind)` for `getQid`;
-    // `blobInfoFor` overrides the SHA-256-over-bytes `BlobRef` hash.
-    // Both fall back to the default when the method is absent OR when a
-    // present method returns `undefined` for a given path.
-    qidFor: typeof b.qidFor === 'function',
-    blobInfoFor: typeof b.blobInfoFor === 'function',
+    // Content-address hooks (`qidFor` / `blobInfoFor`) are probed at
+    // their call sites via optional chaining, not here: a backend that
+    // knows a stronger identity than a path (e.g. a git object OID)
+    // supplies them, and both degrade to `synthQid` / SHA-256 when the
+    // method is absent OR returns `undefined` for a given path.
   });
 };
 
@@ -158,10 +155,11 @@ export const wrapBackend = (backend, opts = {}) => {
   // a stronger (e.g. git-OID-based) `Qid`; a missing method or a
   // per-path `undefined` falls back to the path-hash `synthQid`.
   const qidOf = (path, kind) => {
-    if (caps.qidFor) {
-      const supplied = /** @type {any} */ (backend).qidFor(path, kind);
-      if (supplied !== undefined) return supplied;
-    }
+    const supplied = backend.qidFor?.(path, kind);
+    // Re-harden at the trust boundary: `getQid` marshals this across the
+    // exo/CapTP surface, and the wrapper must not rely on every backend
+    // returning a hardened record. `harden` is idempotent.
+    if (supplied !== undefined) return harden(supplied);
     return synthQid(path, kind);
   };
 
@@ -753,9 +751,7 @@ export const wrapBackend = (backend, opts = {}) => {
         // does we stamp `{ algorithm, hash }` onto the BlobRef instead
         // of hashing the captured bytes with SHA-256. A missing method
         // or a per-path `undefined` falls back to the default SHA-256.
-        const infoOverride = caps.blobInfoFor
-          ? /** @type {any} */ (backend).blobInfoFor(path)
-          : undefined;
+        const infoOverride = backend.blobInfoFor?.(path);
         return makeBlobRefExo(
           bytes,
           `BlobRef: snapshot of ${path.join('/') || '/'}.`,

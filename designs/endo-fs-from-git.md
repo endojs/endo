@@ -18,7 +18,7 @@ Phase 1 + 2 + 3 + a slice of Phase 4 landed on `claude/adoring-planck-GmRX2`, re
 
 - `Git.filesystemAt(ref)` exposed on `EndoGit` (`packages/daemon/src/interfaces.js`, `packages/daemon/src/types.d.ts`).
 - `GitBackend` contract extended with `resolveTree`, `lsTree`, `readBlobBytes`, `streamBlobBytes` (`packages/daemon/src/git.js`); native git backend exposes the same as public methods (`packages/daemon/src/native-git-backend.js`).
-- Adapter lives at `packages/daemon/src/git-filesystem.js` and exports `makeGitFsBackend({ backend, treeOid })` — an `FsBackend` implementation (per `endo-fs/src/backend-types.js`).
+- Adapter lives at `packages/exo-git/src/git-filesystem.js` and exports `makeGitFsBackend({ backend, treeOid })` — an `FsBackend` implementation (per `@endo/platform`'s `fs/extended/backend-types.js`).
   The daemon wraps it as `readOnly(wrapBackend(makeGitFsBackend(...), { description }))` so write verbs reject with `EACCES` at the cap boundary.
 - Tests in `packages/daemon/test/git.test.js` cover shape, lookup, range reads, BlobRef, directory listing, mutation rejection, OID memoization, and submodule hiding.
 
@@ -48,10 +48,21 @@ anticipated), landed on `llm`:
 The hook is ~40 lines on the git side plus a small probe on the wrap-backend
 side — far less than the ~200 lines of bespoke exo plumbing a hand-rolled
 graph would have cost, because the sync OID is sourced from the backend's
-existing path-resolution cache. Two Phase 5 sub-items remain deferred:
+existing path-resolution cache. One Phase 5 sub-item remains deferred —
 SHA-256-format repo detection (`extensions.objectFormat = sha256` →
-`algorithm: 'git-sha256'`; see Phase 5 below) and paged directory listing
-(Phase 6).
+`algorithm: 'git-sha256'`; see Phase 5 below) — as does paged directory
+listing (Phase 6), tracked separately.
+
+The QID `pathId` carries the full-width OID (160-bit `git-sha1`, 256-bit
+`git-sha256`), wider than 9p's uint64 `qid.path`. The exo / CapTP layer
+observes the full-width identity (the tests assert full-width equality);
+the 9p seam (`@endo/9p-server`) folds it to the low 64 bits with the same
+mask `synthQid` already lives within. Equal OID → equal folded value, so
+`Treaddir`→`Twalk` dedup survives; cross-blob distinctness at the wire is
+64-bit, on par with the path-hash fallback. This wire fold is also why a
+resolved path's mirror entry must never be evicted on success — its
+`pathId` would flip from the OID to a `synthQid` path-hash mid-life,
+changing the wire `qid.path` and corrupting a 9p client's inode cache.
 
 ## Summary
 

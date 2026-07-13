@@ -1,4 +1,5 @@
 // @ts-check
+/** @import { Qid } from './types.js' */
 /**
  * `FsBackend` — the minimal protocol that any storage backing
  * (in-memory map, node:fs, a remote Mount adapter, a KV blob store,
@@ -160,7 +161,7 @@
  * @property {(src: string[], dst: string[]) => Promise<void>} [rename]
  * @property {(path: string[]) => AsyncIterable<WatchEvent>} [watch]
  * @property {() => Promise<{ blockSize?: bigint, totalBlocks?: bigint, freeBlocks?: bigint, totalBytes?: bigint, freeBytes?: bigint, files?: bigint, directories?: bigint }>} [statfs]
- * @property {(path: string[], kind: NodeKind) => (import('./types.ts').Qid | undefined)} [qidFor]
+ * @property {(path: string[], kind: NodeKind) => (Qid | undefined)} [qidFor]
  * @property {(path: string[]) => ({ algorithm: string, hash: string } | undefined)} [blobInfoFor]
  */
 
