@@ -4,7 +4,10 @@
 /** @import { Model } from '@earendil-works/pi-ai' */
 /** @import { Credentials } from './credentials.js' */
 
-import { getModel, registerBuiltInApiProviders } from '@earendil-works/pi-ai';
+import {
+  getModel,
+  registerBuiltInApiProviders,
+} from '@earendil-works/pi-ai/compat';
 
 import { getAmbientEnv, makeEnvCredentials } from './credentials.js';
 

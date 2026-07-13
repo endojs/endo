@@ -12,7 +12,7 @@ import {
   registerFauxProvider,
   fauxAssistantMessage,
   fauxToolCall,
-} from '@earendil-works/pi-ai';
+} from '@earendil-works/pi-ai/compat';
 import { makeNodeFilesystem } from '@endo/platform/fs/extended';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateBytesWriter } from '@endo/exo-stream/iterate-bytes-writer.js';

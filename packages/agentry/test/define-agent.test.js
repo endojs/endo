@@ -1,7 +1,7 @@
 // @ts-check
 
 import test from '@endo/ses-ava/prepare-endo.js';
-import { getModel } from '@earendil-works/pi-ai';
+import { getModel } from '@earendil-works/pi-ai/compat';
 
 import { defineAgent, makeEnvCredentials } from '../src/define-agent.js';
 

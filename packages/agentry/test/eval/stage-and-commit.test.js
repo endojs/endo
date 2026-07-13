@@ -12,7 +12,7 @@ import {
   registerFauxProvider,
   fauxAssistantMessage,
   fauxToolCall,
-} from '@earendil-works/pi-ai';
+} from '@earendil-works/pi-ai/compat';
 
 import {
   makeRunMetricsRecorder,
