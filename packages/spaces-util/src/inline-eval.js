@@ -102,7 +102,6 @@ import { petNamePathAutocomplete } from './petname-path-autocomplete.js';
  * @typedef {object} SourceState
  * @property {string} value
  * @property {boolean} disabled
- * @property {number} focusNonce - Bumped to re-apply autofocus on a request.
  */
 
 /**
@@ -228,13 +227,11 @@ const Root = ({ controller, initialState, onInput, onKeyDown }) => {
   }, []);
 
   return h('input', {
-    key: state.focusNonce ? `source-${state.focusNonce}` : undefined,
     type: 'text',
     class: 'inline-eval-input',
     placeholder: 'expression...',
     value: state.value,
     disabled: state.disabled,
-    autofocus: state.focusNonce > 0,
     /** @param {{ target: { value: string } }} e */
     onInput: e => onInput(e.target.value),
     /** @param {{ key?: string, metaKey?: boolean, ctrlKey?: boolean, preventDefault: () => void }} e */
@@ -291,7 +288,6 @@ export const createInlineEval = ({
   // Authoritative source state lives here in the host closure so `getData`/
   // `isValid` are read synchronously-fresh regardless of Preact's flush timing.
   let sourceValue = '';
-  let sourceFocusNonce = 0;
 
   // Mutable bridge to the source Root's state setter (populated by its effect).
   // Intentionally NOT hardened — the component writes onto it.
@@ -304,7 +300,6 @@ export const createInlineEval = ({
         harden({
           value: sourceValue,
           disabled,
-          focusNonce: sourceFocusNonce,
         }),
       );
     }
@@ -349,10 +344,27 @@ export const createInlineEval = ({
     onValidityChange(isValid());
   };
 
-  /** Focus the source input by bumping its focus nonce. */
+  /**
+   * Focus the source expression input. Rather than re-keying the confined input
+   * to re-apply `autofocus` (which the sanitizing renderer does not honor, and
+   * whose remount would only steal focus back), focus the real node directly.
+   * The input renders confined into `$sourceMount`, which flushes on a later
+   * frame, so retry across a few frames until it has mounted.
+   */
   const focusSource = () => {
-    sourceFocusNonce += 1;
-    pushSourceState();
+    let attempts = 0;
+    const tryFocus = () => {
+      const $source = /** @type {HTMLElement | null} */ (
+        $sourceMount.querySelector('.inline-eval-input')
+      );
+      if ($source) {
+        $source.focus();
+      } else if (attempts < 20) {
+        attempts += 1;
+        requestAnimationFrame(tryFocus);
+      }
+    };
+    tryFocus();
   };
 
   /**
@@ -620,7 +632,7 @@ export const createInlineEval = ({
   renderConfined(
     h(Root, {
       controller: sourceController,
-      initialState: { value: sourceValue, disabled, focusNonce: 0 },
+      initialState: { value: sourceValue, disabled },
       onInput: onSourceInput,
       onKeyDown: onSourceKeyDown,
     }),

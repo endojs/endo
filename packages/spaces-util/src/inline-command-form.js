@@ -1089,6 +1089,13 @@ export const createInlineCommandForm = ({
     // Clean up previous
     disposeChildren();
 
+    // The confined form-body mount is unused by the inline eval/define
+    // sub-forms. Reset it visible for the generic field form here; the js /
+    // define branches hide it so its empty mount div is not the first flex child
+    // of #inline-form-container, where it would supply the command row's
+    // baseline (from an empty box) instead of the expression input.
+    $formMount.style.display = '';
+
     currentCommand = commandName;
     formData = {};
     fieldRuntimes = new Map();
@@ -1103,6 +1110,7 @@ export const createInlineCommandForm = ({
     // Special handling for eval command - use inline eval component.
     if (command.name === 'js') {
       pushViewState();
+      $formMount.style.display = 'none';
 
       const $evalContainer = document.createElement('div');
       $evalContainer.className = 'inline-eval-container';
@@ -1140,6 +1148,7 @@ export const createInlineCommandForm = ({
     // Special handling for define command - use inline define component.
     if (command.name === 'define') {
       pushViewState();
+      $formMount.style.display = 'none';
 
       const $defineContainer = document.createElement('div');
       $defineContainer.className = 'inline-eval-container';
