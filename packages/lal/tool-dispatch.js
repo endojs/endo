@@ -18,6 +18,7 @@
 import { mustMatch } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
 import { toolResultToSmallcaps, smallcapsMarshal } from '@endo/agentry/harness';
+import { applyEdits } from '@endo/agentry/edit-text';
 
 import { tools } from './tools/index.js';
 
@@ -362,6 +363,33 @@ export const makeExecuteTool = powers => {
         }
         const capability = await E(powers).lookup(petNameOrPath);
         return E(capability).writeText(fileName, content);
+      }
+      case 'editText': {
+        const { petNameOrPath, fileName, edits } = args;
+        if (
+          petNameOrPath === undefined ||
+          fileName === undefined ||
+          edits === undefined
+        ) {
+          throw new Error('petNameOrPath, fileName, and edits are required');
+        }
+        // Read-modify-write through the tree capability. `applyEdits` is
+        // synchronous, so nothing interleaves *within* the transform, but the
+        // read and the write are two separate eventual-send hops, so the pair
+        // is not atomic: two concurrent editText/writeText calls on the same
+        // file can both read the same original and the later write wins
+        // (last-writer-wins). The capability serializes each individual
+        // writeText, not the read-modify-write pair; a caller needing
+        // atomicity must serialize at a higher level.
+        const capability = await E(powers).lookup(petNameOrPath);
+        const original = await E(capability).readText(fileName);
+        const {
+          content: updated,
+          diff,
+          applied,
+        } = applyEdits(original, edits, { fileName });
+        await E(capability).writeText(fileName, updated);
+        return harden({ applied, diff });
       }
 
       // Code evaluation

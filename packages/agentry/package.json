@@ -37,6 +37,10 @@
       "types": "./src/eval/index.js",
       "default": "./src/eval/index.js"
     },
+    "./edit-text": {
+      "types": "./src/edit-text.js",
+      "default": "./src/edit-text.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

@@ -3,10 +3,30 @@
 | | |
 |---|---|
 | **Created** | 2026-05-15 |
-| **Updated** | 2026-05-15 |
+| **Updated** | 2026-07-10 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | In Progress |
 | **Parent** | [endopi](endopi.md) |
+
+> **Implementation note (2026-07-10).** The exact-string-replacement core has
+> landed for both the Lal and Fae agents. The algorithm — unique-match
+> enforcement, no-overlap batching, LF-normalized matching with CRLF/BOM
+> restoration, and a unified diff in the result — is a pure, shared module,
+> `@endo/agentry/edit-text` (`applyEdits`, `computeUnifiedDiff`,
+> `normalizeEdits`). Fae exposes it as the `edit` tool
+> (`packages/fae/src/tool-makers.js` `makeEditTool`, caplet
+> `packages/fae/tools/edit.js`), accepting a single `oldText`/`newText` pair or
+> an `edits` array. Lal exposes it as `editText`
+> (`packages/lal/tools/fs.js` + the dispatch case in
+> `packages/lal/tool-dispatch.js`), operating on a tree capability through the
+> landed `readText`/`writeText` shape rather than a bare `File` — consistent
+> with the sibling `readText`/`writeText` tools. The landed result shape is
+> `{ applied, diff }` (Lal) or a diff-annotated summary string (Fae); the
+> non-unique-match and overlap cases surface as thrown structured errors, not
+> as a `conflicts` field on the returned record — superseding the older
+> `{ applied, diff, conflicts }` sketch in the § Design tool surface below.
+> Still open: the Chat UI render-side diff preview, and promoting the tool onto
+> a dedicated `File` capability if/when `Dir.lookup(name) → File` lands.
 
 ## Motivation
 

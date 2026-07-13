@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { E } from '@endo/eventual-send';
+import { applyEdits, normalizeEdits } from '@endo/agentry/edit-text';
 
 /**
  * @typedef {object} ToolFunction
@@ -270,18 +271,42 @@ export const makeWriteFileTool = cwd => {
 harden(makeWriteFileTool);
 
 /**
+ * Edit a file by exact-string replacement, modeled on Pi's edit tool. Accepts
+ * a single `oldText`/`newText` pair or an `edits` array for batching. Each
+ * `oldText` must match exactly once; line endings and a leading BOM are
+ * preserved. The replacement algorithm is shared with the Lal agent through
+ * `@endo/agentry/edit-text`.
+ *
  * @param {string} cwd
  * @returns {FaeTool}
  */
-export const makeEditFileTool = cwd => {
+export const makeEditTool = cwd => {
+  const editShape = {
+    type: 'object',
+    properties: {
+      oldText: {
+        type: 'string',
+        description:
+          'Exact text to replace. Must occur exactly once in the file; ' +
+          'add surrounding context if it is otherwise ambiguous.',
+      },
+      newText: {
+        type: 'string',
+        description: 'Replacement text.',
+      },
+    },
+    required: ['oldText', 'newText'],
+  };
   /** @type {ToolSchema} */
   const toolSchema = harden({
     type: 'function',
     function: {
-      name: 'editFile',
+      name: 'edit',
       description:
-        'Edit a file by replacing the first occurrence of a string with another. ' +
-        'Path is relative to the working directory.',
+        'Edit a file by replacing exact text. Provide a single oldText/newText ' +
+        'pair, or an "edits" array to apply several replacements in one call. ' +
+        'Each oldText must match exactly once. Path is relative to the working ' +
+        'directory.',
       parameters: {
         type: 'object',
         properties: {
@@ -289,16 +314,17 @@ export const makeEditFileTool = cwd => {
             type: 'string',
             description: 'Relative path to the file to edit.',
           },
-          oldString: {
-            type: 'string',
-            description: 'The exact string to search for and replace.',
-          },
-          newString: {
-            type: 'string',
-            description: 'The replacement string.',
+          oldText: editShape.properties.oldText,
+          newText: editShape.properties.newText,
+          edits: {
+            type: 'array',
+            description:
+              'Optional batch of edits; each targets a non-overlapping, ' +
+              'uniquely-matching region of the file.',
+            items: editShape,
           },
         },
-        required: ['filePath', 'oldString', 'newString'],
+        required: ['filePath'],
       },
     },
   });
@@ -308,30 +334,34 @@ export const makeEditFileTool = cwd => {
       return toolSchema;
     },
     async execute(args) {
-      const { filePath, oldString, newString } =
-        /** @type {{ filePath: string, oldString: string, newString: string }} */ (
-          args
-        );
-      if (!filePath || oldString === undefined || newString === undefined) {
-        throw new Error('filePath, oldString, and newString are required');
+      const { filePath } = /** @type {{ filePath: string }} */ (args);
+      if (!filePath) {
+        throw new Error('filePath is required');
       }
+      const edits = normalizeEdits(
+        /** @type {{ oldText?: string, newText?: string, edits?: any[] }} */ (
+          args
+        ),
+      );
       const resolved = resolveSafe(filePath, cwd);
       const content = await fs.promises.readFile(resolved, 'utf-8');
-      if (!content.includes(oldString)) {
-        throw new Error(
-          `oldString not found in ${filePath}. Ensure the string matches exactly.`,
-        );
-      }
-      const updated = content.replace(oldString, newString);
+      const {
+        content: updated,
+        diff,
+        applied,
+      } = applyEdits(content, edits, {
+        fileName: filePath,
+      });
       await fs.promises.writeFile(resolved, updated, 'utf-8');
-      return `Edited ${filePath}`;
+      const summary = `Applied ${applied} edit${applied === 1 ? '' : 's'} to ${filePath}`;
+      return diff ? `${summary}\n\n${diff}` : summary;
     },
     help() {
-      return 'Edit a file by replacing the first occurrence of a string with another.';
+      return 'Edit a file by exact-text replacement (single or batched); returns a unified diff.';
     },
   });
 };
-harden(makeEditFileTool);
+harden(makeEditTool);
 
 /**
  * @param {string} cwd
