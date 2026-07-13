@@ -42,6 +42,16 @@ if (typeof testDocument.execCommand !== 'function') {
   testDocument.execCommand = () => false;
 }
 
+// happy-dom does not implement scrollIntoView / element scrollTo; durable-focus
+// navigation (entering focus mode, moving to an edge) calls them. Stub no-ops.
+if (typeof testWindow.HTMLElement.prototype.scrollIntoView !== 'function') {
+  testWindow.HTMLElement.prototype.scrollIntoView =
+    function scrollIntoView() {};
+}
+if (typeof testWindow.HTMLElement.prototype.scrollTo !== 'function') {
+  testWindow.HTMLElement.prototype.scrollTo = function scrollTo() {};
+}
+
 /**
  * Poll until `predicate()` is truthy (or a timeout elapses, in which case the
  * caller's assertion reports the real difference). The modeline and command
@@ -70,6 +80,7 @@ const waitFor = async (predicate, { timeout = 3000, step = 20 } = {}) => {
 const CHAT_BAR_TEMPLATE = `
 <div id="messages">
   <div id="anchor"></div>
+  <div id="pending-commands-region" class="pending-commands-region"></div>
 </div>
 
 <div id="chat-bar">
@@ -85,7 +96,6 @@ const CHAT_BAR_TEMPLATE = `
       <div id="chat-error"></div>
     </div>
     <div id="inline-form-container"></div>
-    <div id="command-error"></div>
     <div class="command-footer">
       <button id="command-submit-button">Execute</button>
       <button class="command-cancel-footer" id="command-cancel-footer" title="Cancel (Esc)">&times;</button>
@@ -324,13 +334,12 @@ test.serial(
 );
 
 test.serial(
-  'command-mode chrome (label / submit / error) renders confined',
+  'command-mode chrome (label / submit) renders confined',
   async t => {
     const ctx = await setupChatBar();
 
     const $header = ctx.$parent.querySelector('.command-header');
     const $footer = ctx.$parent.querySelector('.command-footer');
-    const $commandError = ctx.$parent.querySelector('#command-error');
 
     // Enter command mode via the /mkdir popover row.
     ctx.$menuButton.click();
@@ -369,8 +378,13 @@ test.serial(
       'confined cancel-footer button renders',
     );
 
-    // The error region renders confined; it starts empty / hidden.
-    t.is($commandError.style.display, 'none', 'error bubble hidden when empty');
+    // The pending-commands region starts empty (no cards, collapsed).
+    const $pending = ctx.$parent.querySelector('#pending-commands-region');
+    t.truthy($pending, 'pending-commands region present');
+    t.false(
+      $pending.classList.contains('has-pending'),
+      'pending region collapsed when no commands are in flight',
+    );
 
     t.teardown(() => ctx.api.dispose());
   },
@@ -476,16 +490,14 @@ test.serial(
 );
 
 test.serial(
-  'inline /js worker throw surfaces the daemon trace (stack + worker chip) in the command-error bubble',
+  'a failing /js surfaces the daemon trace (stack + worker chip) in an ephemeral error card',
   async t => {
-    // Regression for PR #58: an inline `/js` that throws must render its
-    // daemon-resolved stack trace and clickable worker chip in the rich
-    // command-error bubble — not fall through to the bare `#chat-error` toast
-    // that shows only the message. The bug was `executeWithSpinner` classifying
-    // `/js` as modal-opening, so it left command mode (`mode = 'send'`) before
-    // the async error arrived and `showError` dropped the resolved trace. The
-    // pre-existing command-executor / eval-form tests missed it because they
-    // mock `showError` directly and never exercise this routing.
+    // PR #133 (redraw on preact): command dispatch is non-blocking and a failed
+    // command — any command — is surfaced by its ephemeral pending-command error
+    // card, which carries the rich error UX (message + daemon stack trace +
+    // clickable worker chip) that used to be the eval-only inline command-error
+    // bubble. Regression for PR #58: the resolved trace must NOT be dropped, and
+    // the bare `#chat-error` toast must not be the surface.
     const WORKER_ID = 'worker-formula-id-abc123';
     const STACK = 'Error: x\n    at eval (worker:1:7)\n    at run (worker:2:3)';
 
@@ -517,7 +529,7 @@ test.serial(
     });
     t.teardown(() => ctx.api.dispose());
 
-    // Enter `/js` command mode via its popover row (mode becomes 'inline').
+    // Enter `/js` command mode via its popover row.
     ctx.$menuButton.click();
     const $row = await waitFor(() =>
       ctx.$popover.querySelector('.command-popover-item[data-command="js"]'),
@@ -539,15 +551,22 @@ test.serial(
       new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
     );
 
-    // Criterion 2: the full daemon-recorded stack surfaces in the bubble.
-    const $commandError = ctx.$parent.querySelector('#command-error');
-    const $stack = await waitFor(() =>
-      $commandError.querySelector('.command-error-stack-text'),
+    // The bar unlocks immediately (non-blocking dispatch): command mode is left.
+    await waitFor(() => !ctx.$chatBar.classList.contains('command-mode'));
+
+    // Criterion 1: the failure becomes an ephemeral error card in the pending
+    // region, carrying the full daemon-recorded stack.
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+    const $card = await waitFor(() =>
+      $region.querySelector('.pending-command-card.error'),
     );
-    t.truthy($stack, 'stack trace rendered in the command-error bubble');
+    t.truthy($card, 'an ephemeral error card rendered in the pending region');
+    const $stack = await waitFor(() =>
+      $card.querySelector('.command-error-stack-text'),
+    );
     t.is($stack.textContent, STACK, 'the daemon-recorded stack is shown');
     t.is(
-      $commandError.querySelector('.command-error-message').textContent,
+      $card.querySelector('.command-error-message').textContent,
       'x',
       'the error message is shown alongside the stack',
     );
@@ -559,9 +578,9 @@ test.serial(
       'the bare #chat-error toast was not used',
     );
 
-    // Criterion 3: a clickable worker chip that opens Show Value for the
+    // Criterion 2: a clickable worker chip that opens Show Value for the
     // authoritative worker id.
-    const $chip = $commandError.querySelector('.command-error-worker-chip');
+    const $chip = $card.querySelector('.command-error-worker-chip');
     t.truthy($chip, 'worker chip rendered');
     $chip.click();
     await waitFor(() => workerShows.length > 0);
@@ -581,6 +600,13 @@ test.serial(
       ),
       'the chip reverse-resolved the worker via lookupById',
     );
+
+    // The chip click showed the worker — it did NOT dismiss the card (the chip
+    // stops click propagation).
+    t.truthy(
+      $region.querySelector('.pending-command-card.error'),
+      'the error card persists after a worker-chip click',
+    );
   },
 );
 
@@ -588,17 +614,15 @@ const traceLookupCount = ctx =>
   Number(ctx.mock.calls.filter(c => c.method === 'traces.lookup').length);
 
 test.serial(
-  'inline /js: a late-arriving trace (race) enriches the bubble via the watch',
+  'error card: a late-arriving trace (race) enriches the card via the watch',
   async t => {
-    // PR #58 follow-up: the maintainer saw the bare message but no disclosure
-    // triangle or worker chip locally. Direct inspection showed the client did
-    // a single one-shot `lookup` at render time; when the daemon-side record
-    // had not yet reached the aggregator (a race between the worker's async
-    // trace push and the browser's lookup round-trip), the bubble degraded
-    // permanently to the bare message. `watchErrorTrace` now re-queries until
-    // the record arrives and enriches the bubble in place. `traceReportMisses:
-    // 1` models the race: the in-line resolve misses, the first watch re-check
-    // hits.
+    // PR #58 follow-up, preserved onto the error card: when the daemon-side
+    // record has not yet reached the aggregator (a race between the worker's
+    // async trace push and the browser's lookup round-trip), the initial resolve
+    // misses and the card first shows only the bare message. `watchErrorTrace`
+    // re-queries until the record arrives and enriches the card in place.
+    // `traceReportMisses: 1` models the race: the in-line resolve misses, the
+    // first watch re-check hits.
     const WORKER_ID = 'worker-formula-id-race';
     const STACK = 'Error: x\n    at eval (worker:1:7)';
 
@@ -644,20 +668,23 @@ test.serial(
       new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
     );
 
-    const $commandError = ctx.$parent.querySelector('#command-error');
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+    const $card = await waitFor(() =>
+      $region.querySelector('.pending-command-card.error'),
+    );
 
     // The first resolve missed, so initially only the bare message shows — no
-    // disclosure triangle, no chip. Confirm the message surfaced first.
-    await waitFor(() => $commandError.textContent.includes('x'));
+    // stack, no chip. Confirm the message surfaced first.
+    await waitFor(() => $card.textContent.includes('x'));
 
-    // The watch then re-queries and enriches: the stack disclosure and the
-    // worker chip appear without any further user action.
+    // The watch then re-queries and enriches: the stack and the worker chip
+    // appear without any further user action.
     const $stack = await waitFor(() =>
-      $commandError.querySelector('.command-error-stack-text'),
+      $card.querySelector('.command-error-stack-text'),
     );
     t.is($stack.textContent, STACK, 'the late daemon-recorded stack is shown');
     t.is(
-      $commandError.querySelector('.command-error-message').textContent,
+      $card.querySelector('.command-error-message').textContent,
       'x',
       'the message remains alongside the enriched stack',
     );
@@ -670,7 +697,7 @@ test.serial(
     );
 
     const $chip = await waitFor(() =>
-      $commandError.querySelector('.command-error-worker-chip'),
+      $card.querySelector('.command-error-worker-chip'),
     );
     $chip.click();
     await waitFor(() => workerShows.length > 0);
@@ -683,14 +710,13 @@ test.serial(
 );
 
 test.serial(
-  'inline /js: dismissing the error bubble cancels the trace watch',
+  'error card: dismissing the card cancels the trace watch',
   async t => {
-    // The maintainer specified the watch must be cancelled when the bubble is
-    // dismissed (the next command submitted / command mode exited). `setCommandError('')`
-    // — called by `exitCommandMode` and at the start of the next command — is
-    // the dismissal signal. With `traceReportMisses` larger than the watch's
-    // attempt budget the record never resolves, so an un-cancelled watch would
-    // keep polling; after dismissal the lookup count must stop growing.
+    // The watch must be cancelled when the error card is dismissed. An error
+    // card is click-to-dismiss; the click cancels any in-flight trace watch. With
+    // `traceReportMisses` larger than the watch's attempt budget the record never
+    // resolves, so an un-cancelled watch would keep polling; after dismissal the
+    // lookup count must stop growing.
     const workerError = new Error('x');
     Object.defineProperty(workerError, 'name', {
       value: 'RemoteError(error:daemon#3)',
@@ -724,15 +750,14 @@ test.serial(
       new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
     );
 
-    const $commandError = ctx.$parent.querySelector('#command-error');
-    await waitFor(() => $commandError.textContent.includes('x'));
-
-    // Dismiss via the command-bar cancel control (exitCommandMode →
-    // setCommandError('')), the same clear the next submitted command performs.
-    const $cancel = await waitFor(() =>
-      ctx.$parent.querySelector('.command-cancel-footer'),
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+    const $card = await waitFor(() =>
+      $region.querySelector('.pending-command-card.error'),
     );
-    $cancel.click();
+    await waitFor(() => $card.textContent.includes('x'));
+
+    // Dismiss by clicking the error card; the click cancels the in-flight watch.
+    $card.click();
 
     // Let several watch intervals elapse; a cancelled watch stops polling.
     const countAfterDismiss = traceLookupCount(ctx);
@@ -740,6 +765,547 @@ test.serial(
     t.true(
       traceLookupCount(ctx) - countAfterDismiss <= 1,
       'no further trace lookups after dismissal (watch cancelled)',
+    );
+  },
+);
+
+test.serial(
+  'non-blocking dispatch: the bar unlocks immediately and the pending card fades on success',
+  async t => {
+    // PR #133 core behavior: dispatch is non-blocking. Submitting a command
+    // leaves command mode at once (the bar is typable again) and the command is
+    // tracked as a card in the pending region, which fades away on success —
+    // never locking the input on the daemon promise.
+    const ctx = await setupChatBar({
+      // A successful /js: the default mock `evaluate` resolves (value undefined).
+      showValue: () => {},
+    });
+    t.teardown(() => ctx.api.dispose());
+
+    ctx.$menuButton.click();
+    const $row = await waitFor(() =>
+      ctx.$popover.querySelector('.command-popover-item[data-command="js"]'),
+    );
+    $row.click();
+    await waitFor(() => ctx.$chatBar.classList.contains('command-mode'));
+
+    const $src = await waitFor(() =>
+      ctx.$parent.querySelector('.inline-eval-input'),
+    );
+    $src.value = '1 + 1';
+    $src.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+    $src.dispatchEvent(
+      new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+
+    // The bar unlocks immediately: command mode is left the moment the command
+    // is dispatched, before the daemon promise settles.
+    await waitFor(() => !ctx.$chatBar.classList.contains('command-mode'));
+    t.false(
+      ctx.$chatBar.classList.contains('command-mode'),
+      'command mode left immediately on dispatch (bar unlocked)',
+    );
+
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+
+    // The command is tracked as a card that reaches the success state...
+    await waitFor(() => $region.querySelector('.pending-command-card.success'));
+    t.truthy(
+      $region.querySelector('.pending-command-card.success'),
+      'the command tracked as a card that succeeded',
+    );
+
+    // ...and then auto-fades, collapsing the region back to empty.
+    await waitFor(() => !$region.querySelector('.pending-command-card'));
+    t.false(
+      $region.classList.contains('has-pending'),
+      'the pending region collapses after the success card fades',
+    );
+  },
+);
+
+// --- Pending-commands navigation (PR #133 follow-up: keyboard dismissal) ---
+//
+// The pending/error region sits between the transcript and the input. Arrow
+// navigation threads through it: ↑ from the empty input enters the region at the
+// card nearest the input, ↑ past the top hands off to durable-message focus, ↓
+// past the bottom returns to the input, and Escape dismisses the hovered card.
+
+// Powers that make `/js` fail with a daemon-recorded trace, so a stable
+// (non-fading) error card lands in the region to navigate.
+const jsErrorPowers = () => {
+  const workerError = new Error('boom');
+  Object.defineProperty(workerError, 'name', {
+    value: 'RemoteError(error:daemon#1)',
+    configurable: true,
+  });
+  return {
+    evaluateError: workerError,
+    traceReports: new Map([
+      [
+        'error:daemon#1',
+        { message: 'boom', stack: 'Error: boom', workerId: '' },
+      ],
+    ]),
+  };
+};
+
+// Drive `/js throw new Error("boom")` to completion, leaving an error card in
+// the region and the bar back in send mode.
+const driveJsError = async ctx => {
+  ctx.$menuButton.click();
+  const $row = await waitFor(() =>
+    ctx.$popover.querySelector('.command-popover-item[data-command="js"]'),
+  );
+  $row.click();
+  await waitFor(() => ctx.$chatBar.classList.contains('command-mode'));
+  const $src = await waitFor(() =>
+    ctx.$parent.querySelector('.inline-eval-input'),
+  );
+  $src.value = 'throw new Error("boom")';
+  $src.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+  $src.dispatchEvent(
+    new testWindow.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+  );
+  await waitFor(() => !ctx.$chatBar.classList.contains('command-mode'));
+};
+
+// Append a received durable message envelope to #messages.
+const appendMessage = (ctx, number) => {
+  const $messages = ctx.$parent.querySelector('#messages');
+  const $env = testDocument.createElement('div');
+  $env.className = 'message-envelope';
+  $env.dataset.number = String(number);
+  $env.dataset.messageId = `m${number}`;
+  const $message = testDocument.createElement('div');
+  $message.className = 'message';
+  $env.appendChild($message);
+  // Messages render before the scroll anchor (the pending region is after it).
+  $messages.insertBefore($env, $messages.querySelector('#anchor'));
+  return $env;
+};
+
+// Plain ↑ from the empty input, on the input node the bar listens to.
+const pressArrowUpFromInput = ctx =>
+  ctx.$parent.querySelector('#chat-message').dispatchEvent(
+    new testWindow.KeyboardEvent('keydown', {
+      key: 'ArrowUp',
+      bubbles: true,
+    }),
+  );
+
+// The pending/focus navigation keys are handled on window.
+const pressWindowKey = key =>
+  testWindow.dispatchEvent(new testWindow.KeyboardEvent('keydown', { key }));
+
+test.serial(
+  'pending nav: ↑ enters the region and Escape dismisses the hovered card',
+  async t => {
+    const ctx = await setupChatBar({
+      powersOptions: jsErrorPowers(),
+      showValue: () => {},
+    });
+    t.teardown(() => ctx.api.dispose());
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+
+    await driveJsError(ctx);
+    await waitFor(() => $region.querySelector('.pending-command-card.error'));
+
+    // ↑ steps into the region (nearest card), not the transcript.
+    pressArrowUpFromInput(ctx);
+    await waitFor(() => $region.querySelector('.pending-command-card.cursor'));
+    t.truthy(
+      $region.querySelector('.pending-command-card.cursor'),
+      'the cursor lands on the region card',
+    );
+    await waitFor(() => ctx.$modeline.textContent.includes('messages'));
+    t.regex(
+      ctx.$modeline.textContent,
+      /messages/,
+      'the pending-navigation modeline is shown',
+    );
+
+    // Escape dismisses the (only) hovered card; the region collapses.
+    pressWindowKey('Escape');
+    await waitFor(() => !$region.querySelector('.pending-command-card'));
+    t.false(
+      $region.classList.contains('has-pending'),
+      'the region collapses after dismissing the only card',
+    );
+  },
+);
+
+test.serial(
+  'pending nav: ⌘↑ does NOT enter the region (native gesture is preserved)',
+  async t => {
+    // The entry gesture is plain ↑; ⌘↑ / Ctrl+↑ keep their native "move to start
+    // of field / document" meaning and must not be hijacked into navigation.
+    const ctx = await setupChatBar({
+      powersOptions: jsErrorPowers(),
+      showValue: () => {},
+    });
+    t.teardown(() => ctx.api.dispose());
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+
+    await driveJsError(ctx);
+    await waitFor(() => $region.querySelector('.pending-command-card.error'));
+
+    // Cmd+↑ and Ctrl+↑ both leave the region untouched.
+    for (const mods of [{ metaKey: true }, { ctrlKey: true }]) {
+      ctx.$parent.querySelector('#chat-message').dispatchEvent(
+        new testWindow.KeyboardEvent('keydown', {
+          key: 'ArrowUp',
+          bubbles: true,
+          ...mods,
+        }),
+      );
+    }
+    // Give any (unwanted) handler a chance to run.
+    await tick(50);
+    t.falsy(
+      $region.querySelector('.pending-command-card.cursor'),
+      'modifier+↑ did not move the cursor into the region',
+    );
+    t.false(
+      ctx.$modeline.textContent.includes('messages'),
+      'modifier+↑ did not switch to the pending-navigation modeline',
+    );
+  },
+);
+
+test.serial(
+  'pending nav: ArrowUp past the top card hands off to durable message focus',
+  async t => {
+    const ctx = await setupChatBar({
+      powersOptions: jsErrorPowers(),
+      showValue: () => {},
+    });
+    t.teardown(() => ctx.api.dispose());
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+    appendMessage(ctx, 1);
+
+    await driveJsError(ctx);
+    await waitFor(() => $region.querySelector('.pending-command-card.error'));
+
+    pressArrowUpFromInput(ctx);
+    await waitFor(() => $region.querySelector('.pending-command-card.cursor'));
+
+    // Past the single (top) card, navigation enters durable focus: the focus
+    // modeline shows and the region cursor is cleared.
+    pressWindowKey('ArrowUp');
+    await waitFor(() => ctx.$modeline.textContent.includes('reply'));
+    t.regex(
+      ctx.$modeline.textContent,
+      /reply/,
+      'the durable-focus modeline is shown after hand-off',
+    );
+    t.falsy(
+      $region.querySelector('.pending-command-card.cursor'),
+      'the region cursor is cleared on hand-off',
+    );
+  },
+);
+
+test.serial(
+  'pending nav: ArrowDown past the bottom card returns to the input',
+  async t => {
+    const ctx = await setupChatBar({
+      powersOptions: jsErrorPowers(),
+      showValue: () => {},
+    });
+    t.teardown(() => ctx.api.dispose());
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+
+    await driveJsError(ctx);
+    await waitFor(() => $region.querySelector('.pending-command-card.error'));
+
+    pressArrowUpFromInput(ctx);
+    await waitFor(() => $region.querySelector('.pending-command-card.cursor'));
+
+    // Past the single (bottom) card, navigation returns to the input WITHOUT
+    // dismissing the card — distinguishing exit from dismiss.
+    pressWindowKey('ArrowDown');
+    await waitFor(() => !$region.querySelector('.pending-command-card.cursor'));
+    t.truthy(
+      $region.querySelector('.pending-command-card.error'),
+      'the card is preserved (not dismissed) on exit to the input',
+    );
+    await waitFor(() => !ctx.$modeline.textContent.includes('messages'));
+    t.false(
+      ctx.$modeline.textContent.includes('messages'),
+      'the pending-navigation modeline is gone (back in send mode)',
+    );
+  },
+);
+
+test.serial(
+  'pending nav: Escape advances to a neighbour, then returns to the input on the last card',
+  async t => {
+    const ctx = await setupChatBar({
+      powersOptions: jsErrorPowers(),
+      showValue: () => {},
+    });
+    t.teardown(() => ctx.api.dispose());
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+
+    await driveJsError(ctx);
+    await waitFor(
+      () =>
+        $region.querySelectorAll('.pending-command-card.error').length === 1,
+    );
+    await driveJsError(ctx);
+    await waitFor(
+      () =>
+        $region.querySelectorAll('.pending-command-card.error').length === 2,
+    );
+
+    // ↑ lands on the bottom card (nearest the input).
+    pressArrowUpFromInput(ctx);
+    await waitFor(() => $region.querySelector('.pending-command-card.cursor'));
+    const cards = () => [...$region.querySelectorAll('.pending-command-card')];
+    t.true(
+      cards()[cards().length - 1].classList.contains('cursor'),
+      'the cursor starts on the bottom card',
+    );
+
+    // Escape dismisses it; one card survives and the cursor stays in the region.
+    pressWindowKey('Escape');
+    await waitFor(
+      () => $region.querySelectorAll('.pending-command-card').length === 1,
+    );
+    await waitFor(() => $region.querySelector('.pending-command-card.cursor'));
+    t.truthy(
+      $region.querySelector('.pending-command-card.cursor'),
+      'the cursor advances to the surviving card',
+    );
+    t.regex(ctx.$modeline.textContent, /messages/, 'still in pending mode');
+
+    // Escape dismisses the last card; the region collapses and the cursor
+    // returns to the input.
+    pressWindowKey('Escape');
+    await waitFor(() => !$region.querySelector('.pending-command-card'));
+    t.false($region.classList.contains('has-pending'), 'the region collapses');
+    await waitFor(() => !ctx.$modeline.textContent.includes('messages'));
+    t.false(
+      ctx.$modeline.textContent.includes('messages'),
+      'left pending mode back to the input',
+    );
+  },
+);
+
+// The delete / backspace keys dismiss the hovered card too — the ergonomic
+// "remove this" gesture alongside Escape.
+for (const key of ['Backspace', 'Delete']) {
+  test.serial(`pending nav: ${key} dismisses the hovered card`, async t => {
+    const ctx = await setupChatBar({
+      powersOptions: jsErrorPowers(),
+      showValue: () => {},
+    });
+    t.teardown(() => ctx.api.dispose());
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+
+    await driveJsError(ctx);
+    await waitFor(() => $region.querySelector('.pending-command-card.error'));
+
+    pressArrowUpFromInput(ctx);
+    await waitFor(() => $region.querySelector('.pending-command-card.cursor'));
+
+    // The hovered card is dismissed; the region collapses (it was the only
+    // card) and navigation returns to the input.
+    pressWindowKey(key);
+    await waitFor(() => !$region.querySelector('.pending-command-card'));
+    t.false(
+      $region.classList.contains('has-pending'),
+      `${key} dismissed the only card and collapsed the region`,
+    );
+    await waitFor(() => !ctx.$modeline.textContent.includes('messages'));
+    t.false(
+      ctx.$modeline.textContent.includes('messages'),
+      'returned to the input after dismissal',
+    );
+  });
+}
+
+// Requirement: when an ephemeral error card GROWS (its late-arriving trace adds
+// the stack / worker chip), re-pin the transcript to the bottom — but only if
+// the reader was already at the bottom, never yanking a reader who scrolled up.
+
+// `/js` that fails with a trace whose record arrives late (`traceReportMisses`),
+// so the error card first shows only the message and then expands with the
+// stack once the watch re-queries.
+const lateTracePowers = () => {
+  const workerError = new Error('x');
+  Object.defineProperty(workerError, 'name', {
+    value: 'RemoteError(error:daemon#9)',
+    configurable: true,
+  });
+  return {
+    evaluateError: workerError,
+    traceReports: new Map([
+      [
+        'error:daemon#9',
+        { message: 'x', stack: 'Error: x\n    at eval', workerId: '' },
+      ],
+    ]),
+    traceReportMisses: 1,
+  };
+};
+
+// Instrument #messages so `isAtBottom` is deterministically true (`pinned`) or
+// false, and log every scrollTop write the region makes. A non-pinned container
+// keeps scrollTop at 0 (a scrolled-up reader) so the region's writes are visible
+// but never move it.
+const instrumentScroll = ($messages, { pinned }) => {
+  const setLog = [];
+  let scrollTop = 0;
+  Object.defineProperty($messages, 'scrollHeight', {
+    configurable: true,
+    get: () => 1000,
+  });
+  Object.defineProperty($messages, 'clientHeight', {
+    configurable: true,
+    get: () => (pinned ? 1000 : 300),
+  });
+  Object.defineProperty($messages, 'scrollTop', {
+    configurable: true,
+    get: () => scrollTop,
+    set: v => {
+      setLog.push(v);
+      if (pinned) scrollTop = v;
+    },
+  });
+  return { setLog };
+};
+
+test.serial(
+  'error card: a late-trace expansion re-pins the transcript when the reader is at the bottom',
+  async t => {
+    const ctx = await setupChatBar({
+      powersOptions: lateTracePowers(),
+      showValue: () => {},
+    });
+    t.teardown(() => ctx.api.dispose());
+    const $messages = ctx.$parent.querySelector('#messages');
+    const { setLog } = instrumentScroll($messages, { pinned: true });
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+
+    await driveJsError(ctx);
+    const $card = await waitFor(() =>
+      $region.querySelector('.pending-command-card.error'),
+    );
+    // The bare message renders first (before the late stack).
+    await waitFor(
+      () => $card.querySelector('.command-error-message')?.textContent === 'x',
+    );
+    const setsBeforeExpansion = setLog.length;
+
+    // The late trace enriches the card (the stack appears); that growth re-pins
+    // the transcript to the bottom.
+    await waitFor(() => $card.querySelector('.command-error-stack-text'));
+    t.true(
+      setLog.length > setsBeforeExpansion,
+      'the card expansion re-scrolled the transcript to the bottom',
+    );
+  },
+);
+
+test.serial(
+  'error card: a late-trace expansion does not yank a reader who scrolled up',
+  async t => {
+    const ctx = await setupChatBar({
+      powersOptions: lateTracePowers(),
+      showValue: () => {},
+    });
+    t.teardown(() => ctx.api.dispose());
+    const $messages = ctx.$parent.querySelector('#messages');
+    const { setLog } = instrumentScroll($messages, { pinned: false });
+    const $region = ctx.$parent.querySelector('#pending-commands-region');
+
+    await driveJsError(ctx);
+    const $card = await waitFor(() =>
+      $region.querySelector('.pending-command-card.error'),
+    );
+    await waitFor(
+      () => $card.querySelector('.command-error-message')?.textContent === 'x',
+    );
+    const setsBeforeExpansion = setLog.length;
+
+    // The stack still arrives, but since the reader is not at the bottom the
+    // region must not scroll.
+    await waitFor(() => $card.querySelector('.command-error-stack-text'));
+    t.is(
+      setLog.length,
+      setsBeforeExpansion,
+      'a scrolled-up reader is not pulled to the bottom by the expansion',
+    );
+  },
+);
+
+test.serial('typing "/js" then space focuses the expression input', async t => {
+  const ctx = await setupChatBar();
+  t.teardown(() => ctx.api.dispose());
+  const $input = ctx.$parent.querySelector('#chat-message');
+  $input.focus();
+
+  // Type "/" to enter command selection, then filter to "js".
+  $input.textContent = '/';
+  $input.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+  $input.textContent = '/js';
+  $input.dispatchEvent(new testWindow.Event('input', { bubbles: true }));
+
+  // Space confirms the highlighted command (js), entering inline command mode.
+  $input.dispatchEvent(
+    new testWindow.KeyboardEvent('keydown', { key: ' ', bubbles: true }),
+  );
+  await waitFor(() => ctx.$chatBar.classList.contains('command-mode'));
+
+  const $src = await waitFor(() =>
+    ctx.$parent.querySelector('.inline-eval-input'),
+  );
+  // The expression input receives focus (not left on the command line).
+  await waitFor(() => testDocument.activeElement === $src);
+  t.is(
+    testDocument.activeElement,
+    $src,
+    'the expression input is focused after confirming /js with space',
+  );
+});
+
+test.serial(
+  '/js collapses the empty form-body mount so the input drives the row baseline',
+  async t => {
+    // The confined form-body mount (a div) is unused by inline /js. If left
+    // visible it is the first flex child of #inline-form-container and, being
+    // empty, supplies the command row's baseline from its own box instead of the
+    // expression input — dropping the "Evaluate JavaScript" label out of line.
+    // The js branch collapses it; assert that structurally (happy-dom does no
+    // layout, so the baseline itself cannot be measured here).
+    const ctx = await setupChatBar();
+    t.teardown(() => ctx.api.dispose());
+
+    ctx.$menuButton.click();
+    const $row = await waitFor(() =>
+      ctx.$popover.querySelector('.command-popover-item[data-command="js"]'),
+    );
+    $row.click();
+    await waitFor(() => ctx.$chatBar.classList.contains('command-mode'));
+    await waitFor(() => ctx.$parent.querySelector('.inline-eval-input'));
+
+    const $formContainer = ctx.$parent.querySelector('#inline-form-container');
+    const $evalContainer = $formContainer.querySelector(
+      '.inline-eval-container',
+    );
+    t.truthy($evalContainer, 'the eval container is present');
+
+    // The form-body mount is the non-eval-container child; it must be collapsed.
+    const $formMount = [...$formContainer.children].find(
+      $child => !$child.classList.contains('inline-eval-container'),
+    );
+    t.truthy($formMount, 'the form-body mount div exists');
+    t.is(
+      $formMount.style.display,
+      'none',
+      'the empty form-body mount is collapsed in /js mode',
     );
   },
 );

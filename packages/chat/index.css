@@ -2129,52 +2129,6 @@ body.resizing * {
   color: var(--text-primary);
 }
 
-#command-error {
-  display: none;
-  position: absolute;
-  left: 0;
-  bottom: 100%;
-  margin-bottom: 6px;
-  padding: 6px 10px;
-  background: var(--danger-hover);
-  color: #ffffff;
-  font-size: 12px;
-  border-radius: var(--radius-md);
-  white-space: nowrap;
-  z-index: 10;
-  box-shadow: var(--shadow-md);
-}
-
-#command-error:not(:empty) {
-  display: block;
-}
-
-#command-error::after {
-  content: '';
-  position: absolute;
-  left: 16px;
-  top: 100%;
-  border: 6px solid transparent;
-  border-top-color: var(--danger-hover);
-}
-
-/* When the bubble carries a resolved daemon trace (the /js evaluate path), it
-   hosts a multi-line detail — message, collapsible stack trace, worker chip —
-   whose text colors (var(--danger), var(--text-secondary)) assume a light
-   surface. Swap the solid-red compact toast for a light danger panel so that
-   detail is legible and can wrap, instead of red-on-red. */
-#command-error:has(.command-error-detail) {
-  max-width: min(92vw, 520px);
-  white-space: normal;
-  background: var(--danger-bg);
-  color: var(--danger);
-  border: 1px solid var(--danger-border);
-}
-
-#command-error:has(.command-error-detail)::after {
-  border-top-color: var(--danger-border);
-}
-
 #chat-bar.command-mode #chat-send-button {
   display: none;
 }
@@ -2187,6 +2141,13 @@ body.resizing * {
 .inline-eval-container {
   flex: 1;
   min-width: 0;
+  /* Be a flex container (not a block) so the expression input's text baseline
+   * propagates up to the command row. As a block box wrapping the flex input it
+   * would synthesize its baseline from its own bottom edge, dropping the
+   * "Evaluate JavaScript" label to the bottom of the input instead of aligning
+   * it with the input text and the Evaluate button. */
+  display: flex;
+  align-items: baseline;
 }
 
 .inline-eval-wrapper {
@@ -2201,6 +2162,15 @@ body.resizing * {
   align-items: baseline;
   gap: 12px;
   flex-shrink: 0;
+}
+
+/* When there are no endowments the container is empty. As the wrapper's first
+ * flex item it would otherwise synthesize the wrapper's baseline from its own
+ * (empty) box, dropping the expression input's text baseline out of line with
+ * the command label and submit button. Collapse it so the input's baseline is
+ * the one that aligns across the command row. */
+.inline-eval-endowments:empty {
+  display: none;
 }
 
 .inline-eval-endowment-group {
@@ -2632,6 +2602,131 @@ body.resizing * {
 
 .timestamp-copy:hover {
   opacity: 1;
+}
+
+/* Pending commands region.
+ *
+ * Lives INSIDE the scrollable transcript (#messages), after the scroll anchor,
+ * so its cards are flow content at the bottom of the transcript: they LEAD the
+ * messages (push them up) instead of overlaying them, and scroll with the
+ * transcript, matching the design's "anchored to the bottom of the transcript,
+ * above the command bar" layout (designs/chat-pending-commands.md § Visual
+ * design). The region collapses to zero height when empty so the transcript
+ * runs flush to the command bar.
+ */
+.pending-commands-region {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 12px;
+}
+
+.pending-commands-region.has-pending {
+  display: flex;
+  /* A top rule separates the cards from the messages above them. */
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.pending-command-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Same shape and stroke as an ordinary message bubble (cf. `.message`): the
+   * large corner radius, a 1px border, and the received-bubble surface, so a
+   * pending/error card reads as a message in the transcript rather than a
+   * distinct chrome element. State variants recolor the stroke/text below. */
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--bubble-border, var(--border-light));
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  transition:
+    box-shadow var(--transition-fast),
+    opacity 0.3s;
+}
+
+.pending-command-card.pending {
+  color: var(--text-muted);
+}
+
+/* The keyboard-navigation cursor ("hover"). Reuses the transcript's focused-
+ * message accent outline (cf. .focus-active .message-envelope.focused .message)
+ * so a hovered card reads the same in the region as a focused message does in
+ * the transcript. Escape dismisses the card the cursor rests on. */
+.pending-command-card.cursor {
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.pending-command-card.success {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+/* The ephemeral error card. It replaces the pending card on failure of ANY
+ * command and carries the rich error UX — message, daemon stack trace, and a
+ * clickable worker chip — that used to be the eval-only inline command-error
+ * bubble (reusing the shared .command-error-* element styles). Clicking the card
+ * dismisses it; the stack and worker chip stop propagation so they stay usable.
+ */
+.pending-command-card.error {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+  cursor: pointer;
+}
+
+.pending-command-card.error .pending-command-label {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.pending-command-error {
+  cursor: auto;
+}
+
+.pending-command-card.fade-out {
+  opacity: 0;
+}
+
+.pending-command-label {
+  font-family: var(--font-mono);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-command-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top-color: var(--text-muted);
+  border-radius: 50%;
+  animation: pending-spin 0.8s linear infinite;
+}
+
+.pending-command-card.success .pending-command-spinner {
+  display: none;
+}
+
+@keyframes pending-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.pending-command-status {
+  font-size: 11px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dismiss-button {
@@ -3704,7 +3799,7 @@ button.btn-spinner::after {
 .value-actions {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   margin-top: 16px;
   padding-top: 16px;
@@ -3714,15 +3809,28 @@ button.btn-spinner::after {
 #value-actions-container {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: baseline;
   flex: 1;
+}
+
+/* The confined ValueActions root. Without an explicit display it is a block box
+ * that breaks the baseline chain (and stacks Copy below the name form); make it
+ * a baseline flex row so 'Save as', the name input, Save, Copy, and Close all
+ * share one baseline across the actions row. */
+.value-actions-inner {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
 }
 
 .value-name-form {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: baseline;
   flex: 1;
+  min-width: 0;
 }
 
 .value-name-form label {
