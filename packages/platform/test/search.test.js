@@ -23,7 +23,7 @@ import {
   parseGlobPattern,
   GLOB_MAX_RESULTS,
 } from '../src/fs/search.js';
-import { makeNodeSearchPowers } from '../src/fs-node/search.js';
+import { makeNodeSearchPowers } from '../src/fs-node/search-powers.js';
 import { buildMountFixture } from './_search-fixture.js';
 
 const globCases = JSON.parse(

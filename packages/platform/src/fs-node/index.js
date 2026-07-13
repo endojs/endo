@@ -11,4 +11,4 @@ export {
   makeContentStoreFilePowers,
   makeContentStoreCryptoPowers,
 } from './content-store-powers.js';
-export { makeNodeSearchPowers } from './search.js';
+export { makeNodeSearchPowers } from './search-powers.js';
