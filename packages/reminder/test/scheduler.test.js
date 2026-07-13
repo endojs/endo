@@ -9,6 +9,7 @@ import {
   makeReminderService,
   DEFAULT_MIN_PERIOD_MS,
   MAX_ACTIVE_CEILING,
+  MAX_COALESCED_MESSAGES,
 } from '../src/scheduler.js';
 import { makeReminderStore } from '../src/store.js';
 import { computeBackoffDelay, defaultBackoff } from '../src/backoff.js';
@@ -765,6 +766,203 @@ test('a corrupt persisted entry is skipped, not fatal, during recovery', async t
   const recovered = await second.scheduler.list();
   t.is(recovered.length, 1, 'the valid reminder survives a corrupt sibling');
   t.is(recovered[0].label, 'good');
+  second.stop();
+});
+
+test('recovery coalesce keeps a live message deadline; a stale catch-up response is inert', async t => {
+  // Regression: recovery used to call armReminder() immediately after delivering
+  // the coalesced catch-up, which disarmed that message's just-armed deadline
+  // and armed a period timer concurrent with the still-outstanding catch-up. The
+  // catch-up's one-shot latch then stayed open forever, so a late
+  // resolve/reschedule on it could rewind nextTickAt and re-deliver a message
+  // with a duplicate messageNumber. The catch-up must behave like any live
+  // delivery: its deadline auto-resolves, and a late response is inert.
+  const { store, storeRoot } = await makeTestStore();
+  const clock = makeFakeClock();
+
+  const first = await makeReminderService({
+    store,
+    makeId,
+    onMessage: message => message.reminderResponse.resolve(),
+    minPeriodMs: 1000,
+    setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout,
+    now: clock.now,
+    random: noJitter,
+  });
+  await first.scheduler.makeReminder('beat', 10_000);
+  await clock.advance(0); // fire + resolve the immediate message
+  first.stop();
+  await clock.advance(35_000); // downtime -> overdue on recovery
+
+  const store2 = await makeReminderStore(storeRoot, makeId);
+  /** @type {ReminderMessage[]} */
+  const messages = [];
+  const second = await makeReminderService({
+    store: store2,
+    makeId,
+    // Never respond: the catch-up must rely on its own deadline to auto-resolve.
+    onMessage: message => {
+      messages.push(message);
+    },
+    minPeriodMs: 1000,
+    setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout,
+    now: clock.now,
+    random: noJitter,
+  });
+
+  t.is(messages.length, 1, 'one coalesced catch-up is delivered on recovery');
+  const catchUp = messages[0];
+  t.is(catchUp.missedMessages, 2);
+
+  // Advance past the catch-up's deadline and the next tick: the unanswered
+  // catch-up must auto-resolve (deadline still live) and the schedule continue.
+  await clock.advance(6000);
+  t.true(messages.length >= 2, 'the schedule continued past the unanswered catch-up');
+
+  // A late response on the already-auto-resolved catch-up must be inert.
+  catchUp.reminderResponse.reschedule();
+  await clock.advance(10_000);
+
+  const numbers = messages.map(m => m.messageNumber);
+  t.deepEqual(
+    [...new Set(numbers)],
+    numbers,
+    'no messageNumber is delivered twice (no duplicate from a stale catch-up)',
+  );
+  second.stop();
+});
+
+test('recovery rejects an entry with an unsafe id or an out-of-range period', async t => {
+  const { store, storeRoot } = await makeTestStore();
+  const clock = makeFakeClock();
+
+  const first = await makeReminderService({
+    store,
+    makeId,
+    minPeriodMs: 1000,
+    setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout,
+    now: clock.now,
+    random: noJitter,
+  });
+  await first.scheduler.makeReminder('good', 10_000);
+  first.stop();
+
+  const remindersDirectory = await E(storeRoot).lookup('reminders');
+  const base = {
+    label: 'x',
+    firstDelayMs: 0,
+    messageTimeoutMs: 5000,
+    nextTickAt: 2_000_000,
+    createdAt: 1_000_000,
+    messageCount: 0,
+    status: 'active',
+    catchUpPolicy: 'coalesce',
+    annotation: 'count',
+    backoff: { initialMs: 1000, maxMs: 5000, multiplier: 2, jitterFraction: 0 },
+    consecutiveFailures: 0,
+  };
+  // A persisted id becomes a `<id>.json` filename; a traversal id must be
+  // rejected before it is ever used to name a file.
+  await E(remindersDirectory).write(
+    'traversal.json',
+    `${JSON.stringify({ ...base, id: '../../evil', periodMs: 10_000 })}\n`,
+  );
+  // A sub-floor period would arm a near-0ms timer that fires in a tight loop.
+  await E(remindersDirectory).write(
+    'tiny.json',
+    `${JSON.stringify({ ...base, id: 'tinyperiod', periodMs: 1 })}\n`,
+  );
+  // An over-ceiling period exceeds the host timer range.
+  await E(remindersDirectory).write(
+    'huge.json',
+    `${JSON.stringify({ ...base, id: 'hugeperiod', periodMs: 999_999_999 })}\n`,
+  );
+
+  const store2 = await makeReminderStore(storeRoot, makeId);
+  const second = await makeReminderService({
+    store: store2,
+    makeId,
+    minPeriodMs: 1000,
+    setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout,
+    now: clock.now,
+    random: noJitter,
+  });
+  const recovered = await second.scheduler.list();
+  t.deepEqual(
+    recovered.map(r => r.label),
+    ['good'],
+    'only the valid entry recovers; unsafe id and out-of-range periods are skipped',
+  );
+  second.stop();
+});
+
+test('recovery caps a coalesced catch-up so a far-past nextTickAt cannot allocate unboundedly', async t => {
+  const { store, storeRoot } = await makeTestStore();
+  const clock = makeFakeClock();
+
+  const first = await makeReminderService({
+    store,
+    makeId,
+    minPeriodMs: 1000,
+    setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout,
+    now: clock.now,
+    random: noJitter,
+  });
+  first.stop();
+
+  const remindersDirectory = await E(storeRoot).lookup('reminders');
+  const farPast = clock.now() - 100_000_000; // ~1e5 periods at 1000ms
+  await E(remindersDirectory).write(
+    'far.json',
+    `${JSON.stringify({
+      id: 'farpast',
+      label: 'far',
+      periodMs: 1000,
+      firstDelayMs: 0,
+      messageTimeoutMs: 500,
+      nextTickAt: farPast,
+      createdAt: farPast,
+      messageCount: 0,
+      status: 'active',
+      catchUpPolicy: 'coalesce',
+      annotation: 'timestamps',
+      backoff: { initialMs: 100, maxMs: 500, multiplier: 2, jitterFraction: 0 },
+      consecutiveFailures: 0,
+    })}\n`,
+  );
+
+  /** @type {ReminderMessage[]} */
+  const messages = [];
+  const store2 = await makeReminderStore(storeRoot, makeId);
+  const second = await makeReminderService({
+    store: store2,
+    makeId,
+    onMessage: message => {
+      messages.push(message);
+    },
+    minPeriodMs: 1000,
+    setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout,
+    now: clock.now,
+    random: noJitter,
+  });
+
+  t.is(messages.length, 1, 'one coalesced catch-up is delivered');
+  t.is(
+    messages[0].missedMessages,
+    MAX_COALESCED_MESSAGES,
+    'the coalesced count is capped',
+  );
+  t.is(
+    /** @type {any} */ (messages[0].annotation).scheduledTimes.length,
+    MAX_COALESCED_MESSAGES + 1,
+    'the timestamps array is bounded by the cap',
+  );
   second.stop();
 });
 

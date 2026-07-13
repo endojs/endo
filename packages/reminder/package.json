@@ -40,10 +40,8 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
-    "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
-    "@endo/far": "workspace:^",
     "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^"
   },

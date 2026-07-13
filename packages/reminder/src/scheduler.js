@@ -46,6 +46,23 @@ export const MAX_ACTIVE_CEILING = 100;
 /** Maximum allowed period (24 hours). */
 export const MAX_PERIOD_MS = 86_400_000;
 
+/**
+ * Upper bound on the number of missed firings a single coalesced catch-up
+ * delivery stands in for on recovery. It caps the `count`/`timestamps`
+ * annotation so a corrupt or pathological far-past `nextTickAt` in the store
+ * cannot make recovery build an unbounded array and exhaust worker memory; the
+ * schedule still realigns to the true next tick regardless of this cap.
+ */
+export const MAX_COALESCED_MESSAGES = 10_000;
+
+/**
+ * A persisted reminder id becomes a store filename (`<id>.json`), so it must be
+ * a single safe path segment. Ids minted by `makeId` are hex; this rejects a
+ * corrupt store entry whose `id` carries path separators or traversal (`..`)
+ * before it is ever used to name a file.
+ */
+const SAFE_ID = /^[0-9A-Za-z_-]+$/;
+
 /** The catch-up policies a reminder may carry. */
 export const CATCH_UP_POLICIES = ['coalesce', 'skip'];
 
@@ -141,10 +158,17 @@ export const makeReminderService = async powers => {
   const persistConfig = () =>
     store.writeConfig(harden({ maxActive, minPeriodMs, paused }));
 
-  const persistConfigBackground = () =>
-    persistConfig().catch(error =>
+  // Serialize config writes so overlapping control operations (e.g. a rapid
+  // pause() then resume()) cannot let their write-then-move races land in the
+  // wrong order and persist a stale flag. Each write runs after the prior one
+  // settles and reads the latest in-memory values, so the final state wins.
+  let configWriteChain = Promise.resolve();
+  const persistConfigBackground = () => {
+    configWriteChain = configWriteChain.then(persistConfig).catch(error =>
       console.error('[reminder] failed to persist config:', error),
     );
+    return configWriteChain;
+  };
 
   // Seed config.json on first provisioning so a restart reads it back.
   if (persistedConfig === undefined) {
@@ -348,6 +372,13 @@ export const makeReminderService = async powers => {
     const scheduledAt = entry.nextTickAt;
     entry.nextTickAt = scheduledAt + entry.periodMs;
     await persist(entry);
+    // Re-check after the async persist: pause()/cancel()/revoke() may have
+    // landed during the await. Delivering now would arm a message-deadline
+    // timer that the sweep those paths already ran can no longer clear, and
+    // would deliver a message for a reminder that is no longer live.
+    if (entry.status !== 'active' || paused || revoked) {
+      return;
+    }
     deliverMessage(entry, actualAt);
   };
 
@@ -442,9 +473,14 @@ export const makeReminderService = async powers => {
       typeof entry !== 'object' ||
       entry === null ||
       typeof entry.id !== 'string' ||
+      !SAFE_ID.test(entry.id) ||
       typeof entry.periodMs !== 'number' ||
       !isFinite(entry.periodMs) ||
-      /** @type {number} */ (entry.periodMs) <= 0 ||
+      // Enforce the same period bounds the create path enforces. A corrupt
+      // entry with a sub-floor period would otherwise arm a near-0ms timer that
+      // fires in a tight loop; an over-ceiling one exceeds the host timer range.
+      /** @type {number} */ (entry.periodMs) < ABSOLUTE_MIN_PERIOD_MS ||
+      /** @type {number} */ (entry.periodMs) > MAX_PERIOD_MS ||
       typeof entry.nextTickAt !== 'number' ||
       !isFinite(entry.nextTickAt)
     ) {
@@ -522,15 +558,28 @@ export const makeReminderService = async powers => {
             // past. No delivery, no message-count bump.
             // eslint-disable-next-line no-await-in-loop
             await persist(entry);
+            armReminder(entry);
           } else {
-            // Coalesce the missed messages into one catch-up delivery.
+            // Coalesce the missed messages into one catch-up delivery. Cap the
+            // coalesced count so a corrupt or pathological far-past nextTickAt
+            // cannot make computeAnnotation build an unbounded timestamps array
+            // (an OOM on boot from an untrusted store); the schedule already
+            // realigned to the true next tick above.
+            const coalesced = Math.min(missedMessages, MAX_COALESCED_MESSAGES);
             entry.messageCount += 1;
             // eslint-disable-next-line no-await-in-loop
             await persist(entry);
-            deliverMessage(entry, currentTime, missedMessages);
+            // deliverMessage arms the per-message deadline; the next-period
+            // timer is armed when this catch-up is resolved/auto-resolved (via
+            // onMessageResolved -> armReminder), exactly like a live delivery.
+            // Do NOT arm here: armReminder would disarm the deadline just set
+            // and arm a period timer concurrent with the outstanding catch-up,
+            // breaking the one-shot response latch on every restart-with-downtime.
+            deliverMessage(entry, currentTime, coalesced);
           }
+        } else {
+          armReminder(entry);
         }
-        armReminder(entry);
       }
     }
   };
@@ -576,7 +625,12 @@ export const makeReminderService = async powers => {
         entry.periodMs = periodMs;
         entry.messageTimeoutMs = periodMs / 2;
         await persist(entry);
-        if (entry.status === 'active') {
+        // Re-arm at the new period only when no message is currently
+        // outstanding; re-arming mid-delivery would disarm that message's live
+        // deadline and race its still-open one-shot response. With a message
+        // outstanding, the new period takes effect on the next arm (after the
+        // response resolves).
+        if (entry.status === 'active' && !messageDeadlines.has(entry.id)) {
           armReminder(entry);
         }
       },
