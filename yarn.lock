@@ -2738,6 +2738,24 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/reminder@workspace:packages/reminder":
+  version: 0.0.0-use.local
+  resolution: "@endo/reminder@workspace:packages/reminder"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/pass-style": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/platform": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/sandbox@workspace:^, @endo/sandbox@workspace:packages/sandbox":
   version: 0.0.0-use.local
   resolution: "@endo/sandbox@workspace:packages/sandbox"
