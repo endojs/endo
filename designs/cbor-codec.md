@@ -75,14 +75,15 @@ belong in the shared module too; slots simply will not import them.
 **Package: `@endo/cbor` at `packages/cbor/`.** A repository search
 returns no existing `cbor` package. "CBOR" is the canonical acronym
 for Concise Binary Object Representation and is permitted under the
-namer's rule on canonical acronyms. The singular form names the codec
-primitives for one CBOR item; the plural sibling `@endo/cbors`
-([cbors.md](cbors.md), not yet built) names a *stream* of
-length-prefixed byte strings on the wire. The two packages are
-complements, not competitors: `@endo/cbors` frames opaque payload
-bytes, `@endo/cbor` encodes and decodes the bytes inside a frame. The
-confusion risk of the near-identical names is surfaced in Open
-Questions.
+namer's rule on canonical acronyms. `@endo/cbor` names the codec
+primitives for one CBOR item; the framing sibling landed as
+`@endo/cbor-frame` — proposed as `@endo/cbors` in
+[cbors.md](cbors.md), implemented under the explicit `-frame` suffix in
+[PR #288](https://github.com/endojs/endo-but-for-bots/pull/288) — and
+names a *stream* of length-prefixed byte strings on the wire. The two
+packages are complements, not competitors: `@endo/cbor-frame` frames
+opaque payload bytes, `@endo/cbor` encodes and decodes the bytes inside
+a frame. The `-frame` suffix keeps the two names from colliding.
 
 **Identifier style follows the slots file**: `writeUint`,
 `writeByteString`, `writeArrayHeader`, `readUint`, `readByteString`,
@@ -100,7 +101,7 @@ writer or reader state. It is deliberately not:
 
 - a value codec (no `encode(anyValue)` / `decode(bytes)` that maps
   JavaScript values to CBOR by reflection);
-- a framing package (that is `@endo/cbors`);
+- a framing package (that is `@endo/cbor-frame`);
 - an OCapN codec (record labels, selectors-as-symbols, bignum-only
   integer policy, structure validation stacks, and the
   `OcapnReader` / `OcapnWriter` interface all stay in
@@ -260,7 +261,7 @@ Phased so each step is independently landable and verifiable:
    (`.github/workflows/rust-endor.yml`) stay green, proving the
    byte-identity contract with `rust/endo/slots` held.
 4. **Optional: migrate the daemon envelope codec** and revisit the
-   `@endo/cbors` framing design, which may import `writeHead` /
+   `@endo/cbor-frame` framing design, which may import `writeHead` /
    `readHead` for its byte-string heads. Its recorded decision to
    duplicate head-parsing scaffolding for independent auditability
    ([cbors.md](cbors.md) section Dependencies) predates a shared
@@ -277,8 +278,8 @@ slots package can adopt `@endo/cbor` before merge and shed its
 | Package | Role |
 |---|---|
 | `@endo/cbor` (this design) | Encodes and decodes single CBOR items; the primitive layer |
-| [`@endo/cbors`](cbors.md) (proposed) | Frames a stream of length-prefixed CBOR byte strings; payload bytes are opaque |
-| [`@endo/syrups`](ocapn-tcp-syrups-framing.md) (proposed) | The Syrup-grammar framing sibling |
+| [`@endo/cbor-frame`](cbors.md) (impl PR #288; proposed as `@endo/cbors`) | Frames a stream of length-prefixed CBOR byte strings; payload bytes are opaque |
+| [`@endo/syrup-frame`](ocapn-tcp-syrups-framing.md) (landed on `llm`; proposed as `@endo/syrups`) | The Syrup-grammar framing sibling |
 | `@endo/netstring` | The netstring-grammar framing sibling |
 | `packages/ocapn` | OCapN protocol codec; becomes a consumer |
 | `packages/slots` (PR #124) | Slot-machine wire protocol; becomes a consumer |
@@ -314,7 +315,7 @@ slots package can adopt `@endo/cbor` before merge and shed its
    on slots inverts the layering (a protocol depending on a sibling
    protocol for its byte codec). A shared leaf both can import is the
    only shape that keeps both consumers honest.
-2. **Not an extension of `@endo/cbors`.** That design scopes itself
+2. **Not an extension of `@endo/cbor-frame`.** That design scopes itself
    to framing only and explicitly excludes codec duties
    ([cbors.md](cbors.md) section Scope); grafting a codec onto it
    would break its recorded contract. Considered and rejected:
@@ -341,12 +342,12 @@ slots package can adopt `@endo/cbor` before merge and shed its
 
 ## Open Questions
 
-1. **Is `@endo/cbor` acceptable alongside `@endo/cbors`?** The
-   one-letter distinction is exactly the framing/codec distinction,
-   which is elegant but easy to mistype. Alternatives:
-   `@endo/cbor-codec` (explicit, clunkier) or renaming the framing
-   package in its own design. Recommendation: keep `@endo/cbor` and
-   let the READMEs cross-reference.
+1. **Is `@endo/cbor` acceptable alongside the framing package?**
+   Resolved by the implementation: the framing sibling landed as
+   `@endo/cbor-frame` (PR #288), not the near-collision `@endo/cbors`
+   this section originally weighed, so the codec/framing distinction is
+   now carried by an explicit `-frame` suffix rather than a single
+   trailing letter. `@endo/cbor` stays as the primitive-codec name.
 2. **Should ocapn's signature-verification paths construct readers
    with `strict: true`?** Today non-minimal heads pass its decoder,
    so two byte-different encodings of the same value can both
