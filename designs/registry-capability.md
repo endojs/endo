@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-06-02 |
-| **Updated** | 2026-06-02 |
+| **Updated** | 2026-07-10 |
 | **Author** | endolinbot (prompted) |
-| **Status** | Proposed |
+| **Status** | Not Started |
 
 ## Summary
 
@@ -85,11 +85,23 @@ interface EndoRegistry {
     packageJson: Uint8Array,
     options?: {
       offline?: boolean;
-      // When the entry package is a workspace member, the pet
-      // name (or EndoMount handle) of the enclosing workspace
-      // root.  Enables `workspace:` specifier resolution per
-      // `mvs-resolver.md` § Workspace resolution.
-      workspaceRoot?: string | EndoMount;
+      // When the entry package is a workspace member, the enclosing
+      // workspace root *and* its already-enumerated members.  The
+      // mapper is the single evaluator of the `workspaces` globs
+      // (see `snapshot-mapper.md` § Workspace-root discovery); it
+      // passes both the root's tree handle and a name-keyed member
+      // map, so the resolver matches `workspace:` specifiers against
+      // a ready-made member list by package name and never
+      // re-evaluates a glob.  The option name is `workspaceRoot` but
+      // its value carries both halves; the shape is pinned here so
+      // the two consuming layers cannot drift.  Enables `workspace:`
+      // specifier resolution per `mvs-resolver.md` § Workspace
+      // resolution.
+      workspaceRoot?: {
+        root: string | EndoMount;    // the workspace-root tree handle
+        // package name -> that member's subtree (glob-expansion result)
+        members: Record<string, EndoReadableTree>;
+      };
     },
   ): Promise<RegistryResolution>;
 
@@ -145,6 +157,45 @@ type RegistryResolution = {
   resolutionHash: string;
 };
 ```
+
+**Workspace-member entries.**
+When the resolution was produced with a `workspaceRoot` (per
+[mvs-resolver](mvs-resolver.md) § *Workspace resolution*),
+workspace members appear in `packagesByKey` under their **bare
+package name** with no version segment (`lib-b`,
+`@endo/patterns`), matching the versionless peer-directory rule
+in [snapshot-mapper](snapshot-mapper.md) § *Synthesized layout*.
+A workspace entry carries `{ name, version, treeRef,
+workspace: true }` and **no `integrity` field**: its `treeRef`
+is the member's subtree of the entry snapshot, not a
+registry-fetched CAS tree, and there is no upstream attestation
+to cross-check.
+
+`workspace: true` is the **single discriminant of record**: a
+consumer distinguishes a workspace member from a registry entry
+by testing that boolean flag and nothing else.
+The bare-name key shape and the absence of `integrity` are
+*derived* consequences of the same fact, not co-equal switches to
+branch on; in particular a consumer must **not** parse the key
+(`key.split('@')` is ambiguous because scoped names such as
+`@endo/patterns` already carry an `@`, so a bare-name key and an
+`<name>@<version>` key are not structurally distinguishable
+without semver-validating the trailing segment).
+The `version` field is retained on a workspace entry but is
+**advisory** for a member whose key drops the version segment:
+the synthesized layout addresses the member by its bare name, so
+`version` informs diagnostics rather than location.
+
+`resolutionHash` reads that same discriminant: it hashes each
+registry-resolved key (`workspace` absent) with its `integrity`
+string and each workspace key (`workspace: true`) with its
+`treeRef` content hash, so a workspace edit changes the hash
+exactly as a version bump does.
+The snapshot identity triple in
+[snapshot-mapper](snapshot-mapper.md) additionally carries
+`entrySnapshotHash`, which hashes the whole entry snapshot and so
+covers a superset of the bytes `resolutionHash` folds in from any
+one member subtree.
 
 ### Interaction model: who calls what, when
 
@@ -438,6 +489,11 @@ implements, [snapshot-mapper](snapshot-mapper.md) is the next
 implementation phase, and
 [daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
 ties the phases together with phase-numbered cross-references.
+The canonical dependency-ordered build plan for the whole stack
+(accepted 2026-07-10) is
+[daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
+§ *Phased Implementation*; this document's Phase 1 and Phase 5
+are that plan's phases 1 and 5.
 
 ### Phase 5: Rust-backed `EndoRegistry` (drop-in)
 
@@ -545,3 +601,12 @@ parity between the lanes.
 > contents, bounded growth) with a hard retention link from the
 > snapshot mapper's captured formulas into the CAS preventing
 > eviction of anything reachable from a snapshot.
+
+Sequencing pass 2026-07-10: accepted (Proposed to Not Started)
+together with the three sibling stack designs; the
+workspace-member entry shape in `RegistryResolution` is pinned
+above (bare-name key, `workspace: true`, no `integrity`, hash
+contribution via the member subtree's content hash).
+Canonical build order:
+[daemon-worker-import-from-mount](daemon-worker-import-from-mount.md)
+§ *Phased Implementation*.
