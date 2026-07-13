@@ -31,7 +31,7 @@ const REMINDERS_DIRECTORY = 'reminders';
 
 /** @param {unknown} error */
 const isEnoent = error =>
-  /ENOENT/.test((error && /** @type {Error} */ (error).message) || '');
+  /ENOENT/.test(String((error && /** @type {Error} */ (error).message) || ''));
 
 /**
  * @param {import('./types.js').ReminderStoreDirectory} root - the store-root

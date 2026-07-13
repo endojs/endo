@@ -27,7 +27,7 @@ import { makeExo } from '@endo/exo';
 import { ReminderResponseInterface } from './interfaces.js';
 import { computeBackoffDelay, resolveBackoff } from './backoff.js';
 
-/** @import { ReminderEntry, ReminderServicePowers, ReminderService } from './types.js' */
+/** @import { ReminderEntry, ReminderAnnotation, ReminderServicePowers, ReminderService } from './types.js' */
 
 const { isFinite } = Number;
 
@@ -223,6 +223,7 @@ export const makeReminderService = async powers => {
    * @param {ReminderEntry} entry
    * @param {number} scheduledAt
    * @param {number} missedMessages
+   * @returns {ReminderAnnotation}
    */
   const computeAnnotation = (entry, scheduledAt, missedMessages) => {
     if (entry.annotation === 'timestamps') {
@@ -609,8 +610,8 @@ export const makeReminderService = async powers => {
      * @param {{
      *   firstDelayMs?: number,
      *   messageTimeoutMs?: number,
-     *   catchUpPolicy?: string,
-     *   annotation?: string,
+     *   catchUpPolicy?: 'coalesce' | 'skip',
+     *   annotation?: 'count' | 'timestamps',
      *   backoff?: Partial<import('./types.js').ReminderBackoff>,
      * }} [opts]
      */
