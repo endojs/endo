@@ -19,6 +19,7 @@ import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makeError, q, X } from '@endo/errors';
+import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import {
   makeHttpConfinement,
   normalizeMethod,
@@ -48,6 +49,14 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_POLICY_PROMPT_TIMEOUT_MS = 30_000;
 const DEFAULT_AUDIT_LIMIT = 1024;
 const DEFAULT_BINDING_LIMIT = 1024;
+
+/**
+ * Chunk size for `HttpResponse.stream()`. The already-bounded body is hauled
+ * over CapTP in fixed-size frames rather than as one string; the value trades
+ * per-frame overhead against memory residency and is not security-relevant
+ * (the response byte cap is enforced upstream by the confinement).
+ */
+const RESPONSE_STREAM_CHUNK_BYTES = 16 * 1024;
 
 /**
  * The optional second argument of `HttpClient.fetch`.  Exported so tool
@@ -114,6 +123,7 @@ export const HttpResponseInterface = M.interface('HttpResponse', {
   maxResponseBytes: M.call().returns(M.number()),
   text: M.callWhen().returns(M.string()),
   json: M.callWhen().returns(M.any()),
+  stream: M.call().returns(M.remotable('PassableBytesReader')),
   help: M.call().returns(M.string()),
 });
 
@@ -155,7 +165,10 @@ const httpResponseHelp = `\
 HttpResponse - A bounded HTTP response.
 
 Use status(), headers(), text(), json(), and truncated() to inspect the response.
-The body is already capped by the HttpClient's maxResponseBytes setting.`;
+Use stream() to consume the body incrementally as an @endo/exo-stream bytes
+reader (haul it with iterateBytesReader) instead of buffering the whole body as
+one string. The body is already capped by the HttpClient's maxResponseBytes
+setting, so a stream cannot exceed that bound.`;
 
 const httpClientControlHelp = `\
 HttpClientControl - The host-side companion to an HttpClient.
@@ -620,6 +633,24 @@ const makeHttpResponse = ({ response, maxResponseBytes, bytes, truncated }) => {
   const statusText = String(response.statusText || '');
   const ok = Boolean(response.ok);
 
+  /**
+   * Yield the already-bounded body in fixed-size chunks so `stream()` hauls it
+   * over CapTP incrementally (base64-framed with flow control) instead of
+   * returning the whole body as one string. A fresh generator per `stream()`
+   * call keeps each reader independent of `text()`/`json()` and of any other
+   * concurrent `stream()` reader over the same response.
+   */
+  const chunkBody = async function* chunkBody() {
+    await null;
+    for (
+      let offset = 0;
+      offset < bytes.length;
+      offset += RESPONSE_STREAM_CHUNK_BYTES
+    ) {
+      yield bytes.slice(offset, offset + RESPONSE_STREAM_CHUNK_BYTES);
+    }
+  };
+
   return makeExo('HttpResponse', HttpResponseInterface, {
     status: () => status,
     statusText: () => statusText,
@@ -641,6 +672,7 @@ const makeHttpResponse = ({ response, maxResponseBytes, bytes, truncated }) => {
         throw err;
       }
     },
+    stream: () => bytesReaderFromIterator(chunkBody()),
     help: () => httpResponseHelp,
   });
 };
