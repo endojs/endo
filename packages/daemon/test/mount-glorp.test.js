@@ -33,13 +33,13 @@ test('glorp reproduces the grep case table as the fused glob→grep composition'
 
   await null;
   let ran = 0;
-  for (const testCase of cases) {
+  // glorp requires both patterns, so only the glob-selecting cases map onto
+  // it; a case without `options.glob` is a whole-tree grep, not a glorp.
+  const glorpCases = cases.filter(
+    testCase => (testCase.options ?? {}).glob !== undefined,
+  );
+  for (const testCase of glorpCases) {
     const options = testCase.options ?? {};
-    // glorp requires both patterns, so only the glob-selecting cases map onto
-    // it; a case without `options.glob` is a whole-tree grep, not a glorp.
-    if (options.glob === undefined) {
-      continue;
-    }
     const glorpOptions =
       options.maxResults === undefined
         ? {}
