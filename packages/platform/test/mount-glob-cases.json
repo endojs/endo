@@ -1,0 +1,231 @@
+{
+  "description": "Glob variant coverage matrix over the shared mount fixture (mount-fixture-manifest.json), the cross-language contract for EndoMount.glob(pattern). Each case is { name, pattern, expect } where `expect` is the exact result of glob(pattern) — mount-face-relative, /-joined, sorted by UTF-16 code unit. `requiresSymlink: true` marks a case whose meaning depends on the optional escaping symlink; a runner on a platform that could not create it skips such a case. The normative rules these cases assume (the full deny set and its case-fold, GLOB_MAX_RESULTS, the UTF-16 sort, the literal metacharacters) are pinned in mount-glob-contract.json. The Node runner is mount-glob.test.js; a Rust/XS-side runner consumes this same JSON to assert identical results.",
+  "cases": [
+    { "name": "literal segment (file)", "pattern": "README.md", "expect": ["README.md"] },
+    { "name": "literal nested path", "pattern": "src/index.js", "expect": ["src/index.js"] },
+    { "name": "literal miss", "pattern": "missing.txt", "expect": [] },
+    { "name": "literal dotfile (not denied)", "pattern": ".gitignore", "expect": [".gitignore"] },
+
+    { "name": "denied name as a directory", "pattern": ".ssh", "expect": [] },
+    { "name": "denied name traversed", "pattern": ".ssh/id_rsa", "expect": [] },
+    { "name": "denied dotfile", "pattern": ".env", "expect": [] },
+
+    { "name": "denied .azure", "pattern": ".azure", "expect": [] },
+    { "name": "denied .gcloud", "pattern": ".gcloud", "expect": [] },
+    { "name": "denied .config", "pattern": ".config", "expect": [] },
+    { "name": "denied .gnupg", "pattern": ".gnupg", "expect": [] },
+    { "name": "denied .password-store", "pattern": ".password-store", "expect": [] },
+    { "name": "denied .docker", "pattern": ".docker", "expect": [] },
+    { "name": "denied .kube", "pattern": ".kube", "expect": [] },
+    { "name": "denied .terraform", "pattern": ".terraform", "expect": [] },
+    { "name": "denied .npmrc", "pattern": ".npmrc", "expect": [] },
+    { "name": "denied .env.local", "pattern": ".env.local", "expect": [] },
+    { "name": "denied .env.production", "pattern": ".env.production", "expect": [] },
+    { "name": "denied name traversed (.gnupg)", "pattern": ".gnupg/secring", "expect": [] },
+    { "name": "denied name traversed (.docker)", "pattern": ".docker/config.json", "expect": [] },
+    { "name": "denied name star-listed (.kube)", "pattern": ".kube/*", "expect": [] },
+    { "name": "deny is case-insensitive (uppercase .SSH)", "pattern": ".SSH", "expect": [] },
+    { "name": "deny is case-insensitive traversed (.SSH/id_rsa)", "pattern": ".SSH/id_rsa", "expect": [] },
+    { "name": "deny is case-insensitive star-listed (.SSH/*)", "pattern": ".SSH/*", "expect": [] },
+
+    {
+      "name": "single star at root includes dirs and dotfiles, excludes denied",
+      "pattern": "*",
+      "expect": [
+        ".gitignore",
+        "README.md",
+        "[bracket]",
+        "a+b.txt",
+        "data.json",
+        "docs",
+        "empty",
+        "notes.txt",
+        "package.json",
+        "probes",
+        "sort-📄",
+        "sort-",
+        "src"
+      ]
+    },
+    { "name": "star with suffix .md at root", "pattern": "*.md", "expect": ["README.md"] },
+    { "name": "star with suffix .txt at root", "pattern": "*.txt", "expect": ["a+b.txt", "notes.txt"] },
+    {
+      "name": "star lists a subdirectory's children",
+      "pattern": "src/*",
+      "expect": ["src/README.md", "src/index.js", "src/main.rs", "src/nested", "src/util.js"]
+    },
+    { "name": "star with extension in a subdirectory", "pattern": "src/*.js", "expect": ["src/index.js", "src/util.js"] },
+    { "name": "star as a whole directory segment", "pattern": "*/README.md", "expect": ["src/README.md"] },
+
+    { "name": "star as a prefix within a segment", "pattern": "src/i*.js", "expect": ["src/index.js"] },
+    { "name": "star between a prefix and a suffix", "pattern": "src/i*x.js", "expect": ["src/index.js"] },
+    { "name": "star on both sides of a literal", "pattern": "src/*i*.js", "expect": ["src/index.js", "src/util.js"] },
+    {
+      "name": "star surrounding a literal at root",
+      "pattern": "*a*",
+      "expect": ["[bracket]", "a+b.txt", "data.json", "package.json"]
+    },
+
+    {
+      "name": "globstar enumerates the whole confined tree",
+      "pattern": "**",
+      "expect": [
+        ".gitignore",
+        "README.md",
+        "[bracket]",
+        "[bracket]/b.txt",
+        "a+b.txt",
+        "data.json",
+        "docs",
+        "docs/B.md",
+        "docs/a.md",
+        "docs/img.png",
+        "empty",
+        "notes.txt",
+        "package.json",
+        "probes",
+        "probes/a",
+        "probes/ab",
+        "probes/afoob",
+        "probes/b",
+        "probes/q?",
+        "probes/qX",
+        "probes/{a,b}",
+        "sort-📄",
+        "sort-",
+        "src",
+        "src/README.md",
+        "src/index.js",
+        "src/main.rs",
+        "src/nested",
+        "src/nested/deep.js",
+        "src/nested/deeper",
+        "src/nested/deeper/deepest.js",
+        "src/util.js"
+      ]
+    },
+    {
+      "name": "globstar then star matches every non-root path",
+      "pattern": "**/*",
+      "expect": [
+        ".gitignore",
+        "README.md",
+        "[bracket]",
+        "[bracket]/b.txt",
+        "a+b.txt",
+        "data.json",
+        "docs",
+        "docs/B.md",
+        "docs/a.md",
+        "docs/img.png",
+        "empty",
+        "notes.txt",
+        "package.json",
+        "probes",
+        "probes/a",
+        "probes/ab",
+        "probes/afoob",
+        "probes/b",
+        "probes/q?",
+        "probes/qX",
+        "probes/{a,b}",
+        "sort-📄",
+        "sort-",
+        "src",
+        "src/README.md",
+        "src/index.js",
+        "src/main.rs",
+        "src/nested",
+        "src/nested/deep.js",
+        "src/nested/deeper",
+        "src/nested/deeper/deepest.js",
+        "src/util.js"
+      ]
+    },
+    {
+      "name": "globstar with extension matches at every depth",
+      "pattern": "**/*.js",
+      "expect": [
+        "src/index.js",
+        "src/nested/deep.js",
+        "src/nested/deeper/deepest.js",
+        "src/util.js"
+      ]
+    },
+    {
+      "name": "trailing globstar includes the base directory and all descendants",
+      "pattern": "src/**",
+      "expect": [
+        "src",
+        "src/README.md",
+        "src/index.js",
+        "src/main.rs",
+        "src/nested",
+        "src/nested/deep.js",
+        "src/nested/deeper",
+        "src/nested/deeper/deepest.js",
+        "src/util.js"
+      ]
+    },
+    {
+      "name": "globstar between a base and an extension",
+      "pattern": "src/**/*.js",
+      "expect": [
+        "src/index.js",
+        "src/nested/deep.js",
+        "src/nested/deeper/deepest.js",
+        "src/util.js"
+      ]
+    },
+    { "name": "globstar before a literal directory", "pattern": "**/deeper/*.js", "expect": ["src/nested/deeper/deepest.js"] },
+
+    { "name": "globstar matching zero levels", "pattern": "docs/**/*.md", "expect": ["docs/B.md", "docs/a.md"] },
+    { "name": "globstar matching zero levels before a literal", "pattern": "src/**/index.js", "expect": ["src/index.js"] },
+
+    { "name": "same name at multiple depths", "pattern": "**/README.md", "expect": ["README.md", "src/README.md"] },
+
+    { "name": "plus is a literal", "pattern": "a+b.txt", "expect": ["a+b.txt"] },
+    { "name": "brackets are literal", "pattern": "[bracket]/b.txt", "expect": ["[bracket]/b.txt"] },
+    { "name": "star inside a bracket-named directory", "pattern": "[bracket]/*", "expect": ["[bracket]/b.txt"] },
+
+    { "name": "question mark is a literal, not a single-char wildcard", "pattern": "probes/q?", "expect": ["probes/q?"] },
+    { "name": "embedded ** collapses to a within-segment * (a**b)", "pattern": "probes/a**b", "expect": ["probes/ab", "probes/afoob"] },
+    { "name": "braces and comma are literal, no brace expansion", "pattern": "probes/{a,b}", "expect": ["probes/{a,b}"] },
+    {
+      "name": "star lists names carrying literal metacharacters",
+      "pattern": "probes/*",
+      "expect": [
+        "probes/a",
+        "probes/ab",
+        "probes/afoob",
+        "probes/b",
+        "probes/q?",
+        "probes/qX",
+        "probes/{a,b}"
+      ]
+    },
+
+    { "name": "dot-star matches dotfiles, excludes denied", "pattern": ".*", "expect": [".gitignore"] },
+
+    { "name": "a directory is a valid result", "pattern": "src", "expect": ["src"] },
+    { "name": "an empty directory is a valid result", "pattern": "empty", "expect": ["empty"] },
+
+    { "name": "matching is case-sensitive", "pattern": "readme.md", "expect": [] },
+    {
+      "name": "uppercase sorts before lowercase (UTF-16 order)",
+      "pattern": "docs/*",
+      "expect": ["docs/B.md", "docs/a.md", "docs/img.png"]
+    },
+    {
+      "name": "astral name sorts before high-BMP name by UTF-16 code unit, not code point",
+      "pattern": "sort-*",
+      "expect": ["sort-📄", "sort-"]
+    },
+
+    { "name": "empty segments are dropped", "pattern": "src//nested", "expect": ["src/nested"] },
+    { "name": "trailing slash is ignored", "pattern": "src/nested/", "expect": ["src/nested"] },
+
+    { "name": "an escaping symlink is excluded", "pattern": "escape", "expect": [], "requiresSymlink": true },
+    { "name": "a pattern cannot descend through an escaping symlink", "pattern": "escape/*", "expect": [], "requiresSymlink": true }
+  ]
+}
