@@ -61,7 +61,7 @@ looked up fresh at share time.
 | Durable identity | `peerKey` + `formulaAddress` + `type` | SHA-256 content address (`xt`) |
 | Ephemeral hints | transport addresses (`@`-delimited path) | data-plane sources (`ws` / `xs` / `as` / `tr`) |
 | Hints depend on | `@nets` (`NETS`) advertised transports | `@planes` vended data planes (see below) |
-| Hints resolved | fresh at `locate`, via `getAllNetworkAddresses` | fresh at `contentLocate`, via `getAllContentSources` |
+| Hints resolved | fresh at `locate`, via `getAllNetworkAddresses` | fresh at `locateContent`, via `getAllContentSources` |
 | Empty-config result | locator with no connection hints | content locator with `xt` only, no sources |
 | Verified against | Ed25519 keypair at OCapN-Noise handshake | the `xt` hash, after the bytes arrive |
 
@@ -109,17 +109,18 @@ Content-locate methods are defined once in `directory.js` and carried up through
 
 | Method | Signature | Description |
 |---|---|---|
-| `contentLocate(...path)` | `name → contentLocator` | Resolve a pet name for a readable-blob or readable-tree to a content locator (magnet URN). Rejects if the named formula is not content-bearing. |
-| `listContentLocators(...path)` | `name → Record<name, contentLocator>` | Content analogue of `listLocators`, for a directory of content-bearing formulas. |
-| `reverseContentLocate(contentLocator)` | `contentLocator → name[]` | Find pet names whose content matches a content locator's `xt` hash. |
+| `locateContent(...path)` | `name → contentLocator` | Resolve a pet name for a readable-blob or readable-tree to a content locator (magnet URN). Rejects if the named formula is not content-bearing. |
+| `listContent(...path)` | `name → Record<name, contentLocator>` | Content analogue of `listLocators`, for a directory of content-bearing formulas. |
+| `storeContent(...path)` | `name → contentLocator` | The explicit publish verb behind `locateContent`'s resolution: mint the per-plane sharing capabilities over the agent's `@planes`, ask each vended plane to begin serving the named readable, and return the content locator carrying the freshly vended source hints. (Exact store-side semantics are elaborated at implementation; recorded here as the maintainer-confirmed member of the method family.) |
+| `loadContent(contentLocator)` | `contentLocator → ReadableBlob \| ReadableTree` | Fetch the content over the first reachable advertised data plane, **verifying every byte against `xt`**, and return the readable as a **new local content-addressed formula** (copy semantics, matching `checkin`). Falls back across sources; falls back to in-band CapTP if a capability to the origin is also held. |
+| `reverseLocateContent(contentLocator)` | `contentLocator → name[]` | Find pet names whose content matches a content locator's `xt` hash. |
 | `internalizeContentLocator(contentLocator)` | `contentLocator → { hash, kind, sources }` | Parse and validate a content locator: extract the content hash and kind, and forward the source hints to the fetch layer (analogue of `internalizeLocator` forwarding transport hints to `addPeerInfo`). |
-| `acquire(contentLocator)` | `contentLocator → ReadableBlob \| ReadableTree` | Fetch the content over the first reachable advertised data plane, **verifying every byte against `xt`**, and return the readable as a local content-addressed formula. Falls back across sources; falls back to in-band CapTP if a capability to the origin is also held. |
 
 Only content-bearing formulas can be content-located: a readable-blob, a
 readable-tree, and the structurally-compatible read surfaces from
 [platform-fs](platform-fs.md) (`EndoMountFile` as a blob, `EndoMount` /
 `GitTreeProvider` result as a tree, [daemon-git-capability](daemon-git-capability.md)).
-`contentLocate` on any other formula type rejects, the same way `parseLocator`
+`locateContent` on any other formula type rejects, the same way `parseLocator`
 rejects an unknown query parameter.
 
 `externalizeContent(hash, kind, sources?)` and `internalizeContentLocator` form
@@ -130,11 +131,13 @@ and live beside them in `locator.js`.
 
 `@nets` (`NETS`) is a per-agent directory of **network references**; the network
 layer resolves it to the transport addresses a locator advertises. The content
-analogue is a per-agent directory of **data-plane sharing capabilities**. This
-design calls it **`@planes`** (working name; the exact special-name spelling is
-an [open question](#open-questions)). Each entry is a capability, vended by a
-Gateway, that can serve content the agent holds over one back-plane and report
-the reachable source URL for it.
+analogue is a per-agent directory of **data-plane sharing capabilities**. The
+maintainer has picked the canonical spelling: it is **`@planes`** (see
+[§ Design Decisions](#design-decisions)). This lands as the transport side is
+itself renamed `@nets` → **`@transports`**, so the two special names read as a
+pair (`@transports` for reachability, `@planes` for content). Each entry is a
+capability, vended by a Gateway, that can serve content the agent holds over one
+back-plane and report the reachable source URL for it.
 
 `@planes` is the identity/advertisement half of content sharing, exactly as
 `NETS` is for reachability:
@@ -186,7 +189,7 @@ Registering a plane wires three things: (1) how it **contributes** parameters to
 the magnet grammar, (2) a **resolver** that turns a held `@planes` sharing
 capability plus a content hash into source hints, and (3) a **verifying fetcher**
 that retrieves bytes for a hint and hands them to the hash-verification gate.
-`acquire` iterates the registered planes present in a content locator in
+`loadContent` iterates the registered planes present in a content locator in
 preference order and stops at the first that yields hash-verified bytes.
 
 This design registers **one** plane end to end (below) and names the rest as
@@ -219,7 +222,7 @@ sequenceDiagram
   participant B as Agent (recipient)
   A->>G: E(httpPlane).share(readableBlob)  (CapTP control plane)
   G-->>A: ws hint: https://gw.example/content/{hash}
-  A->>A: contentLocate → magnet:?xt=urn:endo-blob:{hash}&ws=https://gw.example/content/{hash}
+  A->>A: locateContent → magnet:?xt=urn:endo-blob:{hash}&ws=https://gw.example/content/{hash}
   A-->>B: content locator string (any channel)
   B->>G: GET /content/{hash}   (HTTP data plane, outside CapTP)
   G-->>B: bytes
@@ -249,7 +252,7 @@ serving the content and to report the reachable URL. That URL becomes the hint.
 
 So the hints change when the Gateway configuration changes (a new public
 hostname, a relay added or removed, a plane enabled or disabled), which is
-exactly why they are resolved fresh at `contentLocate` time and never stored with
+exactly why they are resolved fresh at `locateContent` time and never stored with
 the content, mirroring the connection-hints-are-ephemeral discipline for
 locators. An agent with no Gateway, or a Gateway vending no planes, produces
 `xt`-only content locators.
@@ -271,9 +274,9 @@ the boundary is explicit:
 | Needs | a live CapTP session **and** a capability to the readable | only the content-locator string; no capability, no live session |
 | CapTP role | control **and** data plane | control plane only (mint sharing cap, return URN); no bytes |
 | Good when | peer-to-peer copy over an open connection | large / cacheable / mirrorable / swarmable payloads, or recipient holds only a string |
-| Fallback | (is the fallback) | `acquire` falls back to in-band CapTP if a capability and session are also held |
+| Fallback | (is the fallback) | `loadContent` falls back to in-band CapTP if a capability and session are also held |
 
-The two compose. `acquire` prefers advertised data planes and falls back to
+The two compose. `loadContent` prefers advertised data planes and falls back to
 in-band CapTP; conversely a content locator works when no CapTP capability was
 ever shared. Content locators **extend** the transfer story the way `GitRemote`
 extends local `Git`: same control-plane-on-CapTP, data-plane-off-CapTP split,
@@ -286,7 +289,7 @@ generalized from packfiles to any readable.
 | [daemon-locator-reference](daemon-locator-reference.md) | The transport-locator format this mirrors; `externalizeId` / `internalizeLocator` and the ephemeral-hints discipline are the templates for the content-side duality. |
 | [daemon-agent-network-identity](daemon-agent-network-identity.md) | `@nets` (`NETS`) and `getAllNetworkAddresses`, the model `@planes` / `getAllContentSources` copies. |
 | [daemon-cas-management](daemon-cas-management.md) | The SHA-256 content-addressed store whose hash is the `xt` identity and the verification target. |
-| [platform-fs](platform-fs.md) | `ReadableBlob` / `ReadableTree` read surfaces that content locators name and that `acquire` returns. |
+| [platform-fs](platform-fs.md) | `ReadableBlob` / `ReadableTree` read surfaces that content locators name and that `loadContent` returns. |
 | [daemon-checkin-checkout](daemon-checkin-checkout.md) | The in-band CapTP transfer this complements; the boundary is drawn in § Relationship to in-band CapTP transfer. |
 | [daemon-web-gateway](daemon-web-gateway.md) / [gateway-package](gateway-package.md) | The Gateway that vends reachable sockets and holds the content-addressed static-asset cache the HTTP plane serves from. |
 | [daemon-git-capability](daemon-git-capability.md) / [daemon-git-remotes](daemon-git-remotes.md) | The control-plane-on-CapTP / data-plane-on-HTTP split this generalizes; the `git archive` bulk path is a tree carrier and the Git-over-HTTP follow-up's substrate. |
@@ -298,15 +301,15 @@ generalized from packfiles to any readable.
    `urn:endo-blob:` / `urn:endo-tree:`, `dn`, `xl`, and registered source
    parameters; reject unknown parameters, matching `parseLocator`'s strictness).
    Round-trip invariant tests, no network.
-2. **Interface methods.** `contentLocate`, `listContentLocators`,
-   `reverseContentLocate`, `internalizeContentLocator` in `directory.js`, carried
+2. **Interface methods.** `locateContent`, `listContent`, `storeContent`,
+   `reverseLocateContent`, `internalizeContentLocator` in `directory.js`, carried
    up through `host.js` / `guest.js`; rejection for non-content formula types.
 3. **`@planes` and resolution.** The per-agent `@planes` special name (empty by
    default), `getAllContentSources`, and the `ContentDataPlane` registry. With
    an empty `@planes` this yields `xt`-only content locators.
 4. **HTTP web-seed plane.** The Gateway `GET /content/{hash}` route over the
    content-addressed static-asset cache, the `@planes` HTTP sharing capability
-   that vends the `ws` URL, and `acquire`'s verifying fetch for `ws` (blob and
+   that vends the `ws` URL, and `loadContent`'s verifying fetch for `ws` (blob and
    tar-tree), with fallback ordering and the in-band CapTP fallback.
 5. **Verification gate and fallback.** The hash-verification wrapper every plane
    feeds, source preference ordering, and the CapTP fallback path.
@@ -324,9 +327,13 @@ generalized from packfiles to any readable.
    share time and never stored with the content, mirroring the
    connection-hints-are-ephemeral discipline for locators. This is what makes
    them configuration-dependent.
-4. **`@planes` is the content analogue of `@nets`.** Same empty-by-default,
-   creator-populated, persona-scoped shape; an empty `@planes` yields `xt`-only
-   content locators, the content-side of the anonymizing-persona property.
+4. **`@planes` is the content analogue of `@nets`, and is the canonical name.**
+   The maintainer picked **`@planes`** over the other candidates (`@seeds`,
+   `@shares`, `@stores`). It lands alongside the transport side's own rename
+   `@nets` → **`@transports`**, so the pair reads as `@transports` (reachability)
+   and `@planes` (content). Same empty-by-default, creator-populated,
+   persona-scoped shape; an empty `@planes` yields `xt`-only content locators,
+   the content-side of the anonymizing-persona property.
 5. **Every plane is an untrusted data plane; `xt` is the trust root.** Bytes are
    verified against the hash before use, so mirrors, CDNs, and swarms need to be
    *available*, not *trusted*. Wrong sources fall through.
@@ -336,9 +343,32 @@ generalized from packfiles to any readable.
 7. **One plane worked, the rest registered.** The `ContentDataPlane` registry
    makes the hint vocabulary extensible; this design lands HTTP end to end and
    defers the others to individual designs.
-8. **Out-of-band complements in-band, never replaces it.** `acquire` falls back
-   to CapTP snapshot; content locators add reach (string-only recipients, bulk
-   planes) without removing the peer-to-peer copy path.
+8. **Out-of-band complements in-band, never replaces it.** `loadContent` falls
+   back to CapTP snapshot; content locators add reach (string-only recipients,
+   bulk planes) without removing the peer-to-peer copy path.
+9. **The method family is spelled `<verb>Content`.** `locateContent`,
+   `loadContent`, `storeContent`, `listContent`, `reverseLocateContent`, `&c.` —
+   a **separate** family (not a content flag folded into the `locate` family),
+   the same way `writeLocator` stays distinct. This is the maintainer-confirmed
+   spelling of the interface.
+10. **`loadContent` uses copy semantics.** It returns a **new local
+    content-addressed formula**, matching `checkin`, rather than a remote-backed
+    lazy readable that streams from the data plane on demand. A lazy-streaming
+    variant for large, sparsely-browsed trees is left to a future extension.
+11. **The readable-tree `xt` uses the current readable-tree hashing scheme, with
+    a planned future change.** The `xt` for a tree is computed over today's
+    readable-tree serialization now, so two agents hash the same tree alike. The
+    design reserves the right to change this when **CASK** is integrated: CASK
+    has its own hashing constraints — Rabin-fingerprinting, and child hashes
+    captured in a way that is transparent to the GC — that may reshape the
+    canonical serialization, at which point cross-agent hash agreement is
+    re-established under the new scheme.
+12. **Hint integrity/expiry is a reserved configuration surface, deferred.**
+    Content-hash verification already covers *correctness*, so no signed or
+    time-bounded hint is required for safety today. A configuration surface for
+    hint integrity/expiry (the *availability and abuse* dimension of the vended
+    socket — e.g. a signed or time-bounded `ws` URL) is explicitly reserved and
+    deferred rather than designed now.
 
 ## Follow-up back-planes (to be filed)
 
@@ -362,32 +392,15 @@ is its own incremental design, to be filed as a sibling `designs/*.md`:
 
 ## Open Questions
 
-- What is the exact special-name spelling for the content analogue of `@nets`?
-  This design uses **`@planes`** as a working name; candidates include `@planes`,
-  `@seeds`, `@shares`, `@stores`. The maintainer picks the canonical name (and
-  whether it is a first-class special name like `NETS` or a sub-directory of an
-  existing one).
-- Should the content-locate method family be spelled `contentLocate` /
-  `listContentLocators` / `acquire`, or should it fold into the existing
-  `locate` family with a content flag? This design keeps a separate family for
-  the same reason `writeLocator` is distinct; confirm the naming.
-- Should `acquire` return a **new local content-addressed formula** (the copy
-  semantics assumed here) or a **remote-backed lazy readable** that streams from
-  the data plane on demand? The first matches `checkin`; the second saves storage
-  for large trees browsed sparsely.
-- For a readable-**tree**, what is the canonical byte serialization the `xt` hash
-  is computed over so that two agents independently hash the same tree to the
-  same `urn:endo-tree:` value? (A canonical tar, a git tree object, or the
-  platform-fs tree manifest.) The hash-agreement requirement is load-bearing for
-  cross-agent verification.
-- Does a content locator need an **integrity/expiry** signal for hints (a signed
-  or time-bounded `ws` URL from the Gateway), or is content-hash verification
-  sufficient and hint liveness left to fall-through? Verification covers
-  *correctness*; this question is about *availability and abuse* of the vended
-  socket.
+The naming (`@planes`), method-family spelling, `loadContent` copy semantics,
+readable-tree hashing scheme, and hint integrity/expiry questions this draft
+originally surfaced have been answered by the maintainer and moved into
+[§ Design Decisions](#design-decisions). The one item that remains deferred:
+
 - Milestone placement, dependency-graph edges, and a size/duration estimate for
-  `designs/README.md` are deferred to the journalist's next classification cycle
-  (this draft adds the summary-table row and total only).
+  `designs/README.md` are **not yet classified** and remain a candidate for the
+  next round of organization (the journalist's next classification cycle). This
+  draft adds the summary-table row and total only.
 
 ## Prompt
 
