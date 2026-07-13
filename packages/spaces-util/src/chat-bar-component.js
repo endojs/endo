@@ -20,8 +20,8 @@ import { createBlobViewer } from './blob-viewer.js';
 import { createDebuggerPanel } from './debugger-panel.js';
 import { createEndowModal } from './endow-modal.js';
 import { createInlineCommandForm } from './inline-command-form.js';
+import { createPendingCommands } from './pending-commands.js';
 import { createCommandExecutor } from './command-executor.js';
-import { watchErrorTrace } from './error-trace.js';
 import {
   getCommand,
   getCategories,
@@ -45,27 +45,28 @@ import { isMac, modKey } from './platform-keys.js';
 //   2. THE COMMAND POPOVER (`#chat-command-popover`) — the hamburger menu's
 //      category-grouped command list. It renders confined from the registry data
 //      plus an `onSelect` callback, into a DEDICATED mount child of the popover.
-//   3. THE COMMAND-MODE CHROME (`.command-header` / `.command-footer` /
-//      `#command-error`) — the active-command label, the submit/cancel footer
-//      buttons, and the error bubble. Previously driven by imperative
-//      `$commandLabel.textContent`, `$commandSubmitButton.textContent /
-//      .disabled / .classList`, and `$commandError.textContent`. It now renders
-//      confined as one `CommandChrome` component (sliced per region by a `region`
-//      prop) into DEDICATED mount children of the three host regions, driven by
-//      the `commandChromeController` setter-bridge. The submit button's
-//      `disabled` / spinner are Preact state DERIVED from the AUTHORITATIVE
-//      `commandSubmitting` / `commandValid` booleans held in the host closure —
-//      those booleans, never the confined node, are the source of truth for
-//      "can I submit?" (the inline-command-form host-closure pattern).
+//   3. THE COMMAND-MODE CHROME (`.command-header` / `.command-footer`) — the
+//      active-command label and the submit/cancel footer buttons. Previously
+//      driven by imperative `$commandLabel.textContent`,
+//      `$commandSubmitButton.textContent / .disabled / .classList`. It now
+//      renders confined as one `CommandChrome` component (sliced per region by a
+//      `region` prop) into DEDICATED mount children of the two host regions,
+//      driven by the `commandChromeController` setter-bridge. The submit button's
+//      `disabled` is Preact state DERIVED from the AUTHORITATIVE `commandValid`
+//      boolean held in the host closure — that boolean, never the confined node,
+//      is the source of truth for "can I submit?" (the inline-command-form
+//      host-closure pattern). Command dispatch is non-blocking, so the button
+//      never spins; a failed command surfaces as an ephemeral error card in the
+//      pending-commands region (see `pending-commands.js`), NOT an inline bubble.
 //
 // All three keep the original class names verbatim so the existing CSS applies,
 // and none uses `dangerouslySetInnerHTML` (the sanitizing renderer strips it).
 //
 // EVERYTHING ELSE is irreducible trusted host work and stays imperative, exactly
 // as send-form keeps its contenteditable editing imperative: the `$chatBar`
-// class toggling, the `$error` `textContent`, the `#command-error` container
-// visibility (its `:not(:empty)` rule cannot fire once a mount child lives
-// inside), the focus-mode CSS-class indentation applied to SHARED `#messages`
+// class toggling, the `$error` `textContent`, the pending-commands region cards
+// (`#pending-commands-region`, the in-flight / success / ephemeral-error card
+// DOM), the focus-mode CSS-class indentation applied to SHARED `#messages`
 // envelopes (host DOM this component does not own), the keyboard handlers, and
 // the `MutationObserver`.
 //
@@ -207,12 +208,7 @@ harden(CommandPopover);
  * @typedef {object} CommandChromeState
  * @property {string} commandLabel - The active command's display label.
  * @property {string} submitLabel - The submit button's label.
- * @property {boolean} submitting - Whether a command is in flight (spinner).
  * @property {boolean} valid - Whether the inline form currently validates.
- * @property {string} error - Command error text (empty hides the bubble).
- * @property {import('./error-trace.js').ErrorTraceDetail | null} [errorDetail] -
- *   Resolved daemon-side trace detail for the error (stack trace and the
- *   authoritative worker id). Present for the /js evaluate path; null otherwise.
  */
 
 /**
@@ -229,30 +225,25 @@ harden(CommandPopover);
  * @property {() => CommandChromeState} getState
  * @property {() => void} onSubmit
  * @property {() => void} onCancel
- * @property {(workerId: string) => void} onShowWorker - Invoke the Show Value
- *   flow for the worker that produced the current error (the error bubble's
- *   worker chip click). The host owns the behaviour; the confined view only
- *   knows the worker id to pass back.
  */
 
 /**
  * One confined region of the command-mode chrome. `region` selects which slice
  * of the shared `CommandChromeState` this mount renders, so a single component +
- * controller drives the (physically separated) header, footer, and error host
- * nodes:
+ * controller drives the (physically separated) header and footer host nodes:
  *
  *   • `header` — the `.command-label` span.
- *   • `footer` — the submit button (label + spinner + disabled) and the
+ *   • `footer` — the submit button (label + disabled) and the
  *     `.command-cancel-footer` button.
- *   • `error`  — the `#command-error` text node.
  *
- * The submit button's `disabled` and `btn-spinner` are PREACT STATE derived
- * from the mirrored `submitting` / `valid` booleans; the host never reads them
- * back. Clicking submit/cancel routes through the controller's `onSubmit` /
- * `onCancel`, which the host owns.
+ * Command dispatch is non-blocking: the submit button never spins (progress
+ * moves to the pending-commands region), so its `disabled` is PREACT STATE
+ * derived from the mirrored `valid` boolean alone; the host never reads it back.
+ * Clicking submit/cancel routes through the controller's `onSubmit` / `onCancel`,
+ * which the host owns.
  *
  * @param {object} props
- * @param {'header' | 'footer' | 'error'} props.region
+ * @param {'header' | 'footer'} props.region
  * @param {CommandChromeController} props.controller
  */
 const CommandChrome = ({ region, controller }) => {
@@ -274,55 +265,17 @@ const CommandChrome = ({ region, controller }) => {
     return h('span', { class: 'command-label' }, state.commandLabel);
   }
 
-  if (region === 'error') {
-    if (!state.error) return null;
-    const detail = state.errorDetail || null;
-    const stack = detail && detail.stack ? detail.stack : '';
-    const workerId = detail && detail.workerId ? detail.workerId : '';
-    // The chip shows the worker's reverse-looked-up name (`@petName`), the same
-    // token Show Value renders in its title; `worker` when the worker is
-    // anonymous (unnamed in the pet store).
-    const workerName = detail && detail.workerName ? detail.workerName : '';
-    // A bare error (no resolved trace) renders as just its message text, exactly
-    // as before. When the /js evaluate path resolved a daemon-side trace, the
-    // bubble gains a collapsible stack trace and a clickable worker chip whose
-    // click routes through the controller into the host's Show Value flow.
-    if (!stack && !workerId) {
-      return state.error;
-    }
-    return h(
-      'div',
-      { class: 'command-error-detail' },
-      h('div', { class: 'command-error-message' }, state.error),
-      stack ? h('pre', { class: 'command-error-stack-text' }, stack) : null,
-      workerId
-        ? h(
-            'button',
-            {
-              type: 'button',
-              class: 'command-error-worker-chip',
-              title: 'Show the worker that produced this error',
-              onClick: () => controller.onShowWorker(workerId),
-            },
-            workerName || 'worker',
-          )
-        : null,
-    );
-  }
-
   // region === 'footer'
-  const submitDisabled = state.submitting || !state.valid;
   return h(
     Fragment,
     null,
     h(
       'button',
       {
-        class: state.submitting ? 'btn-spinner' : undefined,
-        disabled: submitDisabled,
+        disabled: !state.valid,
         onClick: () => controller.onSubmit(),
       },
-      state.submitting ? '' : state.submitLabel,
+      state.submitLabel,
     ),
     h(
       'button',
@@ -384,8 +337,8 @@ export const chatBarComponent = (
   const $error = /** @type {HTMLElement} */ (
     $parent.querySelector('#chat-error')
   );
-  const $commandError = /** @type {HTMLElement} */ (
-    $parent.querySelector('#command-error')
+  const $pendingRegion = /** @type {HTMLElement} */ (
+    $parent.querySelector('#pending-commands-region')
   );
   const $evalFormContainer = /** @type {HTMLElement} */ (
     $parent.querySelector('#eval-form-container')
@@ -532,7 +485,7 @@ export const chatBarComponent = (
     setModeline(hints);
   };
 
-  /** @type {'send' | 'selecting' | 'inline' | 'js' | 'form' | 'focus'} */
+  /** @type {'send' | 'selecting' | 'inline' | 'js' | 'form' | 'focus' | 'pending'} */
   let mode = 'send';
   let commandPrefix = '';
   /** @type {string | null} */
@@ -617,18 +570,15 @@ export const chatBarComponent = (
       }
       debuggerPanel.open(debuggerRef, label);
     },
-    showError: (error, trace) => {
+    showError: error => {
       const message = error?.message || String(error) || 'Unknown error';
-      // Use command error element in command mode, chat error otherwise. When a
-      // resolved trace detail accompanies the error (today the /js evaluate
-      // path), the command bubble surfaces the stack trace and a clickable
-      // worker chip; otherwise it shows the bare message.
-      if (mode === 'inline') {
-        // eslint-disable-next-line no-use-before-define
-        setCommandError(message, trace);
-      } else {
-        $error.textContent = message;
-      }
+      // A failed command is surfaced to the user by its ephemeral pending-command
+      // error card (see `pending-commands.js`), which carries the rich error UX
+      // — message, daemon stack trace, and clickable worker chip — for EVERY
+      // command via the resolved `{ success: false, error, trace }` result. This
+      // handler no longer paints a bubble or a toast (there is no command-mode
+      // inline error path); it only mirrors the error to the console for
+      // debugging, including any aggregate/cause chain.
       console.error(`[Chat] Command error:`, message);
       const { errors } = /** @type {{ errors?: Error[] }} */ (error);
       if (errors?.length) {
@@ -876,35 +826,24 @@ export const chatBarComponent = (
 
   // ---- Confined command-mode chrome mounts ----
   //
-  // The command-mode header label, submit/cancel footer buttons, and error
-  // bubble render confined into dedicated mount children of their host regions
-  // (`.command-header`, `.command-footer`, `#command-error`); one `CommandChrome`
-  // component slice per region, all driven by a single setter-bridge exactly
-  // like `modelineController`.
+  // The command-mode header label and submit/cancel footer buttons render
+  // confined into dedicated mount children of their host regions
+  // (`.command-header`, `.command-footer`); one `CommandChrome` component slice
+  // per region, all driven by a single setter-bridge exactly like
+  // `modelineController`.
   //
   // THE AUTHORITATIVE STATE lives here in the host closure, NOT in the confined
-  // buttons. Under confinement the submit button's `disabled` / `btn-spinner`
-  // are Preact state we must never read back, so "can I submit?" reads route
-  // through `commandSubmitting` / `commandValid` below — the same "authoritative
-  // boolean in a host closure" pattern inline-command-form.js uses for `formData`
-  // / `disabled`. `commandSubmitting` mirrors the old `$chatBar.submitting` class
-  // + button spinner/disabled; `commandValid` mirrors the old read of
-  // `$commandSubmitButton.disabled` as the validity source of truth.
-  let commandSubmitting = false;
+  // buttons. Under confinement the submit button's `disabled` is Preact state we
+  // must never read back, so "can I submit?" reads route through `commandValid`
+  // below — the same "authoritative boolean in a host closure" pattern
+  // inline-command-form.js uses for `formData` / `disabled`. `commandValid`
+  // mirrors the old read of `$commandSubmitButton.disabled` as the validity
+  // source of truth. There is no `submitting` mirror: command dispatch is
+  // non-blocking (the bar unlocks immediately and progress moves to the pending-
+  // commands region), so the submit button never spins.
   let commandValid = false;
   let currentCommandLabel = '';
   let currentSubmitLabel = 'Execute';
-  let currentCommandError = '';
-  /** @type {import('./error-trace.js').ErrorTraceDetail | null} */
-  let currentCommandErrorDetail = null;
-  /**
-   * Cancel handle for an in-flight trace watch (see `setCommandError`). The
-   * next command submitted clears the error via `setCommandError('')`, which
-   * cancels the watch — that is the maintainer-specified dismissal signal.
-   *
-   * @type {(() => void) | undefined}
-   */
-  let cancelTraceWatch;
 
   /**
    * Bring up Show Value for the worker that produced an error, given the
@@ -938,10 +877,7 @@ export const chatBarComponent = (
     getState: () => ({
       commandLabel: currentCommandLabel,
       submitLabel: currentSubmitLabel,
-      submitting: commandSubmitting,
       valid: commandValid,
-      error: currentCommandError,
-      errorDetail: currentCommandErrorDetail,
     }),
     onSubmit: () => {
       // eslint-disable-next-line no-use-before-define
@@ -951,11 +887,6 @@ export const chatBarComponent = (
       messagePicker.disable();
       exitCommandMode(); // eslint-disable-line no-use-before-define
     },
-    onShowWorker: workerId => {
-      // The worker id is the worker formula's identifier; reverse-resolve the
-      // live worker for Show Value (anonymous fallback when unretained).
-      void showWorkerValue(workerId);
-    },
   };
 
   /** Push the current chrome snapshot into every live confined region. */
@@ -963,55 +894,6 @@ export const chatBarComponent = (
     const state = commandChromeController.getState();
     for (const setter of commandChromeController.setters) {
       setter(state);
-    }
-  };
-
-  /**
-   * @param {string} message
-   * @param {import('./error-trace.js').ErrorTraceDetail | null} [detail]
-   */
-  const setCommandError = (message, detail = null) => {
-    // Cancel any trace watch from a prior error. Because the next command
-    // submitted clears the bubble via `setCommandError('')` (see
-    // `executeWithSpinner`), this is where "cancel the watch when the error
-    // bubble is dismissed" happens.
-    if (cancelTraceWatch) {
-      cancelTraceWatch();
-      cancelTraceWatch = undefined;
-    }
-    currentCommandError = message;
-    currentCommandErrorDetail = detail || null;
-    // The host owns the error bubble's visibility (the CSS `:not(:empty)` rule
-    // can no longer fire now that `#command-error` always holds a mount child);
-    // the confined region owns the text it shows.
-    $commandError.style.display = message ? 'block' : 'none';
-    pushCommandChrome();
-
-    // The daemon-side trace may not have reached the aggregator when the error
-    // surfaced (a race between the worker's asynchronous trace push and the
-    // browser's lookup round-trip), leaving the bubble with only the bare
-    // message — no disclosure triangle, no worker chip. When the initial
-    // resolve recovered an errorId but no stack/worker, watch for the record to
-    // arrive and enrich the bubble in place.
-    if (detail && detail.errorId && !detail.stack && !detail.workerId) {
-      const watchedDetail = detail;
-      cancelTraceWatch = watchErrorTrace(
-        powers,
-        detail.errorId,
-        ({ stack, workerId, workerName }) => {
-          cancelTraceWatch = undefined;
-          // Ignore a resolution for an error no longer on screen (a newer
-          // command replaced it before the record arrived).
-          if (currentCommandErrorDetail !== watchedDetail) return;
-          currentCommandErrorDetail = {
-            ...watchedDetail,
-            stack,
-            workerId,
-            workerName,
-          };
-          pushCommandChrome();
-        },
-      );
     }
   };
 
@@ -1029,39 +911,43 @@ export const chatBarComponent = (
     $commandFooterMount,
   );
 
-  const $commandErrorMount = document.createElement('div');
-  $commandError.replaceChildren($commandErrorMount);
-  // The mount child makes `#command-error` permanently non-empty, so its
-  // `:not(:empty)` display rule can never fire; the host drives visibility
-  // directly via `setCommandError`, starting hidden.
-  $commandError.style.display = 'none';
-  renderConfined(
-    h(CommandChrome, { region: 'error', controller: commandChromeController }),
-    $commandErrorMount,
-  );
-
-  const setCommandSubmitting = (/** @type {boolean} */ value) => {
-    commandSubmitting = value;
-    if (value) {
-      $chatBar.classList.add('submitting');
-      inlineForm.setDisabled(true); // eslint-disable-line no-use-before-define
-    } else {
-      $chatBar.classList.remove('submitting');
-      inlineForm.setDisabled(false); // eslint-disable-line no-use-before-define
-      commandValid = inlineForm.isValid(); // eslint-disable-line no-use-before-define
-    }
-    pushCommandChrome();
-  };
+  // Pending commands region. Every dispatched command is tracked here as a card
+  // instead of blocking the bar. The region is ALSO the single, general error
+  // surface: on failure of ANY command its pending card is replaced by an
+  // ephemeral error card carrying the rich error UX — message, daemon stack
+  // trace, and a clickable worker chip — that used to be the eval-only inline
+  // command-error bubble. The chip reverse-resolves the worker for Show Value.
+  const pendingCommands = createPendingCommands($pendingRegion, {
+    powers,
+    // The region is flow content at the bottom of the transcript; give it the
+    // scroll container so a new card pins the transcript to its bottom.
+    scrollContainer: $messagesContainer,
+    onShowWorker: workerId => {
+      // The worker id is the worker formula's identifier; reverse-resolve the
+      // live worker for Show Value (anonymous fallback when unretained).
+      void showWorkerValue(workerId);
+    },
+    onRegionEmptied: () => {
+      // An async success-fade or error resolution emptied the region while the
+      // user was parked in it; return them to the input.
+      if (mode === 'pending') {
+        exitPendingToInput(); // eslint-disable-line no-use-before-define
+      }
+    },
+  });
 
   /**
-   * Run a command with spinner/disabled state management.
+   * Dispatch a command into the pending region and surface its return value.
+   * Dispatch is non-blocking: the command bar unlocks immediately (leaving
+   * command mode) while the pending region's card owns the in-flight, success,
+   * and error UX (per `pending-commands.js`). This function forwards a
+   * successful command's value to the value modal where appropriate.
    *
    * @param {string} commandName
    * @param {Record<string, unknown>} data
    */
   const executeWithSpinner = async (commandName, data) => {
     messagePicker.disable();
-    setCommandError('');
 
     if (commandName === 'enter') {
       const { hostName } = /** @type {{ hostName: string }} */ (data);
@@ -1084,46 +970,45 @@ export const chatBarComponent = (
       return;
     }
 
-    // For commands that open their own modal, reset the command line
-    // immediately so the modal receives focus. Inline `/js` (and its `/eval`
-    // alias) do NOT open a modal here — they evaluate in place — so they stay in
-    // command mode through execution. That keeps `mode === 'inline'`, so a failed
-    // evaluation surfaces through the rich command-error bubble (message + stack
-    // trace + clickable worker chip via `setCommandError`) instead of the bare
-    // send-mode `#chat-error` toast, which shows only the message. Treating `/js`
-    // as modal-opening here is what dropped the resolved trace on the floor.
+    // Unlock the command bar immediately for EVERY command. Command dispatch is
+    // non-blocking: progress moves from the bar to a card in the pending-commands
+    // region, so the user can read back what they submitted and issue concurrent
+    // commands. Commands that open their own modal skip focus so the modal
+    // receives it; every other command returns to send mode.
     const opensModal =
       commandName === 'view' || commandName === 'edit' || commandName === 'cat';
     if (opensModal) {
       exitCommandMode({ skipFocus: true }); // eslint-disable-line no-use-before-define
     } else {
-      setCommandSubmitting(true);
+      exitCommandMode(); // eslint-disable-line no-use-before-define
     }
 
-    try {
-      const result = await executor.execute(commandName, data);
-      if (result.success) {
-        if (!opensModal) {
-          exitCommandMode(); // eslint-disable-line no-use-before-define
-        }
-        const resultName =
-          'resultName' in data && data.resultName
-            ? String(data.resultName)
-            : undefined;
-        const resultPath = resultName ? resultName.split('/') : undefined;
-        if (commandName === 'js') {
-          showValue(result.value, undefined, resultPath, undefined);
-        } else if (
-          result.value !== undefined &&
-          commandName !== 'show' &&
-          commandName !== 'list'
-        ) {
-          showValue(result.value, undefined, resultPath, undefined);
-        }
-      }
-    } finally {
-      if (!opensModal) {
-        setCommandSubmitting(false);
+    // Track the execution as a pending command card. The card owns the success /
+    // error UX (per pending-commands.js) — including the ephemeral error card
+    // that replaces the pending card and carries the rich daemon trace (message
+    // + stack + clickable worker chip) for a failed command, the single general
+    // error surface. The executor catches its own errors and resolves a
+    // { success, error?, trace? } shape, so awaiting the promise here does not
+    // throw; this function only forwards a successful result value to the value
+    // modal when appropriate.
+    const resultPromise = executor.execute(commandName, data);
+    pendingCommands.track(commandName, data, resultPromise);
+
+    const result = await resultPromise;
+    if (result.success) {
+      const resultName =
+        'resultName' in data && data.resultName
+          ? String(data.resultName)
+          : undefined;
+      const resultPath = resultName ? resultName.split('/') : undefined;
+      if (commandName === 'js') {
+        showValue(result.value, undefined, resultPath, undefined);
+      } else if (
+        result.value !== undefined &&
+        commandName !== 'show' &&
+        commandName !== 'list'
+      ) {
+        showValue(result.value, undefined, resultPath, undefined);
       }
     }
   };
@@ -1136,7 +1021,6 @@ export const chatBarComponent = (
     iterateReader: iterateReaderFactory,
     getContext: () => getCommandContext(), // eslint-disable-line no-use-before-define
     onSubmit: async (commandName, data) => {
-      if (commandSubmitting) return;
       await executeWithSpinner(commandName, data);
     },
     onCancel: () => {
@@ -1147,9 +1031,7 @@ export const chatBarComponent = (
       // Keep the authoritative validity boolean fresh and mirror it into the
       // confined submit button (its `disabled` is Preact state, never read back).
       commandValid = isValid;
-      if (!commandSubmitting) {
-        pushCommandChrome();
-      }
+      pushCommandChrome();
     },
     onMessageNumberClick: () => {
       // Enable picker and track the input
@@ -1286,7 +1168,6 @@ export const chatBarComponent = (
       sendForm.focus();
     }
     $error.textContent = '';
-    setCommandError('');
     updateHasContent();
   };
 
@@ -1581,6 +1462,67 @@ export const chatBarComponent = (
     updateHasContent();
     // Revert to passive focus on the last received message.
     updatePassiveFocus();
+  };
+
+  // --- Pending-commands navigation ---
+  //
+  // The pending-commands region sits between the transcript and the input.
+  // Arrow navigation threads through it: from the input, ↑ enters the region at
+  // the card nearest the input; ↑ past the top hands off to durable-message
+  // focus; ↓ past the bottom returns to the input. Escape dismisses the card the
+  // cursor rests on. The region owns the cursor and dismissal (pending-commands
+  // `focusEnd` / `moveCursor` / `dismissCursor` / `clearCursor`); this mode only
+  // routes keys and the edge hand-offs.
+
+  /**
+   * Modeline for pending-navigation: up to the transcript, down to the input,
+   * Escape to dismiss the hovered card.
+   */
+  const updatePendingModeline = () => {
+    setModeline([
+      { keys: ['↑'], text: 'messages' },
+      { keys: ['↓'], text: 'input' },
+      { keys: ['Esc'], text: 'dismiss' },
+    ]);
+  };
+
+  /**
+   * Enter pending-navigation mode: park the cursor on the card nearest `edge`
+   * and blur the input so arrow keys drive the cursor. No-op when the region is
+   * empty (callers guard on `pendingCommands.count()`).
+   * @param {'top' | 'bottom'} edge
+   */
+  const enterPendingMode = edge => {
+    if (!pendingCommands.focusEnd(edge)) return;
+    mode = 'pending';
+    $input.blur();
+    updatePendingModeline();
+  };
+
+  /**
+   * Leave pending-navigation mode and return to the command input.
+   */
+  function exitPendingToInput() {
+    pendingCommands.clearCursor();
+    mode = 'send';
+    updateModeline(null);
+    sendForm.focus();
+    updateHasContent();
+    updatePassiveFocus();
+  }
+
+  /**
+   * Step up out of the send input: into the pending region (nearest card) when
+   * it has cards, otherwise into durable-message focus. Shared by the input's
+   * keydown handler and the window-level fallback so the ↑ gesture works even
+   * when focus is not on the command input.
+   */
+  const enterNavFromInput = () => {
+    if (pendingCommands.count() > 0) {
+      enterPendingMode('bottom');
+    } else {
+      enterFocusMode();
+    }
   };
 
   /**
@@ -1929,7 +1871,6 @@ export const chatBarComponent = (
   // submit?" read goes through the authoritative host-closure booleans, never
   // off the confined button's Preact `disabled`.
   async function submitCurrentCommand() {
-    if (commandSubmitting) return;
     if (currentCommand && commandValid) {
       const data = inlineForm.getData();
       await executeWithSpinner(currentCommand, data);
@@ -2055,17 +1996,27 @@ export const chatBarComponent = (
 
   // Handle keydown for command selection navigation and focus mode entry
   $input.addEventListener('keydown', event => {
-    // ⌘↑ / Ctrl+↑ to enter focus mode from empty send input
+    // Plain ↑ from an empty send input steps up into the transcript — the
+    // pending region (nearest card) when it has cards, else durable-message
+    // focus. Plain arrows are the idiomatic gesture; ⌘↑ / Ctrl+↑ are left to
+    // their native "move to start of field / document" meaning. Gated on an
+    // empty input with no open token menu so it never hijacks text editing or
+    // @-mention menu navigation.
     if (
       mode === 'send' &&
       event.key === 'ArrowUp' &&
-      (event.metaKey || event.ctrlKey) &&
-      sendForm.getState().isEmpty
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.shiftKey
     ) {
-      event.preventDefault();
-      event.stopPropagation();
-      enterFocusMode();
-      return;
+      const state = sendForm.getState();
+      if (state.isEmpty && !state.menuVisible) {
+        event.preventDefault();
+        event.stopPropagation();
+        enterNavFromInput();
+        return;
+      }
     }
 
     if (mode === 'selecting' && commandSelector.isVisible()) {
@@ -2117,6 +2068,77 @@ export const chatBarComponent = (
 
   // Global escape key handler and focus mode keyboard handler
   const onFocusModeKeydown = (/** @type {KeyboardEvent} */ event) => {
+    // Plain ↑ enters navigation (pending region or durable focus) from send
+    // mode. The input's own keydown handler covers the common case and stops
+    // propagation; this window-level copy is the fallback for when focus is NOT
+    // on the command input (e.g. it drifted to the body / transcript), so the
+    // gesture is not silently dropped. Skipped while another editable field
+    // holds focus, so it never hijacks ↑ during text entry elsewhere.
+    if (
+      mode === 'send' &&
+      event.key === 'ArrowUp' &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.shiftKey
+    ) {
+      const active = document.activeElement;
+      const editableFocused =
+        !!active &&
+        (active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          /** @type {HTMLElement} */ (active).isContentEditable);
+      const state = sendForm.getState();
+      if (!editableFocused && state.isEmpty && !state.menuVisible) {
+        event.preventDefault();
+        enterNavFromInput();
+        return;
+      }
+    }
+
+    // Pending-navigation keyboard handling: the cursor threads through the
+    // region's cards; ↑ past the top hands off to durable focus, ↓ past the
+    // bottom returns to the input, Escape dismisses the hovered card.
+    if (mode === 'pending') {
+      // Dismiss the hovered card with Escape or the delete/backspace keys (the
+      // ergonomic "remove this" gesture); returning to the input when it was the
+      // last card.
+      if (
+        event.key === 'Escape' ||
+        event.key === 'Delete' ||
+        event.key === 'Backspace'
+      ) {
+        event.preventDefault();
+        if (pendingCommands.dismissCursor() === 'empty') {
+          exitPendingToInput();
+        }
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        // Past the top card, hand off to durable-message focus — but only when
+        // there is a transcript to enter; otherwise keep the cursor on the top
+        // card (`enterFocusMode` no-ops on an empty transcript, which would
+        // otherwise strand the cursor). `moveCursor` left the cursor in place.
+        const hasMessages =
+          $messagesContainer.querySelectorAll('.message-envelope[data-number]')
+            .length > 0;
+        if (pendingCommands.moveCursor('up') === 'exit-top' && hasMessages) {
+          pendingCommands.clearCursor();
+          enterFocusMode();
+        }
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (pendingCommands.moveCursor('down') === 'exit-bottom') {
+          exitPendingToInput();
+        }
+        return;
+      }
+      return;
+    }
+
     // Focus mode keyboard handling
     if (mode === 'focus') {
       if (event.key === 'Escape') {
@@ -2131,7 +2153,9 @@ export const chatBarComponent = (
       }
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        // If already on the last message, exit focus mode back to command line
+        // If already on the last message, step down out of durable focus: into
+        // the pending region (its top card, nearest the transcript) when it has
+        // cards, otherwise back to the command line.
         const $msgs = $messagesContainer.querySelectorAll(
           '.message-envelope[data-number]',
         );
@@ -2139,7 +2163,14 @@ export const chatBarComponent = (
           '.message-envelope.focused',
         );
         if ($msgs.length > 0 && $foc === $msgs[$msgs.length - 1]) {
-          exitFocusMode();
+          if (pendingCommands.count() > 0) {
+            // Reset the transcript to its passive resting highlight, then enter
+            // the region.
+            updatePassiveFocus();
+            enterPendingMode('top');
+          } else {
+            exitFocusMode();
+          }
         } else {
           moveFocus('down');
         }
@@ -2274,7 +2305,6 @@ export const chatBarComponent = (
       unmount($commandPopoverMount);
       unmount($commandHeaderMount);
       unmount($commandFooterMount);
-      unmount($commandErrorMount);
       sendForm.dispose();
     },
   });

@@ -474,15 +474,15 @@ const VALUE_FRAME_HTML = `
         <button id="value-flip-to-formula" class="value-flip-button" aria-label="Show formula" title="Show formula (F)">&#9881;&#65039;</button>
       </div>
       <div id="value-value"></div>
-      <div class="value-modeline">
-        <span class="modeline-hint"><kbd>F</kbd> flip to formula</span>
-        <span class="modeline-hint"><kbd>Shift</kbd>+<kbd>P</kbd> enter profile</span>
-        <span class="modeline-hint"><kbd>Esc</kbd> close</span>
-      </div>
       <div class="value-actions">
         <div id="value-actions-container"></div>
         <button id="value-enter-profile" style="display: none;">Enter Profile</button>
         <button id="value-close">Close</button>
+      </div>
+      <div class="value-modeline">
+        <span class="modeline-hint"><kbd>F</kbd> flip to formula</span>
+        <span class="modeline-hint"><kbd>Shift</kbd>+<kbd>P</kbd> enter profile</span>
+        <span class="modeline-hint"><kbd>Esc</kbd> close</span>
       </div>
     </div>
     <div id="value-back-face-wrap" class="value-card-face value-card-face-back" role="region" aria-labelledby="formula-view-title">
@@ -1001,17 +1001,10 @@ export const valueComponent = ($parent, powers, { enterProfile }) => {
   const handleKey = event => {
     const { key, repeat, metaKey, ctrlKey, altKey } = event;
     if (repeat || metaKey || ctrlKey || altKey) return;
-    // Ignore key events whose target is a text input (form field inside the
-    // modal). Otherwise typing `F` into the rename input would flip the modal.
-    const target = /** @type {HTMLElement | null} */ (event.target);
-    if (
-      target &&
-      (target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable)
-    ) {
-      return;
-    }
+    // Escape works from anywhere in the modal, INCLUDING a focused Save-as /
+    // rename input: it dismisses the front face or flips the back face to the
+    // front. Handled before the text-input guard below so a focused form field
+    // does not swallow it.
     if (key === 'Escape') {
       if (face === 'back') {
         // Escape on back face flips to the front face, not close (per
@@ -1021,6 +1014,18 @@ export const valueComponent = ($parent, powers, { enterProfile }) => {
         dismissValue();
       }
       event.stopPropagation();
+      return;
+    }
+    // Ignore OTHER key events whose target is a text input (form field inside
+    // the modal). Otherwise typing `F` into the rename input would flip the
+    // modal.
+    const target = /** @type {HTMLElement | null} */ (event.target);
+    if (
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable)
+    ) {
       return;
     }
     if (key === 'F' || key === 'f') {

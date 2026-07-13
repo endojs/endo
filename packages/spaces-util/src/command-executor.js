@@ -28,6 +28,9 @@ import { resolveErrorTrace } from './error-trace.js';
  * @property {unknown} [value] - Result value (for show, list, etc.)
  * @property {string} [message] - User-friendly message
  * @property {Error} [error] - Error if failed
+ * @property {import('./error-trace.js').ErrorTraceDetail} [trace] - Resolved
+ *   daemon-side trace detail (stack + authoritative worker id) for a failed
+ *   command, so the pending-command error card can render the rich error UX.
  */
 
 /**
@@ -341,7 +344,7 @@ export const createCommandExecutor = ({
             const trace = await resolveErrorTrace(powers, err);
             console.error(`[Chat] /${commandName} failed:`, err);
             showError(err, trace);
-            return { success: false, error: err };
+            return { success: false, error: err, trace };
           }
 
           if (resultName) {
@@ -892,9 +895,15 @@ export const createCommandExecutor = ({
       }
     } catch (error) {
       const err = /** @type {Error} */ (error);
+      // Resolve the daemon-side trace for ANY failing command (not just /js), so
+      // its ephemeral error card can render the same rich error UX — message,
+      // stack trace, and clickable worker chip — whenever the daemon recorded a
+      // trace. Best-effort: `resolveErrorTrace` degrades to the bare message
+      // when no trace is available.
+      const trace = await resolveErrorTrace(powers, err);
       console.error(`[Chat] /${commandName} failed:`, err);
-      showError(err);
-      return { success: false, error: err };
+      showError(err, trace);
+      return { success: false, error: err, trace };
     }
   };
 

@@ -73,6 +73,14 @@ const template = `
 
 <div id="messages">
   <div id="anchor"></div>
+  <!-- The pending-commands region lives INSIDE the scrollable transcript, after
+       the scroll anchor, so its in-flight / success / ephemeral-error cards are
+       flow content at the bottom of the transcript that LEADS the messages (push
+       them up) rather than an absolutely-positioned band that overlays them. It
+       sits after #anchor so the view-clear loop (which removes everything before
+       #anchor) leaves it — and any in-flight command cards — intact across
+       conversation switches, matching its old life inside #chat-bar. -->
+  <div id="pending-commands-region" class="pending-commands-region"></div>
 </div>
 
 <div id="chat-bar">
@@ -88,7 +96,6 @@ const template = `
       <div id="chat-error"></div>
     </div>
     <div id="inline-form-container"></div>
-    <div id="command-error"></div>
     <div class="command-footer">
       <button id="command-submit-button">Execute</button>
       <button class="command-cancel-footer" id="command-cancel-footer" title="Cancel (Esc)">&times;</button>

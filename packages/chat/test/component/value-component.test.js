@@ -206,6 +206,33 @@ test.serial(
 );
 
 test.serial(
+  'Escape dismisses the modal even from a focused Save-as input',
+  async t => {
+    const { $frame, $actions, api } = setup();
+    t.teardown(() => api.dismissValue());
+
+    await api.showValue(harden({ a: 1 }));
+    await waitFor(() => !!$actions.querySelector('.value-name-input'));
+    t.is($frame.dataset.show, 'true', 'frame shown while the value is open');
+
+    // Escape dispatched from within the focused name input must dismiss the
+    // modal — the input must not swallow it (regression: the key handler used to
+    // ignore all keys whose target was a text field).
+    const $input = $actions.querySelector('.value-name-input');
+    $input.dispatchEvent(
+      new globalThis.KeyboardEvent('keyup', { key: 'Escape', bubbles: true }),
+    );
+
+    await waitFor(() => $frame.dataset.show === 'false');
+    t.is(
+      $frame.dataset.show,
+      'false',
+      'Escape from the name input dismissed the modal',
+    );
+  },
+);
+
+test.serial(
   'showValue resolves pet names into .token chips in the title',
   async t => {
     const { $title, api } = setup({
