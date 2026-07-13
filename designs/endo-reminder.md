@@ -292,7 +292,7 @@ scheduler-selection and discovery surface the facets alone do not express.
 | [fs-interface-reconciliation](fs-interface-reconciliation.md) | The reconciled writable-tree verbs the store contract names |
 | [endoclaw-proactive-messages](endoclaw-proactive-messages.md) | Depends on this design (composes scheduled messages with data capabilities and `send()`) |
 | [familiar-daemon-bundling](familiar-daemon-bundling.md), [gateway-package](gateway-package.md) | Candidate future owners of the live-reference retention (user-driven via README for now, design decision 10) |
-| SturdyRef modelling ([#539](https://github.com/endojs/endo-but-for-bots/pull/539), [#521](https://github.com/endojs/endo-but-for-bots/pull/521), [#541](https://github.com/endojs/endo-but-for-bots/pull/541)) | Gates only the Phase 4 `send` + `storeValue` delivery upgrade; the Phase 2 subscriber-capability baseline is ungated (see *Gating dependency: SturdyRef modelling*) |
+| SturdyRef modelling (agent provide/accept surface [#695](https://github.com/endojs/endo-but-for-bots/pull/695), cross-peer bridge [#697](https://github.com/endojs/endo-but-for-bots/pull/697) with cuts [#698](https://github.com/endojs/endo-but-for-bots/pull/698)–[#704](https://github.com/endojs/endo-but-for-bots/pull/704), on-demand enlivenment [#539](https://github.com/endojs/endo-but-for-bots/pull/539); substrate [#521](https://github.com/endojs/endo-but-for-bots/pull/521)/[#541](https://github.com/endojs/endo-but-for-bots/pull/541)) | Gates only the Phase 4 `send` + `storeValue` delivery upgrade; the Phase 2 subscriber-capability baseline is ungated (see *Gating dependency: SturdyRef modelling*) |
 
 ## Implementation Phases
 
@@ -421,41 +421,75 @@ SturdyRef for a durable value it holds under `storeValue`, by-value or
 by-name, without knowing the value's identifier or locator, and (b) later
 pass that SturdyRef in place of a pet name when it `send`s the reminder
 message. The maintainer flagged (2026-07-11) that this reminder increases the
-urgency of that modelling. State of the SturdyRef work in this repo:
+urgency of that modelling. Since that review the SturdyRef effort has grown a
+provide/accept agent surface and a cross-peer bridge that, taken together,
+cover both requirements at the design level. State of the SturdyRef work in
+this repo:
 
 | Design / PR | State | Relationship |
 |---|---|---|
-| [#510](https://github.com/endojs/endo-but-for-bots/pull/510) design: sturdy-refs in pass-style + endor-syscall retention | closed | Origin design; the `endor`-syscall retention direction was abandoned |
-| [#511](https://github.com/endojs/endo-but-for-bots/pull/511) design: sturdy-refs + `FinalizationRegistry` retention | open | Competing retention plan; its "competing plans" framing is withdrawn per #539 |
-| [#539](https://github.com/endojs/endo-but-for-bots/pull/539) design: on-demand enlivenment via the closely-held OCapN network capability | open (draft) | Current design: `'sturdyref'` pass-style + OCapN boxing + read-side pet-name-path substitute + on-demand enlivenment |
-| [#521](https://github.com/endojs/endo-but-for-bots/pull/521) feat(pass-style): first-class `'sturdyref'` pass-style; ocapn defers | open (draft) | Pass-style + `@endo/ocapn` implementation slice of the design |
-| [#541](https://github.com/endojs/endo-but-for-bots/pull/541) feat(daemon): SturdyRef read-side threading + retention edges | open | Daemon read-side threading (`lookup`/`identify`/`locate`/`evaluate`); write/send guards intentionally untouched |
+| [#539](https://github.com/endojs/endo-but-for-bots/pull/539) design: on-demand enlivenment via the closely-held OCapN network capability | open (draft) | Foundation: `'sturdyref'` pass-style + OCapN boxing + read-side pet-name-path substitute + on-demand enlivenment |
+| [#695](https://github.com/endojs/endo-but-for-bots/pull/695) design: agent provide/accept surface + guest token | open (draft) | Adds the agent-facing **provide** verbs (`makeRefToken` shared, `makeSturdyRef` host-only, `storeRef` for durable naming) and the write/send-side **accept** admission on the mail verbs (`send`/`reply`/`resolve`); settles the confined-guest token tier |
+| [#697](https://github.com/endojs/endo-but-for-bots/pull/697) design: cross-peer bridge, wire codec, foreign-locator internalization, three-party handoff | open (draft) | Expands #539's local pipeline cross-peer; specifies the daemon **mint-and-export** of a durable, revocable wire-tier SturdyRef over a persistent swiss-num store |
+| [#521](https://github.com/endojs/endo-but-for-bots/pull/521) feat(pass-style): first-class `'sturdyref'` pass-style; ocapn defers | open (draft) | Pass-style + `@endo/ocapn` implementation slice |
+| [#541](https://github.com/endojs/endo-but-for-bots/pull/541) feat(daemon): SturdyRef read-side threading at the facet boundary | open (draft) | Daemon read-side threading (`lookup`/`identify`/`locate`/`evaluate`); write/send guards left untouched here, added by #695's mail-accept cut |
+| [#698](https://github.com/endojs/endo-but-for-bots/pull/698)–[#704](https://github.com/endojs/endo-but-for-bots/pull/704) the #697 bridge cuts (esp. [#701](https://github.com/endojs/endo-but-for-bots/pull/701) mint + export over a swiss-num store) | open (draft) | Six independently mergeable implementation cuts of #697; #701 gives the daemon the exporter role (`host.sturdyRefs().provideSturdyRef`, revocable by forgetting) |
 
-**Covered** by the above: a first-class `'sturdyref'` pass-style category;
-OCapN wire boxing/unboxing and on-demand enlivenment; and threading a
-SturdyRef through the daemon **read-side** facet methods
-(`lookup`/`identify`/`locate`/`evaluate`/`makeUnconfined`) so a confined
-guest can name a formula without a locator or a pet name.
+*(The origin design [#510](https://github.com/endojs/endo-but-for-bots/pull/510)
+merged and its `endor`-syscall retention direction was abandoned;
+[#511](https://github.com/endojs/endo-but-for-bots/pull/511)'s competing
+`FinalizationRegistry` retention framing is withdrawn per #539. Both are
+superseded by the #539/#695/#697 line above.)*
 
-**Gaps** this reminder needs closed, not covered by any current design or PR:
+**Covered** by the above, at the design level — both of the maintainer's two
+requirements now have a home:
 
-1. **Obtaining a SturdyRef for a durable value, by-name or by-value.** The
-   designs mint a SturdyRef from a locator and enliven one on demand, but
-   none exposes a daemon verb that hands back a SturdyRef for an existing
-   durable value the agent already holds or stored under `storeValue`. The
-   reminder service needs exactly this to turn a `storeValue`'d response
-   capability into a sendable reference. (Maintainer requirement (a).)
-2. **The write/send side of pet-name-path substitution.** #541 threads
-   SturdyRefs through the read-side guards only and explicitly leaves the
-   write/rename guards untouched; `send`/`sendValue` do not yet accept a
-   SturdyRef in place of a pet name for the attachment being sent. Delivery
-   via `send` needs that write-side surface. (Maintainer requirement (b).)
+- **Requirement (b), obtaining a SturdyRef for a durable value the reminder
+  holds under `storeValue`, by-value or by-name, without knowing its
+  identifier or locator.** #695's **provide** surface mints a reference for a
+  durable value the holder already has: `makeRefToken` (a *shared* facet verb,
+  so reachable by the reminder's confined-guest `powers`) hands back a fresh,
+  unlinkable `SturdyRefToken`; `makeSturdyRef` (host-only) hands back a
+  location-bearing wire SturdyRef; `storeRef` names one durably. #697/#701 back
+  the wire tier with a daemon mint-and-export over a persistent swiss-num store.
+  The granter's facet picks the tier — the unlinkable token for a confined
+  guest, the location-bearing SturdyRef for trusted or wire peers.
+- **Requirement (a), passing that reference in place of a pet name when the
+  reminder `send`s the message.** #695's **accept** surface admits the ref tier
+  on the **mail verbs** (`send`/`reply`/`resolve`) as well as on every
+  pet-name-path-accepting read method, and carries refs across the LLM boundary
+  via a text-tier escrow. This is precisely the write/send-side admission that
+  the read-side-only threading of #541 left open.
 
-Until both gaps close, the Phase 4 `send` + `storeValue` upgrade is simply not
-built; the **Phase 2 subscriber-capability baseline** (design decision 11)
-carries all delivery, at the cost of the mailbox's persistence and replay. The
-critical path is therefore never blocked on this modelling — the gate governs an
-enhancement, not the feature.
+The read-side facet threading (#541), the foreign-locator internalization that
+replaces #541's rejection (#697/#703), and the three-party
+mint-pass-enliven round-trip (#697/#704) supply the surrounding machinery.
+
+**What still gates Phase 4** is therefore not a missing design but that the
+whole cluster is **unmerged draft**. The upgrade lands only once the specific
+cuts the reminder rides are merged:
+
+1. **#695's provide + mail-accept cuts** (its cut A daemon token core, cut B
+   daemon provide + mail): the `storeRef` durable-naming verb, `makeRefToken`
+   for the reminder's confined-guest tier, and the `send` admission of the ref
+   tier. These implement the two requirements directly.
+2. For a **cross-peer** recipient (reminder and recipient on different
+   daemons), additionally #697's mint-and-export (#701) and foreign
+   internalization (#703), so the reference survives the wire. For a
+   **same-daemon** recipient — the common case, one scheduler per co-located
+   agent — the token tier + `storeRef` + mail admission from #695 suffice
+   without the wire bridge.
+
+One genuinely open *modelling* question remains (not merely unmerged code):
+#539's enlivened-presence lifetime — worker-held presence teardown on session
+loss — which #697 narrows for the daemon side but does not resolve. It does not
+block the reminder's same-daemon path.
+
+Until the provide + mail-accept cuts land, the Phase 4 `send` + `storeValue`
+upgrade is simply not built; the **Phase 2 subscriber-capability baseline**
+(design decision 11) carries all delivery, at the cost of the mailbox's
+persistence and replay. The critical path is therefore never blocked on this
+modelling — the gate governs an enhancement, not the feature.
 
 ## Prompt
 
