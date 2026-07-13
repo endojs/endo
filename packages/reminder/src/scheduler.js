@@ -164,9 +164,11 @@ export const makeReminderService = async powers => {
   // settles and reads the latest in-memory values, so the final state wins.
   let configWriteChain = Promise.resolve();
   const persistConfigBackground = () => {
-    configWriteChain = configWriteChain.then(persistConfig).catch(error =>
-      console.error('[reminder] failed to persist config:', error),
-    );
+    configWriteChain = configWriteChain
+      .then(persistConfig)
+      .catch(error =>
+        console.error('[reminder] failed to persist config:', error),
+      );
     return configWriteChain;
   };
 

@@ -819,7 +819,10 @@ test('recovery coalesce keeps a live message deadline; a stale catch-up response
   // Advance past the catch-up's deadline and the next tick: the unanswered
   // catch-up must auto-resolve (deadline still live) and the schedule continue.
   await clock.advance(6000);
-  t.true(messages.length >= 2, 'the schedule continued past the unanswered catch-up');
+  t.true(
+    messages.length >= 2,
+    'the schedule continued past the unanswered catch-up',
+  );
 
   // A late response on the already-auto-resolved catch-up must be inert.
   catchUp.reminderResponse.reschedule();
