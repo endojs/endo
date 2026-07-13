@@ -10,6 +10,7 @@
  * @typedef {import('./src/types.js').AuditEntry} AuditEntry
  * @typedef {import('./src/types.js').Decision} Decision
  * @typedef {import('./src/types.js').PolicyAuthority} PolicyAuthority
+ * @typedef {import('./src/types.js').PolicySnapshot} PolicySnapshot
  * @typedef {import('./src/types.js').FetchOptions} FetchOptions
  * @typedef {import('./src/types.js').FetchLike} FetchLike
  * @typedef {import('./src/types.js').FetchLikeRequestOptions} FetchLikeRequestOptions

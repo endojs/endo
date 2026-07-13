@@ -1,0 +1,65 @@
+{
+  "name": "@endo/fetch",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Unconfined Endo plugin that provisions confined outbound HTTP. A fetch service hands a guest a bounded HttpClient (origin allowlist, rate and byte caps, trust-on-first-bind pins) and retains the HttpClientControl for the integration. Durable policy and pins live on the platform virtual file system, so the backing may be a real directory, a database, or memory. Provision it through the daemon's generic `make-unconfined` pathway and pin it into `@pins` for wake-on-restart.",
+  "keywords": [
+    "endo",
+    "exo",
+    "fetch",
+    "http",
+    "confined-fetch",
+    "plugin"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/fetch"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./src/service.js": "./src/service.js",
+    "./src/store.js": "./src/store.js",
+    "./src/types.js": "./src/types.d.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava --serial",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo-http-client": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/pass-style": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/init": "workspace:^",
+    "@endo/platform": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "timeout": "120s"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}
