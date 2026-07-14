@@ -129,6 +129,104 @@ The implementation keeps the injectable `setTimeout` / `clearTimeout` /
 `now` seam from #609 so tests run against a deterministic clock, even though
 the unconfined worker has them ambiently.
 
+### Delegation and attenuation: agent to subagent
+
+The two-facet caretaker split (§Package and plugin shape) is also the
+delegation seam. An agent holds capabilities and may hand them to a subagent (a
+guest it makes); pure object-capability discipline means it can delegate **only
+handles it already holds**, and can only *narrow* their authority, never widen
+it. Three modes span the review's requirements — from sharing one live
+scheduler, through attenuated handles, to formulating an entirely independent
+yet revocable scheduler — and each is ordinary capability passing over the
+plugin's existing facets, adding no new plugin surface (design decision 17).
+
+**Mode A — share a held handle (attenuation by selection).** An agent that
+holds a `ReminderScheduler` gives a subagent scheduling authority by passing a
+capability it already has, choosing how much:
+
+- the whole `ReminderScheduler` → the subagent *shares* the parent's one
+  scheduler and store; the subagent's reminders count against the parent's
+  `maxActive` and stay visible to the parent through `list()`;
+- a single `Reminder` handle → the subagent may `setPeriod` / `cancel` / `info`
+  that one reminder only, and cannot create others;
+- an attenuating forwarder → a caretaker-wrapped facet exposing a chosen subset
+  (create-only, or read-only `list` / `info`) that the parent can revoke on its
+  own, without disturbing its own direct access.
+
+Mode A does not grant independence: one scheduler, one store, one shared budget.
+Revoking a *shared* handle uses a parent-held caretaker wrapper (the daemon's
+generic caretaker over the forwarded facet), **not** `ReminderControl.revoke`,
+which would also kill the parent's own use.
+
+**Mode B — an independent, revocable scheduler for a subagent.** For genuine
+independence the parent does not share its scheduler; it **provisions a fresh
+one bound to the subagent as recipient, and keeps the control facet.** The
+parent plays the *integration* role that §Powers assigns to whoever provisions
+the service:
+
+1. **Attenuate the powers.** Compose a child `powers` namehub holding *only* the
+   two names the plugin resolves (§Powers items 1–2): `reminder-store` bound to a
+   **subdirectory** of the parent's own store, and `reminder-recipient` bound to
+   the subagent. Both are handles the parent already holds, narrowed — the child
+   can name no store and no recipient the parent could not, which is exactly
+   *delegate only handles you hold*.
+2. **Provision a fresh service** against that attenuated powers (recipe below),
+   yielding the `ReminderScheduler` / `ReminderControl` facet pair.
+3. **Split the pair.** Hand the subagent **only `ReminderScheduler`**; **retain
+   `ReminderControl`.**
+
+The result is *independent* — its own store subdirectory, its own `config.json`
+limits, its own recipient, so the child's reminders never touch the parent's
+scheduler, store, or `maxActive` budget — and *revocable*, because the parent
+holds `ReminderControl`: `revoke()` permanently kills the child's scheduler
+(carried decision 5 semantics), `pause` / `resume` suspend it, and deleting the
+child's store subdirectory plus unpinning decommissions it durably (mirroring
+§Wake-on-restart's "unpinning decommissions"). "Independent but revocable" is
+precisely *the parent is the child's integration.* This also upholds
+one-scheduler-per-recipient (decision 5): each subagent is a distinct recipient,
+so each gets its own scheduler with no aliasing.
+
+**Formulation via `agent.evaluate`, automatable.** Provisioning is
+`makeUnconfined` underneath, but per the review the parent may drive it through
+`agent.evaluate`, provided the formulation is straightforward to automate. It is
+a **single canned, parameterized recipe** — no per-child bespoke source — that
+the parent evaluates once per subagent (in a loop when fanning out to a fleet):
+
+```js
+// Evaluated by the PARENT agent via E(agent).evaluate(...); its own agent
+// `powers` is in scope. Pure and parameterized, so automation is a call, not a
+// rewrite. Returns the reminder service exo, which carries both caretaker
+// facets: the caller RETAINS `control` (revoke / pause / limits) and hands the
+// subagent ONLY `scheduler`.
+export const provisionSubagentReminder = async (
+  powers,
+  { subagent, storeSubdir, maxActive, minPeriodMs },
+) => {
+  // 1. Attenuate: a child powers namehub holding only the two names the plugin
+  //    resolves — each a handle the parent already holds, narrowed, never widened.
+  const store = await E(powers).lookup('reminder-store');       // parent's VFS store dir
+  const childStore = await E(store).makeDirectory(storeSubdir); // the child's own subtree
+  // makeChildPowers is the daemon's existing pet-name-namehub (or guest)
+  // creation — no new primitive; it returns an empty namehub the parent populates.
+  const childPowers = await makeChildPowers(powers, `reminder-powers/${storeSubdir}`);
+  await E(childPowers).write(['reminder-store'], childStore);
+  await E(childPowers).write(['reminder-recipient'], subagent);
+  // 2. Provision a FRESH scheduler against the attenuated powers.
+  return E(powers).makeUnconfined(
+    `reminder-worker/${storeSubdir}`, '@endo/reminder',
+    { powersName: `reminder-powers/${storeSubdir}`, env: { maxActive, minPeriodMs } },
+  );
+};
+```
+
+To automate a fleet, the parent scripts one call per subagent, retains each
+returned service's `control` facet (keyed by subagent) for later `revoke` /
+`pause`, and passes each `scheduler` facet onward. `agent.evaluate`'s authority
+bound — a subagent can only evaluate in workers, and reach capabilities, the
+parent granted, per
+[daemon-guest-eval-simplification](daemon-guest-eval-simplification.md) — is
+what keeps every fanned-out scheduler within the parent's own authority.
+
 ### Durable tracking on the virtual file system
 
 The store is a writable directory on the platform virtual file system: the
@@ -289,6 +387,7 @@ scheduler-selection and discovery surface the facets alone do not express.
 | [endoclaw](endoclaw.md) | Parent capability taxonomy |
 | [endoclaw-timer](endoclaw-timer.md) | Superseded; its behavioral sections remain normative by reference |
 | [platform-fs](platform-fs.md) | The virtual file system providing the durable store |
+| [daemon-guest-eval-simplification](daemon-guest-eval-simplification.md) | The `agent.evaluate` authority bound underpinning subagent delegation (§Delegation and attenuation) |
 | [fs-interface-reconciliation](fs-interface-reconciliation.md) | The reconciled writable-tree verbs the store contract names |
 | [endoclaw-proactive-messages](endoclaw-proactive-messages.md) | Depends on this design (composes scheduled messages with data capabilities and `send()`) |
 | [familiar-daemon-bundling](familiar-daemon-bundling.md), [gateway-package](gateway-package.md) | Candidate future owners of the live-reference retention (user-driven via README for now, design decision 10) |
@@ -406,6 +505,21 @@ ship without it.
     review (2026-07-12): `initialMs` / `maxMs` / `multiplier` / `jitterFraction`
     plus persisted `consecutiveFailures`, ported from #165; full jitter guards
     against a co-fail thundering herd. See *Per-reminder behavior*.
+17. **Agent→subagent delegation is capability passing over the existing facets,
+    not new plugin surface.** This design review (2026-07-14): an agent shares
+    scheduling authority with a subagent in one of three ways — pass a held
+    `ReminderScheduler` / `Reminder` handle (Mode A, shared), pass an
+    attenuating forwarder (Mode A, narrowed), or provision a *fresh* scheduler
+    bound to the subagent as recipient while retaining `ReminderControl` (Mode
+    B, independent + revocable). The two-facet caretaker split already *is* the
+    attenuation seam: provisioning-for-a-subagent makes the parent that child's
+    integration, so `ReminderControl.revoke` / `pause` is the revocation lever
+    and the child's store subdirectory + `maxActive` are its independence.
+    Formulation is a single canned `agent.evaluate` recipe (§Delegation and
+    attenuation), parameterized per subagent so a fleet is a loop, and bounded
+    by pure object-capability discipline — a subagent's scheduler is always a
+    strict attenuation of the parent's authority. No `makeReminder` argument, no
+    plugin change, is added for delegation. Resolves the 2026-07-14 review.
 
 ## Open Questions
 
@@ -532,3 +646,11 @@ modelling — the gate governs an enhancement, not the feature.
 > from the SturdyRef gate by making direct subscriber-capability delivery the
 > baseline. All are content ports into the plugin's durable store and `make()`
 > recovery; none reintroduces a formula.
+>
+> Design review of PR #682 (kriskowal, 2026-07-14,
+> [review](https://github.com/endojs/endo-but-for-bots/pull/682#pullrequestreview-4690774603)):
+> Please discuss how the reminder capability gets passed and attenuated when
+> passed from agent to subagent. It must be possible for each agent to manage
+> their own schedules, delegate only to handles they hold, and easily formulate
+> an entirely independent but revocable scheduler for a subagent. Formulation
+> may rely on `agent.evaluate`, but must be straightforward to automate.
