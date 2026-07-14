@@ -37,7 +37,7 @@ const BINDINGS_NAME = 'bindings.json';
 /** @param {unknown} error */
 const isEnoent = error =>
   // @ts-expect-error: error.message is string | undefined but TS infers {} from JSDoc cast
-  /ENOENT/.test(/** @type {string} */ (String((error && /** @type {Error} */ (error).message) ?? '')));
+  /ENOENT/.test(/** @type {any} */ ((error && /** @type {Error} */ (error).message) || ''));
 
 /**
  * @param {import('./types.js').FetchStoreDirectory} root - the store-root

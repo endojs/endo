@@ -131,7 +131,7 @@ export const makeFetchService = async powers => {
     const inspected = control.inspect();
     persist(
       // @ts-expect-error: inspected.policyMode is string but PolicySnapshot expects literal
-      harden({
+      /** @type {any} */ harden({
         policy: {
           allowedOrigins: [...inspected.allowedOrigins],
           maxRequestsPerMinute: inspected.maxRequestsPerMinute,

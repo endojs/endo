@@ -160,7 +160,7 @@ export const make = async (powers, _context, { env = {}, fetch, now } = {}) => {
   const policyMode = /** @type {unknown} */ (env.policyMode);
 
   // @ts-expect-error: spread inference widens policyMode from PolicyMode to string
-  const { service } = await makeFetchService({
+  const _makeOpts = /** @type {any} */ ({
     store,
     ...(fetch !== undefined ? { fetch } : {}),
     ...(now !== undefined ? { now } : {}),
@@ -170,6 +170,8 @@ export const make = async (powers, _context, { env = {}, fetch, now } = {}) => {
     ...(policyMode !== undefined ? { policyMode } : {}),
     ...(policyAuthority !== undefined ? { policyAuthority } : {}),
   });
+
+  const { service } = await makeFetchService(_makeOpts);
 
   return service;
 };
