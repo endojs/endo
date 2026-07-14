@@ -159,6 +159,7 @@ export const make = async (powers, _context, { env = {}, fetch, now } = {}) => {
   /** @type {import("@endo/exo-http-client").PolicyMode | undefined} */
   const policyMode = /** @type {unknown} */ (env.policyMode);
 
+  // @ts-expect-error: spread inference widens policyMode from PolicyMode to string
   const { service } = await makeFetchService({
     store,
     ...(fetch !== undefined ? { fetch } : {}),
