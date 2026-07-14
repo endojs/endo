@@ -2,7 +2,11 @@
 /// <reference types="ses"/>
 
 /**
- * @import { GitRemote, GitRemoteEndpoint } from './types.js'
+ * @import {
+ *   GitRemote,
+ *   GitRemoteCredential,
+ *   GitRemoteEndpoint,
+ * } from './types.js'
  */
 
 /**
@@ -27,7 +31,7 @@
  *
  * @param {object} args
  * @param {GitRemoteEndpoint} args.endpoint  The reusable remote authority.
- * @param {(input: { url: string, destPath: string, allowLocalFileTransport: boolean, credential?: { kind: string, material: unknown }, signal?: AbortSignal }) => Promise<unknown>} args.clone
+ * @param {(input: { url: string, destPath: string, allowLocalFileTransport: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }) => Promise<unknown>} args.clone
  *   Native constructive clone into `destPath` from the endpoint URL.
  * @param {(powers: { destMount: object, destPath: string }, opts?: object) => Promise<object>} args.makeGit
  *   Build a writable `Git` over the freshly-cloned destination.

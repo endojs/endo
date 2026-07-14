@@ -25,6 +25,7 @@ import { GitInterface } from './interfaces.js';
  *   GitMergeOptions,
  *   GitRebaseInput,
  *   GitRef,
+ *   GitRemoteCredential,
  *   GitRestoreOptions,
  *   GitStashPushOptions,
  *   GitStatusEntry,
@@ -168,12 +169,12 @@ harden(getGitBackend);
  * @property {(ref: string) => Promise<unknown>} tree  Returns a
  *   `ReadableTree` exo for the given tree-ish; blobs implement
  *   `ReadableBlob`.
- * @property {(input: { url?: unknown, refspecs?: unknown, prune?: boolean, tags?: boolean, credential?: unknown, signal?: AbortSignal }) => Promise<object>} remoteFetch
+ * @property {(input: { url?: unknown, refspecs?: unknown, prune?: boolean, tags?: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }) => Promise<object>} remoteFetch
  *   Fetch from a policy-bound remote URL.  The caller has already
  *   validated the URL and the refspecs against `GitRemote`'s policy;
  *   this method runs the underlying `git fetch` invocation through the
  *   sanitized environment.
- * @property {(input: { url?: unknown, refspecs?: unknown, setUpstream?: boolean, credential?: unknown, signal?: AbortSignal }) => Promise<object>} remotePush
+ * @property {(input: { url?: unknown, refspecs?: unknown, setUpstream?: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }) => Promise<object>} remotePush
  *   Push to a policy-bound remote URL with the same policy
  *   pre-validation contract as `remoteFetch`.
  * @property {(ref: string) => Promise<{ treeOid: string, commitOid?: string }>} resolveTree

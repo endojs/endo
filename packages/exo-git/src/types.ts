@@ -9,6 +9,21 @@ export type GitRef = {
   oid?: string;
 };
 
+export type GitRefUpdateResult =
+  | 'created'
+  | 'updated'
+  | 'up-to-date'
+  | 'fast-forward'
+  | 'forced'
+  | 'pruned'
+  | 'rejected';
+
+export type GitRemoteRefUpdate = {
+  local?: GitRef;
+  remote: string;
+  result: GitRefUpdateResult;
+};
+
 export type GitCommit = {
   oid: string;
   summary: string;
@@ -93,6 +108,10 @@ export type GitStashPushOptions = {
 
 export type GitDirection = 'fetch' | 'push';
 
+export type GitRemoteCredential =
+  | { kind: 'bearer'; material: { token: string } }
+  | { kind: 'basic'; material: { username: string; password: string } };
+
 /**
  * The reusable "authority to talk to this remote" half of a
  * GitRemote.
@@ -108,7 +127,7 @@ export type GitRemoteEndpoint = {
   protocol: string;
   requiresCredential: boolean;
   allowLocalFileTransport: boolean;
-  ensureCredentialUsable: () => { kind: string; material: unknown } | undefined;
+  ensureCredentialUsable: () => GitRemoteCredential | undefined;
   captureCredentialVersion: () => number | undefined;
   assertCredentialUnchanged: (
     operation: string,
@@ -149,9 +168,9 @@ export type GitRemotePolicyAuditEvent = GitRemoteAuditEventBase & {
 export type GitRemoteOperationSuccessAuditEvent = GitRemoteAuditEventBase & {
   type: 'fetch' | 'pull' | 'push';
   outcome: 'ok';
-  updatedRefs?: unknown;
+  updatedRefs?: GitRemoteRefUpdate[];
   integration?: 'up-to-date' | 'fast-forward' | 'merge' | 'rebase';
-  head?: unknown;
+  head?: GitRef;
 };
 
 export type GitRemoteOperationFailureAuditEvent = GitRemoteAuditEventBase & {
@@ -176,7 +195,7 @@ export type GitRemote = {
   inspect: () => Promise<GitRemoteSnapshot>;
   fetch: (options?: { prune?: boolean; tags?: boolean }) => Promise<any>;
   pull: (options?: {
-    branch?: unknown;
+    branch?: GitRef | string;
     strategy?: 'merge' | 'rebase' | 'ff-only';
     prune?: boolean;
     tags?: boolean;

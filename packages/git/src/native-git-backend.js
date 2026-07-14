@@ -43,14 +43,15 @@ const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
  *   GitCreateBranchOptions,
  *   GitDeleteBranchOptions,
  *   GitMergeOptions,
+ *   GitRemoteCredential,
+ *   GitRemoteRefUpdate,
+ *   GitRefUpdateResult,
  *   GitRebaseInput,
  *   GitRef,
  *   GitRestoreOptions,
  * } from '@endo/exo-git'
  * @import {
- *   GitRefUpdateResult,
  *   GitTreeEntry,
- *   NativeGitCredential,
  *   RawStatusEntry,
  *   RemoteRefspec,
  *   RepositoryIdentity,
@@ -429,7 +430,7 @@ harden(runGitWithAskpassAt);
  * @param {string} input.url
  * @param {string} input.destPath
  * @param {boolean} [input.allowLocalFileTransport]
- * @param {unknown} [input.credential]
+ * @param {GitRemoteCredential} [input.credential]
  * @param {AbortSignal} [input.signal]
  */
 export const gitClone = async ({
@@ -608,7 +609,7 @@ const credentialBytesFor = credential => {
   if (credential === undefined) {
     return undefined;
   }
-  const nativeCredential = /** @type {NativeGitCredential} */ (credential);
+  const nativeCredential = /** @type {GitRemoteCredential} */ (credential);
   /** @type {string} */
   let username;
   /** @type {string} */
@@ -1482,7 +1483,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
    * @param {Map<string, string>} after
    */
   const summarizeFetchRefUpdates = (refspecs, before, after) => {
-    /** @type {Array<{ local: GitRef, remote: string, result: GitRefUpdateResult }>} */
+    /** @type {GitRemoteRefUpdate[]} */
     const updates = [];
     const seen = new Set();
     for (const [index, refspec] of refspecs.entries()) {
@@ -1532,7 +1533,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
 
   /**
    * @param {string} raw
-   * @returns {Promise<Array<{ local?: GitRef, remote: string, result: GitRefUpdateResult }>>}
+   * @returns {Promise<GitRemoteRefUpdate[]>}
    */
   const parsePushPorcelainUpdates = async raw => {
     const records = raw.split('\n').flatMap(line => {
@@ -2643,7 +2644,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
 
     remoteFetch: async input => {
       const opts =
-        /** @type {{ url?: unknown, refspecs?: unknown, prune?: boolean, tags?: boolean, credential?: unknown, signal?: AbortSignal }} */ (
+        /** @type {{ url?: unknown, refspecs?: unknown, prune?: boolean, tags?: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }} */ (
           input
         );
       const url = requireRevision(opts.url, 'remoteFetch.url');
@@ -2682,7 +2683,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
 
     remotePush: async input => {
       const opts =
-        /** @type {{ url?: unknown, refspecs?: unknown, setUpstream?: boolean, credential?: unknown, signal?: AbortSignal }} */ (
+        /** @type {{ url?: unknown, refspecs?: unknown, setUpstream?: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }} */ (
           input
         );
       const url = requireRevision(opts.url, 'remotePush.url');

@@ -6,6 +6,7 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import {
+  makeBasicCredential,
   makeBearerCredential,
   makeGitCloner,
   makeGitRemoteEndpoint,
@@ -38,6 +39,18 @@ test('makeGitRemoteEndpoint factors URL transport and credential authority', t =
   t.deepEqual(endpoint.ensureCredentialUsable(), {
     kind: 'bearer',
     material: { token: 'test-token' },
+  });
+  const basicEndpoint = makeGitRemoteEndpoint({
+    url: 'https://github.com/example/repo.git',
+    credential: makeBasicCredential({
+      audience: 'https://github.com',
+      username: 'test-user',
+      password: 'test-password',
+    }),
+  });
+  t.deepEqual(basicEndpoint.ensureCredentialUsable(), {
+    kind: 'basic',
+    material: { username: 'test-user', password: 'test-password' },
   });
 
   const fileEndpoint = makeGitRemoteEndpoint({

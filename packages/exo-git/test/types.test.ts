@@ -12,7 +12,12 @@ import type {
   GitMergeOptions,
   GitRebaseInput,
   GitRef,
+  GitRefUpdateResult,
   GitRestoreOptions,
+  GitRemote,
+  GitRemoteCredential,
+  GitRemoteOperationSuccessAuditEvent,
+  GitRemoteRefUpdate,
   GitStashPushOptions,
   GitStatusEntry,
   ReadableTreeView,
@@ -28,6 +33,98 @@ type Assert<T extends true> = T;
 type MakeGitReturn = ReturnType<typeof makeGit>;
 
 type _MakeGitReturnsEndoGit = Assert<Equal<MakeGitReturn, EndoGit>>;
+
+type ExpectedGitRemoteCredential =
+  | { kind: 'bearer'; material: { token: string } }
+  | { kind: 'basic'; material: { username: string; password: string } };
+
+type _GitRemoteCredentialMatchesExpected = Assert<
+  Equal<GitRemoteCredential, ExpectedGitRemoteCredential>
+>;
+
+type ExpectedGitRefUpdateResult =
+  | 'created'
+  | 'updated'
+  | 'up-to-date'
+  | 'fast-forward'
+  | 'forced'
+  | 'pruned'
+  | 'rejected';
+
+type _GitRefUpdateResultMatchesExpected = Assert<
+  Equal<GitRefUpdateResult, ExpectedGitRefUpdateResult>
+>;
+
+type ExpectedGitRemoteRefUpdate = {
+  local?: GitRef;
+  remote: string;
+  result: GitRefUpdateResult;
+};
+
+type _GitRemoteRefUpdateMatchesExpected = Assert<
+  Equal<GitRemoteRefUpdate, ExpectedGitRemoteRefUpdate>
+>;
+
+const bearerCredential: GitRemoteCredential = {
+  kind: 'bearer',
+  material: { token: 'token' },
+};
+const basicCredential: GitRemoteCredential = {
+  kind: 'basic',
+  material: { username: 'username', password: 'password' },
+};
+
+const fetchCreated: GitRemoteRefUpdate = {
+  local: { name: 'refs/remotes/origin/main', kind: 'branch', oid: 'oid' },
+  remote: 'refs/heads/main',
+  result: 'created',
+};
+const fetchUpdated: GitRemoteRefUpdate = {
+  local: { name: 'refs/remotes/origin/main', kind: 'branch', oid: 'oid' },
+  remote: 'refs/heads/main',
+  result: 'updated',
+};
+const fetchPruned: GitRemoteRefUpdate = {
+  local: { name: 'refs/remotes/origin/old', kind: 'branch' },
+  remote: 'refs/heads/old',
+  result: 'pruned',
+};
+const pushCreated: GitRemoteRefUpdate = {
+  local: { name: 'refs/heads/topic', kind: 'branch', oid: 'oid' },
+  remote: 'refs/heads/topic',
+  result: 'created',
+};
+const pushForced: GitRemoteRefUpdate = {
+  local: { name: 'refs/heads/topic', kind: 'branch', oid: 'oid' },
+  remote: 'refs/heads/topic',
+  result: 'forced',
+};
+const pushRejected: GitRemoteRefUpdate = {
+  local: { name: 'refs/heads/topic', kind: 'branch', oid: 'oid' },
+  remote: 'refs/heads/topic',
+  result: 'rejected',
+};
+const deletionPush: GitRemoteRefUpdate = {
+  remote: 'refs/heads/topic',
+  result: 'pruned',
+};
+
+type _AuditUpdatedRefsAreOwned = Assert<
+  Equal<
+    NonNullable<GitRemoteOperationSuccessAuditEvent['updatedRefs']>,
+    GitRemoteRefUpdate[]
+  >
+>;
+type _AuditHeadIsGitRef = Assert<
+  Equal<NonNullable<GitRemoteOperationSuccessAuditEvent['head']>, GitRef>
+>;
+type PullOptions = NonNullable<Parameters<GitRemote['pull']>[0]>;
+type _PullBranchAcceptsRefSelectors = Assert<
+  Equal<NonNullable<PullOptions['branch']>, GitRef | string>
+>;
+type _AuditHasNoCredential = Assert<
+  Equal<Extract<keyof GitRemoteOperationSuccessAuditEvent, 'credential'>, never>
+>;
 
 type ExpectedEndoGit = {
   worktree: () => Promise<EndoMount | ReadableTreeView>;

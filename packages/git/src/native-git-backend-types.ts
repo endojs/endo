@@ -1,9 +1,5 @@
 import type { GitIndexStatus, GitWorktreeStatus } from '@endo/exo-git';
 
-export type NativeGitCredential =
-  | { kind: 'bearer'; material: { token: string } }
-  | { kind: 'basic'; material: { username: string; password: string } };
-
 export type GitTreeEntry = {
   mode: string;
   type: 'blob' | 'tree' | 'commit';
@@ -11,15 +7,6 @@ export type GitTreeEntry = {
   size: number | undefined;
   name: string;
 };
-
-export type GitRefUpdateResult =
-  | 'created'
-  | 'updated'
-  | 'up-to-date'
-  | 'fast-forward'
-  | 'forced'
-  | 'pruned'
-  | 'rejected';
 
 export type RemoteRefspec = {
   force: boolean;

@@ -18,6 +18,7 @@ import { assertGitCredentialForUrl } from './git-credential.js';
  *   GitRemote,
  *   GitRemoteAuditEvent,
  *   GitRemoteController,
+ *   GitRemoteCredential,
  *   GitRemoteEndpoint,
  *   GitRemoteKit,
  *   GitRemotePolicy,
@@ -495,13 +496,30 @@ export const makeGitRemoteEndpoint = ({
     throw new Error('GitRemote HTTPS remotes require a Git credential cap');
   }
 
+  /**
+   * Returns `undefined` if `requiresCredential` is false.
+   *
+   * @returns {GitRemoteCredential | undefined}
+   * @throws {Error} if the credential material is unavailable.
+   */
   const ensureCredentialUsable = () => {
     if (requiresCredential) {
       const record = assertGitCredentialForUrl(
         /** @type {object} */ (credential),
         parsed.origin,
       );
-      return harden({ kind: record.kind, material: record.getMaterial() });
+      const material = record.getMaterial();
+      if (record.kind === 'bearer' && 'token' in material) {
+        return harden({ kind: 'bearer', material });
+      }
+      if (
+        record.kind === 'basic' &&
+        'username' in material &&
+        'password' in material
+      ) {
+        return harden({ kind: 'basic', material });
+      }
+      throw new Error('Git credential material is unavailable');
     }
     return undefined;
   };
