@@ -30,6 +30,13 @@ import {
 } from './envelope.js';
 
 const fsp = { access: fs.promises.access };
+const gunzipBuffer = promisify(zlib.gunzip);
+
+/** @param {Uint8Array} bytes */
+const gunzip = async bytes => {
+  const output = await gunzipBuffer(bytes);
+  return new Uint8Array(output.buffer, output.byteOffset, output.byteLength);
+};
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config } from './types.js' */
@@ -115,15 +122,8 @@ const powers = await makeDaemonicGoPowers({
   filePowers,
   cryptoPowers,
   registryNodePowers: {
-    fetchImplementation: globalThis.fetch,
-    gunzip: async bytes => {
-      const output = await promisify(zlib.gunzip)(bytes);
-      return new Uint8Array(
-        output.buffer,
-        output.byteOffset,
-        output.byteLength,
-      );
-    },
+    fetch: globalThis.fetch,
+    gunzip,
     createHash: crypto.createHash,
   },
   sendEnvelope,

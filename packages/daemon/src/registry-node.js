@@ -52,7 +52,7 @@ async function* asAsyncBytes(source) {
  *   makeReadableTree: (sha256: string) => unknown,
  *   sha256Hex: (text: string) => string,
  *   registryUrl: string,
- *   fetchImplementation: (url: string) => Promise<{ ok: boolean, status: number, json: () => Promise<any>, arrayBuffer: () => Promise<ArrayBuffer> }>,
+ *   fetch: (url: string) => Promise<{ ok: boolean, status: number, json: () => Promise<any>, arrayBuffer: () => Promise<ArrayBuffer> }>,
  *   gunzip: (bytes: Uint8Array) => Promise<Uint8Array>,
  *   verifyIntegrity: (bytes: Uint8Array, integrity: string, nameVersion: string) => Promise<void>,
  * }} powers
@@ -63,7 +63,7 @@ export const makeRegistryBackend = ({
   makeReadableTree,
   sha256Hex,
   registryUrl,
-  fetchImplementation,
+  fetch,
   gunzip,
   verifyIntegrity,
 }) => {
@@ -92,7 +92,7 @@ export const makeRegistryBackend = ({
   const fetchPackument = async name => {
     const cached = packumentCache.get(name);
     if (cached !== undefined) return cached;
-    const response = await fetchImplementation(packumentUrl(name));
+    const response = await fetch(packumentUrl(name));
     if (response.status === 404) {
       return undefined;
     }
@@ -219,7 +219,7 @@ export const makeRegistryBackend = ({
           X`registry: ${q(`${name}@${version}`)} has no tarball URL`,
         );
       }
-      const response = await fetchImplementation(tarballUrl);
+      const response = await fetch(tarballUrl);
       if (!response.ok) {
         throw makeError(
           X`registry: tarball fetch for ${q(`${name}@${version}`)} failed with status ${q(

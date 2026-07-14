@@ -38,14 +38,14 @@ const makeFakeFetch = (packument, tarballBytes) => async url => {
   });
 };
 
-/** @param {(url: string) => Promise<any>} fetchImplementation */
-const stubPowers = fetchImplementation =>
+/** @param {(url: string) => Promise<any>} fetch */
+const stubPowers = fetch =>
   harden({
     contentStore: { store: async () => 'unreached' },
     makeReadableTree: () => harden({}),
     sha256Hex: () => 'unreached',
     registryUrl,
-    fetchImplementation,
+    fetch,
   });
 
 /** @param {string} integrity */
@@ -58,7 +58,7 @@ const backendPublishing = integrity => {
     },
   };
   return makeRegistryNodePowers({
-    fetchImplementation: makeFakeFetch(packument, new Uint8Array([1, 2, 3])),
+    fetch: makeFakeFetch(packument, new Uint8Array([1, 2, 3])),
     gunzip: async bytes => bytes,
     createHash: () => {
       const hash = harden({
@@ -94,7 +94,7 @@ test('encodes every package name as one npm packument path segment', async t => 
   /** @type {string[]} */
   const requestedUrls = [];
   const backend = makeRegistryNodePowers({
-    fetchImplementation: async url => {
+    fetch: async url => {
       requestedUrls.push(url);
       return harden({
         ok: true,

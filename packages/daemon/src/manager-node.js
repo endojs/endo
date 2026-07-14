@@ -27,6 +27,13 @@ import {
 import { startWsGateway } from './ws-gateway.js';
 
 const fsp = { access: fs.promises.access };
+const gunzipBuffer = promisify(zlib.gunzip);
+
+/** @param {Uint8Array} bytes */
+const gunzip = async bytes => {
+  const output = await gunzipBuffer(bytes);
+  return new Uint8Array(output.buffer, output.byteOffset, output.byteLength);
+};
 
 /** @import { Config } from './types.js' */
 
@@ -141,15 +148,8 @@ const main = async () => {
     filePowers,
     cryptoPowers,
     registryNodePowers: {
-      fetchImplementation: globalThis.fetch,
-      gunzip: async bytes => {
-        const output = await promisify(zlib.gunzip)(bytes);
-        return new Uint8Array(
-          output.buffer,
-          output.byteOffset,
-          output.byteLength,
-        );
-      },
+      fetch: globalThis.fetch,
+      gunzip,
       createHash: crypto.createHash,
     },
   });

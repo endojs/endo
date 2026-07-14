@@ -11,14 +11,14 @@ import { makeRegistryBackend } from './registry-node.js';
 
 /**
  * @param {{
- *   fetchImplementation: (url: string) => Promise<any>,
+ *   fetch: (url: string) => Promise<any>,
  *   gunzip: (bytes: Uint8Array) => Promise<Uint8Array>,
  *   createHash: (algorithm: string) => { update: (bytes: Uint8Array) => unknown, digest: (encoding: 'base64') => string },
  *   registryUrl?: string,
  * }} powers
  */
 export const makeRegistryNodePowers = ({
-  fetchImplementation,
+  fetch,
   gunzip,
   createHash,
   registryUrl = 'https://registry.npmjs.org',
@@ -54,7 +54,7 @@ export const makeRegistryNodePowers = ({
     makeRegistryBackend: powers =>
       makeRegistryBackend({
         ...powers,
-        fetchImplementation,
+        fetch,
         gunzip,
         verifyIntegrity,
       }),
@@ -78,7 +78,7 @@ export const makeRegistryStubPowers = (
     makeRegistryBackend: powers =>
       makeRegistryBackend({
         ...powers,
-        fetchImplementation: unavailable,
+        fetch: unavailable,
         gunzip: unavailable,
         verifyIntegrity: unavailable,
       }),
