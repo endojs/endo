@@ -66,7 +66,7 @@ export {
   assertInterfaceGuard,
   kindOf,
   containerHasSplit,
-} from './src/patterns/patternMatchers.js';
+} from './src/patterns/patternMatchers.ts';
 
 export {
   getAwaitArgGuardPayload,

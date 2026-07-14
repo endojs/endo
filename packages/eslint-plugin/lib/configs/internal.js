@@ -41,6 +41,9 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint', 'unicorn'],
   rules: {
+    // `.ts` may only be imported by relative path; cross-package `.ts`
+    // breaks Node.js resolution under node_modules. See docs/typescript.md.
+    '@endo/no-nonrelative-ts-import': 'error',
     // Work around https://github.com/import-js/eslint-plugin-import/issues/1810
     'import/no-unresolved': ['error', { ignore: ['ava'] }],
     'unicorn/numeric-separators-style': [
