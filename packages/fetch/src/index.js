@@ -156,7 +156,8 @@ export const make = async (powers, _context, { env = {}, fetch, now } = {}) => {
     env.maxResponseBytes,
     'maxResponseBytes',
   );
-  const policyMode = env.policyMode;
+  /** @type {import("@endo/exo-http-client").PolicyMode | undefined} */
+  const policyMode = /** @type {unknown} */ (env.policyMode);
 
   const { service } = await makeFetchService({
     store,

@@ -36,7 +36,7 @@ const BINDINGS_NAME = 'bindings.json';
 
 /** @param {unknown} error */
 const isEnoent = error =>
-  /ENOENT/.test((error && /** @type {Error} */ (error).message) || '');
+  /ENOENT/.test(/** @type {string} */ (String((error && /** @type {Error} */ (error).message) ?? '')));
 
 /**
  * @param {import('./types.js').FetchStoreDirectory} root - the store-root
@@ -102,7 +102,7 @@ export const makeFetchStore = async (root, makeId) => {
     async readBindings() {
       await null;
       try {
-        return await readJSON(BINDINGS_NAME);
+        return /** @type {any[]} */ (await readJSON(BINDINGS_NAME));
       } catch (error) {
         console.warn('[fetch] skipping unparseable bindings.json:', error);
         return undefined;

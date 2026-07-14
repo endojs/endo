@@ -135,7 +135,7 @@ export const makeFetchService = async powers => {
           allowedOrigins: [...inspected.allowedOrigins],
           maxRequestsPerMinute: inspected.maxRequestsPerMinute,
           maxResponseBytes: inspected.maxResponseBytes,
-          policyMode: inspected.policyMode,
+          policyMode: /** @type {import("@endo/exo-http-client").PolicyMode} */ (inspected.policyMode),
           revoked: inspected.revoked,
         },
         bindings: control.listBindings(),
