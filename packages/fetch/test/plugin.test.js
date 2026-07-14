@@ -104,7 +104,8 @@ test('make() runs strict without a policy authority (unknown origins fail closed
   // No authority was granted, so a prompt-mode decision on an unknown origin
   // fails closed rather than reaching a (missing) authority.
   await t.throwsAsync(() => client.fetch(OTHER_URL), {
-    message: /requires a policy authority|Policy refuses|not in the allowed-origin/,
+    message:
+      /requires a policy authority|Policy refuses|not in the allowed-origin/,
   });
 });
 
