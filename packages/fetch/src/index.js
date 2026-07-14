@@ -141,7 +141,10 @@ const lookupOptional = async (powers, name) => {
  */
 export const make = async (powers, _context, { env = {}, fetch, now } = {}) => {
   const storeDirectory = await E(powers).lookup('fetch-store');
-  const policyAuthority = await lookupOptional(powers, 'fetch-policy-authority');
+  const policyAuthority = await lookupOptional(
+    powers,
+    'fetch-policy-authority',
+  );
   const store = await makeFetchStore(storeDirectory, makeRandomHexId);
 
   const allowedOrigins = parseOptionalOriginList(env.allowedOrigins);

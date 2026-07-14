@@ -66,8 +66,10 @@ export const makeFetchService = async powers => {
     persistedValue !== undefined ? persistedValue : envValue;
 
   const allowedOrigins =
-    pick(persistedConfig && persistedConfig.allowedOrigins, envAllowedOrigins) ||
-    [];
+    pick(
+      persistedConfig && persistedConfig.allowedOrigins,
+      envAllowedOrigins,
+    ) || [];
   const maxRequestsPerMinute = pick(
     persistedConfig && persistedConfig.maxRequestsPerMinute,
     envMaxRequestsPerMinute,
