@@ -48,6 +48,7 @@ import { bytesFromText } from '@endo/bytes/from-string.js';
 import { bytesToText } from '@endo/bytes/to-string.js';
 
 import { makeDaemon } from './manager.js';
+import { makeRegistryStubPowers } from './registry-node-powers.js';
 import { makeDaemonicPersistencePowers } from './manager-persistence-powers.js';
 import { makeDaemonDatabase } from './manager-database.js';
 import XsDatabase from './better-sqlite3-xs.js';
@@ -263,6 +264,8 @@ const sockPath = hostGetEnv('ENDO_SOCK_PATH') || '';
 const statePath = hostGetEnv('ENDO_STATE_PATH') || '';
 const ephemeralStatePath = hostGetEnv('ENDO_EPHEMERAL_STATE_PATH') || '';
 const cachePath = hostGetEnv('ENDO_CACHE_PATH') || '';
+const registryUrl =
+  hostGetEnv('ENDO_REGISTRY_URL') || 'https://registry.npmjs.org';
 
 /** @type {Config} */
 const config = harden({
@@ -270,6 +273,7 @@ const config = harden({
   statePath,
   ephemeralStatePath,
   cachePath,
+  registryUrl,
 });
 
 // ---------------------------------------------------------------------------
@@ -666,6 +670,7 @@ const main = async () => {
     persistence: daemonicPersistencePowers,
     control: controlPowers,
     filePowers,
+    registry: makeRegistryStubPowers(config.registryUrl),
   });
 
   const gcEnabled = hostGetEnv('ENDO_GC') === '1';

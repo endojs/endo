@@ -38,6 +38,7 @@ import {
   makeCryptoPowers,
   makeDaemonicPersistencePowers,
 } from './manager-node-powers.js';
+import { makeRegistryNodePowers } from './registry-node-powers.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { CapTpConnectionRegistrar, Config, CryptoPowers, DaemonWorkerFacet, DaemonicPowers, FilePowers, WorkerDaemonFacet } from './types.js' */
@@ -343,6 +344,7 @@ export const makeDaemonicBusControlPowers = (
  * @param {typeof import('url')} opts.url
  * @param {FilePowers} opts.filePowers
  * @param {CryptoPowers} opts.cryptoPowers
+ * @param {Parameters<typeof makeRegistryNodePowers>[0]} opts.registryNodePowers
  * @param {(handle: number, verb: string, payload?: Uint8Array, nonce?: number) => Promise<void>} opts.sendEnvelope
  * @param {import('stream').Readable} opts.envelopeReadStream
  * @returns {DaemonicPowers}
@@ -352,6 +354,7 @@ export const makeDaemonicBusPowers = ({
   url,
   filePowers,
   cryptoPowers,
+  registryNodePowers,
   sendEnvelope,
   envelopeReadStream,
 }) => {
@@ -376,6 +379,10 @@ export const makeDaemonicBusPowers = ({
     persistence: daemonicPersistencePowers,
     control: daemonicControlPowers,
     filePowers,
+    registry: makeRegistryNodePowers({
+      ...registryNodePowers,
+      registryUrl: config.registryUrl,
+    }),
   });
 };
 

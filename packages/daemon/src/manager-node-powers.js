@@ -13,6 +13,7 @@ import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeDaemonDatabase } from './manager-database-node.js';
+import { makeRegistryNodePowers } from './registry-node-powers.js';
 // The shared SQLite-backed persistence powers live in
 // ./manager-persistence-powers.js so the XS-on-Rust supervisor can
 // use them without importing the Node-only graph above.
@@ -929,6 +930,7 @@ export const makeDaemonicControlPowers = (
  * @param {typeof import('url')} opts.url
  * @param {FilePowers} opts.filePowers
  * @param {CryptoPowers} opts.cryptoPowers
+ * @param {Parameters<typeof makeRegistryNodePowers>[0]} opts.registryNodePowers
  * @returns {Promise<DaemonicPowers>}
  */
 export const makeDaemonicPowers = async ({
@@ -939,6 +941,7 @@ export const makeDaemonicPowers = async ({
   url,
   filePowers,
   cryptoPowers,
+  registryNodePowers,
 }) => {
   const { fileURLToPath } = url;
 
@@ -969,5 +972,9 @@ export const makeDaemonicPowers = async ({
     persistence: daemonicPersistencePowers,
     control: daemonicControlPowers,
     filePowers,
+    registry: makeRegistryNodePowers({
+      ...registryNodePowers,
+      registryUrl: config.registryUrl,
+    }),
   });
 };

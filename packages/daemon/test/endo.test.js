@@ -1607,7 +1607,7 @@ test('followNameChanges existing names carry type', async t => {
   /** @type {Map<string, any>} */
   const existing = new Map();
   // Pull a generous prefix; the host has a known special-name set plus 'one'.
-  for (let i = 0; i < 12; i += 1) {
+  for (let i = 0; i < 13; i += 1) {
     // eslint-disable-next-line no-await-in-loop
     const { value, done } = await changesIterator.next();
     if (done) break;

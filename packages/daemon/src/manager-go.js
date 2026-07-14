@@ -1,11 +1,13 @@
 // @ts-check
-/* global process */
+/* global globalThis, process */
 
 // Establish a perimeter:
 // eslint-disable-next-line import/order
 import '@endo/init';
 
 import crypto from 'crypto';
+import zlib from 'zlib';
+import { promisify } from 'util';
 import net from 'net';
 import fs from 'fs';
 import path from 'path';
@@ -59,6 +61,7 @@ const config = {
   statePath,
   ephemeralStatePath,
   cachePath,
+  registryUrl: process.env.ENDO_REGISTRY_URL || 'https://registry.npmjs.org',
 };
 
 const { pid } = process;
@@ -111,6 +114,18 @@ const powers = await makeDaemonicGoPowers({
   url,
   filePowers,
   cryptoPowers,
+  registryNodePowers: {
+    fetchImplementation: globalThis.fetch,
+    gunzip: async bytes => {
+      const output = await promisify(zlib.gunzip)(bytes);
+      return new Uint8Array(
+        output.buffer,
+        output.byteOffset,
+        output.byteLength,
+      );
+    },
+    createHash: crypto.createHash,
+  },
   sendEnvelope,
   envelopeReadStream,
 });
