@@ -61,7 +61,10 @@ type TFStructuralPattern<P> =
     : P extends readonly [infer H, ...infer T]
       ? [TypeFromPattern<H>, ...TFTuple<T>]
       : P extends CopyRecord<any>
-        ? Simplify<{ [K in keyof P]: TypeFromPattern<P[K]> }>
+        ? // Const type parameters preserve object literals as readonly, but
+          // TypeFromPattern describes matched values using the existing mutable
+          // record shape.
+          Simplify<{ -readonly [K in keyof P]: TypeFromPattern<P[K]> }>
         : P;
 
 // ===== Internal helpers =====
@@ -233,13 +236,18 @@ type TFAnd<T extends readonly any[]> = T extends readonly [infer H, ...infer R]
       : TypeFromPattern<E>
     : unknown;
 
-/** Infer a split record: required fields + optional fields + rest (index signature). */
+/**
+ * Infer a split record: required fields + optional fields + rest (index
+ * signature).
+ * Const type parameters preserve object literals as readonly, but matched
+ * record values retain the existing mutable shape.
+ */
 type TFSplitRecord<Req, Opt, Rest = never> = Simplify<
   (Req extends CopyRecord<any>
-    ? { [K in keyof Req]: TypeFromPattern<Req[K]> }
+    ? { -readonly [K in keyof Req]: TypeFromPattern<Req[K]> }
     : {}) &
     (Opt extends CopyRecord<any>
-      ? { [K in keyof Opt]?: TypeFromPattern<Opt[K]> }
+      ? { -readonly [K in keyof Opt]?: TypeFromPattern<Opt[K]> }
       : {}) &
     // When the rest arg is the empty-record pattern `{}`
     // (i.e. "refuse unsupported options"), don't emit an index

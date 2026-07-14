@@ -278,13 +278,13 @@ export type PatternMatchers = {
   /**
    * Matches against the intersection of all sub-Patterns.
    */
-  and: <P extends Pattern[]>(...subPatts: P) => MatcherOf<'and', P>;
+  and: <const P extends Pattern[]>(...subPatts: P) => MatcherOf<'and', P>;
 
   /**
    * Matches against the union of all sub-Patterns
    * (requiring a successful match against at least one).
    */
-  or: <P extends Pattern[]>(...subPatts: P) => MatcherOf<'or', P>;
+  or: <const P extends Pattern[]>(...subPatts: P) => MatcherOf<'or', P>;
 
   /**
    * Matches against the negation of the sub-Pattern.
@@ -563,9 +563,9 @@ export type PatternMatchers = {
    * are collected and matched against `rest`.
    */
   splitArray: <
-    Req extends Pattern[] = Pattern[], // widest: any patterns (not [] — that would mean "no required")
-    Opt extends Pattern[] = [], // narrowest: no optional elements when omitted
-    Rest extends Pattern = never, // narrowest: no rest matching when omitted
+    const Req extends Pattern[] = Pattern[], // widest: any patterns (not [] — that would mean "no required")
+    const Opt extends Pattern[] = [], // narrowest: no optional elements when omitted
+    const Rest extends Pattern = never, // narrowest: no rest matching when omitted
   >(
     required: [...Req],
     optional?: [...Opt],
@@ -587,9 +587,9 @@ export type PatternMatchers = {
    * but may omit properties that appear on `optional`.
    */
   splitRecord: <
-    Req extends CopyRecord<Pattern> = CopyRecord<Pattern>,
-    Opt extends CopyRecord<Pattern> = {},
-    Rest extends Pattern = never,
+    const Req extends CopyRecord<Pattern> = CopyRecord<Pattern>,
+    const Opt extends CopyRecord<Pattern> = {},
+    const Rest extends Pattern = never,
   >(
     required: Req,
     optional?: Opt,
