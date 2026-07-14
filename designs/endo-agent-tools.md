@@ -9,18 +9,22 @@
 
 ## Status
 
-The package exists on `llm` and its first tools have landed.
-`makeTool`, `makeGitTool`, and `makeMountReadTool` all emit the canonical
-`ToolRecord` (`{ name, description, parameters, inputSchema, invoke }`),
-so the filesystem read tool and the git tools are pipeline-compatible
-through `toPiAgentTool` (PR #523).
-Code mode generates and injects TypeScript declarations for its `git` and
-`workspace` globals at build time, behind a divergence gate (PR #524; see
-*Wire schemas and the code-mode declaration renderer* below).
+The package is active on `llm`.
+It takes host capabilities, including git and filesystem capabilities (with
+more to come), and exposes them to code-mode setup.
+It also exports agent-compatible tool surfaces: `execute({ source })` is
+itself a pi-compatible tool, and the package will likely export other
+compatible surfaces, including MCP surfaces.
+The code-mode declaration renderer lives here and stays here.
 
-Remaining: the command-tool family and its `Spawner` seam, the push tier
-(`makeGitRemoteTool` over a `GitRemote`), and the across-turn cap
-persistence wiring.
+The discrete JSON tool-call interface is implemented and kept, but parked
+rather than being actively expanded.
+This is the per-capability `makeTool`, `makeGitTool`, and `makeMountReadTool`
+wrapper surface (and related wrappers) that an LLM drives by emitting one
+JSON call per action.
+The hard sub-problem of live capabilities crossing that JSON tool-call
+boundary as arguments and results is part of this parked scope; see
+[endojs/endo-but-for-bots#731](https://github.com/endojs/endo-but-for-bots/issues/731).
 
 ## What is the Problem Being Solved?
 
@@ -31,19 +35,21 @@ fae and lal-on-`llm` hand-author full OpenAI-function JSON `parameters`
 and ship them verbatim to the model.
 genie and the eval-harness lal author `@endo/patterns` matchers and use
 them for runtime validation only.
-Neither paradigm gives an agent-builder a single attenuable **tool
-surface**: one canonical tool record, a way to bind each tool's behavior
-to host authority or to a confined capability, and a uniform set of
-attenuation levers (read-only, subtree, git verb tiers) that narrow what
-a tool can reach.
+For the retained JSON/MCP layer, neither paradigm gives an agent-builder a
+single attenuable **tool shape**: one canonical tool record, a way to bind
+each tool's behavior to host authority or to a confined capability, and a
+uniform set of attenuation levers (read-only, subtree, git verb tiers) that
+narrow what a tool can reach.
 
-The maintainer's decision is to take genie's `@endo/patterns`
-**method-guard** tool shape as the one canonical tool record.
-This design specifies `@endo/agent-tools`: strictly the tools.
+The maintainer's decision is to keep genie's `@endo/patterns`
+**method-guard** tool shape as the canonical record for the parked JSON
+layer.
+This design records `@endo/agent-tools`: strictly the retained tools.
 The method-guard `makeTool` record, the `Filesystem`-targeted file tools,
 the confinement axis and its attenuation levers, and the git authority
-tiers, scoped so the package can stand alone as the tool half of an MCP
-server.
+tiers remain the package's MCP-consumable shape.
+Code mode is the primary agent surface: its single `execute({ source })`
+tool composes confined operations against petname-bound capability globals.
 The consuming agent-builder (`@endo/agentry`'s `defineAgent`) is a
 separate design ([agentry-agent-builder](agentry-agent-builder.md)).
 
@@ -53,8 +59,8 @@ interface, which presents both a live worktree (`mountAsFilesystem(mount)`)
 and any historical git ref (`Git.filesystemAt(ref)`), with `readOnly()`
 as uniform attenuation ([endo-fs-backend-seam](endo-fs-backend-seam.md),
 [endo-fs-from-git](endo-fs-from-git.md)).
-The net-new work is the tool surface: the records, the confinement
-bindings, and the attenuation levers.
+The retained JSON layer consists of the records, the confinement bindings,
+and the attenuation levers.
 
 ## Background
 
@@ -100,7 +106,7 @@ ToolRecord = {
 };
 ```
 
-`makeTool(spec)` is the one factory that produces it.
+`makeTool(spec)` is the one factory that produces the retained JSON record.
 The `spec` carries a one-line description, the `@endo/patterns`
 MethodGuard, the `bigintArgs` field-name list, and the `execute` body.
 `makeTool` consumes the MethodGuard two ways: as the runtime validation
@@ -123,8 +129,8 @@ Two halves of one contract; neither stands alone.
 
 ## The confinement axis: how a tool's behavior is bound
 
-The tool *record* is one shape regardless of what the tool does.
-What splits the tool surface is **what each tool's behavior is bound to**,
+The retained JSON tool *record* is one shape regardless of what the tool does.
+What splits that parked surface is **what each tool's behavior is bound to**,
 and the axis is binary: a tool either closes over a `Spawner` holding the
 host's ambient authority (**unconfined**), or it closes over a
 `@endo/patterns` capability that holds no path and reaches no further than
@@ -139,17 +145,18 @@ The unconfined side is genie today: a command tool over the `Spawner`
 seam, holding the process's ambient authority and attenuating by
 inspecting the command string.
 
-**The confined side is one workspace toolkit, not a set of rival
-backends.**
-`Filesystem` and `Git` are used hand in hand over one operator-provided
-workspace, not chosen between.
-The same worktree the file tools edit is the worktree `Git` reports
-`status` and `diff` for; `Git.filesystemAt(ref)` *returns a `Filesystem`*,
-so reading history is the file tools reading through a `Filesystem` that
-`Git` produced; and `GitRemote`
-([daemon-git-remotes](daemon-git-remotes.md)) is the bounded `pull` and
-`push` half of the same `Git` story.
-One agent holds all three at once over one workspace.
+**The confined capabilities describe one operator-provided workspace.**
+Code mode is the primary driver for workspace work: it receives the
+petname-bound globals it is granted and composes operations in confined
+JavaScript.
+The parked JSON tools provide a discrete, MCP-consumable shape over the
+same capabilities when a host needs that adapter boundary.
+`Filesystem` and `Git` can describe the same worktree: `Git.filesystemAt(ref)`
+*returns a `Filesystem`*, so history reads use a `Filesystem` that `Git`
+produced; and `GitRemote` ([daemon-git-remotes](daemon-git-remotes.md)) is
+the bounded `pull` and `push` capability associated with that `Git`.
+A host can grant these capabilities together or separately according to the
+code-mode session's endowments.
 
 The invariant that makes this tractable: the method guard and the wire
 schema are **identical regardless of confinement**.
@@ -160,13 +167,15 @@ while the tool record and the LLM's view are unchanged.
 
 ## Filesystem-targeted file tools
 
-A single file-tool set (read, list, edit, stat) over the
+A retained JSON file-tool set (read, list, edit, stat) over the
 `@endo/platform/fs/extended` `Filesystem` interface.
+It is a parked, discrete shape; code mode is the primary way to drive a
+workspace and calls its confined capability globals directly.
 The tools hold a `Filesystem` capability, not a path string and not `fs`;
 confinement, symlink-escape rejection, and fail-closed revocation are the
 `Filesystem` mount's structural guarantees, not the tool's.
 
-The same tool set reads the live worktree and history uniformly, because
+The same retained set reads the live worktree and history uniformly, because
 `mountAsFilesystem(mount)` and `Git.filesystemAt(ref)` both present the
 **same** `Filesystem` cap.
 The tools call the `Filesystem` exo surface (`walk`, `Directory.list`,
@@ -175,7 +184,7 @@ produced the cap.
 A read-only agent gets a `readOnly()`-attenuated `Filesystem`: the same
 read, list, and stat tools work, and edit fails closed at the cap.
 
-PR #523 settled the export shape.
+PR #523 settled the export shape for this retained JSON/MCP layer.
 `makeMountReadTool` was once a `{ schema, execute, help }` island that
 could not pass `toPiAgentTool`; it now builds through `makeTool` and emits
 the canonical `ToolRecord`, at parity with the git tools.
@@ -292,6 +301,9 @@ architecture needs only the forward direction first.
 ## Attenuation model
 
 Lifted from genie's registry and policy machinery.
+These are the attenuation primitives retained for the parked JSON/MCP
+surface; code mode receives the corresponding narrowed capabilities as
+endowments.
 The levers split by confinement:
 
 - **Unconfined (`Spawner`).**
@@ -312,9 +324,9 @@ The levers split by confinement:
   cap, and edit has no method to call.
   Subtree rooting is structural too: the `Filesystem` is rooted at a mount
   subtree and no method returns a reference outside it.
-  These caps are held together over one workspace, so attenuating one
-  (read-only files) does not disturb the others (`git status` and `diff`
-  still work).
+  A code-mode session can receive these caps together over one workspace, so
+  attenuating one (read-only files) does not disturb the others (`git status`
+  and `diff` still work).
 
 So "read-only" means two different things: a flag the unconfined tools
 check, but a *different cap* the confined tools are handed.
@@ -327,15 +339,18 @@ The attenuation *primitives* (the policy closures, the `Spawner` type, the
 
 ## Git authority tiers
 
-Inside the confined side there is a finer **verb** axis that carves the
-git surface into three tiers: **read**, **write**, and **push**.
+Inside the retained confined tool surface there is a finer **verb** axis
+that carves the git surface into three tiers: **read**, **write**, and
+**push**.
 It is orthogonal to confinement and orthogonal to the object-granularity
 (capref) axis: a capref names an object (by petname), a tier names a verb
 class.
 
 **Read and write are one cap, one factory.**
 `makeGitTool(gitCap)` builds the tools for a local `Git` cap and returns
-a `ToolRecord[]`.
+a `ToolRecord[]` for the parked JSON/MCP surface.
+Code mode instead receives the local `Git` cap as a global and composes its
+operations through `execute`.
 The read-only tier is **not a separate factory**: it is the same
 `makeGitTool` fed a `readOnly()`-attenuated `Git`.
 `makeGitTool` consults `isGitReadOnly(gitCap)` (already exported from
@@ -360,8 +375,8 @@ Push (`fetch` / `pull` / `push`) is not a method on the local `Git`; it
 lives on a separate `GitRemote` cap composed from a writable `Git`, an
 HTTPS transport, and a non-extractable credential
 ([daemon-git-remotes](daemon-git-remotes.md)).
-Its seam is a sibling `makeGitRemoteTool(remoteCap)`, **not built in the
-first cut**.
+Its seam is a sibling `makeGitRemoteTool(remoteCap)`; the retained JSON
+surface does not currently include that wrapper.
 The `GitRemoteController` policy facet stays host-side and is never an
 agent-facing tool: the agent receives a pre-scoped `GitRemote`, so push
 authority is grant-gated, not negotiated by the agent.
@@ -370,12 +385,13 @@ structurally excludes push.
 
 ## Capability arguments are petnames
 
-A tool argument that is a capability (a git repo, a filesystem map, any
-remotable the LLM must *name* rather than *spell out*) is carried on the
-wire as a **petname string** and resolved against the guest's own
+A capability argument in the retained JSON layer (a git repo, a filesystem
+map, or any remotable the LLM must *name* rather than *spell out*) is carried
+on the wire as a **petname string** and resolved against the guest's own
 petstore.
+Code mode uses the same petnames as its endowment binding names.
 
-**The LLM-facing surface is a petname, never an opaque handle.**
+**The JSON LLM-facing surface is a petname, never an opaque handle.**
 A petname is a friendly host-assigned camelCase identifier (`gitReadOnly`,
 `endoRepo`, `gardenRepo`).
 There is no `cap:<hex>` opaque handle and no handle-registry indirection;
@@ -392,7 +408,7 @@ silently resolving to nothing.
 This is exactly what every lal tool already does (`packages/lal/agent.js`:
 the `lookup`, `inspect`, and `readText` cases); agent-tools adopts that
 idiom verbatim.
-There is **exactly one resolution path**: agent-tools is always used in
+There is **exactly one resolution path**: the retained JSON layer is used in
 the context of an endo daemon, with no second backend and no parallel
 in-memory map standing in for the store.
 
@@ -420,14 +436,15 @@ leaving plain-value args untouched, so the guard validates the resolved
 cap shape.
 
 **One petstore, two granularities.**
-The primary interaction mode is **code mode** (a single `execute(js)` over
-a set of endowments); discrete `arg0`-style tools are the second mode.
-Both resolve through the one guest petstore and differ only in
-granularity:
+The primary interaction mode is **code mode** (a single `execute({ source })`
+over a set of endowments).
+The retained JSON layer is a discrete, per-call mode for hosts that need
+that adapter boundary.
+Both resolve through the one guest petstore and differ only in granularity:
 
 | Mode | Granularity | In (arg to cap) | Out (cap to name) |
 |---|---|---|---|
-| **tool mode** | per call | a capref arg's petname to `lookup` at the invoke boundary | a returned cap to `storeValue` to a petname |
+| **JSON tool mode (parked)** | per call | a capref arg's petname to `lookup` at the invoke boundary | a returned cap to `storeValue` to a petname |
 | **code mode** | per session | globals resolved by petname at `Compartment` setup, endowed once for the turn | a result stored under a `resultName` |
 
 The petstore is the **system of record** in both modes; only the moment of
@@ -514,8 +531,8 @@ petname and path, re-endow next turn), not a new entry substrate.
 ## Design Decisions
 
 1. **Method-guard tool record, not hand-authored OpenAI JSON.**
-   One canonical `ToolRecord` (`makeTool` over a MethodGuard) for every
-   tool.
+   One canonical retained JSON `ToolRecord` (`makeTool` over a MethodGuard)
+   for every parked JSON tool.
    lal-on-`llm`'s hand-authored `parameters` survive only as the lesson
    "ship a real wire schema," which this package delivers by
    hand-authoring the wire schema alongside the guard and keeping the two
@@ -536,14 +553,15 @@ petname and path, re-endow next turn), not a new entry substrate.
 
 4. **File tools target `@endo/platform/fs/extended` `Filesystem`, not
    genie's VFS.**
-   One tool set reads the live worktree and history through the same cap
-   with `readOnly()` as uniform attenuation.
+   The retained JSON tool set reads the live worktree and history through the
+   same cap with `readOnly()` as uniform attenuation.
    PR #523 reconciled `makeMountReadTool` onto the canonical `ToolRecord`
    so it is pipeline-compatible with the git tools.
 
 5. **Attenuation primitives here; attenuation configuration in `agentry`.**
-   This package ships the levers (read-only, subtree, policy and spawner
-   command tools); `defineAgent` composes them per agent.
+   This package keeps the levers (read-only, subtree, policy and spawner
+   command tools) for the parked JSON/MCP surface; `defineAgent` composes
+   code-mode endowments per agent.
 
 6. **One git-tool factory across read and write; `scope` is build-time
    only.**
@@ -551,8 +569,9 @@ petname and path, re-endow next turn), not a new entry substrate.
    factory fed a `readOnly()` cap.
    It consults `isGitReadOnly` and omits the write slice for a read-only
    cap, driven by a build-time `scope` tag that never reaches the wire.
-   Push (`makeGitRemoteTool` over a `GitRemote`) is a separate future
-   tier.
+   Push (`makeGitRemoteTool` over a `GitRemote`) remains a separate tier in
+   the design record; the JSON surface is parked rather than expanded into
+   it now.
 
 7. **Capability args are petnames resolved against the guest petstore.**
    A capref-typed arg is a camelCase petname string on the wire, resolved
@@ -582,9 +601,9 @@ petname and path, re-endow next turn), not a new entry substrate.
 
 | Design | Relationship |
 |--------|--------------|
-| [agentry-agent-builder](agentry-agent-builder.md) | Sibling. The `defineAgent` builder *consumes* `@endo/agent-tools`: it selects tools, configures attenuation, wires the schemas, runs `coerceBigintArgs` via `prepareArguments`, and binds the pi loop. |
-| [endo-gateway-mcp](endo-gateway-mcp.md) | The package proposal this design realizes. The Gateway's MCP adapter consumes the wire schemas (each tool's `inputSchema`) here. |
-| [daemon-agent-tools](daemon-agent-tools.md) | The capability-scoped tool model and the source of the hand-in-hand workspace model (file tools plus `Git` plus bounded `GitRemote` over one operator-provided workspace). This design realizes the filesystem half over the `Filesystem` cap and the command-tool half. |
+| [agentry-agent-builder](agentry-agent-builder.md) | Sibling design whose `defineAgent` builder can consume the retained `@endo/agent-tools` surface, configure attenuation, wire the schemas, run `coerceBigintArgs` via `prepareArguments`, and bind the agent loop. |
+| [endo-gateway-mcp](endo-gateway-mcp.md) | MCP adapter for the retained tool shape; the Gateway consumes each tool's `inputSchema` wire schema here. |
+| [daemon-agent-tools](daemon-agent-tools.md) | Capability-scoped workspace model with file tools, `Git`, and bounded `GitRemote` over one operator-provided workspace, recording the retained filesystem and command-tool shapes over those capabilities. |
 | [daemon-mount-capabilities](daemon-mount-capabilities.md) | The `EndoMount` surface (`readOnly()`, `entry(path)`) that backs the confined `Filesystem` binding via `mountAsFilesystem(mount)`. |
 | [daemon-git-remotes](daemon-git-remotes.md) | The bounded `GitRemote` (local `Git` plus authorized HTTPS transport plus non-extractable credential) supplying the push tier. A read-only `Git` cannot construct a `GitRemote`, so push authority is grant-gated. |
 | [endo-fs-backend-seam](endo-fs-backend-seam.md), [endo-fs-from-git](endo-fs-from-git.md) | The `Filesystem` substrate the file tools target (`mountAsFilesystem`, `Git.filesystemAt(ref)`, `readOnly()`) and the source of the inherited mount limits. |
@@ -608,11 +627,11 @@ petname and path, re-endow next turn), not a new entry substrate.
    Default to closed, take a per-target flag, or emit closed for OpenAI
    and open for MCP?
 
-4. **Command-tool surface in the first cut.**
+4. **Command-tool surface if the parked lane is revisited.**
    The `makeCommandTool` and `Spawner` seam (the sandbox slice) is the
-   heaviest unscoped piece, so the safe first cut is tools plus file tools,
-   with the command-tool family following.
-   This is a deliberate phase boundary, not an undecided gap.
+   heaviest unscoped piece.
+   It remains an unresolved design question for when this parked lane is
+   revisited, not a current expansion target.
 
 5. **Memory tools placement.**
    genie's `makeMemoryTools` (workspace-path FTS5 plus a pluggable search

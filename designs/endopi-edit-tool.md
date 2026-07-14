@@ -28,6 +28,10 @@
 > Still open: the Chat UI render-side diff preview, and promoting the tool onto
 > a dedicated `File` capability if/when `Dir.lookup(name) → File` lands.
 
+**Parked note.** The JSON `edit` / `editText` wrappers are parked with the
+agent-tools JSON layer; the shared `applyEdits` algorithm remains kept
+regardless (see [#731](https://github.com/endojs/endo-but-for-bots/issues/731)).
+
 ## Motivation
 
 LLM-driven coding agents perform most of their file mutations as
