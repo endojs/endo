@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-09 |
-| **Updated** | 2026-07-13 |
+| **Updated** | 2026-07-15 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Proposed |
 | **Source** | PR #144 review id 4256844646 (`CHANGES_REQUESTED`) |
@@ -14,8 +14,9 @@
 > (2026-07-13). The daemon-formula packaging this document assumed (the
 > `http-controller` / `http-client` formula pair, the host `makeHttpClient`
 > mint, formula-owned policy) is superseded: the pair is provisioned by the
-> unconfined plugin `@endo/fetch` per the maintainer's direction on PR
-> [#609](https://github.com/endojs/endo-but-for-bots/pull/609). The
+> unconfined `@endo/fetch` base and the `@endo/confined-fetch` plugin it
+> endows with that base plus a state directory, per the maintainer's direction
+> on PR [#609](https://github.com/endojs/endo-but-for-bots/pull/609). The
 > controller/client facet split, method placement, SSRF defenses, and
 > `cancellation: Promise<never>` analysis remain normative, and the
 > `endo http` verb tree survives as the eventual user surface sketched in

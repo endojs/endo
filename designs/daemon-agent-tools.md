@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-03-02 |
-| **Updated** | 2026-07-13 |
+| **Updated** | 2026-07-15 |
 | **Author** | Kris Kowal, endolinbot (prompted) |
 | **Status** | In Progress |
 
@@ -357,14 +357,15 @@ to have a guest petstore name.
 The network tier grants the same control / client split but is **not
 daemon-provisioned** (redirected 2026-07-13; the earlier host-method
 sketch `provideHttpClient(name, { allowedOrigins, policyMode, … })` is
-superseded): per [endo-fetch](endo-fetch.md), the `@endo/fetch`
-unconfined plugin mints the `HttpClient` / `HttpClientControl` pair over
-`@endo/exo-http-client`, the provisioning integration retains the
-policy-bearing `HttpClientControl`, and only the use-facing `HttpClient`
-is bound into the guest petstore. #566 landed the package pair
-(`@endo/http-confine` plus `@endo/exo-http-client`); the plugin, its
-durable virtual-file-system policy store, and the `makeHttpTool` binding
-are the remaining wiring (§ Implementation Plan, Network tier). The
+superseded): per [endo-fetch](endo-fetch.md), the unconfined `@endo/fetch`
+base supplies unfettered `Fetch` only to the provisioning integration, which
+endows it plus a state directory to `@endo/confined-fetch`. The confined
+plugin mints the `HttpClient` / `HttpClientControl` pair, retains the
+policy-bearing control facet, and binds only the use-facing `HttpClient` into
+the guest petstore. #566 landed the package pair (`@endo/http-confine` plus
+`@endo/exo-http-client`); the two plugins, their durable virtual-file-system
+policy store, and the `makeHttpTool` binding are the remaining wiring (§
+Implementation Plan, Network tier). The
 conditional-composition rule is unchanged: the network tool group is
 absent from the catalog unless the agent holds the `HttpClient`.
 
@@ -463,19 +464,20 @@ sandbox shell engine (Phase 2c), and the Phase 4 worked loop.
 The confined-HTTP substrate landed in #566 as `@endo/http-confine` (the
 pure confinement core) and `@endo/exo-http-client` (the `HttpClient` /
 `HttpClientControl` capability); the provisioning is redrafted as the
-`@endo/fetch` unconfined plugin ([endo-fetch](endo-fetch.md)), and only
-the tool binding remains in this document's scope.
+`@endo/fetch` base plus `@endo/confined-fetch` plugin
+([endo-fetch](endo-fetch.md)). Only the tool binding remains in this
+document's scope.
 
 - ~~Reconcile the largely in-flight daemon HTTP formula from #286 onto
   the shared HTTP core~~ — **superseded by
   [endo-fetch](endo-fetch.md)** (2026-07-13): per the maintainer's
   unconfined-plugin direction on PR #609, no daemon HTTP formula is
   built. The `HttpClient` / `HttpClientControl` pair is provisioned by
-  the `@endo/fetch` plugin over the generic `makeUnconfined` pathway,
-  with policy persistence on the virtual file system and restart
-  reconstitution owned by the plugin's `make()`; #286's formula shape is
-  superseded outright and its CLI intent survives as the `endo http`
-  eventual surface sketched there.
+  the unconfined base `@endo/fetch` plugin is endowed to
+  `@endo/confined-fetch` with its state directory. The confined plugin owns
+  policy persistence and restart reconstitution; #286's formula shape is
+  superseded outright and its CLI intent survives as the `endo http` eventual
+  surface sketched there.
 - [ ] `makeHttpTool` in `@endo/agent-tools`: `ToolRecord` plus
   hand-authored wire schema and divergence gate, mirroring `makeGitTool`
   / `makeShellTool`; bounds come entirely from the granted `HttpClient`

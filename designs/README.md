@@ -422,7 +422,8 @@ flowchart TD
 
     subgraph Agent Capabilities
         etimer[endoclaw-timer]
-        efetch[endo-fetch]
+        efetch[endo-fetch base]
+        cfetch[confined-fetch]
         eoauth[endoclaw-oauth]
         enotify[endoclaw-notifications]
         eproactive[endoclaw-proactive-messages]
@@ -431,7 +432,8 @@ flowchart TD
         eskill[endoclaw-skill-registry]
         evoice[endoclaw-voice]
         esheets[exo-google-sheets]
-        efetch --> eoauth
+        efetch --> cfetch
+        cfetch --> eoauth
         etimer --> eproactive
         eoauth --> ebridge
         eoauth --> eproactive
@@ -665,7 +667,7 @@ capabilities available to agents.
 | daemon-rename-to-manager | Not Started | Rename `daemon.js`/`Daemon`/`MignonicPowers` to `manager.js`/`Manager`/`WorkerPowers` to align JS with Rust `endor` nomenclature |
 | daemon-xs-worker-snapshot | In Progress | XS heap snapshot/restore; Phases 1-2 implemented — streaming CAS write/read, suspend/resume supervisor integration, CBOR control verbs; 12 passing tests; Phase 2 integration test and ephemeral GC roots remaining |
 | endoclaw-timer | In Progress | **Strategic:** Core capability concern — SES removes `setTimeout`/`setInterval`; Timer is the only way agents get scheduled execution. Prerequisite for proactive behavior. First implementation in `@endo/genie`. |
-| endo-fetch (supersedes endoclaw-network-fetch) | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. Capability realized via `@endo/exo-http-client` over `@endo/http-confine` (#566); provisioning redrafted per the PR #609 review as the unconfined plugin `@endo/fetch` with durable policy on the virtual file system ([endo-fetch](endo-fetch.md)); the `makeHttpTool` binding follows ([`daemon-agent-tools`](daemon-agent-tools.md) Phase 3.6). Reference: [`trust-on-first-bind`](trust-on-first-bind.md) (TOFU-style prompt-and-pin for allowlist-bearing caps, made durable by the plugin store). |
+| endo-fetch (supersedes endoclaw-network-fetch) | Not Started | **Strategic:** `HttpClient` with origin allowlist. Self-hosted agents need outbound HTTP; foundation for OAuth and all external integrations. The landed capability is `@endo/exo-http-client` over `@endo/http-confine` (#566). Provisioning uses an unfettered `@endo/fetch` base, endowed with a state directory to `@endo/confined-fetch`, which exposes the policy-bound client ([endo-fetch](endo-fetch.md)); `makeHttpTool` follows in [`daemon-agent-tools`](daemon-agent-tools.md) Phase 3.6. |
 | ~~daemon-cross-peer-gc~~ | **Complete** | Replaced the proposed CRDT-of-pet-stores with a one-way retention-set sync per peer connection (`retention-accumulator.js`, `EndoGateway.followRetentionSet`, SQLite `retention` table). Solves the GC gap; bidirectional shared namespace deferred as YAGNI. |
 | ~~daemon-guest-eval-simplification~~ | **Implemented** | Eval-proposal handshake removed; guest eval delegates directly to `formulateEval`. Type-system cleanup and regression test in PR #92. |
 
@@ -1263,7 +1265,7 @@ have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
 | daemon-rename-to-manager | S | 1 day | 3 | Mechanical rename; design merged (PR #85); implementation TBD |
 | endoclaw-timer | S-M | 3 days | 3 | IntervalScheduler with tick delivery, durable formulas, host-controlled limits |
 | ~~daemon-guest-eval-simplification~~ | — | — | 3 | ✅ Implemented (PR #92, ~2 hours actual; well under 1-day estimate) |
-| endo-fetch (supersedes endoclaw-network-fetch) | S-M | ~1-2 days | 3 | `@endo/fetch` unconfined plugin: `make()` over the landed `makeHttpClientAndControl` (#566), VFS durable policy + TOFU-binding store, persistence seam in `@endo/exo-http-client`, `@pins` revival recipe, `makeHttpTool` binding ([`daemon-agent-tools`](daemon-agent-tools.md) Phase 3.6) |
+| endo-fetch (supersedes endoclaw-network-fetch) | S-M | ~1-2 days | 3 | `@endo/fetch` unconfined base provides direct HTTP; `@endo/confined-fetch` receives that base plus a VFS state directory, adds policy + TOFU persistence through `@endo/exo-http-client`, and revives through `@pins`; `makeHttpTool` binds only the confined client ([`daemon-agent-tools`](daemon-agent-tools.md) Phase 3.6) |
 | ~~ci-no-npm-lifecycle~~ | S | — | 2 | ✅ Complete (PR #126 merged 2026-05-15) |
 | ~~chat-playwright-smoke~~ | S | — | 2 | ✅ Complete (PRs #91 design, #94 impl, #95+#104 fix; ~16 hours total) |
 | ~~base64-native-fallthrough~~ | S | — | 2 | ✅ Complete (via `actual/master` merge, commit `7325bbe15` from `endojs/endo#3216`) |
@@ -1469,7 +1471,7 @@ pre-empt later milestones.
 | Design | Milestone | Rationale |
 |--------|-----------|-----------|
 | endoclaw-timer | M3 (was M1) | **Core capability concern.** SES lockdown removes `setTimeout` and `setInterval`. Timer is the *only* mechanism for scheduled agent execution. Prerequisite for proactive messages, monitoring, reminders. Without it, agents are purely reactive. |
-| endo-fetch (was endoclaw-network-fetch) | M3 (was M1) | **Foundation for all external access.** M3 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. Provisioning redrafted as the unconfined plugin `@endo/fetch` per the PR #609 review. |
+| endo-fetch (was endoclaw-network-fetch) | M3 (was M1) | **Foundation for all external access.** M3 already does Docker/remote access. A self-hosted agent that cannot reach external APIs is inert. HttpClient with origin allowlist is the minimal network capability. OAuth, channel bridges, and all integrations depend on it. The direct `@endo/fetch` base is explicitly attenuated into `@endo/confined-fetch` with a state directory. |
 
 **Progress as of 2026-06-15 (targeted post-event M2 closure):** The
 maintainer's 2026-06-15 directive asked to verify M2 completion on

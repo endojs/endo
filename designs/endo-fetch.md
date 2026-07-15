@@ -1,8 +1,9 @@
-# `@endo/fetch`: A Confined Outbound HTTP Plugin
+# `@endo/fetch` and `@endo/confined-fetch`: Outbound HTTP Plugins
 
 | | |
 |---|---|
 | **Created** | 2026-07-13 |
+| **Updated** | 2026-07-15 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Not Started |
 | **Supersedes** | [endoclaw-network-fetch](endoclaw-network-fetch.md) (provisioning; the capability shape is landed and carries over) |
@@ -10,367 +11,189 @@
 
 ## What is the Problem Being Solved?
 
-Agents under SES lockdown have no ambient network access; confined outbound
-HTTP is half of the M3 exit criterion ("Agents have scheduled execution and
-confined outbound HTTP", [README](README.md) § Milestone 3). The capability
-itself landed in PR
-[#566](https://github.com/endojs/endo-but-for-bots/pull/566): the
-`HttpClient` / `HttpClientControl` facet pair of `@endo/exo-http-client`
-(`makeHttpClientAndControl`) over the pure confinement core
-`@endo/http-confine` (`makeHttpConfinement`). What never landed is the
-**provisioning**: the wiring that mints the pair, persists its policy, hands
-the client facet to a guest, and brings the pair back after a daemon restart.
+Agents under SES lockdown have no ambient network access. Confined outbound
+HTTP is half of the M3 exit criterion: "Agents have scheduled execution and
+confined outbound HTTP" ([README](README.md) § Milestone 3). The capability
+itself landed in PR [#566](https://github.com/endojs/endo-but-for-bots/pull/566):
+the `HttpClient` / `HttpClientControl` facet pair of `@endo/exo-http-client`
+over the pure confinement core `@endo/http-confine`.
 
-Every prior draft of that wiring is daemon-formula-shaped: the
-[endoclaw-network-fetch](endoclaw-network-fetch.md) sketch (2026-03-03), the
-`http-controller` / `http-client` formula pair of
-[cli-http-client](cli-http-client.md), and the `provideHttpClient` host
-method of [daemon-agent-tools](daemon-agent-tools.md) Phase 3.6. The
-maintainer's review of PR
-[#609](https://github.com/endojs/endo-but-for-bots/pull/609) (2026-07-10)
-set a different direction for exactly this kind of feature: a capability
-that does not benefit from deep daemon integration becomes an **unconfined
-plugin**, persisting through the **virtual file system**, with restart
-revival owned **out of band by an integration** (like `@pins`) rather than
-by formula machinery. [endo-reminder](endo-reminder.md) (design PR
-[#682](https://github.com/endojs/endo-but-for-bots/pull/682), implementation
-PR [#721](https://github.com/endojs/endo-but-for-bots/pull/721)) redrafted
-the message scheduler on those terms and is the worked precedent.
-
-This design redrafts the outbound-HTTP provisioning on the same terms. The
-capability *behavior* is untouched; the packaging, persistence, and revival
-story change.
+What never landed is provisioning, policy persistence, and revival. Earlier
+drafts put that work in daemon formulas. The maintainer's PR #609 direction is
+to use unconfined plugins and the virtual file system for durable tracking.
+The review of this design adds an important attenuation boundary: the direct,
+unfettered HTTP capability must be separate from the confined capability. A
+confined plugin receives that base capability and a state directory as its
+endowments. It does not acquire ambient network access merely by existing.
 
 ## Design
 
-### What carries over unchanged
+### Two plugins and an explicit attenuation boundary
 
-The landed `@endo/exo-http-client` surface is normative and this document
-does not restate it: the `HttpClient` facet (`fetch(url, options)`,
-`allowedOrigins()`, `help()`), the bounded `HttpResponse` remotable, the
-`HttpClientControl` facet (`inspect`, the allowlist mutators, the rate and
-byte-cap setters, `revoke` / `isRevoked`, the trust-on-first-bind surface
-`listBindings` / `revokeBinding` / `unpin` / `setPolicyMode`,
-`listAuditEntries`), and the `makeTrustOnFirstBindPolicyAdapter` policy
-machine specified by [trust-on-first-bind](trust-on-first-bind.md). So are
-the enforcement semantics of `@endo/http-confine`
-([http-confine](http-confine.md)): structural origin allowlisting, method
-and header validation, rate limiting, manual redirect resolution,
-read-time byte caps, and revocation. The controller-versus-client facet
-split and its SSRF defenses follow
-[cli-http-client](cli-http-client.md), whose analysis remains normative
-even though its formula packaging is superseded here (see *What this
-supersedes*).
+The design has two thin packages.
 
-### Package and plugin shape
+- `@endo/fetch` is an **unconfined base plugin**. Its `make()` receives the
+  worker's ambient `fetch` and returns a `Fetch` capability with
+  `fetch(url, options)`. This capability is intentionally unfettered: it makes
+  no allowlist, policy, persistence, or revival decisions. An integration
+  retains it and treats granting it as granting direct HTTP authority.
+- `@endo/confined-fetch` is a **confined plugin**. Its `make()` is endowed with
+  the base `Fetch` capability and a writable state directory. It constructs
+  `HttpClient` / `HttpClientControl` over the endowed base, never over ambient
+  `fetch`, and returns a `ConfinedFetchService` that exposes `client()`,
+  `control()`, and `help()`.
 
-A new thin package, `packages/fetch`, published as `@endo/fetch`. Like
-`@endo/reminder`, it is an **unconfined plugin**: no new formula type, no
-`daemon.js` / `host.js` / `interfaces.js` changes, no `extractDeps` case, no
-maker-table entry. The plugin module exports the standard unconfined-caplet
-maker:
+The base package is the sole bridge from an unconfined worker to real network
+access. The confined package is useful only when an integration intentionally
+endows both the base capability and its private state directory. A guest gets
+only `client()`. It never receives the base `Fetch`, the directory, or the
+control facet.
+
+```mermaid
+flowchart LR
+    U[unconfined @endo/fetch] -->|unfettered Fetch| I[integration]
+    I -->|Fetch + fetch-store| C[confined @endo/confined-fetch]
+    C -->|HttpClient only| G[guest]
+    I -->|retains HttpClientControl| H[policy operator]
+```
+
+### Base plugin
+
+`@endo/fetch` exports the standard unconfined-caplet maker:
 
 ```js
-export const make = (powers, context, { env }) => { /* returns the fetch service */ };
+export const make = (powers, context, { env }) => { /* returns Fetch */ };
 ```
 
-provisioned by any host through the existing generic pathway:
+It adapts the unconfined worker's ambient `fetch` into a passable `Fetch`
+service. `powers`, `context`, and `env` are accepted for the normal plugin
+shape but do not supply policy or storage. The package is deliberately small:
+it has no dependency on `@endo/http-confine`, the virtual file system, or the
+policy machinery. Its tests use an injected transport seam instead of a live
+network.
 
-```
-E(host).makeUnconfined(workerName, specifier, { powersName, resultName })
-```
+### Confined plugin endowments
 
-where `specifier` resolves to `@endo/fetch`'s plugin module. `make()` reads
-the durable policy store, constructs the pair with
-`makeHttpClientAndControl` (passing the worker's ambient `fetch` as the
-`FetchLike` seam), and returns a `FetchService` exo that hands out the two
-facets, mirroring `ReminderService`:
+`@endo/confined-fetch` exports a confined-caplet maker. Its powers resolve:
 
-- `client()` — the guest-facing `HttpClient` facet, the only thing a
-  confined agent ever holds.
-- `control()` — the integration-facing `HttpClientControl` facet, retained
-  by whoever provisioned the service.
-- `help()`.
+1. `fetch`: the base `Fetch` capability supplied by an integration. This is
+   the only transport used to construct `makeHttpClientAndControl`.
+2. `fetch-store`: a writable virtual-file-system directory, private to this
+   confined service.
+3. `fetch-policy-authority` (optional): the referral target for
+   trust-on-first-bind decisions. Without it, prompt modes are unavailable and
+   unknown origins fail closed.
 
-The plugin is unconfined because something must hold the real `fetch`
-power; the capability it mints is confined. A guest granted `client()` can
-reach only allowlisted or pinned origins, under rate and byte caps, and
-never sees the plugin, the store, or ambient `fetch`.
-
-### Powers: what the integration grants
-
-`powers` is agent-shaped (typically a dedicated guest). The plugin resolves
-everything durable by name through it, the same pathway as
-`@endo/reminder`:
-
-1. **Durable store**: `E(powers).lookup('fetch-store')` must resolve to a
-   writable virtual-file-system directory (next section).
-2. **Policy authority** (optional): `E(powers).lookup('fetch-policy-authority')`
-   resolves the referral target for trust-on-first-bind decisions, passed
-   through as `makeHttpClientAndControl`'s `policyAuthority`. When the
-   lookup fails, the plugin runs without one: `prompt` policy modes are
-   unavailable and unknown origins fail closed (strict behavior).
-3. **Initial policy**: first-run `allowedOrigins` (comma-separated),
-   `maxRequestsPerMinute`, `maxResponseBytes`, and `policyMode` arrive via
-   the `env` option of `makeUnconfined`. Thereafter `HttpClientControl`
-   adjusts them and the store persists them, so the store — not `env` — is
-   authoritative across restarts.
-
-The implementation keeps `makeHttpClientAndControl`'s injectable `fetch`
-and `now` seams so tests run against a deterministic clock and a fake
-transport, even though the unconfined worker has both ambiently.
+Initial `allowedOrigins`, `maxRequestsPerMinute`, `maxResponseBytes`, and
+`policyMode` arrive through `env` only on first provisioning. The directory is
+authoritative across restart. The integration provisions one confined service
+per guest, retains `control()`, and grants only `client()` to that guest.
 
 ### Durable policy on the virtual file system
 
-The store is a writable directory on the platform virtual file system
-([platform-fs](platform-fs.md),
-[fs-interface-reconciliation](fs-interface-reconciliation.md)), using the
-reconciled tree verbs. The plugin never touches `node:fs` and cannot tell
-what backs the directory (`makeNodeFilesystem`, `makeInMemoryFilesystem`
-in tests, `mountAsFilesystem`, or a database-backed backend):
+The private state directory uses the reconciled virtual-file-system tree verbs:
 
 ```
 fetch-store/
-  config.json      # { allowedOrigins, maxRequestsPerMinute, maxResponseBytes,
-                   #   policyMode, revoked } — the PolicyShape fields
-  bindings.json    # the trust-on-first-bind binding table: origin ->
-                   #   { state, decidedAt, source, note? }
+  config.json      # allowedOrigins, maxRequestsPerMinute, maxResponseBytes,
+                   # policyMode, revoked
+  bindings.json    # origin -> state, decidedAt, source, note?
 ```
 
-Writes are write-then-`move` within the store directory, serialized so
-overlapping control operations cannot interleave partial documents; atomic
-within-directory `move` is **required of the store backing** as a store
-contract, exactly as [endo-reminder](endo-reminder.md) states it (its
-design decision 9). Both documents are single files rather than
-per-entry directories: the cardinality is one service per guest with tens
-of origins and pins, so an O(N) rewrite per policy change costs nothing
-(the same cardinality argument as endo-reminder's decision 13).
+Writes are serialized and use write-then-`move` within the directory. Atomic
+within-directory `move` is a required backing contract, as in
+[endo-reminder](endo-reminder.md). The rate-limit window and audit ring remain
+ephemeral. They are bounded operational state, not durable policy.
 
-Not persisted, by design: the sliding rate-limit window (resets on
-restart) and the `listAuditEntries` ring buffer (an in-memory
-observability convenience with a hard cap; durably logging every request
-is a disk-growth hazard and a separate decision an integration can layer
-on).
+`@endo/exo-http-client` needs an `initialBindings` input and an
+`onPolicyChange(snapshot)` callback. The callback runs after every durable
+mutation, including a request-time trust-on-first-bind pin, so the confined
+plugin can persist a complete snapshot without putting VFS code in the pure
+capability package. `@endo/http-confine` remains untouched.
 
-### Persistence seam in `@endo/exo-http-client`
+### Revival and agent-tool binding
 
-Today `makeHttpClientAndControl` holds policy and bindings only in memory.
-The plugin needs two small additions to the package, not a re-implementation:
+The integration owns both retention and re-endowment. It pins the confined
+service under `@pins`, restores the base `Fetch` plus the same `fetch-store`
+at boot, and lets `revivePins()` re-incarnate the confined plugin. A revoked
+service therefore revives revoked. The package README carries this recipe;
+Familiar and the online Gateway are candidate owners.
 
-- an **initial-state** argument: `initialBindings` alongside the existing
-  policy constructor arguments, so `make()` can reconstitute the pair with
-  identical policy from the store;
-- an **on-change** notification: an `onPolicyChange(snapshot)` callback
-  invoked after any durable-state mutation — the control-facet mutators
-  (`setAllowedOrigins`, `addAllowedOrigin`, `removeAllowedOrigin`,
-  `setMaxRequestsPerMinute`, `setMaxResponseBytes`, `setPolicyMode`,
-  `revoke`) and every trust-on-first-bind pin, unpin, or binding
-  revocation — so the plugin persists exactly when state changes.
-
-The hook is the right seam because trust-on-first-bind pins are made at
-request time inside the adapter; no wrapper around the control facet could
-observe them. `@endo/exo-http-client` stays platform-pure (the callback is
-an ordinary function; the VFS never enters the package), and
-`@endo/http-confine` is untouched.
-
-### Wake-on-restart: retention by the integration
-
-Identical to [endo-reminder](endo-reminder.md) § Wake-on-restart, which is
-normative here: the integration that provisions the fetch service pins it
-(for the reference host, `resultName: ['@pins', 'fetch']` at
-`makeUnconfined` time), `revivePins()` provides the identifier at boot, the
-worker incarnates the plugin, and `make()` reconstitutes the pair from the
-store with identical policy — the restart-reconstitution requirement that
-Phase 3.6 assigned to formula machinery, met without it. Retention is
-user-driven via the package README for now; the Familiar app and the
-online Gateway are candidate future owners. Unpinning decommissions: the
-service does not wake next boot, and its store remains until the
-integration deletes it. A revoked service revives revoked (`revoked` is a
-persisted `config.json` field).
-
-```mermaid
-sequenceDiagram
-    participant Boot as daemon boot
-    participant Pins as @pins
-    participant Worker as node worker
-    participant F as @endo/fetch make()
-    participant VFS as fetch-store (VFS)
-    participant Guest as guest agent
-    Boot->>Pins: revivePins(): provide each member
-    Pins->>Worker: incarnate pinned caplet formula
-    Worker->>F: import plugin, make(powers, context, { env })
-    F->>VFS: read config.json + bindings.json
-    F->>F: makeHttpClientAndControl with identical policy
-    Guest->>F: E(client).fetch(url) resumes under the same allowlist and pins
-```
-
-### Granting, and the surviving agent-tool binding
-
-Provisioning binds **one fetch service per guest**, mirroring
-endo-reminder's one-scheduler-per-recipient decision: the integration
-provisions the service, retains `control()`, and writes `client()` into
-the guest's pet store. A second guest gets a second provisioning with its
-own store and its own policy; policies never share state.
-
-The second half of [daemon-agent-tools](daemon-agent-tools.md) Phase 3.6
-survives unchanged: `makeHttpTool` in `@endo/agent-tools` (a `ToolRecord`
-plus hand-authored wire schema and divergence gate, mirroring
-`makeGitTool` / `makeShellTool`) binds whatever `HttpClient` the guest was
-granted; bounds come entirely from the capability, and the conditional
-composition rule holds — the network tool group is absent from the
-catalog unless the agent holds the `HttpClient`. Only the provisioning
-half of that phase (the daemon formula, the host-owned seam, formula-owned
-policy) is superseded by this plugin.
+`makeHttpTool` remains in [daemon-agent-tools](daemon-agent-tools.md) Phase
+3.6. It binds the `HttpClient` granted to a guest. The tool does not choose a
+transport or policy and therefore never needs the unfettered base capability.
 
 ### What this supersedes
 
-- [endoclaw-network-fetch](endoclaw-network-fetch.md): the
-  single-`HttpClient`-formula provisioning sketch. Its capability-shape
-  and Endo-idiom sections were realized by #566 and remain normative by
-  reference; the document is marked superseded.
-- [cli-http-client](cli-http-client.md), in part: the `http-controller` /
-  `http-client` daemon formula pair and the host `makeHttpClient` mint.
-  Its facet split, method placement, SSRF defenses, and
-  `cancellation: Promise<never>` analysis carry forward — the facets they
-  describe are the ones the plugin provisions — and its `endo http` verb
-  tree becomes the eventual user surface below.
-- [daemon-agent-tools](daemon-agent-tools.md) Phase 3.6, first work item:
-  the reconciliation of PR
-  [#286](https://github.com/endojs/endo-but-for-bots/pull/286)'s daemon
-  HTTP formula onto the shared core. That reconciliation no longer
-  happens: #286's formula shape is superseded outright, and its CLI
-  intent survives only as the eventual `endo http` surface. The
-  `makeHttpTool` item is retained (previous section).
-
-### Eventual user surface (sketch)
-
-A CLI verb family is a follow-up, sketched so the facets support it by
-design: the [cli-http-client](cli-http-client.md) `endo http` tree
-(`allow`, `deny`, `set-rate`, `set-bytes`, `revoke`, `inspect`) maps
-one-to-one onto `HttpClientControl` methods against a named service, with
-`endo http mk` replaced by the generic provisioning recipe
-(`makeUnconfined` + pin + grant). As with endo-reminder's CLI sketch, the
-follow-up owns service selection and discovery (which named service a verb
-routes to); it adds no new confinement capability.
+[endoclaw-network-fetch](endoclaw-network-fetch.md)'s daemon provisioning,
+[cli-http-client](cli-http-client.md)'s formula packaging, and the
+`provideHttpClient` half of [daemon-agent-tools](daemon-agent-tools.md) Phase
+3.6 are superseded. Their landed facet split, SSRF defenses, and eventual CLI
+surface remain normative where referenced.
 
 ## Dependencies
 
 | Design | Relationship |
 |---|---|
-| [endoclaw](endoclaw.md) | Parent capability taxonomy |
-| [endoclaw-network-fetch](endoclaw-network-fetch.md) | Superseded; its realized capability shape remains normative by reference |
-| [http-confine](http-confine.md) | The pure confinement core under the facets; untouched |
-| [trust-on-first-bind](trust-on-first-bind.md) | The TOFU policy machine whose pins this plugin makes durable |
-| [cli-http-client](cli-http-client.md) | Facet split and defenses carry forward; formula packaging superseded; CLI tree becomes the eventual surface |
-| [daemon-agent-tools](daemon-agent-tools.md) | Phase 3.6 provisioning half superseded; `makeHttpTool` half retained |
-| [endo-reminder](endo-reminder.md) | The unconfined-plugin precedent this design follows (store contract, revival narrative, one-service-per-guest) |
-| [platform-fs](platform-fs.md), [fs-interface-reconciliation](fs-interface-reconciliation.md) | The virtual file system and tree verbs backing the durable store |
-| [endoclaw-oauth](endoclaw-oauth.md) | Depends on this design (wraps a granted `HttpClient` with token injection) |
+| [http-confine](http-confine.md) | Pure confinement core under the facets |
+| [trust-on-first-bind](trust-on-first-bind.md) | Policy machine whose bindings the confined plugin persists |
+| [endo-reminder](endo-reminder.md) | Precedent for VFS state and integration-owned revival |
+| [platform-fs](platform-fs.md), [fs-interface-reconciliation](fs-interface-reconciliation.md) | State-directory API and tree verbs |
+| [daemon-agent-tools](daemon-agent-tools.md) | `makeHttpTool` consumes the granted confined client |
+| [endoclaw-oauth](endoclaw-oauth.md) | Consumes a granted `HttpClient`, never the base `Fetch` |
 
 ## Implementation Phases
 
-### Phase 1: Package and durable policy (S)
+### Phase 1: Base and confined plugin boundary (S)
 
-`packages/fetch` with `make(powers, context, { env })`, the VFS store
-(`config.json` write-then-`move`, serialized), pair construction over the
-existing `makeHttpClientAndControl`, the `FetchService` facet-accessor exo,
-and a test suite on `makeInMemoryFilesystem` with injected `fetch` / `now`
-seams — including restart reconstitution with identical policy and
-revive-as-revoked.
+Add `packages/fetch` (`@endo/fetch`) as the unconfined adapter over ambient
+`fetch`, with a deterministic transport seam. Add `packages/confined-fetch`
+(`@endo/confined-fetch`) that requires an endowed base `Fetch` and
+`fetch-store`, constructs the existing client/control pair over that base, and
+returns `ConfinedFetchService`. Tests prove the confined package cannot fetch
+without the endowed base and that a guest receives only `HttpClient`.
 
-### Phase 2: Trust-on-first-bind durability (S)
+### Phase 2: Durable policy and TOFU bindings (S)
 
-The `initialBindings` + `onPolicyChange` seam in `@endo/exo-http-client`,
-the `fetch-policy-authority` powers lookup, and `bindings.json`
-persistence, so a pin made in a `prompt` mode survives restart and remains
-inspectable and revocable through `listBindings` / `revokeBinding`.
+Add serialized `config.json` / `bindings.json` persistence in the confined
+package. Add `initialBindings` and `onPolicyChange` to
+`@endo/exo-http-client`. Tests prove restart reconstitution, durable
+revocation, and a request-time TOFU pin that survives restart and remains
+revocable.
 
-### Phase 3: Integration, revival, and the tool binding (S)
+### Phase 3: Integration, revival, and tool binding (S)
 
-The pinning and granting recipe in the package README, one worked
-integration demonstrating restart-survival end to end, and `makeHttpTool`
-in `@endo/agent-tools` bound to the granted client — together
-demonstrating the M3 "confined outbound HTTP" exit criterion.
+Document provisioning that retains the base capability privately, endows the
+confined plugin with it plus a state directory, pins the confined service, and
+grants only its client facet. Exercise the restart path end to end on an
+in-memory filesystem. Implement `makeHttpTool` separately in
+`daemon-agent-tools` Phase 3.6 against the granted client.
 
 ## Design Decisions
 
-1. **Unconfined plugin, not a formula.** The PR #609 review direction,
-   applied to this capability as it was to the message scheduler; the
-   feature gains nothing from formula integration. Consequences match
-   endo-reminder decision 2: no GC edges, lifecycle is pin/unpin, policy
-   lives in the durable store.
-2. **The plugin is unconfined; the granted capability is confined.** The
-   guest holds only the `HttpClient` facet; ambient `fetch`, the store,
-   and the control facet never reach it. "Confined outbound HTTP" names
-   what the guest gets, not where the plugin runs.
-3. **Provisioning-only package; #566 is not re-implemented.** The plugin
-   composes `makeHttpClientAndControl`; `@endo/http-confine` is untouched;
-   the only capability-package change is the persistence seam (decision 4).
-4. **The persistence seam is initial-state plus an on-change callback in
-   `@endo/exo-http-client`.** Trust-on-first-bind pins happen at request
-   time inside the adapter, where no control-facet wrapper can see them;
-   the callback is the one seam that observes every durable mutation while
-   keeping the package platform-pure. Considered and rejected: persisting
-   from a wrapper around the control facet. Reason: misses request-time
-   pins.
-5. **Durable policy on the VFS, backing-agnostic, write-then-`move`.** The
-   same store contract as endo-reminder decision 9, stated as an
-   obligation of the backing.
-6. **Single-document `config.json` and `bindings.json`, serialized
-   writes.** One service per guest, tens of entries; per-entry files and
-   indexes buy nothing at this cardinality (endo-reminder decision 13's
-   argument).
-7. **Revival is integration-owned retention via `@pins`, user-driven for
-   now.** Endo-reminder decisions 4 and 10 apply verbatim; the README
-   carries the recipe, and the Familiar app / online Gateway are candidate
-   future owners.
-8. **One fetch service per guest.** Mirrors one-scheduler-per-recipient;
-   policy is per-guest by construction and a grant is never shared through
-   a common allowlist.
-9. **Revocation is durable and permanent; the rate window and audit ring
-   are ephemeral.** `revoked` persists and a revived service stays
-   revoked. The rate window resetting on restart is at worst briefly
-   generous; the audit ring is bounded observability, not a durable log.
-10. **Package name `@endo/fetch`, no `exo-` prefix.** The package's
-    primary export is the plugin `make()`; the CapTP-surfaced facets live
-    in `@endo/exo-http-client` already. Endo-reminder decision 7's
-    no-prefix rationale applies; the name states what the guest gets.
-    Maintainer confirmation flagged in Open Questions.
-11. **Considered and rejected: keeping the daemon-formula provisioning**
-    (endoclaw-network-fetch's sketch, cli-http-client's formula pair,
-    Phase 3.6's `provideHttpClient`, #286's formula). Reason: the PR #609
-    review direction and the endo-reminder precedent.
-12. **Considered and rejected: a plugin entry point inside
-    `@endo/exo-http-client` instead of a new package.** Reason: it drags
-    provisioning, VFS-store, and powers-lookup concerns into a pure facet
-    package; `packages/reminder` set the thin-plugin-package precedent.
+1. **Two plugins, not one.** The base unconfined plugin provides explicit
+   unfettered HTTP authority. The confined plugin receives that authority only
+   as an endowment plus a state directory.
+2. **The base capability is never guest-facing.** Giving it to a guest would
+   bypass allowlisting, caps, revocation, and trust-on-first-bind policy.
+3. **State belongs to the confined service.** The base plugin is stateless;
+   policy and bindings are private to one guest's confined service.
+4. **Persist through an `@endo/exo-http-client` callback.** A control wrapper
+   cannot observe request-time pins.
+5. **Revival is integration-owned.** The integration is responsible for
+   restoring both required endowments before reviving the confined service.
 
-## Open Questions
+## Alignment for Implementation PR #723
 
-1. Is `@endo/fetch` the maintainer's chosen name? Alternatives:
-   `@endo/confined-fetch`; or no new package, a plugin module under
-   `@endo/exo-http-client` (rejected as decision 12 but cheap to revisit).
-2. Should the policy authority be re-resolved through `powers` at each
-   referral rather than once at `make()`, so an integration can swap the
-   prompt target without re-provisioning? Once-at-`make()` mirrors
-   endo-reminder's recipient resolution and is the default here.
+PR [#723](https://github.com/endojs/endo-but-for-bots/pull/723) currently
+implements the earlier single-plugin shape. It must be revised in its own PR
+to split `@endo/fetch` into the unconfined base adapter and
+`@endo/confined-fetch` into the stateful confined plugin, with tests for the
+explicit base-plus-directory endowment boundary. This design change does not
+modify #723.
 
 ## Prompt
 
-> Designer job on endojs/endo-but-for-bots: redraft the
-> `endoclaw-network-fetch` design (M3 "confined outbound HTTP"
-> exit-criterion capability, currently carrying a stale 2026-03-03
-> daemon-formula shape) as an `@endo` confined-fetch plugin aligned with
-> the just-landed `@endo/reminder` message-scheduler pattern (design PR
-> #682, implementation PR #721), so the outbound-HTTP capability follows
-> the maintainer's unconfined-plugin direction rather than the superseded
-> daemon-formula approach.
-
-The unconfined-plugin direction originates in the maintainer's review of
-PR [#609](https://github.com/endojs/endo-but-for-bots/pull/609)
-(2026-07-10), quoted in full in [endo-reminder](endo-reminder.md) § Prompt:
-"this particular feature does not particularly benefit from deep
-integration into the daemon and could be an unconfined plugin, using the
-virtual file system for durable tracking", with revival "handled out of
-band by a particular integration (like the Familiar app or online Gateway)
-with less coupling to the lowest parts."
+> Divide the capability into a base, unconfined plugin that provides
+> unfettered HTTP access and a confined plugin endowed with that base plus a
+> state directory.
