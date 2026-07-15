@@ -102,7 +102,7 @@ import {
 } from '@endo/agent-tools/mount-fs.js';
 ```
 
-## JSON tools (parked)
+## JSON Tool Records (parked)
 
 The retained JSON layer provides these makers:
 `makeTool`, `makeGitTool`, `makeGitHistoryTool`, `makeGitMountTools`,
