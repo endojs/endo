@@ -891,6 +891,52 @@ test.serial(
 );
 
 test.serial(
+  'EndoHost.provideGitClone attributes a formula-owned identity to clone commits',
+  async t => {
+    const { root } = await provisionGitContext(t);
+    const remoteRoot = await provisionBareRemote(t, root);
+    const remoteUrl = pathToFileURL(remoteRoot).href;
+    const { host } = await provisionHostContext(t);
+
+    const destMount = await E(host).provideScratchMount(
+      'clone-identity-destination',
+    );
+    const { git, remote } = await E(host).provideGitClone({
+      destMount,
+      endpoint: { url: remoteUrl, allowLocalFileTransport: true },
+      identity: { authorName: 'Ada Agent', authorEmail: 'ada@example.test' },
+    });
+
+    await E(destMount).writeText(['identity.txt'], 'clone identity\n');
+    const entry = await E(destMount).entry(['identity.txt']);
+    await E(git).add([entry]);
+    const commit = await E(git).commit('clone identity subject');
+    await E(remote).push({
+      source: 'refs/heads/main',
+      destination: 'refs/heads/main',
+    });
+
+    // Read the pushed commit back from the bare remote so the assertion does
+    // not depend on the host-private destination worktree path.
+    const { stdout } = await execFileAsync('git', [
+      '--git-dir',
+      remoteRoot,
+      'show',
+      '-s',
+      '--format=%an%x00%ae%x00%cn%x00%ce',
+      commit.oid,
+    ]);
+    t.is(
+      stdout.replace(/\n$/u, ''),
+      ['Ada Agent', 'ada@example.test', 'Ada Agent', 'ada@example.test'].join(
+        '\0',
+      ),
+      'the clone identity attributes both author and committer',
+    );
+  },
+);
+
+test.serial(
   'EndoHost.provideGitClone rejects read-only destination without mutation',
   async t => {
     const { root } = await provisionGitContext(t);

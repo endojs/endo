@@ -306,9 +306,22 @@ export const HostInterface = M.interface('EndoHost', {
       ),
     )
     .returns(M.promise()),
-  // Derive a local Git capability from an authorized mount.
+  // Derive a local Git capability from an authorized mount.  The optional
+  // `identity` pins the formula-owned, guest-immutable commit author/committer;
+  // omitted, commits default to `Endo <endo@invalid.local>`.
   provideGit: M.callWhen(M.remotable(), NameOrPathShape)
-    .optional(M.splitRecord({}, { allowHistoryRewrite: M.boolean() }))
+    .optional(
+      M.splitRecord(
+        {},
+        {
+          allowHistoryRewrite: M.boolean(),
+          identity: M.splitRecord(
+            { authorName: M.string(), authorEmail: M.string() },
+            { committerName: M.string(), committerEmail: M.string() },
+          ),
+        },
+      ),
+    )
     .returns(M.remotable('Git')),
   // Derive an allowlisted command-execution Shell from a writable mount.
   provideShell: M.callWhen(

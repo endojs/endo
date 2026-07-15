@@ -552,6 +552,282 @@ test('Git.commit can amend HEAD through the native backend', async t => {
   );
 });
 
+test('Git.commit attributes a formula-owned identity to author and committer', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({
+    repoRoot,
+    identity: { authorName: 'Ada Agent', authorEmail: 'ada@example.test' },
+  });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  await fs.promises.writeFile(path.join(repoRoot, 'identity.txt'), 'one\n');
+  const entry = await E(mount).entry(['identity.txt']);
+  await E(git).add([entry]);
+  const commit = await E(git).commit('identity subject');
+
+  const { stdout } = await execFileAsync(
+    'git',
+    ['show', '-s', '--format=%an%x00%ae%x00%cn%x00%ce', commit.oid],
+    { cwd: repoRoot },
+  );
+  t.is(
+    stdout.replace(/\n$/u, ''),
+    ['Ada Agent', 'ada@example.test', 'Ada Agent', 'ada@example.test'].join(
+      '\0',
+    ),
+    'the formula identity attributes both author and committer',
+  );
+});
+
+test('Git.commit honors a distinct committer when supplied', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({
+    repoRoot,
+    identity: {
+      authorName: 'Ada Agent',
+      authorEmail: 'ada@example.test',
+      committerName: 'Grace Committer',
+      committerEmail: 'grace@example.test',
+    },
+  });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  await fs.promises.writeFile(path.join(repoRoot, 'committer.txt'), 'one\n');
+  const entry = await E(mount).entry(['committer.txt']);
+  await E(git).add([entry]);
+  const commit = await E(git).commit('committer subject');
+
+  const { stdout } = await execFileAsync(
+    'git',
+    ['show', '-s', '--format=%an%x00%ae%x00%cn%x00%ce', commit.oid],
+    { cwd: repoRoot },
+  );
+  t.is(
+    stdout.replace(/\n$/u, ''),
+    [
+      'Ada Agent',
+      'ada@example.test',
+      'Grace Committer',
+      'grace@example.test',
+    ].join('\0'),
+    'the author keeps the author identity while the committer is distinct',
+  );
+});
+
+test('Git.commit defaults to the Endo identity when none is supplied', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  await fs.promises.writeFile(path.join(repoRoot, 'default.txt'), 'one\n');
+  const entry = await E(mount).entry(['default.txt']);
+  await E(git).add([entry]);
+  const commit = await E(git).commit('default subject');
+
+  const { stdout } = await execFileAsync(
+    'git',
+    ['show', '-s', '--format=%an%x00%ae%x00%cn%x00%ce', commit.oid],
+    { cwd: repoRoot },
+  );
+  t.is(
+    stdout.replace(/\n$/u, ''),
+    ['Endo', 'endo@invalid.local', 'Endo', 'endo@invalid.local'].join('\0'),
+    'omitting the identity retains the hardcoded backend default',
+  );
+});
+
+test('Git.reword preserves the original author while attributing the committer to the identity', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({
+    repoRoot,
+    identity: { authorName: 'Ada Agent', authorEmail: 'ada@example.test' },
+  });
+  const git = makeGit(
+    { mount, backend, lineageOf },
+    { allowHistoryRewrite: true },
+  );
+
+  // Author the target commit as neither the backend default nor the formula
+  // identity, so the readback distinguishes author-preservation from
+  // re-attribution.
+  await execFileAsync(
+    'git',
+    ['commit', '--allow-empty', '-m', 'raw author subject'],
+    {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: 'Raw Author',
+        GIT_AUTHOR_EMAIL: 'raw@example.test',
+        GIT_COMMITTER_NAME: 'Raw Author',
+        GIT_COMMITTER_EMAIL: 'raw@example.test',
+      },
+    },
+  );
+  const { stdout: headOid } = await execFileAsync(
+    'git',
+    ['rev-parse', 'HEAD'],
+    {
+      cwd: repoRoot,
+    },
+  );
+
+  const reworded = await E(git).reword(headOid.trim(), 'reworded subject');
+  const { stdout } = await execFileAsync(
+    'git',
+    ['show', '-s', '--format=%an%x00%ae%x00%cn%x00%ce', reworded.oid],
+    { cwd: repoRoot },
+  );
+  const [authorName, authorEmail, committerName, committerEmail] = stdout
+    .replace(/\n$/u, '')
+    .split('\0');
+  t.is(authorName, 'Raw Author', 'reword preserves the original commit author');
+  t.is(authorEmail, 'raw@example.test');
+  t.is(
+    committerName,
+    'Ada Agent',
+    'the committer is re-attributed to the formula identity',
+  );
+  t.is(committerEmail, 'ada@example.test');
+});
+
+test('makeNativeGitBackend rejects a malformed commit identity', async t => {
+  const repoRoot = await provisionGitWorktree(t);
+  t.throws(
+    () =>
+      makeNativeGitBackend({
+        repoRoot,
+        identity: /** @type {any} */ ({ authorName: 'Ada Agent' }),
+      }),
+    { message: /authorEmail must be a non-empty string/ },
+  );
+  t.throws(
+    () =>
+      makeNativeGitBackend({
+        repoRoot,
+        identity: /** @type {any} */ ({
+          authorName: '',
+          authorEmail: 'ada@example.test',
+        }),
+      }),
+    { message: /authorName must be a non-empty string/ },
+  );
+});
+
+test('commitIdentityEnvOverrides rejects blank and control-character identities', t => {
+  const { commitIdentityEnvOverrides } = internalHelpers;
+
+  // A whitespace-only field passes a bare non-empty check but git reduces it to
+  // an empty ident and aborts every commit, so it must be rejected here to keep
+  // the option strictly additive.
+  t.throws(
+    () =>
+      commitIdentityEnvOverrides(
+        /** @type {any} */ ({
+          authorName: '   ',
+          authorEmail: 'ada@example.test',
+        }),
+      ),
+    { message: /authorName must not be blank/ },
+  );
+
+  // Control characters (newline, carriage return, NUL) corrupt or truncate the
+  // author/committer line; reject them rather than let git silently mangle them.
+  for (const bad of ['Ada\nAgent', 'Ada\rAgent', 'Ada\0Agent']) {
+    t.throws(
+      () =>
+        commitIdentityEnvOverrides(
+          /** @type {any} */ ({
+            authorName: bad,
+            authorEmail: 'ada@example.test',
+          }),
+        ),
+      { message: /authorName must not contain control characters/ },
+    );
+  }
+  t.throws(
+    () =>
+      commitIdentityEnvOverrides(
+        /** @type {any} */ ({
+          authorName: 'Ada Agent',
+          authorEmail: 'ada@\texample.test',
+        }),
+      ),
+    { message: /authorEmail must not contain control characters/ },
+  );
+
+  // An explicit committer field is validated like the author fields: a blank
+  // or control-character committer is rejected rather than silently mangled.
+  t.throws(
+    () =>
+      commitIdentityEnvOverrides(
+        /** @type {any} */ ({
+          authorName: 'Ada Agent',
+          authorEmail: 'ada@example.test',
+          committerName: '   ',
+        }),
+      ),
+    { message: /committerName must not be blank/ },
+  );
+
+  // A well-formed identity projects onto all four author/committer env vars,
+  // and an absent identity yields no overrides (the additive default).  With no
+  // committer supplied, the committer defaults to the author.
+  t.deepEqual(
+    commitIdentityEnvOverrides({
+      authorName: 'Ada Agent',
+      authorEmail: 'ada@example.test',
+    }),
+    {
+      GIT_AUTHOR_NAME: 'Ada Agent',
+      GIT_AUTHOR_EMAIL: 'ada@example.test',
+      GIT_COMMITTER_NAME: 'Ada Agent',
+      GIT_COMMITTER_EMAIL: 'ada@example.test',
+    },
+  );
+  t.deepEqual(commitIdentityEnvOverrides(undefined), {});
+
+  // An explicit committer overrides only the committer env vars; the author
+  // env vars stay attributed to the author fields.
+  t.deepEqual(
+    commitIdentityEnvOverrides({
+      authorName: 'Ada Agent',
+      authorEmail: 'ada@example.test',
+      committerName: 'Grace Committer',
+      committerEmail: 'grace@example.test',
+    }),
+    {
+      GIT_AUTHOR_NAME: 'Ada Agent',
+      GIT_AUTHOR_EMAIL: 'ada@example.test',
+      GIT_COMMITTER_NAME: 'Grace Committer',
+      GIT_COMMITTER_EMAIL: 'grace@example.test',
+    },
+  );
+
+  // Surrounding whitespace is not blank: git trims the ident and accepts it, so
+  // a padded-but-non-blank field is preserved verbatim rather than rejected.
+  t.deepEqual(
+    commitIdentityEnvOverrides({
+      authorName: ' Ada Agent ',
+      authorEmail: ' ada@example.test ',
+    }),
+    {
+      GIT_AUTHOR_NAME: ' Ada Agent ',
+      GIT_AUTHOR_EMAIL: ' ada@example.test ',
+      GIT_COMMITTER_NAME: ' Ada Agent ',
+      GIT_COMMITTER_EMAIL: ' ada@example.test ',
+    },
+  );
+});
+
 test('Git.commit amend refreshes identity after rewriting the root commit', async t => {
   const repoRoot = await provisionGitWorktree(t);
   const filePowers = makeFilePowers({ fs, path });

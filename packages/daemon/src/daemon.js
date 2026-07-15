@@ -3032,7 +3032,10 @@ const makeDaemonCore = async (
       });
       return mount;
     },
-    git: async ({ mountId, allowHistoryRewrite = false }, context) => {
+    git: async (
+      { mountId, allowHistoryRewrite = false, identity },
+      context,
+    ) => {
       context.thisDiesIfThatDies(mountId);
       const mount = await provide(mountId);
       const backing = getMountBacking(mount);
@@ -3059,6 +3062,7 @@ const makeDaemonCore = async (
       }
       const backend = makeNativeGitBackend({
         repoRoot: backing.physicalRoot,
+        identity,
       });
       await backend.assertRepositoryRoot();
       return makeGit(
@@ -4355,7 +4359,12 @@ const makeDaemonCore = async (
   };
 
   /** @type {DaemonCore['formulateGit']} */
-  const formulateGit = async (mountId, allowHistoryRewrite, deferredTasks) => {
+  const formulateGit = async (
+    mountId,
+    allowHistoryRewrite,
+    identity,
+    deferredTasks,
+  ) => {
     return /** @type {FormulateResult<EndoGit>} */ (
       withFormulaGraphLock(async () => {
         await null;
@@ -4375,6 +4384,7 @@ const makeDaemonCore = async (
           type: 'git',
           mountId,
           ...(allowHistoryRewrite && { allowHistoryRewrite: true }),
+          ...(identity && { identity }),
         });
 
         return formulate(formulaNumber, formula);
