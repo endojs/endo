@@ -1,7 +1,7 @@
 // @ts-check
-// Unit tests for the Node reference registry backend
-// (packages/daemon/src/registry-node.js), focused on the fail-closed
-// integrity check: a published-but-unverifiable integrity (malformed SRI, or
+// Unit tests for the Node registry powers and user-mode backend
+// (packages/daemon/src/registry-node-powers.js and registry-user.js), focused
+// on the fail-closed integrity check: a published-but-unverifiable integrity (malformed SRI, or
 // an algorithm the backend cannot compute) must reject as tampered rather
 // than silently accept the tarball.  A fake fetch injects crafted packument +
 // tarball responses so no network is touched.  See

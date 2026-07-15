@@ -1,20 +1,18 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
-/* global Buffer */
-
 /**
- * The Node.js reference backend for the `EndoRegistry` capability.
+ * The user-mode fallback backend for the `EndoRegistry` capability.
  *
  * It reads npm packument metadata and package tarballs over HTTP from the
  * configured registry, verifies each tarball against the registry's
  * published `dist.integrity`, and checks the tarball contents into the
- * daemon content store as a `readable-tree` capability.  This is the default
- * backend that ships with the Node-only daemon; the eventual Rust-hosted
- * daemon substitutes a drop-in backend behind the same
+ * daemon content store as a `readable-tree` capability. This is the default
+ * backend that ships with the Node daemon; a platform-native daemon can
+ * substitute a backend behind the same
  * `RegistryBackend` shape (see designs/registry-capability.md § Two
  * backends, one shape).
  *
- * Node-specific operations are supplied as powers by
+ * Platform-specific operations are supplied as powers by
  * `registry-node-powers.js`. The constructor performs no I/O, so
  * incarnating the `@registry` slot never blocks daemon start.
  *
@@ -22,6 +20,8 @@
  */
 
 import { makeError, q, X } from '@endo/errors';
+import { encodeBase64 } from '@endo/base64';
+import { decodeHex } from '@endo/hex';
 import { bytesFromText } from '@endo/bytes/from-string.js';
 import { readTarEntries, tarPathSegments } from '@endo/tar/reader.js';
 import { makeRegistryMissingPackageError } from './registry.js';
@@ -232,7 +232,7 @@ export const makeRegistryBackend = ({
         typeof dist.integrity === 'string'
           ? dist.integrity
           : typeof dist.shasum === 'string'
-            ? `sha1-${Buffer.from(dist.shasum, 'hex').toString('base64')}`
+            ? `sha1-${encodeBase64(decodeHex(dist.shasum))}`
             : '';
       await verifyIntegrity(gz, integrity, `${name}@${version}`);
       const tar = await gunzip(gz);

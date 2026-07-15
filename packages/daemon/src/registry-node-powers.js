@@ -5,9 +5,9 @@
  * ambient fetch at this perimeter lets the daemon core remain platform-neutral.
  */
 
-import { makeError, q, X } from '@endo/errors';
+import { q, X } from '@endo/errors';
 import { makeRegistryTamperedError } from './registry.js';
-import { makeRegistryBackend } from './registry-node.js';
+import { makeRegistryBackend } from './registry-user.js';
 
 /**
  * @param {{
@@ -61,29 +61,4 @@ export const makeRegistryNodePowers = ({
   });
 };
 
-/**
- * The web daemon retains the registry shape but has no transport.
- * @param {string} [registryUrl]
- */
-export const makeRegistryStubPowers = (
-  registryUrl = 'https://registry.npmjs.org',
-) => {
-  const unavailable = () => {
-    throw makeError(
-      X`registry: no registry transport is available on this platform`,
-    );
-  };
-  return harden({
-    registryUrl,
-    makeRegistryBackend: powers =>
-      makeRegistryBackend({
-        ...powers,
-        fetch: unavailable,
-        gunzip: unavailable,
-        verifyIntegrity: unavailable,
-      }),
-  });
-};
-
 harden(makeRegistryNodePowers);
-harden(makeRegistryStubPowers);

@@ -46,9 +46,9 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { mapWriter, mapReader, makePipe } from '@endo/stream';
 import { bytesFromText } from '@endo/bytes/from-string.js';
 import { bytesToText } from '@endo/bytes/to-string.js';
+import { makeError, X } from '@endo/errors';
 
 import { makeDaemon } from './manager.js';
-import { makeRegistryStubPowers } from './registry-node-powers.js';
 import { makeDaemonicPersistencePowers } from './manager-persistence-powers.js';
 import { makeDaemonDatabase } from './manager-database.js';
 import XsDatabase from './better-sqlite3-xs.js';
@@ -643,6 +643,23 @@ let shouldTerminate = false;
 /** @type {Awaited<ReturnType<typeof import('./manager.js').makeDaemon>> | null} */
 let _daemonResult = null;
 
+const makeRegistryUnavailablePowers = registryUrl => {
+  const unavailable = () => {
+    throw makeError(
+      X`registry: no registry transport is available on this platform`,
+    );
+  };
+  return harden({
+    registryUrl,
+    makeRegistryBackend: () => ({
+      fetchVersions: unavailable,
+      provideTree: unavailable,
+      readPackageJson: unavailable,
+      sha256Hex: unavailable,
+    }),
+  });
+};
+
 const main = async () => {
   const daemonLabel = `daemon[xs] on PID ${pid}`;
   hostTrace(`Endo daemon (xs) starting on PID ${pid}`);
@@ -670,7 +687,7 @@ const main = async () => {
     persistence: daemonicPersistencePowers,
     control: controlPowers,
     filePowers,
-    registry: makeRegistryStubPowers(config.registryUrl),
+    registry: makeRegistryUnavailablePowers(config.registryUrl),
   });
 
   const gcEnabled = hostGetEnv('ENDO_GC') === '1';
