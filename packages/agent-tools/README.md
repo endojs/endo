@@ -1,9 +1,19 @@
 # `@endo/agent-tools`
 
-Provider-independent tool surfaces over Endo capabilities such as Git,
-filesystem, shell, and HTTP.
-Code mode is the primary agent surface: it lets a model compose operations
-against the capabilities it has been given.
+`@endo/agent-tools` is the reusable tool and adapter layer over Endo
+capabilities such as Git, filesystem, shell, and HTTP.
+It is not a complete user-facing harness or interactive CLI.
+
+The reusable layer owns the `ToolRecord` machinery, the code-mode/evaluate
+tool machinery, capability declarations, result-rendering bridges, and
+scoped provider adapters.
+The existing `./pi` adapter is one such bridge; a scoped `./mcp` adapter is
+planned.
+
+`@endo/agentry` is separate harness assembly: it is the complete Pi harness
+today and the eventual packaged interactive CLI.
+An external MCP server is a separate consumer of `@endo/agent-tools`, not a
+part of `@endo/agentry`.
 
 ## Code mode
 
@@ -27,7 +37,7 @@ before it writes code.
 The declarations describe the methods available through each granted
 capability, while the capability itself remains the authority boundary.
 
-The pi adapter is today's harness bridge.
+The pi adapter is today's provider bridge.
 `toPiAgentTool` converts a provider-independent tool record into the
 `pi-agent-core` `AgentTool` shape and lets the caller supply its result
 renderer.
@@ -35,10 +45,10 @@ renderer.
 The code-mode implementation currently lives in `@endo/agentry` as the
 `execute({ source, resultName? })` tool and its hosts, globals, and generated
 declarations.
-Relocation into `@endo/agent-tools` is planned; the target tool name is
-`evaluate`.
-`@endo/agentry` will remain responsible for harness assembly, including model
-and credential resolution and final prompt assembly.
+Relocation into the reusable `@endo/agent-tools` layer is planned; the target
+tool name is `evaluate`.
+`@endo/agentry` remains responsible for harness assembly, including model and
+credential resolution, Pi execution, and final prompt assembly.
 
 ## Planned layout
 
@@ -49,7 +59,7 @@ The following layout lands with the relocation work:
 | `src/json-tools/` | Parked JSON wrappers for Git, mounts, filesystem, shell, and HTTP. |
 | `src/code-mode/` | The `evaluate` tool, the in-process Compartment host, the daemon host, and declaration rendering. |
 | `src/code-mode-globals/` | Per-capability global descriptors; the growth surface for Git, filesystem, HTTP, timer, and more. |
-| `src/adapters/` | Provider bridges, with pi today and MCP, Codex, and Claude Code planned. |
+| `src/adapters/` | Scoped provider bridges, with pi today and MCP, Codex, and Claude Code planned. |
 | `generated/code-mode-globals/` | Checked-in generated declaration artifacts. |
 
 The in-process Compartment host evaluates code without daemon, credential, or
@@ -84,7 +94,7 @@ import type { ToolRecord, ToolSpec } from '@endo/agent-tools';
 ```
 
 The documented subpaths expose the same makers by capability family, plus the
-pi adapter:
+scoped pi adapter:
 
 ```js
 import { toPiAgentTool } from '@endo/agent-tools/pi';
@@ -102,6 +112,11 @@ import {
 } from '@endo/agent-tools/mount-fs.js';
 ```
 
+The Pi packages remain optional peer dependencies.
+Importing the root or a non-Pi subpath does not opt a consumer into a Pi
+provider.
+Import `@endo/agent-tools/pi` only for the Pi bridge.
+
 ## JSON Tool Records (parked)
 
 The retained JSON layer provides these makers:
@@ -112,8 +127,12 @@ These wrappers remain available for hosts that need one JSON call per action,
 but this layer is not being expanded; code mode is the direction for composing
 multiple capability operations.
 
-A tool record has a JSON-schema `parameters` object, the same schema as
-`inputSchema`, and an `invoke(args)` function:
+A local `ToolRecord` has `name`, `description`, a JSON-schema `parameters`
+object, the same schema as `inputSchema`, and an `invoke(args)` function.
+Its completion value is arbitrary; the local surface has no `outputSchema`
+contract.
+This is a local record shape, not the complete MCP `Tool` metadata and result
+contract.
 
 ```ts
 interface ToolRecord {
@@ -125,9 +144,64 @@ interface ToolRecord {
 }
 ```
 
-`parameters` is the LLM tool schema and `inputSchema` is the MCP tool schema.
-`invoke` validates the named JSON arguments against the configured guards,
-then dispatches to the capability.
+`parameters` is the local LLM-facing schema name and `inputSchema` is the local
+MCP-adjacent schema name.
+The current record does not advertise MCP metadata or output behavior.
+`invoke` validates the named JSON arguments against the configured guards, then
+dispatches to the capability and may return any completion value.
+
+The existing `toPiAgentTool` bridge maps a `ToolRecord` to a pi `AgentTool`.
+It invokes the record, currently renders one text result for Pi, and retains
+the raw completion value as `details`.
+A caller can provide a renderer for its own transcript format.
+
+## MCP adapter boundary (planned)
+
+The reference point for a future MCP adapter is the stable
+[MCP 2025-11-25 tools specification](https://modelcontextprotocol.io/specification/2025-11-25/server/tools),
+alongside its [schema reference](https://modelcontextprotocol.io/specification/2025-11-25/schema)
+and [JSON Schema 2020-12 default-dialect SEP](https://modelcontextprotocol.io/seps/1613-establish-json-schema-2020-12-as-default-dialect-f).
+This package does not implement that MCP adapter yet.
+
+### MCP's protocol surface
+
+An MCP tool definition includes `name`, optional `title`, `description`,
+optional `icons`, required `inputSchema`, optional `outputSchema`, optional
+`annotations`, and optional `execution.taskSupport`.
+Discovery and invocation are protocol operations: `tools/list` and
+`tools/call`.
+`tools/list` supports pagination, and a server may advertise `listChanged` and
+send `notifications/tools/list_changed` when its tool catalog changes.
+
+An MCP `CallToolResult` has a `content` array of rich content blocks, such as
+text, images, audio, resource links, and embedded resources.
+It may also carry JSON `structuredContent`.
+When `outputSchema` is present, the server must produce structured content that
+conforms to it and the client should validate it.
+For backward compatibility, a structured result should also include its
+serialized JSON in a text content block.
+
+MCP distinguishes JSON-RPC protocol errors from tool execution errors.
+Protocol problems such as an unknown tool or malformed request use the JSON-RPC
+error response, while a failure from the tool itself is reported in a result
+with `isError: true`.
+
+### Current gaps and intended ownership
+
+The following are MCP-facing capabilities for a future adapter or server, not
+properties supplied by the current `ToolRecord` or Pi adapter:
+
+| MCP-facing capability | Status in `@endo/agent-tools` |
+|---|---|
+| Advertise and validate `outputSchema`. | Planned; not implemented. |
+| Map arbitrary completions to `structuredContent` and rich content blocks, including the backward-compatible JSON text block. | Planned; not implemented. |
+| Carry MCP metadata such as `annotations`, `title`, and `icons`. | Planned; not implemented. |
+| Implement MCP discovery, lifecycle, pagination, and `tools/list_changed` notifications. | Planned for an MCP adapter/server; not implemented. |
+| Represent task-augmented execution through `execution.taskSupport`. | Not represented by the current `ToolRecord` or Pi adapter; planned for the eventual MCP adapter if supported. |
+| Provide MCP transport, JSON-RPC, session, or authorization behavior. | Owned by the external MCP server/transport layer; not part of the provider-independent `ToolRecord`. |
+
+Until that adapter exists, `inputSchema` on a local record should not be read as
+an assertion that the package supplies the rest of the MCP tool contract.
 
 ### Named arguments
 
@@ -162,9 +236,9 @@ calling `execute`.
 
 `makeGitTool(gitCap)` builds records over a live `@endo/exo-git` `Git`
 capability.
-Its standard records cover `log`, `diff`, `show`, `commit`, `branches`,
+Its default records cover `log`, `diff`, `show`, `commit`, `branches`,
 `createBranch`, `switchBranch`, and `currentBranch`.
-The standard `commit` record creates a commit and does not accept
+The default `commit` record creates a commit and does not accept
 `options.amend`.
 
 `makeGitHistoryTool(gitCap)` is the separate history-rewrite set.
