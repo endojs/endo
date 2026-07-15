@@ -120,7 +120,13 @@ const PLATFORM_FILE_METHODS = [
 ];
 
 /** Method names the platform `ReadableTree` contract requires. */
-const PLATFORM_READABLE_TREE_METHODS = ['has', 'list', 'lookup', 'help'];
+const PLATFORM_READABLE_TREE_METHODS = [
+  'has',
+  'list',
+  'listTree',
+  'lookup',
+  'help',
+];
 
 /**
  * Method names the rich `ReadableBlob` view exposes: the whole-value surface
@@ -289,6 +295,27 @@ test('EndoMount.entry accepts slash-joined string selectors', async t => {
   t.is(await E(mount).readText(['a', 'c.txt']), 'via-entry');
 });
 
+test('EndoMount.readOnly listTree recursively lists a sub-tree', async t => {
+  const { mount } = makeConfiguredMount(t);
+  await E(mount).writeText(['top.txt'], 'top');
+  await E(mount).makeDirectory(['sub']);
+  await E(mount).writeText(['sub', 'leaf.txt'], 'leaf');
+  await E(mount).makeDirectory(['sub', 'nested']);
+  await E(mount).writeText(['sub', 'nested', 'deep.txt'], 'deep');
+
+  const view = await E(mount).readOnly();
+  t.deepEqual(await E(view).listTree([]), [
+    { path: ['sub'], type: 'directory' },
+    { path: ['sub', 'leaf.txt'], type: 'file' },
+    { path: ['sub', 'nested'], type: 'directory' },
+    { path: ['sub', 'nested', 'deep.txt'], type: 'file' },
+    { path: ['top.txt'], type: 'file' },
+  ]);
+  t.deepEqual(await E(view).listTree('sub', { ignore: ['nested'] }), [
+    { path: ['leaf.txt'], type: 'file' },
+  ]);
+});
+
 test('EndoMount.write accepts a ReadableBlob and materializes bytes', async t => {
   const { mount, rootPath } = makeConfiguredMount(t);
   // A PassableBytesReader (the new-protocol blob shape).  mount.write
@@ -323,6 +350,9 @@ test('EndoMount.write accepts a ReadableTree and materializes recursively', asyn
     async list() {
       return harden(['a.txt', 'b']);
     },
+    async listTree() {
+      return harden([]);
+    },
     async lookup(pathArg) {
       const segments = typeof pathArg === 'string' ? [pathArg] : pathArg;
       if (segments.length === 1 && segments[0] === 'a.txt') {
@@ -337,6 +367,9 @@ test('EndoMount.write accepts a ReadableTree and materializes recursively', asyn
           },
           async list() {
             return harden(['c.txt']);
+          },
+          async listTree() {
+            return harden([]);
           },
           async lookup(innerArg) {
             const innerSegments =
@@ -375,6 +408,9 @@ test('EndoMount.write rejects traversal-like ReadableTree child names', async t 
       },
       async list() {
         return harden([name]);
+      },
+      async listTree() {
+        return harden([]);
       },
       async lookup() {
         return blob;
