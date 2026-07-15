@@ -2,26 +2,10 @@
 
 Provider-independent agent tool records for Endo capabilities.
 
-This package is active: it takes host capabilities, including git and
-filesystem capabilities (with more to come), and exposes them to code-mode
-setup.
-It also exports agent-compatible tool surfaces.
-`execute({ source })` is itself a pi-compatible tool, and the package will
-likely export other compatible surfaces, including MCP surfaces.
-
-The discrete JSON tool-call interface is built and kept, but parked rather
-than being actively expanded.
-It consists of per-capability wrappers such as `makeTool`, `makeGitTool`, and
-`makeMountReadTool` that an LLM drives by emitting one JSON call per action.
-The hard sub-problem of live capabilities crossing that JSON tool-call
-boundary as arguments and results is part of the parked scope; see
-[endojs/endo-but-for-bots#731](https://github.com/endojs/endo-but-for-bots/issues/731).
-
-Each JSON tool record pairs a JSON Schema with an `invoke(args)` function that
-validates the named arguments before dispatching to a capability.
-
-Code mode is the primary agent surface: an agent uses one `execute({ source })`
-tool to write confined JavaScript against petname-bound capability globals.
+The package helps adapters expose Endo capabilities to LLM or MCP-style tool
+callers without giving those callers ambient authority. Each tool record pairs
+a JSON Schema with an `invoke(args)` function that validates the named
+arguments before dispatching to a capability.
 
 ## Exports
 
