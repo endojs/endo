@@ -14,6 +14,12 @@ Preserve the feature note and the integration note.
 Leave the branch rebased, with a clean working tree.`;
 harden(conflictRebasePrompt);
 
+/** Repo-relative path to this scenario's reference solution. */
+const referenceSourcePath =
+  'packages/agentry/src/eval/scenarios/conflict-rebase/reference.js';
+/** Named export in {@link referenceSourcePath} holding the reference solution. */
+const referenceSourceExport = 'conflictRebaseSource';
+
 /**
  * A git code-mode scenario for a rebase that must stop for a content conflict,
  * resolve it deliberately, then continue replaying the remaining clean commit.
@@ -47,6 +53,8 @@ export const makeConflictRebaseScenario = ({
     name: 'conflict-rebase',
     expected,
     prompt: conflictRebasePrompt,
+    referenceSourcePath,
+    referenceSourceExport,
     assertOutcome: ({ git, readText }) =>
       assertGitConflictRebaseOutcome({ git, readText, expected }),
   });

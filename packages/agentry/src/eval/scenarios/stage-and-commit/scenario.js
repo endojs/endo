@@ -6,6 +6,12 @@
 
 import { assertGitCommitOutcome } from './outcome.js';
 
+/** Repo-relative path to this scenario's reference solution. */
+const referenceSourcePath =
+  'packages/agentry/src/eval/scenarios/stage-and-commit/reference.js';
+/** Named export in {@link referenceSourcePath} holding the reference solution. */
+const referenceSourceExport = 'stageAndCommitSource';
+
 /**
  * The minimal-success git code-mode scenario: an untracked file already exists
  * in the working tree; the agent must stage it and commit it with a given
@@ -34,6 +40,8 @@ export const makeStageAndCommitScenario = ({
     name: 'stage-and-commit',
     expected,
     prompt: `The file ${path} already exists in the working tree but git is not yet tracking it. Stage ${path} and commit it. Use exactly this commit message: ${message}`,
+    referenceSourcePath,
+    referenceSourceExport,
     assertOutcome: ({ git, readText }) =>
       assertGitCommitOutcome({ git, readText, expected }),
   });

@@ -24,6 +24,7 @@ import {
   assertGitConflictRebaseOutcome,
   summariesMatch,
 } from '../../src/eval/scenarios/conflict-rebase/outcome.js';
+import { conflictRebaseSource } from '../../src/eval/scenarios/conflict-rebase/reference.js';
 import { readText } from '../_eval-fixture.js';
 import {
   appIntegrationText,
@@ -111,42 +112,6 @@ test('scenario retains only the declared conflict-rebase target', async t => {
  */
 const gitRunner = repoRoot => args =>
   execFileAsync('git', args, { cwd: repoRoot });
-
-/**
- * @param {string} featureBranch
- * @param {string} upstream
- * @param {string} resolvedText
- * @returns {string}
- */
-const conflictRebaseSource = (featureBranch, upstream, resolvedText) => `\
-(async () => {
-  const current = await E(git).currentBranch();
-  if (current?.name !== ${JSON.stringify(featureBranch)}) {
-    throw new Error('not on the feature branch');
-  }
-  try {
-    await E(git).rebase({ mode: 'start', upstream: ${JSON.stringify(upstream)} });
-    // Rebase succeeded without stopping for a conflict.
-  } catch (err) {
-    const rows = await E(git).status();
-    const conflict = rows.find(
-      row => row.path === 'app.txt' && row.worktree === 'conflicted',
-    );
-    if (conflict === undefined) {
-      throw err;
-    }
-    // Rebase left app.txt conflicted; resolve that entry before continuing.
-  }
-  const root = await E(workspace).root();
-  await E(root).write('app.txt', ${JSON.stringify(resolvedText)});
-  const rows = await E(git).status();
-  const app = rows.find(row => row.path === 'app.txt');
-  if (app === undefined) {
-    throw new Error('app.txt was not present in conflicted status');
-  }
-  await E(git).add([app.entry]);
-  await E(git).rebase({ mode: 'continue' });
-})()`;
 
 test('fixture captures the conflict resolution patch and clean replay patch', async t => {
   const repo = await provisionConflictRebaseRepo(t);

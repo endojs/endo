@@ -79,6 +79,27 @@ const liveTest = live ? test : test.skip;
 const artifactDir = env.ENDO_EVAL_ARTIFACT_DIR;
 
 /**
+ * The git and filesystem tools already cap ordinary text output at 50,000
+ * characters, and the built model defaults to an 8,192-token completion budget.
+ * Keep the same 50,000-character ceiling for each captured text field.
+ * This prevents a normal tool result or model response from being truncated
+ * twice, while still bounding an event source that bypasses those tool-level
+ * limits.
+ * This is a per-field ceiling, not a cap on the artifact files as a whole.
+ */
+const MAX_CAPTURED_TEXT_CHARS = 50_000;
+
+// XXX: Research and adopt an established redaction library that works with
+// this package's portable runtime before this convenience capture is reused as
+// a general artifact-redaction mechanism.
+// The matcher below only covers a small set of credential-shaped strings and is
+// intentionally temporary.
+
+/**
+ * Redact credential-shaped substrings and cap length.
+ * Every captured transcript string flows through this, regardless of source,
+ * so a credential never reaches a durable artifact.
+ *
  * @param {unknown} value
  * @returns {string}
  */
@@ -89,7 +110,28 @@ const safeText = value =>
       /(api[_-]?key|auth[_-]?token|access[_-]?token)\s*[:=]\s*[^\s]+/gi,
       '$1=[redacted]',
     )
-    .slice(0, 4000);
+    .slice(0, MAX_CAPTURED_TEXT_CHARS);
+
+/**
+ * Join the `text`-typed parts of a message or tool-result content array into
+ * one string, or pass through a plain string content.
+ * Non-text parts (thinking, tool calls, images) are dropped.
+ *
+ * @param {unknown} content
+ * @returns {string}
+ */
+const joinTextParts = content => {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return '';
+  }
+  return content
+    .map(part => (part && part.type === 'text' ? part.text : undefined))
+    .filter(part => typeof part === 'string')
+    .join('\n');
+};
 
 /**
  * @param {string} fileName
@@ -106,8 +148,16 @@ const appendArtifact = (fileName, record) => {
 };
 
 /**
- * Keep event artifacts useful without copying prompts, generated code, or
- * capability-bearing result details into durable host state.
+ * Render one agent event into a transcript-grade artifact record.
+ *
+ * Maintainer decision (2026-07-14): event artifacts deliberately capture
+ * bounded, redacted transcript content, superseding the earlier "no prompts,
+ * no generated code" stance, so a downstream reporter can render one
+ * attributable transcript per scenario run: assistant message text, the
+ * source submitted to the `execute` tool, and tool results.
+ * Every captured string flows through `safeText`.
+ * It redacts credential-shaped substrings and caps length, but is not
+ * production-grade redaction.
  *
  * @param {unknown} event
  * @returns {Record<string, unknown>}
@@ -122,6 +172,7 @@ const summarizeEvent = event => {
         ...record,
         role: message.role,
         stopReason: message.stopReason,
+        text: safeText(joinTextParts(message.content)),
         errorMessage:
           message.errorMessage === undefined
             ? undefined
@@ -145,25 +196,21 @@ const summarizeEvent = event => {
         ...record,
         toolCallId: value.toolCallId,
         toolName: value.toolName,
+        ...(value.toolName === 'execute'
+          ? { source: safeText(value.args?.source) }
+          : { input: safeText(JSON.stringify(value.args)) }),
       };
-    case 'tool_execution_end':
+    case 'tool_execution_end': {
+      const resultText = joinTextParts(value.result?.content);
       return {
         ...record,
         toolCallId: value.toolCallId,
         toolName: value.toolName,
         isError: value.isError,
-        errorText: value.isError
-          ? safeText(
-              value.result?.content
-                ?.map(part => {
-                  const { text } = /** @type {{ text?: unknown }} */ (part);
-                  return text;
-                })
-                .filter(Boolean)
-                .join('\n'),
-            )
-          : undefined,
+        errorText: value.isError ? safeText(resultText) : undefined,
+        resultText: value.isError ? undefined : safeText(resultText),
       };
+    }
     case 'turn_end':
       return {
         ...record,
@@ -180,11 +227,6 @@ const summarizeEvent = event => {
   }
 };
 
-const onEvent =
-  artifactDir === undefined
-    ? undefined
-    : event => appendArtifact('events.jsonl', summarizeEvent(event));
-
 /**
  * @param {object} args
  * @param {any} args.model
@@ -197,6 +239,8 @@ const appendScenarioResult = ({ model, scenario, result, error }) => {
   appendArtifact('results.jsonl', {
     scenario: scenario.name,
     model: model.id,
+    referenceSourcePath: scenario.referenceSourcePath,
+    referenceSourceExport: scenario.referenceSourceExport,
     status:
       error === undefined
         ? result.outcome.pass
@@ -215,6 +259,17 @@ for (const row of evalRows) {
     const { model, getApiKey } = /** @type {NonNullable<typeof live>} */ (live);
     const repo = await row.provisionRepo(t);
     const scenario = row.makeScenario(repo);
+    // AVA runs eval rows concurrently within one artifact directory, so every
+    // event must be self-attributing rather than relying on file-level isolation.
+    const onEvent =
+      artifactDir === undefined
+        ? undefined
+        : event =>
+            appendArtifact('events.jsonl', {
+              scenario: scenario.name,
+              model: model.id,
+              ...summarizeEvent(event),
+            });
 
     let result;
     try {

@@ -19,6 +19,7 @@ import {
   runGitScenario,
 } from '../../src/eval/index.js';
 import { makeStageAndCommitScenario } from '../../src/eval/scenarios/stage-and-commit/index.js';
+import { stageAndCommitSource } from '../../src/eval/scenarios/stage-and-commit/reference.js';
 import { readText } from '../_eval-fixture.js';
 import { provisionStageAndCommitRepo } from './_stage-and-commit-repo.js';
 
@@ -83,28 +84,6 @@ const fauxModel = (t, responses) => {
   t.teardown(() => registration.unregister());
   return registration.getModel();
 };
-
-/**
- * Source the faux model "writes" into a single execute call: find the target
- * path's status row, stage it, and commit with `message`. This is the reference
- * solution a competent code-mode agent would converge on; the live eval scores
- * a real model against the same outcome.
- *
- * @param {string} filePath
- * @param {string} message
- * @returns {string}
- */
-const stageAndCommitSource = (filePath, message) => `\
-(async () => {
-  const rows = await E(git).status();
-  const row = rows.find(candidate => candidate.path === ${JSON.stringify(filePath)});
-  if (row === undefined) {
-    throw new Error('target path not found in git status');
-  }
-  await E(git).add([row.entry]);
-  const commit = await E(git).commit(${JSON.stringify(message)});
-  return commit.summary;
-})()`;
 
 /**
  * A faux-model source that overwrites the target path with the WRONG bytes

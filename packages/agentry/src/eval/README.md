@@ -40,11 +40,15 @@ Every `runGitScenario` result includes `metrics` alongside `outcome`.
 The metrics record summed provider token usage, including reasoning tokens when reported, total provider cost, completed turns, assistant messages, tool executions, tool execution errors, and wall time for the agent run.
 They come from the same pi-agent-core event stream that powers diagnostics, so they report the real provider usage carried by assistant messages instead of estimating from transcript text.
 
-Callers that need durable diagnostics can pass `onEvent` to receive the same
-agent events. The live test uses this seam to write sanitized event summaries
-and one result record per scenario to the directory named by
-`ENDO_EVAL_ARTIFACT_DIR`; it does not copy prompts, generated code, or
-capability-bearing result details.
+Callers that need durable diagnostics can pass `onEvent` to receive the same agent events.
+The live test uses this seam to write one attributable, transcript-grade event per scenario turn plus one result record per scenario to the directory named by `ENDO_EVAL_ARTIFACT_DIR`.
+Each `events.jsonl` record carries the `scenario` and `model` it came from, plus bounded, redacted transcript content (assistant message text, the source submitted to the `execute` tool, and tool results), so a downstream reporter can render one attributable transcript per scenario run even when rows execute concurrently.
+Every captured string is redacted for credential-shaped substrings and capped in length before it is written; credentials are never captured.
+Each `results.jsonl` row also carries `referenceSourcePath` and `referenceSourceExport`, pointing at the scenario's reference solution (see "Layout" below), so a reporter can link a run's transcript to the solution it was scored against.
+Eval transcripts are not automatically published anywhere.
+`ENDO_EVAL_ARTIFACT_DIR` is an explicit opt-in for writing local `events.jsonl` and `results.jsonl` artifacts.
+Those artifacts are a convenience input for an out-of-repo reporting tool or skill that may choose to post results to GitHub comments.
+The `safeText` matcher is not production-grade redaction, so these artifacts must not be treated as a secret boundary or as safe for arbitrary publication.
 
 Metrics are recorded for comparison and reporting only.
 The scenario's outcome assertion remains the only pass/fail gate.
@@ -89,6 +93,10 @@ Per-eval content is internal to this package (one folder under `scenarios/`):
   notes; `outcome.js` verifies the branch topology, replayed summaries and
   fresh oids, caller-supplied post-resolution patches, exact final tree and file
   content, clean status, and completed rebase state.
+  `reference.js` (`conflictRebaseSource(...)`) holds the reference `execute`
+  source a competent agent should converge on; the scenario object's
+  `referenceSourcePath` / `referenceSourceExport` point at it, and the no-LLM
+  test imports it to drive the scripted faux model.
   `types.ts` keeps the conflict-rebase target shape beside its scenario and
   scorer.
   Its folder-local barrel connects the implementation to the package's tests
@@ -98,8 +106,10 @@ Per-eval content is internal to this package (one folder under `scenarios/`):
   (`makeStageAndCommitScenario(...)`, stage an untracked file and commit it with
   a given message), `outcome.js` (`assertGitCommitOutcome(...)`, the scorer that
   reads HEAD's commit message, the file tracked at HEAD and its content, and the
-  working-tree status), `types.ts` (the local target shape), and `index.js` (the
-  folder-local barrel).
+  working-tree status), `reference.js` (`stageAndCommitSource(...)`, the
+  reference `execute` source, pointed at by the scenario's
+  `referenceSourcePath` / `referenceSourceExport`), `types.ts` (the local
+  target shape), and `index.js` (the folder-local barrel).
 
 A scenario's no-LLM assertion-path test and its per-eval repository fixture live
 together under `test/eval/` (see "Running" below), mirroring this source layout.
