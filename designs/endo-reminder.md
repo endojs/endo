@@ -244,10 +244,17 @@ superseded design's persistence section with the formula removed:
 reminder-store/
   config.json          # { maxActive, minPeriodMs, paused } — formerly formula fields
   reminders/
-    <id>.json          # one document per reminder; nextTickAt is absolute epoch
-                       #   ms; also catchUpPolicy, annotation, and the backoff
-                       #   params + consecutiveFailures (see below)
+    <id>.json          # one document per reminder; <id> is a random hex minted
+                       #   by the injected id generator (design decision 18);
+                       #   nextTickAt is absolute epoch ms; also catchUpPolicy,
+                       #   annotation, and the backoff params +
+                       #   consecutiveFailures (see below)
 ```
+
+Each reminder's `<id>` is a **random hex** value from the injected id generator
+carried over from #609, not a content-address of its parameters: a fresh id
+avoids collisions and lets an agent register the *same* schedule more than once,
+each duplicate its own independently cancellable reminder (design decision 18).
 
 Writes use write-then-`move` within the store directory for atomic
 replacement. The atomicity of a direct `write` varies by backing and is not
@@ -520,11 +527,16 @@ ship without it.
     by pure object-capability discipline — a subagent's scheduler is always a
     strict attenuation of the parent's authority. No `makeReminder` argument, no
     plugin change, is added for delegation. Resolves the 2026-07-14 review.
-
-## Open Questions
-
-1. Should reminder ids reuse the daemon's random-hex id discipline from
-   #609's injected id generator, or the platform's content-addressed ids?
+18. **Reminder ids are random hex, not content-addressed.** Maintainer review
+    (2026-07-15): reminder ids reuse the daemon's random-hex id discipline from
+    #609's injected id generator rather than platform content-addressed ids.
+    Two reasons: **collision avoidance** (a fresh random hex per reminder never
+    aliases an existing document), and **allowing duplicates of the same
+    schedule** — content-addressing would collapse two reminders with identical
+    parameters onto one id, whereas the design must let an agent register the
+    same schedule more than once and have each be its own independently
+    cancellable reminder. Resolves the id-scheme open question, retiring the
+    last entry in the former *Open Questions* section.
 
 ## Gating dependency: SturdyRef modelling
 
