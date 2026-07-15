@@ -6,5 +6,5 @@
 // src/eval/README.md.
 export default {
   files: ['test/eval-live.test.js'],
-  timeout: '2m',
+  timeout: '5m',
 };
