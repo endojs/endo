@@ -3,10 +3,24 @@
 | | |
 |---|---|
 | **Created** | 2026-03-03 |
-| **Updated** | 2026-07-08 |
+| **Updated** | 2026-07-15 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | In Progress |
+| **Status** | Superseded by [endo-fetch](endo-fetch.md) |
 | **Parent** | [endoclaw](endoclaw.md) |
+
+> **Superseded by [endo-fetch](endo-fetch.md)** (2026-07-13). The capability
+> shape specified here was realized by PR #566 (`@endo/exo-http-client` over
+> `@endo/http-confine`) and remains normative by reference. What this
+> document still sketched — daemon-side provisioning that hands the
+> capability to agents (`provideHttpClient`, tracked as
+> [`daemon-agent-tools`](daemon-agent-tools.md) Phase 3.6) — is redrafted as
+> the unconfined base `@endo/fetch` plus the stateful confined plugin
+> `@endo/confined-fetch`, which receives that base and its state directory,
+> persists policy and trust-on-first-bind pins through the virtual file
+> system, and revives under integration ownership (like `@pins`), per the
+> maintainer's unconfined-plugin direction on PR
+> [#609](https://github.com/endojs/endo-but-for-bots/pull/609) and the
+> [endo-reminder](endo-reminder.md) precedent.
 
 ## Status
 
