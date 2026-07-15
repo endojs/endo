@@ -48,6 +48,7 @@
   "dependencies": {
     "@endo/errors": "workspace:^",
     "@endo/exo": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/http-confine": "workspace:^",
     "@endo/patterns": "workspace:^"

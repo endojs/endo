@@ -1,7 +1,7 @@
 // @ts-check
 /** @import { EndoGit } from '@endo/exo-git' */
 /* eslint-disable no-await-in-loop */
-/* global clearTimeout, process, setTimeout */
+/* global clearTimeout, globalThis, process, setTimeout */
 
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
@@ -30,6 +30,7 @@ import {
 } from '@endo/exo-git';
 import { makeShell } from '@endo/exo-shell';
 import { makeHostSpawner } from '@endo/host-spawner';
+import { makeHttpClientAndControl } from '@endo/exo-http-client';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
@@ -787,6 +788,10 @@ const makeDaemonCore = async (
         return [['mount', formula.mountId]];
       case 'shell':
         return [['mount', formula.mountId]];
+      case 'http-client':
+        // The HTTP client is rooted in a host-owned `fetch` seam, not a mount
+        // or any other daemon-minted capability, so it has no formula deps.
+        return [];
       case 'git-credential':
         return [];
       case 'git-remote': {
@@ -1144,6 +1149,16 @@ const makeDaemonCore = async (
   const agentIdForHandle = new WeakMap();
   /** @type {Map<FormulaIdentifier, GitCredentialMaterial>} */
   const gitCredentialMaterialForId = new Map();
+  // Host-private companion map from an `http-client` formula's use-facing
+  // `HttpClient` exo to its policy-bearing `HttpClientControl`, populated in the
+  // `http-client` maker on every (re)incarnation.  `host.getHttpClientControl`
+  // recovers the control from the client cap, mirroring `getGitRemoteController`
+  // — the guest holds only the client, the host retains the control.
+  /** @type {WeakMap<object, object>} */
+  const httpClientControlForClient = new WeakMap();
+  /** @param {unknown} client */
+  const getHttpClientControlForClient = client =>
+    httpClientControlForClient.get(/** @type {object} */ (client));
 
   /**
    * @param {FormulaIdentifier} id
@@ -3110,6 +3125,34 @@ const makeDaemonCore = async (
         readOnly: false,
       });
     },
+    'http-client': ({ policy }) => {
+      // The Network (HTTP) tier is the deliberate exception to "everything
+      // derives from the mount": there is no filesystem to root it in, so its
+      // root authority is a host-owned `fetch` (and `now`) seam, injected here
+      // in the daemon (host) process exactly as the shell maker injects its
+      // host spawner.  The policy is formula-owned and baked at
+      // `provideHttpClient` time, so the capability reconstitutes across daemon
+      // restart with identical bounds.
+      const { client, control } = makeHttpClientAndControl({
+        // Native Node `fetch` is structurally a `FetchLike` (its `body` is
+        // `BodyInit` where `FetchLike` accepts `unknown`); cast at the seam as
+        // `@endo/exo-http-client` does for its own `globalThis.fetch` default.
+        fetch: /** @type {import('@endo/exo-http-client').FetchLike} */ (
+          globalThis.fetch
+        ),
+        now: Date.now,
+        allowedOrigins: harden([...policy.allowedOrigins]),
+        maxRequestsPerMinute: policy.maxRequestsPerMinute,
+        maxResponseBytes: policy.maxResponseBytes,
+        policyMode: policy.policyMode,
+      });
+      // Control / client split: only the use-facing `client` is returned (and
+      // bound into the guest petstore); the policy-bearing `control` is
+      // retained host-side, reachable via `host.getHttpClientControl(client)`.
+      // Re-registered on every reincarnation because the maker reruns.
+      httpClientControlForClient.set(client, control);
+      return client;
+    },
     'git-credential': ({ kind, audience }, _context, id) => {
       const material = gitCredentialMaterialForId.get(id);
       const onRotate = rotated =>
@@ -4359,6 +4402,33 @@ const makeDaemonCore = async (
         const formula = harden({
           type: 'shell',
           mountId,
+          policy,
+        });
+
+        return formulate(formulaNumber, formula);
+      })
+    );
+  };
+
+  /** @type {DaemonCore['formulateHttpClient']} */
+  const formulateHttpClient = async (policy, deferredTasks) => {
+    return /** @type {FormulateResult<import('@endo/exo-http-client').HttpClient>} */ (
+      withFormulaGraphLock(async () => {
+        await null;
+        const formulaNumber = /** @type {FormulaNumber} */ (
+          await randomHex256()
+        );
+
+        await deferredTasks.execute({
+          httpClientId: formatId({
+            number: formulaNumber,
+            node: localNodeNumber,
+          }),
+        });
+
+        /** @type {import('./types.js').HttpClientFormula} */
+        const formula = harden({
+          type: 'http-client',
           policy,
         });
 
@@ -6632,6 +6702,8 @@ const makeDaemonCore = async (
     formulateScratchMount,
     formulateGit,
     formulateShell,
+    formulateHttpClient,
+    getHttpClientControlForClient,
     formulateGitCredential,
     formulateGitRemote,
     formulateInvitation,

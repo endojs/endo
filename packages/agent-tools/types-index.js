@@ -9,3 +9,4 @@ export {
   makeMountFsTools,
 } from './src/mount-fs.js';
 export { makeShellTool } from './src/shell-tool.js';
+export { makeHttpTool } from './src/http-tool.js';

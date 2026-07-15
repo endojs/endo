@@ -21,4 +21,11 @@ export {
   makeHttpClientAndControl,
   makeHttpClientKit,
   makeTrustOnFirstBindPolicyAdapter,
+  // Interface guards, exported so downstream tool adapters (`@endo/agent-tools`'
+  // `makeHttpTool`) can pin their hand-authored wire schemas against the guards
+  // the exo actually enforces, rather than a hand-typed copy that could drift.
+  FetchOptionsShape,
+  HttpClientInterface,
+  HttpClientControlInterface,
+  HttpResponseInterface,
 } from './src/http-client.js';

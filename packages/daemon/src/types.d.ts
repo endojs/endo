@@ -5,6 +5,7 @@ import type { CapTPOptions } from '@endo/captp';
 import type { Reader, Writer, Stream } from '@endo/stream';
 import type { PassableBytesReader, StreamNode } from '@endo/exo-stream';
 import type { EndoGit, GitRemote } from '@endo/exo-git';
+import type { HttpClient, HttpClientControl } from '@endo/exo-http-client';
 
 // Branded string types for pet names and special names
 declare const PetNameBrand: unique symbol;
@@ -327,6 +328,35 @@ export type ShellDeferredTaskParams = {
   shellId: FormulaIdentifier;
 };
 
+/**
+ * The confinement mode a formula-owned HTTP policy can honor across a daemon
+ * restart on its own. `tofu-prompt` / `tofu-attenuator` are excluded because
+ * they need a live `policyAuthority` capability the formula does not carry.
+ */
+export type HttpClientPolicyMode = 'strict' | 'tofu-auto';
+
+/**
+ * Policy baked into an `http-client` formula at `provideHttpClient` time
+ * (formula-owned, like `ShellPolicy`), so the capability reconstitutes across
+ * daemon restart with identical bounds. The `fetch` and `now` seams are
+ * host-owned and injected at reincarnation, never persisted.
+ */
+export type HttpClientPolicy = {
+  allowedOrigins: string[];
+  maxRequestsPerMinute: number;
+  maxResponseBytes: number;
+  policyMode: HttpClientPolicyMode;
+};
+
+export type HttpClientFormula = {
+  type: 'http-client';
+  policy: HttpClientPolicy;
+};
+
+export type HttpClientDeferredTaskParams = {
+  httpClientId: FormulaIdentifier;
+};
+
 export type GitCredentialFormula = {
   type: 'git-credential';
   kind: 'bearer' | 'basic';
@@ -554,6 +584,7 @@ export type Formula =
   | ScratchMountFormula
   | GitFormula
   | ShellFormula
+  | HttpClientFormula
   | GitCredentialFormula
   | GitRemoteFormula
   | LookupFormula
@@ -1340,6 +1371,22 @@ export interface EndoHost extends EndoAgent {
     petName: string | string[],
     policy: ShellPolicy,
   ): Promise<EndoShell>;
+  /**
+   * Mint a confined outbound-HTTP `HttpClient`, persist its formula, and bind
+   * the use-facing client to `petName`. Unlike `provideShell` / `provideGit`
+   * it takes no mount cap — the Network tier is rooted in a host-owned `fetch`
+   * seam, not the mount. The policy-bearing `HttpClientControl` is retained
+   * host-side, reachable via `getHttpClientControl`.
+   */
+  provideHttpClient(
+    petName: string | string[],
+    policy: HttpClientPolicy,
+  ): Promise<HttpClient>;
+  /**
+   * Recover the host-retained `HttpClientControl` for a daemon-minted
+   * `HttpClient` cap (policy mutation, revocation, binding/audit inspection).
+   */
+  getHttpClientControl(clientCap: HttpClient): Promise<HttpClientControl>;
   /**
    * Mint a `GitRemote` capability bound to `gitCap`, persist its
    * formula, and bind it to `petName`.  The remote enforces the
@@ -2362,6 +2409,11 @@ export interface DaemonCore {
     policy: ShellPolicy,
     deferredTasks: DeferredTasks<ShellDeferredTaskParams>,
   ) => FormulateResult<EndoShell>;
+
+  formulateHttpClient: (
+    policy: HttpClientPolicy,
+    deferredTasks: DeferredTasks<HttpClientDeferredTaskParams>,
+  ) => FormulateResult<HttpClient>;
 
   formulateGitCredential: (
     kind: GitCredentialFormula['kind'],

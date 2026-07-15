@@ -5,7 +5,7 @@
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PassableBytesReader } from '@endo/exo-stream' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoDiagnostics, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, FormulaRecord, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, ShellDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, DaemonCore, DeferredTasks, EndoDiagnostics, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, FormulaRecord, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, HttpClientDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, ShellDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 /** @import { makeTraceAggregator } from './trace-aggregator.js' */
 
 import { E } from '@endo/eventual-send';
@@ -160,6 +160,134 @@ export const normalizeShellPolicy = policy => {
 };
 harden(normalizeShellPolicy);
 
+const HTTP_CLIENT_POLICY_MODES = harden(['strict', 'tofu-auto']);
+const HTTP_ORIGIN_SCHEMES = harden(['http:', 'https:']);
+
+/**
+ * Pin an allowlist entry to the exact origin shape the `HttpClient` exo accepts
+ * (`@endo/http-confine`'s `parseAllowedOrigins`): a well-formed `http:`/`https:`
+ * URL whose serialized origin (scheme://host[:port], default ports normalized
+ * away) equals the entry verbatim — no path, query, or fragment.  Mirrored here
+ * so `provideHttpClient` rejects a path-bearing or off-scheme origin up front
+ * rather than persisting a formula the exo will reject on every incarnation.
+ *
+ * @param {string} origin
+ */
+const assertHttpClientOrigin = origin => {
+  let parsed;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    throw makeError(
+      X`provideHttpClient: policy.allowedOrigins entry ${q(
+        origin,
+      )} must be a valid http(s) origin`,
+    );
+  }
+  if (
+    !HTTP_ORIGIN_SCHEMES.includes(parsed.protocol) ||
+    parsed.origin !== origin
+  ) {
+    throw makeError(
+      X`provideHttpClient: policy.allowedOrigins entry ${q(
+        origin,
+      )} must be exactly an http(s) origin (scheme://host[:port], no path, query, or fragment)`,
+    );
+  }
+};
+
+/**
+ * Validate and normalize a caller-supplied HTTP-client policy into the frozen
+ * record baked into the `http-client` formula at `provideHttpClient` time
+ * (formula-owned, like `GitRemote`'s endpoint policy), so the capability
+ * reconstitutes across daemon restart with identical bounds.  Rejects a
+ * malformed policy up front — including a path-bearing origin or an unsafe
+ * integer limit the exo would reject at incarnation — so a doomed formula is
+ * never persisted.
+ *
+ * `policyMode` is restricted to the modes a formula-owned policy can honor on
+ * its own across a restart: `strict` (only the static allowlist is reachable)
+ * and `tofu-auto` (trust-on-first-bind auto-pinning).  The `tofu-prompt` /
+ * `tofu-attenuator` modes require a live `policyAuthority` capability that this
+ * phase does not wire into the formula, so they are refused rather than
+ * silently degraded.
+ *
+ * @param {unknown} policy
+ * @returns {import('./types.js').HttpClientPolicy}
+ */
+export const normalizeHttpClientPolicy = policy => {
+  if (!policy || typeof policy !== 'object') {
+    throw makeError(X`provideHttpClient: policy must be an object`);
+  }
+  const { allowedOrigins, maxRequestsPerMinute, maxResponseBytes, policyMode } =
+    /** @type {Record<string, unknown>} */ (policy);
+
+  /** @type {string[]} */
+  let normalizedOrigins = [];
+  if (allowedOrigins !== undefined) {
+    if (
+      !Array.isArray(allowedOrigins) ||
+      !allowedOrigins.every(o => typeof o === 'string' && o.length > 0)
+    ) {
+      throw makeError(
+        X`provideHttpClient: policy.allowedOrigins must be an array of non-empty origin strings`,
+      );
+    }
+    for (const origin of allowedOrigins) {
+      assertHttpClientOrigin(origin);
+    }
+    normalizedOrigins = [...allowedOrigins];
+  }
+
+  // Default to the exo's own defaults (60 / 1 MiB) when unspecified, but bake an
+  // explicit number so the formula record is self-describing across a restart.
+  const normalizedMaxRequestsPerMinute =
+    maxRequestsPerMinute === undefined ? 60 : maxRequestsPerMinute;
+  if (
+    !Number.isSafeInteger(normalizedMaxRequestsPerMinute) ||
+    /** @type {number} */ (normalizedMaxRequestsPerMinute) <= 0
+  ) {
+    throw makeError(
+      X`provideHttpClient: policy.maxRequestsPerMinute must be a positive safe integer`,
+    );
+  }
+
+  const normalizedMaxResponseBytes =
+    maxResponseBytes === undefined ? 1024 * 1024 : maxResponseBytes;
+  if (
+    !Number.isSafeInteger(normalizedMaxResponseBytes) ||
+    /** @type {number} */ (normalizedMaxResponseBytes) <= 0
+  ) {
+    throw makeError(
+      X`provideHttpClient: policy.maxResponseBytes must be a positive safe integer`,
+    );
+  }
+
+  const normalizedPolicyMode = policyMode === undefined ? 'strict' : policyMode;
+  if (
+    typeof normalizedPolicyMode !== 'string' ||
+    !HTTP_CLIENT_POLICY_MODES.includes(normalizedPolicyMode)
+  ) {
+    throw makeError(
+      X`provideHttpClient: policy.policyMode must be one of ${q(
+        HTTP_CLIENT_POLICY_MODES,
+      )}`,
+    );
+  }
+
+  return harden({
+    allowedOrigins: harden(normalizedOrigins),
+    maxRequestsPerMinute: /** @type {number} */ (
+      normalizedMaxRequestsPerMinute
+    ),
+    maxResponseBytes: /** @type {number} */ (normalizedMaxResponseBytes),
+    policyMode: /** @type {import('./types.js').HttpClientPolicyMode} */ (
+      normalizedPolicyMode
+    ),
+  });
+};
+harden(normalizeHttpClientPolicy);
+
 /**
  * @param {object} args
  * @param {DaemonCore['provide']} args.provide
@@ -182,6 +310,10 @@ harden(normalizeShellPolicy);
  * @param {DaemonCore['formulateScratchMount']} args.formulateScratchMount
  * @param {DaemonCore['formulateGit']} args.formulateGit
  * @param {DaemonCore['formulateShell']} args.formulateShell
+ * @param {DaemonCore['formulateHttpClient']} args.formulateHttpClient
+ * @param {(client: unknown) => unknown} args.getHttpClientControlForClient
+ *   Host-private resolver from a daemon-minted `HttpClient` cap to its
+ *   retained `HttpClientControl`, populated by the `http-client` maker.
  * @param {DaemonCore['formulateGitCredential']} args.formulateGitCredential
  * @param {DaemonCore['formulateGitRemote']} args.formulateGitRemote
  * @param {DaemonCore['formulateInvitation']} args.formulateInvitation
@@ -227,6 +359,8 @@ export const makeHostMaker = ({
   formulateScratchMount,
   formulateGit,
   formulateShell,
+  formulateHttpClient,
+  getHttpClientControlForClient,
   formulateGitCredential,
   formulateGitRemote,
   formulateInvitation,
@@ -568,6 +702,39 @@ export const makeHostMaker = ({
 
       const { value } = await formulateShell(mountId, normalizedPolicy, tasks);
       return value;
+    };
+
+    /** @type {EndoHost['provideHttpClient']} */
+    const provideHttpClient = async (petName, policy) => {
+      const { namePath } = petNamePathFrom(petName);
+      // Unlike provideShell / provideGit, the HTTP client takes no mount cap:
+      // the Network tier is rooted in a host-owned `fetch` seam, not the mount
+      // (design § Network (HTTP) tier).  The only argument is the policy, which
+      // is normalized (and a bad policyMode rejected) before a formula persists.
+      const normalizedPolicy = normalizeHttpClientPolicy(policy);
+
+      /** @type {DeferredTasks<HttpClientDeferredTaskParams>} */
+      const tasks = makeDeferredTasks();
+      tasks.push(identifiers =>
+        E(directory).storeIdentifier(namePath, identifiers.httpClientId),
+      );
+
+      const { value } = await formulateHttpClient(normalizedPolicy, tasks);
+      return value;
+    };
+
+    /** @type {EndoHost['getHttpClientControl']} */
+    const getHttpClientControl = async clientCap => {
+      await null;
+      const control = getHttpClientControlForClient(clientCap);
+      if (control === undefined) {
+        throw makeError(
+          X`getHttpClientControl: argument must be a daemon-minted HttpClient cap`,
+        );
+      }
+      return /** @type {import('@endo/exo-http-client').HttpClientControl} */ (
+        control
+      );
     };
 
     /** @type {EndoHost['provideBearerCredential']} */
@@ -2134,6 +2301,8 @@ export const makeHostMaker = ({
       provideScratchMount,
       provideGit,
       provideShell,
+      provideHttpClient,
+      getHttpClientControl,
       provideGitRemote,
       provideGitClone,
       provideBearerCredential,

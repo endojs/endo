@@ -251,6 +251,28 @@ export const makeFormulaRecord = (formula, number, options = {}) => {
       properties.readOnly = { kind: 'literal', value: formula.readOnly };
       break;
     }
+    case 'http-client': {
+      // Surface the formula-owned policy bounds (allowlist and limits) as
+      // literals for inspector auditability. The `fetch`/`now` seams are
+      // host-owned and never persisted, so there is nothing host-private here.
+      properties.allowedOrigins = {
+        kind: 'literal',
+        value: formula.policy.allowedOrigins,
+      };
+      properties.maxRequestsPerMinute = {
+        kind: 'literal',
+        value: formula.policy.maxRequestsPerMinute,
+      };
+      properties.maxResponseBytes = {
+        kind: 'literal',
+        value: formula.policy.maxResponseBytes,
+      };
+      properties.policyMode = {
+        kind: 'literal',
+        value: formula.policy.policyMode,
+      };
+      break;
+    }
     case 'endo':
     case 'worker':
     case 'pet-store':

@@ -2,6 +2,7 @@ import type { ERef } from '@endo/eventual-send';
 import type { Filesystem } from '@endo/platform/fs/extended';
 import type { EndoGit } from '@endo/exo-git';
 import type { EndoShell } from '@endo/exo-shell';
+import type { HttpClient, HttpResponse } from '@endo/exo-http-client';
 import type { Pattern } from '@endo/patterns';
 
 /**
@@ -184,4 +185,27 @@ export declare function makeMountEditTool(fs: ERef<Filesystem>): ToolRecord;
 export declare function makeMountFsTools(
   fs: ERef<Filesystem>,
   opts?: MountFsToolsOptions,
+): ToolRecord[];
+
+/**
+ * The slice of `HttpClient` exposed to an LLM: `fetch` (a single confined
+ * outbound request) and `allowedOrigins` (report the reachable origins). The
+ * origin allowlist, rate limit, response-byte cap, timeout, redirect
+ * containment, and revocation are all enforced inside the `HttpClient` exo, so
+ * this surface adds no authority beyond what the capability already carries.
+ *
+ * `help` is deliberately omitted — it is capability introspection, not an agent
+ * action.
+ */
+export type HttpToolCapability = Pick<HttpClient, 'fetch' | 'allowedOrigins'>;
+
+/**
+ * The live `HttpResponse` remotable `HttpClient.fetch` returns. The `fetch`
+ * tool never hands this across the wire; its `execute` projects it to a
+ * JSON-safe `{ status, statusText, ok, url, headers, truncated, body }` record.
+ */
+export type HttpResponseView = HttpResponse;
+
+export declare function makeHttpTool(
+  httpCap: ERef<HttpToolCapability>,
 ): ToolRecord[];
