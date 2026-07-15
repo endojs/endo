@@ -125,8 +125,8 @@ export const rangeReadConvenienceMethodGuards = harden({
   rangeReadText: M.call(M.number(), M.number()).returns(M.promise()),
 });
 
-// `listTree(...path)` is the recursive counterpart to `list(...path)`: where
-// `list` yields only the immediate child names of the (optional) sub-path,
+// `listTree(petNamePath, options?)` is the recursive counterpart to `list`:
+// where `list` yields only the immediate child names of the sub-path,
 // `listTree` walks the whole subtree in one round-trip and returns every
 // descendant as a `{ path: string[], type: 'file' | 'directory' }` record,
 // lexically sorted, parents before children. It consolidates the
@@ -134,8 +134,21 @@ export const rangeReadConvenienceMethodGuards = harden({
 // size and any host stat fields for the same security reason `stat` is
 // omitted from the blob surface — `type` is structural, not an
 // implementation-detail leak. See designs/platform-range-and-tree-reads.md.
+//
+// The query takes a `PetNamePath` (a single `string` name or a `string[]`
+// path — the same shape `lookup` accepts; `[]` names the whole tree) rather
+// than a rest argument, leaving the second parameter free for an options bag.
+// `options.ignore` **augments** (does not replace) the tree's own ignore set
+// for this one call, so a caller can hide additional names at the read site
+// without the surface baking in an arbitrary default list.
+const listTreeOptionsShape = M.splitRecord(
+  {},
+  { ignore: M.arrayOf(M.string()) },
+);
 export const recursiveListMethodGuards = harden({
-  listTree: M.call().rest(NamePathShape).returns(M.promise()),
+  listTree: M.call(NameOrPathShape)
+    .optional(listTreeOptionsShape)
+    .returns(M.promise()),
 });
 
 export const ReadableBlobInterface = M.interface('ReadableBlob', {
@@ -182,23 +195,18 @@ export const SnapshotBlobInterface = M.interface('SnapshotBlob', {
 });
 harden(SnapshotBlobInterface);
 
+// A tree implies recursion, so the recursive `listTree` lives on the plain
+// `ReadableTreeInterface` rather than a separate "recursive tree" variant.
+// This is the read surface the platform's own `LocalTree` implements. Because
+// `listTree` is spread here — not into the shared `readableTreeMethodGuards`
+// — the daemon / git / mount tree exos (which carry their own separately
+// tagged tree interfaces) are unaffected; adopting `listTree` there is a
+// documented follow-up in designs/platform-range-and-tree-reads.md.
 export const ReadableTreeInterface = M.interface('ReadableTree', {
   ...readableTreeMethodGuards,
+  ...recursiveListMethodGuards,
 });
 harden(ReadableTreeInterface);
-
-// A `ReadableTree` that also exposes the recursive `listTree`. This is the
-// read surface the platform's own `LocalTree` implements; other tree exos
-// keep the leaner `ReadableTreeInterface` until they adopt `listTree` (a
-// documented follow-up in designs/platform-range-and-tree-reads.md).
-export const ReadableTreeRecursiveInterface = M.interface(
-  'ReadableTreeRecursive',
-  {
-    ...readableTreeMethodGuards,
-    ...recursiveListMethodGuards,
-  },
-);
-harden(ReadableTreeRecursiveInterface);
 
 export const SnapshotTreeInterface = M.interface('SnapshotTree', {
   ...readableTreeMethodGuards,

@@ -83,11 +83,16 @@ export interface ReadableTree {
   list: (...petNamePath: string[]) => Promise<string[]>;
   lookup: (petNamePath: string | string[]) => Promise<unknown>;
   /**
-   * Recursive counterpart to `list`: every descendant under the optional
-   * sub-path as `{ path, type }` records, lexically sorted, parents before
-   * children. Optional: only the richer tree surfaces expose it.
+   * Recursive counterpart to `list`: every descendant under the sub-path
+   * `petNamePath` (a single name, a path of segments, or `[]` for the whole
+   * tree) as `{ path, type }` records, lexically sorted, parents before
+   * children. `options.ignore` augments the tree's own ignore set for the
+   * call. Optional: only the richer tree surfaces expose it.
    */
-  listTree?: (...petNamePath: string[]) => Promise<TreeEntry[]>;
+  listTree?: (
+    petNamePath: string | string[],
+    options?: { ignore?: string[] },
+  ) => Promise<TreeEntry[]>;
 }
 
 /**

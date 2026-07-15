@@ -33,7 +33,7 @@ test('LocalTree.list stays shallow; listTree walks the whole subtree', async t =
   const tree = makeLocalTree(makeTempTree(t));
   t.deepEqual(await E(tree).list(), ['sub', 'top.txt']);
 
-  const entries = await E(tree).listTree();
+  const entries = await E(tree).listTree([]);
   t.deepEqual(entries, [
     { path: ['sub'], type: 'directory' },
     { path: ['sub', 'a.txt'], type: 'file' },
@@ -45,7 +45,7 @@ test('LocalTree.list stays shallow; listTree walks the whole subtree', async t =
 
 test('LocalTree.listTree omits .git and returns no size/stat fields', async t => {
   const tree = makeLocalTree(makeTempTree(t));
-  const entries = await E(tree).listTree();
+  const entries = await E(tree).listTree([]);
   // `.git` and its contents are never surfaced.
   t.false(entries.some(e => e.path.includes('.git')));
   // Only `path` and `type` are present — no size / mtime leak.
@@ -68,5 +68,20 @@ test('LocalTree.listTree of an empty directory is empty', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'local-tree-empty-'));
   t.teardown(() => fs.rmSync(dir, { recursive: true, force: true }));
   const tree = makeLocalTree(dir);
-  t.deepEqual(await E(tree).listTree(), []);
+  t.deepEqual(await E(tree).listTree([]), []);
+});
+
+test('LocalTree.listTree augments the ignore set via options.ignore', async t => {
+  const tree = makeLocalTree(makeTempTree(t));
+  // `sub` is hidden for this call, so neither it nor its descendants appear —
+  // the caller augments the ignore set at the read site without the surface
+  // baking in an arbitrary default.
+  const entries = await E(tree).listTree([], { ignore: ['sub'] });
+  t.deepEqual(entries, [{ path: ['top.txt'], type: 'file' }]);
+
+  // The augmentation is per-call: a later call without it sees `sub` again,
+  // and `.git` stays ignored throughout (the base set is preserved).
+  const again = await E(tree).listTree([]);
+  t.true(again.some(e => e.path[0] === 'sub'));
+  t.false(again.some(e => e.path.includes('.git')));
 });

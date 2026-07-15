@@ -18,8 +18,8 @@ re-implementations.
 
 This design adds three methods to the platform's own read surfaces:
 
-- **`listTree(...path)`** — recursive counterpart to `list`, on the readable
-  **tree** surface.
+- **`listTree(petNamePath, options?)`** — recursive counterpart to `list`, on
+  the readable **tree** surface.
 - **`rangeRead(offset, length)`** — whole-value byte-range read, on the
   readable **blob** surface.
 - **`rangeReadText(startLine, endLine)`** — whole-value line-range read, on the
@@ -74,15 +74,28 @@ Line indices are plain **numbers** (ordinary counts, not byte offsets), matching
 the ergonomics of the toolkits being consolidated and JS array indexing. A
 negative or non-integer index throws `EINVAL` (via the shared `toSafeNumber`).
 
-### `listTree(...path) → Array<{ path: string[], type }>`
+### `listTree(petNamePath, options?) → Array<{ path: string[], type }>`
 
 Recursive counterpart to `list`. Where `list` yields only the immediate child
-names of the optional sub-path, `listTree` walks the whole subtree in one
-round-trip and returns every descendant as a `{ path, type }` record — `path`
-relative to the queried node, `type` either `'file'` or `'directory'` —
-lexically sorted, each directory emitted **before** its own children. Symlinks
-and `.git` are skipped (matching `list`), and the same `maxDepth` guard bounds
-recursion.
+names of the sub-path, `listTree` walks the whole subtree in one round-trip and
+returns every descendant as a `{ path, type }` record — `path` relative to the
+queried node, `type` either `'file'` or `'directory'` — lexically sorted, each
+directory emitted **before** its own children. Symlinks and `.git` are skipped
+(matching `list`), and the same `maxDepth` guard bounds recursion.
+
+The query is a **`PetNamePath`** — a single `string` name or a `string[]` path,
+the same shape `lookup` accepts, with `[]` naming the whole tree — rather than a
+rest argument. Taking the path as a single value leaves the second parameter
+free for an **options bag**, which is what a plain rest argument (`...path`)
+foreclosed.
+
+`options.ignore` (a `string[]`) **augments** — does not replace — the tree's own
+ignore set for that one call. This keeps the base ignore list small and
+non-arbitrary (only the always-ignored `.git`, matching `list`) while letting a
+caller hide additional names at the read site. It deliberately avoids a "magic"
+default ignore list baked into the surface: a mount may already carry
+attenuations that make names invisible, and any further hiding is the caller's
+explicit, per-call choice rather than an arbitrary surface default.
 
 The record carries **no size and no host stat fields**: `type` is structural
 (a caller needs it to know whether to recurse or read), whereas size / mtime /
@@ -113,8 +126,14 @@ Instead:
 - `rangeReadConvenienceMethodGuards = { rangeRead, rangeReadText }` and
   `recursiveListMethodGuards = { listTree }` are new exported records.
 - `ReadableBlobRangeReadInterface` = `readableBlob` + `rangeRead`(getInfo/fetch)
-  + the conveniences; `ReadableTreeRecursiveInterface` = `readableTree` +
-  `listTree`.
+  + the conveniences. A **tree implies recursion**, so `listTree` needs no
+  separate "recursive tree" variant: it is spread onto the plain
+  `ReadableTreeInterface` (the platform's own tree interface, tagged
+  `'ReadableTree'`) directly. Because that interface is *not* the shared
+  `readableTreeMethodGuards` record — which the daemon's own `EndoReadableTree`,
+  git, and mount tree exos spread — those implementers are still unaffected; the
+  containment is preserved by keeping `listTree` off the shared record, not by
+  minting a parallel interface.
 - The platform's own `LocalBlob` / `LocalTree` adopt the richer interfaces now.
   The daemon / git / mount blob and tree exos keep their current leaner
   interfaces and are unaffected; adopting the conveniences there is a follow-up.

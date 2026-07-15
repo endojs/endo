@@ -18,7 +18,6 @@ export {
   ReadableBlobRangeReadInterface,
   SnapshotBlobInterface,
   ReadableTreeInterface,
-  ReadableTreeRecursiveInterface,
   SnapshotTreeInterface,
   TreeWriterInterface,
   FileInterface,

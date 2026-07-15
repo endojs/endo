@@ -6,7 +6,7 @@ import path from 'node:path';
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
 
-import { ReadableTreeRecursiveInterface } from '../fs/interfaces.js';
+import { ReadableTreeInterface } from '../fs/interfaces.js';
 import { makeLocalBlob } from './local-blob.js';
 
 const ALWAYS_IGNORED = harden(new Set(['.git']));
@@ -37,7 +37,7 @@ export const makeLocalTree = (dirPath, options = {}) => {
 
     return makeExo(
       'LocalTree',
-      ReadableTreeRecursiveInterface,
+      ReadableTreeInterface,
       /** @type {any} */ ({
         /**
          * @param {...string} names
@@ -70,19 +70,30 @@ export const makeLocalTree = (dirPath, options = {}) => {
             .sort();
         },
         /**
-         * Recursive listing of the subtree under the optional sub-path.
+         * Recursive listing of the subtree under the sub-path `petNamePath`
+         * (a single name, a path of segments, or `[]` for the whole tree).
          * Returns every descendant as a `{ path, type }` record — `path`
          * relative to the queried node, lexically sorted, each directory
          * emitted before its own children. Symlinks and `.git` are skipped
          * (matching `list`); size and host stat fields are omitted (see
-         * interfaces.js `recursiveListMethodGuards`).
+         * interfaces.js `recursiveListMethodGuards`). `options.ignore`
+         * augments the tree's own ignore set for this call.
          *
-         * @param {...string} names
+         * @param {string | string[]} petNamePath
+         * @param {{ ignore?: string[] }} [listTreeOptions]
          * @returns {Promise<Array<{ path: string[], type: 'file' | 'directory' }>>}
          */
-        listTree: async (...names) => {
+        listTree: async (petNamePath, listTreeOptions = {}) => {
+          const namePath =
+            typeof petNamePath === 'string' ? [petNamePath] : petNamePath;
+          const { ignore = [] } = listTreeOptions;
+          // Augment (not replace) the tree's own ignore set for this call.
+          const ignoredHere =
+            ignore.length === 0 ? ignored : new Set([...ignored, ...ignore]);
           const startPath =
-            names.length === 0 ? currentPath : path.join(currentPath, ...names);
+            namePath.length === 0
+              ? currentPath
+              : path.join(currentPath, ...namePath);
 
           /** @type {Array<{ path: string[], type: 'file' | 'directory' }>} */
           const entries = [];
@@ -104,7 +115,7 @@ export const makeLocalTree = (dirPath, options = {}) => {
             const kept = dirEntries
               .filter(
                 entry =>
-                  !ignored.has(entry.name) &&
+                  !ignoredHere.has(entry.name) &&
                   !entry.isSymbolicLink() &&
                   (entry.isFile() || entry.isDirectory()),
               )
