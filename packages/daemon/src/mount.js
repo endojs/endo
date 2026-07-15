@@ -1256,7 +1256,9 @@ const makeReadableTreeView = readOnlyMount => {
       if (namePath.length > 0) {
         start = await E(view).lookup(namePath);
         // eslint-disable-next-line no-underscore-dangle
-        const methods = await E(start).__getMethodNames__();
+        const methods = await E(
+          /** @type {any} */ (start),
+        ).__getMethodNames__();
         if (!methods.includes('list')) {
           throw new TypeError('listTree sub-path must name a directory');
         }
@@ -1273,8 +1275,9 @@ const makeReadableTreeView = readOnlyMount => {
           .filter(name => !ignored.has(name))
           .sort();
         for (const name of names) {
+          // eslint-disable-next-line no-await-in-loop
           const child = await E(tree).lookup(name);
-          // eslint-disable-next-line no-underscore-dangle
+          // eslint-disable-next-line no-await-in-loop, no-underscore-dangle
           const methods = await E(child).__getMethodNames__();
           const childPath = harden([...relativePath, name]);
           if (methods.includes('list')) {
