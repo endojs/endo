@@ -309,7 +309,6 @@ The reference point for a future MCP adapter is the stable
 [MCP 2025-11-25 tools specification](https://modelcontextprotocol.io/specification/2025-11-25/server/tools),
 alongside its [schema reference](https://modelcontextprotocol.io/specification/2025-11-25/schema)
 and [JSON Schema 2020-12 default-dialect SEP](https://modelcontextprotocol.io/seps/1613-establish-json-schema-2020-12-as-default-dialect-f).
-This package does not implement that MCP adapter yet.
 
 ### MCP's protocol surface
 
@@ -328,11 +327,6 @@ When `outputSchema` is present, the server must produce structured content that
 conforms to it and the client should validate it.
 For backward compatibility, a structured result should also include its
 serialized JSON in a text content block.
-
-MCP distinguishes JSON-RPC protocol errors from tool execution errors.
-Protocol problems such as an unknown tool or malformed request use the JSON-RPC
-error response, while a failure from the tool itself is reported in a result
-with `isError: true`.
 
 ### Current gaps and intended ownership
 
