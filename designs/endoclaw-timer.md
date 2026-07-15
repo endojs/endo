@@ -3,11 +3,22 @@
 |             |                            |
 |-------------|----------------------------|
 | **Created** | 2026-03-03                 |
-| **Updated** | 2026-03-18                 |
+| **Updated** | 2026-07-10                 |
 | **Author**  | Kris Kowal (prompted)      |
 | **Author**  | Joshua T Corbin (evolving) |
-| **Status**  | In Progress                |
+| **Status**  | Superseded by [endo-reminder](endo-reminder.md) |
 | **Parent**  | [endoclaw](endoclaw.md)    |
+
+> **Superseded by [endo-reminder](endo-reminder.md)** (2026-07-10). The
+> maintainer's review of PR
+> [#609](https://github.com/endojs/endo-but-for-bots/pull/609) redirected
+> this feature away from daemon-formula integration: it is redrafted as the
+> unconfined plugin `@endo/reminder`, a message scheduler persisting through
+> the virtual file system, with restart revival owned by an integration
+> (like `@pins`). The behavioral sections of this document (timing,
+> resolve/reschedule, recovery, limits, security) remain normative by
+> reference from the superseding design; the formula, `filePowers`
+> persistence, and host-command sections are superseded.
 
 ## Status
 
