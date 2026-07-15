@@ -7,8 +7,6 @@
 import '@endo/init';
 
 import crypto from 'crypto';
-import zlib from 'zlib';
-import { promisify } from 'util';
 import net from 'net';
 import fs from 'fs';
 import path from 'path';
@@ -23,18 +21,11 @@ import {
   makeNetworkPowers,
   makeDaemonicPowers,
   makeCryptoPowers,
+  gunzip,
 } from './manager-node-powers.js';
 import { startWsGateway } from './ws-gateway.js';
 
 const fsp = { access: fs.promises.access };
-const gunzipBuffer = promisify(zlib.gunzip);
-
-/** @param {Uint8Array} bytes */
-const gunzip = async bytes => {
-  const output = await gunzipBuffer(bytes);
-  return new Uint8Array(output.buffer, output.byteOffset, output.byteLength);
-};
-
 /** @import { Config } from './types.js' */
 
 const args = process.argv.slice(2);
@@ -66,6 +57,11 @@ const { cancelled, cancel } = makeCancelKit();
 const networkPowers = makeNetworkPowers({ net, fsp });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
+const registryPowers = {
+  fetch: globalThis.fetch,
+  gunzip,
+  createHash: crypto.createHash,
+};
 
 /**
  * @param {string} [gatewayAddress]
@@ -147,11 +143,7 @@ const main = async () => {
     url,
     filePowers,
     cryptoPowers,
-    registryNodePowers: {
-      fetch: globalThis.fetch,
-      gunzip,
-      createHash: crypto.createHash,
-    },
+    registryPowers,
   });
   const { persistence: daemonicPersistencePowers } = powers;
 

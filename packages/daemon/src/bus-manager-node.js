@@ -4,18 +4,17 @@
 // Establish a perimeter:
 import '@endo/init';
 
-import crypto from 'crypto';
-import zlib from 'zlib';
-import { promisify } from 'util';
-import net from 'net';
-import fs from 'fs';
-import fsp from 'fs/promises';
-import path from 'path';
-import url from 'url';
+import crypto from 'node:crypto';
+import net from 'node:net';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
+import url from 'node:url';
 
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './manager.js';
+import { gunzip } from './manager-node-powers.js';
 import {
   makeFilePowers,
   makeNetworkPowers,
@@ -28,14 +27,6 @@ import {
   readFrameFromStream,
   writeFrameToStream,
 } from './envelope.js';
-
-const gunzipBuffer = promisify(zlib.gunzip);
-
-/** @param {Uint8Array} bytes */
-const gunzip = async bytes => {
-  const output = await gunzipBuffer(bytes);
-  return new Uint8Array(output.buffer, output.byteOffset, output.byteLength);
-};
 
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config } from './types.js' */
@@ -109,16 +100,17 @@ const sendEnvelope = async (handle, verb, payload, nonce) => {
 const networkPowers = makeNetworkPowers({ net, fsp });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
+const registryPowers = {
+  fetch: globalThis.fetch,
+  gunzip,
+  createHash: crypto.createHash,
+};
 const powers = makeDaemonicBusPowers({
   config,
   url,
   filePowers,
   cryptoPowers,
-  registryNodePowers: {
-    fetch: globalThis.fetch,
-    gunzip,
-    createHash: crypto.createHash,
-  },
+  registryPowers,
   sendEnvelope,
   envelopeReadStream,
 });

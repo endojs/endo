@@ -305,7 +305,7 @@ export const makeDaemonicGoControlPowers = (
  * @param {typeof import('url')} opts.url
  * @param {FilePowers} opts.filePowers
  * @param {CryptoPowers} opts.cryptoPowers
- * @param {Parameters<typeof makeRegistryNodePowers>[0]} opts.registryNodePowers
+ * @param {Parameters<typeof makeRegistryNodePowers>[0]} opts.registryPowers
  * @param {(handle: number, verb: string, payload?: Uint8Array, nonce?: number) => Promise<void>} opts.sendEnvelope
  * @param {import('stream').Readable} opts.envelopeReadStream
  * @returns {Promise<DaemonicPowers>}
@@ -316,7 +316,7 @@ export const makeDaemonicGoPowers = async ({
   url,
   filePowers,
   cryptoPowers,
-  registryNodePowers,
+  registryPowers,
   sendEnvelope,
   envelopeReadStream,
 }) => {
@@ -349,7 +349,7 @@ export const makeDaemonicGoPowers = async ({
     control: daemonicControlPowers,
     filePowers,
     registry: makeRegistryNodePowers({
-      ...registryNodePowers,
+      ...registryPowers,
       registryUrl: config.registryUrl,
     }),
   });

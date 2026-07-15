@@ -6,8 +6,6 @@
 import '@endo/init';
 
 import crypto from 'crypto';
-import zlib from 'zlib';
-import { promisify } from 'util';
 import net from 'net';
 import fs from 'fs';
 import path from 'path';
@@ -20,6 +18,7 @@ import {
   makeFilePowers,
   makeNetworkPowers,
   makeCryptoPowers,
+  gunzip,
 } from './manager-node-powers.js';
 import { makeDaemonicGoPowers } from './manager-go-powers.js';
 import {
@@ -30,14 +29,6 @@ import {
 } from './envelope.js';
 
 const fsp = { access: fs.promises.access };
-const gunzipBuffer = promisify(zlib.gunzip);
-
-/** @param {Uint8Array} bytes */
-const gunzip = async bytes => {
-  const output = await gunzipBuffer(bytes);
-  return new Uint8Array(output.buffer, output.byteOffset, output.byteLength);
-};
-
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config } from './types.js' */
 
@@ -115,17 +106,18 @@ const { promise: cancelled, reject: cancel } =
 const networkPowers = makeNetworkPowers({ net, fsp });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
+const registryPowers = {
+  fetch: globalThis.fetch,
+  gunzip,
+  createHash: crypto.createHash,
+};
 const powers = await makeDaemonicGoPowers({
   config,
   cancelled,
   url,
   filePowers,
   cryptoPowers,
-  registryNodePowers: {
-    fetch: globalThis.fetch,
-    gunzip,
-    createHash: crypto.createHash,
-  },
+  registryPowers,
   sendEnvelope,
   envelopeReadStream,
 });
