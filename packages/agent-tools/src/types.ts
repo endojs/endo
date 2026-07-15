@@ -84,7 +84,15 @@ export interface ToolSpec {
    * declared `parameters.properties` names (e.g. `{ message }`, `{ name,
    * options }`).
    */
-  execute: (args: Record<string, unknown>) => Promise<unknown>;
+  execute: (
+    args: Record<string, unknown>,
+    context?: ToolInvocationContext,
+  ) => Promise<unknown>;
+}
+
+/** Host controls supplied alongside a tool invocation. */
+export interface ToolInvocationContext {
+  signal?: AbortSignal;
 }
 
 export interface ToolRecord {
@@ -98,7 +106,10 @@ export interface ToolRecord {
    * Validates the supplied args against `argGuards` when present, then calls
    * `execute(args)`.
    */
-  invoke: (args: Record<string, unknown>) => Promise<unknown>;
+  invoke: (
+    args: Record<string, unknown>,
+    context?: ToolInvocationContext,
+  ) => Promise<unknown>;
 }
 
 export declare function makeTool(spec: ToolSpec): ToolRecord;

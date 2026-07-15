@@ -60,3 +60,26 @@ test('the renderToolResult hook controls the rendered text', async t => {
   t.deepEqual(result.details, { value: 42 });
   t.deepEqual(seen, [{ value: 42 }]);
 });
+
+test('toPiAgentTool forwards pi AbortSignal as invocation context', async t => {
+  /** @type {AbortSignal | undefined} */
+  let received;
+  const tool = makeTool({
+    name: 'signal',
+    description: 'Observe invocation context.',
+    parameters: harden({
+      type: 'object',
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    }),
+    execute: async (_args, context) => {
+      received = context?.signal;
+      return 'ok';
+    },
+  });
+  const agentTool = toPiAgentTool(tool);
+  const controller = new AbortController();
+  await agentTool.execute('id-4', {}, controller.signal);
+  t.is(received, controller.signal);
+});

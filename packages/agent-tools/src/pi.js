@@ -42,9 +42,10 @@ export const toPiAgentTool = (tool, options = {}) => {
     label: tool.name,
     description: tool.description,
     parameters: /** @type {Tool['parameters']} */ (tool.parameters),
-    execute: async (_toolCallId, params, _signal, _onUpdate) => {
+    execute: async (_toolCallId, params, signal, _onUpdate) => {
       const result = await tool.invoke(
         /** @type {Record<string, unknown>} */ (params ?? {}),
+        { signal },
       );
       /** @type {AgentToolResult<unknown>} */
       const toolResult = {

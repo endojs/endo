@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { ToolSpec, ToolRecord } from './types.js' */
+/** @import { ToolInvocationContext, ToolSpec, ToolRecord } from './types.js' */
 
 import { mustMatch } from '@endo/patterns';
 
@@ -121,8 +121,9 @@ export const makeTool = spec => {
     inputSchema: hardenedParameters,
     /**
      * @param {Record<string, unknown>} argsRecord
+     * @param {ToolInvocationContext} [context]
      */
-    invoke: async argsRecord => {
+    invoke: async (argsRecord, context) => {
       const hardenedArgsRecord = copyHardenArgsRecord(argsRecord);
       if (argGuards !== undefined) {
         // Reject keys outside the declared property list.
@@ -150,7 +151,7 @@ export const makeTool = spec => {
           mustMatch(positional[i], argGuards[i], `${name} ${paramNames[i]}`);
         }
       }
-      return execute(hardenedArgsRecord);
+      return execute(hardenedArgsRecord, context);
     },
   });
 };
