@@ -17,7 +17,7 @@ import {
   makeEndoRegistry,
   makeRegistryTable,
   satisfies,
-  maxSatisfying,
+  minSatisfying,
   parseVersion,
   compareVersions,
   RegistryMissingPackageErrorName,
@@ -99,7 +99,7 @@ const makeFakeBackend = (fixture, { tamper = new Set() } = {}) => {
 const resolveEntry = (packageJson, registry, options) =>
   E(registry).resolve(JSON.stringify(packageJson), options);
 
-test('semver: parse, compare, satisfies, maxSatisfying', t => {
+test('semver: parse, compare, satisfies, minSatisfying', t => {
   t.deepEqual(
     { ...parseVersion('1.2.3') },
     { major: 1, minor: 2, patch: 3, prerelease: [], raw: '1.2.3' },
@@ -117,11 +117,11 @@ test('semver: parse, compare, satisfies, maxSatisfying', t => {
   // A caret on a 0.x version pins the minor.
   t.true(satisfies('0.2.9', '^0.2.1'));
   t.false(satisfies('0.3.0', '^0.2.1'));
-  t.is(maxSatisfying(['1.0.0', '1.2.0', '1.5.3', '2.0.0'], '^1.0.0'), '1.5.3');
-  t.is(maxSatisfying(['1.0.0', '2.0.0'], '^3.0.0'), undefined);
+  t.is(minSatisfying(['1.0.0', '1.2.0', '1.5.3', '2.0.0'], '^1.0.0'), '1.0.0');
+  t.is(minSatisfying(['1.0.0', '2.0.0'], '^3.0.0'), undefined);
 });
 
-test('resolve: widened transitive range picks greatest satisfying', async t => {
+test('resolve: widened transitive range selects the greatest mentioned version', async t => {
   const { backend } = makeFakeBackend({
     'root@1.0.0': {},
     'pkg@1.0.0': {},
@@ -136,10 +136,56 @@ test('resolve: widened transitive range picks greatest satisfying', async t => {
     registry,
   );
   // Entry requires pkg@^1.0.0, dep widens to pkg@^1.2.0; MVS selects the
-  // greatest 1.x satisfying both.
-  t.deepEqual([...resolution.keys].sort(), ['dep@1.0.0', 'pkg@1.4.1']);
-  t.is(resolution.packagesByKey['pkg@1.4.1'].version, '1.4.1');
+  // greatest mentioned version, not a later version merely published in the
+  // registry.
+  t.deepEqual([...resolution.keys].sort(), ['dep@1.0.0', 'pkg@1.2.0']);
+  t.is(resolution.packagesByKey['pkg@1.2.0'].version, '1.2.0');
   t.is(typeof resolution.resolutionHash, 'string');
+});
+
+test('resolve: transitive publications do not alter MVS before a direct upgrade', async t => {
+  const root = { name: 'root', dependencies: { direct: '^1.0.0' } };
+  const fixture = {
+    'direct@1.0.0': { dependencies: { transitive: '^1.0.0' } },
+    'direct@1.1.0': { dependencies: { transitive: '^1.1.0' } },
+    'transitive@1.0.0': {},
+  };
+  const initial = makeEndoRegistry(makeFakeBackend(fixture).backend);
+  const initialResolution = await resolveEntry(root, initial);
+
+  fixture['transitive@1.1.0'] = {};
+  fixture['transitive@1.2.0'] = {};
+  const afterTransitivePublications = makeEndoRegistry(
+    makeFakeBackend(fixture).backend,
+  );
+  const unchangedResolution = await resolveEntry(
+    root,
+    afterTransitivePublications,
+  );
+
+  t.deepEqual(
+    unchangedResolution.keys,
+    initialResolution.keys,
+    'new transitive versions do not alter the resolution',
+  );
+  t.is(
+    unchangedResolution.resolutionHash,
+    initialResolution.resolutionHash,
+    'new transitive versions do not alter the resolution hash',
+  );
+
+  const upgradedRoot = {
+    ...root,
+    dependencies: { direct: '^1.1.0' },
+  };
+  const upgradedResolution = await resolveEntry(
+    upgradedRoot,
+    afterTransitivePublications,
+  );
+  t.deepEqual([...upgradedResolution.keys].sort(), [
+    'direct@1.1.0',
+    'transitive@1.1.0',
+  ]);
 });
 
 test('resolve: incompatible majors coexist as distinct keys', async t => {

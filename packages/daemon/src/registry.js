@@ -390,13 +390,15 @@ export const rangeMajor = rangeString => {
 };
 
 /**
- * Select the greatest version in `versions` that satisfies `rangeString`.
+ * Select the least published version in `versions` that satisfies
+ * `rangeString`. This preserves MVS's property that newly-published versions
+ * cannot alter an existing resolution.
  *
  * @param {string[]} versions
  * @param {string} rangeString
  * @returns {string | undefined}
  */
-export const maxSatisfying = (versions, rangeString) => {
+export const minSatisfying = (versions, rangeString) => {
   /** @type {SemverVersion | undefined} */
   let best;
   for (const candidate of versions) {
@@ -405,7 +407,7 @@ export const maxSatisfying = (versions, rangeString) => {
       : undefined;
     if (
       parsed !== undefined &&
-      (best === undefined || compareVersions(parsed, best) > 0)
+      (best === undefined || compareVersions(parsed, best) < 0)
     ) {
       best = parsed;
     }
@@ -814,7 +816,7 @@ export const makeEndoRegistry = (backend, options = {}) => {
       let candidateVersion;
       try {
         const versions = await versionsFor(name, offline);
-        candidateVersion = maxSatisfying(versions, range);
+        candidateVersion = minSatisfying(versions, range);
         if (candidateVersion === undefined) {
           throw makeRegistryMissingPackageError(
             X`registry: no published version of ${q(name)} satisfies ${q(
