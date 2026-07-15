@@ -43,6 +43,25 @@ test('invoke runs execute when no argGuards are supplied', async t => {
   t.is(await tool.invoke({ arg0: 'hi' }), 'got:hi');
 });
 
+test('invoke forwards the optional invocation context to execute', async t => {
+  /** @type {AbortSignal | undefined} */
+  let received;
+  const tool = makeTool({
+    name: 'signal',
+    description: 'Observe invocation context.',
+    parameters: { type: 'object', properties: {}, required: [] },
+    execute: async (_args, context) => {
+      received = context?.signal;
+      return 'ok';
+    },
+  });
+  const controller = new AbortController();
+
+  await null;
+  t.is(await tool.invoke({}, { signal: controller.signal }), 'ok');
+  t.is(received, controller.signal);
+});
+
 test('invoke enforces argGuards before execute', async t => {
   let ran = false;
   const tool = makeTool({
