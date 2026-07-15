@@ -15,6 +15,25 @@ today and the eventual packaged interactive CLI.
 An external MCP server is a separate consumer of `@endo/agent-tools`, not a
 part of `@endo/agentry`.
 
+## Contents
+
+- [Code mode](#code-mode)
+- [Planned layout](#planned-layout)
+- [Exports](#exports)
+  - [Tool exports](#tool-exports)
+  - [Code-mode exports](#code-mode-exports)
+  - [MCP adapter exports](#mcp-adapter-exports)
+- [JSON tool records (parked)](#json-tool-records-parked)
+  - [Named arguments](#named-arguments)
+- [Current capability surface](#current-capability-surface)
+  - [Git tools](#git-tools)
+  - [Filesystem tools](#filesystem-tools)
+  - [Shell and HTTP tools](#shell-and-http-tools)
+  - [Schema conformance](#schema-conformance)
+- [MCP adapter boundary (planned)](#mcp-adapter-boundary-planned)
+  - [MCP's protocol surface](#mcps-protocol-surface)
+  - [Current gaps and intended ownership](#current-gaps-and-intended-ownership)
+
 ## Code mode
 
 The code-mode tool is `evaluate({ source })`.
@@ -71,6 +90,8 @@ MCP, Codex, and Claude Code adapters are planned provider bridges.
 
 ## Exports
 
+### Tool exports
+
 The package root exports the JSON tool makers and their types:
 
 ```js
@@ -117,7 +138,24 @@ Importing the root or a non-Pi subpath does not opt a consumer into a Pi
 provider.
 Import `@endo/agent-tools/pi` only for the Pi bridge.
 
-## JSON Tool Records (parked)
+### Code-mode exports
+
+Code mode is not exported from `@endo/agent-tools` yet.
+The implementation currently lives in `@endo/agentry` as the
+`execute({ source, resultName? })` tool and its hosts, globals, and generated
+declarations.
+Relocation into the reusable `@endo/agent-tools` layer is planned; the target
+tool name is `evaluate`.
+
+### MCP adapter exports
+
+An MCP adapter is not exported from `@endo/agent-tools` yet.
+The planned adapter will be a separate provider bridge over the provider-
+independent tool records.
+The adapter's protocol and transport responsibilities are described in the
+[MCP adapter boundary](#mcp-adapter-boundary-planned) section.
+
+## JSON tool records (parked)
 
 The retained JSON layer provides these makers:
 `makeTool`, `makeGitTool`, `makeGitHistoryTool`, `makeGitMountTools`,
@@ -155,54 +193,6 @@ It invokes the record, currently renders one text result for Pi, and retains
 the raw completion value as `details`.
 A caller can provide a renderer for its own transcript format.
 
-## MCP adapter boundary (planned)
-
-The reference point for a future MCP adapter is the stable
-[MCP 2025-11-25 tools specification](https://modelcontextprotocol.io/specification/2025-11-25/server/tools),
-alongside its [schema reference](https://modelcontextprotocol.io/specification/2025-11-25/schema)
-and [JSON Schema 2020-12 default-dialect SEP](https://modelcontextprotocol.io/seps/1613-establish-json-schema-2020-12-as-default-dialect-f).
-This package does not implement that MCP adapter yet.
-
-### MCP's protocol surface
-
-An MCP tool definition includes `name`, optional `title`, `description`,
-optional `icons`, required `inputSchema`, optional `outputSchema`, optional
-`annotations`, and optional `execution.taskSupport`.
-Discovery and invocation are protocol operations: `tools/list` and
-`tools/call`.
-`tools/list` supports pagination, and a server may advertise `listChanged` and
-send `notifications/tools/list_changed` when its tool catalog changes.
-
-An MCP `CallToolResult` has a `content` array of rich content blocks, such as
-text, images, audio, resource links, and embedded resources.
-It may also carry JSON `structuredContent`.
-When `outputSchema` is present, the server must produce structured content that
-conforms to it and the client should validate it.
-For backward compatibility, a structured result should also include its
-serialized JSON in a text content block.
-
-MCP distinguishes JSON-RPC protocol errors from tool execution errors.
-Protocol problems such as an unknown tool or malformed request use the JSON-RPC
-error response, while a failure from the tool itself is reported in a result
-with `isError: true`.
-
-### Current gaps and intended ownership
-
-The following are MCP-facing capabilities for a future adapter or server, not
-properties supplied by the current `ToolRecord` or Pi adapter:
-
-| MCP-facing capability | Status in `@endo/agent-tools` |
-|---|---|
-| Advertise and validate `outputSchema`. | Planned; not implemented. |
-| Map arbitrary completions to `structuredContent` and rich content blocks, including the backward-compatible JSON text block. | Planned; not implemented. |
-| Carry MCP metadata such as `annotations`, `title`, and `icons`. | Planned; not implemented. |
-| Implement MCP discovery, lifecycle, pagination, and `tools/list_changed` notifications. | Planned for an MCP adapter/server; not implemented. |
-| Represent task-augmented execution through `execution.taskSupport`. | Not represented by the current `ToolRecord` or Pi adapter; planned for the eventual MCP adapter if supported. |
-| Provide MCP transport, JSON-RPC, session, or authorization behavior. | Owned by the external MCP server/transport layer; not part of the provider-independent `ToolRecord`. |
-
-Until that adapter exists, `inputSchema` on a local record should not be read as
-an assertion that the package supplies the rest of the MCP tool contract.
-
 ### Named arguments
 
 `makeTool` accepts optional positional guards, but callers pass one JSON object.
@@ -231,6 +221,10 @@ When guards are present, `invoke` rejects unknown keys, rejects missing
 required arguments declared by the schema, copy-hardens incoming parsed JSON
 objects, and validates supplied positional arguments with `mustMatch` before
 calling `execute`.
+
+## Current capability surface
+
+The current JSON tool records are grouped by the capability they wrap.
 
 ### Git tools
 
@@ -308,3 +302,51 @@ headers, truncation, and body text.
 JSON Schemas are hand-authored.
 Package tests compare those schemas with the runtime `@endo/patterns` guards so
 schema drift is caught in CI.
+
+## MCP adapter boundary (planned)
+
+The reference point for a future MCP adapter is the stable
+[MCP 2025-11-25 tools specification](https://modelcontextprotocol.io/specification/2025-11-25/server/tools),
+alongside its [schema reference](https://modelcontextprotocol.io/specification/2025-11-25/schema)
+and [JSON Schema 2020-12 default-dialect SEP](https://modelcontextprotocol.io/seps/1613-establish-json-schema-2020-12-as-default-dialect-f).
+This package does not implement that MCP adapter yet.
+
+### MCP's protocol surface
+
+An MCP tool definition includes `name`, optional `title`, `description`,
+optional `icons`, required `inputSchema`, optional `outputSchema`, optional
+`annotations`, and optional `execution.taskSupport`.
+Discovery and invocation are protocol operations: `tools/list` and
+`tools/call`.
+`tools/list` supports pagination, and a server may advertise `listChanged` and
+send `notifications/tools/list_changed` when its tool catalog changes.
+
+An MCP `CallToolResult` has a `content` array of rich content blocks, such as
+text, images, audio, resource links, and embedded resources.
+It may also carry JSON `structuredContent`.
+When `outputSchema` is present, the server must produce structured content that
+conforms to it and the client should validate it.
+For backward compatibility, a structured result should also include its
+serialized JSON in a text content block.
+
+MCP distinguishes JSON-RPC protocol errors from tool execution errors.
+Protocol problems such as an unknown tool or malformed request use the JSON-RPC
+error response, while a failure from the tool itself is reported in a result
+with `isError: true`.
+
+### Current gaps and intended ownership
+
+The following are MCP-facing capabilities for a future adapter or server, not
+properties supplied by the current `ToolRecord` or Pi adapter:
+
+| MCP-facing capability | Status in `@endo/agent-tools` |
+|---|---|
+| Advertise and validate `outputSchema`. | Planned; not implemented. |
+| Map arbitrary completions to `structuredContent` and rich content blocks, including the backward-compatible JSON text block. | Planned; not implemented. |
+| Carry MCP metadata such as `annotations`, `title`, and `icons`. | Planned; not implemented. |
+| Implement MCP discovery, lifecycle, pagination, and `tools/list_changed` notifications. | Planned for an MCP adapter/server; not implemented. |
+| Represent task-augmented execution through `execution.taskSupport`. | Not represented by the current `ToolRecord` or Pi adapter; planned for the eventual MCP adapter if supported. |
+| Provide MCP transport, JSON-RPC, session, or authorization behavior. | Owned by the external MCP server/transport layer; not part of the provider-independent `ToolRecord`. |
+
+Until that adapter exists, `inputSchema` on a local record should not be read as
+an assertion that the package supplies the rest of the MCP tool contract.
