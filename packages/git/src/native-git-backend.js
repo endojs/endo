@@ -49,6 +49,7 @@ const utf8Decoder = new TextDecoder('utf-8', { fatal: false });
  *   GitRebaseInput,
  *   GitRef,
  *   GitRestoreOptions,
+ *   ReadableTree,
  * } from '@endo/exo-git'
  * @import {
  *   GitTreeEntry,
@@ -602,14 +603,14 @@ harden(encodeCredentialRecords);
  * askpass helper consumes. Returns `undefined` when no credential is supplied
  * (the caller then runs git without the askpass pipe).
  *
- * @param {unknown} credential
+ * @param {GitRemoteCredential | undefined} credential
  * @returns {Buffer | undefined}
  */
 const credentialBytesFor = credential => {
   if (credential === undefined) {
     return undefined;
   }
-  const nativeCredential = /** @type {GitRemoteCredential} */ (credential);
+  const nativeCredential = credential;
   /** @type {string} */
   let username;
   /** @type {string} */
@@ -1837,10 +1838,10 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
 
   /**
    * @param {string} treeOid
-   * @returns {unknown}
+   * @returns {ReadableTree}
    */
   const makeGitTree = treeOid => {
-    /** @type {unknown} */
+    /** @type {ReadableTree} */
     let self;
 
     /**
@@ -1884,8 +1885,8 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
     self = makeExo('GitTree', GitTreeInterface, {
       /**
        * Returns a `PassableBytesReader` over the
-       * `git archive --format=tar` stream. Each call starts a fresh
-       * `git archive` subprocess.
+       * `git archive --format=tar` stream.
+       * Each call starts a fresh `git archive` subprocess.
        */
       archiveTar() {
         return bytesReaderFromIterator(
@@ -1923,9 +1924,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         const segments = normalizeTreePath(pathArgs);
         if (segments.length > 0) {
           const subtree = await lookupSegments(segments);
-          return /** @type {Promise<string[]>} */ (
-            /** @type {any} */ (subtree).list()
-          );
+          return /** @type {ReadableTree} */ (subtree).list();
         }
         const entries = await listTreeEntries(treeOid);
         return harden(entries.map(entry => entry.name));
@@ -1961,7 +1960,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
      * inline rather than escaping it.
      *
      * Returns the raw structural list.  The public Git exo wraps each
-     * entry into a `GitStatusEntry` by minting an `EndoMountEntry` on
+     * entry into a `GitStatusEntry` by minting a `PathEntry` on
      * the bound mount — the backend has no mount cap to mint with.
      *
      * @returns {Promise<RawStatusEntry[]>}
@@ -2159,8 +2158,9 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
 
     /**
      * Stage the given repo-relative paths.  The public Git exo resolves
-     * `EndoMountEntry` values into paths before this call.  Per-repo
-     * executable filter and merge-driver config is refused at the top of
+     * `PathEntry` values into paths before this call.
+     * Per-repo executable filter and merge-driver config is refused at the
+     * top of
      * every mutation, in case a guest committed something that would
      * exec on read.
      *
@@ -2629,7 +2629,7 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
      * implement `ReadableBlob`.
      *
      * @param {string} ref
-     * @returns {Promise<unknown>}
+     * @returns {Promise<ReadableTree>}
      */
     tree: async ref => {
       const revision = requireRevision(ref, 'tree.ref');
