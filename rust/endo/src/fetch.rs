@@ -55,11 +55,11 @@ struct VersionDoc {
 struct Dist {
     tarball: String,
     /// Subresource-integrity string, e.g. `sha512-<base64>`.
+    /// Very old packages publish only a legacy SHA-1 `shasum`, which
+    /// this module deliberately does not consume: when `integrity`
+    /// is absent, no verification is performed (see
+    /// [`fetch_package`]).
     integrity: Option<String>,
-    /// Legacy SHA-1 hex shasum field, fallback when `integrity` is
-    /// absent on very old packages.
-    #[allow(dead_code)]
-    shasum: Option<String>,
 }
 
 /// Top-level npm-registry response.
@@ -99,6 +99,11 @@ pub enum FetchError {
     /// The integrity string the registry returned was not in the
     /// recognised SRI form we support (e.g. `sha512-<base64>`).
     UnsupportedIntegrity(String),
+    /// The tarball contained an entry this module refuses to
+    /// extract: a link (symbolic or hard), a device node, or a FIFO,
+    /// or a path with `..`/absolute components. npm never publishes
+    /// these; encountering one means the registry is misbehaving.
+    UnsupportedEntry(String),
     /// Tarball extraction or CAS write failed.
     Io(io::Error),
 }
@@ -117,6 +122,9 @@ impl std::fmt::Display for FetchError {
             ),
             FetchError::UnsupportedIntegrity(s) => {
                 write!(f, "unsupported integrity form: {s}")
+            }
+            FetchError::UnsupportedEntry(s) => {
+                write!(f, "unsupported tarball entry: {s}")
             }
             FetchError::Io(e) => write!(f, "io: {e}"),
         }
@@ -152,6 +160,9 @@ pub struct UreqClient {
 }
 
 impl UreqClient {
+    /// Construct once and share across fetches; each agent owns its
+    /// own connection pool, so a per-fetch `UreqClient::new()` pays
+    /// a fresh TCP/TLS handshake on every request.
     pub fn new() -> Self {
         let agent = ureq::AgentBuilder::new()
             .user_agent(USER_AGENT)
@@ -199,6 +210,12 @@ impl HttpClient for UreqClient {
 /// On a cache miss, fetches from `{registry_url}{name}`, caches the
 /// raw JSON in the `package_meta` table, then returns it.
 ///
+/// The cache is write-once: a cached row is never re-fetched, so
+/// versions published after the first fetch are not observed.
+/// Callers needing freshness must invalidate the `package_meta` row
+/// directly. This is the registry-table-as-lock-file behaviour the
+/// design intends.
+///
 /// The returned bytes are the raw JSON body of the registry's
 /// per-package document.
 pub fn fetch_metadata_cached<H: HttpClient>(
@@ -234,6 +251,15 @@ pub fn fetch_metadata_cached<H: HttpClient>(
 /// 4. Download the tarball, verify integrity, extract to CAS.
 /// 5. Insert `(name, version, tree_hash, integrity)` into the
 ///    registry table.
+///
+/// Trust boundary: registry-table entries are treated as previously
+/// verified — the fast path in step 1 returns them without
+/// re-checking integrity. Any other writer into the `packages`
+/// table is responsible for upholding that integrity contract.
+///
+/// When the registry advertises no `dist.integrity` (very old
+/// packages publish only a legacy SHA-1 `shasum`), no integrity
+/// check is performed and the integrity column is left NULL.
 pub fn fetch_package<H: HttpClient>(
     http: &H,
     cas: &ContentStore,
@@ -267,9 +293,6 @@ pub fn fetch_package<H: HttpClient>(
     if let Some(integrity) = &version_doc.dist.integrity {
         verify_integrity(integrity, &tarball_bytes)?;
     }
-    // If integrity is missing (very old packages publish only
-    // `shasum`), we still extract but leave verification to the
-    // caller's policy layer.  The integrity column will be NULL.
 
     let tree_hash = extract_tarball_to_cas(&tarball_bytes, cas)?;
 
@@ -294,6 +317,8 @@ pub fn fetch_package<H: HttpClient>(
 /// bytes.
 ///
 /// Supports the `sha512-<base64>` form npm publishes today.
+/// The digest must be standard base64 per the SRI spec; URL-safe
+/// base64 is not accepted.
 /// Returns `Ok(())` on match; `Err(FetchError::IntegrityMismatch)`
 /// when the digest disagrees; and
 /// `Err(FetchError::UnsupportedIntegrity)` when the algorithm
@@ -333,9 +358,15 @@ pub fn verify_integrity(integrity: &str, bytes: &[u8]) -> Result<(), FetchError>
 /// prefix.
 /// Each regular file is stored as a CAS blob; nested directories
 /// are recursively assembled into tree manifests.
-/// Entries that are not regular files (symlinks, hardlinks,
-/// devices) are ignored, matching the *de facto* npm rule that
-/// publishable packages are made of regular files only.
+/// Links (symbolic or hard), device nodes, and FIFOs are rejected
+/// with [`FetchError::UnsupportedEntry`]: `npm publish` never emits
+/// them, so encountering one means the registry is serving a
+/// tarball npm would not have produced, and silently dropping it
+/// would truncate the package. Directory entries and other metadata
+/// entry types are skipped (their contents arrive as their own
+/// entries). Paths containing `..` or absolute components are
+/// likewise rejected, so a hostile tarball can never plant a
+/// traversal-shaped key in a tree manifest.
 pub fn extract_tarball_to_cas(
     tarball: &[u8],
     cas: &ContentStore,
@@ -350,10 +381,36 @@ pub fn extract_tarball_to_cas(
     for entry in archive.entries().map_err(FetchError::Io)? {
         let mut entry = entry.map_err(FetchError::Io)?;
         let header = entry.header().clone();
-        if !matches!(header.entry_type(), tar::EntryType::Regular) {
-            continue;
+        match header.entry_type() {
+            tar::EntryType::Regular => {}
+            tar::EntryType::Symlink
+            | tar::EntryType::Link
+            | tar::EntryType::Char
+            | tar::EntryType::Block
+            | tar::EntryType::Fifo => {
+                let path = entry.path().map_err(FetchError::Io)?;
+                return Err(FetchError::UnsupportedEntry(format!(
+                    "{:?} entry at {}",
+                    header.entry_type(),
+                    path.display()
+                )));
+            }
+            _ => continue,
         }
         let path = entry.path().map_err(FetchError::Io)?.into_owned();
+        if path.components().any(|c| {
+            matches!(
+                c,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        }) {
+            return Err(FetchError::UnsupportedEntry(format!(
+                "traversal-shaped path {}",
+                path.display()
+            )));
+        }
         let mut components = path.components().peekable();
         // Strip the leading `package/` (or whatever the single
         // top-level directory is named) so the CAS tree mirrors the
@@ -865,6 +922,71 @@ mod tests {
         assert_eq!(names, vec!["lib"]);
         let lib_bytes = cas.fetch_from_tree(&tree_hash, "lib/x.js").unwrap();
         assert_eq!(lib_bytes, b"ok");
+    }
+
+    #[test]
+    fn extract_rejects_symlink_entries() {
+        // npm never publishes links; a registry serving one is
+        // misbehaving and the extraction must fail loudly rather
+        // than silently truncate the package.
+        let mut tar_buf = Vec::new();
+        {
+            let mut builder = tar::Builder::new(&mut tar_buf);
+            let mut link_header = tar::Header::new_gnu();
+            link_header.set_entry_type(tar::EntryType::Symlink);
+            link_header.set_size(0);
+            link_header.set_mode(0o777);
+            builder
+                .append_link(&mut link_header, "package/evil", "/etc/passwd")
+                .unwrap();
+            builder.finish().unwrap();
+        }
+        let mut gz =
+            flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gz.write_all(&tar_buf).unwrap();
+        let tarball = gz.finish().unwrap();
+
+        let (_tmp, cas) = fresh_cas();
+        match extract_tarball_to_cas(&tarball, &cas) {
+            Err(FetchError::UnsupportedEntry(msg)) => {
+                assert!(msg.contains("Symlink"), "unexpected message: {msg}");
+            }
+            other => panic!("expected UnsupportedEntry, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extract_rejects_parent_dir_traversal() {
+        // A tarball entry like `package/../etc/passwd` must never
+        // become a `..` key in a tree manifest. The `tar` Builder
+        // refuses to *write* such a path, so poke the name bytes
+        // into the header directly, as a hostile registry would.
+        let content: &[u8] = b"root:x";
+        let mut tar_buf = Vec::new();
+        {
+            let mut builder = tar::Builder::new(&mut tar_buf);
+            let mut header = tar::Header::new_gnu();
+            let path_bytes = b"package/../etc/passwd";
+            header.as_old_mut().name[..path_bytes.len()]
+                .copy_from_slice(path_bytes);
+            header.set_size(content.len() as u64);
+            header.set_mode(0o644);
+            header.set_cksum();
+            builder.append(&header, content).unwrap();
+            builder.finish().unwrap();
+        }
+        let mut gz =
+            flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gz.write_all(&tar_buf).unwrap();
+        let tarball = gz.finish().unwrap();
+
+        let (_tmp, cas) = fresh_cas();
+        match extract_tarball_to_cas(&tarball, &cas) {
+            Err(FetchError::UnsupportedEntry(msg)) => {
+                assert!(msg.contains("traversal"), "unexpected message: {msg}");
+            }
+            other => panic!("expected UnsupportedEntry, got {other:?}"),
+        }
     }
 
     #[test]
