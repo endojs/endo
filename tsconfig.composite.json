@@ -3,6 +3,12 @@
   "files": [],
   "references": [
     {
+      "path": "packages/agent-tools/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/agentry/tsconfig.composite.json"
+    },
+    {
       "path": "packages/base64/tsconfig.composite.json"
     },
     {

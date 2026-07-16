@@ -6,6 +6,12 @@
   },
   "references": [
     {
+      "path": "../agent-tools/tsconfig.composite.json"
+    },
+    {
+      "path": "../agentry/tsconfig.composite.json"
+    },
+    {
       "path": "../daemon/tsconfig.composite.json"
     },
     {
