@@ -195,6 +195,9 @@
       "path": "packages/ses-ava/tsconfig.composite.json"
     },
     {
+      "path": "packages/siesta/tsconfig.composite.json"
+    },
+    {
       "path": "packages/skel/tsconfig.composite.json"
     },
     {

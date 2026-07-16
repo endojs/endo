@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.eslint-base.json",
+  "include": [
+    "*.js",
+    "src/**/*.js",
+    "test"
+  ]
+  // do not use `exclude` here; it will be overridden by tsconfig.build.json
+}
