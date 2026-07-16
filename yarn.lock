@@ -2846,6 +2846,29 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/siesta@workspace:packages/siesta":
+  version: 0.0.0-use.local
+  resolution: "@endo/siesta@workspace:packages/siesta"
+  dependencies:
+    "@endo/captp": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/ocapn": "workspace:^"
+    "@endo/pass-style": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/skel@workspace:packages/skel":
   version: 0.0.0-use.local
   resolution: "@endo/skel@workspace:packages/skel"
