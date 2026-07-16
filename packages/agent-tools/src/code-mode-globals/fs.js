@@ -1,9 +1,9 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { CodeModeGlobal } from '../../../agent-tools/src/code-mode/evaluate-tool.js' */
+/** @import { CodeModeGlobal } from '../code-mode/evaluate-tool.js' */
 
-import { fsCodeModeTypeDeclarations } from './fs-types.js';
+import { fsDeclarations } from '../../generated/code-mode-globals/fs-declarations.js';
 
 /**
  * The filesystem exo's generated TypeScript declarations, keyed by code-mode
@@ -11,7 +11,7 @@ import { fsCodeModeTypeDeclarations } from './fs-types.js';
  * A consumer composing its own code-mode agent can read these directly to
  * inject the workspace types into a hand-built global.
  */
-export { fsCodeModeTypeDeclarations };
+export { fsDeclarations };
 
 /**
  * Build the code-mode global descriptor for a writable
@@ -29,6 +29,6 @@ export const makeWorkspaceGlobal = ({ name, petName = name }) =>
     petName,
     description:
       'Writable @endo/platform/fs/extended Filesystem for the repository.',
-    declaration: fsCodeModeTypeDeclarations.workspace,
+    declaration: fsDeclarations.workspace,
   });
 harden(makeWorkspaceGlobal);

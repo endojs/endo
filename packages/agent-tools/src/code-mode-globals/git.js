@@ -1,9 +1,9 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { CodeModeGlobal } from '../../../agent-tools/src/code-mode/evaluate-tool.js' */
+/** @import { CodeModeGlobal } from '../code-mode/evaluate-tool.js' */
 
-import { gitCodeModeTypeDeclarations } from './git-types.js';
+import { gitDeclarations } from '../../generated/code-mode-globals/git-declarations.js';
 
 /**
  * The git exo's per-mode generated TypeScript declarations, keyed by code-mode
@@ -11,7 +11,7 @@ import { gitCodeModeTypeDeclarations } from './git-types.js';
  * A consumer composing its own code-mode agent can read these directly to inject
  * git types into a hand-built global.
  */
-export { gitCodeModeTypeDeclarations };
+export { gitDeclarations };
 
 /**
  * Build the code-mode global descriptor for an `@endo/exo-git` Git capability.
@@ -44,9 +44,9 @@ export const makeGitGlobal = ({
         ? 'History-rewrite @endo/exo-git Git capability for amend and reword.'
         : 'Read/write @endo/exo-git Git capability for repository changes.',
     declaration: readOnly
-      ? gitCodeModeTypeDeclarations.gitReadOnly
+      ? gitDeclarations.gitReadOnly
       : historyRewrite
-        ? gitCodeModeTypeDeclarations.gitHistory
-        : gitCodeModeTypeDeclarations.git,
+        ? gitDeclarations.gitHistory
+        : gitDeclarations.git,
   });
 harden(makeGitGlobal);

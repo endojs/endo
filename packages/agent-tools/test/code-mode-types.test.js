@@ -7,8 +7,8 @@ import { FilesystemInterface } from '@endo/platform/fs/extended/type-guards.js';
 
 /** @import { InterfaceGuard } from '@endo/patterns' */
 
-import { gitCodeModeTypeDeclarations } from '../src/execute/git-types.js';
-import { fsCodeModeTypeDeclarations } from '../src/execute/fs-types.js';
+import { gitDeclarations } from '../generated/code-mode-globals/git-declarations.js';
+import { fsDeclarations } from '../generated/code-mode-globals/fs-declarations.js';
 import {
   buildGitTypeDeclarations,
   buildGitIRs,
@@ -32,34 +32,28 @@ const declaredTypeNames = aux =>
 // Freshness gate (git): the checked-in git artifact must equal a fresh
 // extraction, so a change to the exo-git types.d.ts or to a renderer cannot
 // land without regenerating and committing the declarations.
-test('generated git-types.js is up to date with its source', t => {
+test('generated git declarations are up to date with their source', t => {
   const fresh = buildGitTypeDeclarations();
-  t.deepEqual(
-    Object.keys(gitCodeModeTypeDeclarations).sort(),
-    Object.keys(fresh).sort(),
-  );
+  t.deepEqual(Object.keys(gitDeclarations).sort(), Object.keys(fresh).sort());
   for (const key of Object.keys(fresh)) {
     t.deepEqual(
-      gitCodeModeTypeDeclarations[key],
+      gitDeclarations[key],
       fresh[key],
-      `${key} declaration is stale; run: yarn workspace agentry gen:code-mode-types`,
+      `${key} declaration is stale; run: yarn workspace @endo/agent-tools gen:code-mode-types`,
     );
   }
 });
 
 // Freshness gate (fs): the checked-in workspace artifact must equal a fresh
 // extraction from the FS guards.
-test('generated fs-types.js is up to date with its source', t => {
+test('generated fs declarations are up to date with their source', t => {
   const fresh = buildFsTypeDeclarations();
-  t.deepEqual(
-    Object.keys(fsCodeModeTypeDeclarations).sort(),
-    Object.keys(fresh).sort(),
-  );
+  t.deepEqual(Object.keys(fsDeclarations).sort(), Object.keys(fresh).sort());
   for (const key of Object.keys(fresh)) {
     t.deepEqual(
-      fsCodeModeTypeDeclarations[key],
+      fsDeclarations[key],
       fresh[key],
-      `${key} declaration is stale; run: yarn workspace agentry gen:code-mode-types`,
+      `${key} declaration is stale; run: yarn workspace @endo/agent-tools gen:code-mode-types`,
     );
   }
 });
@@ -93,13 +87,13 @@ test('read-only git is a subset of read-write git and omits mutators', t => {
   // mutating surface back into the read-only declaration.
   t.false(gitReadOnly.members.some(member => member.name === 'commit'));
   t.false(gitReadOnly.members.some(member => member.name === 'merge'));
-  t.false(gitCodeModeTypeDeclarations.gitReadOnly.aux.includes('commit:'));
+  t.false(gitDeclarations.gitReadOnly.aux.includes('commit:'));
   t.true(readOnly.includes('log'));
   t.true(readOnly.includes('diff'));
 });
 
 test('git declarations expand the reachable platform filesystem contracts', t => {
-  const { aux } = gitCodeModeTypeDeclarations.git;
+  const { aux } = gitDeclarations.git;
   t.false(aux.includes("import('@endo/platform"));
   for (const shape of [
     'type GitPathEntry =',
@@ -121,10 +115,9 @@ test('git declarations expand the reachable platform filesystem contracts', t =>
 });
 
 test('combined Git and workspace declarations have unique alias names', t => {
-  const combined = [
-    fsCodeModeTypeDeclarations.workspace.aux,
-    gitCodeModeTypeDeclarations.git.aux,
-  ].join('\n');
+  const combined = [fsDeclarations.workspace.aux, gitDeclarations.git.aux].join(
+    '\n',
+  );
   const names = declaredTypeNames(combined);
   t.deepEqual(
     names,
@@ -134,9 +127,7 @@ test('combined Git and workspace declarations have unique alias names', t => {
 });
 
 test('Git declarations define every reachable custom filesystem alias', t => {
-  const declared = new Set(
-    declaredTypeNames(gitCodeModeTypeDeclarations.git.aux),
-  );
+  const declared = new Set(declaredTypeNames(gitDeclarations.git.aux));
   for (const name of [
     'GitERef',
     'GitFilesystemStats',
@@ -146,9 +137,7 @@ test('Git declarations define every reachable custom filesystem alias', t => {
   ]) {
     t.true(declared.has(name), `missing generated alias: ${name}`);
   }
-  t.false(
-    gitCodeModeTypeDeclarations.git.aux.includes("import('@endo/platform"),
-  );
+  t.false(gitDeclarations.git.aux.includes("import('@endo/platform"));
 });
 
 test('base and history git declarations split history rewrite authority', t => {
@@ -195,7 +184,7 @@ test('workspace declarations derive from the Filesystem guard', t => {
 });
 
 test('workspace declaration reaches the Directory surface transitively', t => {
-  const { workspace } = fsCodeModeTypeDeclarations;
+  const { workspace } = fsDeclarations;
   t.is(workspace.body, 'Filesystem');
   t.true(workspace.aux.includes('type ERef<T> = T | Promise<T>;'));
   t.true(workspace.aux.includes('type Directory = {'));

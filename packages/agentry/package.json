@@ -45,7 +45,6 @@
   },
   "scripts": {
     "build": "exit 0",
-    "gen:code-mode-types": "node scripts/gen-code-mode-types.js",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint:eslint": "eslint '**/*.js'",

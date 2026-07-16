@@ -8,10 +8,10 @@
  * `code-mode-fs-extract.js`), each of which pairs a source with the generic
  * renderer it needs, and writes one checked-in runtime artifact per exo:
  *
- *   - `src/execute/git-types.js` (git, gitReadOnly)
- *   - `src/execute/fs-types.js`  (workspace)
+ *   - `generated/code-mode-globals/git-declarations.js` (git, gitReadOnly)
+ *   - `generated/code-mode-globals/fs-declarations.js`  (workspace)
  *
- * Run with: `yarn workspace agentry gen:code-mode-types`
+ * Run with: `yarn workspace @endo/agent-tools gen:code-mode-types`
  *
  * `test/code-mode-types.test.js` is the divergence gate: it re-runs the same
  * extraction and fails if a checked-in artifact is stale, so a change to any
@@ -43,7 +43,7 @@ const header = (descriptorFile, sourceDoc) => `// @ts-check
 /**
  * GENERATED FILE - do not edit by hand.
  *
- * Regenerate with: yarn workspace agentry gen:code-mode-types
+ * Regenerate with: yarn workspace @endo/agent-tools gen:code-mode-types
  *
  * Source of truth:
 ${sourceDoc}
@@ -53,8 +53,8 @@ ${sourceDoc}
  * its scripts/code-mode-*-extract.js extractor. The divergence gate in
  * test/code-mode-types.test.js keeps this artifact fresh.
  *
- * Each entry is consumed by formatGlobalDeclarations in execute/globals.js via
- * the per-exo descriptor in execute/${descriptorFile}:
+ * Each entry is consumed by formatGlobalDeclarations in code-mode/declarations.js via
+ * the per-exo descriptor in code-mode-globals/${descriptorFile}:
  * \`aux\` is the supporting \`type\` aliases, \`body\` is the object type spliced
  * after the dynamic \`declare const <name>:\`.
  */
@@ -115,8 +115,8 @@ harden(${exportName});
 };
 
 writeArtifact({
-  outPath: '../src/execute/git-types.js',
-  exportName: 'gitCodeModeTypeDeclarations',
+  outPath: '../generated/code-mode-globals/git-declarations.js',
+  exportName: 'gitDeclarations',
   descriptorFile: 'git.js',
   sourceDoc: ` *   - git / gitReadOnly: packages/exo-git/src/types.ts (the \`WritableEndoGit\` and
  *     \`ReadOnlyEndoGit\`
@@ -126,8 +126,8 @@ writeArtifact({
 });
 
 writeArtifact({
-  outPath: '../src/execute/fs-types.js',
-  exportName: 'fsCodeModeTypeDeclarations',
+  outPath: '../generated/code-mode-globals/fs-declarations.js',
+  exportName: 'fsDeclarations',
   descriptorFile: 'fs.js',
   sourceDoc: ` *   - workspace: the platform/fs/extended interface guards
  *     (\`FilesystemInterface\` and the remotables it reaches), the richest
