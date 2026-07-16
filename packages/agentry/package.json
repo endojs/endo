@@ -29,9 +29,9 @@
       "types": "./src/define-agent.js",
       "default": "./src/define-agent.js"
     },
-    "./execute": {
-      "types": "./src/execute/index.js",
-      "default": "./src/execute/index.js"
+    "./code-mode": {
+      "types": "./src/code-mode.js",
+      "default": "./src/code-mode.js"
     },
     "./eval": {
       "types": "./src/eval/index.js",

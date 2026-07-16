@@ -9,17 +9,17 @@ Each surface is opt-in via its own subpath export.
 ## Current surfaces
 
 - `@endo/agentry` (root) — `defineAgent` plus the harness primitives
-  (marshalling, the credential seam, model resolution, and the pi-agent
-  builder).
+  (the credential seam, model resolution, and the pi-agent builder).
 - `@endo/agentry/define-agent` — `defineAgent(config)`, which returns a maker
   function: the powerless definition is the closure, and calling the returned
   maker with a powers handle is the powered stage.
 - `@endo/agentry/harness` — the code-mode-independent primitives the harness is
-  built from: `toolResultToSmallcaps` + the SmallCaps codec, `makeEnvCredentials`
-  (the single reader of `process.env`), `resolveModel`/`defineModels`, and
-  `makePiAgent`. `@endo/lal` imports these directly.
-- `@endo/agentry/execute` — the execute-only code-mode tool and its presets
-  (`makeCodeModeAgent`, `makeCodeModeGitLoopAgent`), built on `defineAgent`.
+  built from: `makeEnvCredentials` (the single reader of `process.env`),
+  `resolveModel`/`defineModels`, and `makePiAgent`. `@endo/lal` imports these
+  directly.
+- `@endo/agentry/code-mode` — the complete Pi code-mode preset and prompt
+  assembly (`makeCodeModeAgent`, `makeCodeModeGitLoopAgent`), built on
+  `defineAgent` and `@endo/agent-tools`.
 
 ## defineAgent
 
@@ -70,11 +70,11 @@ capability-scoped secret store is a local change.
 
 ## Code mode
 
-Code mode is just an agent whose one tool is `execute`. `makeCodeModeAgent` is
+Code mode is just an agent whose one tool is `evaluate`. `makeCodeModeAgent` is
 the code-mode preset of `defineAgent`:
 
 ```js
-import { makeCodeModeAgent } from '@endo/agentry/execute';
+import { makeCodeModeAgent } from '@endo/agentry/code-mode';
 
 const { agent } = makeCodeModeAgent({
   model,
@@ -91,18 +91,23 @@ history-rewrite authority and advertises the elevated `gitHistory` surface,
 including amend and reword operations.
 
 The model-facing tool surface is intentionally one tool:
-`execute({ source, resultName? })`. Workspace and Git operations happen inside
+`evaluate({ source, resultName? })`. Workspace and Git operations happen inside
 the Endo Compartment through lexical caps (`workspace`, `git`, and any
 configured named powers). The lexical globals are advertised to the model by
 name and a one-line description only — the model discovers a capability's method
 surface at runtime via `E(cap).__getMethodNames__()` rather than reading a
 checked-in type declaration.
 
-Plain-data completion values returned from `execute` are encoded for the model
-with the SmallCaps marshaller (`@endo/marshal`), so BigInts and other
+Plain-data completion values returned from `evaluate` are encoded for the model
+with the SmallCaps renderer from `@endo/agent-tools`, so BigInts and other
 non-JSON-native passable values round-trip losslessly. Capability-bearing
 results are not serialized; the agent keeps them live inside the Compartment and
 stores them under a pet name via `resultName` when it needs them across turns.
+
+The complete Pi harness remains in agentry.
+The reusable evaluate substrate, capability declarations, and adapters live in
+`@endo/agent-tools`.
+An external MCP server is a separate consumer of that package.
 
 ## Status
 

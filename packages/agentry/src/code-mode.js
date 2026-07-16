@@ -5,25 +5,23 @@
 /** @import { Agent, AgentMessage, StreamFn } from '@earendil-works/pi-agent-core' */
 /** @import { Credentials, GetApiKey } from './harness/credentials.js' */
 /** @import { ThinkingLevel } from './harness/model.js' */
-/** @import { Evaluate, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from '../../agent-tools/src/code-mode/evaluate-tool.js' */
+/** @import { Evaluate, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from '@endo/agent-tools/code-mode/evaluate-tool.js' */
 
 import { E } from '@endo/eventual-send';
 import { isGitHistoryRewrite, isGitReadOnly } from '@endo/exo-git';
-
-import { defineAgent } from './define-agent.js';
-import { getAmbientEnv, makeEnvCredentials } from './harness/credentials.js';
-import { makeCompartmentEvaluate } from '../../agent-tools/src/code-mode/compartment.js';
-import {
-  makeEvaluateTool,
-} from '../../agent-tools/src/code-mode/evaluate-tool.js';
-import { toPiAgentTool } from '../../agent-tools/src/adapters/pi.js';
-import { toolResultToSmallcaps } from '../../agent-tools/src/adapters/smallcaps.js';
+import { makeCompartmentEvaluate } from '@endo/agent-tools/code-mode/compartment.js';
+import { makeEvaluateTool } from '@endo/agent-tools/code-mode/evaluate-tool.js';
 import {
   formatGlobalDeclarations,
   normalizeGlobals,
-} from '../../agent-tools/src/code-mode/declarations.js';
-import { makeGitGlobal } from '../../agent-tools/src/code-mode-globals/git.js';
-import { makeWorkspaceGlobal } from '../../agent-tools/src/code-mode-globals/fs.js';
+} from '@endo/agent-tools/code-mode/declarations.js';
+import { makeWorkspaceGlobal } from '@endo/agent-tools/code-mode-globals/fs.js';
+import { makeGitGlobal } from '@endo/agent-tools/code-mode-globals/git.js';
+import { toPiAgentTool } from '@endo/agent-tools/adapters/pi.js';
+import { toolResultToSmallcaps } from '@endo/agent-tools/adapters/smallcaps.js';
+
+import { defineAgent } from './define-agent.js';
+import { getAmbientEnv, makeEnvCredentials } from './harness/credentials.js';
 
 /**
  * Build the system prompt for the narrow code-mode agent.

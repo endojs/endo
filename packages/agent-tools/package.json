@@ -22,64 +22,76 @@
       "default": "./types-index.js"
     },
     "./pi": {
-      "types": "./pi.d.ts",
-      "default": "./src/pi.js"
+      "types": "./src/adapters/pi.d.ts",
+      "default": "./src/adapters/pi.js"
     },
     "./tool.js": {
       "types": "./tool.d.ts",
       "default": "./src/tool.js"
     },
-    "./src/pi.js": {
-      "types": "./src/pi.d.ts",
-      "default": "./src/pi.js"
+    "./json-tools/git.js": {
+      "types": "./src/json-tools/git.d.ts",
+      "default": "./src/json-tools/git.js"
     },
-    "./git-tool.js": {
-      "types": "./git-tool.d.ts",
-      "default": "./src/git-tool.js"
+    "./json-tools/git-mount.js": {
+      "types": "./src/json-tools/git-mount.d.ts",
+      "default": "./src/json-tools/git-mount.js"
     },
-    "./git-mount-tool.js": {
-      "types": "./git-mount-tool.d.ts",
-      "default": "./src/git-mount-tool.js"
+    "./json-tools/fs.js": {
+      "types": "./src/json-tools/fs.d.ts",
+      "default": "./src/json-tools/fs.js"
     },
-    "./shell-tool.js": {
-      "types": "./shell-tool.d.ts",
-      "default": "./src/shell-tool.js"
+    "./json-tools/shell.js": {
+      "types": "./src/json-tools/shell.d.ts",
+      "default": "./src/json-tools/shell.js"
     },
-    "./http-tool.js": {
-      "types": "./http-tool.d.ts",
-      "default": "./src/http-tool.js"
+    "./json-tools/http.js": {
+      "types": "./src/json-tools/http.d.ts",
+      "default": "./src/json-tools/http.js"
     },
-    "./mount-fs.js": {
-      "types": "./mount-fs.d.ts",
-      "default": "./src/mount-fs.js"
+    "./code-mode/evaluate-tool.js": {
+      "types": "./src/code-mode/evaluate-tool.js",
+      "default": "./src/code-mode/evaluate-tool.js"
     },
-    "./src/index.js": {
-      "types": "./src/index.d.ts",
-      "default": "./src/index.js"
+    "./code-mode/compartment.js": {
+      "types": "./src/code-mode/compartment.js",
+      "default": "./src/code-mode/compartment.js"
     },
-    "./src/tool.js": {
-      "types": "./src/tool.d.ts",
-      "default": "./src/tool.js"
+    "./code-mode/daemon.js": {
+      "types": "./src/code-mode/daemon.js",
+      "default": "./src/code-mode/daemon.js"
     },
-    "./src/git-tool.js": {
-      "types": "./src/git-tool.d.ts",
-      "default": "./src/git-tool.js"
+    "./code-mode/declarations.js": {
+      "types": "./src/code-mode/declarations.js",
+      "default": "./src/code-mode/declarations.js"
     },
-    "./src/git-mount-tool.js": {
-      "types": "./src/git-mount-tool.d.ts",
-      "default": "./src/git-mount-tool.js"
+    "./code-mode-globals/git.js": {
+      "types": "./src/code-mode-globals/git.js",
+      "default": "./src/code-mode-globals/git.js"
     },
-    "./src/shell-tool.js": {
-      "types": "./src/shell-tool.d.ts",
-      "default": "./src/shell-tool.js"
+    "./code-mode-globals/fs.js": {
+      "types": "./src/code-mode-globals/fs.js",
+      "default": "./src/code-mode-globals/fs.js"
     },
-    "./src/http-tool.js": {
-      "types": "./src/http-tool.d.ts",
-      "default": "./src/http-tool.js"
+    "./adapters/pi.js": {
+      "types": "./src/adapters/pi.d.ts",
+      "default": "./src/adapters/pi.js"
     },
-    "./src/mount-fs.js": {
-      "types": "./src/mount-fs.d.ts",
-      "default": "./src/mount-fs.js"
+    "./adapters/smallcaps.js": {
+      "types": "./src/adapters/smallcaps.js",
+      "default": "./src/adapters/smallcaps.js"
+    },
+    "./adapters/mcp.js": {
+      "types": "./src/adapters/mcp.js",
+      "default": "./src/adapters/mcp.js"
+    },
+    "./generated/code-mode-globals/git-declarations.js": {
+      "types": "./generated/code-mode-globals/git-declarations.js",
+      "default": "./generated/code-mode-globals/git-declarations.js"
+    },
+    "./generated/code-mode-globals/fs-declarations.js": {
+      "types": "./generated/code-mode-globals/fs-declarations.js",
+      "default": "./generated/code-mode-globals/fs-declarations.js"
     },
     "./types-index.js": {
       "types": "./types-index.d.ts",
@@ -110,8 +122,8 @@
     "@endo/exo-shell": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/marshal": "workspace:^",
-    "@endo/patterns": "workspace:^",
     "@endo/pass-style": "workspace:^",
+    "@endo/patterns": "workspace:^",
     "@endo/platform": "workspace:^"
   },
   "devDependencies": {
@@ -120,6 +132,7 @@
     "@endo/daemon": "workspace:^",
     "@endo/git": "workspace:^",
     "@endo/init": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
     "ajv": "^8.17.1",
     "ava": "catalog:dev",
     "c8": "catalog:dev",

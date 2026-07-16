@@ -145,7 +145,7 @@ binds the record to the pi loop.
 ## Interaction mode: code mode is primary
 
 The **primary interaction mode is code mode**: the agent drives the
-workspace through a single `execute(js)` that runs in a confined
+workspace through a single `evaluate(js)` that runs in a confined
 `Compartment` over a set of petname-bound endowments, not through a wide
 fan of discrete function-call tools.
 The builder is **not** aiming to export the agent across a CLI, an SDK,
@@ -199,7 +199,7 @@ flowchart TD
    Confinement (loading pi into a fresh Endo `Compartment` via
    `importLocation` per
    [PR #297](https://github.com/endojs/endo-but-for-bots/pull/297)) is the
-   path the code-mode `execute` tool follows for the **guest code** it runs,
+path the code-mode `evaluate` tool follows for the **guest code** it runs,
    not a wrapper `defineAgent` puts around the pi loop itself.
 
 2. **Model resolution, in the definition.**
@@ -319,12 +319,12 @@ definition returns is the make stage.
 
 Code mode is the primary interaction mode (§ Interaction mode: code mode is
 primary), and #517 ships it as two concrete presets exported from
-`@endo/agentry/execute`, each a thin specialization of `defineAgent`:
+`@endo/agentry/code-mode`, each a thin specialization of `defineAgent`:
 
 ```ts
-import { makeCodeModeAgent, makeCodeModeGitLoopAgent } from '@endo/agentry/execute';
+import { makeCodeModeAgent, makeCodeModeGitLoopAgent } from '@endo/agentry/code-mode';
 
-// makeCodeModeAgent: an agent whose sole tool is execute(js), evaluated in a
+// makeCodeModeAgent: an agent whose sole tool is evaluate(js), evaluated in a
 // Compartment endowed with the configured lexical powers.
 const { agent } = makeCodeModeAgent({
   model,
@@ -336,15 +336,15 @@ const { agent } = makeCodeModeAgent({
 const gitAgent = makeCodeModeGitLoopAgent({ model, workspace, git });
 ```
 
-Each preset builds the single execute tool with `makeExecuteTool`, wraps it as
-a pi-agent-core tool via `toSmallcapsPiAgentTool`, and calls
+Each preset builds the single evaluate tool with `makeEvaluateTool`, wraps it
+as a pi-agent-core tool via `toPiAgentTool` with the SmallCaps renderer, and calls
 `defineAgent({ model, instructions, tools: [...] })`.
 The lexical globals (`workspace`, `git`, and any configured `namedPowers`) are
 injected into the Compartment the guest code runs in; the model discovers a
 capability's method surface at runtime via `E(cap).__getMethodNames__()` rather
 than reading a checked-in declaration.
 `makeCodeModeAgent` returns the record
-`{ agent, globals, execute, systemPrompt, model }`;
+`{ agent, globals, evaluate, systemPrompt, model }`;
 `makeCodeModeGitLoopAgent` returns the live `Agent` directly.
 
 The per-package preset bundles this design first proposed (each harness
@@ -366,7 +366,7 @@ decode.
 
 The contract this design honors is therefore **symmetric and broader than
 bigints alone**, with both halves living in `@endo/agent-tools` today (the
-wire-shape naming and the inbound decode in `toSmallcapsPiAgentTool`), not in a
+wire-shape naming and the inbound decode in the Pi adapter), not in a
 define-time `prepareArguments` recipe assembled by `defineAgent`:
 
 | Direction | What it does |
@@ -388,10 +388,10 @@ references it.
 ### Code-mode result rendering uses the real SmallCaps marshaller
 
 The decode contract above is the inbound (model to args) half.
-The outbound half (rendering a code-mode `execute` result back to the
+The outbound half (rendering a code-mode `evaluate` result back to the
 model) uses the **real SmallCaps marshaller** (`@endo/marshal`) for
 plain-data results, not `JSON.stringify`.
-This shipped in #517: plain-data completion values returned from `execute` are
+This shipped in #517: plain-data completion values returned from `evaluate` are
 encoded for the model with the SmallCaps marshaller, so BigInts and other
 non-JSON-native passable values round-trip losslessly.
 The same marshaller round-trips bigints, `undefined`, symbols, and
@@ -408,8 +408,9 @@ marshalled.
 
 > This section describes the **discrete-tool** wire-derivation path, which is
 > **not** what `defineAgent` shipped in #517. The shipped code-mode presets
-> build a single `execute` tool and wrap it with `toSmallcapsPiAgentTool`
-> (in `@endo/agent-tools`), which is where the SmallCaps decode actually lives
+> build a single `evaluate` tool and pass it through `toPiAgentTool` with the
+> `adapters/smallcaps.js` renderer (in `@endo/agent-tools`), which is where the
+> SmallCaps bridge actually lives
 > today, not in a per-tool `prepareArguments` recipe assembled by `defineAgent`.
 > It is retained here as the design sketch for the second (discrete-tool) mode.
 
@@ -499,7 +500,7 @@ distinction, drawn by the git code-mode eval harness
   target.
   It answers "did it work?" for one model and one prompt, needs no
   in-compartment instrumentation (a code-mode agent's only tool is
-  `execute`, so the pi-agent trace sees one opaque call, not the individual
+  `evaluate`, so the pi-agent trace sees one opaque call, not the individual
   git operations), and accepts any alternate-but-correct path.
   Eval **ships first**.
 - **Optimize** searches for a *better* agent: GEPA or `ax`-style
@@ -529,7 +530,7 @@ The builder wires that substrate in through the code-mode `workspace` /
 `makeCodeModeGitLoopAgent({ model, workspace: Git.filesystemAt(ref), git, readOnlyGit: true })`;
 a live-worktree editing agent is the same call with a writable workspace and
 `readOnlyGit: false`.
-The same execute tool, the same maker, a different cap.
+The same evaluate tool, the same maker, a different cap.
 
 ## Aspirational surface (not yet built)
 
@@ -597,8 +598,8 @@ that seam is named.
 3. **The builder is where the wire schema becomes real.** *(Aspirational.)*
    The proposal that `defineAgent` fills `Tool.parameters` and MCP
    `inputSchema` at define time is the discrete-tool path, **not** shipped in
-   #517; the shipped code-mode presets carry one execute tool whose SmallCaps
-   wrapping lives in `@endo/agent-tools` (`toSmallcapsPiAgentTool`).
+#517; the shipped code-mode presets carry one evaluate tool whose SmallCaps
+wrapping lives in `@endo/agent-tools` (`adapters/smallcaps.js`).
    See § Aspirational surface.
 
 4. **The symmetric SmallCaps decode plus LLM-JSON fixups.**
@@ -607,7 +608,7 @@ that seam is named.
    (string-encoded bigint plus escape on outbound collisions) and the inbound
    decode runs `coerceBigintArgs` plus `unescapeHilbertHotel` plus the fixups.
    Neither half stands alone.
-   (Shipped via `@endo/agent-tools`'s `toSmallcapsPiAgentTool`, not a
+(Shipped via `@endo/agent-tools`'s `toPiAgentTool` plus the SmallCaps renderer, not a
    define-time `prepareArguments` recipe assembled by `defineAgent`.)
 
 5. **A new module in the #308 package, not a new package.**
@@ -618,7 +619,7 @@ that seam is named.
    The first draft proposed each harness exporting its own
    `define<Name>Agent` / `make<Name>Agent` pair reconstructing lal and genie.
    What shipped in #517 is the two code-mode presets (`makeCodeModeAgent`,
-   `makeCodeModeGitLoopAgent`) in `@endo/agentry/execute`; the per-harness lal
+   `makeCodeModeGitLoopAgent`) in `@endo/agentry/code-mode`; the per-harness lal
    / genie reconstruction bundles are aspirational.
    `defineFaeAgent` is deferred (Design Decision 10).
 
@@ -631,9 +632,9 @@ that seam is named.
    is **not** in #517 (no seam yet); see § Aspirational surface.
 
 9. **Code-mode guest code is confined (per #297).**
-   The code-mode `execute` tool loads the guest code into a fresh Endo
+   The code-mode `evaluate` tool loads the guest code into a fresh Endo
    `Compartment` over the petname-bound endowments, so the guest runs confined.
-   (#517 wires the execute tool; the broader "load the whole pi loop through
+   (#517 wires the evaluate tool; the broader "load the whole pi loop through
    `importLocation`" framing is the code-mode execution boundary, not a wrapper
    `defineAgent` itself applies.)
 
@@ -666,7 +667,7 @@ that seam is named.
 
 | Design | Relationship |
 |--------|--------------|
-| [endo-agent-tools](endo-agent-tools.md) | **Consumed.** Sibling. The code-mode preset wraps its execute tool via `toSmallcapsPiAgentTool`, where the symmetric SmallCaps decode (`coerceBigintArgs` plus `unescapeHilbertHotel`) lives. The aspirational discrete-tool path would also select its `makeTool` tools and use its wire schemas (§ Aspirational surface). |
+| [endo-agent-tools](endo-agent-tools.md) | **Consumed.** Sibling. The code-mode preset builds its evaluate tool with `@endo/agent-tools`, passes it through `toPiAgentTool`, and uses the SmallCaps renderer from `adapters/smallcaps.js`. The aspirational discrete-tool path would also select its `makeTool` tools and use its wire schemas (§ Aspirational surface). |
 | [PR #297](https://github.com/endojs/endo-but-for-bots/pull/297) | **Confinement enabler.** Fixes the module-resolution bugs that prevented pi from loading through `@endo/compartment-mapper`'s `importLocation`, so code-mode guest code loads into a confined Endo `Compartment`. |
 | [PR #290](https://github.com/endojs/endo-but-for-bots/pull/290) | **The merged pi harness.** lal's loop now drives `@earendil-works/pi-agent-core`; `defineAgent`'s maker composes the same loop. The session-tree to mail mapping pins their correspondence (§ Mapping pi's session tree to the daemon mail model). |
 | [PR #517](https://github.com/endojs/endo-but-for-bots/pull/517) | **The shipped core.** `defineAgent` plus the two code-mode presets (`makeCodeModeAgent`, `makeCodeModeGitLoopAgent`). The single-call maker shape this design is reconciled to. |
@@ -717,7 +718,7 @@ that seam is named.
 > `inputSchema`), and per-harness presets for lal and genie.
 > Split it into `defineAgent` (powerless template) and `makeAgent`
 > (instance with powers) by the exo `define*` / `make*` convention.
-> Make code-mode `execute` the primary interaction mode; keep discrete
+> Make code-mode `evaluate` the primary interaction mode; keep discrete
 > tools as a distinct second mode.
 > Wire `prepareArguments` (the symmetric SmallCaps decode) and the
 > code-mode result marshaller explicitly.

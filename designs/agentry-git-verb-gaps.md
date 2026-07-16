@@ -138,7 +138,8 @@ autosquash.
 ## Code-Mode and JSON Surfaces
 
 Code mode receives all five additions automatically by regenerating
-`packages/agentry/src/execute/git-types.js` from the canonical `EndoGit` type.
+`packages/agent-tools/generated/code-mode-globals/git-declarations.js` from
+the canonical `EndoGit` type.
 This is the first consumer because stack-surgery eval scenarios can hold
 `EndoMountEntry` values from `status()` and can sequence `rebase` control calls.
 

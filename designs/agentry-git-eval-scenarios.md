@@ -44,8 +44,9 @@ exact historical commit ids.
 ## Coverage Against Current Git Surfaces
 
 "Code mode" means the generated `git` global in
-`packages/agentry/src/execute/git-types.js`. "JSON tools" means the curated
-JSON-safe slice in `packages/agent-tools/src/git-tool.js`.
+`packages/agent-tools/generated/code-mode-globals/git-declarations.js`.
+"JSON tools" means the curated JSON-safe slice in
+`packages/agent-tools/src/json-tools/git.js`.
 
 | Workflow need | EndoGit | Code mode | JSON tools | Notes |
 |---|---|---|---|---|
@@ -276,7 +277,8 @@ The mixed-commit split is expressible with today's API plus `cherryPick`. The
 agent creates a replacement branch at the parent of the mixed commit with
 `createBranch(name, { startPoint: <parent-of-mixed-commit>,
 switchAfterCreate: true })`, an options bag already present in
-`packages/agentry/src/execute/git-types.js`. It then uses `filesystemAt(ref)`
+`packages/agent-tools/generated/code-mode-globals/git-declarations.js`.
+It then uses `filesystemAt(ref)`
 for historical reads, writes the workspace into the two per-domain states,
 stages with `add`, commits each replacement, and uses `cherryPick` for the
 remainder of the stack.

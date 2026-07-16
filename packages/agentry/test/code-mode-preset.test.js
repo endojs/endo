@@ -6,12 +6,11 @@ import { Far } from '@endo/pass-style';
 import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import {
-  makeCompartmentEvaluate,
-} from '../../agent-tools/src/code-mode/compartment.js';
-import { makeEvaluateTool } from '../../agent-tools/src/code-mode/evaluate-tool.js';
-import { normalizeGlobals } from '../../agent-tools/src/code-mode/declarations.js';
-import { makeCodeModeAgent } from '../src/code-mode.js';
+import { makeCompartmentEvaluate } from '@endo/agent-tools/code-mode/compartment.js';
+import { makeEvaluateTool } from '@endo/agent-tools/code-mode/evaluate-tool.js';
+import { normalizeGlobals } from '@endo/agent-tools/code-mode/declarations.js';
+// eslint-disable-next-line import/no-unresolved, import/no-extraneous-dependencies
+import { makeCodeModeAgent } from '@endo/agentry/code-mode';
 
 /** @import { Model } from '@earendil-works/pi-ai' */
 

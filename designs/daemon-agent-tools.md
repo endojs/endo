@@ -403,7 +403,7 @@ sandbox shell engine (Phase 2c), and the Phase 4 worked loop.
   § Filesystem-targeted file tools is normative for shapes and names).
   Landed as `makeMountListTool` / `makeMountEditTool` / `makeMountStatTool`
   plus the composite `makeMountFsTools` in
-  `packages/agent-tools/src/mount-fs.js`.
+  `packages/agent-tools/src/json-tools/fs.js`.
 - [x] A read-only `Filesystem` never advertises an edit tool
   (build-time filtering, matching `makeGitTool`'s `isGitReadOnly`
   precedent). `makeMountFsTools` drops the `scope:'write'` edit tool when
@@ -429,7 +429,7 @@ sandbox shell engine (Phase 2c), and the Phase 4 worked loop.
 - [x] 2b — `makeShellTool` in `@endo/agent-tools`: `ToolRecord` plus
   hand-authored wire schema and divergence gate; port genie's policy
   closures (`rejectPatterns`, `rejectFlags`) as policy inputs. Landed in
-  `packages/agent-tools/src/shell-tool.js` (`exec` / `inspect` records,
+  `packages/agent-tools/src/json-tools/shell.js` (`exec` / `inspect` records,
   schema ⟷ guard divergence gate, `makeAdvisoryVeto`).
 - [ ] 2c — the sandbox-spawner engine behind a `provideShell` option,
   gated on [endo-posix-sandbox](endo-posix-sandbox.md) phase progress.
@@ -447,7 +447,7 @@ sandbox shell engine (Phase 2c), and the Phase 4 worked loop.
 
 ### Phase 3.5: Local mount-bridged git tools — landed (#616)
 
-- [x] `makeGitMountTools(gitCap)` in `packages/agent-tools/src/git-mount-tool.js`:
+- [x] `makeGitMountTools(gitCap)` in `packages/agent-tools/src/json-tools/git-mount.js`:
   `status` and `add` tools over the *local* `Git` capability, bridging
   live `EndoMountEntry` remotables across the JSON wire where `makeGitTool`
   could not carry live-capability signatures. Network operations stay
@@ -506,7 +506,7 @@ PR #636, branch `design/agentry-git-eval-scenarios`).
 
 - [x] `commit({ amend })` and `reword(ref, message)` across the local Git and
   code-mode surfaces: exo + `GitInterface` guard + `GitBackend` + native impl +
-  code-mode regen (`packages/agentry/src/execute/git-types.js`).
+  code-mode regen (`packages/agent-tools/generated/code-mode-globals/git-declarations.js`).
   The default
   JSON tool inventory retains only new-commit creation; an explicit
   `makeGitHistoryTool` maker exposes amend and reword when a host deliberately

@@ -133,7 +133,7 @@ A mount-backed group is one entry (or a small flat set of entries) in
 that array:
 
 ```js
-import { makeMountReadTool } from '@endo/agent-tools/mount-fs.js';
+import { makeMountReadTool } from '@endo/agent-tools/json-tools/fs.js';
 import { readOnly } from '@endo/endo-fs';
 
 const projectFs = await E(powers).lookup('project'); // a Filesystem

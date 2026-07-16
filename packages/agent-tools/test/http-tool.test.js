@@ -157,7 +157,7 @@ test('schema ⟷ guard agree for http.allowedOrigins', t => {
 // --- output-side pin: projectResponse ⟷ HttpResponseInterface ---------------
 // The `fetch` tool's `execute` projects the live `HttpResponse` remotable to a
 // JSON record by calling this fixed set of accessors (see `projectResponse` in
-// src/http-tool.js). Nothing on the input side pins this output seam, so a
+// src/json-tools/http.js). Nothing on the input side pins this output seam, so a
 // rename of any of these methods on `HttpResponse` would surface only as a
 // runtime throw and the advertised return shape would silently go stale. Pin
 // the accessors the projection depends on against the guards the exo actually

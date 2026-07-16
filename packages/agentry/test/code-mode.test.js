@@ -21,14 +21,18 @@ import { makeNativeGitBackend } from '@endo/git';
 import { makeMount, lineageOf } from '@endo/daemon/src/mount.js';
 import { makeFilePowers } from '@endo/daemon/src/daemon-node-powers.js';
 
+import { makeEvaluateTool } from '@endo/agent-tools/code-mode/evaluate-tool.js';
+import { makeCompartmentEvaluate } from '@endo/agent-tools/code-mode/compartment.js';
+import { gitDeclarations } from '@endo/agent-tools/generated/code-mode-globals/git-declarations.js';
+import { fsDeclarations } from '@endo/agent-tools/generated/code-mode-globals/fs-declarations.js';
+import {
+  makeCodeModeSystemPrompt,
+  makeCodeModeAgent,
+  makeCodeModeGitLoopAgent,
+} from '../src/code-mode.js';
 import { defineAgent, makeEnvCredentials } from '../src/define-agent.js';
-import { makeEvaluateTool } from '../../agent-tools/src/code-mode/evaluate-tool.js';
-import { makeCompartmentEvaluate } from '../../agent-tools/src/code-mode/compartment.js';
-import { makeCodeModeSystemPrompt, makeCodeModeAgent, makeCodeModeGitLoopAgent } from '../src/code-mode.js';
-import { gitDeclarations } from '../../agent-tools/generated/code-mode-globals/git-declarations.js';
-import { fsDeclarations } from '../../agent-tools/generated/code-mode-globals/fs-declarations.js';
 
-/** @import { CodeModeGlobal, Evaluate } from '../../agent-tools/src/code-mode/evaluate-tool.js' */
+/** @import { CodeModeGlobal, Evaluate } from '@endo/agent-tools/code-mode/evaluate-tool.js' */
 /** @import { Model } from '@earendil-works/pi-ai' */
 /** @import { PassableBytesReader, PassableBytesWriter } from '@endo/exo-stream' */
 
