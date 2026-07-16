@@ -139,3 +139,17 @@ together under `test/eval/` (see "Running" below), mirroring this source layout.
 
   Supply the token through the environment only; it never appears in code,
   config, or a committed file.
+
+### Optional publication
+
+`test:live` runs the live scenarios and writes local `events.jsonl` and
+`results.jsonl` artifacts only when `ENDO_EVAL_ARTIFACT_DIR` is explicitly set.
+Running the test does not publish these artifacts or otherwise report them as
+an automatic side effect.
+
+An optional, separate out-of-repo reporting step can publish the artifacts on
+this repository's [`orphan/eval-transcripts` branch](https://github.com/endojs/endo-but-for-bots/tree/orphan/eval-transcripts).
+That channel's public contract and format are documented in its
+[`FORMAT.md`](https://github.com/endojs/endo-but-for-bots/blob/orphan/eval-transcripts/FORMAT.md).
+Published links are pinned to commit SHAs, and the channel provides condensed
+result artifacts with links to the full observable transcripts.
