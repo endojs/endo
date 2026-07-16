@@ -6,15 +6,13 @@
  * declarations, built with the generic TypeScript renderer from
  * `@endo/exo-git`'s checked TypeScript typedef source.
  *
- * `git` reads `packages/exo-git/src/types.ts` (the `EndoGit` alias), which is
+ * `git` reads `packages/exo-git/src/types.ts` (the `WritableEndoGit` alias), which is
  * full-fidelity: named parameters, no lossy positional guards. The divergence
  * gate keeps it from drifting from the runtime `GitInterface` guard.
  *
- * The read-only vs read-write `git` split is a code-mode prompt-surface POLICY
- * (a per-mode member allowlist, {@link GIT_READONLY_MEMBERS}), applied to the
- * shared IR rather than read from the source. The runtime read-only enforcement
- * remains the exo guard / `readOnly()` rejection; this allowlist only governs
- * which verbs the prompt advertises.
+ * The read-only declaration is sourced from the separately published
+ * `ReadOnlyEndoGit` alias, with the member list retained as a prompt-surface
+ * divergence gate.
  *
  * Guard-canonical DERIVATION for git (synthesizing the printed types from
  * `GitInterface` instead of the TS) was considered and is TABLED: it would
@@ -31,7 +29,8 @@ import {
 } from './code-mode-type-extract.js';
 
 const GIT_TYPES_TS_URL = new URL('../../exo-git/src/types.ts', import.meta.url);
-const GIT_ROOT_TYPE = 'EndoGit';
+const GIT_ROOT_TYPE = 'WritableEndoGit';
+const GIT_READONLY_ROOT_TYPE = 'ReadOnlyEndoGit';
 
 export const GIT_HISTORY_MEMBERS = harden(['commit', 'reword']);
 harden(GIT_HISTORY_MEMBERS);
@@ -78,9 +77,8 @@ export const GIT_READONLY_MEMBERS = harden([
 harden(GIT_READONLY_MEMBERS);
 
 /**
- * Build the `git`, `gitHistory`, and `gitReadOnly` IRs from the checked `EndoGit` JSDoc
- * typedef; the read-only IR is the same source narrowed to
- * {@link GIT_READONLY_MEMBERS}.
+ * Build the `git`, `gitHistory`, and `gitReadOnly` IRs from the checked Git
+ * capability types.
  *
  * @returns {{ git: import('./code-mode-type-extract.js').GlobalTypeIR, gitHistory: import('./code-mode-type-extract.js').GlobalTypeIR, gitReadOnly: import('./code-mode-type-extract.js').GlobalTypeIR }}
  */
@@ -102,11 +100,11 @@ export const buildGitIRs = () =>
       });
       const commit = git.members.find(member => member.name === 'commit');
       if (commit === undefined) {
-        throw new Error('EndoGit must define commit');
+        throw new Error('WritableEndoGit must define commit');
       }
       return {
         git: harden({
-          rootName: 'EndoGit',
+          rootName: 'WritableEndoGit',
           members: git.members
             .filter(
               member =>
@@ -129,7 +127,7 @@ export const buildGitIRs = () =>
         gitReadOnly: extractTsFileTextIR({
           fileName,
           text,
-          rootType: GIT_ROOT_TYPE,
+          rootType: GIT_READONLY_ROOT_TYPE,
           memberFilter: GIT_READONLY_MEMBERS,
         }),
       };
@@ -145,9 +143,13 @@ harden(buildGitIRs);
 export const buildGitTypeDeclarations = () => {
   const irs = buildGitIRs();
   return harden({
-    git: renderDeclaration(irs.git),
-    gitHistory: renderDeclaration(irs.gitHistory),
-    gitReadOnly: renderDeclaration(irs.gitReadOnly),
+    // Git reaches both the lite and extended filesystem modules.
+    // Prefix its supporting aliases so its generated block can compose with
+    // workspace declaration, which has its own Directory, File, and
+    // Filesystem shapes.
+    git: renderDeclaration(irs.git, { auxPrefix: 'Git' }),
+    gitHistory: renderDeclaration(irs.gitHistory, { auxPrefix: 'Git' }),
+    gitReadOnly: renderDeclaration(irs.gitReadOnly, { auxPrefix: 'Git' }),
   });
 };
 harden(buildGitTypeDeclarations);

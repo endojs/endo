@@ -228,8 +228,8 @@ test('a typed global injects its generated declaration into the prompt', t => {
 
   // git: TS-canonical, referenced by its named root type plus the supporting
   // aliases the printer emitted.
-  t.true(systemPrompt.includes('declare const git: EndoGit;'));
-  t.true(systemPrompt.includes('type EndoGit = {'));
+  t.true(systemPrompt.includes('declare const git: WritableEndoGit;'));
+  t.true(systemPrompt.includes('type WritableEndoGit = {'));
   t.true(
     systemPrompt.includes('commit: (message: string) => Promise<GitCommit>;'),
   );
@@ -277,9 +277,9 @@ test('makeCodeModeAgent injects typed git + workspace declarations from powers',
     model: fauxModel(t, []),
     powers: { workspace, git },
   });
-  t.true(systemPrompt.includes('declare const git: EndoGit;'));
+  t.true(systemPrompt.includes('declare const git: WritableEndoGit;'));
   t.true(systemPrompt.includes('declare const workspace: Filesystem;'));
-  t.true(systemPrompt.includes('type EndoGit = {'));
+  t.true(systemPrompt.includes('type WritableEndoGit = {'));
 });
 
 test('makeEnvCredentials is the single env reader and reads through .get', t => {

@@ -32,6 +32,8 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import ts from 'typescript';
@@ -51,7 +53,7 @@ import { getTag, passStyleOf } from '@endo/pass-style';
  * @property {string} text Right-hand side of the `type <name> = <text>` alias.
  *
  * @typedef {object} GlobalTypeIR
- * @property {string} rootName Name of the global's root object type, e.g. `EndoGit`.
+ * @property {string} rootName Name of the global's root object type, e.g. `WritableEndoGit`.
  * @property {TypeMember[]} members Members of the root object type.
  * @property {AuxType[]} auxTypes Supporting named types the members reference
  *   (excluding the root type itself, which the renderer synthesizes from
@@ -82,16 +84,54 @@ const renderAuxTypes = auxTypes =>
  * `declare const <name>:`.
  *
  * @param {GlobalTypeIR} ir
+ * @param {{ auxPrefix?: string }} [options]
  * @returns {{ aux: string, body: string }}
  */
-export const renderDeclaration = ir =>
-  harden({
-    aux: renderAuxTypes([
-      { name: ir.rootName, text: renderObjectType(ir.members) },
-      ...ir.auxTypes,
-    ]),
-    body: ir.rootName,
-  });
+export const renderDeclaration = (ir, options = {}) => {
+  const { auxPrefix = '' } = options;
+  /** @type {Map<string, string>} */
+  const renamed = new Map();
+  const scopedName = name => {
+    const match = /^([A-Za-z_$][0-9A-Za-z_$]*)(<.*>)?$/u.exec(name);
+    if (!match) {
+      throw new Error(`invalid generated type alias name: ${name}`);
+    }
+    const [, base, parameters = ''] = match;
+    const scopedBase = base.startsWith(auxPrefix)
+      ? base
+      : `${auxPrefix}${base}`;
+    const scoped = `${scopedBase}${parameters}`;
+    renamed.set(base, scopedBase);
+    return scoped;
+  };
+  const auxNames = ir.auxTypes.map(type => scopedName(type.name));
+  const rewrite = text => {
+    let rewritten = text;
+    for (const [name, replacement] of renamed) {
+      rewritten = rewritten.replace(
+        new RegExp(`\\b${name}\\b`, 'g'),
+        replacement,
+      );
+    }
+    return rewritten;
+  };
+  const aux = [
+    {
+      name: ir.rootName,
+      text: renderObjectType(
+        ir.members.map(member => ({
+          ...member,
+          signature: rewrite(member.signature),
+        })),
+      ),
+    },
+    ...ir.auxTypes.map((type, index) => ({
+      name: auxNames[index],
+      text: rewrite(type.text),
+    })),
+  ];
+  return harden({ aux: renderAuxTypes(aux), body: ir.rootName });
+};
 harden(renderDeclaration);
 
 // #endregion
@@ -101,7 +141,7 @@ harden(renderDeclaration);
 /**
  * @param {string} fileName
  * @param {string} text
- * @returns {{ sourceFile: ts.SourceFile, aliasMap: Map<string, ts.TypeAliasDeclaration> }}
+ * @returns {{ sourceFile: ts.SourceFile, aliasMap: Map<string, ts.TypeAliasDeclaration | ts.InterfaceDeclaration> }}
  */
 const parseTypeAliases = (fileName, text) => {
   const sourceFile = ts.createSourceFile(
@@ -110,10 +150,10 @@ const parseTypeAliases = (fileName, text) => {
     ts.ScriptTarget.Latest,
     true,
   );
-  /** @type {Map<string, ts.TypeAliasDeclaration>} */
+  /** @type {Map<string, ts.TypeAliasDeclaration | ts.InterfaceDeclaration>} */
   const aliasMap = new Map();
   for (const stmt of sourceFile.statements) {
-    if (ts.isTypeAliasDeclaration(stmt)) {
+    if (ts.isTypeAliasDeclaration(stmt) || ts.isInterfaceDeclaration(stmt)) {
       aliasMap.set(stmt.name.text, stmt);
     }
   }
@@ -123,7 +163,7 @@ const parseTypeAliases = (fileName, text) => {
 /**
  * @param {URL} dtsUrl
  * @param {string} moduleName
- * @returns {{ sourceFile: ts.SourceFile, aliasMap: Map<string, ts.TypeAliasDeclaration> }}
+ * @returns {{ sourceFile: ts.SourceFile, aliasMap: Map<string, ts.TypeAliasDeclaration | ts.InterfaceDeclaration> }}
  */
 const parseDtsModule = (dtsUrl, moduleName) => {
   const text = readFileSync(fileURLToPath(dtsUrl), 'utf8');
@@ -150,15 +190,68 @@ const parseDtsModule = (dtsUrl, moduleName) => {
   if (!moduleBody) {
     throw new Error(`could not find declare module '${moduleName}'`);
   }
-  /** @type {Map<string, ts.TypeAliasDeclaration>} */
+  /** @type {Map<string, ts.TypeAliasDeclaration | ts.InterfaceDeclaration>} */
   const aliasMap = new Map();
   for (const stmt of moduleBody.statements) {
-    if (ts.isTypeAliasDeclaration(stmt)) {
+    if (ts.isTypeAliasDeclaration(stmt) || ts.isInterfaceDeclaration(stmt)) {
       aliasMap.set(stmt.name.text, stmt);
     }
   }
   return { sourceFile, aliasMap };
 };
+
+/** @typedef {{ sourceFile: ts.SourceFile, aliasMap: Map<string, ts.TypeAliasDeclaration | ts.InterfaceDeclaration> }} ParsedTypeModule */
+
+/**
+ * Resolve the source declaration behind an imported type expression.
+ * Workspace packages expose runtime paths for their default condition, while
+ * the extractor needs the checked source type host instead.
+ *
+ * @param {string} moduleName
+ * @param {string} fromFile
+ * @returns {string}
+ */
+const resolveTypeModule = (moduleName, fromFile) => {
+  const require = createRequire(fromFile);
+  if (moduleName === '@endo/platform/fs/lite/types') {
+    const packageRoot = dirname(require.resolve('@endo/platform/package.json'));
+    return join(packageRoot, 'src/fs/types.d.ts');
+  }
+  if (moduleName === '@endo/platform/fs/extended') {
+    const packageRoot = dirname(require.resolve('@endo/platform/package.json'));
+    return join(packageRoot, 'src/fs/extended/types.ts');
+  }
+  let resolved;
+  try {
+    resolved = require.resolve(moduleName);
+  } catch {
+    resolved = require.resolve(moduleName, { paths: [dirname(fromFile)] });
+  }
+  if (resolved.endsWith('.js')) {
+    return `${resolved.slice(0, -3)}.ts`;
+  }
+  return resolved;
+};
+harden(resolveTypeModule);
+
+/** @type {Map<string, ParsedTypeModule>} */
+const typeModuleCache = new Map();
+
+/**
+ * @param {string} fileName
+ * @returns {ParsedTypeModule}
+ */
+const parseTypeModule = fileName => {
+  const cached = typeModuleCache.get(fileName);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const text = readFileSync(fileName, 'utf8');
+  const parsed = parseTypeAliases(fileName, text);
+  typeModuleCache.set(fileName, parsed);
+  return parsed;
+};
+harden(parseTypeModule);
 
 /**
  * Build a {@link GlobalTypeIR} by locating the named root `type` alias in a
@@ -171,7 +264,7 @@ const parseDtsModule = (dtsUrl, moduleName) => {
  *
  * @param {object} config
  * @param {ts.SourceFile} config.sourceFile
- * @param {Map<string, ts.TypeAliasDeclaration>} config.aliasMap
+ * @param {Map<string, ts.TypeAliasDeclaration | ts.InterfaceDeclaration>} config.aliasMap
  * @param {string} config.rootType Name of the root `type` alias to print.
  * @param {string[]} [config.memberFilter] When set, keep only these members.
  * @returns {GlobalTypeIR}
@@ -183,17 +276,273 @@ const extractTsAliasesIR = ({
   memberFilter,
 }) => {
   const printer = ts.createPrinter({ removeComments: true });
+  const sourceKey = fileName => `${fileName}:`;
+
+  /** @type {Map<string, ParsedTypeModule>} */
+  const parsedModules = new Map([
+    [sourceFile.fileName, { sourceFile, aliasMap }],
+  ]);
+  /** @type {Map<string, string>} */
+  const outputNames = new Map();
+  /** @type {Map<string, string>} */
+  const outputOwners = new Map();
+  /** @type {Map<string, AuxType>} */
+  const auxTypes = new Map();
+  const building = new Set();
+
+  const moduleFor = fileName => {
+    const current = parsedModules.get(fileName);
+    if (current !== undefined) {
+      return current;
+    }
+    const parsed = parseTypeModule(fileName);
+    parsedModules.set(fileName, parsed);
+    return parsed;
+  };
+
+  const modulePrefix = fileName => {
+    if (fileName.includes('/fs/extended/')) {
+      return 'Extended';
+    }
+    if (fileName.includes('/fs/lite/') || fileName.endsWith('/fs/types.d.ts')) {
+      return 'Lite';
+    }
+    return 'Imported';
+  };
+
+  const allocateName = (key, preferredName, fileName) => {
+    const existing = outputNames.get(key);
+    if (existing !== undefined) {
+      return existing;
+    }
+    let name = preferredName;
+    if (name === rootType || outputOwners.has(name)) {
+      const prefix = modulePrefix(fileName);
+      name = `${prefix}${preferredName}`;
+      let suffix = 2;
+      while (name === rootType || outputOwners.has(name)) {
+        name = `${prefix}${preferredName}${suffix}`;
+        suffix += 1;
+      }
+    }
+    outputNames.set(key, name);
+    outputOwners.set(name, key);
+    return name;
+  };
+
+  // Keep aliases authored by the capability package stable.
+  // Imported aliases are allocated after these so two platform modules can
+  // both define, for example, a `Directory` without colliding in the emitted
+  // block.
+  for (const name of aliasMap.keys()) {
+    const key = `${sourceKey(sourceFile.fileName)}${name}`;
+    allocateName(key, name, sourceFile.fileName);
+  }
+
+  /**
+   * @param {ts.ImportTypeNode} node
+   * @param {string} fromFile
+   * @returns {{ declaration: ts.TypeAliasDeclaration | ts.InterfaceDeclaration, fileName: string, key: string } | undefined}
+   */
+  const importedDeclaration = (node, fromFile) => {
+    if (
+      !ts.isLiteralTypeNode(node.argument) ||
+      !ts.isStringLiteral(node.argument.literal) ||
+      node.qualifier === undefined
+    ) {
+      return undefined;
+    }
+    const moduleName = node.argument.literal.text;
+    if (!moduleName.startsWith('@endo/platform/')) {
+      return undefined;
+    }
+    const name = node.qualifier.getText();
+    const fileName = resolveTypeModule(moduleName, fromFile);
+    const declaration = moduleFor(fileName).aliasMap.get(name);
+    return declaration === undefined
+      ? undefined
+      : { declaration, fileName, key: `${sourceKey(fileName)}${name}` };
+  };
+
+  const resolveReference = (name, fromFile) => {
+    const declaration = moduleFor(fromFile).aliasMap.get(name);
+    if (declaration !== undefined) {
+      return {
+        declaration,
+        fileName: fromFile,
+        key: `${sourceKey(fromFile)}${name}`,
+      };
+    }
+    // The extended filesystem source re-exports ERef from @endo/eventual-send
+    // without declaring it locally.
+    // Keep the prompt self-contained with the
+    // same eventual-send shape used by the guard renderer.
+    if (name === 'ERef') {
+      return {
+        declaration: undefined,
+        fileName: fromFile,
+        key: 'builtin:ERef',
+      };
+    }
+    return undefined;
+  };
+
+  /**
+   * @param {string} key
+   * @param {string} preferredName
+   * @param {string} fileName
+   * @returns {string}
+   */
+  const ensureName = (key, preferredName, fileName) =>
+    allocateName(key, preferredName, fileName);
+
+  /**
+   * @param {string} key
+   * @param {string} name
+   * @param {string} fileName
+   */
+  const ensureAlias = (key, name, fileName) => {
+    const outputName = ensureName(key, name, fileName);
+    if (auxTypes.has(key) || building.has(key)) {
+      return outputName;
+    }
+    building.add(key);
+    let text;
+    if (key === 'builtin:ERef') {
+      text = 'T | Promise<T>';
+    } else {
+      const current = moduleFor(fileName).aliasMap.get(name);
+      if (current === undefined) {
+        throw new Error(`missing declaration for ${name}`);
+      }
+      const declaration = ts.isTypeAliasDeclaration(current)
+        ? current.type
+        : ts.factory.createTypeLiteralNode(current.members);
+      text = printer.printNode(
+        ts.EmitHint.Unspecified,
+        transformType(declaration, fileName),
+        moduleFor(fileName).sourceFile,
+      );
+    }
+    auxTypes.set(key, { name: outputName, text });
+    building.delete(key);
+    return outputName;
+  };
+
+  /**
+   * Rewrite local and platform type references to the names allocated for the
+   * emitted declaration block.
+   * Unknown external imports intentionally become
+   * `unknown`, while known aliases are collected recursively as aux types.
+   *
+   * @param {ts.TypeNode} node
+   * @param {string} fromFile
+   * @returns {ts.TypeNode}
+   */
+  function transformType(node, fromFile) {
+    const transformer = /** @type {ts.TransformerFactory<ts.TypeNode>} */ (
+      context => root => {
+        /** @param {ts.Node} current */
+        const visit = current => {
+          if (ts.isImportTypeNode(current)) {
+            const found = importedDeclaration(current, fromFile);
+            if (found === undefined) {
+              // Code mode is intentionally self-contained.
+              // External helper imports such as `@endo/stream` are not part
+              // of the capability surface, so retain a valid prompt type.
+              return ts.factory.createKeywordTypeNode(
+                ts.SyntaxKind.UnknownKeyword,
+              );
+            }
+            const outputName = ensureAlias(
+              found.key,
+              found.declaration.name.text,
+              found.fileName,
+            );
+            return ts.factory.createTypeReferenceNode(
+              outputName.replace(/<.*>$/u, ''),
+              undefined,
+            );
+          }
+          if (
+            ts.isTypeReferenceNode(current) &&
+            ts.isIdentifier(current.typeName)
+          ) {
+            const found = resolveReference(current.typeName.text, fromFile);
+            if (found !== undefined) {
+              const outputName = ensureAlias(
+                found.key,
+                found.key === 'builtin:ERef'
+                  ? 'ERef<T>'
+                  : current.typeName.text,
+                found.fileName,
+              );
+              return ts.factory.createTypeReferenceNode(
+                outputName.replace(/<.*>$/u, ''),
+                current.typeArguments
+                  ? ts.factory.createNodeArray(
+                      current.typeArguments.map(argument =>
+                        ts.visitNode(argument, visit),
+                      ),
+                    )
+                  : undefined,
+              );
+            }
+          }
+          return ts.visitEachChild(current, visit, context);
+        };
+        return /** @type {ts.TypeNode} */ (ts.visitNode(root, visit));
+      }
+    );
+    const result = ts.transform(node, [transformer]);
+    const [transformed] = result.transformed;
+    result.dispose();
+    return /** @type {ts.TypeNode} */ (transformed);
+  }
+
   const rootAlias = aliasMap.get(rootType);
-  if (!rootAlias || !ts.isTypeLiteralNode(rootAlias.type)) {
-    throw new Error(`${rootType} is not a type literal`);
+  if (!rootAlias || !ts.isTypeAliasDeclaration(rootAlias)) {
+    throw new Error(`${rootType} is not a type alias`);
   }
   const keep = name => !memberFilter || memberFilter.includes(name);
 
+  /**
+   * @param {ts.TypeNode} node
+   * @param {Set<string>} seen
+   * @returns {ts.TypeElement[]}
+   */
+  const typeMembers = (node, seen) => {
+    if (ts.isTypeLiteralNode(node)) {
+      return [...node.members];
+    }
+    if (ts.isIntersectionTypeNode(node)) {
+      return node.types.flatMap(part => typeMembers(part, seen));
+    }
+    if (ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName)) {
+      const name = node.typeName.text;
+      const declaration = aliasMap.get(name);
+      if (declaration !== undefined && !seen.has(name)) {
+        const nextSeen = new Set(seen);
+        nextSeen.add(name);
+        if (ts.isTypeAliasDeclaration(declaration)) {
+          return typeMembers(declaration.type, nextSeen);
+        }
+      }
+    }
+    throw new Error(`${rootType} must resolve to object type members`);
+  };
+  const rootMembers = typeMembers(rootAlias.type, new Set([rootType]));
+
   /** @type {TypeMember[]} */
   const members = [];
-  /** @type {ts.TypeNode[]} */
-  const keptTypeNodes = [];
-  for (const m of rootAlias.type.members) {
+  /** @type {Map<string, ts.TypeElement>} */
+  const memberMap = new Map();
+  for (const m of rootMembers) {
+    if (ts.isPropertySignature(m) && m.type) {
+      memberMap.set(m.name.getText(sourceFile), m);
+    }
+  }
+  for (const m of memberMap.values()) {
     if (
       ts.isPropertySignature(m) &&
       m.type &&
@@ -203,46 +552,20 @@ const extractTsAliasesIR = ({
         name: m.name.getText(sourceFile),
         signature: printer.printNode(
           ts.EmitHint.Unspecified,
-          m.type,
+          transformType(m.type, sourceFile.fileName),
           sourceFile,
         ),
       });
-      keptTypeNodes.push(m.type);
     }
   }
 
-  // Transitively collect the supporting type aliases the kept members reach.
-  /** @type {Set<string>} */
-  const referenced = new Set();
-  /** @param {ts.Node} node */
-  const collect = node => {
-    if (ts.isTypeReferenceNode(node)) {
-      const tn = node.typeName.getText(sourceFile);
-      const alias = aliasMap.get(tn);
-      // Skip the root type itself: the renderer synthesizes it from the
-      // (possibly filtered) members, so a self-referential return such as
-      // `readOnly(): EndoGit` must not pull the full unfiltered alias back in.
-      if (alias && tn !== rootType && !referenced.has(tn)) {
-        referenced.add(tn);
-        collect(alias.type);
-      }
-    }
-    ts.forEachChild(node, collect);
-  };
-  for (const node of keptTypeNodes) {
-    collect(node);
-  }
-
-  const auxTypes = [...referenced].sort().map(name => ({
-    name,
-    text: printer.printNode(
-      ts.EmitHint.Unspecified,
-      /** @type {ts.TypeAliasDeclaration} */ (aliasMap.get(name)).type,
-      sourceFile,
+  return harden({
+    rootName: rootType,
+    members,
+    auxTypes: [...auxTypes.values()].sort((a, b) =>
+      a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
     ),
-  }));
-
-  return harden({ rootName: rootType, members, auxTypes });
+  });
 };
 harden(extractTsAliasesIR);
 

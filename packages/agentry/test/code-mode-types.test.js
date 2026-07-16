@@ -20,6 +20,15 @@ import {
   buildWorkspaceIR,
 } from '../scripts/code-mode-fs-extract.js';
 
+/**
+ * @param {string} aux
+ * @returns {string[]}
+ */
+const declaredTypeNames = aux =>
+  [...aux.matchAll(/^type ([A-Za-z_$][0-9A-Za-z_$]*)/gm)].map(
+    ([, name]) => name,
+  );
+
 // Freshness gate (git): the checked-in git artifact must equal a fresh
 // extraction, so a change to the exo-git types.d.ts or to a renderer cannot
 // land without regenerating and committing the declarations.
@@ -80,13 +89,66 @@ test('read-only git is a subset of read-write git and omits mutators', t => {
     );
   }
   t.deepEqual([...readOnly].sort(), [...GIT_READONLY_MEMBERS].sort());
-  // A self-referential return (`readOnly(): EndoGit`) must not leak the
+  // A self-referential return (`readOnly(): ReadOnlyEndoGit`) must not leak the
   // mutating surface back into the read-only declaration.
   t.false(gitReadOnly.members.some(member => member.name === 'commit'));
   t.false(gitReadOnly.members.some(member => member.name === 'merge'));
   t.false(gitCodeModeTypeDeclarations.gitReadOnly.aux.includes('commit:'));
   t.true(readOnly.includes('log'));
   t.true(readOnly.includes('diff'));
+});
+
+test('git declarations expand the reachable platform filesystem contracts', t => {
+  const { aux } = gitCodeModeTypeDeclarations.git;
+  t.false(aux.includes("import('@endo/platform"));
+  for (const shape of [
+    'type GitPathEntry =',
+    'child: (name: string) => GitLitePathEntry;',
+    'type GitPathEntryIssuer =',
+    'entry: (path: string | string[]) => GitLitePathEntry;',
+    'type GitDirectory =',
+    'lookup: (path: string | string[]) => Promise<unknown>;',
+    'type GitDirectoryWriteSource = GitReadableBlobSource | GitLiteReadableTree;',
+    'write: (path: string[], value: GitDirectoryWriteSource) => Promise<void>;',
+    'type GitFile =',
+    'type GitFilesystem =',
+    'root(): GitERef<GitExtendedDirectory>;',
+    'type GitReadableBlob =',
+    'type GitReadableTree =',
+  ]) {
+    t.true(aux.includes(shape), `missing reachable type shape: ${shape}`);
+  }
+});
+
+test('combined Git and workspace declarations have unique alias names', t => {
+  const combined = [
+    fsCodeModeTypeDeclarations.workspace.aux,
+    gitCodeModeTypeDeclarations.git.aux,
+  ].join('\n');
+  const names = declaredTypeNames(combined);
+  t.deepEqual(
+    names,
+    [...new Set(names)],
+    'workspace and Git aliases must not declare the same TypeScript name',
+  );
+});
+
+test('Git declarations define every reachable custom filesystem alias', t => {
+  const declared = new Set(
+    declaredTypeNames(gitCodeModeTypeDeclarations.git.aux),
+  );
+  for (const name of [
+    'GitERef',
+    'GitFilesystemStats',
+    'GitSnapshotTree',
+    'GitSnapshotBlob',
+    'GitBlobInfo',
+  ]) {
+    t.true(declared.has(name), `missing generated alias: ${name}`);
+  }
+  t.false(
+    gitCodeModeTypeDeclarations.git.aux.includes("import('@endo/platform"),
+  );
 });
 
 test('base and history git declarations split history rewrite authority', t => {
