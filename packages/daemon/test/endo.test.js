@@ -4607,6 +4607,105 @@ testNeedsNodeWorker(
   },
 );
 
+testNeedsNodeWorker(
+  'provideGit persists the commit identity in its formula',
+  async t => {
+    const { host, config } = await prepareHost(t);
+    const repoPath = path.join(config.statePath, '..', 'git-identity-repo');
+    await createGitFixture(repoPath);
+
+    const mount = await E(host).provideMount(repoPath, 'git-identity-worktree');
+    const gitCap = await E(host).provideGit(mount, 'git-identity', {
+      identity: { authorName: 'Ada Agent', authorEmail: 'ada@example.test' },
+    });
+
+    await fs.promises.writeFile(
+      path.join(repoPath, 'identity.txt'),
+      'identity\n',
+    );
+    const firstEntry = await E(mount).entry(['identity.txt']);
+    await E(gitCap).add([firstEntry]);
+    const first = await E(gitCap).commit('identity subject');
+    const firstShow = await git(repoPath, [
+      'show',
+      '-s',
+      '--format=%an%x00%ae%x00%cn%x00%ce',
+      first.oid,
+    ]);
+    t.is(
+      firstShow.stdout.replace(/\n$/u, ''),
+      ['Ada Agent', 'ada@example.test', 'Ada Agent', 'ada@example.test'].join(
+        '\0',
+      ),
+      'the formula identity attributes the initial commit',
+    );
+
+    // The identity is formula-owned, so it survives deincarnation: cancel the
+    // cap and reincarnate it from the persisted formula, then commit again.
+    await E(host).cancel('git-identity');
+    const reincarnated = await E(host).lookup('git-identity');
+    await fs.promises.writeFile(
+      path.join(repoPath, 'identity.txt'),
+      'identity again\n',
+    );
+    const secondEntry = await E(mount).entry(['identity.txt']);
+    await E(reincarnated).add([secondEntry]);
+    const second = await E(reincarnated).commit('identity subject two');
+    const secondShow = await git(repoPath, [
+      'show',
+      '-s',
+      '--format=%an%x00%ae%x00%cn%x00%ce',
+      second.oid,
+    ]);
+    t.is(
+      secondShow.stdout.replace(/\n$/u, ''),
+      ['Ada Agent', 'ada@example.test', 'Ada Agent', 'ada@example.test'].join(
+        '\0',
+      ),
+      'the identity survives deincarnation and reincarnation',
+    );
+  },
+);
+
+test('provideGit rejects a malformed commit identity at the host boundary', async t => {
+  const { host, config } = await prepareHost(t);
+  const repoPath = path.join(
+    config.statePath,
+    '..',
+    'git-identity-reject-repo',
+  );
+  await createGitFixture(repoPath);
+  const mount = await E(host).provideMount(
+    repoPath,
+    'git-identity-reject-worktree',
+  );
+
+  // These identities all satisfy the interface guard (both fields are strings)
+  // yet must be rejected by the host's `normalizeGitIdentity`, so the failure
+  // surfaces at `provideGit` rather than late on the first commit.  The field
+  // name is `q()`-quoted, so it is disclosed (not redacted to `(a string)`) as
+  // the error crosses the daemon marshal boundary and the assertions can name
+  // the rejected field; only the offending value stays undisclosed.
+  await t.throwsAsync(
+    E(host).provideGit(mount, 'git-identity-empty', {
+      identity: { authorName: '', authorEmail: 'ada@example.test' },
+    }),
+    { message: /identity\.authorName.*must be a non-empty string/ },
+  );
+  await t.throwsAsync(
+    E(host).provideGit(mount, 'git-identity-blank', {
+      identity: { authorName: 'Ada Agent', authorEmail: '   ' },
+    }),
+    { message: /identity\.authorEmail.*must not be blank/ },
+  );
+  await t.throwsAsync(
+    E(host).provideGit(mount, 'git-identity-control', {
+      identity: { authorName: 'Ada\nAgent', authorEmail: 'ada@example.test' },
+    }),
+    { message: /identity\.authorName.*must not contain control characters/ },
+  );
+});
+
 test('provideGit tree exposes immutable commit contents', async t => {
   const { host, config } = await prepareHost(t);
 

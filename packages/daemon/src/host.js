@@ -652,6 +652,96 @@ export const makeHostMaker = ({
       return value;
     };
 
+    /**
+     * Validate one commit-identity field.  Beyond the credential-string rules
+     * (non-empty, no NUL), git's commit-ident sanitizer strips control
+     * characters and surrounding whitespace and then refuses an ident that
+     * reduces to empty, so a control-character or blank value would abort every
+     * commit late rather than fail here.  Rejecting them at construction keeps
+     * the identity option strictly additive, and mirrors the backend-side
+     * `commitIdentityEnvOverrides` check so the two boundaries agree.
+     *
+     * The field name is a caller-facing diagnostic label, not a secret, so it
+     * is `q()`-quoted into the error and survives the daemon marshal boundary
+     * (an unquoted `X` substitution would be redacted to `(a string)`, masking
+     * which field was rejected).  The value is never disclosed.
+     *
+     * @param {unknown} value
+     * @param {string} fieldName
+     * @returns {string}
+     */
+    const requireGitIdentityField = (value, fieldName) => {
+      if (typeof value !== 'string' || value.length === 0) {
+        throw makeError(X`${q(fieldName)} must be a non-empty string`);
+      }
+      if (value.includes('\0')) {
+        throw makeError(X`${q(fieldName)} must not contain NUL bytes`);
+      }
+      for (let i = 0; i < value.length; i += 1) {
+        const code = value.charCodeAt(i);
+        if (code <= 0x1f || code === 0x7f) {
+          throw makeError(
+            X`${q(fieldName)} must not contain control characters`,
+          );
+        }
+      }
+      if (value.trim() === '') {
+        throw makeError(X`${q(fieldName)} must not be blank`);
+      }
+      return value;
+    };
+
+    /**
+     * Validate a caller-supplied commit-identity policy for `provideGit` /
+     * `provideGitClone` and normalize it into the formula-owned shape the
+     * `git` formula persists.  The identity is captured at construction and is
+     * never reachable by the guest; omitting it retains the backend's default
+     * `Endo <endo@invalid.local>` attribution, so the option is additive.
+     *
+     * The optional `committerName` / `committerEmail` are passed through when
+     * supplied and omitted otherwise; the native backend defaults an absent
+     * committer to the author, so the default lives in one place.
+     *
+     * @param {unknown} identity
+     * @param {string} label
+     * @returns {import('./types.js').GitCommitIdentity | undefined}
+     */
+    const normalizeGitIdentity = (identity, label) => {
+      if (identity === undefined) {
+        return undefined;
+      }
+      if (typeof identity !== 'object' || identity === null) {
+        throw makeError(
+          X`${q(label)}: identity must be an object with authorName and authorEmail`,
+        );
+      }
+      const { authorName, authorEmail, committerName, committerEmail } =
+        /** @type {Record<string, unknown>} */ (identity);
+      const normalized = {
+        authorName: requireGitIdentityField(
+          authorName,
+          `${label}: identity.authorName`,
+        ),
+        authorEmail: requireGitIdentityField(
+          authorEmail,
+          `${label}: identity.authorEmail`,
+        ),
+      };
+      if (committerName !== undefined) {
+        normalized.committerName = requireGitIdentityField(
+          committerName,
+          `${label}: identity.committerName`,
+        );
+      }
+      if (committerEmail !== undefined) {
+        normalized.committerEmail = requireGitIdentityField(
+          committerEmail,
+          `${label}: identity.committerEmail`,
+        );
+      }
+      return harden(normalized);
+    };
+
     /** @type {EndoHost['provideGit']} */
     const provideGit = async (mountCap, petName, options = {}) => {
       const { namePath } = petNamePathFrom(petName);
@@ -669,7 +759,13 @@ export const makeHostMaker = ({
       );
 
       const { allowHistoryRewrite = false } = options;
-      const { value } = await formulateGit(mountId, allowHistoryRewrite, tasks);
+      const identity = normalizeGitIdentity(options.identity, 'provideGit');
+      const { value } = await formulateGit(
+        mountId,
+        allowHistoryRewrite,
+        identity,
+        tasks,
+      );
       return /** @type {EndoGit} */ (value);
     };
 
@@ -908,6 +1004,7 @@ export const makeHostMaker = ({
         throw makeError(X`provideGitClone: endpoint must be an object`);
       }
       const { destMount, endpoint: endpointOptions } = opts;
+      const identity = normalizeGitIdentity(opts.identity, 'provideGitClone');
       const destMountId = getIdForRef(destMount);
       if (destMountId === undefined) {
         throw makeError(
@@ -972,7 +1069,12 @@ export const makeHostMaker = ({
         makeGit: async () => {
           /** @type {DeferredTasks<GitDeferredTaskParams>} */
           const tasks = makeDeferredTasks();
-          const { value, id } = await formulateGit(destMountId, false, tasks);
+          const { value, id } = await formulateGit(
+            destMountId,
+            false,
+            identity,
+            tasks,
+          );
           clonedGitId = id;
           return value;
         },

@@ -244,6 +244,112 @@ const withGitEnvOverrides = (envVars, overrides = /** @type {T} */ ({})) => ({
 harden(withGitEnvOverrides);
 
 /**
+ * True when `value` carries an ASCII control character (C0 range or DEL).  Git
+ * strips such characters from a commit ident, so they must be rejected before
+ * they silently corrupt the author/committer line.
+ *
+ * @param {string} value
+ * @returns {boolean}
+ */
+const hasControlCharacter = value => {
+  for (let i = 0; i < value.length; i += 1) {
+    const code = value.charCodeAt(i);
+    if (code <= 0x1f || code === 0x7f) {
+      return true;
+    }
+  }
+  return false;
+};
+harden(hasControlCharacter);
+
+/**
+ * Validate one commit-identity field (`authorName` / `authorEmail`).  Git's
+ * commit-ident sanitizer strips control characters and surrounding whitespace
+ * and then refuses an ident that reduces to empty (`fatal: empty ident name …
+ * not allowed`), so a whitespace-only or control-character value would abort
+ * every mutating invocation late rather than at construction.  Rejecting such
+ * values here keeps the identity option strictly additive: a supplied identity
+ * either fails fast at construction or is safe to commit with.
+ *
+ * @param {unknown} value
+ * @param {string} field
+ * @returns {string}
+ */
+const requireGitIdentityField = (value, field) => {
+  if (typeof value !== 'string' || value === '') {
+    throw new Error(`git identity ${field} must be a non-empty string`);
+  }
+  if (hasControlCharacter(value)) {
+    throw new Error(
+      `git identity ${field} must not contain control characters`,
+    );
+  }
+  if (value.trim() === '') {
+    throw new Error(`git identity ${field} must not be blank`);
+  }
+  return value;
+};
+harden(requireGitIdentityField);
+
+/**
+ * Validate a formula-owned commit-identity policy and project it onto the
+ * git author/committer environment variables.  The identity is captured at
+ * backend construction (owned by the `Git` formula, never reachable by the
+ * guest) and threaded into every mutating invocation through the
+ * `withGitEnvOverrides` seam, overriding `makeGitEnv`'s default
+ * `Endo <endo@invalid.local>`.
+ *
+ * Both the author and committer roles are pinned so a fresh commit is wholly
+ * attributed to the policy identity.  The `committerName` / `committerEmail`
+ * fields are optional and default to the author fields when unset, so a bare
+ * `{ authorName, authorEmail }` attributes both roles to one identity while a
+ * caller that needs a distinct committer can supply one.  `reword` still
+ * overrides `GIT_AUTHOR_*` per invocation to preserve a rewritten commit's
+ * original author (leaving only the committer as this identity), so per-call
+ * overrides take precedence over these at the seam.
+ *
+ * Each supplied field is rejected unless it is a non-empty string that carries
+ * no control characters and is not blank after trimming, so a malformed
+ * identity fails here rather than aborting the first commit.  Returns an empty
+ * object when no identity is supplied, so the backend falls back to the default
+ * identity and the option is strictly additive.
+ *
+ * @param {unknown} identity
+ * @returns {Record<string, string>}
+ */
+const commitIdentityEnvOverrides = identity => {
+  if (identity === undefined) {
+    return harden({});
+  }
+  if (typeof identity !== 'object' || identity === null) {
+    throw new Error(
+      'git identity must be an object with authorName and authorEmail',
+    );
+  }
+  const { authorName, authorEmail, committerName, committerEmail } =
+    /** @type {Record<string, unknown>} */ (identity);
+  const name = requireGitIdentityField(authorName, 'authorName');
+  const email = requireGitIdentityField(authorEmail, 'authorEmail');
+  // The committer defaults to the author when unset, so a bare
+  // `{ authorName, authorEmail }` still attributes both roles to one identity.
+  const cName =
+    committerName === undefined
+      ? name
+      : requireGitIdentityField(committerName, 'committerName');
+  const cEmail =
+    committerEmail === undefined
+      ? email
+      : requireGitIdentityField(committerEmail, 'committerEmail');
+  return harden({
+    GIT_AUTHOR_NAME: name,
+    GIT_AUTHOR_EMAIL: email,
+    GIT_COMMITTER_NAME: cName,
+    GIT_COMMITTER_EMAIL: cEmail,
+  });
+};
+harden(commitIdentityEnvOverrides);
+
+/**
  * Add command-line protocol policy for explicit URL remote operations.
  * The URL itself still comes from GitRemote policy; these flags ensure
  * the protocol selected for that URL is the only protocol git may use
@@ -993,9 +1099,17 @@ const worktreeCodeToStatus = (code, indexCode) => {
  * @param {object} args
  * @param {string} args.repoRoot  The host-private worktree root the
  *   git formula instantiator pulled from the mount's backing.
+ * @param {{ authorName: string, authorEmail: string, committerName?: string,
+ *   committerEmail?: string }} [args.identity]
+ *   Formula-owned commit-identity policy captured at construction.  When
+ *   supplied, every mutating invocation attributes its author and committer
+ *   to this identity; the optional `committerName` / `committerEmail` default
+ *   to the author fields when unset.  When omitted, commits fall back to the
+ *   default `Endo <endo@invalid.local>`.  The guest never reaches this value.
  * @returns {GitBackend}
  */
-export const makeNativeGitBackend = ({ repoRoot }) => {
+export const makeNativeGitBackend = ({ repoRoot, identity }) => {
+  const identityEnvOverrides = commitIdentityEnvOverrides(identity);
   /** @type {Promise<void> | undefined} */
   let rootVerification;
   /** @type {Promise<void> | undefined} */
@@ -1183,7 +1297,10 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         [...GIT_BASE_ARGS, ...args],
         {
           cwd: repoRoot,
-          env: withGitEnvOverrides(makeGitEnv(repoRoot), envOverrides),
+          env: withGitEnvOverrides(makeGitEnv(repoRoot), {
+            ...identityEnvOverrides,
+            ...envOverrides,
+          }),
           timeout: GIT_TIMEOUT_MS,
           maxBuffer: GIT_MAX_BUFFER,
           signal,
@@ -1330,7 +1447,10 @@ export const makeNativeGitBackend = ({ repoRoot }) => {
         [...GIT_BASE_ARGS, ...args],
         {
           cwd: repoRoot,
-          env: withGitEnvOverrides(makeGitEnv(repoRoot), envOverrides),
+          env: withGitEnvOverrides(makeGitEnv(repoRoot), {
+            ...identityEnvOverrides,
+            ...envOverrides,
+          }),
           timeout: GIT_TIMEOUT_MS,
           maxBuffer: GIT_MAX_BUFFER,
           signal,
@@ -2792,6 +2912,7 @@ export const internalHelpers = harden({
   GIT_MAX_BUFFER,
   TOOL_OUTPUT_LIMIT,
   makeGitEnv,
+  commitIdentityEnvOverrides,
   truncateOutput,
   requireNonEmptyString,
   requireAskpassLine,
