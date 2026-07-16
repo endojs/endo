@@ -2,12 +2,12 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { GitMountToolCapability, ToolRecord } from './types.js' */
+/** @import { GitMountToolCapability, ToolRecord } from '../types.js' */
 
 import { E } from '@endo/eventual-send';
 import { M } from '@endo/patterns';
 
-import { makeTool } from './tool.js';
+import { makeTool } from '../tool.js';
 
 /**
  * The git tools in this module bridge the two writable Git methods whose native

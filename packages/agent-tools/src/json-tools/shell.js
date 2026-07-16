@@ -3,7 +3,7 @@
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { InterfaceGuard, Pattern } from '@endo/patterns' */
-/** @import { ShellToolCapability, ToolRecord, RejectPatternEntry, RejectFlagEntry, ShellToolOptions } from './types.js' */
+/** @import { ShellToolCapability, ToolRecord, RejectPatternEntry, RejectFlagEntry, ShellToolOptions } from '../types.js' */
 
 /** @typedef {Record<keyof ShellToolCapability, (...args: unknown[]) => Promise<unknown>>} ShellToolDispatch */
 
@@ -14,7 +14,7 @@ import {
 } from '@endo/patterns';
 import { ShellInterface } from '@endo/exo-shell';
 
-import { makeTool } from './tool.js';
+import { makeTool } from '../tool.js';
 
 /**
  * Build an advisory command-string veto from `@endo/exo-shell`-style reject

@@ -3,7 +3,7 @@
 
 /** @import { RunGitScenarioOptions, RunGitScenarioResult } from './types.js' */
 
-import { makeCodeModeGitLoopAgent } from '../execute/preset.js';
+import { makeCodeModeGitLoopAgent } from '../code-mode.js';
 import { makeRunMetricsRecorder } from './metrics.js';
 
 /**

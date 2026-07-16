@@ -7,7 +7,7 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { Far } from '@endo/pass-style';
 
-import { makeGitHistoryTool, makeGitTool } from '../src/git-tool.js';
+import { makeGitHistoryTool, makeGitTool } from '../src/json-tools/git.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { GitHistoryToolCapability, GitToolCapability } from '../src/types.js' */

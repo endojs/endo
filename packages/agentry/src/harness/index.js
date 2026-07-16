@@ -8,7 +8,6 @@
  * @typedef {import('./credentials.js').GetApiKey} GetApiKey
  */
 
-export { toolResultToSmallcaps, smallcapsMarshal } from './marshal.js';
 export {
   getAmbientEnv,
   makeEnvCredentials,

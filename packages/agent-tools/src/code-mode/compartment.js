@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { CodeModeExecute } from './tool.js' */
+/** @import { CodeModeExecute } from './evaluate-tool.js' */
 
 /**
  * A no-argument observer for a rejected eventual-send result.

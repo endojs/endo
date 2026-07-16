@@ -21,7 +21,7 @@ import {
   HttpResponseInterface,
 } from '@endo/exo-http-client';
 
-import { makeHttpTool } from '../src/http-tool.js';
+import { makeHttpTool } from '../src/json-tools/http.js';
 
 const ajv = new Ajv({ strict: false });
 

@@ -3,7 +3,7 @@
 
 /** @import { Tool } from '@earendil-works/pi-ai' */
 /** @import { AgentTool, AgentToolResult } from '@earendil-works/pi-agent-core' */
-/** @import { ToolRecord } from './types.js' */
+/** @import { ToolRecord } from '../types.js' */
 
 /**
  * Default tool-result renderer: plain strings pass through unchanged; every

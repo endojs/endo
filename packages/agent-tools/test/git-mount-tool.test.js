@@ -8,7 +8,7 @@ import test from 'ava';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/pass-style';
 
-import { makeGitMountTools } from '../src/git-mount-tool.js';
+import { makeGitMountTools } from '../src/json-tools/git-mount.js';
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { GitMountToolCapability } from '../src/types.js' */

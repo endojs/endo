@@ -25,8 +25,8 @@ import {
   makeMountStatTool,
   makeMountEditTool,
   makeMountFsTools,
-} from '../src/mount-fs.js';
-import { toPiAgentTool } from '../src/pi.js';
+} from '../src/json-tools/fs.js';
+import { toPiAgentTool } from '../src/adapters/pi.js';
 
 /**
  * @param {ExecutionContext} t

@@ -1,1 +1,1 @@
-export { toPiAgentTool } from './src/pi.js';
+export { toPiAgentTool } from './src/adapters/pi.js';

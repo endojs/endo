@@ -4,7 +4,7 @@ import type {
   ToolRecord,
   MountReadToolOptions,
   MountFsToolsOptions,
-} from './types.js';
+} from '../types.js';
 
 export declare const makeMountReadTool: (
   fs: ERef<Filesystem>,

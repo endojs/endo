@@ -3,20 +3,65 @@
 
 /** @import { Model } from '@earendil-works/pi-ai' */
 /** @import { Agent, AgentMessage, StreamFn } from '@earendil-works/pi-agent-core' */
-/** @import { Credentials, GetApiKey } from '../harness/credentials.js' */
-/** @import { ThinkingLevel } from '../harness/model.js' */
-/** @import { CodeModeExecute, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from './tool.js' */
+/** @import { Credentials, GetApiKey } from './harness/credentials.js' */
+/** @import { ThinkingLevel } from './harness/model.js' */
+/** @import { CodeModeExecute, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from '../../agent-tools/src/code-mode/evaluate-tool.js' */
 
 import { E } from '@endo/eventual-send';
 import { isGitHistoryRewrite, isGitReadOnly } from '@endo/exo-git';
 
-import { defineAgent } from '../define-agent.js';
-import { getAmbientEnv, makeEnvCredentials } from '../harness/credentials.js';
-import { makeCompartmentExecute } from './compartment.js';
-import { makeExecuteTool, toSmallcapsPiAgentTool } from './tool.js';
-import { makeCodeModeSystemPrompt, normalizeGlobals } from './globals.js';
-import { makeGitGlobal } from './git.js';
-import { makeWorkspaceGlobal } from './fs.js';
+import { defineAgent } from './define-agent.js';
+import { getAmbientEnv, makeEnvCredentials } from './harness/credentials.js';
+import { makeCompartmentExecute } from '../../agent-tools/src/code-mode/compartment.js';
+import {
+  makeExecuteTool,
+  toSmallcapsPiAgentTool,
+} from '../../agent-tools/src/code-mode/evaluate-tool.js';
+import {
+  formatGlobalDeclarations,
+  normalizeGlobals,
+} from '../../agent-tools/src/code-mode/declarations.js';
+import { makeGitGlobal } from './execute/git.js';
+import { makeWorkspaceGlobal } from './execute/fs.js';
+
+/**
+ * Build the system prompt for the narrow code-mode agent.
+ *
+ * @param {CodeModeGlobal[]} globals
+ * @param {{ preamble?: string }} [options]
+ * @returns {string}
+ */
+export const makeCodeModeSystemPrompt = (globals, options = {}) => {
+  const normalized = normalizeGlobals(globals);
+  const preamble =
+    options.preamble ||
+    'You are codeMode, an Endo code-mode agent. You solve tasks by writing JavaScript and calling the execute tool.';
+  return `${preamble}
+
+You have exactly one tool: execute. Do not call any other tool and do not answer in prose when a tool call can do the work.
+
+The execute tool evaluates JavaScript source in an Endo Compartment. The compartment includes hardened SES globals plus the powers listed below. These powers are already in lexical scope; do not look them up by pet name. The TypeScript declarations below are your primary reference: use them to pick a method and its arguments before your first call rather than probing at runtime. They may be a subset of a capability's live surface, so if you need a method that is not declared, discover it with E(capability).__getMethodNames__().
+
+Use E(capability).method(...) for remotable capabilities. Top-level await is not available, so use an async IIFE when you need multiple awaits or a final awaited result:
+
+\`\`\`js
+(async () => {
+  const value = await E(example).method();
+  return value;
+})()
+\`\`\`
+
+Return the desired value as the source completion value. Use resultName only when the user asks you to store the result for later.
+
+Available powers:
+
+\`\`\`ts
+declare const E;
+${formatGlobalDeclarations(normalized)}
+\`\`\`
+`;
+};
+harden(makeCodeModeSystemPrompt);
 
 const IDENTIFIER_RE = /^[A-Za-z_$][0-9A-Za-z_$]*$/;
 

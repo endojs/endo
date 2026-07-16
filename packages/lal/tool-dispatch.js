@@ -17,7 +17,10 @@
 
 import { mustMatch } from '@endo/patterns';
 import { E } from '@endo/eventual-send';
-import { toolResultToSmallcaps, smallcapsMarshal } from '@endo/agentry/harness';
+import {
+  toolResultToSmallcaps,
+  smallcapsMarshal,
+} from '@endo/agent-tools/adapters/smallcaps.js';
 import { applyEdits } from '@endo/agentry/edit-text';
 
 import { tools } from './tools/index.js';
@@ -36,7 +39,7 @@ import { tools } from './tools/index.js';
 // decoded passables rather than the raw JSON strings.
 //
 // The `smallcapsMarshal` codec and the `toolResultToSmallcaps` tool-result
-// encoder now live in `@endo/agentry/harness` (imported above). The codec is
+// encoder now live in `@endo/agent-tools/adapters/smallcaps.js` (imported above). The codec is
 // constructed once at module load there; no slot converters are needed because
 // tool args never carry remotables or promises, and the defaults
 // (`dontEncodeRemotableToSmallcaps` / `dontEncodePromiseToSmallcaps`) throw if
@@ -467,7 +470,7 @@ export function toAgentTool(name, summary, executeTool) {
       // `"+N"` strings (consistent with the encoding it must produce for
       // inbound messageNumber fields) and strings starting with special
       // chars as `"!<s>"`. Plain strings pass through unwrapped. The encoder is
-      // the shared `toolResultToSmallcaps` from `@endo/agentry/harness`.
+      // the shared `toolResultToSmallcaps` from `@endo/agent-tools/adapters/smallcaps.js`.
       const text = toolResultToSmallcaps(result);
       /** @type {AgentToolResult<any>} */
       const toolResult = {

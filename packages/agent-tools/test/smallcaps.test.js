@@ -5,7 +5,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import {
   toolResultToSmallcaps,
   smallcapsMarshal,
-} from '../src/harness/marshal.js';
+} from '../src/adapters/smallcaps.js';
 
 test('toolResultToSmallcaps passes plain strings through unwrapped', t => {
   t.is(toolResultToSmallcaps('plain text'), 'plain text');

@@ -6,11 +6,11 @@
 /** @import { AgentTool } from '@earendil-works/pi-agent-core' */
 /** @import { ToolRecord } from '@endo/agent-tools' */
 
-import { makeTool } from '@endo/agent-tools/tool.js';
+import { makeTool } from '../tool.js';
 import { toPiAgentTool } from '@endo/agent-tools/pi';
 
-import { toolResultToSmallcaps } from '../harness/marshal.js';
-import { normalizeGlobals } from './globals.js';
+import { toolResultToSmallcaps } from '../adapters/smallcaps.js';
+import { normalizeGlobals } from './declarations.js';
 
 const EXECUTE_PARAMETERS = harden({
   type: 'object',

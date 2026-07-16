@@ -3,7 +3,7 @@ import type {
   GitHistoryToolCapability,
   GitToolCapability,
   ToolRecord,
-} from './types.js';
+} from '../types.js';
 
 export declare const makeGitTool: (
   gitCap: ERef<GitToolCapability>,

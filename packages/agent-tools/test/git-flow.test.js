@@ -18,8 +18,8 @@ import { makeGit } from '@endo/exo-git';
 import { makeMount, lineageOf } from '@endo/daemon/src/mount.js';
 import { makeFilePowers } from '@endo/daemon/src/daemon-node-powers.js';
 
-import { makeGitTool } from '../src/git-tool.js';
-import { makeGitMountTools } from '../src/git-mount-tool.js';
+import { makeGitTool } from '../src/json-tools/git.js';
+import { makeGitMountTools } from '../src/json-tools/git-mount.js';
 
 /**
  * Integration proof that `makeGitTool`'s agent-facing tool records drive a

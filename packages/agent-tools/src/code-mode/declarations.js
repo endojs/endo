@@ -1,12 +1,12 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { CodeModeGlobal, GlobalDeclaration } from './tool.js' */
+/** @import { CodeModeGlobal, GlobalDeclaration } from './evaluate-tool.js' */
 
 const IDENTIFIER_RE = /^[A-Za-z_$][0-9A-Za-z_$]*$/;
 
 // `E` is always injected into the code-mode compartment as the eventual-send
-// operator (see `makeCodeModeEndowments` in execute/preset.js and the
+// operator (see `makeCodeModeEndowments` in agentry's code-mode.js and the
 // `declare const E;` line `makeCodeModeSystemPrompt` emits). A global named `E`
 // would collide with it; reject it by name rather than letting the injected `E`
 // silently win at endowment-merge time.
@@ -139,42 +139,3 @@ export const formatGlobalDeclarations = globals => {
   }
   return lines.join('\n');
 };
-
-/**
- * Build the system prompt for the narrow code-mode agent.
- *
- * @param {CodeModeGlobal[]} globals
- * @param {{ preamble?: string }} [options]
- * @returns {string}
- */
-export const makeCodeModeSystemPrompt = (globals, options = {}) => {
-  const normalized = normalizeGlobals(globals);
-  const preamble =
-    options.preamble ||
-    'You are codeMode, an Endo code-mode agent. You solve tasks by writing JavaScript and calling the execute tool.';
-  return `${preamble}
-
-You have exactly one tool: execute. Do not call any other tool and do not answer in prose when a tool call can do the work.
-
-The execute tool evaluates JavaScript source in an Endo Compartment. The compartment includes hardened SES globals plus the powers listed below. These powers are already in lexical scope; do not look them up by pet name. The TypeScript declarations below are your primary reference: use them to pick a method and its arguments before your first call rather than probing at runtime. They may be a subset of a capability's live surface, so if you need a method that is not declared, discover it with E(capability).__getMethodNames__().
-
-Use E(capability).method(...) for remotable capabilities. Top-level await is not available, so use an async IIFE when you need multiple awaits or a final awaited result:
-
-\`\`\`js
-(async () => {
-  const value = await E(example).method();
-  return value;
-})()
-\`\`\`
-
-Return the desired value as the source completion value. Use resultName only when the user asks you to store the result for later.
-
-Available powers:
-
-\`\`\`ts
-declare const E;
-${formatGlobalDeclarations(normalized)}
-\`\`\`
-`;
-};
-harden(makeCodeModeSystemPrompt);

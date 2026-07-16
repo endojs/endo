@@ -1,6 +1,6 @@
 import type { WritableGitWorktree } from '@endo/exo-git';
 
-import { makeGitMountTools } from '../src/git-mount-tool.js';
+import { makeGitMountTools } from '../src/json-tools/git-mount.js';
 import type { GitMountToolCapability } from '../src/types.js';
 
 type Equal<Left, Right> =

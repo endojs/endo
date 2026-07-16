@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { CodeModeGlobal } from './tool.js' */
+/** @import { CodeModeGlobal } from '../../../agent-tools/src/code-mode/evaluate-tool.js' */
 
 import { gitCodeModeTypeDeclarations } from './git-types.js';
 

@@ -61,9 +61,7 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo-git": "workspace:^",
-    "@endo/far": "workspace:^",
-    "@endo/marshal": "workspace:^",
-    "@endo/pass-style": "workspace:^"
+    "@endo/far": "workspace:^"
   },
   "devDependencies": {
     "@endo/daemon": "workspace:^",
@@ -71,6 +69,7 @@
     "@endo/git": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/lockdown": "workspace:^",
+    "@endo/pass-style": "workspace:^",
     "@endo/patterns": "workspace:^",
     "@endo/platform": "workspace:^",
     "@endo/ses-ava": "workspace:^",

@@ -3,7 +3,7 @@
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { InterfaceGuard, Pattern } from '@endo/patterns' */
-/** @import { GitHistoryToolCapability, GitToolCapability, ToolRecord } from './types.js' */
+/** @import { GitHistoryToolCapability, GitToolCapability, ToolRecord } from '../types.js' */
 
 /** @typedef {Record<keyof GitToolCapability | keyof GitHistoryToolCapability, (...args: unknown[]) => Promise<unknown>>} GitToolDispatch */
 
@@ -14,7 +14,7 @@ import {
 } from '@endo/patterns';
 import { GitInterface } from '@endo/exo-git';
 
-import { makeTool } from './tool.js';
+import { makeTool } from '../tool.js';
 
 /**
  * JSON Schemas for the Git methods exposed as agent tools. Methods that need

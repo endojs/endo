@@ -22,8 +22,8 @@ import {
   chroot,
 } from '@endo/platform/fs/extended';
 
-import { makeMountReadTool } from '../src/mount-fs.js';
-import { toPiAgentTool } from '../src/pi.js';
+import { makeMountReadTool } from '../src/json-tools/fs.js';
+import { toPiAgentTool } from '../src/adapters/pi.js';
 
 /**
  * @typedef {object} TestFilesystemLike

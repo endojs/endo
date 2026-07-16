@@ -7,7 +7,7 @@ import '@endo/init/debug.js';
 import test from 'ava';
 
 import { makeTool } from '../src/tool.js';
-import { toPiAgentTool } from '../src/pi.js';
+import { toPiAgentTool } from '../src/adapters/pi.js';
 
 /**
  * @param {unknown} result

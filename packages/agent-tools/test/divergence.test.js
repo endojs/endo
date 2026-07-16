@@ -19,7 +19,7 @@ import {
 import { Far } from '@endo/pass-style';
 import { GitInterface } from '@endo/exo-git';
 
-import { makeGitTool } from '../src/git-tool.js';
+import { makeGitTool } from '../src/json-tools/git.js';
 
 /**
  * Conformance checks for hand-authored JSON Schemas and runtime guards.

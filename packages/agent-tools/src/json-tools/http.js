@@ -3,7 +3,7 @@
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { InterfaceGuard, Pattern } from '@endo/patterns' */
-/** @import { HttpToolCapability, HttpResponseView, ToolRecord } from './types.js' */
+/** @import { HttpToolCapability, HttpResponseView, ToolRecord } from '../types.js' */
 
 /** @typedef {Record<keyof HttpToolCapability, (...args: unknown[]) => Promise<unknown>>} HttpToolDispatch */
 
@@ -14,7 +14,7 @@ import {
 } from '@endo/patterns';
 import { HttpClientInterface } from '@endo/exo-http-client';
 
-import { makeTool } from './tool.js';
+import { makeTool } from '../tool.js';
 
 /**
  * JSON Schemas for the `HttpClient` methods exposed as agent tools.
@@ -119,7 +119,7 @@ const positionalArgGuards = method => {
  * the caller parses JSON itself. The byte cap and `truncated` flag are the
  * `HttpClient`'s, enforced before the response ever reaches here.
  *
- * @param {ERef<import('./types.js').HttpResponseView>} response
+ * @param {ERef<HttpResponseView>} response
  * @returns {Promise<object>}
  */
 const projectResponse = async response => {

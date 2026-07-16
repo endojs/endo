@@ -18,7 +18,7 @@ import {
 import { Far } from '@endo/pass-style';
 import { ShellInterface } from '@endo/exo-shell';
 
-import { makeShellTool } from '../src/shell-tool.js';
+import { makeShellTool } from '../src/json-tools/shell.js';
 
 const ajv = new Ajv({ strict: false });
 

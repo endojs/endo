@@ -3,7 +3,7 @@ import type {
   ShellToolCapability,
   ShellToolOptions,
   ToolRecord,
-} from './types.js';
+} from '../types.js';
 
 export declare const makeShellTool: (
   shellCap: ERef<ShellToolCapability>,
