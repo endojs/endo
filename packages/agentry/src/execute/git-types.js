@@ -211,11 +211,16 @@ type GitLiteReadableBlob = {
     json: () => Promise<any>;
     size?: () => Promise<bigint>;
     readRange?: (offset: number, length: number) => Promise<Uint8Array>;
+    rangeRead?: (offset: bigint, length: bigint) => Promise<Uint8Array>;
+    rangeReadText?: (startLine: number, endLine: number) => Promise<string>;
 };
 type GitLiteReadableTree = {
     has: (...petNamePath: string[]) => Promise<boolean>;
     list: (...petNamePath: string[]) => Promise<string[]>;
     lookup: (petNamePath: string | string[]) => Promise<unknown>;
+    listTree?: (petNamePath: string | string[], options?: {
+        ignore?: string[];
+    }) => Promise<GitTreeEntry[]>;
 };
 type GitNodeStat = {
     size?: bigint;
@@ -275,6 +280,10 @@ type GitSnapshotBlob = GitLiteReadableBlob & {
 type GitSnapshotTree = GitLiteReadableTree & {
     sha256: () => string;
     getInfo: () => Promise<GitBlobInfo>;
+};
+type GitTreeEntry = {
+    path: string[];
+    type: 'file' | 'directory';
 };
 type GitWritableGitWorktree = GitDirectory & GitPathEntryIssuer;
 type GitXattrs = {
@@ -466,11 +475,16 @@ type GitLiteReadableBlob = {
     json: () => Promise<any>;
     size?: () => Promise<bigint>;
     readRange?: (offset: number, length: number) => Promise<Uint8Array>;
+    rangeRead?: (offset: bigint, length: bigint) => Promise<Uint8Array>;
+    rangeReadText?: (startLine: number, endLine: number) => Promise<string>;
 };
 type GitLiteReadableTree = {
     has: (...petNamePath: string[]) => Promise<boolean>;
     list: (...petNamePath: string[]) => Promise<string[]>;
     lookup: (petNamePath: string | string[]) => Promise<unknown>;
+    listTree?: (petNamePath: string | string[], options?: {
+        ignore?: string[];
+    }) => Promise<GitTreeEntry[]>;
 };
 type GitNodeStat = {
     size?: bigint;
@@ -514,6 +528,10 @@ type GitSnapshotBlob = GitLiteReadableBlob & {
 type GitSnapshotTree = GitLiteReadableTree & {
     sha256: () => string;
     getInfo: () => Promise<GitBlobInfo>;
+};
+type GitTreeEntry = {
+    path: string[];
+    type: 'file' | 'directory';
 };
 type GitXattrs = {
     list(): Promise<string[]>;

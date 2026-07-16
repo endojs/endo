@@ -5254,7 +5254,7 @@ test('mount readOnly() attenuation', async t => {
 
   // The structural narrowing returns a ReadableTree view, not an
   // EndoMount.  Reading through the platform surface (has, list,
-  // lookup) still works.
+  // listTree, lookup) still works.
   const entries = await E(roTree).list();
   t.deepEqual(entries, ['file.txt']);
   t.true(await E(roTree).has('file.txt'));
@@ -5263,13 +5263,14 @@ test('mount readOnly() attenuation', async t => {
   // method names are constrained to the ReadableTree surface
   // (filtering Exo introspection helpers). `help` is part of the
   // platform ReadableTree contract (every capability is
-  // self-documenting), so it appears alongside has/list/lookup.
+  // self-documenting), so it appears alongside has/list/listTree/lookup.
   // eslint-disable-next-line no-underscore-dangle
   const methods = await E(roTree).__getMethodNames__();
   t.deepEqual(methods.filter(name => !name.startsWith('__')).sort(), [
     'has',
     'help',
     'list',
+    'listTree',
     'lookup',
   ]);
 });

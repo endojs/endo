@@ -1232,7 +1232,7 @@ harden(makeMountExo);
 
 /**
  * Structural-narrowing view exposing only the `ReadableTree` surface
- * (`has`, `list`, `lookup`) over a read-only mount.  Mount-specific
+ * (`has`, `list`, `listTree`, `lookup`) over a read-only mount.  Mount-specific
  * extensions are not present on this Exo; the read-only surface is
  * deliberately the platform contract, not the daemon's superset.
  *
@@ -1246,6 +1246,52 @@ const makeReadableTreeView = readOnlyMount => {
     },
     async list(...pathSegments) {
       return E(readOnlyMount).list(...pathSegments);
+    },
+    async listTree(petNamePath, listTreeOptions = {}) {
+      const namePath =
+        typeof petNamePath === 'string' ? [petNamePath] : petNamePath;
+      const { ignore = [] } = listTreeOptions;
+      const ignored = new Set(ignore);
+      let start = view;
+      if (namePath.length > 0) {
+        start = await E(view).lookup(namePath);
+        // eslint-disable-next-line no-underscore-dangle
+        const methods = await E(
+          /** @type {any} */ (start),
+        ).__getMethodNames__();
+        if (!methods.includes('list')) {
+          throw new TypeError('listTree sub-path must name a directory');
+        }
+      }
+
+      /** @type {Array<{ path: string[], type: 'file' | 'directory' }>} */
+      const entries = [];
+      /**
+       * @param {object} tree
+       * @param {string[]} relativePath
+       */
+      const walk = async (tree, relativePath) => {
+        const names = (await E(tree).list())
+          .filter(name => !ignored.has(name))
+          .sort();
+        for (const name of names) {
+          // eslint-disable-next-line no-await-in-loop
+          const child = await E(tree).lookup(name);
+          // eslint-disable-next-line no-await-in-loop, no-underscore-dangle
+          const methods = await E(child).__getMethodNames__();
+          const childPath = harden([...relativePath, name]);
+          if (methods.includes('list')) {
+            entries.push(harden({ path: childPath, type: 'directory' }));
+            // eslint-disable-next-line no-await-in-loop
+            await walk(child, childPath);
+          } else {
+            entries.push(harden({ path: childPath, type: 'file' }));
+          }
+        }
+      };
+
+      await walk(start, []);
+      return harden(entries);
     },
     async lookup(pathArg) {
       const result = await E(readOnlyMount).lookup(pathArg);

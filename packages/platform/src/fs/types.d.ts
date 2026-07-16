@@ -28,6 +28,29 @@ export interface ReadableBlob {
    * Optional for the same reason as `size`.
    */
   readRange?: (offset: number, length: number) => Promise<Uint8Array>;
+  /**
+   * Whole-value windowed read: the raw bytes of `[offset, offset + length)`,
+   * clamped at EOF, as a `Uint8Array` (the convenience form distinct from the
+   * streaming `fetch`). Optional: only the richer blob surfaces expose it.
+   */
+  rangeRead?: (offset: bigint, length: bigint) => Promise<Uint8Array>;
+  /**
+   * Whole-value line-range read: the file decoded as UTF-8, lines
+   * `[startLine, endLine)` (0-based, end-exclusive) joined with '\n'.
+   * Optional for the same reason as `rangeRead`.
+   */
+  rangeReadText?: (startLine: number, endLine: number) => Promise<string>;
+}
+
+/**
+ * One entry in a recursive `listTree` walk: the path relative to the queried
+ * node and whether it names a file or a directory. Size and host stat fields
+ * are intentionally omitted (they leak implementation details germane to
+ * security); `type` is structural.
+ */
+export interface TreeEntry {
+  path: string[];
+  type: 'file' | 'directory';
 }
 
 /**
@@ -59,6 +82,17 @@ export interface ReadableTree {
   has: (...petNamePath: string[]) => Promise<boolean>;
   list: (...petNamePath: string[]) => Promise<string[]>;
   lookup: (petNamePath: string | string[]) => Promise<unknown>;
+  /**
+   * Recursive counterpart to `list`: every descendant under the sub-path
+   * `petNamePath` (a single name, a path of segments, or `[]` for the whole
+   * tree) as `{ path, type }` records, lexically sorted, parents before
+   * children. `options.ignore` augments the tree's own ignore set for the
+   * call. Optional: only the richer tree surfaces expose it.
+   */
+  listTree?: (
+    petNamePath: string | string[],
+    options?: { ignore?: string[] },
+  ) => Promise<TreeEntry[]>;
 }
 
 /**

@@ -12,6 +12,7 @@ import type {
   PathEntryIssuer,
   ReadableTree,
   SnapshotTree,
+  TreeEntry,
 } from '@endo/platform/fs/lite/types';
 
 // Branded string types for pet names and special names
@@ -1110,6 +1111,10 @@ export interface ReadableBlobView {
 export interface ReadableTreeView {
   has(...pathSegments: string[]): Promise<boolean>;
   list(...pathSegments: string[]): Promise<string[]>;
+  listTree(
+    petNamePath: string | string[],
+    options?: { ignore?: string[] },
+  ): Promise<TreeEntry[]>;
   lookup(path: string | string[]): Promise<ReadableTreeView | ReadableBlobView>;
   help(method?: string): string;
 }

@@ -93,3 +93,52 @@ test('LocalBlob still exposes the whole-value surface', async t => {
   t.is(await E(blob).text(), '{"k":1}');
   t.deepEqual(await E(blob).json(), { k: 1 });
 });
+
+test('LocalBlob.rangeRead returns a clamped byte range as a Uint8Array', async t => {
+  const blob = makeLocalBlob(makeTempFile(t, 'hello world\n'));
+  const whole = await E(blob).rangeRead(0n, 12n);
+  t.true(whole instanceof Uint8Array);
+  t.is(fromUtf8(whole), 'hello world\n');
+  t.is(fromUtf8(await E(blob).rangeRead(0n, 5n)), 'hello');
+  t.is(fromUtf8(await E(blob).rangeRead(6n, 100n)), 'world\n'); // clamps at EOF
+  t.is(fromUtf8(await E(blob).rangeRead(100n, 4n)), ''); // past EOF
+  t.is(fromUtf8(await E(blob).rangeRead(0n, 0n)), ''); // empty window
+});
+
+test('LocalBlob.rangeRead rejects a negative or out-of-range window with EINVAL', async t => {
+  const blob = makeLocalBlob(makeTempFile(t, 'hello world\n'));
+  await t.throwsAsync(() => E(blob).rangeRead(-1n, 4n), { message: /EINVAL/ });
+  await t.throwsAsync(() => E(blob).rangeRead(0n, -4n), { message: /EINVAL/ });
+  await t.throwsAsync(() => E(blob).rangeRead(2n ** 60n, 4n), {
+    message: /EINVAL/,
+  });
+});
+
+test('LocalBlob.rangeReadText returns a 0-based, end-exclusive line range', async t => {
+  const blob = makeLocalBlob(makeTempFile(t, 'a\nb\nc\nd\ne\n'));
+  // Lines are ['a', 'b', 'c', 'd', 'e', ''] (trailing '' after the last '\n').
+  t.is(await E(blob).rangeReadText(0, 2), 'a\nb'); // first two lines
+  t.is(await E(blob).rangeReadText(1, 3), 'b\nc');
+  t.is(await E(blob).rangeReadText(3, 100), 'd\ne\n'); // 'd','e','' joined by '\n'
+});
+
+test('LocalBlob.rangeReadText clamps past-the-end and handles the trailing newline', async t => {
+  // Trailing '\n' means split yields a final '' element (the empty line after
+  // the last newline); slicing past the end clamps rather than throwing.
+  const blob = makeLocalBlob(makeTempFile(t, 'a\nb\nc\n'));
+  // Lines are ['a', 'b', 'c', ''].
+  t.is(await E(blob).rangeReadText(2, 100), 'c\n'); // 'c' + '' joined by '\n'
+  t.is(await E(blob).rangeReadText(0, 100), 'a\nb\nc\n');
+  t.is(await E(blob).rangeReadText(2, 2), ''); // empty range
+  t.is(await E(blob).rangeReadText(5, 9), ''); // wholly past the end
+});
+
+test('LocalBlob.rangeReadText rejects a negative or non-integer line index', async t => {
+  const blob = makeLocalBlob(makeTempFile(t, 'a\nb\n'));
+  await t.throwsAsync(() => E(blob).rangeReadText(-1, 2), {
+    message: /EINVAL/,
+  });
+  await t.throwsAsync(() => E(blob).rangeReadText(0, 1.5), {
+    message: /EINVAL/,
+  });
+});
