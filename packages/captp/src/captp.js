@@ -840,6 +840,40 @@ export const makeCapTP = (
     },
   };
 
+  /**
+   * Reconstruct an import for a slot our peer previously exported to us,
+   * as recorded (for example) by an `importHook` during an earlier
+   * incarnation of this connection.
+   *
+   * This is the restore half of a persistent CapTP session: a caller that
+   * records `(slot, iface)` pairs for its imports (and persists its
+   * export/promise counters via `makeCapTPImportExportTables`) can
+   * reconstruct the same presences after a restart, so long as the peer
+   * still holds the corresponding exports — as a peer restored from a
+   * heap snapshot does.
+   *
+   * The slot is ours-perspective (the same form `importHook` and
+   * `exportHook` receive, e.g. `o-3`), and must name an import (`-`
+   * direction). Returns the same value as the original import would have:
+   * a presence for `o-` slots or a handled promise for `p-` slots.
+   * Idempotent: repeated calls for the same slot return the same value.
+   *
+   * @param {CapTPSlot} slot ours-perspective slot to reconstruct
+   * @param {string} [iface] interface name for the new presence
+   */
+  const provideImport = (slot, iface = undefined) => {
+    typeof slot === 'string' || Fail`provideImport slot must be a string`;
+    slot[1] === '-' ||
+      Fail`provideImport can only reconstruct imports, not ${slot}`;
+    // convertSlotToVal takes the slot in the peer's perspective, as
+    // received on the wire.
+    const val = convertSlotToVal(reverseSlot(slot), iface);
+    // Commit the reference bookkeeping convertSlotToVal staged, as
+    // dispatch would have for an inbound message.
+    recvSlot.commit();
+    return val;
+  };
+
   // Get a reference to the other side's bootstrap object.
   const getBootstrap = async () => {
     if (unplug !== false) {
@@ -907,6 +941,7 @@ export const makeCapTP = (
     abort,
     dispatch,
     getBootstrap,
+    provideImport,
     getStats,
     isOnlyLocal,
     serialize,
