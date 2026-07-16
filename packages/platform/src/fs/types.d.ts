@@ -62,6 +62,19 @@ export interface ReadableTree {
 }
 
 /**
+ * A remotable byte source accepted by `Directory.write()`.
+ *
+ * The streaming protocol only needs `streamBase64`; optional reader metadata
+ * such as `readReturnPattern` is not part of the materialization contract.
+ */
+export type ReadableBlobSource = {
+  streamBase64: (...args: any[]) => PromiseLike<unknown>;
+};
+
+/** Portable semantic payload accepted by `Directory.write()`. */
+export type DirectoryWriteSource = ReadableBlobSource | ReadableTree;
+
+/**
  * A SnapshotTree is a ReadableTree with a content-addressed identity.
  * `sha256()` returns the digest as base64 (the canonical public hash encoding);
  * the hex form is the internal content-store address. `getInfo()` is the
@@ -206,11 +219,35 @@ export interface Directory {
   has: (...path: string[]) => Promise<boolean>;
   list: (...path: string[]) => Promise<string[]>;
   lookup: (path: string | string[]) => Promise<unknown>;
-  write: (path: string[], value: unknown) => Promise<void>;
+  write: (path: string[], value: DirectoryWriteSource) => Promise<void>;
   remove: (path: string[]) => Promise<void>;
   move: (from: string[], to: string[]) => Promise<void>;
   copy: (from: string[], to: string[]) => Promise<void>;
   makeDirectory: (path: string[]) => Promise<Directory>;
   readOnly: () => ReadableTree;
   snapshot: () => Promise<SnapshotTree>;
+}
+
+/**
+ * A PathEntry is an inert, authority-bearing path selector minted by a
+ * filesystem authority such as a mount.
+ * The entry carries no read/write
+ * authority on its own; callers pass it back to the authority that minted it.
+ */
+export interface PathEntry {
+  segments: () => string[];
+  displayPath: () => string;
+  child: (name: string) => PathEntry;
+  help: (method?: string) => string;
+}
+
+/**
+ * Authority that mints inert, lineage-bearing path selectors.
+ *
+ * The issuer is deliberately separate from `Directory`: a capability may
+ * need to mint selectors for another operation without exposing a general
+ * directory surface.
+ */
+export interface PathEntryIssuer {
+  entry: (path: string | string[]) => PathEntry;
 }

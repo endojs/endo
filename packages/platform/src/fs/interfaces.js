@@ -15,6 +15,17 @@ const HelpMethod = M.call().optional(M.string()).returns(M.string());
 const NamePathShape = M.arrayOf(M.string());
 const NameOrPathShape = M.or(M.string(), M.arrayOf(M.string()));
 
+// PathEntry is the portable descriptor for an authority-bearing path selector.
+// It is intentionally inert: holders can inspect the confined segments and
+// derive child selectors, but actual filesystem authority stays on the mount,
+// directory, or Git capability that accepts the entry.
+export const pathEntryMethodGuards = harden({
+  help: HelpMethod,
+  segments: M.call().returns(NamePathShape),
+  displayPath: M.call().returns(M.string()),
+  child: M.call(M.string()).returns(M.remotable('PathEntry')),
+});
+
 // `readableBlobMethodGuards` is the shared read-surface for immutable bytes.
 // `SnapshotBlob` adds `sha256`; `File` adds the write surface. Exported so the
 // extended cap-FS engine and the daemon blob caps can spread one definition
@@ -127,6 +138,22 @@ export const SnapshotTreeInterface = M.interface('SnapshotTree', {
   sha256: M.call().returns(M.string()),
 });
 harden(SnapshotTreeInterface);
+
+export const PathEntryInterface = M.interface('PathEntry', {
+  ...pathEntryMethodGuards,
+});
+harden(PathEntryInterface);
+
+export const pathEntryIssuerMethodGuards = harden({
+  entry: M.call(M.or(M.string(), M.arrayOf(M.string()))).returns(
+    M.remotable('PathEntry'),
+  ),
+});
+
+export const PathEntryIssuerInterface = M.interface('PathEntryIssuer', {
+  ...pathEntryIssuerMethodGuards,
+});
+harden(PathEntryIssuerInterface);
 
 export const TreeWriterInterface = M.interface('TreeWriter', {
   help: HelpMethod,
