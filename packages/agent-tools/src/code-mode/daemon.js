@@ -1,7 +1,7 @@
 // @ts-check
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { EvaluateInput } from './evaluate-tool.js' */
+/** @import { Evaluate, EvaluateInput } from './evaluate-tool.js' */
 
 import { E } from '@endo/eventual-send';
 
@@ -12,11 +12,11 @@ import { E } from '@endo/eventual-send';
  * resultName)` method.
  *
  * @param {ERef<{ evaluate: (workerName: undefined, source: string, codeNames: string[], petNames: (string | string[])[], resultName?: string | string[]) => Promise<unknown> }>} powers
- * @returns {(input: EvaluateInput) => Promise<unknown>}
+ * @returns {Evaluate}
  */
-export const makeDaemonEvaluate =
-  powers =>
-  async ({ source, resultName, globals }) => {
+export const makeDaemonEvaluate = powers => {
+  /** @param {EvaluateInput} input */
+  const evaluate = async ({ source, resultName, globals }) => {
     const codeNames = harden(globals.map(({ name }) => name));
     const petNames = harden(
       globals.map(global => global.petName ?? global.name),
@@ -29,4 +29,7 @@ export const makeDaemonEvaluate =
       resultName,
     );
   };
+  Object.defineProperty(evaluate, 'hasStoreValue', { value: true });
+  return harden(evaluate);
+};
 harden(makeDaemonEvaluate);

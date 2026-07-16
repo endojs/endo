@@ -12,8 +12,8 @@ An external MCP server is a separate consumer of `@endo/agent-tools`.
 
 ## One tool, two hosts
 
-The host-independent code-mode surface is the `evaluate({ source })` tool,
-its generated capability declarations, and its provider adapters.
+The host-independent code-mode surface is the `evaluate` tool.
+Its generated capability declarations and provider adapters accompany it.
 The same tool can run on either of two hosts.
 
 The in-process host is `makeCompartmentEvaluate`.
@@ -33,9 +33,33 @@ Storage authority is an explicit host concern.
 The settled host policy is that an in-process host without a store exposes the
 `{ source }` schema, while a supplied store enables the `resultName` parameter.
 An in-memory map is sufficient for light tests.
-The follow-up that makes this conditional schema operational is intentionally
-outside this relocation; this PR preserves the existing result forwarding and
-storage hooks through the `evaluate` rename.
+The store hook is named `storeValue(valueOrPromise, nameOrPath)` to match the
+daemon Host and Guest interfaces.
+
+```js
+import { makeCompartmentEvaluate } from '@endo/agent-tools/code-mode/compartment.js';
+import { makeEvaluateTool } from '@endo/agent-tools/code-mode/evaluate-tool.js';
+
+const values = new Map();
+const storeValue = async (valueOrPromise, nameOrPath) => {
+  const key = Array.isArray(nameOrPath) ? nameOrPath.join('/') : nameOrPath;
+  values.set(key, await valueOrPromise);
+};
+const evaluate = makeCompartmentEvaluate({
+  endowments: {},
+  storeValue,
+});
+const tool = makeEvaluateTool(evaluate, [], storeValue);
+await tool.invoke({ source: '41 + 1', resultName: 'answer' });
+values.get('answer'); // 42
+```
+
+The daemon host always advertises `resultName` and forwards it to the daemon's
+`evaluate`, where formula capture keeps the named value durable.
+
+The MCP adapter gap remains separate.
+This package still does not map the tool record to MCP `outputSchema` or
+`structuredContent`; an MCP protocol adapter will own that mapping.
 
 ## Layout
 
@@ -90,8 +114,9 @@ The Pi packages remain optional peer dependencies.
 Importing the root or a non-Pi module does not opt a consumer into Pi.
 
 Planned adapter modules have shape only in this release.
-The MCP adapter is not implemented, and Codex and Claude Code adapters are
-future provider bridges over the same tool records.
+The MCP adapter is not implemented, including its `outputSchema` and
+`structuredContent` mapping, and Codex and Claude Code adapters are future
+provider bridges over the same tool records.
 
 ## Parked JSON wrappers
 

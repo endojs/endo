@@ -206,6 +206,10 @@ test('an untyped global carries name + one-line description only', t => {
   );
   t.false(systemPrompt.includes('declare const git:'));
   t.true(systemPrompt.includes('__getMethodNames__'));
+  t.false(systemPrompt.includes('resultName'));
+
+  const storedPrompt = makeCodeModeSystemPrompt(globals, { storeValue: true });
+  t.true(storedPrompt.includes('resultName'));
 });
 
 test('a typed global injects its generated declaration into the prompt', t => {

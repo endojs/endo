@@ -37,12 +37,12 @@ const fauxModel = harden({
   maxTokens: 1024,
 });
 
-test('makeCompartmentEvaluate hands the completion value to storeResult under a resultName', async t => {
+test('makeCompartmentEvaluate hands the completion value to storeValue under a resultName', async t => {
   /** @type {Array<[unknown, string | string[]]>} */
   const stored = [];
   const evaluate = makeCompartmentEvaluate({
     endowments: { x: 41 },
-    storeResult: (value, resultName) => {
+    storeValue: (value, resultName) => {
       stored.push([value, resultName]);
     },
   });
@@ -55,11 +55,11 @@ test('makeCompartmentEvaluate hands the completion value to storeResult under a 
   t.deepEqual(stored, [[42, 'answer']]);
 });
 
-test('makeCompartmentEvaluate returns the value and skips storeResult with no resultName', async t => {
+test('makeCompartmentEvaluate returns the value and skips storeValue with no resultName', async t => {
   let stored = false;
   const evaluate = makeCompartmentEvaluate({
     endowments: { x: 1 },
-    storeResult: () => {
+    storeValue: () => {
       stored = true;
     },
   });
@@ -68,14 +68,9 @@ test('makeCompartmentEvaluate returns the value and skips storeResult with no re
   t.false(stored);
 });
 
-test('makeCompartmentEvaluate rejects a resultName when no storeResult is configured', async t => {
+test('makeCompartmentEvaluate returns a result when no storeValue is configured', async t => {
   const evaluate = makeCompartmentEvaluate({ endowments: {} });
-  await t.throwsAsync(
-    () => evaluate({ source: '1', resultName: 'a', globals: [] }),
-    {
-      message: /no storeResult callback is configured/,
-    },
-  );
+  t.is(await evaluate({ source: '1', resultName: 'a', globals: [] }), 1);
 });
 
 test.serial(
@@ -335,6 +330,7 @@ test('makeEvaluateTool.invoke forwards validated args plus normalized globals', 
       return 'k';
     },
     harden([{ name: 'git', description: 'g' }]),
+    () => {},
   );
   const out = await tool.invoke({ source: 'src', resultName: ['a', 'b'] });
   t.is(out, 'k');
@@ -419,6 +415,29 @@ test('makeCodeModeAgent honors an explicit globals list and preamble override', 
     globals.map(global => global.name),
     ['thing'],
   );
+});
+
+test('makeCodeModeAgent conditions resultName on storeValue authority', t => {
+  const withoutStore = makeCodeModeAgent({ model: fauxModel });
+  const withStore = makeCodeModeAgent({
+    model: fauxModel,
+    storeValue: () => {},
+  });
+
+  t.false(
+    Object.hasOwn(
+      withoutStore.agent.state.tools[0].parameters.properties,
+      'resultName',
+    ),
+  );
+  t.true(
+    Object.hasOwn(
+      withStore.agent.state.tools[0].parameters.properties,
+      'resultName',
+    ),
+  );
+  t.false(withoutStore.systemPrompt.includes('resultName'));
+  t.true(withStore.systemPrompt.includes('resultName'));
 });
 
 test('makeCodeModeAgent uses a supplied evaluate and lexical endowments end to end', async t => {

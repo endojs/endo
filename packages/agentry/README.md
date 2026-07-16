@@ -91,7 +91,9 @@ history-rewrite authority and advertises the elevated `gitHistory` surface,
 including amend and reword operations.
 
 The model-facing tool surface is intentionally one tool:
-`evaluate({ source, resultName? })`. Workspace and Git operations happen inside
+`evaluate({ source })`, with `resultName` added only when the host supplies
+storage authority.
+Workspace and Git operations happen inside
 the Endo Compartment through lexical caps (`workspace`, `git`, and any
 configured named powers). The lexical globals are advertised to the model by
 name and a one-line description only — the model discovers a capability's method
@@ -102,7 +104,8 @@ Plain-data completion values returned from `evaluate` are encoded for the model
 with the SmallCaps renderer from `@endo/agent-tools`, so BigInts and other
 non-JSON-native passable values round-trip losslessly. Capability-bearing
 results are not serialized; the agent keeps them live inside the Compartment and
-stores them under a pet name via `resultName` when it needs them across turns.
+stores them under a pet name via `resultName` when storage authority is
+configured and the agent needs them across turns.
 
 The complete Pi harness remains in agentry.
 The reusable evaluate substrate, capability declarations, and adapters live in

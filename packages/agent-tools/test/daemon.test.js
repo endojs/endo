@@ -4,6 +4,7 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { Far } from '@endo/pass-style';
 
 import { makeDaemonEvaluate } from '../src/code-mode/daemon.js';
+import { makeEvaluateTool } from '../src/code-mode/evaluate-tool.js';
 
 test('makeDaemonEvaluate forwards source and lexical names to a powers host', async t => {
   /** @type {unknown[]} */
@@ -35,4 +36,17 @@ test('makeDaemonEvaluate forwards source and lexical names to a powers host', as
       ['results', 'status'],
     ],
   ]);
+});
+
+test('makeDaemonEvaluate always advertises resultName through the tool schema', t => {
+  const powers = Far('Powers', {
+    evaluate: async () => 'done',
+  });
+  const evaluate = makeDaemonEvaluate(powers);
+  const tool = makeEvaluateTool(evaluate, []);
+  const properties = /** @type {{ properties: Record<string, unknown> }} */ (
+    tool.parameters
+  ).properties;
+
+  t.true(Object.hasOwn(properties, 'resultName'));
 });

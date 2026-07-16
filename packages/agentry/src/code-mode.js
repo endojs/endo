@@ -5,7 +5,7 @@
 /** @import { Agent, AgentMessage, StreamFn } from '@earendil-works/pi-agent-core' */
 /** @import { Credentials, GetApiKey } from './harness/credentials.js' */
 /** @import { ThinkingLevel } from './harness/model.js' */
-/** @import { Evaluate, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from '@endo/agent-tools/code-mode/evaluate-tool.js' */
+/** @import { Evaluate, StoreValue, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from '@endo/agent-tools/code-mode/evaluate-tool.js' */
 
 import { E } from '@endo/eventual-send';
 import { isGitHistoryRewrite, isGitReadOnly } from '@endo/exo-git';
@@ -27,11 +27,14 @@ import { getAmbientEnv, makeEnvCredentials } from './harness/credentials.js';
  * Build the system prompt for the narrow code-mode agent.
  *
  * @param {CodeModeGlobal[]} globals
- * @param {{ preamble?: string }} [options]
+ * @param {{ preamble?: string, storeValue?: boolean }} [options]
  * @returns {string}
  */
 export const makeCodeModeSystemPrompt = (globals, options = {}) => {
   const normalized = normalizeGlobals(globals);
+  const resultNameGuidance = options.storeValue
+    ? ' Use resultName only when the user asks you to store the result for later.'
+    : '';
   const preamble =
     options.preamble ||
     'You are codeMode, an Endo code-mode agent. You solve tasks by writing JavaScript and calling the evaluate tool.';
@@ -50,7 +53,7 @@ Use E(capability).method(...) for remotable capabilities. Top-level await is not
 })()
 \`\`\`
 
-Return the desired value as the source completion value. Use resultName only when the user asks you to store the result for later.
+Return the desired value as the source completion value.${resultNameGuidance}
 
 Available powers:
 
@@ -108,7 +111,7 @@ const lookupRequiredPower = (powers, petName, label) => {
  * @property {Credentials} [credentials]
  * @property {Record<string, unknown>} [endowments]
  * @property {Evaluate} [evaluate]
- * @property {(value: unknown, resultName: string | string[]) => Promise<void> | void} [storeResult]
+ * @property {StoreValue} [storeValue]
  * @property {() => Promise<void> | void} [onContainedEventualSendRejection]
  * @property {CodeModeGlobal[]} [globals]
  * @property {string} [systemPrompt]
@@ -247,7 +250,7 @@ export const makeCodeModeAgent = options => {
     lookupPowers,
     credentials = makeEnvCredentials(getAmbientEnv()),
     endowments: baseEndowments = {},
-    storeResult,
+    storeValue,
     onContainedEventualSendRejection,
     messages,
     streamFn,
@@ -259,8 +262,6 @@ export const makeCodeModeAgent = options => {
   const globals = options.globals
     ? normalizeGlobals(options.globals)
     : makeCodeModeGlobals(powers);
-  const systemPrompt =
-    options.systemPrompt || makeCodeModeSystemPrompt(globals, { preamble });
 
   if (
     options.evaluate !== undefined &&
@@ -281,10 +282,21 @@ export const makeCodeModeAgent = options => {
         baseEndowments,
         lookupPowers,
       ),
-      storeResult,
+      storeValue,
       onContainedEventualSendRejection,
     });
-  const tool = makeEvaluateTool(evaluate, globals);
+  const evaluateWithStore =
+    /** @type {Evaluate & { hasStoreValue?: boolean }} */ (evaluate);
+  const hasStoreValue =
+    storeValue !== undefined || evaluateWithStore.hasStoreValue === true;
+  const systemPrompt =
+    options.systemPrompt ||
+    makeCodeModeSystemPrompt(globals, { preamble, storeValue: hasStoreValue });
+  const tool = makeEvaluateTool(
+    evaluate,
+    globals,
+    hasStoreValue ? storeValue || true : undefined,
+  );
 
   const maker = defineAgent({
     model,
@@ -320,6 +332,7 @@ harden(makeCodeModeAgent);
  * @property {GetApiKey} [getApiKey]
  * @property {ThinkingLevel} [thinkingLevel]
  * @property {boolean} [readOnlyGit]
+ * @property {StoreValue} [storeValue]
  */
 
 /**
@@ -346,6 +359,7 @@ export const makeCodeModeGitLoopAgent = options => {
     preamble:
       'You are an Endo-hosted Pi coding agent. Use the evaluate tool to inspect and edit the repository through the workspace Filesystem and Git capabilities.',
     evaluate: options.evaluate,
+    storeValue: options.storeValue,
     onContainedEventualSendRejection: options.onContainedEventualSendRejection,
     messages: options.messages,
     streamFn: options.streamFn,

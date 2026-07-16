@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { Evaluate } from './evaluate-tool.js' */
+/** @import { Evaluate, EvaluateInput, StoreValue } from './evaluate-tool.js' */
 
 /**
  * A no-argument observer for a rejected eventual-send result.
@@ -206,17 +206,17 @@ const makeTrackedE = (baseE, reporter) => {
  * Build a Compartment-backed evaluate function. Callers supply every endowment
  * they want in lexical scope (typically `{ E, workspace, git }` plus stream
  * helpers). The completion value is returned; when `resultName` is supplied it
- * is also handed to `storeResult` for out-of-band capability storage.
+ * is also handed to `storeValue` for out-of-band capability storage.
  *
  * @param {object} options
  * @param {Record<string, unknown>} options.endowments
- * @param {(value: unknown, resultName: string | string[]) => Promise<void> | void} [options.storeResult]
+ * @param {StoreValue} [options.storeValue]
  * @param {ContainedEventualSendRejectionReporter} [options.onContainedEventualSendRejection]
  * @returns {Evaluate}
  */
 export const makeCompartmentEvaluate = ({
   endowments,
-  storeResult,
+  storeValue,
   onContainedEventualSendRejection,
 }) => {
   const hardenedEndowments = harden({ ...endowments });
@@ -231,18 +231,18 @@ export const makeCompartmentEvaluate = ({
           E: makeTrackedE(baseE, onContainedEventualSendRejection),
         })
       : hardenedEndowments;
-  return async ({ source, resultName }) => {
+  /** @param {EvaluateInput} input */
+  const evaluate = async ({ source, resultName }) => {
     const compartment = new Compartment(scopedEndowments);
     const result = await compartment.evaluate(source);
-    if (resultName !== undefined) {
-      if (storeResult === undefined) {
-        throw new Error(
-          'evaluate.resultName was supplied but no storeResult callback is configured',
-        );
-      }
-      await storeResult(result, resultName);
+    if (resultName !== undefined && storeValue !== undefined) {
+      await storeValue(result, resultName);
     }
     return result;
   };
+  Object.defineProperty(evaluate, 'hasStoreValue', {
+    value: storeValue !== undefined,
+  });
+  return harden(evaluate);
 };
 harden(makeCompartmentEvaluate);
