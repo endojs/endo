@@ -83,6 +83,7 @@ const readItem = reader => {
 };
 
 test('canonical argument-width boundaries round-trip', t => {
+  /** @type {Array<[number, string]>} */
   const cases = [
     [0, '00'],
     [23, '17'],
@@ -252,6 +253,9 @@ test('writer emits argument-width boundaries at minimal length', t => {
     v.diagnostic.startsWith('uint'),
   )) {
     const match = /uint (.+)/.exec(diagnostic);
+    if (match === null) {
+      throw Error(`unexpected uint diagnostic: ${diagnostic}`);
+    }
     const value =
       match[1] === '2^32-1'
         ? 0xffffffff
