@@ -1,8 +1,7 @@
 import { makeGit } from '../src/git.js';
+import type { GitBackend } from '../src/git.js';
 import type {
-  EndoGit,
-  EndoMount,
-  EndoMountEntry,
+  Filesystem,
   GitCommit,
   GitCommitOptions,
   GitCreateBranchOptions,
@@ -13,14 +12,20 @@ import type {
   GitRebaseInput,
   GitRef,
   GitRefUpdateResult,
-  GitRestoreOptions,
   GitRemote,
   GitRemoteCredential,
   GitRemoteOperationSuccessAuditEvent,
   GitRemoteRefUpdate,
+  GitRestoreOptions,
   GitStashPushOptions,
   GitStatusEntry,
-  ReadableTreeView,
+  PathEntry,
+  PathEntryIssuer,
+  ReadableTree,
+  ReadOnlyEndoGit,
+  ReadOnlyGitWorktree,
+  WritableEndoGit,
+  WritableGitWorktree,
 } from '../src/types.js';
 
 type Equal<Left, Right> =
@@ -30,16 +35,29 @@ type Equal<Left, Right> =
 
 type Assert<T extends true> = T;
 
-type MakeGitReturn = ReturnType<typeof makeGit>;
-
-type _MakeGitReturnsEndoGit = Assert<Equal<MakeGitReturn, EndoGit>>;
-
 type ExpectedGitRemoteCredential =
   | { kind: 'bearer'; material: { token: string } }
   | { kind: 'basic'; material: { username: string; password: string } };
 
 type _GitRemoteCredentialMatchesExpected = Assert<
   Equal<GitRemoteCredential, ExpectedGitRemoteCredential>
+>;
+
+// The shared backend contract must carry the canonical credential type on
+// both remote operations; widening to `unknown` would silently drop the
+// compile-time guarantee that backends receive only supported bearer or
+// basic credentials.
+type _RemoteFetchCredentialStaysNarrow = Assert<
+  Equal<
+    Parameters<GitBackend['remoteFetch']>[0]['credential'],
+    GitRemoteCredential | undefined
+  >
+>;
+type _RemotePushCredentialStaysNarrow = Assert<
+  Equal<
+    Parameters<GitBackend['remotePush']>[0]['credential'],
+    GitRemoteCredential | undefined
+  >
 >;
 
 type ExpectedGitRefUpdateResult =
@@ -126,22 +144,28 @@ type _AuditHasNoCredential = Assert<
   Equal<Extract<keyof GitRemoteOperationSuccessAuditEvent, 'credential'>, never>
 >;
 
-type ExpectedEndoGit = {
-  worktree: () => Promise<EndoMount | ReadableTreeView>;
+type ExpectedReadOnlyEndoGit = {
+  worktree: () => Promise<ReadOnlyGitWorktree>;
   status: () => Promise<GitStatusEntry[]>;
   diff: (options?: GitDiffOptions) => Promise<string>;
   log: (options?: GitLogOptions) => Promise<GitCommit[]>;
   show: (ref: GitRef | string) => Promise<string>;
   revParse: (ref: GitRef | string) => Promise<GitRef>;
-  add: (entries: EndoMountEntry[]) => Promise<void>;
-  restore: (
-    entries: EndoMountEntry[],
-    options?: GitRestoreOptions,
-  ) => Promise<void>;
-  commit: (message: string, options?: GitCommitOptions) => Promise<GitCommit>;
-  reword: (ref: GitRef | string, message: string) => Promise<GitCommit>;
   currentBranch: () => Promise<GitRef | undefined>;
   branches: () => Promise<GitRef[]>;
+  stashList: () => Promise<string[]>;
+  stashShow: (index?: number) => Promise<string>;
+  tree: (ref: GitRef | string) => Promise<ReadableTree>;
+  filesystemAt: (ref: GitRef | string) => Promise<Filesystem>;
+  readOnly: () => ReadOnlyEndoGit;
+};
+
+type ExpectedWritableEndoGit = ExpectedReadOnlyEndoGit & {
+  worktree: () => Promise<WritableGitWorktree>;
+  add: (entries: PathEntry[]) => Promise<void>;
+  restore: (entries: PathEntry[], options?: GitRestoreOptions) => Promise<void>;
+  commit: (message: string, options?: GitCommitOptions) => Promise<GitCommit>;
+  reword: (ref: GitRef | string, message: string) => Promise<GitCommit>;
   createBranch: (
     name: string,
     options?: GitCreateBranchOptions,
@@ -157,14 +181,57 @@ type ExpectedEndoGit = {
   merge: (ref: GitRef | string, options?: GitMergeOptions) => Promise<string>;
   rebase: (input: GitRebaseInput) => Promise<string>;
   stashPush: (options?: GitStashPushOptions) => Promise<string>;
-  stashList: () => Promise<string[]>;
-  stashShow: (index?: number) => Promise<string>;
   stashApply: (index?: number) => Promise<void>;
   stashPop: (index?: number) => Promise<void>;
   stashDrop: (index?: number) => Promise<void>;
-  tree: (ref: GitRef | string) => Promise<ReadableTreeView>;
-  filesystemAt: (ref: GitRef | string) => Promise<unknown>;
-  readOnly: () => EndoGit;
+  readOnly: () => ReadOnlyEndoGit;
 };
 
-type _EndoGitMatchesExpectedSurface = Assert<Equal<EndoGit, ExpectedEndoGit>>;
+type _ReadOnlyEndoGitMatchesExpectedSurface = Assert<
+  Equal<ReadOnlyEndoGit, ExpectedReadOnlyEndoGit>
+>;
+type _WritableEndoGitMatchesExpectedSurface = Assert<
+  Equal<WritableEndoGit, ExpectedWritableEndoGit>
+>;
+
+declare const powers: Parameters<typeof makeGit>[0];
+
+const writable = makeGit(powers);
+const readOnly = makeGit(powers, { readOnly: true });
+
+type _WritableConstruction = Assert<Equal<typeof writable, WritableEndoGit>>;
+type _ReadOnlyConstruction = Assert<Equal<typeof readOnly, ReadOnlyEndoGit>>;
+type _ReadOnlyMethod = Assert<
+  Equal<ReturnType<WritableEndoGit['readOnly']>, ReadOnlyEndoGit>
+>;
+type _WritableWorktree = Assert<
+  Equal<Awaited<ReturnType<WritableEndoGit['worktree']>>, WritableGitWorktree>
+>;
+type _ReadOnlyWorktree = Assert<
+  Equal<Awaited<ReturnType<ReadOnlyEndoGit['worktree']>>, ReadOnlyGitWorktree>
+>;
+type _WritableWorktreeIssuesEntries = Assert<
+  WritableGitWorktree extends PathEntryIssuer ? true : false
+>;
+
+type Mutator =
+  | 'add'
+  | 'restore'
+  | 'commit'
+  | 'reword'
+  | 'createBranch'
+  | 'deleteBranch'
+  | 'renameBranch'
+  | 'switchBranch'
+  | 'detach'
+  | 'switch'
+  | 'merge'
+  | 'rebase'
+  | 'stashPush'
+  | 'stashApply'
+  | 'stashPop'
+  | 'stashDrop';
+
+type _ReadOnlyOmitsMutators = Assert<
+  Equal<Extract<keyof ReadOnlyEndoGit, Mutator>, never>
+>;

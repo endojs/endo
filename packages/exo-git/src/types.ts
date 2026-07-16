@@ -1,7 +1,19 @@
 // Public type surface for `@endo/exo-git`.
-// Daemon-owned mount/readable surface types are represented as `unknown`
-// here to keep `@endo/exo-git` free of a circular dependency on the daemon
-// package.
+
+export type Directory = import('@endo/platform/fs/lite/types').Directory;
+export type File = import('@endo/platform/fs/lite/types').File;
+export type Filesystem = import('@endo/platform/fs/extended').Filesystem;
+export type PathEntry = import('@endo/platform/fs/lite/types').PathEntry;
+export type PathEntryIssuer =
+  import('@endo/platform/fs/lite/types').PathEntryIssuer;
+export type ReadableBlob = import('@endo/platform/fs/lite/types').ReadableBlob;
+export type ReadableTree = import('@endo/platform/fs/lite/types').ReadableTree;
+
+export type WritableGitWorktree = Directory & PathEntryIssuer;
+export type ReadOnlyGitWorktree = ReadableTree;
+/** @deprecated Use `WritableGitWorktree` or `ReadOnlyGitWorktree`. */
+export type GitWorktree = WritableGitWorktree | ReadOnlyGitWorktree;
+export type GitStatusNode = Directory | File | ReadableTree | ReadableBlob;
 
 export type GitRef = {
   name: string;
@@ -49,11 +61,11 @@ export type GitWorktreeStatus =
   | 'conflicted';
 
 export type GitStatusEntry = {
-  entry: unknown;
+  entry: PathEntry;
   path: string;
   index: GitIndexStatus;
   worktree: GitWorktreeStatus;
-  node?: unknown;
+  node?: GitStatusNode;
   renamedFrom?: string;
 };
 
@@ -61,7 +73,7 @@ export type GitDiffOptions = {
   cached?: boolean;
   base?: GitRef | string;
   head?: GitRef | string;
-  entries?: unknown[];
+  entries?: PathEntry[];
   paths?: string[];
 };
 
@@ -101,7 +113,7 @@ export type GitRebaseInput = {
 
 export type GitStashPushOptions = {
   message?: string;
-  entries?: unknown[];
+  entries?: PathEntry[];
   paths?: string[];
   includeUntracked?: boolean;
 };
@@ -227,39 +239,31 @@ export type GitRemoteKit = {
   controller: GitRemoteController;
 };
 
-// Daemon-only surface types referenced by git's JSDoc. Aliased to
-// `unknown` here so `@endo/exo-git` stays free of a circular
-// dependency on `@endo/daemon`; the full-fidelity definitions live in
-// `@endo/daemon/src/types.d.ts` and downstream consumers see them
-// through that file.
-export type EndoMount = unknown;
-export type EndoMountEntry = unknown;
-export type EndoMountFile = unknown;
-export type ReadableTreeView = unknown;
-
-/**
- * Public `EndoGit` capability surface. The factory lives in this
- * package (`./git.js#makeGit`); this type mirrors the runtime
- * `GitInterface` guard in `./interfaces.js` so the factory's
- * `@returns {EndoGit}` annotation carries useful fidelity inside the
- * package.
- */
-export type EndoGit = {
-  worktree: () => Promise<EndoMount | ReadableTreeView>;
+/** The read-only capability surface returned by `readOnly()`. */
+export type ReadOnlyEndoGit = {
+  worktree: () => Promise<ReadOnlyGitWorktree>;
   status: () => Promise<GitStatusEntry[]>;
   diff: (options?: GitDiffOptions) => Promise<string>;
   log: (options?: GitLogOptions) => Promise<GitCommit[]>;
   show: (ref: GitRef | string) => Promise<string>;
   revParse: (ref: GitRef | string) => Promise<GitRef>;
-  add: (entries: EndoMountEntry[]) => Promise<void>;
-  restore: (
-    entries: EndoMountEntry[],
-    options?: GitRestoreOptions,
-  ) => Promise<void>;
-  commit: (message: string, options?: GitCommitOptions) => Promise<GitCommit>;
-  reword: (ref: GitRef | string, message: string) => Promise<GitCommit>;
   currentBranch: () => Promise<GitRef | undefined>;
   branches: () => Promise<GitRef[]>;
+  stashList: () => Promise<string[]>;
+  stashShow: (index?: number) => Promise<string>;
+  /** @see filesystemAt, the preferred historical-read method; `tree(ref)` is its `ReadableTree` projection. */
+  tree: (ref: GitRef | string) => Promise<ReadableTree>;
+  filesystemAt: (ref: GitRef | string) => Promise<Filesystem>;
+  readOnly: () => ReadOnlyEndoGit;
+};
+
+/** The full capability surface returned by the normal writable construction. */
+export type WritableEndoGit = ReadOnlyEndoGit & {
+  worktree: () => Promise<WritableGitWorktree>;
+  add: (entries: PathEntry[]) => Promise<void>;
+  restore: (entries: PathEntry[], options?: GitRestoreOptions) => Promise<void>;
+  commit: (message: string, options?: GitCommitOptions) => Promise<GitCommit>;
+  reword: (ref: GitRef | string, message: string) => Promise<GitCommit>;
   createBranch: (
     name: string,
     options?: GitCreateBranchOptions,
@@ -275,12 +279,17 @@ export type EndoGit = {
   merge: (ref: GitRef | string, options?: GitMergeOptions) => Promise<string>;
   rebase: (input: GitRebaseInput) => Promise<string>;
   stashPush: (options?: GitStashPushOptions) => Promise<string>;
-  stashList: () => Promise<string[]>;
-  stashShow: (index?: number) => Promise<string>;
   stashApply: (index?: number) => Promise<void>;
   stashPop: (index?: number) => Promise<void>;
   stashDrop: (index?: number) => Promise<void>;
-  tree: (ref: GitRef | string) => Promise<ReadableTreeView>;
-  filesystemAt: (ref: GitRef | string) => Promise<unknown>;
-  readOnly: () => EndoGit;
+  readOnly: () => ReadOnlyEndoGit;
 };
+
+/**
+ * Compatibility name for callers that have not selected a mutability
+ * posture yet.
+ *
+ * Construction, `readOnly()`, and worktree call sites use the split types
+ * above so this alias does not erase the authority distinction there.
+ */
+export type EndoGit = WritableEndoGit;

@@ -27,7 +27,7 @@ const GitWorktreeStatusShape = M.or(
 
 const GitStatusEntryShape = M.splitRecord(
   {
-    entry: M.remotable('EndoMountEntry'),
+    entry: M.remotable(),
     path: M.string(),
     index: GitIndexStatusShape,
     worktree: GitWorktreeStatusShape,
@@ -77,7 +77,7 @@ export const GitInterface = M.interface('Git', {
   // through `mount.readOnly()` (which yields a promise of the
   // structural read-only view) before the return shape is matched; a
   // writable Git returns its mount synchronously and is unaffected.
-  worktree: M.callWhen().returns(M.remotable('EndoMount')),
+  worktree: M.callWhen().returns(M.remotable()),
   status: M.callWhen().returns(M.arrayOf(GitStatusEntryShape)),
   diff: M.callWhen()
     .optional(M.recordOf(M.string(), M.any()))
@@ -119,7 +119,7 @@ export const GitInterface = M.interface('Git', {
   stashApply: M.callWhen().optional(M.number()).returns(M.undefined()),
   stashPop: M.callWhen().optional(M.number()).returns(M.undefined()),
   stashDrop: M.callWhen().optional(M.number()).returns(M.undefined()),
-  tree: M.callWhen(RefArgShape).returns(M.remotable('EndoReadableTree')),
+  tree: M.callWhen(RefArgShape).returns(M.remotable()),
   filesystemAt: M.callWhen(RefArgShape).returns(M.remotable('Filesystem')),
   readOnly: M.call().returns(M.remotable('Git')),
 });
