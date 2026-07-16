@@ -65,6 +65,7 @@ const lookupRequiredPower = (powers, petName, label) => {
  * @property {Record<string, unknown>} [endowments]
  * @property {CodeModeExecute} [execute]
  * @property {(value: unknown, resultName: string | string[]) => Promise<void> | void} [storeResult]
+ * @property {() => Promise<void> | void} [onContainedEventualSendRejection]
  * @property {CodeModeGlobal[]} [globals]
  * @property {string} [systemPrompt]
  * @property {string} [preamble]
@@ -203,6 +204,7 @@ export const makeCodeModeAgent = options => {
     credentials = makeEnvCredentials(getAmbientEnv()),
     endowments: baseEndowments = {},
     storeResult,
+    onContainedEventualSendRejection,
     messages,
     streamFn,
     getApiKey,
@@ -216,6 +218,15 @@ export const makeCodeModeAgent = options => {
   const systemPrompt =
     options.systemPrompt || makeCodeModeSystemPrompt(globals, { preamble });
 
+  if (
+    options.execute !== undefined &&
+    onContainedEventualSendRejection !== undefined
+  ) {
+    throw new Error(
+      'code-mode onContainedEventualSendRejection has no effect with a custom execute; the containment wrapper lives in makeCompartmentExecute, which a custom execute bypasses',
+    );
+  }
+
   const resolvedPowers = resolveConfiguredPowers(powers, lookupPowers);
   const execute =
     options.execute ||
@@ -227,6 +238,7 @@ export const makeCodeModeAgent = options => {
         lookupPowers,
       ),
       storeResult,
+      onContainedEventualSendRejection,
     });
   const tool = makeExecuteTool(execute, globals);
 
@@ -256,6 +268,7 @@ harden(makeCodeModeAgent);
  * @property {CodeModePower} git
  * @property {CodeModeExecute} [execute]
  * @property {Record<string, unknown>} [endowments]
+ * @property {() => Promise<void> | void} [onContainedEventualSendRejection]
  * @property {CodeModeGlobal[]} [globals]
  * @property {string} [systemPrompt]
  * @property {AgentMessage[]} [messages]
@@ -289,6 +302,7 @@ export const makeCodeModeGitLoopAgent = options => {
     preamble:
       'You are an Endo-hosted Pi coding agent. Use the execute tool to inspect and edit the repository through the workspace Filesystem and Git capabilities.',
     execute: options.execute,
+    onContainedEventualSendRejection: options.onContainedEventualSendRejection,
     messages: options.messages,
     streamFn: options.streamFn,
     getApiKey: options.getApiKey,

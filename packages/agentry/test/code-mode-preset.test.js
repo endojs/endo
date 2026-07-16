@@ -3,6 +3,8 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/pass-style';
+import process from 'node:process';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import {
   makeCompartmentExecute,
@@ -12,6 +14,10 @@ import {
 } from '../src/execute/index.js';
 
 /** @import { Model } from '@earendil-works/pi-ai' */
+
+/**
+ * @typedef {{ callable: string, keys: PropertyKey[], caught: { same: boolean, message: string }, receiverError: string }} SurfaceResult
+ */
 
 /**
  * A concrete, inert pi-ai `Model` good enough to construct an agent without
@@ -71,6 +77,185 @@ test('makeCompartmentExecute rejects a resultName when no storeResult is configu
       message: /no storeResult callback is configured/,
     },
   );
+});
+
+test.serial(
+  'makeCompartmentExecute contains rejected sends and reports only observed rejections',
+  async t => {
+    const expected = harden(new Error('guest-visible rejection'));
+    const rejector = Far('Rejector', {
+      async fail() {
+        throw expected;
+      },
+    });
+    let reports = 0;
+    let unhandled = 0;
+    const onUnhandled = () => {
+      unhandled += 1;
+    };
+    process.on('unhandledRejection', onUnhandled);
+    t.teardown(() => process.off('unhandledRejection', onUnhandled));
+
+    const execute = makeCompartmentExecute({
+      endowments: { E, expected, rejector, target: harden({ value: 40 }) },
+      onContainedEventualSendRejection: () => {
+        reports += 1;
+      },
+    });
+    const result = await execute({
+      source: `(async () => {
+        E(rejector).fail();
+        const caught = await E(rejector).fail().catch(error => ({
+          same: error === expected,
+          message: error.message,
+        }));
+        return {
+          caught,
+          property: await E.get(target).value,
+          resolved: await E.resolve(42),
+          when: await E.when(Promise.resolve(41), value => value + 1),
+          sendOnly: E.sendOnly(target).value(),
+        };
+      })()`,
+      globals: [],
+    });
+    await delay(0);
+    await delay(0);
+
+    t.deepEqual(result, {
+      caught: { same: true, message: 'guest-visible rejection' },
+      property: 40,
+      resolved: 42,
+      when: 42,
+      sendOnly: undefined,
+    });
+    t.is(reports, 2);
+    t.is(unhandled, 0);
+  },
+);
+
+test.serial(
+  'makeCompartmentExecute isolates throwing and rejecting reporters',
+  async t => {
+    const rejector = Far('Rejector', {
+      async fail() {
+        throw new Error('contained failure');
+      },
+    });
+    let reports = 0;
+    let unhandled = 0;
+    const onUnhandled = () => {
+      unhandled += 1;
+    };
+    process.on('unhandledRejection', onUnhandled);
+    t.teardown(() => process.off('unhandledRejection', onUnhandled));
+
+    const execute = makeCompartmentExecute({
+      endowments: { E, rejector },
+      onContainedEventualSendRejection: () => {
+        reports += 1;
+        if (reports === 1) {
+          throw new Error('reporter failure');
+        }
+        return Promise.reject(new Error('async reporter failure'));
+      },
+    });
+    const result = await execute({
+      source: `(async () => {
+        E(rejector).fail();
+        E.get(null).value;
+        E.resolve(Promise.reject(new Error('resolved failure')));
+        return 'completed';
+      })()`,
+      globals: [],
+    });
+    await delay(0);
+    await delay(0);
+
+    t.is(result, 'completed');
+    t.is(reports, 3);
+    t.is(unhandled, 0);
+  },
+);
+
+test.serial(
+  'makeCompartmentExecute does not report a plain Promise.reject that never crosses E',
+  async t => {
+    // The containment wrapper and its reporter only observe values that pass
+    // through the tracked E surface (an eventual-send result, E.get, or
+    // E.resolve/E.when).
+    // A guest promise rejection that never touches E is
+    // out of scope by design: it is the guest's own responsibility to handle,
+    // and, unlike an E-mediated rejection (see the "contains rejected sends"
+    // test above), it never reaches `onContainedEventualSendRejection`, caught
+    // or not.
+    let reports = 0;
+    const execute = makeCompartmentExecute({
+      endowments: { E },
+      onContainedEventualSendRejection: () => {
+        reports += 1;
+      },
+    });
+    const result = await execute({
+      source: `(async () => {
+        // Caught here so the plain rejection cannot escape as an unhandled
+        // rejection; the point under test is that it never reaches the
+        // eventual-send reporter, not that it is otherwise unhandled.
+        const caught = await Promise.reject(new Error('plain rejection')).catch(
+          error => error.message,
+        );
+        return caught;
+      })()`,
+      globals: [],
+    });
+    await delay(0);
+    await delay(0);
+
+    t.is(result, 'plain rejection');
+    t.is(reports, 0);
+  },
+);
+
+test('makeCompartmentExecute preserves the E surface, rejection identity, and receiver checks', async t => {
+  const expected = harden(new Error('identity'));
+  const rejector = Far('Rejector', {
+    async fail() {
+      throw expected;
+    },
+  });
+  const execute = makeCompartmentExecute({
+    endowments: { E, expected, rejector },
+  });
+  const result = await execute({
+    source: `(async () => {
+      let caught;
+      try {
+        await E(rejector).fail();
+      } catch (error) {
+        caught = { same: error === expected, message: error.message };
+      }
+      const detached = E(rejector).fail;
+      let receiverError;
+      try {
+        await detached();
+      } catch (error) {
+        receiverError = error.message;
+      }
+      return {
+        callable: typeof E,
+        keys: Reflect.ownKeys(E),
+        caught,
+        receiverError,
+      };
+    })()`,
+    globals: [],
+  });
+  const surface = /** @type {SurfaceResult} */ (result);
+
+  t.is(surface.callable, 'function');
+  t.deepEqual(surface.keys, Reflect.ownKeys(E));
+  t.deepEqual(surface.caught, { same: true, message: 'identity' });
+  t.regex(surface.receiverError, /Unexpected receiver/);
 });
 
 test('normalizeGlobals rejects a non-identifier global name', t => {
@@ -248,4 +433,52 @@ test('makeCodeModeAgent uses a supplied execute and lexical endowments end to en
   t.is(result, 20);
   // E is always endowed.
   t.is(typeof E, 'function');
+});
+
+test('makeCodeModeAgent rejects a custom execute paired with onContainedEventualSendRejection', t => {
+  // A custom execute bypasses makeCompartmentExecute, so the reporter would
+  // silently never fire; fail fast instead of accepting dead configuration.
+  t.throws(
+    () =>
+      makeCodeModeAgent({
+        model: fauxModel,
+        execute: async () => 'unused',
+        onContainedEventualSendRejection: () => {},
+      }),
+    {
+      message:
+        /onContainedEventualSendRejection has no effect with a custom execute/,
+    },
+  );
+});
+
+test('makeCompartmentExecute preserves the wrapped operation name and length on tracked E', async t => {
+  const rejector = Far('Rejector', {
+    async fail(_a, _b) {
+      return 'ok';
+    },
+  });
+  const execute = makeCompartmentExecute({
+    endowments: { E, rejector },
+    onContainedEventualSendRejection: () => {},
+  });
+  const result = await execute({
+    source: `(() => ({
+      methodName: E(rejector).fail.name,
+      methodLength: E(rejector).fail.length,
+      resolveName: E.resolve.name,
+      whenName: E.when.name,
+      sendOnlyName: E.sendOnly.name,
+      getName: E.get.name,
+    }))()`,
+    globals: [],
+  });
+  t.deepEqual(result, {
+    methodName: 'fail',
+    methodLength: 0,
+    resolveName: E.resolve.name,
+    whenName: E.when.name,
+    sendOnlyName: E.sendOnly.name,
+    getName: E.get.name,
+  });
 });
