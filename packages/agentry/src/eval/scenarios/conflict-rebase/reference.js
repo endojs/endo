@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-// This module holds the reference `execute` source for the conflict-rebase
+// This module holds the reference `evaluate` source for the conflict-rebase
 // scenario, which a competent code-mode agent should converge on.
 // Keep it beside the scenario so `makeConflictRebaseScenario`'s
 // `referenceSourcePath` / `referenceSourceExport` fields can point here.
@@ -10,7 +10,7 @@
 // reporter can link a scenario's transcript to its reference solution.
 
 /**
- * Build the reference `execute` source for the conflict-rebase scenario.
+ * Build the reference `evaluate` source for the conflict-rebase scenario.
  * Stay on the feature branch, start the rebase onto `upstream`, and resolve
  * the `app.txt` conflict (or fall through when the rebase stopped without a
  * conflict) by writing `resolvedText`, staging the resolution, and continuing

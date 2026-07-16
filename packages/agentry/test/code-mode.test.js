@@ -22,17 +22,13 @@ import { makeMount, lineageOf } from '@endo/daemon/src/mount.js';
 import { makeFilePowers } from '@endo/daemon/src/daemon-node-powers.js';
 
 import { defineAgent, makeEnvCredentials } from '../src/define-agent.js';
-import {
-  makeExecuteTool,
-  makeCompartmentExecute,
-  makeCodeModeSystemPrompt,
-  makeCodeModeAgent,
-  makeCodeModeGitLoopAgent,
-  gitCodeModeTypeDeclarations,
-  fsCodeModeTypeDeclarations,
-} from '../src/execute/index.js';
+import { makeEvaluateTool } from '../../agent-tools/src/code-mode/evaluate-tool.js';
+import { makeCompartmentEvaluate } from '../../agent-tools/src/code-mode/compartment.js';
+import { makeCodeModeSystemPrompt, makeCodeModeAgent, makeCodeModeGitLoopAgent } from '../src/code-mode.js';
+import { gitDeclarations } from '../../agent-tools/generated/code-mode-globals/git-declarations.js';
+import { fsDeclarations } from '../../agent-tools/generated/code-mode-globals/fs-declarations.js';
 
-/** @import { CodeModeGlobal, CodeModeExecute } from '../src/execute/tool.js' */
+/** @import { CodeModeGlobal, Evaluate } from '../../agent-tools/src/code-mode/evaluate-tool.js' */
 /** @import { Model } from '@earendil-works/pi-ai' */
 /** @import { PassableBytesReader, PassableBytesWriter } from '@endo/exo-stream' */
 
@@ -59,10 +55,10 @@ const fauxModel = (t, responses) => {
 
 /**
  * @param {Record<string, unknown>} endowments
- * @returns {CodeModeExecute}
+ * @returns {Evaluate}
  */
-const compartmentExecuteOver = endowments =>
-  makeCompartmentExecute({ endowments: harden({ E, ...endowments }) });
+const compartmentEvaluateOver = endowments =>
+  makeCompartmentEvaluate({ endowments: harden({ E, ...endowments }) });
 
 /**
  * @param {string[]} calls
@@ -215,13 +211,13 @@ test('a typed global injects its generated declaration into the prompt', t => {
       name: 'git',
       petName: 'git',
       description: 'Read/write git.',
-      declaration: gitCodeModeTypeDeclarations.git,
+      declaration: gitDeclarations.git,
     },
     {
       name: 'workspace',
       petName: 'workspace',
       description: 'Writable Filesystem.',
-      declaration: fsCodeModeTypeDeclarations.workspace,
+      declaration: fsDeclarations.workspace,
     },
   ]);
   const systemPrompt = makeCodeModeSystemPrompt(globals);
@@ -304,14 +300,14 @@ test('defineAgent returns a maker that builds a powered agent', t => {
     contextWindow: 4096,
     maxTokens: 1024,
   });
-  const tool = makeExecuteTool(async () => 'ok', []);
+  const tool = makeEvaluateTool(async () => 'ok', []);
   const makeCodeModeAgentMaker = defineAgent({
     model,
     instructions: 'You are codeMode.',
     tools: [
       {
-        name: 'execute',
-        label: 'execute',
+        name: 'evaluate',
+        label: 'evaluate',
         description: tool.description,
         parameters: /** @type {any} */ (tool.parameters),
         execute: async () => ({ content: [], details: undefined }),
@@ -322,12 +318,12 @@ test('defineAgent returns a maker that builds a powered agent', t => {
   const agent = makeCodeModeAgentMaker();
   t.deepEqual(
     agent.state.tools.map(agentTool => agentTool.name),
-    ['execute'],
+    ['evaluate'],
   );
   t.is(agent.state.systemPrompt, 'You are codeMode.');
 });
 
-test('makeCodeModeAgent exposes only execute and rejects non-readOnly git in readOnly mode', async t => {
+test('makeCodeModeAgent exposes only evaluate and rejects non-readOnly git in readOnly mode', async t => {
   const { workspace, git } = await makeRealGit(t);
   const model = fauxModel(t, [fauxAssistantMessage('done')]);
 
@@ -349,7 +345,7 @@ test('makeCodeModeAgent exposes only execute and rejects non-readOnly git in rea
   });
   t.deepEqual(
     agent.state.tools.map(tool => tool.name),
-    ['execute'],
+    ['evaluate'],
   );
   t.deepEqual(
     globals.map(global => global.name),
@@ -357,14 +353,14 @@ test('makeCodeModeAgent exposes only execute and rejects non-readOnly git in rea
   );
 });
 
-test('faux provider drives a scripted execute-only code-mode agent', async t => {
+test('faux provider drives a scripted evaluate-only code-mode agent', async t => {
   const gitCalls = [];
   const git = makeStubGit(gitCalls);
   const executions = [];
   const source =
     '(async () => (await E(git).branches()).map(branch => branch.name))()';
   const model = fauxModel(t, [
-    fauxAssistantMessage(fauxToolCall('execute', { source }), {
+    fauxAssistantMessage(fauxToolCall('evaluate', { source }), {
       stopReason: 'toolUse',
     }),
     fauxAssistantMessage('done'),
@@ -372,8 +368,8 @@ test('faux provider drives a scripted execute-only code-mode agent', async t => 
   const { agent } = makeCodeModeAgent({
     model,
     powers: { git, gitPetName: 'git', gitMode: 'readOnly' },
-    execute: async input => {
-      const result = await compartmentExecuteOver({ git })(input);
+    evaluate: async input => {
+      const result = await compartmentEvaluateOver({ git })(input);
       executions.push(result);
       return result;
     },
@@ -425,8 +421,8 @@ test('git-loop preset edits the workspace, commits, and reads HEAD~1 over a real
     currentText,
   };
 })()`;
-  const execute = async input => {
-    const result = await compartmentExecuteOver({
+  const evaluate = async input => {
+    const result = await compartmentEvaluateOver({
       git,
       workspace,
       readFileText,
@@ -436,7 +432,7 @@ test('git-loop preset edits the workspace, commits, and reads HEAD~1 over a real
     return result;
   };
   const model = fauxModel(t, [
-    fauxAssistantMessage(fauxToolCall('execute', { source }), {
+    fauxAssistantMessage(fauxToolCall('evaluate', { source }), {
       stopReason: 'toolUse',
     }),
     fauxAssistantMessage('done'),
@@ -445,7 +441,7 @@ test('git-loop preset edits the workspace, commits, and reads HEAD~1 over a real
     model,
     workspace,
     git,
-    execute,
+    evaluate,
     globals: harden([
       {
         name: 'workspace',

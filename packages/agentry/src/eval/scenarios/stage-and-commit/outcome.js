@@ -12,7 +12,7 @@ import { check, readTrackedFileAt } from '../../outcome-kit.js';
  * Score a git code-mode run by **outcome assertion**: read the repository's
  * actual end-state through the live `git` capability and confirm it reached the
  * target. This deliberately ignores how the agent got there — the agent ran
- * `E(git).x()` / `E(workspace).x()` inside an opaque `execute` block, so there
+ * `E(git).x()` / `E(workspace).x()` inside an opaque `evaluate` block, so there
  * is no per-git-op tool-call trace to score, and an alternate-but-correct call
  * sequence (different staging order, an extra status read) must still pass.
  *

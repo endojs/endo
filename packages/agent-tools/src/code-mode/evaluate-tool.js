@@ -2,17 +2,14 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { Tool } from '@earendil-works/pi-ai' */
-/** @import { AgentTool } from '@earendil-works/pi-agent-core' */
 /** @import { ToolRecord } from '@endo/agent-tools' */
 
 import { makeTool } from '../tool.js';
-import { toPiAgentTool } from '@endo/agent-tools/pi';
 
-import { toolResultToSmallcaps } from '../adapters/smallcaps.js';
 import { normalizeGlobals } from './declarations.js';
 
-const EXECUTE_PARAMETERS = harden({
+/** The JSON Schema for the model-facing `evaluate` tool. */
+export const EVALUATE_PARAMETERS = harden({
   type: 'object',
   properties: {
     source: {
@@ -29,6 +26,7 @@ const EXECUTE_PARAMETERS = harden({
   required: ['source'],
   additionalProperties: false,
 });
+harden(EVALUATE_PARAMETERS);
 
 /**
  * The settled shape of a code-mode power: an opaque object capability
@@ -73,12 +71,12 @@ const EXECUTE_PARAMETERS = harden({
  *   files (`git.js`, `fs.js`) supply these; unset for `namedPowers`, which stay
  *   name-only. A consumer can attach its own.
  *
- * @typedef {object} CodeModeExecuteInput
+ * @typedef {object} EvaluateInput
  * @property {string} source
  * @property {string | string[]} [resultName]
  * @property {CodeModeGlobal[]} globals
  *
- * @typedef {(input: CodeModeExecuteInput) => Promise<unknown>} CodeModeExecute
+ * @typedef {(input: EvaluateInput) => Promise<unknown>} Evaluate
  */
 
 /**
@@ -90,30 +88,30 @@ const isResultName = value =>
   (Array.isArray(value) && value.every(part => typeof part === 'string'));
 
 /**
- * Build the model-facing `execute` tool: a single JSON-schema'd tool whose
+ * Build the model-facing `evaluate` tool: a single JSON-schema'd tool whose
  * invocation forwards validated `{ source, resultName }` to the supplied
- * `execute` function alongside the normalized lexical globals.
+ * `evaluate` function alongside the normalized lexical globals.
  *
- * @param {CodeModeExecute} execute
+ * @param {Evaluate} evaluate
  * @param {CodeModeGlobal[]} globals
  * @returns {ToolRecord}
  */
-export const makeExecuteTool = (execute, globals) => {
+export const makeEvaluateTool = (evaluate, globals) => {
   const normalized = normalizeGlobals(globals);
   return makeTool({
-    name: 'execute',
+    name: 'evaluate',
     description:
       'Evaluate JavaScript source with the code-mode powers in lexical scope.',
-    parameters: EXECUTE_PARAMETERS,
+    parameters: EVALUATE_PARAMETERS,
     execute: async args => {
       const { source, resultName } = args;
       if (typeof source !== 'string') {
-        throw new Error('execute.source must be a string');
+        throw new Error('evaluate.source must be a string');
       }
       if (resultName !== undefined && !isResultName(resultName)) {
-        throw new Error('execute.resultName must be a string or string[]');
+        throw new Error('evaluate.resultName must be a string or string[]');
       }
-      return execute({
+      return evaluate({
         source,
         resultName,
         globals: normalized,
@@ -121,21 +119,4 @@ export const makeExecuteTool = (execute, globals) => {
     },
   });
 };
-harden(makeExecuteTool);
-
-/**
- * Bridge the execute `ToolRecord` into a pi-agent-core `AgentTool`, injecting
- * the harness SmallCaps renderer so completion values round-trip BigInts and
- * sigil-prefixed strings to the model.
- *
- * @param {ToolRecord} tool
- * @returns {AgentTool<Tool['parameters']>}
- */
-export const toSmallcapsPiAgentTool = tool =>
-  // Pre-bind the harness's SmallCaps renderer onto the upstream
-  // `@endo/agent-tools/pi` `toPiAgentTool`: `renderToolResult` is that bridge's
-  // option key, and `toolResultToSmallcaps` is the encoder supplied as its
-  // value. The wrapper's sole job is this pre-binding, hence the codec-forward
-  // name paralleling `toolResultToSmallcaps`.
-  toPiAgentTool(tool, { renderToolResult: toolResultToSmallcaps });
-harden(toSmallcapsPiAgentTool);
+harden(makeEvaluateTool);

@@ -9,7 +9,7 @@ import { makeRunMetricsRecorder } from './metrics.js';
 /**
  * Run one git code-mode scenario end to end and score it by outcome assertion.
  *
- * The agent is the real code-mode git-loop preset: its sole tool is `execute`,
+ * The agent is the real code-mode git-loop preset: its sole tool is `evaluate`,
  * which evaluates JavaScript against the live `workspace` and `git` powers in a
  * Compartment. Only the model varies between a no-LLM run (a scripted faux
  * model) and a live run (a credentialed provider) — the agent, the powers, and

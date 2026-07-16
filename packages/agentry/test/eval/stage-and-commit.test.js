@@ -121,9 +121,9 @@ const stageWrongContentAndCommitSource = (filePath, wrongContent, message) => `\
  * @param {string} source
  * @returns {Model<string>}
  */
-const executeOnceModel = (t, source) =>
+const evaluateOnceModel = (t, source) =>
   fauxModel(t, [
-    fauxAssistantMessage(fauxToolCall('execute', { source }), {
+    fauxAssistantMessage(fauxToolCall('evaluate', { source }), {
       stopReason: 'toolUse',
     }),
     fauxAssistantMessage('done'),
@@ -162,14 +162,14 @@ test('run metrics recorder sums assistant usage and tool errors', t => {
   recorder.listener({
     type: 'tool_execution_end',
     toolCallId: 'call-1',
-    toolName: 'execute',
+    toolName: 'evaluate',
     result: {},
     isError: false,
   });
   recorder.listener({
     type: 'tool_execution_end',
     toolCallId: 'call-2',
-    toolName: 'execute',
+    toolName: 'evaluate',
     result: {},
     isError: true,
   });
@@ -198,7 +198,7 @@ test('outcome assertion passes when the scripted run reaches the target end-stat
     path: scenario.expected.path,
     content: scenario.expected.content,
   });
-  const model = executeOnceModel(
+  const model = evaluateOnceModel(
     t,
     stageAndCommitSource(scenario.expected.path, scenario.expected.message),
   );
@@ -256,7 +256,7 @@ test('outcome assertion fails the commit-message check when the wrong message is
     content: scenario.expected.content,
   });
   // The run stages and commits the right file with the WRONG message.
-  const model = executeOnceModel(
+  const model = evaluateOnceModel(
     t,
     stageAndCommitSource(scenario.expected.path, 'chore: wrong message'),
   );
@@ -290,7 +290,7 @@ test('outcome assertion fails the file-content check when the wrong content is c
   // `file-content` check: the file is tracked at HEAD and the message matches,
   // but the committed content differs from the target.
   const wrongContent = `${scenario.expected.content}DIVERGED\n`;
-  const model = executeOnceModel(
+  const model = evaluateOnceModel(
     t,
     stageWrongContentAndCommitSource(
       scenario.expected.path,
@@ -325,7 +325,7 @@ test('outcome assertion fails when the agent never commits the file', async t =>
     path: scenario.expected.path,
     content: scenario.expected.content,
   });
-  // The model answers in prose without ever calling execute: the working tree
+  // The model answers in prose without ever calling evaluate: the working tree
   // is untouched, so the target file stays untracked.
   const model = fauxModel(t, [
     fauxAssistantMessage('I will not touch the repo.'),

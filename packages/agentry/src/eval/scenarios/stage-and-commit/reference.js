@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-// This module holds the reference `execute` source for the stage-and-commit
+// This module holds the reference `evaluate` source for the stage-and-commit
 // scenario, which a competent code-mode agent should converge on.
 // Keep it beside the scenario so `makeStageAndCommitScenario`'s
 // `referenceSourcePath` / `referenceSourceExport` fields can point here.
@@ -10,7 +10,7 @@
 // reporter can link a scenario's transcript to its reference solution.
 
 /**
- * Build the reference `execute` source for the stage-and-commit scenario.
+ * Build the reference `evaluate` source for the stage-and-commit scenario.
  * Find the target path's status row, stage it, and commit with `message`.
  *
  * @param {string} filePath

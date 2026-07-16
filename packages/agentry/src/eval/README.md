@@ -21,9 +21,9 @@ asserts the outcome.
 
 ## Why outcome assertion, not trace scoring
 
-A code-mode agent's only tool is `execute`: it runs `E(git).x()` and
+A code-mode agent's only tool is `evaluate`: it runs `E(git).x()` and
 `E(workspace).x()` **inside** a Compartment, so the outer pi-agent tool-call
-trace sees a single opaque `execute` call, not the individual git operations.
+trace sees a single opaque `evaluate` call, not the individual git operations.
 There is therefore no git-op trace to score with edit distance, and there
 should not need to be: a correct run might stage in a different order, read
 status an extra time, or use a different method to the same end. Outcome
@@ -42,7 +42,7 @@ They come from the same pi-agent-core event stream that powers diagnostics, so t
 
 Callers that need durable diagnostics can pass `onEvent` to receive the same agent events.
 The live test uses this seam to write one attributable, transcript-grade event per scenario turn plus one result record per scenario to the directory named by `ENDO_EVAL_ARTIFACT_DIR`.
-Each `events.jsonl` record carries the `scenario` and `model` it came from, plus bounded, redacted transcript content (assistant message text, the source submitted to the `execute` tool, and tool results), so a downstream reporter can render one attributable transcript per scenario run even when rows execute concurrently.
+Each `events.jsonl` record carries the `scenario` and `model` it came from, plus bounded, redacted transcript content (assistant message text, the source submitted to the `evaluate` tool, and tool results), so a downstream reporter can render one attributable transcript per scenario run even when rows evaluate concurrently.
 Every captured string is redacted for credential-shaped substrings and capped in length before it is written; credentials are never captured.
 Each `results.jsonl` row also carries `referenceSourcePath` and `referenceSourceExport`, pointing at the scenario's reference solution (see "Layout" below), so a reporter can link a run's transcript to the solution it was scored against.
 Eval transcripts are not automatically published anywhere.
@@ -93,7 +93,7 @@ Per-eval content is internal to this package (one folder under `scenarios/`):
   notes; `outcome.js` verifies the branch topology, replayed summaries and
   fresh oids, caller-supplied post-resolution patches, exact final tree and file
   content, clean status, and completed rebase state.
-  `reference.js` (`conflictRebaseSource(...)`) holds the reference `execute`
+  `reference.js` (`conflictRebaseSource(...)`) holds the reference `evaluate`
   source a competent agent should converge on; the scenario object's
   `referenceSourcePath` / `referenceSourceExport` point at it, and the no-LLM
   test imports it to drive the scripted faux model.
@@ -107,7 +107,7 @@ Per-eval content is internal to this package (one folder under `scenarios/`):
   a given message), `outcome.js` (`assertGitCommitOutcome(...)`, the scorer that
   reads HEAD's commit message, the file tracked at HEAD and its content, and the
   working-tree status), `reference.js` (`stageAndCommitSource(...)`, the
-  reference `execute` source, pointed at by the scenario's
+  reference `evaluate` source, pointed at by the scenario's
   `referenceSourcePath` / `referenceSourceExport`), `types.ts` (the local
   target shape), and `index.js` (the folder-local barrel).
 

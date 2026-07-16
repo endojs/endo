@@ -7,11 +7,11 @@ import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import {
-  makeCompartmentExecute,
-  makeExecuteTool,
-  normalizeGlobals,
-  makeCodeModeAgent,
-} from '../src/execute/index.js';
+  makeCompartmentEvaluate,
+} from '../../agent-tools/src/code-mode/compartment.js';
+import { makeEvaluateTool } from '../../agent-tools/src/code-mode/evaluate-tool.js';
+import { normalizeGlobals } from '../../agent-tools/src/code-mode/declarations.js';
+import { makeCodeModeAgent } from '../src/code-mode.js';
 
 /** @import { Model } from '@earendil-works/pi-ai' */
 
@@ -38,16 +38,16 @@ const fauxModel = harden({
   maxTokens: 1024,
 });
 
-test('makeCompartmentExecute hands the completion value to storeResult under a resultName', async t => {
+test('makeCompartmentEvaluate hands the completion value to storeResult under a resultName', async t => {
   /** @type {Array<[unknown, string | string[]]>} */
   const stored = [];
-  const execute = makeCompartmentExecute({
+  const evaluate = makeCompartmentEvaluate({
     endowments: { x: 41 },
     storeResult: (value, resultName) => {
       stored.push([value, resultName]);
     },
   });
-  const result = await execute({
+  const result = await evaluate({
     source: 'x + 1',
     resultName: 'answer',
     globals: [],
@@ -56,23 +56,23 @@ test('makeCompartmentExecute hands the completion value to storeResult under a r
   t.deepEqual(stored, [[42, 'answer']]);
 });
 
-test('makeCompartmentExecute returns the value and skips storeResult with no resultName', async t => {
+test('makeCompartmentEvaluate returns the value and skips storeResult with no resultName', async t => {
   let stored = false;
-  const execute = makeCompartmentExecute({
+  const evaluate = makeCompartmentEvaluate({
     endowments: { x: 1 },
     storeResult: () => {
       stored = true;
     },
   });
-  const result = await execute({ source: 'x + 1', globals: [] });
+  const result = await evaluate({ source: 'x + 1', globals: [] });
   t.is(result, 2);
   t.false(stored);
 });
 
-test('makeCompartmentExecute rejects a resultName when no storeResult is configured', async t => {
-  const execute = makeCompartmentExecute({ endowments: {} });
+test('makeCompartmentEvaluate rejects a resultName when no storeResult is configured', async t => {
+  const evaluate = makeCompartmentEvaluate({ endowments: {} });
   await t.throwsAsync(
-    () => execute({ source: '1', resultName: 'a', globals: [] }),
+    () => evaluate({ source: '1', resultName: 'a', globals: [] }),
     {
       message: /no storeResult callback is configured/,
     },
@@ -80,7 +80,7 @@ test('makeCompartmentExecute rejects a resultName when no storeResult is configu
 });
 
 test.serial(
-  'makeCompartmentExecute contains rejected sends and reports only observed rejections',
+  'makeCompartmentEvaluate contains rejected sends and reports only observed rejections',
   async t => {
     const expected = harden(new Error('guest-visible rejection'));
     const rejector = Far('Rejector', {
@@ -96,13 +96,13 @@ test.serial(
     process.on('unhandledRejection', onUnhandled);
     t.teardown(() => process.off('unhandledRejection', onUnhandled));
 
-    const execute = makeCompartmentExecute({
+    const evaluate = makeCompartmentEvaluate({
       endowments: { E, expected, rejector, target: harden({ value: 40 }) },
       onContainedEventualSendRejection: () => {
         reports += 1;
       },
     });
-    const result = await execute({
+    const result = await evaluate({
       source: `(async () => {
         E(rejector).fail();
         const caught = await E(rejector).fail().catch(error => ({
@@ -135,7 +135,7 @@ test.serial(
 );
 
 test.serial(
-  'makeCompartmentExecute isolates throwing and rejecting reporters',
+  'makeCompartmentEvaluate isolates throwing and rejecting reporters',
   async t => {
     const rejector = Far('Rejector', {
       async fail() {
@@ -150,7 +150,7 @@ test.serial(
     process.on('unhandledRejection', onUnhandled);
     t.teardown(() => process.off('unhandledRejection', onUnhandled));
 
-    const execute = makeCompartmentExecute({
+    const evaluate = makeCompartmentEvaluate({
       endowments: { E, rejector },
       onContainedEventualSendRejection: () => {
         reports += 1;
@@ -160,7 +160,7 @@ test.serial(
         return Promise.reject(new Error('async reporter failure'));
       },
     });
-    const result = await execute({
+    const result = await evaluate({
       source: `(async () => {
         E(rejector).fail();
         E.get(null).value;
@@ -179,7 +179,7 @@ test.serial(
 );
 
 test.serial(
-  'makeCompartmentExecute does not report a plain Promise.reject that never crosses E',
+  'makeCompartmentEvaluate does not report a plain Promise.reject that never crosses E',
   async t => {
     // The containment wrapper and its reporter only observe values that pass
     // through the tracked E surface (an eventual-send result, E.get, or
@@ -190,13 +190,13 @@ test.serial(
     // test above), it never reaches `onContainedEventualSendRejection`, caught
     // or not.
     let reports = 0;
-    const execute = makeCompartmentExecute({
+    const evaluate = makeCompartmentEvaluate({
       endowments: { E },
       onContainedEventualSendRejection: () => {
         reports += 1;
       },
     });
-    const result = await execute({
+    const result = await evaluate({
       source: `(async () => {
         // Caught here so the plain rejection cannot escape as an unhandled
         // rejection; the point under test is that it never reaches the
@@ -216,17 +216,17 @@ test.serial(
   },
 );
 
-test('makeCompartmentExecute preserves the E surface, rejection identity, and receiver checks', async t => {
+test('makeCompartmentEvaluate preserves the E surface, rejection identity, and receiver checks', async t => {
   const expected = harden(new Error('identity'));
   const rejector = Far('Rejector', {
     async fail() {
       throw expected;
     },
   });
-  const execute = makeCompartmentExecute({
+  const evaluate = makeCompartmentEvaluate({
     endowments: { E, expected, rejector },
   });
-  const result = await execute({
+  const result = await evaluate({
     source: `(async () => {
       let caught;
       try {
@@ -327,10 +327,10 @@ test('makeCodeModeAgent throws when a namedPower collides with the well-known gi
   );
 });
 
-test('makeExecuteTool.invoke forwards validated args plus normalized globals', async t => {
+test('makeEvaluateTool.invoke forwards validated args plus normalized globals', async t => {
   /** @type {any} */
   let captured;
-  const tool = makeExecuteTool(
+  const tool = makeEvaluateTool(
     async input => {
       captured = input;
       return 'k';
@@ -386,7 +386,7 @@ test('makeCodeModeAgent resolves named powers through a live lookup handle', t =
       return fakeCap;
     },
   });
-  const { agent, globals, execute, systemPrompt, model } = makeCodeModeAgent({
+  const { agent, globals, evaluate, systemPrompt, model } = makeCodeModeAgent({
     model: fauxModel,
     lookupPowers,
     powers: {
@@ -396,7 +396,7 @@ test('makeCodeModeAgent resolves named powers through a live lookup handle', t =
     },
   });
   t.is(model, fauxModel);
-  t.is(typeof execute, 'function');
+  t.is(typeof evaluate, 'function');
   t.true(systemPrompt.includes('declare const helper;'));
   t.deepEqual(
     globals.map(global => global.name),
@@ -404,7 +404,7 @@ test('makeCodeModeAgent resolves named powers through a live lookup handle', t =
   );
   t.deepEqual(
     agent.state.tools.map(tool => tool.name),
-    ['execute'],
+    ['evaluate'],
   );
 });
 
@@ -422,47 +422,47 @@ test('makeCodeModeAgent honors an explicit globals list and preamble override', 
   );
 });
 
-test('makeCodeModeAgent uses a supplied execute and lexical endowments end to end', async t => {
-  const { execute } = makeCodeModeAgent({
+test('makeCodeModeAgent uses a supplied evaluate and lexical endowments end to end', async t => {
+  const { evaluate } = makeCodeModeAgent({
     model: fauxModel,
     endowments: { tally: 10 },
     powers: { namedPowers: [] },
   });
-  // The default compartment execute runs the source against the endowments.
-  const result = await execute({ source: 'tally * 2', globals: [] });
+  // The default compartment evaluate runs the source against the endowments.
+  const result = await evaluate({ source: 'tally * 2', globals: [] });
   t.is(result, 20);
   // E is always endowed.
   t.is(typeof E, 'function');
 });
 
-test('makeCodeModeAgent rejects a custom execute paired with onContainedEventualSendRejection', t => {
-  // A custom execute bypasses makeCompartmentExecute, so the reporter would
+test('makeCodeModeAgent rejects a custom evaluate paired with onContainedEventualSendRejection', t => {
+  // A custom evaluate bypasses makeCompartmentEvaluate, so the reporter would
   // silently never fire; fail fast instead of accepting dead configuration.
   t.throws(
     () =>
       makeCodeModeAgent({
         model: fauxModel,
-        execute: async () => 'unused',
+        evaluate: async () => 'unused',
         onContainedEventualSendRejection: () => {},
       }),
     {
       message:
-        /onContainedEventualSendRejection has no effect with a custom execute/,
+        /onContainedEventualSendRejection has no effect with a custom evaluate/,
     },
   );
 });
 
-test('makeCompartmentExecute preserves the wrapped operation name and length on tracked E', async t => {
+test('makeCompartmentEvaluate preserves the wrapped operation name and length on tracked E', async t => {
   const rejector = Far('Rejector', {
     async fail(_a, _b) {
       return 'ok';
     },
   });
-  const execute = makeCompartmentExecute({
+  const evaluate = makeCompartmentEvaluate({
     endowments: { E, rejector },
     onContainedEventualSendRejection: () => {},
   });
-  const result = await execute({
+  const result = await evaluate({
     source: `(() => ({
       methodName: E(rejector).fail.name,
       methodLength: E(rejector).fail.length,

@@ -1,20 +1,20 @@
 // @ts-check
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { CodeModeExecuteInput } from './evaluate-tool.js' */
+/** @import { EvaluateInput } from './evaluate-tool.js' */
 
 import { E } from '@endo/eventual-send';
 
 /**
- * Build a daemon-hosted execute function.
+ * Build a daemon-hosted evaluate function.
  * The host is supplied as a live powers reference and is expected to expose
  * the daemon's existing `evaluate(workerName, source, codeNames, petNames,
  * resultName)` method.
  *
  * @param {ERef<{ evaluate: (workerName: undefined, source: string, codeNames: string[], petNames: (string | string[])[], resultName?: string | string[]) => Promise<unknown> }>} powers
- * @returns {(input: CodeModeExecuteInput) => Promise<unknown>}
+ * @returns {(input: EvaluateInput) => Promise<unknown>}
  */
-export const makeDaemonExecute =
+export const makeDaemonEvaluate =
   powers =>
   async ({ source, resultName, globals }) => {
     const codeNames = harden(globals.map(({ name }) => name));
@@ -27,4 +27,4 @@ export const makeDaemonExecute =
       resultName,
     );
   };
-harden(makeDaemonExecute);
+harden(makeDaemonEvaluate);

@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { CodeModeExecute } from './evaluate-tool.js' */
+/** @import { Evaluate } from './evaluate-tool.js' */
 
 /**
  * A no-argument observer for a rejected eventual-send result.
@@ -203,7 +203,7 @@ const makeTrackedE = (baseE, reporter) => {
 };
 
 /**
- * Build a Compartment-backed execute function. Callers supply every endowment
+ * Build a Compartment-backed evaluate function. Callers supply every endowment
  * they want in lexical scope (typically `{ E, workspace, git }` plus stream
  * helpers). The completion value is returned; when `resultName` is supplied it
  * is also handed to `storeResult` for out-of-band capability storage.
@@ -212,9 +212,9 @@ const makeTrackedE = (baseE, reporter) => {
  * @param {Record<string, unknown>} options.endowments
  * @param {(value: unknown, resultName: string | string[]) => Promise<void> | void} [options.storeResult]
  * @param {ContainedEventualSendRejectionReporter} [options.onContainedEventualSendRejection]
- * @returns {CodeModeExecute}
+ * @returns {Evaluate}
  */
-export const makeCompartmentExecute = ({
+export const makeCompartmentEvaluate = ({
   endowments,
   storeResult,
   onContainedEventualSendRejection,
@@ -222,7 +222,7 @@ export const makeCompartmentExecute = ({
   const hardenedEndowments = harden({ ...endowments });
   // The tracked E wrapper only depends on the fixed `endowments.E` and
   // `onContainedEventualSendRejection` supplied here, so it is built once per
-  // `makeCompartmentExecute` call rather than once per `execute` call.
+  // `makeCompartmentEvaluate` call rather than once per `evaluate` call.
   const baseE = hardenedEndowments.E;
   const scopedEndowments =
     typeof baseE === 'function'
@@ -237,7 +237,7 @@ export const makeCompartmentExecute = ({
     if (resultName !== undefined) {
       if (storeResult === undefined) {
         throw new Error(
-          'execute.resultName was supplied but no storeResult callback is configured',
+          'evaluate.resultName was supplied but no storeResult callback is configured',
         );
       }
       await storeResult(result, resultName);
@@ -245,4 +245,4 @@ export const makeCompartmentExecute = ({
     return result;
   };
 };
-harden(makeCompartmentExecute);
+harden(makeCompartmentEvaluate);

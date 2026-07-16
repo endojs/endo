@@ -5,24 +5,25 @@
 /** @import { Agent, AgentMessage, StreamFn } from '@earendil-works/pi-agent-core' */
 /** @import { Credentials, GetApiKey } from './harness/credentials.js' */
 /** @import { ThinkingLevel } from './harness/model.js' */
-/** @import { CodeModeExecute, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from '../../agent-tools/src/code-mode/evaluate-tool.js' */
+/** @import { Evaluate, CodeModeGlobal, CodeModePower, PowerHandle, LookupPowers } from '../../agent-tools/src/code-mode/evaluate-tool.js' */
 
 import { E } from '@endo/eventual-send';
 import { isGitHistoryRewrite, isGitReadOnly } from '@endo/exo-git';
 
 import { defineAgent } from './define-agent.js';
 import { getAmbientEnv, makeEnvCredentials } from './harness/credentials.js';
-import { makeCompartmentExecute } from '../../agent-tools/src/code-mode/compartment.js';
+import { makeCompartmentEvaluate } from '../../agent-tools/src/code-mode/compartment.js';
 import {
-  makeExecuteTool,
-  toSmallcapsPiAgentTool,
+  makeEvaluateTool,
 } from '../../agent-tools/src/code-mode/evaluate-tool.js';
+import { toPiAgentTool } from '../../agent-tools/src/adapters/pi.js';
+import { toolResultToSmallcaps } from '../../agent-tools/src/adapters/smallcaps.js';
 import {
   formatGlobalDeclarations,
   normalizeGlobals,
 } from '../../agent-tools/src/code-mode/declarations.js';
-import { makeGitGlobal } from './execute/git.js';
-import { makeWorkspaceGlobal } from './execute/fs.js';
+import { makeGitGlobal } from '../../agent-tools/src/code-mode-globals/git.js';
+import { makeWorkspaceGlobal } from '../../agent-tools/src/code-mode-globals/fs.js';
 
 /**
  * Build the system prompt for the narrow code-mode agent.
@@ -35,12 +36,12 @@ export const makeCodeModeSystemPrompt = (globals, options = {}) => {
   const normalized = normalizeGlobals(globals);
   const preamble =
     options.preamble ||
-    'You are codeMode, an Endo code-mode agent. You solve tasks by writing JavaScript and calling the execute tool.';
+    'You are codeMode, an Endo code-mode agent. You solve tasks by writing JavaScript and calling the evaluate tool.';
   return `${preamble}
 
-You have exactly one tool: execute. Do not call any other tool and do not answer in prose when a tool call can do the work.
+You have exactly one tool: evaluate. Do not call any other tool and do not answer in prose when a tool call can do the work.
 
-The execute tool evaluates JavaScript source in an Endo Compartment. The compartment includes hardened SES globals plus the powers listed below. These powers are already in lexical scope; do not look them up by pet name. The TypeScript declarations below are your primary reference: use them to pick a method and its arguments before your first call rather than probing at runtime. They may be a subset of a capability's live surface, so if you need a method that is not declared, discover it with E(capability).__getMethodNames__().
+The evaluate tool evaluates JavaScript source in an Endo Compartment. The compartment includes hardened SES globals plus the powers listed below. These powers are already in lexical scope; do not look them up by pet name. The TypeScript declarations below are your primary reference: use them to pick a method and its arguments before your first call rather than probing at runtime. They may be a subset of a capability's live surface, so if you need a method that is not declared, discover it with E(capability).__getMethodNames__().
 
 Use E(capability).method(...) for remotable capabilities. Top-level await is not available, so use an async IIFE when you need multiple awaits or a final awaited result:
 
@@ -108,7 +109,7 @@ const lookupRequiredPower = (powers, petName, label) => {
  *   `lookup(petName)` for resolving capabilities not passed inline.
  * @property {Credentials} [credentials]
  * @property {Record<string, unknown>} [endowments]
- * @property {CodeModeExecute} [execute]
+ * @property {Evaluate} [evaluate]
  * @property {(value: unknown, resultName: string | string[]) => Promise<void> | void} [storeResult]
  * @property {() => Promise<void> | void} [onContainedEventualSendRejection]
  * @property {CodeModeGlobal[]} [globals]
@@ -232,14 +233,14 @@ const makeCodeModeEndowments = (
 };
 
 /**
- * Construct a live code-mode agent: an agent whose sole tool is `execute`,
+ * Construct a live code-mode agent: an agent whose sole tool is `evaluate`,
  * which evaluates JavaScript in a Compartment endowed with the configured
  * lexical powers. This is the code-mode preset of {@link defineAgent}; there is
  * no separate `define*` wrapper. The powerless definition is `defineAgent`'s
  * closure; supplying powers here is the powered stage.
  *
  * @param {MakeCodeModeAgentOptions} options
- * @returns {{ agent: Agent, globals: CodeModeGlobal[], execute: CodeModeExecute, systemPrompt: string, model: Model<string> }}
+ * @returns {{ agent: Agent, globals: CodeModeGlobal[], evaluate: Evaluate, systemPrompt: string, model: Model<string> }}
  */
 export const makeCodeModeAgent = options => {
   const {
@@ -264,18 +265,18 @@ export const makeCodeModeAgent = options => {
     options.systemPrompt || makeCodeModeSystemPrompt(globals, { preamble });
 
   if (
-    options.execute !== undefined &&
+    options.evaluate !== undefined &&
     onContainedEventualSendRejection !== undefined
   ) {
     throw new Error(
-      'code-mode onContainedEventualSendRejection has no effect with a custom execute; the containment wrapper lives in makeCompartmentExecute, which a custom execute bypasses',
+      'code-mode onContainedEventualSendRejection has no effect with a custom evaluate; the containment wrapper lives in makeCompartmentEvaluate, which a custom evaluate bypasses',
     );
   }
 
   const resolvedPowers = resolveConfiguredPowers(powers, lookupPowers);
-  const execute =
-    options.execute ||
-    makeCompartmentExecute({
+  const evaluate =
+    options.evaluate ||
+    makeCompartmentEvaluate({
       endowments: makeCodeModeEndowments(
         powers,
         resolvedPowers,
@@ -285,12 +286,12 @@ export const makeCodeModeAgent = options => {
       storeResult,
       onContainedEventualSendRejection,
     });
-  const tool = makeExecuteTool(execute, globals);
+  const tool = makeEvaluateTool(evaluate, globals);
 
   const maker = defineAgent({
     model,
     instructions: systemPrompt,
-    tools: [toSmallcapsPiAgentTool(tool)],
+    tools: [toPiAgentTool(tool, { renderToolResult: toolResultToSmallcaps })],
   });
   const agent = maker({
     credentials,
@@ -302,7 +303,7 @@ export const makeCodeModeAgent = options => {
   // The returned record is intentionally NOT hardened: `agent` is a live
   // pi-agent-core instance that mutates its own run state (e.g. `activeRun`)
   // while driving a conversation, so deep-freezing it would break the loop.
-  return { agent, globals, execute, systemPrompt, model };
+  return { agent, globals, evaluate, systemPrompt, model };
 };
 harden(makeCodeModeAgent);
 
@@ -311,7 +312,7 @@ harden(makeCodeModeAgent);
  * @property {Model<string>} model
  * @property {CodeModePower} workspace
  * @property {CodeModePower} git
- * @property {CodeModeExecute} [execute]
+ * @property {Evaluate} [evaluate]
  * @property {Record<string, unknown>} [endowments]
  * @property {() => Promise<void> | void} [onContainedEventualSendRejection]
  * @property {CodeModeGlobal[]} [globals]
@@ -345,8 +346,8 @@ export const makeCodeModeGitLoopAgent = options => {
     globals: options.globals,
     systemPrompt: options.systemPrompt,
     preamble:
-      'You are an Endo-hosted Pi coding agent. Use the execute tool to inspect and edit the repository through the workspace Filesystem and Git capabilities.',
-    execute: options.execute,
+      'You are an Endo-hosted Pi coding agent. Use the evaluate tool to inspect and edit the repository through the workspace Filesystem and Git capabilities.',
+    evaluate: options.evaluate,
     onContainedEventualSendRejection: options.onContainedEventualSendRejection,
     messages: options.messages,
     streamFn: options.streamFn,

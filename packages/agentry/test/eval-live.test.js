@@ -154,7 +154,7 @@ const appendArtifact = (fileName, record) => {
  * bounded, redacted transcript content, superseding the earlier "no prompts,
  * no generated code" stance, so a downstream reporter can render one
  * attributable transcript per scenario run: assistant message text, the
- * source submitted to the `execute` tool, and tool results.
+ * source submitted to the `evaluate` tool, and tool results.
  * Every captured string flows through `safeText`.
  * It redacts credential-shaped substrings and caps length, but is not
  * production-grade redaction.
@@ -196,7 +196,7 @@ const summarizeEvent = event => {
         ...record,
         toolCallId: value.toolCallId,
         toolName: value.toolName,
-        ...(value.toolName === 'execute'
+        ...(value.toolName === 'evaluate'
           ? { source: safeText(value.args?.source) }
           : { input: safeText(JSON.stringify(value.args)) }),
       };

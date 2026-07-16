@@ -57,9 +57,9 @@ const fauxModel = (t, responses) => {
  * @param {string} source
  * @returns {Model<string>}
  */
-const executeOnceModel = (t, source) =>
+const evaluateOnceModel = (t, source) =>
   fauxModel(t, [
-    fauxAssistantMessage(fauxToolCall('execute', { source }), {
+    fauxAssistantMessage(fauxToolCall('evaluate', { source }), {
       stopReason: 'toolUse',
     }),
     fauxAssistantMessage('done'),
@@ -123,7 +123,7 @@ test('fixture captures the conflict resolution patch and clean replay patch', as
 test('outcome assertion passes when scripted run resolves and continues the rebase', async t => {
   const repo = await provisionConflictRebaseRepo(t);
   const scenario = makeScenarioFor(repo);
-  const model = executeOnceModel(
+  const model = evaluateOnceModel(
     t,
     conflictRebaseSource(
       repo.featureBranch,
@@ -196,7 +196,7 @@ test('successful outcome check ordering is stable for arbitrary reruns', async t
 test('outcome assertion rejects an integration branch moved after a correct rebase', async t => {
   const repo = await provisionConflictRebaseRepo(t);
   const scenario = makeScenarioFor(repo);
-  const model = executeOnceModel(
+  const model = evaluateOnceModel(
     t,
     conflictRebaseSource(
       repo.featureBranch,
@@ -240,7 +240,7 @@ test('outcome assertion rejects an integration branch moved after a correct reba
 test('outcome assertion reports a deleted integration branch as a failed check', async t => {
   const repo = await provisionConflictRebaseRepo(t);
   const scenario = makeScenarioFor(repo);
-  const model = executeOnceModel(
+  const model = evaluateOnceModel(
     t,
     conflictRebaseSource(
       repo.featureBranch,
@@ -314,7 +314,7 @@ test('outcome assertion fails when the run never rebases', async t => {
 test('outcome assertion fails when app.txt keeps the wrong resolution', async t => {
   const repo = await provisionConflictRebaseRepo(t);
   const scenario = makeScenarioFor(repo);
-  const model = executeOnceModel(
+  const model = evaluateOnceModel(
     t,
     conflictRebaseSource(
       repo.featureBranch,

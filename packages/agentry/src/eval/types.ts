@@ -43,7 +43,7 @@ export interface GitScenario<Expected = unknown> {
   /**
    * Repo-relative path to the module holding this scenario's reference
    * solution.
-   * It contains the `execute` source a competent agent should converge on.
+   * It contains the `evaluate` source a competent agent should converge on.
    * This lets a downstream reporter link a scenario's transcript to the
    * solution it is scored against.
    */
