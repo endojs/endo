@@ -8,6 +8,8 @@ import {
   readableTreeMethodGuards,
   readableNameHubMethodGuards,
   directoryFileMethodGuards,
+  pathEntryMethodGuards,
+  pathEntryIssuerMethodGuards,
   rangeReadMethodGuards,
   getInfoMethodGuard,
 } from '@endo/platform/fs/lite';
@@ -591,16 +593,27 @@ const PathSegmentsShape = M.arrayOf(M.string());
 const MountEntryShape = M.remotable('EndoMountEntry');
 const PathArgShape = M.or(M.string(), PathSegmentsShape, MountEntryShape);
 
-// `EndoMount` extends `Directory` from `@endo/platform/fs`.  Method
-// shapes that overlap with `PlatformDirectoryInterface` carry the
-// same `M.call(...)` arguments (path segments arrays plus an
-// `M.remotable()` value for `write`) and return shapes; the
-// mount-specific extensions (entry-arg overloads, `entry`, `stat`,
-// `readText`, `maybeReadText`, `writeText`, `makeFile`, `help`) are
-// additions, not redefinitions.  `has` widens `rest()` to `M.any()`
-// because the daemon supports the single-entry-value overload that
-// the platform contract does not name.
+// `MountInterface` is the canonical runtime Exo / CapTP protocol for daemon
+// mounts and future interchangeable mount backends.
+// `EndoMount` in types.d.ts is the precise TypeScript refinement for callers
+// and the current daemon implementation.
+// Runtime `M.promise()` and `M.remotable()` patterns cannot
+// encode semantic payload types, so the compile-time conformance test pins the
+// exact `lookup`, `maybeLookup`, `subView`, `readOnly`, `snapshot`, and
+// `followNameChanges` results while asserting that their calls fit this guard.
+//
+// Methods shared with `PlatformDirectoryInterface` use the same runtime
+// shapes.
+// Mount-only overloads additionally accept a lineage-bearing entry.
+// `has` deliberately widens `rest()` to `M.any()` because the guard cannot
+// express "variadic strings or exactly one entry"; `segmentsFromHasArgs`
+// performs that validation inside the boundary.
+// `write` accepts a remotable,
+// while the public type narrows that to the portable `DirectoryWriteSource`
+// semantic union.
+// `makeFile` accepts only the public string payload.
 export const MountInterface = M.interface('EndoMount', {
+  ...pathEntryIssuerMethodGuards,
   // ReadableTree-compatible surface.  `has` accepts either variadic
   // path segments or a single entry value; the impl validates the
   // shape because rest-with-M.or pattern guards do not narrow
@@ -608,11 +621,14 @@ export const MountInterface = M.interface('EndoMount', {
   has: M.call().rest(M.any()).returns(M.promise()),
   list: M.call().rest(PathSegmentsShape).returns(M.promise()),
   lookup: M.call(PathArgShape).returns(M.promise()),
+  // `maybeLookup` is async in every mount implementation, so retain the
+  // promise boundary here even though the shared name-hub record is broader.
+  // It resolves to the same typed file/tree union as `lookup`, plus undefined.
   // `maybeLookup` is the `ReadableNameHub` primitive (lookup-or-undefined).
   // Widened from the shared `NameOrPathShape` contract to `PathArgShape` so the
   // mount accepts a `MountEntry` cap as the path argument, exactly like
   // `lookup`. See designs/fs-interface-consolidation.md § C1.
-  maybeLookup: M.call(PathArgShape).returns(M.any()),
+  maybeLookup: M.call(PathArgShape).returns(M.promise()),
   // Subscribe to entry-name changes within a named subdirectory (returns
   // an iterator ref). The first batch is a snapshot in alphabetical order;
   // subsequent records diff against the snapshot as entries appear or
@@ -631,8 +647,6 @@ export const MountInterface = M.interface('EndoMount', {
   // overloads accept an `EndoMountEntry` as the path argument).
   write: M.call(PathArgShape, M.remotable()).returns(M.promise()),
   copy: M.call(PathArgShape, PathArgShape).returns(M.promise()),
-  // Mount-scoped descriptor minting (no I/O).
-  entry: M.call(M.or(M.string(), PathSegmentsShape)).returns(MountEntryShape),
   // Metadata.
   stat: M.call(PathArgShape).returns(M.promise()),
   // Raw data I/O
@@ -643,7 +657,7 @@ export const MountInterface = M.interface('EndoMount', {
   // (matches `Directory.makeDirectory(path): Promise<Directory>`);
   // `makeFile` is the constructive sibling for parallel use.
   makeDirectory: M.call(PathArgShape).returns(M.promise()),
-  makeFile: M.call(PathArgShape).optional(M.any()).returns(M.promise()),
+  makeFile: M.call(PathArgShape).optional(M.string()).returns(M.promise()),
   // Mutation
   remove: M.call(PathArgShape).returns(M.promise()),
   move: M.call(PathArgShape, PathArgShape).returns(M.promise()),
@@ -685,10 +699,8 @@ export const MountFileInterface = M.interface('EndoMountFile', {
 export { PlatformDirectoryInterface, PlatformFileInterface };
 
 export const MountEntryInterface = M.interface('EndoMountEntry', {
-  segments: M.call().returns(PathSegmentsShape),
-  displayPath: M.call().returns(M.string()),
+  ...pathEntryMethodGuards,
   child: M.call(M.string()).returns(MountEntryShape),
-  help: M.call().optional(M.string()).returns(M.string()),
 });
 
 // The caretaker facet returned (paired with the mount) by

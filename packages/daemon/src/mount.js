@@ -1,11 +1,8 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { FilePowers } from './types.js' */
-
-/**
- * @typedef {{ add: string, type: 'file' | 'directory' } | { remove: string }} MountNameChange
- */
+/** @import { SnapshotTree } from '@endo/platform/fs/lite/types' */
+/** @import { EndoMount, FilePowers, MountNameChange } from './types.js' */
 
 import { E } from '@endo/eventual-send';
 import { q } from '@endo/errors';
@@ -39,6 +36,22 @@ const mountRecords = new WeakMap();
 // mount's revocation signal; a symbol so it is discriminable from every
 // possible watcher iterator result.
 const revokedSentinel = Symbol('mount-revoked');
+
+/**
+ * Narrow a remote source after the Exo method-name check used by `write()`.
+ * The runtime guard proves that a source advertising `streamBase64` is the
+ * passable reader capability expected by `iterateBytesReader`.
+ *
+ * @param {unknown} value
+ * @param {string[]} methodNames
+ * @returns {asserts value is import('@endo/eventual-send').ERef<import('@endo/exo-stream').PassableBytesReader>}
+ */
+const assertReadableBlobSource = (value, methodNames) => {
+  if (!methodNames.includes('streamBase64')) {
+    throw new TypeError('Expected a ReadableBlob source');
+  }
+};
+harden(assertReadableBlobSource);
 
 /**
  * Wrap a byte range as a `PassableBytesReader` (what `fetch` returns). An empty
@@ -501,7 +514,7 @@ harden(resolvePhysicalPath);
  * @property {boolean} readOnly
  * @property {FilePowers} filePowers
  * @property {string} description
- * @property {(tree: object) => Promise<object>} [snapshotTree]
+ * @property {(tree: object) => Promise<SnapshotTree>} [snapshotTree]
  * @property {(path: string) => Promise<object>} [snapshotFile]
  * @property {Set<string>} [deniedSegments] Lowercased restricted-segment set
  *   shared across every derived face; undefined means no denial.
@@ -516,7 +529,7 @@ harden(resolvePhysicalPath);
  * Create a mount exo for a filesystem directory.
  *
  * @param {MountContext} ctx
- * @returns {object}
+ * @returns {EndoMount}
  */
 const makeMountExo = ctx => {
   const {
@@ -1098,9 +1111,14 @@ const makeMountExo = ctx => {
       // `checkinTree` uses.  A `streamBase64`-bearing remotable is
       // materialised through bytes; a `list`-bearing remotable is
       // materialised recursively.
+      const source = /** @type {{
+       *   __getMethodNames__: () => Promise<string[]>;
+       *   list: () => Promise<string[]>;
+       *   lookup: (path: string | string[]) => Promise<unknown>;
+       * }} */ (value);
       // eslint-disable-next-line no-underscore-dangle
-      const methods = await E(value).__getMethodNames__();
-      if (methods.includes('streamBase64')) {
+      const methodNames = await E(source).__getMethodNames__();
+      if (methodNames.includes('streamBase64')) {
         if (await filePowers.isDirectory(target)) {
           throw new Error('Path is a directory');
         }
@@ -1115,7 +1133,8 @@ const makeMountExo = ctx => {
         const scratch = await reserveScratchPath(target, filePowers);
         const writer = filePowers.makeFileWriter(scratch);
         try {
-          for await (const bytes of iterateBytesReader(value)) {
+          assertReadableBlobSource(source, methodNames);
+          for await (const bytes of iterateBytesReader(source)) {
             // eslint-disable-next-line no-await-in-loop
             await writer.next(bytes);
           }
@@ -1130,13 +1149,13 @@ const makeMountExo = ctx => {
         await filePowers.renamePath(scratch, target);
         return;
       }
-      if (methods.includes('list')) {
+      if (methodNames.includes('list')) {
         await filePowers.makePath(target);
-        const names = await E(value).list();
+        const names = await E(source).list();
         for (const name of names) {
           assertValidTreeEntryName(name);
           // eslint-disable-next-line no-await-in-loop
-          const child = await E(value).lookup(name);
+          const child = await E(source).lookup(name);
           // eslint-disable-next-line no-await-in-loop
           await this.self.write([...segments, name], child); // eslint-disable-line no-invalid-this
         }
@@ -1189,7 +1208,12 @@ const makeMountExo = ctx => {
         rejectDescendant();
       }
       const source = await openExisting(from, fromSegments);
-      await this.self.write(toArg, source); // eslint-disable-line no-invalid-this
+      await this.self.write(
+        /** @type {string | string[] | import('./types.js').EndoMountEntry} */ (
+          toArg
+        ),
+        source,
+      ); // eslint-disable-line no-invalid-this
     },
   });
 
@@ -1197,7 +1221,12 @@ const makeMountExo = ctx => {
     exo,
     harden({ rootId, currentDir, confinementRoot, readOnly }),
   );
-  return exo;
+  // `MountInterface` is the canonical CapTP contract and `makeExo` checks the
+  // implementation against it above.
+  // Runtime patterns can only express broad
+  // `M.promise()` / `M.remotable()` results, so refine that one inferred guard
+  // surface to the promise payloads documented by `EndoMount` at this boundary.
+  return /** @type {EndoMount} */ (/** @type {unknown} */ (exo));
 };
 harden(makeMountExo);
 
@@ -1553,7 +1582,7 @@ harden(makeReadableBlobView);
  * @param {string} opts.rootPath
  * @param {boolean} opts.readOnly
  * @param {FilePowers} opts.filePowers
- * @param {(tree: object) => Promise<object>} [opts.snapshotTree]
+ * @param {(tree: object) => Promise<SnapshotTree>} [opts.snapshotTree]
  * @param {(path: string) => Promise<object>} [opts.snapshotFile]
  * @param {Iterable<string>} [opts.deniedSegments] Restricted-segment set that
  *   REPLACES `defaultDeniedSegments` (an empty iterable disables denial);
@@ -1561,7 +1590,7 @@ harden(makeReadableBlobView);
  * @param {{ revoked: boolean, whenRevoked: Promise<undefined> }} [opts.revocation]
  *   Liveness record shared across every derived face; `makeRevocableMount`
  *   supplies it. Undefined means the mount is never revocable.
- * @returns {object}
+ * @returns {EndoMount}
  */
 export const makeMount = ({
   rootPath,

@@ -1,5 +1,5 @@
 // @ts-check
-/** @import { EndoGit } from '@endo/exo-git' */
+/** @import { EndoGit, WritableGitWorktree } from '@endo/exo-git' */
 /* eslint-disable no-await-in-loop */
 /* global clearTimeout, globalThis, process, setTimeout */
 
@@ -108,6 +108,7 @@ import { getUnredactedStackString } from './unredacted-stack.js';
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
+/** @import { SnapshotTree } from '@endo/platform/fs/lite/types' */
 /** @import { ArchiveTreeMethods } from './tar-checkin.js' */
 /** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LogChunk, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
 
@@ -1779,6 +1780,7 @@ const makeDaemonCore = async (
 
   /**
    * @param {object} tree
+   * @returns {Promise<SnapshotTree>}
    */
   const snapshotMountTree = async tree => {
     const { sha256 } = await platformCheckinTree(tree, contentStore);
@@ -3067,7 +3069,7 @@ const makeDaemonCore = async (
           // `getMountBacking` check above guarantees an `EndoMount`,
           // but TS can't narrow through it.
           // eslint-disable-next-line object-shorthand
-          mount: /** @type {object} */ (mount),
+          mount: /** @type {WritableGitWorktree} */ (mount),
           backend,
           lineageOf,
         },

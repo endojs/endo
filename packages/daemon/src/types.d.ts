@@ -6,6 +6,13 @@ import type { Reader, Writer, Stream } from '@endo/stream';
 import type { PassableBytesReader, StreamNode } from '@endo/exo-stream';
 import type { EndoGit, GitRemote } from '@endo/exo-git';
 import type { HttpClient, HttpClientControl } from '@endo/exo-http-client';
+import type {
+  DirectoryWriteSource,
+  PathEntry,
+  PathEntryIssuer,
+  ReadableTree,
+  SnapshotTree,
+} from '@endo/platform/fs/lite/types';
 
 // Branded string types for pet names and special names
 declare const PetNameBrand: unique symbol;
@@ -204,7 +211,7 @@ export type GuestFormula = {
   networks: FormulaIdentifier;
 };
 
-type LeastAuthorityFormula = {
+export type LeastAuthorityFormula = {
   type: 'least-authority';
 };
 
@@ -466,7 +473,7 @@ export type HandleFormula = {
   agent: FormulaIdentifier;
 };
 
-type KnownPeersStoreFormula = {
+export type KnownPeersStoreFormula = {
   type: 'known-peers-store';
 };
 
@@ -1052,13 +1059,12 @@ export interface EndoReadableTree {
   help(method?: string): string;
 }
 
-/**
- * File metadata, aligned with the extended `Stat` shape from
- * `@endo/platform/fs/extended` (size: bigint, mtime/atime: bigint nanoseconds
- * since epoch). `kind` is additive — the mount stats a *path*, which may be a
- * file or directory, where the extended engine relies on the cap type. See
- * designs/fs-interface-consolidation.md.
- */
+// `EndoMountEntry` has no members beyond the portable `PathEntry` selector, so
+// it aliases the canonical platform shape rather than hand-duplicating it — the
+// runtime guard was already consolidated onto `pathEntryMethodGuards`.
+export type EndoMountEntry = PathEntry;
+
+/** File metadata for a daemon-mounted path. */
 export type EndoMountStat = {
   kind: 'file' | 'directory' | 'symlink';
   size: bigint;
@@ -1066,12 +1072,9 @@ export type EndoMountStat = {
   atime: bigint;
 };
 
-export interface EndoMountEntry {
-  segments(): string[];
-  displayPath(): string;
-  child(name: string): EndoMountEntry;
-  help(method?: string): string;
-}
+export type MountNameChange =
+  | { add: string; type: 'file' | 'directory' }
+  | { remove: string };
 
 /**
  * The `{ algorithm, hash, size }` content-address triple returned by a rich
@@ -1151,7 +1154,7 @@ export interface EndoMountFile {
  * are additive; `readOnly()` narrows to a structural `ReadableTree`
  * view.
  */
-export interface EndoMount {
+export interface EndoMount extends PathEntryIssuer {
   has(...pathSegments: string[]): Promise<boolean>;
   has(entry: EndoMountEntry): Promise<boolean>;
   list(...pathSegments: string[]): Promise<string[]>;
@@ -1166,12 +1169,9 @@ export interface EndoMount {
   maybeLookup(
     path: string | string[] | EndoMountEntry,
   ): Promise<EndoMount | EndoMountFile | undefined>;
-  /**
-   * Part of the name-hub contract, but a live change feed requires a
-   * filesystem watcher behind the mount (filesystem-watchers.md), which is
-   * not yet implemented; throws ENOSYS until then.
-   */
-  followNameChanges(): never;
+  followNameChanges(
+    ...pathSegments: string[]
+  ): import('@endo/exo-stream').PassableReader<MountNameChange, undefined>;
   /**
    * Confined sub-root: returns a sub-mount whose own confinement root is
    * the target directory, so `..` cannot escape it. The transient,
@@ -1180,7 +1180,7 @@ export interface EndoMount {
   subView(path: string | string[] | EndoMountEntry): Promise<EndoMount>;
   write(
     path: string | string[] | EndoMountEntry,
-    value: unknown,
+    value: DirectoryWriteSource,
   ): Promise<void>;
   copy(
     from: string | string[] | EndoMountEntry,
@@ -1209,7 +1209,7 @@ export interface EndoMount {
     to: string | string[] | EndoMountEntry,
   ): Promise<void>;
   readOnly(): ReadableTreeView;
-  snapshot(): Promise<unknown>;
+  snapshot(): Promise<SnapshotTree>;
   help(method?: string): string;
 }
 

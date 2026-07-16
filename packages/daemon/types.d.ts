@@ -1,6 +1,13 @@
 import type { CapTPOptions } from '@endo/captp';
 import type {
   Config,
+  EndoMount,
+  EndoMountEntry,
+  EndoMountFile,
+  EndoMountStat,
+  MountNameChange,
+  ReadableBlobView,
+  ReadableTreeView,
   DefineRequest,
   EndoAgent,
   EndoBootstrap,
@@ -27,6 +34,13 @@ import type {
 
 export type {
   Config,
+  EndoMount,
+  EndoMountEntry,
+  EndoMountFile,
+  EndoMountStat,
+  MountNameChange,
+  ReadableBlobView,
+  ReadableTreeView,
   DefineRequest,
   EndoAgent,
   EndoDiagnostics,

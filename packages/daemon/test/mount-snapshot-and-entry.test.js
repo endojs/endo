@@ -16,6 +16,8 @@ import { makeFilePowers } from '../src/daemon-node-powers.js';
 import { makeMount } from '../src/mount.js';
 import { makeMemoryStore } from './_mount-test-helpers.js';
 
+/** @import { ReadableBlobView, ReadableTreeView } from '../src/types.js' */
+
 /**
  * Behavior-level snapshot and entry tests for `makeMount`:
  *
@@ -100,7 +102,9 @@ test('snapshot round-trips a binary (non-UTF8) file via streamBase64', async t =
   ]);
   fs.writeFileSync(path.join(rootPath, 'binary.dat'), payload);
 
-  const snapshot = await E(mount).snapshot();
+  const snapshot = /** @type {ReadableTreeView} */ (
+    /** @type {unknown} */ (await E(mount).snapshot())
+  );
   const snapshotBlob = await E(snapshot).lookup('binary.dat');
 
   // Drive the bytes reader and reassemble the bytes.
@@ -138,15 +142,21 @@ test('snapshot of a mount with an internal symlink follows the link into confine
   fs.writeFileSync(path.join(rootPath, 'real', 'leaf.txt'), 'real');
   fs.symlinkSync('real', path.join(rootPath, 'via-link'));
 
-  const snapshot = await E(mount).snapshot();
+  const snapshot = /** @type {ReadableTreeView} */ (
+    /** @type {unknown} */ (await E(mount).snapshot())
+  );
   const names = await E(snapshot).list();
   t.true(names.includes('via-link'), 'internal symlink visible in snapshot');
   t.true(names.includes('real'), 'real directory visible in snapshot');
 
   // Through the symlink-named entry in the snapshot, the leaf is
   // reachable with the linked-through content (no host-path leak).
-  const linked = await E(snapshot).lookup('via-link');
-  const leaf = await E(linked).lookup('leaf.txt');
+  const linked = /** @type {ReadableTreeView} */ (
+    await E(snapshot).lookup('via-link')
+  );
+  const leaf = /** @type {ReadableBlobView} */ (
+    await E(linked).lookup('leaf.txt')
+  );
   t.is(await E(leaf).text(), 'real');
 });
 
@@ -163,7 +173,9 @@ test('snapshot of a mount with an escaping symlink hides the link rather than le
   fs.writeFileSync(path.join(rootPath, 'visible.txt'), 'fine');
   fs.symlinkSync(outsideRoot, path.join(rootPath, 'escape-abs'));
 
-  const snapshot = await E(mount).snapshot();
+  const snapshot = /** @type {ReadableTreeView} */ (
+    /** @type {unknown} */ (await E(mount).snapshot())
+  );
   const names = await E(snapshot).list();
 
   // The visible content is captured.
@@ -183,10 +195,10 @@ test('snapshot of a mount with an escaping symlink hides the link rather than le
     const child = await E(snapshot).lookup(name);
     const childMethods =
       // eslint-disable-next-line no-await-in-loop, no-underscore-dangle
-      await E(child).__getMethodNames__();
+      await E(/** @type {any} */ (child)).__getMethodNames__();
     if (childMethods.includes('text')) {
       // eslint-disable-next-line no-await-in-loop
-      const text = await E(child).text();
+      const text = await E(/** @type {ReadableBlobView} */ (child)).text();
       t.notRegex(
         text,
         /should-not-leak/,
@@ -246,7 +258,7 @@ test('an entry minted on a readOnly() attenuated mount cannot regain write autho
   await E(mount).writeText(['file.txt'], 'data');
   const view = await E(mount).readOnly();
   // eslint-disable-next-line no-underscore-dangle
-  const methods = await E(view).__getMethodNames__();
+  const methods = await E(/** @type {any} */ (view)).__getMethodNames__();
   t.false(
     methods.includes('entry'),
     'read-only ReadableTree view must not expose entry()',

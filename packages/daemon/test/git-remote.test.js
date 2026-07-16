@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="ses"/>
 
+/** @import { WritableGitWorktree } from '@endo/exo-git' */
+
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import fs from 'node:fs';
@@ -40,6 +42,49 @@ const exampleCredential = () =>
     audience: 'https://github.com',
     token: 'test-token',
   });
+
+/**
+ * The remote tests exercise policy and transport paths that never touch the
+ * worktree.
+ * Keep their fake mount structurally honest enough for the writable
+ * Git construction contract without weakening it to an opaque object.
+ *
+ * @returns {WritableGitWorktree}
+ */
+const makeFakeGitMount = () => {
+  const entry = Far('FakeEntry', {
+    segments: () => [],
+    displayPath: () => '',
+    child: () => entry,
+    help: () => '',
+  });
+  const readOnlyMount = Far('FakeReadOnlyMount', {
+    has: async () => false,
+    list: async () => [],
+    lookup: async () => undefined,
+    sha256: () => '',
+    getInfo: async () => ({
+      algorithm: 'sha256',
+      hash: '',
+      size: 0n,
+    }),
+  });
+  const mount = Far('FakeMount', {
+    has: async () => false,
+    list: async () => [],
+    lookup: async () => undefined,
+    write: async () => undefined,
+    remove: async () => undefined,
+    move: async () => undefined,
+    copy: async () => undefined,
+    makeDirectory: async () => mount,
+    readOnly: () => readOnlyMount,
+    snapshot: async () => readOnlyMount,
+    entry: () => entry,
+  });
+  return /** @type {WritableGitWorktree} */ (mount);
+};
+harden(makeFakeGitMount);
 
 /**
  * @param {import('ava').ExecutionContext} t
@@ -357,7 +402,11 @@ test('GitRemote passes HTTPS credential material to backend transport only', asy
       return harden({ updatedRefs: harden([]), text: 'ok' });
     },
   });
-  const git = makeGit({ mount: Far('FakeMount', {}), backend, lineageOf });
+  const git = makeGit({
+    mount: makeFakeGitMount(),
+    backend,
+    lineageOf,
+  });
   const credential = exampleCredential();
   const credentialController = getGitCredentialController(credential);
   t.truthy(credentialController);
@@ -418,7 +467,11 @@ test('GitCredentialController rotates material used by existing remotes', async 
       return harden({ updatedRefs: harden([]), text: 'ok' });
     },
   });
-  const git = makeGit({ mount: Far('FakeMount', {}), backend, lineageOf });
+  const git = makeGit({
+    mount: makeFakeGitMount(),
+    backend,
+    lineageOf,
+  });
   const credential = exampleCredential();
   const controller = getGitCredentialController(credential);
   t.truthy(controller);
@@ -480,7 +533,11 @@ test('GitRemoteController.revoke during in-flight fetch prevents stale success',
       return fetchResult;
     },
   });
-  const git = makeGit({ mount: Far('FakeMount', {}), backend, lineageOf });
+  const git = makeGit({
+    mount: makeFakeGitMount(),
+    backend,
+    lineageOf,
+  });
   const { remote, controller } = makeGitRemote({
     git,
     name: 'origin',
@@ -538,7 +595,11 @@ test('GitCredentialController.rotate during in-flight fetch prevents stale succe
       return harden({ updatedRefs: harden([]), text: 'ok' });
     },
   });
-  const git = makeGit({ mount: Far('FakeMount', {}), backend, lineageOf });
+  const git = makeGit({
+    mount: makeFakeGitMount(),
+    backend,
+    lineageOf,
+  });
   const credential = exampleCredential();
   const credentialController = getGitCredentialController(credential);
   t.truthy(credentialController);
@@ -686,7 +747,11 @@ test('GitRemoteController.revoke during in-flight pull aborts before local integ
       return 'merged';
     },
   });
-  const git = makeGit({ mount: Far('FakeMount', {}), backend, lineageOf });
+  const git = makeGit({
+    mount: makeFakeGitMount(),
+    backend,
+    lineageOf,
+  });
   const { remote, controller } = makeGitRemote({
     git,
     name: 'origin',

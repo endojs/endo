@@ -27,6 +27,8 @@ import { makeXsFilePowers } from '../src/bus-daemon-rust-xs-powers.js';
 import { makeMount } from '../src/mount.js';
 import { makeMemoryStore } from './_mount-test-helpers.js';
 
+/** @import { EndoMountFile, ReadableBlobView, ReadableTreeView } from '../src/types.js' */
+
 /**
  * Conformance test asserting that `EndoMount` is a daemon-local
  * specialization of the `Directory` contract from
@@ -164,7 +166,7 @@ const makeConfiguredMount = t => {
 test('EndoMount exposes every method on PlatformDirectoryInterface', async t => {
   const { mount } = makeConfiguredMount(t);
   // eslint-disable-next-line no-underscore-dangle
-  const methods = await E(mount).__getMethodNames__();
+  const methods = await E(/** @type {any} */ (mount)).__getMethodNames__();
   for (const name of PLATFORM_DIRECTORY_METHODS) {
     t.true(
       methods.includes(name),
@@ -214,10 +216,15 @@ test('EndoMount diverges from PlatformDirectoryInterface by named extensions onl
   // change that grows the divergence is forced to update both this
   // list and the design document.
   const { mount } = makeConfiguredMount(t);
-  // eslint-disable-next-line no-underscore-dangle
-  const methods = (await E(mount).__getMethodNames__()).filter(
-    name => !name.startsWith('__'),
-  );
+  /* eslint-disable no-underscore-dangle */
+  const methods = (
+    await E(
+      /** @type {{ __getMethodNames__: () => Promise<string[]> }} */ (
+        /** @type {unknown} */ (mount)
+      ),
+    ).__getMethodNames__()
+  ).filter(name => !name.startsWith('__'));
+  /* eslint-enable no-underscore-dangle */
   const platform = new Set(PLATFORM_DIRECTORY_METHODS);
   const actualExtensions = methods.filter(name => !platform.has(name)).sort();
   t.deepEqual(
@@ -233,11 +240,11 @@ test('EndoMountFile diverges from PlatformFileInterface by named extensions only
   // (`help` is now part of the platform File contract, not an extension.)
   const { mount, rootPath } = makeConfiguredMount(t);
   fs.writeFileSync(path.join(rootPath, 'a.txt'), 'x');
-  const file = await E(mount).lookup('a.txt');
-  // eslint-disable-next-line no-underscore-dangle
-  const methods = (await E(file).__getMethodNames__()).filter(
-    name => !name.startsWith('__'),
-  );
+  const file = /** @type {EndoMountFile} */ (await E(mount).lookup('a.txt'));
+  const methods = // eslint-disable-next-line no-underscore-dangle
+    (await E(/** @type {any} */ (file)).__getMethodNames__()).filter(
+      name => !name.startsWith('__'),
+    );
   const platform = new Set(PLATFORM_FILE_METHODS);
   const actualExtensions = methods.filter(name => !platform.has(name)).sort();
   t.deepEqual(
@@ -252,7 +259,7 @@ test('EndoMount.makeDirectory returns a sub-mount (Directory.makeDirectory shape
   const sub = await E(mount).makeDirectory(['sub']);
   // The return value must be a Directory-shaped capability — a mount.
   // eslint-disable-next-line no-underscore-dangle
-  const subMethods = await E(sub).__getMethodNames__();
+  const subMethods = await E(/** @type {any} */ (sub)).__getMethodNames__();
   for (const name of PLATFORM_DIRECTORY_METHODS) {
     t.true(
       subMethods.includes(name),
@@ -406,7 +413,7 @@ test('EndoMount.readOnly() returns a structural ReadableTree view', async t => {
   await E(mount).writeText(['file.txt'], 'data');
   const view = await E(mount).readOnly();
   // eslint-disable-next-line no-underscore-dangle
-  const methods = await E(view).__getMethodNames__();
+  const methods = await E(/** @type {any} */ (view)).__getMethodNames__();
   t.deepEqual(
     methods.filter(name => !name.startsWith('__')).sort(),
     [...PLATFORM_READABLE_TREE_METHODS].sort(),
@@ -422,16 +429,20 @@ test('EndoMount.readOnly().lookup recursively returns structural views', async t
   await E(mount).makeDirectory(['sub']);
   await E(mount).writeText(['sub', 'leaf.txt'], 'leaf-data');
   const view = await E(mount).readOnly();
-  const subView = await E(view).lookup('sub');
+  const subView = /** @type {ReadableTreeView} */ (await E(view).lookup('sub'));
   // eslint-disable-next-line no-underscore-dangle
-  const subMethods = await E(subView).__getMethodNames__();
+  const subMethods = await E(/** @type {any} */ (subView)).__getMethodNames__();
   t.deepEqual(
     subMethods.filter(name => !name.startsWith('__')).sort(),
     [...PLATFORM_READABLE_TREE_METHODS].sort(),
   );
-  const leafView = await E(view).lookup(['sub', 'leaf.txt']);
+  const leafView = /** @type {ReadableBlobView} */ (
+    await E(view).lookup(['sub', 'leaf.txt'])
+  );
   // eslint-disable-next-line no-underscore-dangle
-  const leafMethods = await E(leafView).__getMethodNames__();
+  const leafMethods = await E(
+    /** @type {any} */ (leafView),
+  ).__getMethodNames__();
   t.deepEqual(
     leafMethods.filter(name => !name.startsWith('__')).sort(),
     [...PLATFORM_READABLE_BLOB_METHODS].sort(),
@@ -442,9 +453,9 @@ test('EndoMount.readOnly().lookup recursively returns structural views', async t
 test('EndoMountFile exposes every method on PlatformFileInterface', async t => {
   const { mount } = makeConfiguredMount(t);
   await E(mount).writeText(['file.txt'], 'data');
-  const file = await E(mount).lookup('file.txt');
+  const file = /** @type {EndoMountFile} */ (await E(mount).lookup('file.txt'));
   // eslint-disable-next-line no-underscore-dangle
-  const methods = await E(file).__getMethodNames__();
+  const methods = await E(/** @type {any} */ (file)).__getMethodNames__();
   for (const name of PLATFORM_FILE_METHODS) {
     t.true(
       methods.includes(name),
@@ -456,10 +467,10 @@ test('EndoMountFile exposes every method on PlatformFileInterface', async t => {
 test('EndoMountFile.readOnly() returns a structural ReadableBlob view', async t => {
   const { mount } = makeConfiguredMount(t);
   await E(mount).writeText(['file.txt'], 'rb-data');
-  const file = await E(mount).lookup('file.txt');
+  const file = /** @type {EndoMountFile} */ (await E(mount).lookup('file.txt'));
   const view = await E(file).readOnly();
   // eslint-disable-next-line no-underscore-dangle
-  const methods = await E(view).__getMethodNames__();
+  const methods = await E(/** @type {any} */ (view)).__getMethodNames__();
   t.deepEqual(
     methods.filter(name => !name.startsWith('__')).sort(),
     [...PLATFORM_READABLE_BLOB_METHODS].sort(),
@@ -486,7 +497,7 @@ test('EndoMountFile json and streamBase64 re-check confinement on use', async t 
   const fileName = 'confined.json';
   const mountFile = path.join(rootPath, fileName);
   await E(mount).writeText([fileName], '{"ok":true}');
-  const file = await E(mount).lookup(fileName);
+  const file = /** @type {EndoMountFile} */ (await E(mount).lookup(fileName));
 
   fs.rmSync(mountFile);
   fs.symlinkSync(outsideFile, mountFile);
@@ -506,7 +517,7 @@ test('EndoMount.snapshot returns a SnapshotTree-shaped capability', async t => {
   await E(mount).writeText(['s.txt'], 'snap');
   const snapshot = await E(mount).snapshot();
   // eslint-disable-next-line no-underscore-dangle
-  const methods = await E(snapshot).__getMethodNames__();
+  const methods = await E(/** @type {any} */ (snapshot)).__getMethodNames__();
   t.true(methods.includes('has'));
   t.true(methods.includes('list'));
   t.true(methods.includes('lookup'));
