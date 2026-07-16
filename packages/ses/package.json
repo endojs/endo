@@ -106,14 +106,9 @@
     "@endo/compartment-mapper": "workspace:^",
     "@endo/module-source": "workspace:^",
     "@endo/test262-runner": "workspace:^",
-    "ava": "catalog:dev",
-    "c8": "catalog:dev",
     "core-js": "^3.31.0",
-    "eslint": "catalog:dev",
     "hermes-engine-cli": "^0.12.0",
-    "terser": "^5.16.6",
-    "tsd": "catalog:dev",
-    "typescript": "catalog:dev"
+    "terser": "^5.16.6"
   },
   "files": [
     "./*.d.ts",

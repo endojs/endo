@@ -50,14 +50,7 @@
   },
   "devDependencies": {
     "@endo/stream": "workspace:^",
-    "ava": "catalog:dev",
-    "babel-eslint": "^10.1.0",
-    "eslint": "catalog:dev",
-    "eslint-config-prettier": "catalog:dev",
-    "eslint-plugin-eslint-comments": "catalog:dev",
-    "eslint-plugin-import": "catalog:dev",
-    "execa": "^9.3.0",
-    "typescript": "catalog:dev"
+    "execa": "^9.3.0"
   },
   "files": [
     "./*.d.ts",

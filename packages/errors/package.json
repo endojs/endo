@@ -41,12 +41,7 @@
     "@endo/eventual-send": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
-    "ava": "catalog:dev",
-    "c8": "catalog:dev",
-    "eslint": "catalog:dev",
-    "ses0.18.3": "npm:ses@0.18.3",
-    "tsd": "catalog:dev",
-    "typescript": "catalog:dev"
+    "ses0.18.3": "npm:ses@0.18.3"
   },
   "files": [
     "./*.d.ts",

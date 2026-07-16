@@ -37,10 +37,6 @@
     "ses": "workspace:^",
     "test262-harness": "^10.0.0"
   },
-  "devDependencies": {
-    "eslint": "catalog:dev",
-    "typescript": "catalog:dev"
-  },
   "files": [
     "./*.d.ts",
     "./*.js",

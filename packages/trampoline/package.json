@@ -47,10 +47,6 @@
     "test": "yarn test:types && yarn test:ava"
   },
   "devDependencies": {
-    "ava": "catalog:dev",
-    "c8": "catalog:dev",
-    "eslint": "catalog:dev",
-    "tsd": "catalog:dev",
     "typescript": "~5.9.2"
   },
   "files": [

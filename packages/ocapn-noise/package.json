@@ -34,12 +34,7 @@
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
-    "@endo/ses-ava": "workspace:^",
-    "ava": "catalog:dev",
-    "c8": "catalog:dev",
-    "eslint": "catalog:dev",
-    "tsd": "catalog:dev",
-    "typescript": "catalog:dev"
+    "@endo/ses-ava": "workspace:^"
   },
   "files": [
     "./*.d.ts",

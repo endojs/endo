@@ -37,12 +37,6 @@
   "dependencies": {
     "@endo/harden": "workspace:^"
   },
-  "devDependencies": {
-    "ava": "catalog:dev",
-    "c8": "catalog:dev",
-    "eslint": "catalog:dev",
-    "typescript": "catalog:dev"
-  },
   "files": [
     "./*.d.ts",
     "./*.js",

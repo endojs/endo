@@ -39,12 +39,7 @@
   "devDependencies": {
     "@babel/types": "~7.28.2",
     "@endo/ses-ava": "workspace:^",
-    "@types/babel__generator": "~7.27.0",
-    "ava": "catalog:dev",
-    "c8": "catalog:dev",
-    "eslint": "catalog:dev",
-    "tsd": "catalog:dev",
-    "typescript": "catalog:dev"
+    "@types/babel__generator": "~7.27.0"
   },
   "files": [
     "./*.d.ts",

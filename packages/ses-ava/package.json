@@ -48,10 +48,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
-    "@endo/panic": "workspace:^",
-    "c8": "catalog:dev",
-    "eslint": "catalog:dev",
-    "typescript": "catalog:dev"
+    "@endo/panic": "workspace:^"
   },
   "files": [
     "./*.d.ts",

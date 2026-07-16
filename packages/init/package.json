@@ -23,11 +23,6 @@
     "lint": "yarn lint:types && eslint '**/*.js'",
     "lint:types": "tsc"
   },
-  "devDependencies": {
-    "ava": "catalog:dev",
-    "eslint": "catalog:dev",
-    "typescript": "catalog:dev"
-  },
   "dependencies": {
     "@endo/base64": "workspace:^",
     "@endo/eventual-send": "workspace:^",

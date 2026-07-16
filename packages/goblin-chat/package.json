@@ -62,12 +62,7 @@
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@types/react": "^19.2.0",
-    "ava": "catalog:dev",
-    "c8": "catalog:dev",
-    "eslint": "catalog:dev",
-    "ses": "workspace:^",
-    "tsd": "catalog:dev",
-    "typescript": "catalog:dev"
+    "ses": "workspace:^"
   },
   "files": [
     "./*.d.ts",

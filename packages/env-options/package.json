@@ -30,11 +30,6 @@
     "lint:types": "tsc",
     "test": "exit 0"
   },
-  "devDependencies": {
-    "ava": "catalog:dev",
-    "eslint": "catalog:dev",
-    "typescript": "catalog:dev"
-  },
   "files": [
     "./*.d.ts",
     "./*.js",

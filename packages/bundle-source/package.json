@@ -34,11 +34,7 @@
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@endo/zip": "workspace:^",
-    "ava": "catalog:dev",
-    "c8": "catalog:dev",
-    "eslint": "catalog:dev",
-    "ses": "workspace:^",
-    "typescript": "catalog:dev"
+    "ses": "workspace:^"
   },
   "keywords": [],
   "files": [

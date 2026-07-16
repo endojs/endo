@@ -37,13 +37,6 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ava",
     "test:xs": "exit 0"
   },
-  "devDependencies": {
-    "ava": "catalog:dev",
-    "c8": "catalog:dev",
-    "eslint": "catalog:dev",
-    "tsd": "catalog:dev",
-    "typescript": "catalog:dev"
-  },
   "files": [
     "./*.d.ts",
     "./*.js",

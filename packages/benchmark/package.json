@@ -39,12 +39,8 @@
     "@rollup/plugin-commonjs": "^28.0.2",
     "@rollup/plugin-node-resolve": "^16.0.0",
     "@types/rollup": "^0.54.0",
-    "c8": "catalog:dev",
     "eshost-cli": "^9.0.0",
-    "eslint": "catalog:dev",
-    "rollup": "^4.34.6",
-    "tsd": "catalog:dev",
-    "typescript": "catalog:dev"
+    "rollup": "^4.34.6"
   },
   "files": [
     "./*.d.ts",

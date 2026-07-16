@@ -57,12 +57,7 @@
     "@endo/random": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "@types/ws": "^8",
-    "ava": "catalog:dev",
-    "c8": "catalog:dev",
-    "eslint": "catalog:dev",
-    "ses": "workspace:^",
-    "tsd": "catalog:dev",
-    "typescript": "catalog:dev"
+    "ses": "workspace:^"
   },
   "files": [
     "./*.d.ts",
