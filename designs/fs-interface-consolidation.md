@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-06-18 |
-| **Updated** | 2026-06-19 |
+| **Updated** | 2026-07-15 |
 | **Author** | Aaron (prompted) |
 | **Status** | In Progress |
 
@@ -59,10 +59,10 @@ another design are called out below and left as follow-ups.
   implemented. `EndoGuest` / `EndoHost` spread the record and **override** the
   two `follow*` methods (which return a Promise on agents, where the bare hub
   returns the reader synchronously) — the divergence is preserved as an explicit
-  two-line override rather than a separate copy. `EndoMount.followNameChanges` is
-  declared and throws ENOSYS until a filesystem watcher
-  ([filesystem-watchers.md](filesystem-watchers.md)) is wired, so the surface is
-  advertised honestly and a future watcher slots in without an interface bump.
+  two-line override rather than a separate copy. `EndoMount.followNameChanges`
+  is now a live `PassableReader<MountNameChange, undefined>` backed by the mount
+  watcher; the daemon-local change record remains distinct from the platform
+  watcher event record.
 - **C5 (done).** The dead `ContentStoreInterface` / `SnapshotStoreInterface`
   (re-exported but never implemented) were removed. The remaining lite
   `M.interface` objects all have real consumers (the daemon imports the
@@ -161,8 +161,9 @@ form of it.
 
 ### C1 — Name-hub unification (accepted; now unblocked)
 
-[namehub-interface-unification.md](namehub-interface-unification.md) is
-**Accepted, not yet implemented**. Its Decisions section chooses: introduce a
+[namehub-interface-unification.md](namehub-interface-unification.md) supplied
+the accepted shape.
+The implementation now chooses: introduce a
 narrower **`ReadableNameHubInterface`** that both `MountInterface` and
 `NameHubInterface` extend, add `maybeLookup` (the primitive) and
 `followNameChanges` to `EndoMount`, and keep `identify` / `locate` /
@@ -181,8 +182,7 @@ Recommendation: (a) — it keeps the shared contract honest and matches Decision
 (feature-detection is by method name, the interface is a documentation
 contract).
 
-*Blast radius:* `daemon/src/interfaces.js`, `mount.js` (add `maybeLookup`;
-`followNameChanges` comes from `filesystem-watchers.md`), and the consumers that
+*Blast radius:* `daemon/src/interfaces.js`, `mount.js`, and the consumers that
 discriminate by `__getMethodNames__` (chat inventory tree, `endo locate` /
 `endo list`). Daemon gateway + mount tests.
 
@@ -300,9 +300,9 @@ flagged ones and their resolutions:
 
 | Concept | Divergence | Resolution |
 |---|---|---|
-| **File stat** | `EndoMountStat` `{ kind, sizeBytes: number, modifiedMs: ms }` vs extended `Stat` `{ size: bigint, mtime: bigint ns, atime }` — and `getInfo().size` is bigint, colliding with `stat().sizeBytes` within the daemon mount | **Aligned to extended.** `EndoMountStat` is now `{ kind, size: bigint, mtime: bigint ns, atime: bigint }`. `kind` is kept (the mount stats a path). XS approximates `atime ← mtime` (host stat lacks it). |
+| **File stat** | Daemon `EndoMountStat` `{ kind, sizeBytes: number, modifiedMs: ms }` vs extended platform `NodeStat` `{ size: bigint, mtime: bigint ns, atime }` — and `getInfo().size` is bigint, colliding with `stat().sizeBytes` within the daemon mount | **Fields aligned, ownership remains separate:** daemon `EndoMountStat` is `{ kind, size: bigint, mtime: bigint ns, atime: bigint }`; platform owns `NodeStat`, while the daemon owns the named mount-stat record because no platform operation consumes it; `kind` is kept (the mount stats a path); XS approximates `atime ← mtime` (host stat lacks it). |
 | **Content hash** | `EndoBlob` exposed both `sha256()` (hex) and `getInfo().hash` (base64); blob vs tree hash encodings differed | **Every public hash accessor is now base64; hex is internal-only.** `EndoBlob.sha256()` was **removed** (the daemon never reads a hash off a cap — it always holds the hex from `contentStore.store()` / the formula — so it was a remote-only accessor, now served by `getInfo().hash`); `EndoBlob` collapses to `ReadableBlobRangeInterface`. The remaining `sha256()` accessors (`SnapshotBlob` / `SnapshotTree` / `EndoReadableTree`, which have no `getInfo`) now return **base64** too. Hex survives only as the on-disk `store-sha256/<hex>` address and the tree-manifest child references; callers convert base64→hex via `@endo/hex` + `@endo/base64` where the store key is needed. |
-| **Dir-change record** | NameHub `{ add, value: idRecord }` vs proposed mount `{ add, type }` vs extended `WatchEvent { kind, name }` — three shapes | **Deferred** with `followNameChanges` (ENOSYS). When the mount feed lands, align on a common `{ add: name } \| { remove: name }` base with surface-specific additive fields (`value` for hubs, `type` for mounts). |
+| **Dir-change record** | NameHub `{ add, value: idRecord }` vs mount `{ add, type }` vs extended `WatchEvent { kind, name }` — three shapes | **Live mount feed, separate record.** `followNameChanges` returns the daemon-local `{ add, type } \| { remove }` reader; a common record remains deferred until a shared operation establishes common semantics. |
 | **Listing** | daemon/lite `list()` → `string[]` vs extended `Cursor`/`DirEntry[]` (name + qid) | **Intentional layer split** (the reconciliation chose names for lite/daemon, rich `Cursor` for the cap-FS engine). Not aligned. |
 
 Other audited items (`getStat`/`getAttrs` narrow-vs-wide, `mkdir`/`unlink`
@@ -315,7 +315,11 @@ After C1–C5 the fs/name-hub interface set collapses roughly as:
 
 - **Tree surfaces:** one shared `Directory` method record (C2); `EndoMount` and
   `EndoDirectory` are `ReadableNameHubInterface` + their own extensions (C1);
-  extended `Directory` is the record + cap-FS extensions.
+  extended `Directory` is the record + cap-FS extensions. `PathEntryIssuer` is
+  a separate portable authority composed by `EndoMount` and writable Git
+  worktrees, not added to every `Directory`. `DirectoryWriteSource` names the
+  portable blob-or-tree payload accepted by the runtime's remotable guard, so
+  the TypeScript contract no longer advertises arbitrary `unknown` writes.
 - **Immutable trees:** one `SnapshotTree` / `ReadableTree` shape (C3).
 - **Immutable bytes:** one rich range-I/O shape (C4). The convergence went the
   other way from the early "retire `BlobRef`" framing: `BlobRef` is the *richest*
@@ -338,6 +342,15 @@ no `BlobRef → SnapshotBlob` adapter.
 5. **C5** — `lite` vocabulary cleanup; falls out of C2.
 
 ## Design decisions
+
+- **Runtime protocol, static refinement.** `MountInterface` remains in the
+  daemon package as the canonical Exo / CapTP contract that interchangeable
+  mount backends implement.
+  `EndoMount` is the current implementation's more precise TypeScript surface.
+  Runtime patterns can validate promise and remotable envelopes but cannot
+  encode their semantic payload types, so one construction-boundary assertion
+  and focused compile-time/runtime conformance tests pin the relationship.
+  The runtime guard stays free of current-backend implementation types.
 
 - **Records, not inheritance.** `M.interface` has no native `extends`; the
   mechanism throughout is *exported method-guard records spread into multiple
@@ -373,9 +386,8 @@ no `BlobRef → SnapshotBlob` adapter.
       `EndoMount.maybeLookup`.
 - [x] C1: align `EndoGuest` / `EndoHost` on `nameHubMethodGuards` (spread +
       two-line `follow*` override for the agent promise shape).
-- [x] C1: declare `EndoMount.followNameChanges` (throws ENOSYS until a
-      filesystem watcher lands; the live feed itself remains blocked on
-      filesystem-watchers.md).
+- [x] C1: declare and implement `EndoMount.followNameChanges` as a live
+      `PassableReader<MountNameChange, undefined>` over the mount watcher.
 - [x] C1: add `help` to `readableNameHubMethodGuards`; extract
       `directoryFileMethodGuards` (makeDirectory / readText / maybeReadText /
       writeText) consumed by EndoDirectory / EndoGuest / EndoHost / genie;
