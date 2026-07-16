@@ -39,6 +39,7 @@
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/harden": "workspace:^",
+    "@endo/is-well-formed-string": "workspace:^",
     "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {

@@ -138,6 +138,9 @@
       "path": "packages/init/tsconfig.composite.json"
     },
     {
+      "path": "packages/is-well-formed-string/tsconfig.composite.json"
+    },
+    {
       "path": "packages/lal/tsconfig.composite.json"
     },
     {
