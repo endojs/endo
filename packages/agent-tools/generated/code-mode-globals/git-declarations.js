@@ -206,13 +206,10 @@ type GitLitePathEntryIssuer = {
     entry: (path: string | string[]) => GitLitePathEntry;
 };
 type GitLiteReadableBlob = {
-    makeFileReader: () => unknown;
+    streamBase64: (synPromise: unknown) => Promise<unknown>;
     text: () => Promise<string>;
     json: () => Promise<any>;
-    size?: () => Promise<bigint>;
-    readRange?: (offset: number, length: number) => Promise<Uint8Array>;
-    rangeRead?: (offset: bigint, length: bigint) => Promise<Uint8Array>;
-    rangeReadText?: (startLine: number, endLine: number) => Promise<string>;
+    help: (method?: string) => string;
 };
 type GitLiteReadableTree = {
     has: (...petNamePath: string[]) => Promise<boolean>;
@@ -268,7 +265,11 @@ type GitReadOnlyEndoGit = {
     readOnly: () => GitReadOnlyEndoGit;
 };
 type GitReadOnlyGitWorktree = GitReadableTree;
-type GitReadableBlob = GitLiteReadableBlob;
+type GitReadableBlob = GitReadableBlobRange;
+type GitReadableBlobRange = GitLiteReadableBlob & {
+    getInfo: () => Promise<GitBlobInfo>;
+    fetch: (offset: bigint, length: bigint) => Promise<unknown>;
+};
 type GitReadableBlobSource = {
     streamBase64: (...args: any[]) => PromiseLike<unknown>;
 };
@@ -470,13 +471,10 @@ type GitLitePathEntry = {
     help: (method?: string) => string;
 };
 type GitLiteReadableBlob = {
-    makeFileReader: () => unknown;
+    streamBase64: (synPromise: unknown) => Promise<unknown>;
     text: () => Promise<string>;
     json: () => Promise<any>;
-    size?: () => Promise<bigint>;
-    readRange?: (offset: number, length: number) => Promise<Uint8Array>;
-    rangeRead?: (offset: bigint, length: bigint) => Promise<Uint8Array>;
-    rangeReadText?: (startLine: number, endLine: number) => Promise<string>;
+    help: (method?: string) => string;
 };
 type GitLiteReadableTree = {
     has: (...petNamePath: string[]) => Promise<boolean>;
@@ -516,7 +514,11 @@ type GitQid = {
     path?: bigint;
 };
 type GitReadOnlyGitWorktree = GitReadableTree;
-type GitReadableBlob = GitLiteReadableBlob;
+type GitReadableBlob = GitReadableBlobRange;
+type GitReadableBlobRange = GitLiteReadableBlob & {
+    getInfo: () => Promise<GitBlobInfo>;
+    fetch: (offset: bigint, length: bigint) => Promise<unknown>;
+};
 type GitReadableBlobSource = {
     streamBase64: (...args: any[]) => PromiseLike<unknown>;
 };

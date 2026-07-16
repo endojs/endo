@@ -226,9 +226,9 @@ test('store on Windows-style path: joinPath is the only path primitive', async t
 });
 
 test('fetch surfaces size, range reads, and a byte reader', async t => {
-  // The blob handle returned by `fetch` exposes the range-I/O surface
-  // the daemon's `EndoBlob` relies on: `size` (a bigint byte count),
-  // `readRange` (a windowed read that only touches the requested
+  // The local CAS backing returned by `fetch` supplies the host helpers the
+  // daemon uses to implement its public EndoBlob Exo: `size` (a bigint byte
+  // count), `readRange` (a windowed read that touches only the requested
   // span), and `makeFileReader` (a whole-blob byte stream).
   const storageDirectoryPath = await makeTemporaryDirectory(t);
   const store = makeContentStore(storageDirectoryPath, {
@@ -240,8 +240,16 @@ test('fetch surfaces size, range reads, and a byte reader', async t => {
   const sha = await store.store(asAsyncIterable([payload]));
   const blob = store.fetch(sha);
 
-  // `size` and `readRange` are optional on the platform `ReadableBlob`
-  // type; the filesystem-backed store always provides them.
+  t.deepEqual(Object.keys(blob).sort(), [
+    'json',
+    'makeFileReader',
+    'readRange',
+    'size',
+    'text',
+  ]);
+
+  // The generic ContentStoreBlob contract permits stores without cheap range
+  // I/O; the filesystem-backed store always provides both helpers.
   const { size, readRange, makeFileReader } = blob;
   if (!size || !readRange) {
     t.fail('filesystem content store must surface size and readRange');

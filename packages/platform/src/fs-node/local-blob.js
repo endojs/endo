@@ -17,6 +17,8 @@ import { makeNodeReader } from '@endo/stream-node';
 import { ReadableBlobRangeReadInterface } from '../fs/interfaces.js';
 import { toSafeNumber } from '../fs/extended/shared/helpers.js';
 
+/** @import { ReadableBlobRangeRead } from '../fs/types.js' */
+
 /**
  * Read the byte window `[offset, offset + length)` from `filePath` as a
  * `Uint8Array`, clamped at EOF. Reads only the requested window from disk
@@ -74,9 +76,11 @@ const bytesFromRange = bytes => {
  * Streams file content as base64 via @endo/stream-node.
  *
  * @param {string} filePath
+ * @returns {ReadableBlobRangeRead}
  */
 export const makeLocalBlob = filePath => {
-  return makeExo('LocalBlob', ReadableBlobRangeReadInterface, {
+  /** @satisfies {ReadableBlobRangeRead} */
+  const localBlobMethods = {
     /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
     streamBase64(synPromise) {
       const nodeReadStream = fs.createReadStream(filePath);
@@ -142,6 +146,7 @@ export const makeLocalBlob = filePath => {
       method === undefined
         ? 'LocalBlob: read-only handle to a host file (text, json, streamBase64, getInfo, fetch, rangeRead, rangeReadText).'
         : `No documentation for method ${method}.`,
-  });
+  };
+  return makeExo('LocalBlob', ReadableBlobRangeReadInterface, localBlobMethods);
 };
 harden(makeLocalBlob);

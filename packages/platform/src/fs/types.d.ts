@@ -14,33 +14,41 @@ export type ReadableStream = AsyncIterator<Uint8Array>;
  * Exposed by platform as an Exo; directly usable locally.
  */
 export interface ReadableBlob {
-  makeFileReader: () => import('@endo/stream').Reader<Uint8Array>;
+  streamBase64: (synPromise: unknown) => Promise<unknown>;
   text: () => Promise<string>;
   json: () => Promise<any>;
-  /**
-   * Byte length of the blob as a bigint (the `size` half of a
-   * content-addressed `getInfo()` triple). Optional: not every ContentStore
-   * backing surfaces it yet.
-   */
-  size?: () => Promise<bigint>;
-  /**
-   * Windowed read of `[offset, offset + length)`, clamped at EOF.
-   * Optional for the same reason as `size`.
-   */
-  readRange?: (offset: number, length: number) => Promise<Uint8Array>;
+  help: (method?: string) => string;
+}
+
+/**
+ * A ReadableBlob with content identity and streaming byte-range reads.
+ * This matches `ReadableBlobRangeInterface`, implemented by daemon, mount,
+ * Git, and platform LocalBlob Exos.
+ */
+export type ReadableBlobRange = ReadableBlob & {
+  getInfo: () => Promise<BlobInfo>;
+  fetch: (
+    offset: bigint,
+    length: bigint,
+  ) => Promise<import('@endo/exo-stream').PassableBytesReader>;
+};
+
+/**
+ * The richer LocalBlob surface, with whole-value range conveniences layered
+ * on top of `ReadableBlobRange.fetch`.
+ */
+export type ReadableBlobRangeRead = ReadableBlobRange & {
   /**
    * Whole-value windowed read: the raw bytes of `[offset, offset + length)`,
-   * clamped at EOF, as a `Uint8Array` (the convenience form distinct from the
-   * streaming `fetch`). Optional: only the richer blob surfaces expose it.
+   * clamped at EOF, as a `Uint8Array`.
    */
-  rangeRead?: (offset: bigint, length: bigint) => Promise<Uint8Array>;
+  rangeRead: (offset: bigint, length: bigint) => Promise<Uint8Array>;
   /**
    * Whole-value line-range read: the file decoded as UTF-8, lines
    * `[startLine, endLine)` (0-based, end-exclusive) joined with '\n'.
-   * Optional for the same reason as `rangeRead`.
    */
-  rangeReadText?: (startLine: number, endLine: number) => Promise<string>;
-}
+  rangeReadText: (startLine: number, endLine: number) => Promise<string>;
+};
 
 /**
  * One entry in a recursive `listTree` walk: the path relative to the queried
@@ -120,15 +128,30 @@ export type SnapshotTree = ReadableTree & {
 };
 
 /**
- * A ContentStore stores and fetches blobs by sha256.
+ * The host-side blob backing returned by `ContentStore.fetch()`.
+ *
+ * This is a local CAS implementation seam, not a public ReadableBlob Exo.
+ * `readRange` uses safe-number offsets because it backs the public bigint
+ * `ReadableBlobRange.fetch()` method at the daemon boundary.
+ */
+export interface ContentStoreBlob {
+  makeFileReader: () => import('@endo/stream').Reader<Uint8Array>;
+  text: () => Promise<string>;
+  json: () => Promise<any>;
+  size?: () => Promise<bigint>;
+  readRange?: (offset: number, length: number) => Promise<Uint8Array>;
+}
+
+/**
+ * A ContentStore stores and fetches host-side CAS blob backings by sha256.
  */
 export interface ContentStore {
   /** Store the contents of a readable stream and return the sha256. */
   store: (
     readable: AsyncIterator<Uint8Array> | AsyncIterable<Uint8Array>,
   ) => Promise<string>;
-  /** Fetch a blob by its sha256. Returns a ReadableBlob. */
-  fetch: (sha256: string) => ReadableBlob;
+  /** Fetch a local backing blob by its sha256. */
+  fetch: (sha256: string) => ContentStoreBlob;
   /** Check whether a blob with the given sha256 exists. */
   has: (sha256: string) => Promise<boolean>;
   /**
@@ -163,7 +186,7 @@ export interface ContentStoreFileWriter {
 export interface ContentStoreFilePowers {
   /**
    * Whole-blob byte stream — the `@endo/stream` `Reader<Uint8Array>`
-   * the `ReadableBlob.makeFileReader` surface hands back.
+   * the `ContentStoreBlob.makeFileReader` surface hands back.
    */
   makeFileReader: (path: string) => import('@endo/stream').Reader<Uint8Array>;
   makeFileWriter: (path: string) => ContentStoreFileWriter;

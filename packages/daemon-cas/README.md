@@ -31,11 +31,14 @@ model, so the package adds an implementation rather than a parallel set
 of contracts:
 
 - **The CAS interfaces it produces.** The `store`/`fetch`/`has`/`remove`
-  surface and the `ReadableBlob` that `fetch()` returns are the
-  `ContentStore` and `ReadableBlob` typedefs in
-  [`@endo/platform/fs/lite/types`](../platform/src/fs/types.d.ts). A raw
-  store from this package feeds `makeSnapshotStore` from
+  surface and the host-side backing that `fetch()` returns are the
+  `ContentStore` and `ContentStoreBlob` typedefs in
+  [`@endo/platform/fs/lite/types`](../platform/src/fs/types.d.ts).
+  A raw store from this package feeds `makeSnapshotStore` from
   `@endo/platform/fs/lite` unchanged.
+  `ContentStoreBlob.readRange` is an internal safe-number helper used to
+  implement public `ReadableBlobRange.fetch(bigint, bigint)`; it is not a
+  ReadableBlob Exo method.
 - **The injected dependencies it consumes.** The `filePowers` and
   `cryptoPowers` it materialises blobs with are the platform-owned
   `ContentStoreFilePowers` and `ContentStoreCryptoPowers` contracts,
@@ -76,7 +79,7 @@ The four-method `ContentStore` contract this package implements
 | Method | Signature | Notes |
 |--------|-----------|-------|
 | `store` | `(readable) => Promise<string>` | Streams to a temp file, hashes as bytes land, atomically renames to the sha256 hex name. |
-| `fetch` | `(sha256) => ReadableBlob` | Returns `{ makeFileReader, text, json, size, readRange }` over the blob: a whole-blob byte reader, decoded text and JSON, the blob's byte length (`bigint`), and a windowed `(offset, length)` range read. |
+| `fetch` | `(sha256) => ContentStoreBlob` | Returns `{ makeFileReader, text, json, size, readRange }` over the host-side backing: a whole-blob byte reader, decoded text and JSON, the blob's byte length (`bigint`), and a windowed `(offset, length)` range read. |
 | `has` | `(sha256) => Promise<boolean>` | Probes by attempting a read. |
 | `remove` | `(sha256) => Promise<void>` | Idempotent: removing a missing blob is not an error. |
 

@@ -94,6 +94,25 @@ test('LocalBlob still exposes the whole-value surface', async t => {
   t.deepEqual(await E(blob).json(), { k: 1 });
 });
 
+test('LocalBlob exposes only the rich public ReadableBlob Exo surface', async t => {
+  const blob = makeLocalBlob(makeTempFile(t, 'hello world\n'));
+  // eslint-disable-next-line no-underscore-dangle
+  const methods = await E(blob).__getMethodNames__();
+  t.deepEqual(methods.filter(name => !name.startsWith('__')).sort(), [
+    'fetch',
+    'getInfo',
+    'help',
+    'json',
+    'rangeRead',
+    'rangeReadText',
+    'streamBase64',
+    'text',
+  ]);
+  t.false(methods.includes('readRange'));
+  t.false(methods.includes('size'));
+  t.false(methods.includes('makeFileReader'));
+});
+
 test('LocalBlob.rangeRead returns a clamped byte range as a Uint8Array', async t => {
   const blob = makeLocalBlob(makeTempFile(t, 'hello world\n'));
   const whole = await E(blob).rangeRead(0n, 12n);

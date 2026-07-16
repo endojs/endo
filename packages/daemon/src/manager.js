@@ -108,7 +108,7 @@ import { getUnredactedStackString } from './unredacted-stack.js';
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
-/** @import { SnapshotTree } from '@endo/platform/fs/lite/types' */
+/** @import { ReadableBlobRange, SnapshotTree } from '@endo/platform/fs/lite/types' */
 /** @import { ArchiveTreeMethods } from './tar-checkin.js' */
 /** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LogChunk, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
 
@@ -117,15 +117,16 @@ import { getUnredactedStackString } from './unredacted-stack.js';
  */
 
 /**
- * The daemon's content store always surfaces the optional `size` / `readRange`
- * members of `ReadableBlob` (its backing is the on-disk sha256 store), so its
- * `fetch` result can be treated as having them present — unlike the shared
- * `ReadableBlob` type, where they are optional for stores that lack range I/O.
+ * The daemon's filesystem content store always surfaces the optional `size` /
+ * `readRange` members of the host-side `ContentStoreBlob`, so its `fetch`
+ * result can be narrowed to require them.
+ * This backing value is consumed here to implement the public `EndoBlob` Exo;
+ * it is never exposed over CapTP.
  *
- * @typedef {import('@endo/platform/fs/lite/types').ReadableBlob & {
+ * @typedef {import('@endo/platform/fs/lite/types').ContentStoreBlob & {
  *   size: () => Promise<bigint>,
  *   readRange: (offset: number, length: number) => Promise<Uint8Array>,
- * }} RangeReadableBlob
+ * }} DaemonContentStoreBlob
  */
 
 /**
@@ -1720,48 +1721,48 @@ const makeDaemonCore = async (
    */
   const makeReadableBlob = sha256 => {
     const { makeFileReader, text, json, size, readRange } =
-      /** @type {RangeReadableBlob} */ (contentStore.fetch(sha256));
+      /** @type {DaemonContentStoreBlob} */ (contentStore.fetch(sha256));
+    /** @satisfies {ReadableBlobRange} */
+    const readableBlobMethods = {
+      /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
+      streamBase64(synPromise) {
+        const pump = makeReaderPump(mapReader(makeFileReader(), encodeBase64));
+        return pump(/** @type {any} */ (synPromise));
+      },
+      text,
+      json,
+      // Range-I/O surface (aligns with the extended `BlobRef`): the
+      // `{ algorithm, hash, size }` triple in one round-trip, then a
+      // windowed `fetch`. `hash` is base64 to match `BlobRef.getInfo`
+      // (this `EndoBlob` cap no longer carries a hex `sha256()` accessor;
+      // the hex spelling lives only in the internal content-store address).
+      async getInfo() {
+        return harden({
+          algorithm: 'sha256',
+          hash: encodeBase64(fromHex(sha256)),
+          size: await size(),
+        });
+      },
+      /**
+       * @param {bigint} offset
+       * @param {bigint} length
+       */
+      async fetch(offset, length) {
+        // Validate at the bigint→Number boundary (same `toSafeNumber`
+        // the extended `BlobRef.fetch` uses) so negative or out-of-range
+        // windows throw `EINVAL` rather than silently losing precision.
+        const bytes = await readRange(
+          toSafeNumber(offset, 'offset'),
+          toSafeNumber(length, 'length'),
+        );
+        return bytesFromRange(bytes);
+      },
+      help: makeHelp(blobHelp),
+    };
     return makeExo(
       `Readable file with SHA-256 ${sha256.slice(0, 8)}...`,
       BlobInterface,
-      /** @type {any} */ ({
-        /** @param {import('@endo/eventual-send').ERef<unknown>} synPromise */
-        streamBase64(synPromise) {
-          const pump = makeReaderPump(
-            mapReader(makeFileReader(), encodeBase64),
-          );
-          return pump(/** @type {any} */ (synPromise));
-        },
-        text,
-        json,
-        // Range-I/O surface (aligns with the extended `BlobRef`): the
-        // `{ algorithm, hash, size }` triple in one round-trip, then a
-        // windowed `fetch`. `hash` is base64 to match `BlobRef.getInfo`
-        // (this `EndoBlob` cap no longer carries a hex `sha256()` accessor;
-        // the hex spelling lives only in the internal content-store address).
-        async getInfo() {
-          return harden({
-            algorithm: 'sha256',
-            hash: encodeBase64(fromHex(sha256)),
-            size: await size(),
-          });
-        },
-        /**
-         * @param {bigint} offset
-         * @param {bigint} length
-         */
-        async fetch(offset, length) {
-          // Validate at the bigint→Number boundary (same `toSafeNumber`
-          // the extended `BlobRef.fetch` uses) so negative or out-of-range
-          // windows throw `EINVAL` rather than silently losing precision.
-          const bytes = await readRange(
-            toSafeNumber(offset, 'offset'),
-            toSafeNumber(length, 'length'),
-          );
-          return bytesFromRange(bytes);
-        },
-        help: makeHelp(blobHelp),
-      }),
+      readableBlobMethods,
     );
   };
 

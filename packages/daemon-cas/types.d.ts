@@ -10,8 +10,8 @@
 // the daemon's formula GC depends on.
 //
 // `@endo/daemon-cas` stands on `@endo/platform` for both halves of
-// its model: the CAS interfaces it produces (`ContentStore`, the
-// `ReadableBlob` `fetch()` returns) and the filesystem/crypto
+// its model: the CAS interfaces it produces (`ContentStore`, the host-side
+// `ContentStoreBlob` backing that `fetch()` returns) and the filesystem/crypto
 // dependencies it injects (`ContentStoreFilePowers`,
 // `ContentStoreCryptoPowers`). Those contracts live in
 // `@endo/platform/fs/lite/types`; this file re-exports them so the
@@ -19,19 +19,20 @@
 // daemon-cas-specific factory options on top.
 
 /**
- * Byte reader handed back by `fetch().makeFileReader`.  This is the
- * `@endo/stream` `Reader<Uint8Array>` the platform `ReadableBlob`
- * contract requires; aliased here so the rest of this declaration file
+ * Byte reader handed back by `fetch().makeFileReader`.
+ * This is the `@endo/stream` `Reader<Uint8Array>` used by the host-side
+ * content-store backing; aliased here so the rest of this declaration file
  * reads in package-local terms.
  */
 export type ContentStoreReader = import('@endo/stream').Reader<Uint8Array>;
 
 /**
- * The `ReadableBlob` read surface `fetch()` returns — re-exported from
- * `@endo/platform` so callers see the shared CAS interface.
+ * The host-side blob backing `fetch()` returns.
+ * Re-exported from `@endo/platform` so callers see the shared CAS seam without
+ * confusing it with the public ReadableBlob Exo surface.
  */
-export type ContentStoreReadableBlob =
-  import('@endo/platform/fs/lite/types.js').ReadableBlob;
+export type ContentStoreBlob =
+  import('@endo/platform/fs/lite/types.js').ContentStoreBlob;
 
 /**
  * Writer shape consumed by `store`.  The platform-owned

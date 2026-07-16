@@ -29,6 +29,23 @@ const declaredTypeNames = aux =>
     ([, name]) => name,
   );
 
+/**
+ * @param {string} aux
+ * @param {string} typeName
+ * @returns {string[]}
+ */
+const declaredTypeMembers = (aux, typeName) => {
+  const declaration = aux.match(
+    new RegExp(`type ${typeName} = [^\\n]*\\{([\\s\\S]*?)\\n\\};`),
+  );
+  if (declaration === null) {
+    return [];
+  }
+  return [
+    ...declaration[1].matchAll(/^\s+([A-Za-z_$][0-9A-Za-z_$]*)\s*:/gm),
+  ].map(([, name]) => name);
+};
+
 // Freshness gate (git): the checked-in git artifact must equal a fresh
 // extraction, so a change to the exo-git types.d.ts or to a renderer cannot
 // land without regenerating and committing the declarations.
@@ -112,6 +129,25 @@ test('git declarations expand the reachable platform filesystem contracts', t =>
   ]) {
     t.true(aux.includes(shape), `missing reachable type shape: ${shape}`);
   }
+});
+
+test('git blob declarations expose Exo methods without CAS backing helpers', t => {
+  const { aux } = gitDeclarations.git;
+  t.deepEqual(declaredTypeMembers(aux, 'GitLiteReadableBlob'), [
+    'streamBase64',
+    'text',
+    'json',
+    'help',
+  ]);
+  t.deepEqual(declaredTypeMembers(aux, 'GitReadableBlobRange'), [
+    'getInfo',
+    'fetch',
+  ]);
+  t.true(aux.includes('type GitReadableBlob = GitReadableBlobRange;'));
+  const leaked = aux.match(
+    /\b(?:makeFileReader|readRange|rangeRead|rangeReadText)\??:/,
+  );
+  t.is(leaked, null, `leaked non-Git blob method: ${leaked?.[0]}`);
 });
 
 test('combined Git and workspace declarations have unique alias names', t => {

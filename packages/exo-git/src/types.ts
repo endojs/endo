@@ -6,7 +6,8 @@ export type Filesystem = import('@endo/platform/fs/extended').Filesystem;
 export type PathEntry = import('@endo/platform/fs/lite/types').PathEntry;
 export type PathEntryIssuer =
   import('@endo/platform/fs/lite/types').PathEntryIssuer;
-export type ReadableBlob = import('@endo/platform/fs/lite/types').ReadableBlob;
+export type ReadableBlob =
+  import('@endo/platform/fs/lite/types').ReadableBlobRange;
 export type ReadableTree = import('@endo/platform/fs/lite/types').ReadableTree;
 
 export type WritableGitWorktree = Directory & PathEntryIssuer;
