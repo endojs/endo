@@ -11,6 +11,8 @@ import { makeGit } from '@endo/exo-git';
 import { makeMount, lineageOf } from '@endo/daemon/src/mount.js';
 import { makeFilePowers } from '@endo/daemon/src/daemon-node-powers.js';
 
+/** @import { WritableEndoGit } from '@endo/exo-git' */
+
 const execFileAsync = promisify(execFile);
 
 /**
@@ -20,7 +22,7 @@ const execFileAsync = promisify(execFile);
  * plane, and `makeGit` mints the exo `Git` capability over the pair.
  *
  * @param {string} root absolute path to a git working tree
- * @returns {Promise<{ git: ReturnType<typeof makeGit>, mount: ReturnType<typeof makeMount>, root: string }>}
+ * @returns {Promise<{ git: WritableEndoGit, mount: ReturnType<typeof makeMount>, root: string }>}
  */
 export const composeGitOverWorktree = async root => {
   const filePowers = makeFilePowers({ fs, path });
@@ -37,7 +39,7 @@ export const composeGitOverWorktree = async root => {
  * push/fetch round-trip that pushes from a freshly initialized local repo.
  *
  * @param {import('ava').ExecutionContext} t
- * @returns {Promise<{ git: ReturnType<typeof makeGit>, mount: ReturnType<typeof makeMount>, root: string }>}
+ * @returns {Promise<{ git: WritableEndoGit, mount: ReturnType<typeof makeMount>, root: string }>}
  */
 export const provisionGitContext = async t => {
   const root = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'git-remote-'));

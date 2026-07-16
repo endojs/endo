@@ -1,15 +1,16 @@
 import type { ERef } from '@endo/eventual-send';
 import type { Filesystem } from '@endo/platform/fs/extended';
-import type { EndoGit } from '@endo/exo-git';
+import type { WritableEndoGit, WritableGitWorktree } from '@endo/exo-git';
 import type { EndoShell } from '@endo/exo-shell';
 import type { HttpClient, HttpResponse } from '@endo/exo-http-client';
 import type { Pattern } from '@endo/patterns';
 
 /**
- * The read, branch-navigation, and additive-commit slice of `EndoGit` that
+ * The read, branch-navigation, and additive-commit slice of `WritableEndoGit` that
  * the default git tool catalog exposes to an LLM.
  *
- * Deliberately omits the destructive and history-rewriting methods of `EndoGit`
+ * Deliberately omits the destructive and history-rewriting methods of
+ * `WritableEndoGit`
  * — `merge`, `rebase`, `restore`, `deleteBranch`, `renameBranch`, the `stash*`
  * family, the working-tree/detach mutators (`switch`, `detach`), and history
  * rewrites (`commit` with `amend`, `reword`).
@@ -30,7 +31,7 @@ import type { Pattern } from '@endo/patterns';
  * strings to entries through the worktree mount.
  */
 export type GitToolCapability = Pick<
-  EndoGit,
+  WritableEndoGit,
   | 'log'
   | 'diff'
   | 'show'
@@ -46,22 +47,25 @@ export type GitToolCapability = Pick<
  * Hosts must opt into constructing these tools; the default `makeGitTool`
  * inventory does not advertise either operation.
  */
-export type GitHistoryToolCapability = Pick<EndoGit, 'commit' | 'reword'>;
+export type GitHistoryToolCapability = Pick<
+  WritableEndoGit,
+  'commit' | 'reword'
+>;
 
 /**
- * The mount-bridged slice of `EndoGit` behind `makeGitMountTools`: `status` and
- * `add`, plus `worktree` (the mount the bridge mints `EndoMountEntry` values
+ * The mount-bridged slice of `WritableEndoGit` behind `makeGitMountTools`: `status` and
+ * `add`, plus `worktree` (the mount the bridge mints `PathEntry` values
  * from). These two methods cannot live in {@link GitToolCapability} because
  * their native signatures carry live capabilities — `status()` returns rows
- * with `EndoMountEntry` / node remotables and `add()` takes an array of
- * `EndoMountEntry` remotables — so their tool wire (JSON-safe rows out, path
+ * with `PathEntry` / node remotables and `add()` takes an array of
+ * `PathEntry` remotables — so their tool wire (JSON-safe rows out, path
  * strings in) diverges from the raw `GitInterface` guard by design. `add` is the
  * additive staging half of the commit loop; it stages but never discards.
  */
-export type GitMountToolCapability = Pick<
-  EndoGit,
-  'status' | 'add' | 'worktree'
->;
+export type GitMountToolCapability = Pick<WritableEndoGit, 'status' | 'add'> & {
+  /** The bridge mints lineage-bearing entries from the writable worktree. */
+  worktree: () => Promise<WritableGitWorktree>;
+};
 
 export interface ToolSpec {
   /** Tool name advertised to callers. */

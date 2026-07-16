@@ -73,7 +73,7 @@ const COMMIT_PROP = harden({
 });
 
 /**
- * This package intentionally exposes only a curated JSON-safe `EndoGit` slice
+ * This package intentionally exposes only a curated JSON-safe writable Git slice
  * for now. Methods that remotely accept capabilities or can return
  * capabilities, including non-empty `status()` rows, need capref/result
  * serialization and are deferred future work.

@@ -2,20 +2,7 @@
 /// <reference types="ses"/>
 
 /** @import { ERef } from '@endo/eventual-send' */
-/** @import { EndoMountEntry } from '@endo/exo-git' */
 /** @import { GitMountToolCapability, ToolRecord } from './types.js' */
-
-/**
- * The one worktree-mount method this bridge needs: `entry(segments)` mints the
- * `EndoMountEntry` remotable `Git.add` consumes. `@endo/exo-git` aliases
- * `EndoMount` to `unknown` to stay free of a circular `@endo/daemon` type
- * dependency (the full-fidelity `EndoMount` interface lives in `@endo/daemon`),
- * so we name the single method we reach through the mount locally rather than
- * importing that unreachable type.
- *
- * @typedef {object} WorktreeMount
- * @property {(segments: string[]) => EndoMountEntry} entry
- */
 
 import { E } from '@endo/eventual-send';
 import { M } from '@endo/patterns';
@@ -23,10 +10,10 @@ import { M } from '@endo/patterns';
 import { makeTool } from './tool.js';
 
 /**
- * The git tools in this module bridge the two `EndoGit` methods whose native
+ * The git tools in this module bridge the two writable Git methods whose native
  * signatures traffic in live capabilities — `status()` returns rows bearing
- * `EndoMountEntry` / node remotables, and `add()` takes an array of
- * `EndoMountEntry` remotables — so they cannot sit in the JSON-transparent,
+ * `PathEntry` / node remotables, and `add()` takes an array of
+ * `PathEntry` remotables — so they cannot sit in the JSON-transparent,
  * one-to-one guard-mapped slice `makeGitTool` exposes. Each tool here holds the
  * mount/git capability pair (the mount reached through `Git.worktree()`) and
  * converts at the boundary: path strings in, JSON-safe records out. The
@@ -45,7 +32,7 @@ const NO_ARGS = harden({
 
 /**
  * JSON Schema for `add`. The tool takes mount-relative path *strings*; the
- * maker resolves each to the `EndoMountEntry` remotable `Git.add` actually
+ * maker resolves each to the `PathEntry` remotable `Git.add` actually
  * wants. This is the deliberate wire↔cap divergence the mount bridge exists to
  * span, which is why `add` lives here and not in `makeGitTool`'s
  * divergence-gated slice.
@@ -153,11 +140,11 @@ export const makeGitMountTools = gitCap => {
         }
         return segments;
       });
-      // Resolve each path to an `EndoMountEntry` minted by this Git's own
+      // Resolve each path to a `PathEntry` minted by this Git's own
       // worktree mount, so `Git.add`'s lineage check accepts it. `callWhen`
       // does not deeply await array elements, so the entries must be settled
       // remotables — not promises — before the call.
-      const mount = /** @type {WorktreeMount} */ (await E(gitCap).worktree());
+      const mount = await E(gitCap).worktree();
       const entries = await Promise.all(
         segmentsByPath.map(segments => E(mount).entry(segments)),
       );
