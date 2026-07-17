@@ -6,6 +6,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -31,11 +32,19 @@ import { Fail, q } from '@endo/errors';
  * @property {string} [bootSlot] import slot of the worker's bootstrap facet
  * @property {string | null} [bootIface]
  * @property {{ ref: unknown, journalLength: number } | null} [snapshot]
+ * @property {Record<string, { type: string, description: unknown }>} [resources]
+ *   host exports to this worker, keyed by ours-perspective export slot,
+ *   re-instantiable from their resource descriptions at resume
  */
 
 /**
  * Durable storage for one worker: its CapTP tables record, its inbound
- * message journal, and its metadata (bootstrap slot, engine snapshot ref).
+ * message journal, and its metadata (bootstrap slot, engine snapshot ref,
+ * resource export descriptions).
+ *
+ * The journal is indexed by absolute entry number: indices remain stable
+ * across truncation, so a snapshot's recorded `journalLength` always
+ * names the same suffix.
  *
  * @typedef {object} WorkerStore
  * @property {() => TablesRecord | undefined} getTablesRecord
@@ -43,8 +52,12 @@ import { Fail, q } from '@endo/errors';
  * @property {() => WorkerMeta} getMeta
  * @property {(meta: WorkerMeta) => void} setMeta
  * @property {(entry: unknown) => void} appendJournal
- * @property {(from?: number) => Array<any>} readJournal
- * @property {() => number} journalLength
+ * @property {(from?: number) => Array<any>} readJournal entries with
+ *   absolute index >= from (entries before the truncation point are gone)
+ * @property {() => number} journalLength total absolute entry count
+ * @property {(upTo: number) => void} truncateJournal drops entries with
+ *   absolute index < upTo; call only after a snapshot covering them is
+ *   durably recorded
  */
 
 /**
@@ -105,12 +118,33 @@ export const makeFsStore = statePath => {
     const metaPath = join(workerPath, 'meta.json');
     const journalPath = join(workerPath, 'journal.jsonl');
 
-    const readJournalLines = () => {
+    // The journal's first line is a header recording the absolute index
+    // of the first entry line, so truncation can drop a prefix while
+    // keeping absolute indices stable. Truncation rewrites the file via
+    // rename so the base and the entries change atomically.
+
+    /** @returns {{ base: number, lines: Array<string> }} */
+    const readJournalFile = () => {
       if (!existsSync(journalPath)) {
-        return [];
+        return { base: 0, lines: [] };
       }
       const text = readFileSync(journalPath, 'utf8');
-      return text.split('\n').filter(line => line !== '');
+      const lines = text.split('\n').filter(line => line !== '');
+      const header = JSON.parse(lines[0] ?? '{}');
+      typeof header.base === 'number' ||
+        Fail`Journal at ${q(journalPath)} is missing its base header`;
+      return { base: header.base, lines: lines.slice(1) };
+    };
+
+    /**
+     * @param {number} base
+     * @param {Array<string>} lines
+     */
+    const writeJournalFile = (base, lines) => {
+      const text = [JSON.stringify({ base }), ...lines, ''].join('\n');
+      const tempPath = `${journalPath}.tmp`;
+      writeFileSync(tempPath, text);
+      renameSync(tempPath, journalPath);
     };
 
     /** @type {WorkerStore} */
@@ -120,13 +154,31 @@ export const makeFsStore = statePath => {
         writeFileSync(tablesPath, `${JSON.stringify(record)}\n`),
       getMeta: () => readJsonMaybe(metaPath) ?? {},
       setMeta: meta => writeFileSync(metaPath, `${JSON.stringify(meta)}\n`),
-      appendJournal: entry =>
-        appendFileSync(journalPath, `${JSON.stringify(entry)}\n`),
-      readJournal: (from = 0) =>
-        readJournalLines()
-          .slice(from)
-          .map(line => JSON.parse(line)),
-      journalLength: () => readJournalLines().length,
+      appendJournal: entry => {
+        if (!existsSync(journalPath)) {
+          writeJournalFile(0, []);
+        }
+        appendFileSync(journalPath, `${JSON.stringify(entry)}\n`);
+      },
+      readJournal: (from = 0) => {
+        const { base, lines } = readJournalFile();
+        return lines
+          .slice(Math.max(0, from - base))
+          .map(line => JSON.parse(line));
+      },
+      journalLength: () => {
+        const { base, lines } = readJournalFile();
+        return base + lines.length;
+      },
+      truncateJournal: upTo => {
+        const { base, lines } = readJournalFile();
+        if (upTo <= base) {
+          return;
+        }
+        upTo <= base + lines.length ||
+          Fail`Cannot truncate journal beyond its length`;
+        writeJournalFile(upTo, lines.slice(upTo - base));
+      },
     };
     return harden(workerStore);
   };
@@ -157,7 +209,7 @@ harden(makeFsStore);
  * @returns {SiestaStore}
  */
 export const makeMemoryStore = () => {
-  /** @type {Map<string, { tables?: TablesRecord, meta: WorkerMeta, journal: Array<any> }>} */
+  /** @type {Map<string, { tables?: TablesRecord, meta: WorkerMeta, base: number, journal: Array<any> }>} */
   const workers = new Map();
   /** @type {Record<string, PublicationRecord>} */
   const publications = {};
@@ -167,7 +219,7 @@ export const makeMemoryStore = () => {
     assertWorkerName(name);
     let entry = workers.get(name);
     if (!entry) {
-      entry = { tables: undefined, meta: {}, journal: [] };
+      entry = { tables: undefined, meta: {}, base: 0, journal: [] };
       workers.set(name, entry);
     }
     const state = entry;
@@ -183,8 +235,18 @@ export const makeMemoryStore = () => {
       },
       appendJournal: message =>
         state.journal.push(JSON.parse(JSON.stringify(message))),
-      readJournal: (from = 0) => state.journal.slice(from),
-      journalLength: () => state.journal.length,
+      readJournal: (from = 0) =>
+        state.journal.slice(Math.max(0, from - state.base)),
+      journalLength: () => state.base + state.journal.length,
+      truncateJournal: upTo => {
+        if (upTo <= state.base) {
+          return;
+        }
+        upTo <= state.base + state.journal.length ||
+          Fail`Cannot truncate journal beyond its length`;
+        state.journal = state.journal.slice(upTo - state.base);
+        state.base = upTo;
+      },
     };
     return harden(workerStore);
   };

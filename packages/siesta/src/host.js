@@ -45,6 +45,9 @@ import {
  *   snapshot: unknown,
  *   onOutbound: (message: Record<string, unknown>) => void,
  * }) => Promise<WorkerIncarnation>} start
+ * @property {(ref: unknown) => Promise<void>} [releaseSnapshot] release a
+ *   superseded snapshot ref (e.g. drop its content-addressed store root);
+ *   called after a newer snapshot is durably recorded
  */
 
 /**
@@ -52,8 +55,10 @@ import {
  *
  * @typedef {object} SiestaWorker
  * @property {string} name
- * @property {(source: string) => Promise<any>} evaluate evaluates a
- *   hardened JavaScript expression in the worker's persistent compartment
+ * @property {(source: string, names?: Array<string>, values?: Array<any>) => Promise<any>} evaluate
+ *   evaluates a hardened JavaScript expression in the worker's persistent
+ *   compartment, with optional endowments bound as named values (the way
+ *   resource capabilities reach guests)
  * @property {(presence: any, secret?: string) => Promise<string>} publish
  *   registers a presence imported from this worker in the host's locator
  *   under a swissnum, durably, and returns the swissnum
@@ -68,6 +73,11 @@ import {
  * @property {Map<string, any>} locator swissnum-to-presence table, in the
  *   shape OCapN's `makeOcapn({ locator })` consumes
  * @property {(name: string) => Promise<SiestaWorker>} provideWorker
+ * @property {(type: string, description?: unknown) => object} makeResource
+ *   makes a host resource capability from a registered maker; when the
+ *   object is later exported into a worker session, its `(type,
+ *   description)` is durably recorded against the export slot and the
+ *   export is re-instantiated at resume
  * @property {() => Array<string>} listWorkerNames
  * @property {() => Promise<void>} shutdown puts every worker to sleep
  */
@@ -102,6 +112,11 @@ const defaultMakeSwissnum = () => {
  * @param {WorkerEngine} options.engine
  * @param {Map<string, any>} [options.locator]
  * @param {number} [options.idleTimeoutMs]
+ * @param {Record<string, (description: unknown) => object>} [options.resources]
+ *   resource makers by type: each maps a durable description to a fresh
+ *   capability object, deterministically enough that a re-instantiated
+ *   export honors the same contract as the original. The registry must be
+ *   stable across host restarts.
  * @param {() => string} [options.makeSwissnum]
  * @param {(error: unknown) => void} [options.reportError]
  * @returns {Promise<SiestaHost>}
@@ -111,6 +126,7 @@ export const makeSiestaHost = async ({
   engine,
   locator = new Map(),
   idleTimeoutMs = Infinity,
+  resources = {},
   makeSwissnum = defaultMakeSwissnum,
   // eslint-disable-next-line no-console
   reportError = error => console.error('siesta host:', error),
@@ -123,6 +139,32 @@ export const makeSiestaHost = async ({
 
   /** @type {Map<string, WorkerRuntime>} */
   const workers = new Map();
+
+  /**
+   * Descriptions of resource objects made by this host, so that when one
+   * is exported into a worker session its durable description can be
+   * recorded against the export slot.
+   *
+   * @type {WeakMap<object, { type: string, description: unknown }>}
+   */
+  const resourceDescriptions = new WeakMap();
+
+  /**
+   * @param {{ type: string, description: unknown }} resourceRecord
+   * @param {string} [forWhom] diagnostic context
+   */
+  const instantiateResource = (resourceRecord, forWhom = 'a new grant') => {
+    const { type, description } = resourceRecord;
+    const maker = resources[type];
+    if (maker === undefined) {
+      throw Fail`No resource maker registered for type ${q(
+        type,
+      )}, needed by ${q(forWhom)}`;
+    }
+    const val = maker(description);
+    resourceDescriptions.set(val, { type, description });
+    return val;
+  };
 
   /** @param {string} name */
   const makeWorkerRuntime = name => {
@@ -228,11 +270,19 @@ export const makeSiestaHost = async ({
         idleTimer = undefined;
       }
       if (engine.canSnapshot) {
+        const journalLength = workerStore.journalLength();
         const ref = await incarnation.snapshot();
+        const previousSnapshot = workerStore.getMeta().snapshot;
+        // Record the new snapshot durably before dropping the journal
+        // prefix it subsumes; a crash in between only costs disk space.
         workerStore.setMeta({
           ...workerStore.getMeta(),
-          snapshot: { ref, journalLength: workerStore.journalLength() },
+          snapshot: { ref, journalLength },
         });
+        workerStore.truncateJournal(journalLength);
+        if (previousSnapshot && engine.releaseSnapshot) {
+          await engine.releaseSnapshot(previousSnapshot.ref);
+        }
       }
       await incarnation.terminate();
       incarnation = undefined;
@@ -285,8 +335,36 @@ export const makeSiestaHost = async ({
       makeCapTPImportExportTables: tablesKit.makeCapTPImportExportTables,
       importHook: (val, slot) =>
         valToSlot.set(/** @type {object} */ (val), slot),
+      exportHook: (val, slot) => {
+        if (slot[0] !== 'o') {
+          return;
+        }
+        // Host exports live outside every snapshot, so an export must be
+        // re-instantiable from a durable description to survive a host
+        // restart. Record the description of every exported resource.
+        const resourceRecord = resourceDescriptions.get(
+          /** @type {object} */ (val),
+        );
+        if (resourceRecord !== undefined) {
+          const meta = workerStore.getMeta();
+          workerStore.setMeta({
+            ...meta,
+            resources: { ...(meta.resources ?? {}), [slot]: resourceRecord },
+          });
+        }
+      },
       onReject: reportError,
     });
+
+    // Resume: re-instantiate every recorded resource export at its
+    // original slot, so presences held inside the worker's snapshot keep
+    // working after a host restart.
+    for (const [slot, resourceRecord] of Object.entries(
+      workerStore.getMeta().resources ?? {},
+    )) {
+      const val = instantiateResource(resourceRecord, `worker ${name} ${slot}`);
+      captp.provideExport(slot, val);
+    }
 
     /** @type {Promise<any> | undefined} */
     let bootFacetP;
@@ -322,7 +400,8 @@ export const makeSiestaHost = async ({
     /** @type {SiestaWorker} */
     const facade = {
       name,
-      evaluate: async source => E(provideBootFacet()).evaluate(source),
+      evaluate: async (source, names = [], values = []) =>
+        E(provideBootFacet()).evaluate(source, names, values),
       publish: async (presenceP, secret = makeSwissnum()) => {
         const presence = await presenceP;
         const slot = valToSlot.get(presence);
@@ -380,6 +459,8 @@ export const makeSiestaHost = async ({
   const host = {
     locator,
     provideWorker: async name => provideWorkerRuntime(name).facade,
+    makeResource: (type, description = null) =>
+      instantiateResource({ type, description }),
     listWorkerNames: () => [...workers.keys()].sort(),
     shutdown: async () => {
       for (const runtime of workers.values()) {

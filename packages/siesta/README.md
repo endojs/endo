@@ -74,18 +74,59 @@ leaves every worker asleep until a message arrives.
 starts a fresh worker shell and the host replays the journal, suppressing
 the worker's re-emitted replies.
 For a deterministic guest this is behaviorally identical to snapshot
-restoration.
+restoration, but the journal is the persistence and can never be
+dropped.
+
+`makeSnapshottingReplayEngine` implements `canSnapshot: true` without an
+XS build, which activates the host's full snapshot lifecycle: at every
+sleep the host records the snapshot ref durably, truncates the journal
+prefix the snapshot subsumes, and releases the superseded ref to the
+engine.
+Journals are absolutely indexed, so truncation never moves an offset;
+wakes restore from the snapshot ref plus the journal suffix, which also
+recovers cleanly from host crashes between snapshots.
+
 A production engine backs incarnations with XS machines under a
 snapshotting supervisor (see `rust/endo/xsnap` and
 `designs/ocapn-orthogonal-persistence.md`).
 
+## System resources
+
+Host capabilities reach guests as durable exports.
+Register makers on the host and pass instances as evaluate endowments:
+
+```js
+import { makeTimerResource } from '@endo/siesta';
+
+const host = await makeSiestaHost({
+  store,
+  engine,
+  resources: { timer: makeTimerResource },
+});
+const worker = await host.provideWorker('clock');
+const timer = host.makeResource('timer');
+const clock = await worker.evaluate(
+  `Far('Clock', { read: () => E(timer).now() })`,
+  ['timer'],
+  [timer],
+);
+```
+
+When a resource is exported into a worker session, its
+`(type, description)` is recorded against the export slot; on host
+restart the export is re-instantiated at the same slot, so presences
+inside the worker's snapshot keep working.
+Resource results are journaled CapTP replies, so nondeterministic
+resources (clocks) do not break deterministic replay, and a pending
+`timer.delay` wakes a sleeping worker with no inbound traffic.
+
 ## Caveats
 
 This is a prototype.
-See the design document for the full list of open issues, notably: host
-exports to workers are not durable (no formula layer), promise imports do
-not survive restarts, and OCapN sessions themselves are ephemeral — only
-sturdy refs are durable.
+See the design document for the full list of open issues, notably: a
+worker-to-host call in flight across a host restart is lost (the guest's
+awaited promise hangs), promise imports do not survive restarts, and
+OCapN sessions themselves are ephemeral — only sturdy refs are durable.
 
 ## Design
 

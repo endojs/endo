@@ -2,7 +2,10 @@
 /// <reference types="ses" />
 import harden from '@endo/harden';
 import { makeCapTP } from '@endo/captp';
+import { Fail, q } from '@endo/errors';
 import { E, Far } from '@endo/far';
+
+const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 /**
  * The guest-facing shell of a siesta worker: one persistent Compartment
@@ -34,9 +37,34 @@ export const makeWorkerShell = ({ send, name = 'siesta-worker' }) => {
 
   const facet = Far('SiestaWorker', {
     help: () =>
-      'SiestaWorker: evaluate(source) evaluates a hardened JavaScript expression in this worker persistent compartment and returns its value.',
-    /** @param {string} source */
-    evaluate: async source => compartment.evaluate(source),
+      'SiestaWorker: evaluate(source, names, values) evaluates a hardened JavaScript expression in this worker persistent compartment, with the optional endowments bound as named values, and returns its value.',
+    /**
+     * @param {string} source
+     * @param {Array<string>} [names]
+     * @param {Array<unknown>} [values]
+     */
+    evaluate: async (source, names = [], values = []) => {
+      (Array.isArray(names) &&
+        Array.isArray(values) &&
+        names.length === values.length) ||
+        Fail`evaluate names and values must be equal-length arrays`;
+      if (names.length === 0) {
+        return compartment.evaluate(source);
+      }
+      for (const endowmentName of names) {
+        (typeof endowmentName === 'string' &&
+          IDENTIFIER_PATTERN.test(endowmentName)) ||
+          Fail`evaluate endowment name must be an identifier, got ${q(
+            endowmentName,
+          )}`;
+      }
+      // Bind endowments as parameters scoped to this evaluation, so
+      // they never leak into the compartment's shared global.
+      const makeResult = compartment.evaluate(
+        `(${names.join(', ')}) => (\n${source}\n)`,
+      );
+      return makeResult(...values);
+    },
   });
 
   const { dispatch } = makeCapTP(name, send, facet);
