@@ -20,7 +20,10 @@ What exists, all verified by tests across three SES configurations:
   CapTP tables, the deterministic worker shell, filesystem/memory
   stores, and the real XS engine (`makeXsEngine` over
   `rust/siesta-xs-worker`, a minimal runner on the `xsnap` crate; the
-  siesta scenarios pass on real XS heap snapshots). The public
+  siesta scenarios pass on real XS heap snapshots, including a
+  scenario-parity suite — cross-worker links and promises across
+  restarts, at-most-once aborts, vat GC with CAS release — so the
+  shipped engine is the tested engine). The public
   surface is deliberately narrow — `makeSiestaHost`,
   `makeSiestaDaemon`, `makeXsEngine`, `makeFsStore`,
   `makeTimerResource` — with the deterministic replay engines, the

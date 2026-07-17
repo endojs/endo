@@ -95,8 +95,12 @@ yarn workspace @endo/siesta build:xs-bundles
 cargo build --release -p siesta-xs-worker
 ```
 
-The XS tests (`test/xs-engine.test.js`) skip themselves when those
-artifacts are absent.
+The XS tests (`test/xs-engine.test.js` for the engine mechanics,
+`test/xs-scenarios.test.js` for end-to-end parity: cross-worker links
+and promises across restarts, at-most-once aborts after a crash, and
+vat GC with content-addressed snapshot release) skip themselves when
+those artifacts are absent — build them so the engine you actually
+ship is the engine you test.
 XS workers boot under XS's native Hardened JavaScript: the runner
 installs the engine's own `harden` and `lockdown` globals and the
 boot script calls `lockdown()`, so guests evaluate against frozen
