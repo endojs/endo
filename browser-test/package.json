@@ -4,7 +4,7 @@
   "author": "Endo Contributors",
   "license": "Apache-2.0",
   "scripts": {
-    "test": "playwright test"
+    "test": "node node_modules/playwright/cli.js test"
   },
   "devDependencies": {
     "@playwright/test": "1.60.0",

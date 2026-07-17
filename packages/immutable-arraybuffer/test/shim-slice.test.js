@@ -1,6 +1,6 @@
 // @ts-nocheck
 import test from 'ava';
-import '../src/immutable-arraybuffer-shim.js';
+import '../src/shim.js';
 
 const { isFrozen, getPrototypeOf } = Object;
 
@@ -163,7 +163,7 @@ test('Analogous buf.sliceToImmutable(0, newLength) shim', t => {
   t.true(ab2.immutable);
   t.is(ab2.byteLength, 3);
   t.is(ab12.byteLength, 3);
-  // slice needed due to ponyfill limitations.
+  // slice needed due to lib limitations.
   const ta2 = new Uint8Array(ab2.slice());
   t.deepEqual([...ta2], [3, 4, 5]);
 
@@ -174,7 +174,7 @@ test('Analogous buf.sliceToImmutable(0, newLength) shim', t => {
   t.true(ab3.immutable);
   t.is(ab3.byteLength, 2);
   t.is(ab13.byteLength, 3);
-  // slice needed due to ponyfill limitations.
+  // slice needed due to lib limitations.
   const ta3 = new Uint8Array(ab3.slice());
   t.deepEqual([...ta3], [3, 4]);
 });
@@ -189,7 +189,7 @@ test('sliceToImmutable shim', t => {
   t.true(ab2.immutable);
   t.is(ab2.byteLength, 2);
   t.is(ab12.byteLength, 3);
-  // slice needed due to ponyfill limitations.
+  // slice needed due to lib limitations.
   const ta2 = new Uint8Array(ab2.slice());
   t.deepEqual([...ta2], [4, 5]);
 
@@ -197,7 +197,7 @@ test('sliceToImmutable shim', t => {
   t.true(ab3.immutable);
   t.is(ab3.byteLength, 1);
   t.is(ab2.byteLength, 2);
-  // slice needed due to ponyfill limitations.
+  // slice needed due to lib limitations.
   const ta3 = new Uint8Array(ab3.slice());
   t.deepEqual([...ta3], [5]);
 });

@@ -11,6 +11,7 @@
     "moduleResolution": "NodeNext",
     "noImplicitAny": false,
     "types": ["node"],
+    "skipLibCheck": true,
   },
   "include": [],
   "exclude": [

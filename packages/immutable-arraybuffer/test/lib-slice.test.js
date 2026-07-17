@@ -1,20 +1,20 @@
 // @ts-nocheck
+// See test/_lib-setup.md for why the shim is installed at module top and
+// why the lib's free-function helpers remain importable from the lib module.
+import '../src/shim.js';
 import test from 'ava';
-import {
-  isBufferImmutable,
-  sliceBufferToImmutable,
-} from '../src/immutable-arraybuffer-pony.js';
+import { isBufferImmutable, sliceBufferToImmutable } from '../src/lib.js';
 
 const { isFrozen, getPrototypeOf } = Object;
 
-test('Immutable ArrayBuffer ponyfill installed and not hardened', t => {
+test('Immutable ArrayBuffer lib installed and not hardened', t => {
   const iab = sliceBufferToImmutable(new ArrayBuffer(0));
   const iabProto = getPrototypeOf(iab);
   t.false(isFrozen(iabProto));
   t.false(isFrozen(iabProto.slice));
 });
 
-test('Immutable ArrayBuffer ponyfill ops', t => {
+test('Immutable ArrayBuffer lib ops', t => {
   // Absent on Node <= 18
   const canResize = 'maxByteLength' in ArrayBuffer.prototype;
 
@@ -73,7 +73,7 @@ test('Standard DataView behavior baseline', t => {
 // This could have been written as a test.failing as compared to
 // the immutable ArrayBuffer we'll propose. However, I'd rather test what
 // the shim purposely does instead.
-test('DataView on Immutable ArrayBuffer ponyfill limitations', t => {
+test('DataView on Immutable ArrayBuffer lib limitations', t => {
   const ab1 = new ArrayBuffer(2);
   const ta1 = new Uint8Array(ab1);
   ta1[0] = 3;
@@ -105,7 +105,7 @@ test('Standard TypedArray behavior baseline', t => {
 // This could have been written as a test.failing as compared to
 // the immutable ArrayBuffer we'll propose. However, I'd rather test what
 // the shim purposely does instead.
-test('TypedArray on Immutable ArrayBuffer ponyfill limitations', t => {
+test('TypedArray on Immutable ArrayBuffer lib limitations', t => {
   const ab1 = new ArrayBuffer(2);
   const dv1 = new DataView(ab1);
   t.is(dv1.buffer, ab1);
@@ -155,7 +155,7 @@ const testTransfer = t => {
   maybeTest('Standard buf.transfer(newLength) behavior baseline', testTransfer);
 }
 
-test('Analogous sliceBufferToImmutable(buf, 0, newLength) ponyfill', t => {
+test('Analogous sliceBufferToImmutable(buf, 0, newLength) lib', t => {
   const ta12 = new Uint8Array([3, 4, 5]);
   const ab12 = ta12.buffer;
   t.is(ab12.byteLength, 3);
@@ -165,7 +165,7 @@ test('Analogous sliceBufferToImmutable(buf, 0, newLength) ponyfill', t => {
   t.true(isBufferImmutable(ab2));
   t.is(ab2.byteLength, 3);
   t.is(ab12.byteLength, 3);
-  // slice needed due to ponyfill limitations.
+  // slice needed due to lib limitations.
   const ta2 = new Uint8Array(ab2.slice());
   t.deepEqual([...ta2], [3, 4, 5]);
 
@@ -176,12 +176,12 @@ test('Analogous sliceBufferToImmutable(buf, 0, newLength) ponyfill', t => {
   t.true(isBufferImmutable(ab3));
   t.is(ab3.byteLength, 2);
   t.is(ab13.byteLength, 3);
-  // slice needed due to ponyfill limitations.
+  // slice needed due to lib limitations.
   const ta3 = new Uint8Array(ab3.slice());
   t.deepEqual([...ta3], [3, 4]);
 });
 
-test('sliceBufferToImmutable ponyfill', t => {
+test('sliceBufferToImmutable lib', t => {
   const ta12 = new Uint8Array([3, 4, 5]);
   const ab12 = ta12.buffer;
   t.is(ab12.byteLength, 3);
@@ -191,7 +191,7 @@ test('sliceBufferToImmutable ponyfill', t => {
   t.true(isBufferImmutable(ab2));
   t.is(ab2.byteLength, 2);
   t.is(ab12.byteLength, 3);
-  // slice needed due to ponyfill limitations.
+  // slice needed due to lib limitations.
   const ta2 = new Uint8Array(ab2.slice());
   t.deepEqual([...ta2], [4, 5]);
 
@@ -199,7 +199,7 @@ test('sliceBufferToImmutable ponyfill', t => {
   t.true(isBufferImmutable(ab3));
   t.is(ab3.byteLength, 1);
   t.is(ab2.byteLength, 2);
-  // slice needed due to ponyfill limitations.
+  // slice needed due to lib limitations.
   const ta3 = new Uint8Array(ab3.slice());
   t.deepEqual([...ta3], [5]);
 });

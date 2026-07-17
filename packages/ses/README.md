@@ -224,6 +224,10 @@ const powerfulCompartment = new Compartment({
 powerfulCompartment.globalThis.Date = Date;
 ```
 
+Because every compartment shares one JavaScript agent, see
+[Limitations](../../docs/lockdown.md#limitations) for the availability and
+memory-exhaustion threats a `Compartment` cannot mitigate.
+
 ### Compartment + Lockdown
 
 Together, Compartment and lockdown isolate client code in an environment with
