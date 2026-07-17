@@ -139,15 +139,21 @@ export const makePersistentTablesKit = ({
       getExport: slot => slotToExported.get(slot),
       markAsExported: (slot, val) => {
         slotToExported.set(slot, val);
-        if (slot[0] === 'o') {
-          /** @type {ExportDescriptor} */
-          const descriptor = { iface: getInterfaceOf(val) || null };
+        if (slot[0] === 'o' || slot[0] === 'p') {
           const description = describeExport(val);
-          if (description !== undefined) {
-            descriptor.description = description;
+          // Object exports are always recorded (for diagnostics at
+          // least); promise exports only when durably described (e.g. a
+          // cross-worker promise link), since undescribed promises are
+          // transient by design.
+          if (slot[0] === 'o' || description !== undefined) {
+            /** @type {ExportDescriptor} */
+            const descriptor = { iface: getInterfaceOf(val) || null };
+            if (description !== undefined) {
+              descriptor.description = description;
+            }
+            record.exports[slot] = descriptor;
+            onChange();
           }
-          record.exports[slot] = descriptor;
-          onChange();
         }
       },
       deleteExport: slot => {
@@ -177,9 +183,40 @@ export const makePersistentTablesKit = ({
         val: instantiateExport(descriptor.description, slot),
       }));
 
+  /**
+   * Whether the export at `slot` carries a durable description (and so
+   * survives restarts rather than being aborted).
+   *
+   * @param {string} slot
+   */
+  const hasExportDescription = slot =>
+    record.exports[slot]?.description !== undefined;
+
+  /**
+   * Forgets a fulfilled durable export description — e.g. a
+   * cross-worker promise link whose resolution has been journaled, so
+   * future restarts must not re-seat it.
+   *
+   * @param {string} slot
+   */
+  const clearExportDescription = slot => {
+    if (record.exports[slot]?.description === undefined) {
+      return;
+    }
+    if (slot[0] === 'p') {
+      // Promise exports are recorded only for their description.
+      delete record.exports[slot];
+    } else {
+      delete record.exports[slot].description;
+    }
+    onChange();
+  };
+
   return harden({
     makeCapTPImportExportTables,
     restoreExports,
+    hasExportDescription,
+    clearExportDescription,
     getRecord: () => record,
   });
 };

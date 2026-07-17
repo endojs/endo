@@ -161,11 +161,14 @@ Resource results are journaled CapTP replies, so nondeterministic
 resources (clocks) do not break deterministic replay, and a pending
 `timer.delay` wakes a sleeping worker with no inbound traffic.
 
-Resource requests and promise resolutions are at-most-once: an
+Resource requests and host-origin promises are at-most-once: an
 obligation the host holds only in memory (an answer owed to a guest
-question, a resolution owed on a promise export) is rejected after a
-host restart via a journaled synthetic message — delivered on the next
-wake, waking nobody for it — never re-executed. Within one host
+question, a resolution owed on a host-made promise) is rejected after
+a host restart via a journaled synthetic message — delivered on the
+next wake, waking nobody for it — never re-executed. Cross-worker
+promises are different: they are described durably in the importing
+session's export table and re-linked at restore, so a resolution from
+one worker reaches another across host restarts. Within one host
 lifetime, a promise resolving while its importer sleeps wakes the
 worker like any other message.
 
@@ -173,9 +176,9 @@ worker like any other message.
 
 This is a prototype.
 See the design document for the full list of open issues, notably:
-promises are at-most-once across host restarts (model durable
-obligations as object capabilities), XS workers boot without SES
-lockdown, and OCapN sessions themselves are ephemeral — only sturdy
+host-origin promises are at-most-once across host restarts (model
+durable host obligations as object capabilities; cross-worker promises
+do survive), XS workers boot without SES lockdown, and OCapN sessions themselves are ephemeral — only sturdy
 refs are durable.
 
 ## Design

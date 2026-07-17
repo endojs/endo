@@ -886,10 +886,12 @@ export const makeCapTP = (
    * already holds.
    *
    * The slot is ours-perspective (the same form `exportHook` receives,
-   * e.g. `o+2`) and must name a non-promise object export (`+`
-   * direction). Idempotent for the same `(slot, val)` pair; rebinding a
-   * slot to a different value, or a value that already has another slot,
-   * is an error.
+   * e.g. `o+2` or `p+3`) and must name an export (`+` direction). An
+   * object slot takes a non-promise; a promise slot takes a promise,
+   * and rebinding it re-attaches the resolution subscription so the
+   * peer's held import still settles when the promise does. Idempotent
+   * for the same `(slot, val)` pair; rebinding a slot to a different
+   * value, or a value that already has another slot, is an error.
    *
    * @param {CapTPSlot} slot ours-perspective slot to rebind
    * @param {any} val the re-instantiated export
@@ -899,8 +901,15 @@ export const makeCapTP = (
     slot[1] === '+' ||
       Fail`provideExport can only reconstruct exports, not ${slot}`;
     slot[0] === 'o' ||
-      Fail`provideExport can only reconstruct object exports, not ${slot}`;
-    !isPromise(val) || Fail`provideExport cannot reconstruct a promise`;
+      slot[0] === 'p' ||
+      Fail`provideExport can only reconstruct object or promise exports, not ${slot}`;
+    if (slot[0] === 'p') {
+      isPromise(val) ||
+        Fail`provideExport for promise slot ${slot} requires a promise`;
+    } else {
+      !isPromise(val) ||
+        Fail`provideExport for object slot ${slot} cannot take a promise`;
+    }
     if (importExportTables.hasExport(slot)) {
       importExportTables.getExport(slot) === val ||
         Fail`slot ${slot} is already bound to another export`;
@@ -918,6 +927,24 @@ export const makeCapTP = (
       Fail`value is already exported as ${existingSlot}, not ${slot}`;
     valToSlot.set(val, slot);
     importExportTables.markAsExported(slot, val);
+    if (isPromise(val)) {
+      // Re-attach the resolution subscription, as convertValToSlot sets
+      // up for a first-time promise export.
+      const promiseID = reverseSlot(slot);
+      const resolved = result =>
+        send({
+          type: 'CTP_RESOLVE',
+          promiseID,
+          res: serialize(harden(result)),
+        });
+      const rejected = reason =>
+        send({
+          type: 'CTP_RESOLVE',
+          promiseID,
+          rej: serialize(harden(reason)),
+        });
+      E.when(val, resolved, rejected).catch(rejected);
+    }
     return val;
   };
 

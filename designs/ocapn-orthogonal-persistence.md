@@ -432,18 +432,30 @@ journaled synthetic answers (delivered lazily by suffix replay, waking
 nobody). Guests must treat a broken resource promise as "retry or
 give up", exactly as they would a broken remote promise.
 
-Promise **resolutions** get the same treatment. Within one host
-lifetime, a promise resolving while its importer sleeps simply wakes
-the worker — `CTP_RESOLVE` rides the ordinary send path, whether the
-resolver is the host or another worker. Across a host restart, the
-resolution subscription is a host-memory obligation like an answer,
-so the host durably records its unresolved promise exports per worker
-(cleared when the resolving `CTP_RESOLVE` is journaled) and a
-restarted host rejects the stale ones the same lazy, wake-free way.
-Durable promise *links* — where a cross-worker resolution actually
-crosses a host restart instead of aborting — would require persisting
-promise routing between sessions, a natural companion to resource
-vats.
+Promise **resolutions** split by origin, per maintainer direction.
+Within one host lifetime, a promise resolving while its importer
+sleeps simply wakes the worker — `CTP_RESOLVE` rides the ordinary
+send path, whether the resolver is the host or another worker.
+Across a host restart:
+
+- **Cross-worker promises survive.** A promise imported from worker
+  A's session and exported into worker B's is described durably in
+  B's export table as `{ kind: 'worker-promise', workerName: A,
+  slot }` — the promise analogue of a `worker-import` link. At
+  restore, the host re-mints A's promise import (whose settler will
+  receive A's eventual `CTP_RESOLVE`) and re-seats it into B's
+  session via `captp.provideExport`, which re-attaches the resolution
+  subscription toward B. Neither worker wakes; when A eventually
+  resolves, the resolution flows A → host → B as if the restart never
+  happened. A fulfilled link's description is cleared when its
+  `CTP_RESOLVE` is journaled, so later restarts do not re-seat dead
+  links.
+- **Host-origin promises abort.** A promise whose resolution
+  subscription existed only in host memory (a host resource's
+  deferred, with no worker origin) is a lost obligation; the host
+  durably records its unresolved promise exports per worker and a
+  restarted host rejects the undescribed ones the same lazy,
+  wake-free way as stale answers.
 
 ### Toward resource vats
 

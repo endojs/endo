@@ -208,6 +208,16 @@ export const makeSiestaHost = async ({
       const runtime = provideWorkerRuntime(record.workerName);
       return runtime.provideImport(record.slot, record.iface ?? undefined);
     }
+    if (record && record.kind === 'worker-promise') {
+      // A cross-worker promise link: re-mint the origin worker's promise
+      // import — whose settler will receive the origin's eventual
+      // CTP_RESOLVE — and hand it back for re-export, where
+      // captp.provideExport re-attaches the resolution subscription
+      // toward the importing worker. Neither worker wakes.
+      // eslint-disable-next-line no-use-before-define
+      const runtime = provideWorkerRuntime(record.workerName);
+      return runtime.provideImport(record.slot);
+    }
     throw Fail`Unknown export description for ${q(forWhom)}`;
   };
 
@@ -234,7 +244,9 @@ export const makeSiestaHost = async ({
         }
         const origin = presenceOrigins.get(val);
         if (origin !== undefined && origin.workerName !== name) {
-          return { kind: 'worker-import', ...origin };
+          const kind =
+            origin.slot[0] === 'p' ? 'worker-promise' : 'worker-import';
+          return { kind, ...origin };
         }
         return undefined;
       },
@@ -462,6 +474,9 @@ export const makeSiestaHost = async ({
             pendingPromiseExports.delete(ourSlot);
             recordPendingPromiseExports();
           }
+          // A fulfilled cross-worker promise link must not be re-seated
+          // by future restarts.
+          tablesKit.clearExportDescription(ourSlot);
         }
         bumpIdle();
         await /** @type {WorkerIncarnation} */ (incarnation).deliver(message);
@@ -472,7 +487,10 @@ export const makeSiestaHost = async ({
       makeCapTPImportExportTables: tablesKit.makeCapTPImportExportTables,
       importHook: (val, slot) => {
         valToSlot.set(/** @type {object} */ (val), slot);
-        if (slot[0] === 'o') {
+        if (slot[0] === 'o' || slot[0] === 'p') {
+          // Record where this presence or promise came from, so its
+          // export into another worker's session can be described
+          // durably as a cross-worker link.
           presenceOrigins.set(/** @type {object} */ (val), {
             workerName: name,
             slot,
@@ -534,9 +552,15 @@ export const makeSiestaHost = async ({
         recordPendingGuestQuestions();
       }
       // Likewise for promises the previous host process exported but
-      // never resolved: reject them so a sleeping importer is not left
-      // waiting on a resolution that can never arrive.
-      const stalePromises = [...pendingPromiseExports];
+      // never resolved — except cross-worker promise links, whose
+      // durable descriptions let restoreExports re-seat them with a
+      // fresh resolution subscription: those survive the restart and
+      // must not be aborted. Only host-memory-only promises (no durable
+      // description) reject, so a sleeping importer is not left waiting
+      // on a resolution that can never arrive.
+      const stalePromises = [...pendingPromiseExports].filter(
+        slot => !tablesKit.hasExportDescription(slot),
+      );
       if (stalePromises.length > 0) {
         for (const slot of stalePromises) {
           const reason = harden(
