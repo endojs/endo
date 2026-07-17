@@ -7,7 +7,12 @@ import { makeExo } from '@endo/exo';
 import { q } from '@endo/errors';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
-import { externalizeId, internalizeLocator } from './locator.js';
+import {
+  externalizeId,
+  internalizeLocator,
+  externalizeContent,
+  internalizeContentLocator as parseContentLocatorGrammar,
+} from './locator.js';
 import { formatId } from './formula-identifier.js';
 import {
   assertNamePath,
@@ -21,7 +26,7 @@ import { directoryHelp, makeHelp } from './help-text.js';
 
 import { DirectoryInterface } from './interfaces.js';
 
-/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, NodeNumber, PetStoreNameChange, ReadableBlobDeferredTaskParams, StoreController } from './types.js' */
+/** @import { DaemonCore, DeferredTasks, MakeDirectoryNode, EndoDirectory, ContentLocatable, ContentIdentity, NameHub, LocatorNameChange, Context, Name, NamePath, PetName, FormulaIdentifier, NodeNumber, PetStoreNameChange, ReadableBlobDeferredTaskParams, StoreController } from './types.js' */
 
 /**
  * @param {object} args
@@ -29,6 +34,7 @@ import { DirectoryInterface } from './interfaces.js';
  * @param {(storeId: FormulaIdentifier) => Promise<StoreController>} args.provideStoreController
  * @param {DaemonCore['getIdForRef']} args.getIdForRef
  * @param {DaemonCore['getTypeForId']} args.getTypeForId
+ * @param {DaemonCore['getContentIdentityForId']} args.getContentIdentityForId
  * @param {DaemonCore['formulateDirectory']} args.formulateDirectory
  * @param {DaemonCore['formulateReadableBlob']} args.formulateReadableBlob
  * @param {DaemonCore['pinTransient']} args.pinTransient
@@ -39,6 +45,7 @@ export const makeDirectoryMaker = ({
   provideStoreController,
   getIdForRef,
   getTypeForId,
+  getContentIdentityForId,
   formulateDirectory,
   formulateReadableBlob,
   pinTransient,
@@ -232,6 +239,137 @@ export const makeDirectoryMaker = ({
       const hub = /** @type {NameHub} */ (await lookup(petNamePath));
       return E(hub).listLocators();
     };
+
+    // Content locators (magnet URNs). The content-side analogue of `locate` /
+    // `listLocators` / `reverseLocate`
+    // (`designs/endo-content-locators-magnet-urn.md`, § Interface extension):
+    // resolve a content-bearing pet name — a readable-blob or readable-tree —
+    // to a `magnet:` URN that names the content by its SHA-256 content address
+    // (`xt`), independent of location. A non-content formula type is rejected,
+    // the same way `parseLocator` rejects an unknown query parameter.
+    //
+    // This is Phase 2 (the interface methods). With no `@planes` yet (Phase 3),
+    // every locator produced here is `xt`-only: it proves what the content *is*
+    // without advertising any data-plane source, the content analogue of a
+    // hint-free locator from an empty `NETS`.
+
+    /**
+     * Build the content locator (magnet URN) for an already-resolved content
+     * identity. This is the single point where the Phase 3 `@planes` source
+     * hints will thread in.
+     *
+     * @param {ContentIdentity} identity
+     * @returns {string}
+     */
+    const contentLocatorFromIdentity = ({ hash, kind }) => {
+      // Phase 3 seam: an empty `@planes` vends no data-plane sources, so this
+      // is an `xt`-only URN. Phase 3 resolves
+      // `getAllContentSources(planesDirectoryId, hash)` for this hash and
+      // passes the resulting `ws` / `xs` / `as` / `tr` hints as the third
+      // argument to `externalizeContent`.
+      const sources = [];
+      return externalizeContent(hash, kind, sources);
+    };
+
+    /** @type {ContentLocatable['locateContent']} */
+    const locateContent = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const id = await identify(...petNamePath);
+      if (id === undefined) {
+        return undefined;
+      }
+      const identity = await getContentIdentityForId(
+        /** @type {FormulaIdentifier} */ (id),
+      );
+      if (identity === undefined) {
+        throw new Error(
+          `Cannot locate content for ${q(petNamePath)}: not a content-bearing formula (readable-blob or readable-tree)`,
+        );
+      }
+      return contentLocatorFromIdentity(identity);
+    };
+
+    /** @type {ContentLocatable['listContent']} */
+    const listContent = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const names = await list(...petNamePath);
+      /** @type {Record<string, string>} */
+      const record = {};
+      await Promise.all(
+        names.map(async name => {
+          const id = await identify(...petNamePath, name);
+          if (id === undefined) {
+            return;
+          }
+          const identity = await getContentIdentityForId(
+            /** @type {FormulaIdentifier} */ (id),
+          );
+          if (identity === undefined) {
+            // Not a content-bearing formula: omit it (the content analogue of
+            // `listLocators` listing every name, but restricted to content).
+            return;
+          }
+          record[name] = contentLocatorFromIdentity(identity);
+        }),
+      );
+      return harden(record);
+    };
+
+    /** @type {ContentLocatable['storeContent']} */
+    const storeContent = async (...petNamePath) => {
+      assertNames(petNamePath);
+      const id = await identify(...petNamePath);
+      if (id === undefined) {
+        return undefined;
+      }
+      const identity = await getContentIdentityForId(
+        /** @type {FormulaIdentifier} */ (id),
+      );
+      if (identity === undefined) {
+        throw new Error(
+          `Cannot store content for ${q(petNamePath)}: not a content-bearing formula (readable-blob or readable-tree)`,
+        );
+      }
+      // Phase 3 seam: `storeContent` is the explicit publish verb behind
+      // `locateContent`'s resolution. When `@planes` exists (Phase 3), this
+      // mints the per-plane sharing capabilities over the agent's `@planes`,
+      // asks each vended plane to begin serving the named readable, and threads
+      // the freshly vended source hints into the returned locator. Until then
+      // there are no planes to vend, so it returns the same `xt`-only content
+      // locator as `locateContent`.
+      return contentLocatorFromIdentity(identity);
+    };
+
+    /** @type {ContentLocatable['reverseLocateContent']} */
+    const reverseLocateContent = async contentLocator => {
+      const { hash, kind } = parseContentLocatorGrammar(contentLocator);
+      const names = controller.list();
+      /** @type {Set<Name>} */
+      const matches = new Set();
+      await Promise.all(
+        names.map(async name => {
+          const id = controller.identifyLocal(name);
+          if (id === undefined) {
+            return;
+          }
+          const identity = await getContentIdentityForId(
+            /** @type {FormulaIdentifier} */ (id),
+          );
+          if (
+            identity !== undefined &&
+            identity.hash === hash &&
+            identity.kind === kind
+          ) {
+            matches.add(name);
+          }
+        }),
+      );
+      return harden(Array.from(matches).sort());
+    };
+
+    /** @type {ContentLocatable['internalizeContentLocator']} */
+    const internalizeContentLocator = async contentLocator =>
+      harden(parseContentLocatorGrammar(contentLocator));
 
     /**
      * Enrich a name-change event with the formula type of the named value.
@@ -427,7 +565,7 @@ export const makeDirectoryMaker = ({
       await E(/** @type {any} */ (hub)).writeText(name, content);
     };
 
-    /** @type {EndoDirectory} */
+    /** @type {EndoDirectory & ContentLocatable} */
     const directory = {
       has,
       identify,
@@ -437,6 +575,11 @@ export const makeDirectoryMaker = ({
       list,
       listIdentifiers,
       listLocators,
+      locateContent,
+      listContent,
+      storeContent,
+      reverseLocateContent,
+      internalizeContentLocator,
       followNameChanges,
       lookup,
       maybeLookup,

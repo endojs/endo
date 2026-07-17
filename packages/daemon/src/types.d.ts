@@ -14,6 +14,7 @@ import type {
   SnapshotTree,
   TreeEntry,
 } from '@endo/platform/fs/lite/types';
+import type { ContentKind, ContentSourceHint } from './locator.js';
 
 // Branded string types for pet names and special names
 declare const PetNameBrand: unique symbol;
@@ -918,6 +919,71 @@ export interface EndoDirectory extends NameHub {
   writeText(petNamePath: string | string[], content: string): Promise<void>;
 }
 
+/**
+ * The durable content identity a content locator names: the SHA-256 content
+ * address (`hash`, the `xt`) and the content kind (`blob` / `tree`). Resolved
+ * from a content-bearing formula (`readable-blob` / `readable-tree`) by
+ * `DaemonCore.getContentIdentityForId`
+ * (`designs/endo-content-locators-magnet-urn.md`).
+ */
+export type ContentIdentity = {
+  hash: string;
+  kind: ContentKind;
+};
+
+/**
+ * The content-locate method family (`designs/endo-content-locators-magnet-urn.md`
+ * § Interface extension, Design Decision 9). The content-side analogue of the
+ * name-resolution family (`locate` / `listLocators` / `reverseLocate`),
+ * defined once on the directory node and carried up onto the agent interfaces
+ * (`EndoHost` / `EndoGuest`) the same way. Every method resolves a
+ * content-bearing readable (a readable-blob or readable-tree) to, or from, a
+ * `magnet:` URN naming the content by its SHA-256 content address.
+ *
+ * Phase 2 lands the `xt`-only behavior (no `@planes`, so no data-plane source
+ * hints yet); Phase 3 threads the vended sources through `storeContent` /
+ * `locateContent`.
+ */
+export interface ContentLocatable {
+  /**
+   * Resolve a content-bearing pet name to a content locator (magnet URN), or
+   * `undefined` if the name is unknown. Rejects if the named formula is not
+   * content-bearing.
+   */
+  locateContent(...petNamePath: string[]): Promise<string | undefined>;
+  /**
+   * The content analogue of `listLocators`: a record from name to content
+   * locator for the content-bearing entries of a directory (non-content
+   * entries are omitted).
+   */
+  listContent(...petNamePath: string[]): Promise<Record<string, string>>;
+  /**
+   * The explicit publish verb behind `locateContent`'s resolution: mint the
+   * per-plane sharing capabilities over the agent's `@planes`, ask each vended
+   * plane to begin serving the named readable, and return the content locator
+   * carrying the freshly vended source hints. Phase 2 has no `@planes` to vend,
+   * so it returns the same `xt`-only locator as `locateContent`; `undefined` if
+   * the name is unknown, and rejects if the named formula is not
+   * content-bearing.
+   */
+  storeContent(...petNamePath: string[]): Promise<string | undefined>;
+  /**
+   * Find the pet names in this directory whose content matches a content
+   * locator's `xt` hash (and kind). The content analogue of `reverseLocate`.
+   */
+  reverseLocateContent(contentLocator: string): Promise<Array<Name>>;
+  /**
+   * Parse and validate a content locator, extracting the content hash and kind
+   * and the data-plane source hints (the analogue of `internalizeLocator`
+   * forwarding transport hints to the fetch layer).
+   */
+  internalizeContentLocator(contentLocator: string): Promise<{
+    hash: string;
+    kind: ContentKind;
+    sources: ContentSourceHint[];
+  }>;
+}
+
 export type GcHooks = {
   onPetStoreWrite: (storeId: FormulaIdentifier, id: FormulaIdentifier) => void;
   onPetStoreRemove: (storeId: FormulaIdentifier, id: FormulaIdentifier) => void;
@@ -949,7 +1015,7 @@ export type MakeDirectoryNode = (
   agentNodeNumber: NodeNumber,
   isLocalKey: (node: string) => boolean,
   getNetworkAddresses: () => Promise<string[]>,
-) => EndoDirectory;
+) => EndoDirectory & ContentLocatable;
 
 export interface Mail {
   handle: () => Handle;
@@ -1293,7 +1359,7 @@ export interface EndoNetwork {
   connect: (address: string, farContext: FarContext) => Promise<EndoGateway>;
 }
 
-export interface EndoAgent extends EndoDirectory {
+export interface EndoAgent extends EndoDirectory, ContentLocatable {
   handle: () => {};
   listMessages: Mail['listMessages'];
   followMessages: Mail['followMessages'];
@@ -2515,6 +2581,17 @@ export interface DaemonCore {
   getMountHostPath: (id: FormulaIdentifier) => string;
 
   getTypeForId: (id: FormulaIdentifier) => Promise<string>;
+
+  /**
+   * The content identity (SHA-256 content address and content kind) of a
+   * content-bearing formula (`readable-blob` / `readable-tree`), or `undefined`
+   * for any other formula type (including a remote formula, whose content is
+   * not resolvable locally). This is the `xt` identity a content locator
+   * carries (`designs/endo-content-locators-magnet-urn.md`).
+   */
+  getContentIdentityForId: (
+    id: FormulaIdentifier,
+  ) => Promise<ContentIdentity | undefined>;
 
   makeDirectoryNode: MakeDirectoryNode;
 
