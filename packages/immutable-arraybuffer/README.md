@@ -72,12 +72,96 @@ See [Platform support for `transferToImmutable`](#platform-support-for-transfert
 Without either, the shim still shims `ArrayBuffer.prototype.sliceToImmutable` but omits `ArrayBuffer.prototype.transferToImmutable`.
 - The shim's emulated immutable buffers are not real `ArrayBuffer` exotic objects.
 If they were, the shim would not be able to protect them from being written.
-Even though they implement the full proposed `ArrayBuffer` API, they cannot be plug-compatible: they cannot be used as the backing stores of `DataView`s or `TypedArray`s.
-Perhaps follow-on shims might modify `DataView` and `TypedArray` to emulate that as well, but that is hard and beyond the ambition of this shim.
+Even though they implement the full proposed `ArrayBuffer` API, they cannot be plug-compatible as direct exotic-object arguments to all native APIs.
+The freezable `TypedArray` emulation (see below) extends the shim to cover the most common consumer path (`new T(iab)`), but `DataView` construction from an emulated immutable buffer is not yet covered.
 - Unlike genuine `ArrayBuffer` or `SharedArrayBuffer` exotic objects, the shim's emulated immutable buffers cannot be cloned or transfered between JS threads.
 - This is a plain *JavaScript* shim, not by itself a *Hardened JavaScript* polyfill/shim.
 Thus, the objects and function it creates are not hardened by this shim itself.
 Rather, the ses-shim is expected to import this, and then treat the resulting objects as if they were additional primordials, to be hardened during `lockdown`'s harden phase.
+
+## The Freezable TypedArray Emulation
+
+The shim also installs a freezable `TypedArray` emulation alongside the `ArrayBuffer`-side install.
+After the shim loads, constructing a `TypedArray` from an emulated immutable `ArrayBuffer` produces an emulated freezable wrapper:
+
+```js
+import '@endo/immutable-arraybuffer/shim.js';
+
+const ab = new ArrayBuffer(4);
+const iab = ab.sliceToImmutable();
+
+const view = new Uint8Array(iab);
+
+view instanceof Uint8Array;                // true
+Object.getPrototypeOf(view) === Uint8Array.prototype; // true (no intermediate prototype)
+view.buffer === iab;                       // true (returns the immutable wrapper)
+view.byteLength;                           // 4
+view.at(0);                               // 0
+
+view.fill(1);                             // throws TypeError (mutator blocked)
+view.set([1]);                            // throws TypeError
+view.reverse();                           // throws TypeError
+view.copyWithin(0, 1);                    // throws TypeError
+view.sort();                              // throws TypeError
+
+Object.freeze(view);
+Object.isFrozen(view);                    // true
+```
+
+The emulation covers all eleven concrete `TypedArray` constructors (`Int8Array`, `Int16Array`, `Int32Array`, `Uint8Array`, `Uint8ClampedArray`, `Uint16Array`, `Uint32Array`, `Float32Array`, `Float64Array`, `BigInt64Array`, `BigUint64Array`).
+
+Constructing from a genuine mutable `ArrayBuffer` produces a genuine writable `TypedArray` view, unchanged from before:
+
+```js
+const mutableAb = new ArrayBuffer(4);
+const view = new Uint8Array(mutableAb);
+view.fill(1); // succeeds: genuine writable view
+```
+
+### Indexed assignment on emulated freezable views
+
+The emulated wrapper is a plain ordinary object, not a native integer-indexed exotic.
+An indexed assignment (`view[0] = 42`) therefore creates an own property on the wrapper rather than writing to the underlying buffer.
+The underlying buffer's bytes are never touched.
+
+On a non-frozen wrapper the own property shadows the prototype's read delegate; `view[0]` reads back `42` while `Uint8Array.prototype.at.call(view, 0)` still reads `0` (the underlying byte).
+On a frozen wrapper the assignment throws `TypeError` in strict mode (ES module code is always strict), and the buffer is unchanged.
+
+This is a known constraint of the TC39 proposal: there is no way to intercept integer-indexed assignments on a plain object via the prototype chain.
+
+## Function expressions versus declarations
+
+Throughout `src/lib.js`, exported bindings that hold function values use `const`
+with a named function expression rather than `function` declarations.
+The reason is JavaScript function-declaration hoisting.
+
+In the presence of an import cycle, a hoisted `function` declaration's value is
+accessible to an importing module before the exporting module finishes
+initializing.
+An early importer that reads the exported name gets the function value already
+present (because hoisting put it there before the module body ran), but any
+other module-level state the function closes over may not yet be initialized,
+creating a subtle hazard.
+
+By using `const` instead, the JavaScript standard specifies that an early
+importer in a cycle that reads the name before the exporting module's
+initializer runs would get a Temporal Dead Zone (TDZ) error, making the hazard
+visible at runtime rather than silent.
+
+Two implementation notes for ses-shim environments:
+
+- The ses-shim's compiler from JS ESM module code to JS evaluable code does not
+  correctly implement TDZ.
+  A cycle hazard of this kind may therefore not be caught at runtime when
+  running under the ses-shim.
+- XS (Moddable's engine) uses native compartment and module support and does
+  implement TDZ correctly, so the same hazard would be caught at runtime on XS.
+
+This file introduces no such import cycle; the convention is documented here
+so future maintainers understand why function declarations are avoided throughout
+endo.
+
+Source: erights review comment 3439479281 on `src/lib.js` line 578.
 
 ## Platform support for `transferToImmutable`
 

@@ -1,4 +1,5 @@
 import test from '@endo/ses-ava/test.js';
+import harden from '@endo/harden';
 import { passStyleOf } from '@endo/pass-style';
 
 import { bytesEqual } from '../src/equals.js';
@@ -248,4 +249,80 @@ test('concatImmutables: result is hardened', t => {
   const parts = [bytesToImmutable(new Uint8Array([42]))];
   const result = concatImmutables(parts);
   t.true(Object.isFrozen(result));
+});
+
+// Emulated-frozen-Uint8Array tolerance.
+//
+// On platforms without native immutable-ArrayBuffer support, constructing a
+// `Uint8Array` over an emulated immutable `ArrayBuffer` yields an emulated
+// freezable wrapper: a plain object inheriting from `Uint8Array.prototype` with
+// no integer-indexed own properties. `ArrayBuffer.isView` is false for it,
+// `wrapper[i]` reads `undefined`, and platform APIs (`TextDecoder.decode`,
+// `TypedArray.prototype.set`) reject it. The `@endo/bytes` ponyfills must
+// nonetheless function identically on it, copying to a genuine `Uint8Array`
+// before any platform call or indexing. These tests pin that contract.
+
+/**
+ * Builds an emulated frozen `Uint8Array` over an emulated immutable
+ * `ArrayBuffer`.
+ *
+ * @param {number[]} values
+ * @returns {Uint8Array}
+ */
+const makeEmulatedFrozenBytes = values => {
+  const immutable = bytesToImmutable(new Uint8Array(values));
+  return harden(new Uint8Array(immutable));
+};
+
+test('precondition: emulated wrapper is not a real ArrayBufferView and is not directly indexable', t => {
+  const emulated = makeEmulatedFrozenBytes([1, 2, 3]);
+  // If either assertion ever fails, the emulation has changed shape and the
+  // tolerance below is no longer exercising the intended path.
+  t.false(ArrayBuffer.isView(emulated));
+  // `emulated[0]` reads through `[[Get]]`; the wrapper has no integer-indexed
+  // own property, so the result is `undefined` at runtime even though the
+  // static `Uint8Array` index type is `number` (hence the cast).
+  t.is(/** @type {number | undefined} */ (emulated[0]), undefined);
+  t.is(emulated.at(0), 1);
+});
+
+test('bytesToText: decodes an emulated frozen Uint8Array (copies before TextDecoder)', t => {
+  const original = 'Hello, 你好 \u{1F600}';
+  const emulated = makeEmulatedFrozenBytes([...bytesFromText(original)]);
+  t.is(bytesToText(emulated), original);
+  t.is(bytesToText(emulated, { fatal: true }), original);
+});
+
+test('bytesEqual: emulated wrapper equals a genuine Uint8Array of the same bytes', t => {
+  const genuine = new Uint8Array([0, 1, 2, 0xff, 0x80]);
+  const emulated = makeEmulatedFrozenBytes([0, 1, 2, 0xff, 0x80]);
+  t.true(bytesEqual(emulated, genuine));
+  t.true(bytesEqual(genuine, emulated));
+  t.true(bytesEqual(emulated, makeEmulatedFrozenBytes([0, 1, 2, 0xff, 0x80])));
+});
+
+test('bytesEqual: emulated wrapper differs from a genuine Uint8Array', t => {
+  const genuine = new Uint8Array([1, 2, 3]);
+  t.false(bytesEqual(makeEmulatedFrozenBytes([1, 2, 4]), genuine));
+  t.false(bytesEqual(makeEmulatedFrozenBytes([1, 2]), genuine));
+});
+
+test('concatBytes: emulated and genuine chunks interleave byte-for-byte', t => {
+  const chunks = [
+    makeEmulatedFrozenBytes([1, 2]),
+    new Uint8Array([3, 4, 5]),
+    makeEmulatedFrozenBytes([]),
+    makeEmulatedFrozenBytes([6]),
+    new Uint8Array([7]),
+  ];
+  const result = concatBytes(chunks);
+  t.deepEqual([...result], [1, 2, 3, 4, 5, 6, 7]);
+});
+
+test('concatBytes + bytesToText composition over emulated chunks: round-trip', t => {
+  const parts = ['Hello, ', '世界', '!'].map(s =>
+    makeEmulatedFrozenBytes([...bytesFromText(s)]),
+  );
+  const combined = concatBytes(parts);
+  t.is(bytesToText(combined), 'Hello, 世界!');
 });
