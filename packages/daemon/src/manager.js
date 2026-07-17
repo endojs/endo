@@ -1226,6 +1226,31 @@ const makeDaemonCore = async (
   };
 
   /**
+   * The content identity (SHA-256 content address + kind) of a content-bearing
+   * formula, or `undefined` for any other formula type. A `readable-blob` and a
+   * `readable-tree` each carry their content's SHA-256 hash as the formula's
+   * `content` field (the same hash the CAS keys on), which is the `xt` a
+   * content locator names (`designs/endo-content-locators-magnet-urn.md`). A
+   * remote formula's content is not resolvable locally, so it is not
+   * content-locatable here.
+   *
+   * @type {DaemonCore['getContentIdentityForId']}
+   */
+  const getContentIdentityForId = async inputId => {
+    if (!isLocalId(inputId)) {
+      return undefined;
+    }
+    const formula = await getFormulaForId(inputId);
+    if (formula.type === 'readable-blob') {
+      return harden({ hash: formula.content, kind: 'blob' });
+    }
+    if (formula.type === 'readable-tree') {
+      return harden({ hash: formula.content, kind: 'tree' });
+    }
+    return undefined;
+  };
+
+  /**
    * Reverse look-up, for answering "what is my name for this near or far
    * reference", and not for "what is my name for this promise".
    * @type {WeakMultimap<Record<string | symbol, unknown>, FormulaIdentifier>}
@@ -3872,6 +3897,11 @@ const makeDaemonCore = async (
             reverseIdentify: disallowedSyncFn,
             locate: disallowedFn,
             reverseLocate: disallowedFn,
+            locateContent: disallowedFn,
+            listContent: disallowedFn,
+            storeContent: disallowedFn,
+            reverseLocateContent: disallowedFn,
+            internalizeContentLocator: disallowedFn,
             followLocatorNameChanges: disallowedFn,
             list: disallowedFn,
             listIdentifiers: disallowedFn,
@@ -6292,6 +6322,7 @@ const makeDaemonCore = async (
     provideStoreController,
     getIdForRef,
     getTypeForId,
+    getContentIdentityForId,
     formulateDirectory,
     formulateReadableBlob,
     pinTransient,

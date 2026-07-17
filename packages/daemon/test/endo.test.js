@@ -34,6 +34,7 @@ import {
   parseLocator,
   addressesFromLocator,
   idFromLocator,
+  parseContentLocator,
 } from '../src/locator.js';
 
 /**
@@ -4340,6 +4341,126 @@ const makeFarTree = children => {
     has: async (/** @type {string} */ name) => Object.hasOwn(children, name),
   });
 };
+
+// Content locators (magnet URNs), Phase 2: the `<verb>Content` interface
+// methods (`designs/endo-content-locators-magnet-urn.md` § Interface
+// extension, § Phased implementation step 2). With no `@planes` yet (Phase 3),
+// every locator these produce is `xt`-only.
+
+test('locateContent resolves a readable-blob to an xt-only magnet URN', async t => {
+  const { host } = await prepareHost(t);
+  const payload = 'content-locator payload\n';
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode(payload),
+  ]);
+  await E(host).storeBlob(readerRef, 'payload-blob');
+
+  const contentLocator = await E(host).locateContent('payload-blob');
+  // The `xt` hash is the same SHA-256 content address the CAS keys on.
+  const expectedHash = crypto
+    .createHash('sha256')
+    .update(payload)
+    .digest('hex');
+  t.is(contentLocator, `magnet:?xt=urn:endo-blob:${expectedHash}`);
+
+  const parsed = parseContentLocator(contentLocator);
+  t.is(parsed.hash, expectedHash);
+  t.is(parsed.kind, 'blob');
+  // `xt`-only: an empty `@planes` advertises no data-plane source (Phase 3).
+  t.deepEqual(parsed.sources, []);
+});
+
+test('locateContent rejects a non-content formula', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).storeValue(10, 'ten');
+  await t.throwsAsync(E(host).locateContent('ten'), {
+    message: /not a content-bearing formula/,
+  });
+});
+
+test('locateContent returns undefined for an unknown name', async t => {
+  const { host } = await prepareHost(t);
+  t.is(await E(host).locateContent('no-such-name'), undefined);
+});
+
+test('storeContent returns the same xt-only locator as locateContent', async t => {
+  const { host } = await prepareHost(t);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('publish me\n'),
+  ]);
+  await E(host).storeBlob(readerRef, 'to-publish');
+  const located = await E(host).locateContent('to-publish');
+  const stored = await E(host).storeContent('to-publish');
+  t.is(stored, located);
+});
+
+test('reverseLocateContent finds the pet names for a content locator', async t => {
+  const { host } = await prepareHost(t);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('reverse me\n'),
+  ]);
+  await E(host).storeBlob(readerRef, 'reverse-blob');
+  const contentLocator = await E(host).locateContent('reverse-blob');
+  const names = await E(host).reverseLocateContent(contentLocator);
+  t.deepEqual(names, ['reverse-blob']);
+});
+
+test('listContent lists only content-bearing entries', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).storeValue(10, 'ten');
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('listed\n'),
+  ]);
+  await E(host).storeBlob(readerRef, 'listed-blob');
+  const record = await E(host).listContent();
+  t.true('listed-blob' in record);
+  t.false('ten' in record);
+  t.is(record['listed-blob'], await E(host).locateContent('listed-blob'));
+});
+
+test('internalizeContentLocator parses a content locator', async t => {
+  const { host } = await prepareHost(t);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('parse me\n'),
+  ]);
+  await E(host).storeBlob(readerRef, 'parse-blob');
+  const contentLocator = await E(host).locateContent('parse-blob');
+  const internalized = await E(host).internalizeContentLocator(contentLocator);
+  const { hash } = parseContentLocator(contentLocator);
+  t.is(internalized.hash, hash);
+  t.is(internalized.kind, 'blob');
+  t.deepEqual(internalized.sources, []);
+});
+
+test('locateContent resolves a readable-tree to an xt-only magnet URN', async t => {
+  const { host } = await prepareHost(t);
+  const remoteTree = makeFarTree({
+    'a.txt': makeFarBlob('alpha'),
+    'b.txt': makeFarBlob('beta'),
+  });
+  await E(host).storeTree(remoteTree, 'a-tree');
+  const contentLocator = await E(host).locateContent('a-tree');
+  t.regex(contentLocator, /^magnet:\?xt=urn:endo-tree:[0-9a-f]{64}$/);
+  const parsed = parseContentLocator(contentLocator);
+  t.is(parsed.kind, 'tree');
+  t.deepEqual(parsed.sources, []);
+  const names = await E(host).reverseLocateContent(contentLocator);
+  t.deepEqual(names, ['a-tree']);
+});
+
+test('a guest carries the content-locate family', async t => {
+  const { host } = await prepareHost(t);
+  const guest = await E(host).provideGuest('guest', {
+    agentName: 'guest-agent',
+  });
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('guest blob\n'),
+  ]);
+  await E(host).storeBlob(readerRef, 'guest-blob');
+  await E(host).move(['guest-blob'], ['guest-agent', 'guest-blob']);
+  const contentLocator = await E(guest).locateContent('guest-blob');
+  t.regex(contentLocator, /^magnet:\?xt=urn:endo-blob:[0-9a-f]{64}$/);
+});
 
 test('store readable tree with blobs', async t => {
   const { host } = await prepareHost(t);

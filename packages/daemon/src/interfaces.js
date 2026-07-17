@@ -113,6 +113,22 @@ export const nameHubMethodGuards = harden({
   copy: M.call(NamePathShape, NamePathShape).returns(M.promise()),
 });
 
+// The content-locate method family (`designs/endo-content-locators-magnet-urn.md`
+// § Interface extension, Design Decision 9): the content-side analogue of the
+// name-resolution family (`locate` / `listLocators` / `reverseLocate`). It is
+// an agent-only surface — spread into `EndoHost` / `EndoGuest`, not the bare
+// name hub — matching the design's "the agent interface gains a content-locate
+// method family". Every shape mirrors its name-resolution twin: a content
+// locator is a string (a `magnet:` URN), guarded as `M.string()` the same way
+// a transport `LocatorShape` is.
+export const contentLocatorMethodGuards = harden({
+  locateContent: M.call().rest(NamePathShape).returns(M.promise()),
+  listContent: M.call().rest(NamePathShape).returns(M.promise()),
+  storeContent: M.call().rest(NamePathShape).returns(M.promise()),
+  reverseLocateContent: M.call(LocatorShape).returns(M.promise()),
+  internalizeContentLocator: M.call(LocatorShape).returns(M.promise()),
+});
+
 export const EnvelopeInterface = M.interface('EndoEnvelope', {});
 
 export const DismisserInterface = M.interface('EndoDismisser', {
@@ -143,6 +159,9 @@ export const GuestInterface = M.interface('EndoGuest', {
   // surface, plus the directory file-I/O surface.
   ...nameHubMethodGuards,
   ...directoryFileMethodGuards,
+  // Content-locate family (agent-only): the content-side analogue of the
+  // name-resolution family above.
+  ...contentLocatorMethodGuards,
   // `followNameChanges` / `followLocatorNameChanges` are async on agents
   // (the exo awaits before wrapping the reader), so they return a Promise
   // where the bare `EndoDirectory` returns the reader synchronously
@@ -242,6 +261,9 @@ export const HostInterface = M.interface('EndoHost', {
   // surface, plus the directory file-I/O surface.
   ...nameHubMethodGuards,
   ...directoryFileMethodGuards,
+  // Content-locate family (agent-only): the content-side analogue of the
+  // name-resolution family above.
+  ...contentLocatorMethodGuards,
   // Async on agents (see EndoGuest): override the shared record's
   // synchronous remotable shape with the agent's promise shape.
   followLocatorNameChanges: M.call(LocatorShape).returns(M.promise()),
