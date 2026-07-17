@@ -7,6 +7,7 @@
 // This is again pure plumbing over an injected `fetch`: it holds no keys
 // and settles nothing itself, it only relays to the facilitator.
 
+import harden from '@endo/harden';
 import { X402_VERSION } from './constants.js';
 
 /**

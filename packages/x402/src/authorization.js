@@ -7,6 +7,8 @@
 // authorize a transfer whose amount and recipient it cannot forge past
 // the signer's own policy.
 
+import harden from '@endo/harden';
+
 import {
   resolveNetwork,
   USDC_EIP712_NAME,

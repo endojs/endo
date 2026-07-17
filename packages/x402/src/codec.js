@@ -4,6 +4,7 @@
 // the byte<->string half and the platform `TextEncoder`/`TextDecoder`
 // for the JSON<->byte half, so the codec pulls in no ambient authority.
 
+import harden from '@endo/harden';
 import { encodeBase64, decodeBase64 } from '@endo/base64';
 
 const textEncoder = new TextEncoder();

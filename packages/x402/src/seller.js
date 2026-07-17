@@ -10,6 +10,8 @@
 // remotable that exposes an HTTP-shaped capability). All authority — the
 // facilitator, and by extension the on-chain settlement — is injected.
 
+import harden from '@endo/harden';
+
 import {
   X402_VERSION,
   EXACT_SCHEME,

@@ -12,6 +12,8 @@
 // key authority (the `signer`) are injected capabilities: this module
 // only knows the shapes and the well-known Base addresses.
 
+import harden from '@endo/harden';
+
 export const X402_VERSION = 2;
 
 // The single settlement scheme this package implements: an exact-amount

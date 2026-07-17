@@ -7,6 +7,9 @@
   "references": [
     {
       "path": "../base64/tsconfig.composite.json"
+    },
+    {
+      "path": "../harden/tsconfig.composite.json"
     }
   ]
 }

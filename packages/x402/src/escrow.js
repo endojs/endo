@@ -23,6 +23,8 @@
 
 /* global globalThis */
 
+import harden from '@endo/harden';
+
 const defaultNow = () => {
   const D = globalThis.Date;
   return D ? Math.floor(D.now() / 1000) : 0;

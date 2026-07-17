@@ -14,6 +14,8 @@
 
 /* global globalThis, Headers */
 
+import harden from '@endo/harden';
+
 import { X402_VERSION, EXACT_SCHEME } from './constants.js';
 import { buildExactEvmAuthorization } from './authorization.js';
 import { encodeHeaderObject, decodeHeaderObject } from './codec.js';
