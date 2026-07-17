@@ -421,6 +421,11 @@ export const parseContentLocator = allegedContentLocator => {
   }
   let byteLength;
   if (xlValues.length === 1) {
+    // Trees are structural values, not byte strings. The grammar therefore
+    // admits `xl` only for the readable-blob production.
+    if (kind === 'tree') {
+      throw makeError(`${errorPrefix} Invalid xl.`);
+    }
     if (!/^(?:0|[1-9][0-9]*)$/.test(xlValues[0])) {
       throw makeError(`${errorPrefix} Invalid xl.`);
     }
@@ -508,10 +513,17 @@ export const formatContentLocator = (
 
   const parts = [`xt=urn:endo-${kind}:${hash}`];
   if (displayName !== undefined) {
+    if (typeof displayName !== 'string') {
+      throw makeError(`Invalid content display name ${q(displayName)}`);
+    }
     parts.push(`dn=${encodeURIComponent(displayName)}`);
   }
   if (byteLength !== undefined) {
-    if (!Number.isSafeInteger(byteLength) || byteLength < 0) {
+    if (
+      kind !== 'blob' ||
+      !Number.isSafeInteger(byteLength) ||
+      byteLength < 0
+    ) {
       throw makeError(`Invalid content byte length ${q(byteLength)}`);
     }
     parts.push(`xl=${byteLength}`);

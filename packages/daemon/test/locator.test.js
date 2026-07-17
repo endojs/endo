@@ -382,6 +382,7 @@ test('assertValidContentLocator - invalid', t => {
     [`magnet:?xt=urn:endo-blob:${validHash}&xl=1&xl=2`, /Duplicate xl.$/u],
     [`magnet:?xt=urn:endo-blob:${validHash}&xl=notanumber`, /Invalid xl.$/u],
     [`magnet:?xt=urn:endo-blob:${validHash}&xl=-1`, /Invalid xl.$/u],
+    [`magnet:?xt=urn:endo-tree:${validHash}&xl=1`, /Invalid xl.$/u],
     [
       `magnet:?xt=urn:endo-blob:${validHash}&bad=param`,
       /Invalid search params.$/u,
@@ -415,6 +416,26 @@ test('formatContentLocator - rejects an unregistered source plane', t => {
         { plane: /** @type {any} */ ('zz'), payload: 'x' },
       ]),
     { message: /Invalid content source plane/ },
+  );
+});
+
+test('formatContentLocator - rejects tree byte length', t => {
+  t.throws(
+    () =>
+      formatContentLocator(validHash, 'tree', [], {
+        byteLength: 1,
+      }),
+    { message: /Invalid content byte length/ },
+  );
+});
+
+test('formatContentLocator - rejects a non-string display name', t => {
+  t.throws(
+    () =>
+      formatContentLocator(validHash, 'blob', [], {
+        displayName: /** @type {any} */ (1),
+      }),
+    { message: /Invalid content display name/ },
   );
 });
 
