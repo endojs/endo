@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
 use std::sync::mpsc as std_mpsc;
 
 use xsnap::envelope;

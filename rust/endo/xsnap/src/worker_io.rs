@@ -214,7 +214,10 @@ impl ChannelTransport {
     /// raw CBOR envelope frames from the supervisor; the `outbound`
     /// sender carries raw CBOR envelope frames back to the
     /// supervisor.
-    pub fn new(inbound: std_mpsc::Receiver<Vec<u8>>, outbound: std_mpsc::Sender<Vec<u8>>) -> Self {
+    pub fn new(
+        inbound: std_mpsc::Receiver<Vec<u8>>,
+        outbound: std_mpsc::Sender<Vec<u8>>,
+    ) -> Self {
         ChannelTransport {
             inbound,
             outbound,
@@ -515,10 +518,7 @@ pub unsafe extern "C" fn host_import_archive(the: *mut XsMachine) {
     let cursor = std::io::Cursor::new(buf);
     match crate::archive::load_archive(cursor) {
         Ok(loaded) => {
-            let machine = std::mem::ManuallyDrop::new(crate::Machine {
-                raw: the,
-                registered_callbacks: std::cell::RefCell::new(Vec::new()),
-            });
+            let machine = std::mem::ManuallyDrop::new(crate::Machine { raw: the, registered_callbacks: std::cell::RefCell::new(Vec::new()) });
             let ok = crate::archive::install_archive(&machine, &loaded);
             fxBoolean(the, &mut (*the).scratch, if ok { 1 } else { 0 });
             *(*the).frame.add(1) = (*the).scratch;
@@ -662,10 +662,7 @@ pub unsafe extern "C" fn host_encode_utf8(the: *mut XsMachine) {
 ///
 /// When mxDebug is not compiled in, `run_debugger()` is a no-op.
 pub unsafe extern "C" fn host_debug_poll(the: *mut XsMachine) {
-    let machine = std::mem::ManuallyDrop::new(crate::Machine {
-        raw: the,
-        registered_callbacks: std::cell::RefCell::new(Vec::new()),
-    });
+    let machine = std::mem::ManuallyDrop::new(crate::Machine { raw: the, registered_callbacks: std::cell::RefCell::new(Vec::new()) });
     machine.run_debugger();
     crate::flush_debug_outbound();
 }
@@ -732,7 +729,10 @@ mod tests {
 
         let tmp_write = tempfile::tempfile().unwrap();
 
-        PipeTransport::from_streams(BufReader::new(tmp_read), BufWriter::new(tmp_write))
+        PipeTransport::from_streams(
+            BufReader::new(tmp_read),
+            BufWriter::new(tmp_write),
+        )
     }
 
     #[test]
@@ -815,11 +815,7 @@ mod tests {
 
     // ChannelTransport tests
 
-    fn make_channel_pair() -> (
-        ChannelTransport,
-        std_mpsc::Sender<Vec<u8>>,
-        std_mpsc::Receiver<Vec<u8>>,
-    ) {
+    fn make_channel_pair() -> (ChannelTransport, std_mpsc::Sender<Vec<u8>>, std_mpsc::Receiver<Vec<u8>>) {
         let (sup_to_machine_tx, sup_to_machine_rx) = std_mpsc::channel();
         let (machine_to_sup_tx, machine_to_sup_rx) = std_mpsc::channel();
         let t = ChannelTransport::new(sup_to_machine_rx, machine_to_sup_tx);

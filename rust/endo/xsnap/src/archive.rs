@@ -104,8 +104,8 @@ pub struct LoadedArchive {
 /// returning a `LoadedArchive` that can be installed into an
 /// XS machine.
 pub fn load_archive<R: Read + Seek>(reader: R) -> io::Result<LoadedArchive> {
-    let mut zip =
-        zip::ZipArchive::new(reader).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let mut zip = zip::ZipArchive::new(reader)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
     // Read compartment-map.json
     let map: CompartmentMap = {
@@ -148,7 +148,10 @@ pub fn load_archive<R: Read + Seek>(reader: R) -> io::Result<LoadedArchive> {
                     Ok(mut file) => {
                         let mut source = String::new();
                         file.read_to_string(&mut source)?;
-                        sources.insert((compartment_name.clone(), specifier.clone()), source);
+                        sources.insert(
+                            (compartment_name.clone(), specifier.clone()),
+                            source,
+                        );
                     }
                     Err(_) => {
                         // Module file missing from archive — will be a
@@ -876,7 +879,10 @@ mod tests {
     use std::io::Write;
 
     /// Create a test zip archive with the given compartment map and files.
-    fn make_test_archive(map: &CompartmentMap, files: &[(&str, &str)]) -> Vec<u8> {
+    fn make_test_archive(
+        map: &CompartmentMap,
+        files: &[(&str, &str)],
+    ) -> Vec<u8> {
         let mut buf = io::Cursor::new(Vec::new());
         {
             let mut zip = zip::ZipWriter::new(&mut buf);
@@ -932,7 +938,10 @@ mod tests {
     #[test]
     fn load_simple_archive() {
         let map = make_simple_map();
-        let zip_bytes = make_test_archive(&map, &[("app-v1.0.0/index.js", "export const x = 42;")]);
+        let zip_bytes = make_test_archive(
+            &map,
+            &[("app-v1.0.0/index.js", "export const x = 42;")],
+        );
 
         let archive = load_archive(io::Cursor::new(zip_bytes)).unwrap();
         assert_eq!(archive.map.entry.compartment, "app-v1.0.0");

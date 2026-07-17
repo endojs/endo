@@ -18,9 +18,14 @@ fn main() {
         if prebuilt.exists() {
             let dest = out_dir.join("libxs.a");
             std::fs::copy(&prebuilt, &dest).expect("copy prebuilt libxs.a");
-            println!("cargo:rustc-link-search=native={}", out_dir.display());
+            println!(
+                "cargo:rustc-link-search=native={}",
+                out_dir.display()
+            );
             println!("cargo:rustc-link-lib=static=xs");
-            eprintln!("cargo:warning=Using prebuilt libxs.a (Moddable XS sources not found)");
+            eprintln!(
+                "cargo:warning=Using prebuilt libxs.a (Moddable XS sources not found)"
+            );
             // The prebuilt may not include symbols we added to
             // xsnap-platform.c after it was built.  Compile a
             // minimal supplement that provides any missing symbols.
@@ -110,7 +115,9 @@ fn compile_xs(manifest_dir: &PathBuf, moddable_dir: &PathBuf) {
         // Use our platform header instead of the GLib-dependent lin_xs.h
         .define(
             "XSPLATFORM",
-            Some(format!("\"{}\"", platform_header.display()).as_str()),
+            Some(
+                format!("\"{}\"", platform_header.display()).as_str(),
+            ),
         )
         .define("INCLUDE_XSPLATFORM", None)
         // Feature flags matching xsnap-pub

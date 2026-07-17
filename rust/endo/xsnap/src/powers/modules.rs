@@ -79,7 +79,10 @@ fn normalize_path(path: &str) -> String {
 }
 
 /// All host callbacks in registration order for snapshot tables.
-pub const CALLBACKS: &[crate::ffi::XsCallback] = &[host_load_module_source, host_resolve_module];
+pub const CALLBACKS: &[crate::ffi::XsCallback] = &[
+    host_load_module_source,
+    host_resolve_module,
+];
 
 /// Register module loading host functions on the machine.
 pub unsafe fn register(machine: &crate::Machine) {
@@ -99,8 +102,14 @@ mod tests {
 
     #[test]
     fn resolve_relative_specifier() {
-        assert_eq!(resolve_specifier("./utils", "lib/main"), "lib/utils");
-        assert_eq!(resolve_specifier("../shared", "lib/sub/main"), "lib/shared");
+        assert_eq!(
+            resolve_specifier("./utils", "lib/main"),
+            "lib/utils"
+        );
+        assert_eq!(
+            resolve_specifier("../shared", "lib/sub/main"),
+            "lib/shared"
+        );
     }
 
     #[test]

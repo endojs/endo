@@ -138,14 +138,16 @@ enum ParamSet {
 }
 
 /// Execute a statement with parsed params and return the rusqlite statement result.
-fn execute_stmt(conn: &Connection, sql: &str, params: &ParamSet) -> Result<usize, rusqlite::Error> {
+fn execute_stmt(
+    conn: &Connection,
+    sql: &str,
+    params: &ParamSet,
+) -> Result<usize, rusqlite::Error> {
     let mut stmt = conn.prepare(sql)?;
     match params {
         ParamSet::Positional(vals) => {
-            let refs: Vec<&dyn rusqlite::types::ToSql> = vals
-                .iter()
-                .map(|v| v as &dyn rusqlite::types::ToSql)
-                .collect();
+            let refs: Vec<&dyn rusqlite::types::ToSql> =
+                vals.iter().map(|v| v as &dyn rusqlite::types::ToSql).collect();
             stmt.execute(refs.as_slice())
         }
         ParamSet::Named(vals) => {
@@ -159,8 +161,14 @@ fn execute_stmt(conn: &Connection, sql: &str, params: &ParamSet) -> Result<usize
 }
 
 /// Query a single row.
-fn query_get(conn: &Connection, sql: &str, params: &ParamSet) -> Result<Option<JsonValue>, String> {
-    let mut stmt = conn.prepare(sql).map_err(|e| format!("Error: {}", e))?;
+fn query_get(
+    conn: &Connection,
+    sql: &str,
+    params: &ParamSet,
+) -> Result<Option<JsonValue>, String> {
+    let mut stmt = conn
+        .prepare(sql)
+        .map_err(|e| format!("Error: {}", e))?;
     let col_count = stmt.column_count();
     let col_names: Vec<String> = (0..col_count)
         .map(|i| stmt.column_name(i).unwrap_or("?").to_string())
@@ -168,10 +176,8 @@ fn query_get(conn: &Connection, sql: &str, params: &ParamSet) -> Result<Option<J
 
     let result = match params {
         ParamSet::Positional(vals) => {
-            let refs: Vec<&dyn rusqlite::types::ToSql> = vals
-                .iter()
-                .map(|v| v as &dyn rusqlite::types::ToSql)
-                .collect();
+            let refs: Vec<&dyn rusqlite::types::ToSql> =
+                vals.iter().map(|v| v as &dyn rusqlite::types::ToSql).collect();
             stmt.query_row(refs.as_slice(), |row| {
                 let mut obj = Map::new();
                 for (i, name) in col_names.iter().enumerate() {
@@ -205,8 +211,14 @@ fn query_get(conn: &Connection, sql: &str, params: &ParamSet) -> Result<Option<J
 }
 
 /// Query all rows.
-fn query_all(conn: &Connection, sql: &str, params: &ParamSet) -> Result<JsonValue, String> {
-    let mut stmt = conn.prepare(sql).map_err(|e| format!("Error: {}", e))?;
+fn query_all(
+    conn: &Connection,
+    sql: &str,
+    params: &ParamSet,
+) -> Result<JsonValue, String> {
+    let mut stmt = conn
+        .prepare(sql)
+        .map_err(|e| format!("Error: {}", e))?;
     let col_count = stmt.column_count();
     let col_names: Vec<String> = (0..col_count)
         .map(|i| stmt.column_name(i).unwrap_or("?").to_string())
@@ -223,10 +235,8 @@ fn query_all(conn: &Connection, sql: &str, params: &ParamSet) -> Result<JsonValu
 
     let rows_result = match params {
         ParamSet::Positional(vals) => {
-            let refs: Vec<&dyn rusqlite::types::ToSql> = vals
-                .iter()
-                .map(|v| v as &dyn rusqlite::types::ToSql)
-                .collect();
+            let refs: Vec<&dyn rusqlite::types::ToSql> =
+                vals.iter().map(|v| v as &dyn rusqlite::types::ToSql).collect();
             stmt.query_map(refs.as_slice(), map_row)
         }
         ParamSet::Named(vals) => {
@@ -262,7 +272,9 @@ pub unsafe extern "C" fn host_sqlite_open(the: *mut XsMachine) {
     match conn {
         Ok(c) => {
             // Apply default pragmas.
-            if let Err(e) = c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;") {
+            if let Err(e) = c.execute_batch(
+                "PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;",
+            ) {
                 set_result_string(the, &format!("Error: {}", e));
                 return;
             }
@@ -336,10 +348,13 @@ pub unsafe extern "C" fn host_sqlite_prepare(the: *mut XsMachine) {
 
     let stmt_handle = NEXT_STMT_HANDLE.fetch_add(1, Ordering::SeqCst);
     let mut stmts = get_stmt_map();
-    stmts
-        .as_mut()
-        .unwrap()
-        .insert(stmt_handle, PreparedStmt { db_handle, sql });
+    stmts.as_mut().unwrap().insert(
+        stmt_handle,
+        PreparedStmt {
+            db_handle,
+            sql,
+        },
+    );
     fxInteger(the, &mut (*the).scratch, stmt_handle as i32);
     *(*the).frame.add(1) = (*the).scratch;
 }
@@ -389,10 +404,7 @@ pub unsafe extern "C" fn host_sqlite_stmt_run(the: *mut XsMachine) {
             }
         },
         None => {
-            set_result_string(
-                the,
-                &format!("Error: invalid database handle {}", db_handle),
-            );
+            set_result_string(the, &format!("Error: invalid database handle {}", db_handle));
         }
     }
 }
@@ -439,10 +451,7 @@ pub unsafe extern "C" fn host_sqlite_stmt_get(the: *mut XsMachine) {
             }
         },
         None => {
-            set_result_string(
-                the,
-                &format!("Error: invalid database handle {}", db_handle),
-            );
+            set_result_string(the, &format!("Error: invalid database handle {}", db_handle));
         }
     }
 }
@@ -486,10 +495,7 @@ pub unsafe extern "C" fn host_sqlite_stmt_all(the: *mut XsMachine) {
             }
         },
         None => {
-            set_result_string(
-                the,
-                &format!("Error: invalid database handle {}", db_handle),
-            );
+            set_result_string(the, &format!("Error: invalid database handle {}", db_handle));
         }
     }
 }
@@ -535,10 +541,7 @@ pub unsafe extern "C" fn host_sqlite_stmt_columns(the: *mut XsMachine) {
             }
         },
         None => {
-            set_result_string(
-                the,
-                &format!("Error: invalid database handle {}", db_handle),
-            );
+            set_result_string(the, &format!("Error: invalid database handle {}", db_handle));
         }
     }
 }

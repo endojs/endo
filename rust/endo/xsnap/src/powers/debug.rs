@@ -165,14 +165,18 @@ pub extern "C" fn rust_debug_is_readable() -> c_int {
 /// the inbound buffer into the provided C buffer.  Returns the
 /// number of bytes copied, or 0 if empty.
 #[no_mangle]
-pub extern "C" fn rust_debug_recv(buffer: *mut c_char, capacity: c_int) -> c_int {
+pub extern "C" fn rust_debug_recv(
+    buffer: *mut c_char,
+    capacity: c_int,
+) -> c_int {
     DEBUG_STATE.with(|cell| {
         let mut s = cell.borrow_mut();
         let n = std::cmp::min(s.inbound.len(), capacity as usize);
         if n == 0 {
             return 0;
         }
-        let dst = unsafe { std::slice::from_raw_parts_mut(buffer as *mut u8, n) };
+        let dst =
+            unsafe { std::slice::from_raw_parts_mut(buffer as *mut u8, n) };
         for (i, byte) in s.inbound.drain(..n).enumerate() {
             dst[i] = byte;
         }
@@ -187,7 +191,8 @@ pub extern "C" fn rust_debug_send(data: *const c_char, length: c_int) {
     if length <= 0 {
         return;
     }
-    let bytes = unsafe { std::slice::from_raw_parts(data as *const u8, length as usize) };
+    let bytes =
+        unsafe { std::slice::from_raw_parts(data as *const u8, length as usize) };
     DEBUG_STATE.with(|cell| {
         cell.borrow_mut().outbound.extend(bytes);
     });
