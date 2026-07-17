@@ -12,7 +12,8 @@ import {
 // const internalDebugConsole = console;
 
 const defaultCompareLogs = freeze((t, log, goldenLog) => {
-  t.is(log.length, goldenLog.length, 'wrong log length');
+  const data = JSON.stringify({ log, goldenLog }, undefined, ' ');
+  t.is(log.length, goldenLog.length, `wrong log length ${data}`);
   log.forEach((logRecord, i) => {
     const goldenRecord = goldenLog[i];
     logRecord.forEach((logEntry, j) => {
@@ -49,7 +50,7 @@ const getBogusStackString = error => {
   return `stack of ${error.name}`;
 };
 
-// Intended to be used with tape or something like it.
+// Intended to be used with ava or something like it.
 //
 // Wraps thunk() but also checks the console.
 // TODO It currently checks the console by temporarily assigning
@@ -68,7 +69,7 @@ const getBogusStackString = error => {
 // assertLogs(t, () => /*as above*/,
 //            [['error', 'what ', err]]);
 // ```
-export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
+export const assertLogs = (t, thunk, goldenLog, options = {}) => {
   const {
     checkLogs = true,
     wrapWithCausal = false,
@@ -109,9 +110,10 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
       compareLogs(t, log, goldenLog);
     }
   }
-});
+};
+freeze(assertLogs);
 
-// Intended to be used with tape or something like it.
+// Intended to be used with ava or something like it.
 //
 // Wraps t.throws(thunk, msg) but also checks the console.
 // TODO It currently checks the console by temporarily assigning
@@ -131,11 +133,10 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
 // throwsAndLogs(t, () => /*as above*/, /foo/,
 //               [['error', 'what ', err]]);
 // ```
-export const throwsAndLogs = freeze(
-  (t, thunk, regexp, goldenLog, options = {}) => {
-    // assertLogs(t, () => t.throws(thunk, { message: regexp }), goldenLog);
-    t.throws(() => assertLogs(t, thunk, goldenLog, options), {
-      message: regexp,
-    });
-  },
-);
+export const throwsAndLogs = (t, thunk, regexp, goldenLog, options = {}) => {
+  // assertLogs(t, () => t.throws(thunk, { message: regexp }), goldenLog);
+  t.throws(() => assertLogs(t, thunk, goldenLog, options), {
+    message: regexp,
+  });
+};
+freeze(throwsAndLogs);

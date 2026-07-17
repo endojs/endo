@@ -48,7 +48,17 @@ import './internal-types.js';
 import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
 /**
- * @import {BaseAssert, Assert, AssertionFunctions, AssertionUtilities, DeprecatedAssertionUtilities, Stringable, DetailsToken, MakeAssert} from '../../types.js';
+ * @import {BaseAssert,
+ *   Assert,
+ *   AssertionFunctions,
+ *   AssertionUtilities,
+ *   DeprecatedAssertionUtilities,
+ *   Stringable,
+ *   DetailsToken,
+ *   MakeAssert,
+ *   Details,
+ *   GenericErrorConstructor,
+ *   AssertMakeErrorOptions} from '../../types.js';
  * @import {LogArgs, NoteCallback, LoggedErrorHandler} from './internal-types.js';
  */
 
@@ -285,7 +295,7 @@ const tagError = (err, optErrorName = err.name) => {
  *     such as `stack` on v8 (Chrome, Brave, Edge?)
  *   - `sanitizeError` will freeze the error, preventing any correct engine from
  *     adding or
- *     altering any of the error's own properties `sanitizeError` is done.
+ *     altering any of the error's own properties once `sanitizeError` is done.
  *
  * However, `sanitizeError` will not, for example, `harden`
  * (i.e., deeply freeze)
@@ -305,10 +315,16 @@ export const sanitizeError = error => {
     errors: _errorsDesc = undefined,
     cause: _causeDesc = undefined,
     stack: _stackDesc = undefined,
+    code: codeDesc = undefined,
     ...restDescs
   } = descs;
 
   const restNames = ownKeys(restDescs);
+
+  // the spec allows any value, but we drop 'code' if it's not a string
+  if (codeDesc?.value !== undefined && typeof codeDesc.value !== 'string') {
+    arrayPush(restNames, 'code');
+  }
   if (restNames.length >= 1) {
     for (const name of restNames) {
       delete error[name];
@@ -333,34 +349,51 @@ export const sanitizeError = error => {
  * @type {AssertionUtilities['makeError']}
  */
 const makeError = (
-  optDetails = redactedDetails`Assert failed`,
-  errConstructor = globalThis.Error,
+  optDetails,
+  errConstructor,
   {
     errorName = undefined,
     cause = undefined,
     errors = undefined,
     sanitize = true,
+    code = undefined,
   } = {},
 ) => {
+  // The first two parameters above cannot be inferred unless this is rewritten
+  // as a function declaration using an @overload tag. This is a workaround so
+  // that we at least have type-safety within the function body.
+  //
+  // Note that due to the overload of AssertionUtilities['makeError'], strict
+  // Note that due to the overload of AssertionUtilities['makeError'], Typescript's so-called "strict
+  // mode" will complain if default parameters are provided in the method
+  // signature. The below workaround (optDetails -> details; errConstructor ->
+  // errCtor) is functionally equivalent but allows us to use type assertions to
+  // workaround the issue with TypeScript's so-called "strict mode".
+  let details = /** @type {Details} */ (
+    optDetails ?? redactedDetails`Assert failed`
+  );
+
+  // Internally, this is a GenericErrorConstructor, but externally it can be
+  // some T which extends GenericErrorConstructor.
+  const errCtor = /** @type {GenericErrorConstructor} */ (
+    errConstructor ?? globalThis.Error
+  );
   // Promote string-valued `optDetails` into a minimal DetailsParts
   // consisting of that string as the sole literal part with no substitutions.
-  if (typeof optDetails === 'string') {
-    optDetails = redactedDetails([optDetails]);
+  if (typeof details === 'string') {
+    details = redactedDetails([details]);
   }
-  const hiddenDetails = weakmapGet(hiddenDetailsMap, optDetails);
+  const hiddenDetails = weakmapGet(hiddenDetailsMap, details);
   if (hiddenDetails === undefined) {
-    throw TypeError(`unrecognized details ${quote(optDetails)}`);
+    throw TypeError(`unrecognized details ${quote(details)}`);
   }
   const messageString = getMessageString(hiddenDetails);
   const opts = cause && { cause };
   let error;
-  if (
-    typeof AggregateError !== 'undefined' &&
-    errConstructor === AggregateError
-  ) {
+  if (typeof AggregateError !== 'undefined' && errCtor === AggregateError) {
     error = AggregateError(errors || [], messageString, opts);
   } else {
-    const ErrorCtor = /** @type {ErrorConstructor} */ (errConstructor);
+    const ErrorCtor = /** @type {ErrorConstructor} */ (errCtor);
     error = ErrorCtor(messageString, opts);
     // Since we need to tolerate `errors` on an AggregateError, we may as well
     // tolerate it on all errors.
@@ -373,6 +406,14 @@ const makeError = (
       });
     }
   }
+  if (code !== undefined) {
+    defineProperty(error, 'code', {
+      value: code,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
+  }
   weakmapSet(hiddenMessageLogArgs, error, getLogArgs(hiddenDetails));
   if (errorName !== undefined) {
     tagError(error, errorName);
@@ -380,7 +421,11 @@ const makeError = (
   if (sanitize) {
     sanitizeError(error);
   }
-  // The next line is a particularly fruitful place to put a breakpoint.
+  // Externally, the return type below is InstanceType<T> where T extends
+  // GenericErrorConstructor. Internally, it's
+  // InstanceType<GenericErrorConstructor> for simplicity of implementation.
+
+  //  The next line is a particularly fruitful place to put a breakpoint.
   return error;
 };
 freeze(makeError);
