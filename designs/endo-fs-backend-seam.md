@@ -144,7 +144,7 @@ that **independently reimplement** the entire `Filesystem` exo surface:
 each is 650–860 lines of mostly-duplicated exo plumbing (Directory, File,
 OpenFile, Cursor, Watcher, Xattrs). What's actually shared is three small
 utility modules (`shared/helpers.js`, `shared/lock-table.js`,
-`shared/blobref.js`) totaling ~350 lines. There is **no backing protocol**
+`shared/blob-ref.js`) totaling ~350 lines. There is **no backing protocol**
 — adding a new backing today means cloning a backing file and rewriting
 ~600 lines.
 
@@ -708,7 +708,7 @@ After PR 4, the package is on the new architecture end-to-end.
 
 - `shared/lock-table.js` — wrapBackend uses it for the in-vat advisory
   lock fallback. Unchanged.
-- `shared/blobref.js` — wrapBackend uses it; unchanged.
+- `shared/blob-ref.js` — wrapBackend uses it; unchanged.
 - `shared/helpers.js` — `assertChildName`, `computeOpenMode`,
   byte-reader/writer utilities. Mostly absorbed into wrapBackend; the
   truly generic bits stay in shared/.

@@ -167,7 +167,7 @@
 
 // **`qidFor?` / `blobInfoFor?` — content-address hooks.** `getQid` is a
 // synchronous getter and `BlobRef` does its own SHA-256 over captured
-// bytes (`shared/blobref.js`) by default. A backend that knows a
+// bytes (`shared/blob-ref.js`) by default. A backend that knows a
 // stronger identity than a path — e.g. the git-tree backend, whose
 // object OIDs are content-addressed — supplies `qidFor(path, kind)`
 // (sync, returning a `Qid` whose `pathId` is the OID) and/or

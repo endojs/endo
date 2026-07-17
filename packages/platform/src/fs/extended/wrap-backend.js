@@ -31,7 +31,7 @@ import {
 } from './type-guards.js';
 
 import { makeLockTable } from './shared/lock-table.js';
-import { makeBlobRefExo } from './shared/blobref.js';
+import { makeBlobRefExo } from './shared/blob-ref.js';
 import {
   assertChildName,
   computeOpenMode,
