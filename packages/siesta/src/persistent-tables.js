@@ -12,20 +12,26 @@ import { isPromise } from '@endo/promise-kit';
  * The counters make slot allocation resume where the previous incarnation
  * left off, so a restarted host never re-mints a slot the peer's snapshot
  * still associates with another object. The import and export maps record
- * slot-to-interface-name descriptors: imports are restorable through
- * `captp.provideImport`, exports are recorded for diagnostics (a host
- * cannot reconstruct arbitrary exported objects without a durable-object
- * layer; see the design's future work).
+ * per-slot descriptors: imports are restorable through
+ * `captp.provideImport`; an export is restorable when its descriptor
+ * carries a durable `description` (provided by the `describeExport`
+ * power), and is otherwise recorded for diagnostics only.
  *
  * Only object (`o`) slots are recorded in the descriptor maps. Promise
  * and question slots are transient by design: a snapshot is only taken at
  * quiescence, when no questions are in flight.
  *
+ * @typedef {object} ExportDescriptor
+ * @property {string | null} iface
+ * @property {unknown} [description] durable description from which the
+ *   export can be re-instantiated at resume; absent for exports that are
+ *   not durable
+ *
  * @typedef {object} TablesRecord
  * @property {number} lastExportID
  * @property {number} lastPromiseID
  * @property {Record<string, string | null>} imports slot to interface name
- * @property {Record<string, string | null>} exports slot to interface name
+ * @property {Record<string, ExportDescriptor>} exports
  */
 
 /** @returns {TablesRecord} */
@@ -47,13 +53,30 @@ harden(makeFreshTablesRecord);
  * - slot counters read and write `record`, calling `onChange` after every
  *   mutation so the caller can write through to durable storage;
  * - import and export descriptors for object slots are recorded in
- *   `record` alongside the counters.
+ *   `record` alongside the counters;
+ * - export durability lives at this layer: when a value is exported,
+ *   `describeExport` is consulted for a durable description, which is
+ *   persisted in the export table; at resume, `restoreExports` uses
+ *   `instantiateExport` to rebuild each described export, and the caller
+ *   seats the pairs with `captp.provideExport`.
  *
  * @param {object} options
  * @param {TablesRecord} options.record
  * @param {() => void} [options.onChange] called after each record mutation
+ * @param {(val: object) => unknown | undefined} [options.describeExport]
+ *   returns the durable description of an exported value, or undefined
+ *   for ordinary (non-durable) exports
+ * @param {(description: unknown, slot: string) => object} [options.instantiateExport]
+ *   rebuilds an export from its recorded description at resume
  */
-export const makePersistentTablesKit = ({ record, onChange = () => {} }) => {
+export const makePersistentTablesKit = ({
+  record,
+  onChange = () => {},
+  describeExport = () => undefined,
+  instantiateExport = (_description, slot) => {
+    throw Fail`No instantiateExport power to restore export ${slot}`;
+  },
+}) => {
   /**
    * @param {object} tableOptions
    * @param {boolean} tableOptions.gcImports
@@ -117,7 +140,13 @@ export const makePersistentTablesKit = ({ record, onChange = () => {} }) => {
       markAsExported: (slot, val) => {
         slotToExported.set(slot, val);
         if (slot[0] === 'o') {
-          record.exports[slot] = getInterfaceOf(val) || null;
+          /** @type {ExportDescriptor} */
+          const descriptor = { iface: getInterfaceOf(val) || null };
+          const description = describeExport(val);
+          if (description !== undefined) {
+            descriptor.description = description;
+          }
+          record.exports[slot] = descriptor;
           onChange();
         }
       },
@@ -132,8 +161,25 @@ export const makePersistentTablesKit = ({ record, onChange = () => {} }) => {
     });
   };
 
+  /**
+   * Re-instantiates every export the record describes durably, in slot
+   * order. Call once after `makeCapTP` and seat each pair with
+   * `captp.provideExport(slot, val)` so both the tables and CapTP's
+   * value-to-slot registry bind the restored export.
+   *
+   * @returns {Array<{ slot: string, val: object }>}
+   */
+  const restoreExports = () =>
+    Object.entries(record.exports)
+      .filter(([_slot, descriptor]) => descriptor.description !== undefined)
+      .map(([slot, descriptor]) => ({
+        slot,
+        val: instantiateExport(descriptor.description, slot),
+      }));
+
   return harden({
     makeCapTPImportExportTables,
+    restoreExports,
     getRecord: () => record,
   });
 };

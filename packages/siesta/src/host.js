@@ -4,6 +4,7 @@ import harden from '@endo/harden';
 import { makeCapTP } from '@endo/captp';
 import { Fail, q } from '@endo/errors';
 import { E } from '@endo/eventual-send';
+import { Far } from '@endo/far';
 import { getInterfaceOf } from '@endo/pass-style';
 
 import { assertWorkerName } from './store-fs.js';
@@ -135,6 +136,7 @@ export const makeSiestaHost = async ({
    * @typedef {object} WorkerRuntime
    * @property {SiestaWorker} facade
    * @property {(slot: string, iface?: string) => any} provideImport
+   * @property {() => void} seatRestoredExports
    */
 
   /** @type {Map<string, WorkerRuntime>} */
@@ -150,12 +152,32 @@ export const makeSiestaHost = async ({
   const resourceDescriptions = new WeakMap();
 
   /**
+   * Which worker session each host-side presence was imported from, and
+   * at which slot. Lets a presence exported into a *different* worker's
+   * session be described durably as "import slot S of worker W" and
+   * re-seated at resume without waking either worker.
+   *
+   * @type {WeakMap<object, { workerName: string, slot: string, iface: string | null }>}
+   */
+  const presenceOrigins = new WeakMap();
+
+  /**
+   * Resource makers by type: the embedder-provided registry plus the
+   * built-in worker-controller and worker-facade makers (assembled after
+   * the worker runtimes' functions are defined, before any runtime is
+   * constructed).
+   *
+   * @type {Record<string, (description: unknown) => object>}
+   */
+  const resourceMakers = {};
+
+  /**
    * @param {{ type: string, description: unknown }} resourceRecord
    * @param {string} [forWhom] diagnostic context
    */
   const instantiateResource = (resourceRecord, forWhom = 'a new grant') => {
     const { type, description } = resourceRecord;
-    const maker = resources[type];
+    const maker = resourceMakers[type];
     if (maker === undefined) {
       throw Fail`No resource maker registered for type ${q(
         type,
@@ -164,6 +186,29 @@ export const makeSiestaHost = async ({
     const val = maker(description);
     resourceDescriptions.set(val, { type, description });
     return val;
+  };
+
+  /**
+   * Rebuilds an export from its recorded kind-tagged description.
+   *
+   * @param {unknown} description
+   * @param {string} forWhom diagnostic context
+   * @returns {object}
+   */
+  const instantiateDescribedExport = (description, forWhom) => {
+    const record = /** @type {any} */ (description);
+    if (record && record.kind === 'resource') {
+      return instantiateResource(
+        { type: record.type, description: record.description },
+        forWhom,
+      );
+    }
+    if (record && record.kind === 'worker-import') {
+      // eslint-disable-next-line no-use-before-define
+      const runtime = provideWorkerRuntime(record.workerName);
+      return runtime.provideImport(record.slot, record.iface ?? undefined);
+    }
+    throw Fail`Unknown export description for ${q(forWhom)}`;
   };
 
   /** @param {string} name */
@@ -175,6 +220,26 @@ export const makeSiestaHost = async ({
     const tablesKit = makePersistentTablesKit({
       record: tablesRecord,
       onChange: () => workerStore.setTablesRecord(tablesRecord),
+      // Export durability lives at the export-table layer: exporting a
+      // value records its durable description in the tables record, and
+      // seatRestoredExports below rebuilds it at resume. Host exports
+      // live outside every snapshot, which is why they need this. Two
+      // descriptions exist: made resources, and presences imported from
+      // another worker's session (the cross-worker links the worker
+      // controller creates).
+      describeExport: val => {
+        const resource = resourceDescriptions.get(val);
+        if (resource !== undefined) {
+          return { kind: 'resource', ...resource };
+        }
+        const origin = presenceOrigins.get(val);
+        if (origin !== undefined && origin.workerName !== name) {
+          return { kind: 'worker-import', ...origin };
+        }
+        return undefined;
+      },
+      instantiateExport: (description, slot) =>
+        instantiateDescribedExport(description, `worker ${name} ${slot}`),
     });
 
     /** @type {WorkerIncarnation | undefined} */
@@ -333,38 +398,35 @@ export const makeSiestaHost = async ({
     const captp = makeCapTP(`siesta-host:${name}`, rawSend, undefined, {
       gcImports: false,
       makeCapTPImportExportTables: tablesKit.makeCapTPImportExportTables,
-      importHook: (val, slot) =>
-        valToSlot.set(/** @type {object} */ (val), slot),
-      exportHook: (val, slot) => {
-        if (slot[0] !== 'o') {
-          return;
-        }
-        // Host exports live outside every snapshot, so an export must be
-        // re-instantiable from a durable description to survive a host
-        // restart. Record the description of every exported resource.
-        const resourceRecord = resourceDescriptions.get(
-          /** @type {object} */ (val),
-        );
-        if (resourceRecord !== undefined) {
-          const meta = workerStore.getMeta();
-          workerStore.setMeta({
-            ...meta,
-            resources: { ...(meta.resources ?? {}), [slot]: resourceRecord },
+      importHook: (val, slot) => {
+        valToSlot.set(/** @type {object} */ (val), slot);
+        if (slot[0] === 'o') {
+          presenceOrigins.set(/** @type {object} */ (val), {
+            workerName: name,
+            slot,
+            iface: getInterfaceOf(val) || null,
           });
         }
       },
       onReject: reportError,
     });
 
-    // Resume: re-instantiate every recorded resource export at its
-    // original slot, so presences held inside the worker's snapshot keep
-    // working after a host restart.
-    for (const [slot, resourceRecord] of Object.entries(
-      workerStore.getMeta().resources ?? {},
-    )) {
-      const val = instantiateResource(resourceRecord, `worker ${name} ${slot}`);
-      captp.provideExport(slot, val);
-    }
+    // Resume: seat every durably described export at its original slot,
+    // so presences held inside the worker's snapshot keep working after
+    // a host restart. Deferred out of runtime construction because a
+    // worker-import description may name another worker whose runtime is
+    // still being constructed; the host seats all runtimes' exports in a
+    // second phase. Idempotent.
+    let exportsSeated = false;
+    const seatRestoredExports = () => {
+      if (exportsSeated) {
+        return;
+      }
+      exportsSeated = true;
+      for (const { slot, val } of tablesKit.restoreExports()) {
+        captp.provideExport(slot, val);
+      }
+    };
 
     /** @type {Promise<any> | undefined} */
     let bootFacetP;
@@ -427,20 +489,81 @@ export const makeSiestaHost = async ({
     const runtime = harden({
       facade,
       provideImport: (slot, iface) => captp.provideImport(slot, iface),
+      seatRestoredExports,
     });
     workers.set(name, runtime);
     return runtime;
   };
 
+  // During host construction, export seating is deferred to the
+  // second startup phase; afterwards, new runtimes seat immediately
+  // (a genuinely new worker has nothing to seat).
+  let restoring = true;
+
   /** @param {string} name */
   const provideWorkerRuntime = name => {
-    return workers.get(name) ?? makeWorkerRuntime(name);
+    const existing = workers.get(name);
+    if (existing) {
+      return existing;
+    }
+    const runtime = makeWorkerRuntime(name);
+    if (!restoring) {
+      runtime.seatRestoredExports();
+    }
+    return runtime;
   };
 
+  // Built-in resource types. The worker controller is how one worker
+  // gains the authority to create and drive other workers; a worker
+  // facade scopes that authority to a single named worker. Both are
+  // durable like any resource: a controller re-instantiates as itself,
+  // a facade from its worker name.
+  const makeWorkerFacadeResource = description => {
+    const { workerName } = /** @type {{ workerName: string }} */ (description);
+    assertWorkerName(workerName);
+    return Far('SiestaWorkerFacade', {
+      help: () =>
+        'SiestaWorkerFacade: evaluate(source, names, values) evaluates in this worker with the given endowments; getName() names the worker.',
+      getName: () => workerName,
+      /**
+       * @param {string} source
+       * @param {Array<string>} [names]
+       * @param {Array<unknown>} [values]
+       */
+      evaluate: async (source, names = [], values = []) =>
+        provideWorkerRuntime(workerName).facade.evaluate(source, names, values),
+    });
+  };
+  const makeWorkerControllerResource = _description =>
+    Far('SiestaWorkerController', {
+      help: () =>
+        'SiestaWorkerController: provideWorker(name) makes or finds a worker and returns its facade.',
+      /** @param {string} workerName */
+      provideWorker: async workerName => {
+        assertWorkerName(workerName);
+        // Instantiate through the resource system so the facade is
+        // described durably when exported into a worker session.
+        return instantiateResource(
+          { type: 'worker-facade', description: { workerName } },
+          `controller provideWorker(${workerName})`,
+        );
+      },
+    });
+  Object.assign(resourceMakers, resources, {
+    'worker-facade': makeWorkerFacadeResource,
+    'worker-controller': makeWorkerControllerResource,
+  });
+
   // Restore all persisted workers (asleep) and rebind publications.
+  // Export seating is a second phase so cross-worker descriptions can
+  // name runtimes constructed later in the loop.
   for (const name of store.listWorkerNames()) {
     provideWorkerRuntime(name);
   }
+  for (const runtime of workers.values()) {
+    runtime.seatRestoredExports();
+  }
+  restoring = false;
   for (const [secret, record] of Object.entries(store.getPublications())) {
     const runtime = workers.get(record.workerName);
     if (runtime === undefined) {

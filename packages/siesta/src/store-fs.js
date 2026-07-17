@@ -32,9 +32,6 @@ import { Fail, q } from '@endo/errors';
  * @property {string} [bootSlot] import slot of the worker's bootstrap facet
  * @property {string | null} [bootIface]
  * @property {{ ref: unknown, journalLength: number } | null} [snapshot]
- * @property {Record<string, { type: string, description: unknown }>} [resources]
- *   host exports to this worker, keyed by ours-perspective export slot,
- *   re-instantiable from their resource descriptions at resume
  */
 
 /**
