@@ -403,9 +403,10 @@ export const styleRules = {
   'no-unused-expressions': 'off',
   'no-loop-func': 'off',
   'no-inner-declarations': 'off',
-
+  'jsdoc/ts-no-empty-object-type': 'off',
   'jsdoc/no-multi-asterisks': ['warn', { allowWhitespace: true }],
   'jsdoc/no-undefined-types': 'off',
+  'jsdoc/reject-any-type': 'off',
   'jsdoc/require-jsdoc': 'off',
   'jsdoc/require-property-description': 'off',
   'jsdoc/require-param-description': 'off',

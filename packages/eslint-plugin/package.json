@@ -31,7 +31,7 @@
     "@typescript-eslint/utils": "^8.62.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "npm:eslint-plugin-import-x@4.16.2",
-    "eslint-plugin-jsdoc": "^50.8.0",
+    "eslint-plugin-jsdoc": "^63.0.14",
     "eslint-plugin-unicorn": "^56.0.1",
     "typescript-eslint": "^8.39.1"
   },
