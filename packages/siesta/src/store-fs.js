@@ -40,6 +40,11 @@ import { Fail, q } from '@endo/errors';
  *   promise slots the host has exported to this worker but not yet
  *   resolved; a restarted host rejects these (at-most-once), since the
  *   resolution subscription died with the previous host process
+ * @property {number} [deliveredLength] absolute journal index of the
+ *   live-delivered prefix: entries below it had their outbound effects
+ *   processed by some host incarnation (replay them suppressed); entries
+ *   at or above it were journaled but never live-delivered (deliver them
+ *   as fresh traffic on the next wake)
  */
 
 /**
@@ -96,6 +101,19 @@ const readJsonMaybe = path => {
 };
 
 /**
+ * Crash-safe JSON write: temp file plus atomic rename, so a crash
+ * mid-write leaves the previous version intact rather than a torn file.
+ *
+ * @param {string} path
+ * @param {string} text
+ */
+const writeFileAtomic = (path, text) => {
+  const tempPath = `${path}.tmp`;
+  writeFileSync(tempPath, text);
+  renameSync(tempPath, path);
+};
+
+/**
  * Filesystem-backed {@link SiestaStore}. All writes are synchronous
  * write-through so durable state always precedes any message reaching a
  * worker ("disk before graph").
@@ -126,7 +144,24 @@ export const makeFsStore = statePath => {
     // The journal's first line is a header recording the absolute index
     // of the first entry line, so truncation can drop a prefix while
     // keeping absolute indices stable. Truncation rewrites the file via
-    // rename so the base and the entries change atomically.
+    // rename so the base and the entries change atomically. Appends are
+    // plain appends, so a crash mid-append can leave a torn final line;
+    // it is dropped on the first read (safe, because the host journals
+    // before delivering: a torn entry was never delivered) and the file
+    // is repaired before any further append so the tear cannot swallow
+    // the next entry.
+
+    /** @param {string} line */
+    const isWholeJsonLine = line => {
+      try {
+        JSON.parse(line);
+        return true;
+      } catch (_error) {
+        return false;
+      }
+    };
+
+    let journalRepaired = false;
 
     /** @returns {{ base: number, lines: Array<string> }} */
     const readJournalFile = () => {
@@ -138,7 +173,15 @@ export const makeFsStore = statePath => {
       const header = JSON.parse(lines[0] ?? '{}');
       typeof header.base === 'number' ||
         Fail`Journal at ${q(journalPath)} is missing its base header`;
-      return { base: header.base, lines: lines.slice(1) };
+      let entries = lines.slice(1);
+      if (entries.length > 0 && !isWholeJsonLine(entries[entries.length - 1])) {
+        // Torn final line from a crash mid-append: the entry was never
+        // delivered, so forgetting it is correct.
+        entries = entries.slice(0, -1);
+        // eslint-disable-next-line no-use-before-define
+        writeJournalFile(header.base, entries);
+      }
+      return { base: header.base, lines: entries };
     };
 
     /**
@@ -150,19 +193,30 @@ export const makeFsStore = statePath => {
       const tempPath = `${journalPath}.tmp`;
       writeFileSync(tempPath, text);
       renameSync(tempPath, journalPath);
+      journalRepaired = true;
+    };
+
+    const ensureJournalRepaired = () => {
+      if (!journalRepaired) {
+        // Reading repairs a torn tail (rewriting the file) so a
+        // subsequent append cannot concatenate onto a partial line.
+        readJournalFile();
+        journalRepaired = true;
+      }
     };
 
     /** @type {WorkerStore} */
     const workerStore = {
       getTablesRecord: () => readJsonMaybe(tablesPath),
       setTablesRecord: record =>
-        writeFileSync(tablesPath, `${JSON.stringify(record)}\n`),
+        writeFileAtomic(tablesPath, `${JSON.stringify(record)}\n`),
       getMeta: () => readJsonMaybe(metaPath) ?? {},
-      setMeta: meta => writeFileSync(metaPath, `${JSON.stringify(meta)}\n`),
+      setMeta: meta => writeFileAtomic(metaPath, `${JSON.stringify(meta)}\n`),
       appendJournal: entry => {
         if (!existsSync(journalPath)) {
           writeJournalFile(0, []);
         }
+        ensureJournalRepaired();
         appendFileSync(journalPath, `${JSON.stringify(entry)}\n`);
       },
       readJournal: (from = 0) => {
@@ -197,7 +251,7 @@ export const makeFsStore = statePath => {
     setPublication: (secret, record) => {
       const publications = readJsonMaybe(publicationsPath) ?? {};
       publications[secret] = record;
-      writeFileSync(
+      writeFileAtomic(
         publicationsPath,
         `${JSON.stringify(publications, undefined, 2)}\n`,
       );

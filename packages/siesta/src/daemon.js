@@ -71,8 +71,10 @@ export const makeSiestaDaemon = async ({
     location,
     makeSturdyRefDetails: secret => harden({ location, secret }),
     shutdown: async () => {
-      ocapn.shutdown();
+      // Workers first, so replies to remote calls still executing reach
+      // the wire before the netlayer closes.
       await host.shutdown();
+      ocapn.shutdown();
     },
   });
 };

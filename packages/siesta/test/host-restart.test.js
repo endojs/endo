@@ -2,6 +2,8 @@
 /* global setTimeout */
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
+import { appendFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -93,6 +95,106 @@ test('worker state survives host restart on the filesystem store', async t => {
     t.is(await E(counter).getCount(), 2);
     await host.shutdown();
   }
+});
+
+test('a torn journal tail is repaired instead of bricking the worker', async t => {
+  const statePath = await mkdtemp(join(tmpdir(), 'siesta-torn-test-'));
+  t.teardown(() => rm(statePath, { recursive: true, force: true }));
+  const engine = makeJournalReplayEngine();
+
+  let secret;
+  {
+    const host = await makeSiestaHost({
+      store: makeFsStore(statePath),
+      engine,
+    });
+    const worker = await host.provideWorker('counter');
+    const counter = await worker.evaluate(COUNTER_SOURCE);
+    t.is(await E(counter).incr(), 1);
+    t.is(await E(counter).incr(), 2);
+    secret = await worker.publish(counter);
+    await host.shutdown();
+  }
+
+  // Simulate a crash mid-append: a partial, newline-less entry at the
+  // journal tail. The entry was never delivered, so dropping it is the
+  // correct recovery.
+  appendFileSync(
+    join(statePath, 'workers', 'counter', 'journal.jsonl'),
+    '{"type":"CTP_CALL","epoch":0,"questionID":"q-99',
+  );
+
+  {
+    const host = await makeSiestaHost({
+      store: makeFsStore(statePath),
+      engine,
+    });
+    const counter = host.locator.get(secret);
+    t.is(await E(counter).incr(), 3, 'the torn tail did not brick restore');
+    await host.shutdown();
+  }
+
+  {
+    // And appends after the repair did not concatenate onto the tear.
+    const host = await makeSiestaHost({
+      store: makeFsStore(statePath),
+      engine,
+    });
+    const counter = host.locator.get(secret);
+    t.is(await E(counter).getCount(), 3);
+    await host.shutdown();
+  }
+});
+
+test('a failed delivery recovers without aborting the session', async t => {
+  const store = makeMemoryStore();
+  const base = makeJournalReplayEngine();
+  let failNext = false;
+  /** @type {import('../src/host.js').WorkerEngine} */
+  const engine = harden({
+    canSnapshot: false,
+    start: async options => {
+      const incarnation = await base.start(options);
+      return harden({
+        deliver: async message => {
+          if (failNext) {
+            failNext = false;
+            throw Error('engine hiccup');
+          }
+          return incarnation.deliver(message);
+        },
+        snapshot: incarnation.snapshot,
+        terminate: incarnation.terminate,
+      });
+    },
+  });
+
+  /** @type {Array<unknown>} */
+  const reported = [];
+  const host = await makeSiestaHost({
+    store,
+    engine,
+    reportError: error => reported.push(error),
+  });
+  const worker = await host.provideWorker('counter');
+  const counter = await worker.evaluate(COUNTER_SOURCE);
+  t.is(await E(counter).incr(), 1);
+
+  // This delivery fails at the engine; the message stays journaled
+  // above the delivered watermark and the incarnation unwinds.
+  failNext = true;
+  const stalled = E(counter).incr();
+
+  // The next message re-wakes the worker, live-delivers the failed
+  // message first (settling the stalled promise), then its own.
+  t.is(await E(counter).incr(), 3);
+  t.is(await stalled, 2, 'the failed delivery completed on recovery');
+  t.true(
+    reported.some(error => /engine hiccup/.test(String(error))),
+    'the failure was reported, not thrown into captp',
+  );
+  t.is(await E(counter).getCount(), 3, 'the session was never aborted');
+  await host.shutdown();
 });
 
 test('sleepy worker sleeps on demand and wakes on use', async t => {

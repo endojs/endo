@@ -1,7 +1,12 @@
 // @ts-check
 /* global setTimeout */
 import harden from '@endo/harden';
+import { Fail, q } from '@endo/errors';
 import { Far } from '@endo/far';
+
+// setTimeout treats delays beyond 2^31 - 1 ms (and NaN) as ~1 ms, which
+// would fire a "24.9 day" timer immediately; validate instead.
+const MAX_DELAY_MS = 2 ** 31 - 1;
 
 /**
  * Resource maker for a timer capability, the first of the host-provided
@@ -29,10 +34,18 @@ import { Far } from '@endo/far';
 export const makeTimerResource = (_description = null) =>
   Far('SiestaTimer', {
     help: () =>
-      'SiestaTimer: now() returns milliseconds since epoch; delay(ms) resolves with now() no sooner than ms from the call.',
+      'SiestaTimer: now() returns milliseconds since epoch; delay(ms) resolves with now() no sooner than ms from the call (0 <= ms <= 2**31 - 1).',
     now: () => Date.now(),
     /** @param {number} ms */
-    delay: async ms =>
-      new Promise(resolve => setTimeout(() => resolve(Date.now()), Number(ms))),
+    delay: async ms => {
+      const delayMs = Number(ms);
+      (Number.isFinite(delayMs) && delayMs >= 0 && delayMs <= MAX_DELAY_MS) ||
+        Fail`delay must be a number of milliseconds between 0 and ${q(
+          MAX_DELAY_MS,
+        )}`;
+      return new Promise(resolve =>
+        setTimeout(() => resolve(Date.now()), delayMs),
+      );
+    },
   });
 harden(makeTimerResource);

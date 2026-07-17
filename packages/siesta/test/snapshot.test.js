@@ -126,6 +126,45 @@ test('snapshot restart works on the filesystem store, including after a crash', 
   }
 });
 
+test('an unchanged content-addressed snapshot ref is not released', async t => {
+  const store = makeMemoryStore();
+  const base = makeSnapshottingReplayEngine();
+  /** @type {Array<unknown>} */
+  const released = [];
+  // Content-addressed refs alias when the heap is unchanged; simulate
+  // with an engine whose snapshot ref is always the same hash.
+  /** @type {import('../src/host.js').WorkerEngine} */
+  const engine = harden({
+    canSnapshot: true,
+    start: async options => {
+      const incarnation = await base.start({ ...options, snapshot: null });
+      return harden({
+        deliver: incarnation.deliver,
+        terminate: incarnation.terminate,
+        snapshot: async () => 'constant-hash',
+      });
+    },
+    releaseSnapshot: async ref => {
+      released.push(ref);
+    },
+  });
+
+  const host = await makeSiestaHost({ store, engine });
+  const worker = await host.provideWorker('counter');
+  const counter = await worker.evaluate(COUNTER_SOURCE);
+  t.is(await E(counter).incr(), 1);
+  await worker.sleep();
+  t.is(released.length, 0, 'first snapshot supersedes nothing');
+  await worker.wake();
+  await worker.sleep();
+  t.is(
+    released.length,
+    0,
+    'an identical ref must never release the snapshot just recorded',
+  );
+  await host.shutdown();
+});
+
 test('superseded snapshots are released to the engine', async t => {
   const store = makeMemoryStore();
   const base = makeSnapshottingReplayEngine();

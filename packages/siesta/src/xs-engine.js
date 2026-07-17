@@ -79,18 +79,39 @@ export const makeXsEngine = ({
       /** @type {Array<{ expect: string, resolve: (reply: any) => void, reject: (reason: Error) => void }>} */
       const pending = [];
       let exited = false;
-      child.on('exit', (code, signal) => {
-        exited = true;
+      const failAll = reason => {
         while (pending.length > 0) {
           const waiter = pending.shift();
-          waiter?.reject(
-            Error(
-              `siesta-xs-worker for ${workerName} exited (${code ?? signal})`,
-            ),
-          );
+          waiter?.reject(reason);
         }
+      };
+      // A protocol violation must fail this incarnation's requests and
+      // kill the child, never throw inside a stream event handler
+      // (which would crash the whole host process).
+      const failProtocol = reason => {
+        failAll(reason);
+        child.kill('SIGKILL');
+      };
+      child.on('exit', (code, signal) => {
+        exited = true;
+        failAll(
+          Error(
+            `siesta-xs-worker for ${workerName} exited (${code ?? signal})`,
+          ),
+        );
+      });
+      child.on('error', error => {
+        exited = true;
+        failAll(
+          Error(
+            `siesta-xs-worker for ${workerName} failed to spawn: ${
+              /** @type {Error} */ (error).message
+            }`,
+          ),
+        );
       });
       toChild.on('error', () => {});
+      fromChild.on('error', () => {});
 
       fromChild.setEncoding('utf8');
       let buffer = '';
@@ -102,13 +123,23 @@ export const makeXsEngine = ({
           buffer = buffer.slice(index + 1);
           index = buffer.indexOf('\n');
           if (line !== '') {
-            const reply = JSON.parse(line);
+            /** @type {any} */
+            let reply;
+            try {
+              reply = JSON.parse(line);
+            } catch (_error) {
+              failProtocol(Error(`garbled line from XS worker ${workerName}`));
+              return;
+            }
             if (reply.op === 'outbound') {
               onOutbound(reply.message);
             } else {
               const waiter = pending.shift();
               if (waiter === undefined) {
-                throw Error(`unsolicited ${q(reply.op)} from XS worker`);
+                failProtocol(
+                  Error(`unsolicited ${q(reply.op)} from XS worker`),
+                );
+                return;
               }
               if (reply.op === waiter.expect) {
                 waiter.resolve(reply);

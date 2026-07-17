@@ -296,9 +296,28 @@ The prototype's guarantees, from weakest to strongest component:
 
 - Worker state: recovered to the last journaled message (journal replay)
   or the last snapshot plus journaled suffix (XS engine).
-- Host tables: written through synchronously on every counter or
-  descriptor change, and always ahead of any message that depends on
-  them.
+- Host tables and meta: written through synchronously via temp-plus-
+  atomic-rename on every change, and always ahead of any message that
+  depends on them. Journal appends are plain appends; a torn final line
+  from a crash mid-append is dropped on the next read (the entry was
+  never delivered — the host journals before delivering) and the file
+  is repaired before further appends.
+- The journal carries a durable **delivered watermark**: entries below
+  it were live-delivered (wake replay suppresses the worker's
+  re-emitted replies); entries above it — synthetic aborts appended
+  while asleep, deliveries that failed at the engine — are delivered as
+  fresh traffic on the next wake, so the worker's reactions to them
+  reach the host exactly once.
+- Engine failures degrade, never poison: a failed wake or delivery
+  unwinds the incarnation (the next message retries from the snapshot),
+  the un-delivered message waits above the watermark, and
+  `CTP_DISCONNECT` is never journaled toward a worker — workers never
+  observe disconnects, including their own transport's.
+- Snapshot bookkeeping is alias-safe: a superseded snapshot ref is
+  released only when it differs from the newly recorded one
+  (content-addressed refs collide when the heap is unchanged), and the
+  CAS writer uses unique temp names so concurrent snapshotters cannot
+  corrupt each other.
 - Worker replies in flight when the host dies are lost; because replies
   are re-derivable by replay and questions are transient, this only
   costs the answers to questions nobody remembers asking.

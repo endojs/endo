@@ -50,6 +50,17 @@ test('granted resources survive host restarts at the same slot', async t => {
     const host = await makeSiestaHost({ store, engine, resources });
     const worker = await host.provideWorker('clock');
     const timer = host.makeResource('timer');
+    t.is(
+      host.makeResource('timer'),
+      timer,
+      'resources intern by (type, description)',
+    );
+    await t.throwsAsync(
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      () => /** @type {any} */ (timer).delay(NaN),
+      { message: /delay must be a number/ },
+      'delay validates its argument',
+    );
     const clock = await worker.evaluate(CLOCK_SOURCE, ['timer'], [timer]);
     firstReading = /** @type {number} */ (await E(clock).read());
     t.is(typeof firstReading, 'number');
@@ -99,12 +110,23 @@ test('restart without the resource maker fails loudly', async t => {
 test('worker-to-host requests pending across a host crash reject instead of hanging', async t => {
   const store = makeMemoryStore();
   const engine = makeJournalReplayEngine();
+  /** @type {Array<unknown>} */
+  const notes = [];
   // A host resource whose answer never comes: the guest's promise can
-  // only settle through the at-most-once abort on restart.
+  // only settle through the at-most-once abort on restart. The echo
+  // resource observes the guest's REACTION to the rejection, proving
+  // the synthetic abort is delivered as live traffic, not swallowed by
+  // the replay window.
   const resources = {
     gate: () =>
       Far('Gate', {
         wait: async () => new Promise(() => {}),
+      }),
+    echo: () =>
+      Far('Echo', {
+        note: value => {
+          notes.push(value);
+        },
       }),
   };
 
@@ -112,6 +134,7 @@ test('worker-to-host requests pending across a host crash reject instead of hang
     const host = await makeSiestaHost({ store, engine, resources });
     const worker = await host.provideWorker('waiter');
     const gate = host.makeResource('gate');
+    const echo = host.makeResource('echo');
     const waiter = await worker.evaluate(
       `
       (() => {
@@ -120,14 +143,15 @@ test('worker-to-host requests pending across a host crash reject instead of hang
           .wait()
           .catch(reason => {
             failure = String((reason && reason.message) || reason);
+            E(echo).note('saw-abort');
           });
         return Far('Waiter', {
           getFailure: () => failure,
         });
       })()
       `,
-      ['gate'],
-      [gate],
+      ['gate', 'echo'],
+      [gate, echo],
     );
     t.is(await E(waiter).getFailure(), null, 'the request is outstanding');
     await worker.publish(waiter, 'waiter-cap');
@@ -142,6 +166,11 @@ test('worker-to-host requests pending across a host crash reject instead of hang
       String(await E(waiter).getFailure()),
       /host restarted/,
       'the guest promise rejected instead of hanging',
+    );
+    await tickUntil(() => notes.includes('saw-abort'));
+    t.true(
+      notes.includes('saw-abort'),
+      "the guest's reaction to the abort reached the host",
     );
     await host.shutdown();
   }

@@ -172,6 +172,16 @@ export const makeSiestaHost = async ({
   const resourceMakers = {};
 
   /**
+   * Interned resource instances by (type, description), so the same
+   * described resource seated in multiple worker sessions — or restored
+   * after a restart — is one object with one identity, not a family of
+   * lookalikes.
+   *
+   * @type {Map<string, object>}
+   */
+  const internedResources = new Map();
+
+  /**
    * @param {{ type: string, description: unknown }} resourceRecord
    * @param {string} [forWhom] diagnostic context
    */
@@ -183,8 +193,14 @@ export const makeSiestaHost = async ({
         type,
       )}, needed by ${q(forWhom)}`;
     }
+    const internKey = `${type}:${JSON.stringify(description ?? null)}`;
+    const interned = internedResources.get(internKey);
+    if (interned !== undefined) {
+      return interned;
+    }
     const val = maker(description);
     resourceDescriptions.set(val, { type, description });
+    internedResources.set(internKey, val);
     return val;
   };
 
@@ -326,6 +342,27 @@ export const makeSiestaHost = async ({
     const reverseSlot = slot =>
       `${slot[0]}${slot[1] === '+' ? '-' : '+'}${slot.slice(2)}`;
 
+    /**
+     * Absolute journal index of the live-delivered prefix. Entries below
+     * it had their outbound effects processed by some host incarnation,
+     * so wake replay suppresses the worker's re-emitted replies; entries
+     * at or above it (synthetic aborts appended while asleep, messages
+     * whose delivery failed) were never live-delivered, so the next wake
+     * delivers them as fresh traffic whose effects the host must see.
+     */
+    let deliveredLength =
+      workerStore.getMeta().deliveredLength ?? workerStore.journalLength();
+    const recordDeliveredLength = () =>
+      workerStore.setMeta({
+        ...workerStore.getMeta(),
+        deliveredLength,
+      });
+    if (workerStore.getMeta().deliveredLength === undefined) {
+      // Pin the watermark durably before anything (synthetic aborts,
+      // new sends) grows the journal past it.
+      recordDeliveredLength();
+    }
+
     /** @param {Record<string, unknown>} message */
     const onOutbound = message => {
       if (replaying) {
@@ -334,7 +371,10 @@ export const makeSiestaHost = async ({
         return;
       }
       if (message.type === 'CTP_RETURN') {
-        pendingQuestions -= 1;
+        // Clamped: an answer to a question counted by a previous host
+        // process (delivered late from the journal tail) must not drive
+        // the counter negative.
+        pendingQuestions = Math.max(0, pendingQuestions - 1);
       }
       if (
         message.type === 'CTP_CALL' &&
@@ -361,15 +401,37 @@ export const makeSiestaHost = async ({
         onOutbound,
       });
       incarnation = newIncarnation;
-      replaying = true;
       try {
         const from = snapshotInfo ? snapshotInfo.journalLength : 0;
-        for (const entry of workerStore.readJournal(from)) {
+        // The live-delivered prefix replays with the worker's re-emitted
+        // replies suppressed: the host already processed them.
+        replaying = true;
+        try {
+          for (const entry of workerStore
+            .readJournal(from)
+            .slice(0, Math.max(0, deliveredLength - from))) {
+            // eslint-disable-next-line no-await-in-loop
+            await newIncarnation.deliver(entry);
+          }
+        } finally {
+          replaying = false;
+        }
+        // The tail — journaled but never live-delivered (synthetic
+        // aborts, deliveries that failed) — is fresh traffic: the
+        // worker's reactions must reach the host.
+        for (const entry of workerStore.readJournal(deliveredLength)) {
           // eslint-disable-next-line no-await-in-loop
           await newIncarnation.deliver(entry);
+          deliveredLength += 1;
+          recordDeliveredLength();
         }
-      } finally {
-        replaying = false;
+      } catch (error) {
+        // A failed wake must not leave a half-replayed incarnation
+        // looking awake: unwind so the next message retries from the
+        // snapshot.
+        incarnation = undefined;
+        await newIncarnation.terminate().catch(() => {});
+        throw error;
       }
       bumpIdle();
     };
@@ -404,7 +466,14 @@ export const makeSiestaHost = async ({
           snapshot: { ref, journalLength },
         });
         workerStore.truncateJournal(journalLength);
-        if (previousSnapshot && engine.releaseSnapshot) {
+        // Content-addressed refs alias: an unchanged heap re-suspends to
+        // the same ref, and releasing "the previous" would delete the
+        // snapshot just recorded.
+        if (
+          previousSnapshot &&
+          engine.releaseSnapshot &&
+          previousSnapshot.ref !== ref
+        ) {
           await engine.releaseSnapshot(previousSnapshot.ref);
         }
       }
@@ -441,8 +510,17 @@ export const makeSiestaHost = async ({
      *
      * @param {Record<string, unknown>} message
      */
-    const rawSend = message =>
-      enqueue(async () => {
+    const rawSend = message => {
+      if (message.type === 'CTP_DISCONNECT') {
+        // Orthogonal persistence's rule: workers never observe
+        // disconnects. Journaling one would poison every future
+        // incarnation with a replayed death.
+        reportError(
+          Error(`siesta host: suppressed CTP_DISCONNECT toward worker ${name}`),
+        );
+        return Promise.resolve();
+      }
+      return enqueue(async () => {
         // Wake before journaling so the replayed journal cannot include
         // this not-yet-delivered message.
         await ensureAwakeNow();
@@ -479,8 +557,24 @@ export const makeSiestaHost = async ({
           tablesKit.clearExportDescription(ourSlot);
         }
         bumpIdle();
-        await /** @type {WorkerIncarnation} */ (incarnation).deliver(message);
+        try {
+          await /** @type {WorkerIncarnation} */ (incarnation).deliver(message);
+          deliveredLength = workerStore.journalLength();
+          recordDeliveredLength();
+        } catch (error) {
+          // The message is journaled above the delivered watermark, so
+          // the next wake delivers it as fresh traffic; swallowing here
+          // keeps the CapTP session alive (rejecting would abort it and
+          // orphan every presence for the rest of this host's life).
+          reportError(error);
+          const broken = incarnation;
+          incarnation = undefined;
+          if (broken) {
+            await broken.terminate().catch(() => {});
+          }
+        }
       });
+    };
 
     const captp = makeCapTP(`siesta-host:${name}`, rawSend, undefined, {
       gcImports: false,
