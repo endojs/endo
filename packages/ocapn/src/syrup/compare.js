@@ -14,14 +14,14 @@ import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
  * negative if the left byteArray is "less" than the right byteArray,
  * positive if the left byteArray is "greater" than the right byteArray.
  */
-export function compareUint8Arrays(
+export const compareUint8Arrays = (
   left,
   right,
   leftStart = 0,
   leftEnd = left.length,
   rightStart = 0,
   rightEnd = right.length,
-) {
+) => {
   if (!(left instanceof Uint8Array)) {
     throw Error(`Left is not a Uint8Array: ${left}`);
   }
@@ -83,7 +83,7 @@ export function compareUint8Arrays(
     leftIndex += 1;
     rightIndex += 1;
   }
-}
+};
 
 /**
  * Compare two immutable ArrayBuffers

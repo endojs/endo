@@ -62,7 +62,7 @@ comment contents, preserving code positions within each line
  * @param {EvadeCensorOptions} [options] - Options for the transform
  * @public
  */
-export function evadeCensorSync(source, options) {
+export const evadeCensorSync = (source, options) => {
   const {
     sourceMap,
     sourceUrl,
@@ -88,7 +88,7 @@ export function evadeCensorSync(source, options) {
     });
   }
   return generate(ast, { source });
-}
+};
 
 /**
  * Apply SES censorship evasion transforms on the given code `source`
@@ -126,6 +126,5 @@ export function evadeCensorSync(source, options) {
  * @param {EvadeCensorOptions} [options] - Options for the transform
  * @public
  */
-export async function evadeCensor(source, options) {
-  return evadeCensorSync(source, options);
-}
+export const evadeCensor = async (source, options) =>
+  evadeCensorSync(source, options);

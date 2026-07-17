@@ -31,7 +31,7 @@ module.exports = {
   },
 };
 
-function prepareMemberExpressionHint(node) {
+const prepareMemberExpressionHint = node => {
   const { object, property, computed } = node;
   let objectHint;
   let propertyHint;
@@ -52,4 +52,4 @@ function prepareMemberExpressionHint(node) {
     propertyHint = `[[${property.type}]]`;
   }
   return `${objectHint}.${propertyHint}`;
-}
+};

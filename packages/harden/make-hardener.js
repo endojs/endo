@@ -344,7 +344,7 @@ export const makeHardener = ({ traversePrototypes = false } = {}) => {
       /**
        * @param {any} val
        */
-      function enqueue(val) {
+      const enqueue = val => {
         if (isPrimitive(val)) {
           // ignore primitives
           return;
@@ -360,7 +360,7 @@ export const makeHardener = ({ traversePrototypes = false } = {}) => {
         }
         // console.warn(`adding ${val} to toFreeze`, val);
         setAdd(toFreeze, val);
-      }
+      };
 
       /**
        * @param {any} obj

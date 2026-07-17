@@ -281,10 +281,10 @@ const RecordCodec = makeCodec('SyrupRecordCodec', {
  * @param {number} [options.start]
  * @param {number} [options.end]
  */
-export function decodeSyrup(bytes, options = {}) {
+export const decodeSyrup = (bytes, options = {}) => {
   const syrupReader = makeSyrupReader(bytes, options);
   return AnyCodec.read(syrupReader);
-}
+};
 
 /**
  * @param {any} value
@@ -293,8 +293,8 @@ export function decodeSyrup(bytes, options = {}) {
  * greater than zero.
  * @returns {Uint8Array}
  */
-export function encodeSyrup(value, options = {}) {
+export const encodeSyrup = (value, options = {}) => {
   const syrupWriter = makeSyrupWriter(options);
   AnyCodec.write(value, syrupWriter);
   return syrupWriter.getBytes();
-}
+};

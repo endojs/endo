@@ -11,7 +11,7 @@
 /**
  * @returns {Array<number>}
  */
-function makeTable() {
+const makeTable = () => {
   let c;
   const table = [];
 
@@ -24,7 +24,7 @@ function makeTable() {
   }
 
   return table;
-}
+};
 
 // Initialize a table of 256 signed 32 bit integers.
 const table = makeTable();
@@ -35,7 +35,7 @@ const table = makeTable();
  * @param {number} index
  * @param {number} crc
  */
-export function crc32(bytes, length = bytes.length, index = 0, crc = 0) {
+export const crc32 = (bytes, length = bytes.length, index = 0, crc = 0) => {
   const end = index + length;
 
   crc ^= -1;
@@ -45,4 +45,4 @@ export function crc32(bytes, length = bytes.length, index = 0, crc = 0) {
   }
 
   return (crc ^ -1) >>> 0;
-}
+};

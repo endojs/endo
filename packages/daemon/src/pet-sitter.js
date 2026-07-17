@@ -52,37 +52,43 @@ export const makePetSitter = (petStore, specialNames) => {
     );
 
   /** @type {PetStore['followNameChanges']} */
-  const followNameChanges = async function* currentAndSubsequentNames() {
-    for (const name of Object.keys(specialNames).sort()) {
-      const idRecord = idRecordForName(name);
-      yield /** @type {{ add: Name, value: IdRecord }} */ ({
-        add: /** @type {Name} */ (name),
-        value: idRecord,
-      });
-    }
-    yield* petStore.followNameChanges();
-  };
+  const followNameChanges = {
+    /** @returns {ReturnType<PetStore['followNameChanges']>} */
+    async *currentAndSubsequentNames() {
+      for (const name of Object.keys(specialNames).sort()) {
+        const idRecord = idRecordForName(name);
+        yield /** @type {{ add: Name, value: IdRecord }} */ ({
+          add: /** @type {Name} */ (name),
+          value: idRecord,
+        });
+      }
+      yield* petStore.followNameChanges();
+    },
+  }.currentAndSubsequentNames;
 
   /** @type {PetStore['followIdNameChanges']} */
-  const followIdNameChanges = async function* currentAndSubsequentIds(id) {
-    const subscription = petStore.followIdNameChanges(id);
+  const followIdNameChanges = {
+    /** @returns {ReturnType<PetStore['followIdNameChanges']>} */
+    async *currentAndSubsequentIds(id) {
+      const subscription = petStore.followIdNameChanges(id);
 
-    const idSpecialNames = /** @type {Name[]} */ (
-      Object.entries(specialNames)
-        .filter(([_, specialId]) => specialId === id)
-        .map(([specialName, _]) => specialName)
-    );
+      const idSpecialNames = /** @type {Name[]} */ (
+        Object.entries(specialNames)
+          .filter(([_, specialId]) => specialId === id)
+          .map(([specialName, _]) => specialName)
+      );
 
-    // The first published event contains the existing names for the id, if any.
-    const { value: existingNames } = await subscription.next();
-    if (existingNames?.names) {
-      existingNames.names.unshift(...idSpecialNames);
-    }
-    existingNames?.names?.sort();
-    yield /** @type {PetStoreIdNameChange} */ (existingNames);
+      // The first published event contains the existing names for the id, if any.
+      const { value: existingNames } = await subscription.next();
+      if (existingNames?.names) {
+        existingNames.names.unshift(...idSpecialNames);
+      }
+      existingNames?.names?.sort();
+      yield /** @type {PetStoreIdNameChange} */ (existingNames);
 
-    yield* subscription;
-  };
+      yield* subscription;
+    },
+  }.currentAndSubsequentIds;
 
   /** @type {PetStore['reverseIdentify']} */
   const reverseIdentify = id => {

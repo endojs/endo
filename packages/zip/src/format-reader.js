@@ -63,9 +63,7 @@ const textDecoder = new TextDecoder();
  * @param {number} bitFlag
  * @returns {boolean}
  */
-function isEncrypted(bitFlag) {
-  return (bitFlag & 0x0001) === 0x0001;
-}
+const isEncrypted = bitFlag => (bitFlag & 0x0001) === 0x0001;
 
 /**
  * @param {BufferReader} reader
@@ -73,7 +71,7 @@ function isEncrypted(bitFlag) {
  * @see http://www.delorie.com/djgpp/doc/rbinter/it/65/16.html
  * @see http://www.delorie.com/djgpp/doc/rbinter/it/66/16.html
  */
-function readDosDateTime(reader) {
+const readDosDateTime = reader => {
   const dosTime = reader.readUint32(true);
   return new Date(
     Date.UTC(
@@ -85,29 +83,27 @@ function readDosDateTime(reader) {
       (dosTime & 0x1f) << 1, // second
     ),
   );
-}
+};
 
 /**
  * @param {BufferReader} reader
  * @returns {ArchiveHeaders}
  */
-function readHeaders(reader) {
-  return {
-    versionNeeded: reader.readUint16(true),
-    bitFlag: reader.readUint16(true),
-    compressionMethod: reader.readUint16(true),
-    date: readDosDateTime(reader),
-    crc32: reader.readUint32(true),
-    compressedLength: reader.readUint32(true),
-    uncompressedLength: reader.readUint32(true),
-  };
-}
+const readHeaders = reader => ({
+  versionNeeded: reader.readUint16(true),
+  bitFlag: reader.readUint16(true),
+  compressionMethod: reader.readUint16(true),
+  date: readDosDateTime(reader),
+  crc32: reader.readUint32(true),
+  compressedLength: reader.readUint32(true),
+  uncompressedLength: reader.readUint32(true),
+});
 
 /**
  * @param {BufferReader} reader
  * @returns {CentralFileRecord}
  */
-function readCentralFileHeader(reader) {
+const readCentralFileHeader = reader => {
   const version = reader.readUint8();
   const madeBy = reader.readUint8();
   const headers = readHeaders(reader);
@@ -149,14 +145,14 @@ function readCentralFileHeader(reader) {
     fileStart,
     comment,
   };
-}
+};
 
 /**
  * @param {BufferReader} reader
  * @param {CentralDirectoryLocator} locator
  * @returns {Array<CentralFileRecord>}
  */
-function readCentralDirectory(reader, locator) {
+const readCentralDirectory = (reader, locator) => {
   const { centralDirectoryOffset, centralDirectoryRecords } = locator;
   reader.seek(centralDirectoryOffset);
 
@@ -175,13 +171,13 @@ function readCentralDirectory(reader, locator) {
   }
 
   return entries;
-}
+};
 
 /**
  * @param {BufferReader} reader
  * @returns {LocalFileRecord}
  */
-function readFile(reader) {
+const readFile = reader => {
   reader.expect(signature.LOCAL_FILE_HEADER);
   const headers = readHeaders(reader);
   const nameLength = reader.readUint16(true);
@@ -190,14 +186,14 @@ function readFile(reader) {
   reader.skip(extraFieldsLength);
   const content = reader.read(headers.compressedLength);
   return { name, ...headers, content };
-}
+};
 
 /**
  * @param {BufferReader} reader
  * @param {Array<CentralFileRecord>} records
  * @returns {Array<LocalFileRecord>}
  */
-function readLocalFiles(reader, records) {
+const readLocalFiles = (reader, records) => {
   const files = [];
   for (const record of records) {
     reader.seek(record.fileStart);
@@ -205,13 +201,13 @@ function readLocalFiles(reader, records) {
     files.push(file);
   }
   return files;
-}
+};
 
 /**
  * @param {BufferReader} reader
  * @returns {CentralDirectoryLocator}
  */
-function readBlockEndOfCentral(reader) {
+const readBlockEndOfCentral = reader => {
   if (!reader.expect(signature.CENTRAL_DIRECTORY_END)) {
     throw Error(
       'Corrupt zip file, or zip file containing an unsupported variable-width end-of-archive comment, or an unsupported zip file with 64 bit sizes',
@@ -238,13 +234,13 @@ function readBlockEndOfCentral(reader) {
     centralDirectoryOffset,
     comment,
   };
-}
+};
 
 /**
  * @param {BufferReader} reader
  * @returns {CentralDirectoryLocator}
  */
-function readEndOfCentralDirectoryRecord(reader) {
+const readEndOfCentralDirectoryRecord = reader => {
   // Zip files are permitted to have a variable-width comment at the end of the
   // "end of central directory record" and may have subsequent Zip64 headers.
   // The prescribed method of finding the beginning of the "end of central
@@ -297,14 +293,14 @@ function readEndOfCentralDirectoryRecord(reader) {
   reader.offset = extraBytes;
 
   return locator;
-}
+};
 
 /**
  * @param {CentralFileRecord} centralRecord
  * @param {LocalFileRecord} localRecord
  * @param {string} archiveName
  */
-function checkRecords(centralRecord, localRecord, archiveName) {
+const checkRecords = (centralRecord, localRecord, archiveName) => {
   const centralName = textDecoder.decode(centralRecord.name);
   const localName = textDecoder.decode(localRecord.name);
 
@@ -337,7 +333,7 @@ function checkRecords(centralRecord, localRecord, archiveName) {
    * @param {boolean} value
    * @param {string} message
    */
-  function check(value, message) {
+  const check = (value, message) => {
     if (!value) {
       throw Error(
         `Zip integrity error: ${message} for file ${q(
@@ -345,7 +341,7 @@ function checkRecords(centralRecord, localRecord, archiveName) {
         )} in archive ${q(archiveName)}`,
       );
     }
-  }
+  };
 
   check(
     centralRecord.bitFlag === localRecord.bitFlag,
@@ -379,21 +375,20 @@ function checkRecords(centralRecord, localRecord, archiveName) {
     checksum === localRecord.crc32,
     `CRC-32 checksum mismatch, wanted ${localRecord.crc32} but actual content is ${checksum}`,
   );
-}
+};
 
 /**
  * @param {number} externalFileAttributes
  */
-function modeForExternalAttributes(externalFileAttributes) {
-  return (externalFileAttributes >> 16) & 0xffff;
-}
+const modeForExternalAttributes = externalFileAttributes =>
+  (externalFileAttributes >> 16) & 0xffff;
 
 /**
  * @param {CentralFileRecord} centralRecord
  * @param {LocalFileRecord} localRecord
  * @returns {CompressedFile}
  */
-function recordToFile(centralRecord, localRecord) {
+const recordToFile = (centralRecord, localRecord) => {
   const mode = modeForExternalAttributes(centralRecord.externalFileAttributes);
   return {
     name: centralRecord.name,
@@ -406,13 +401,13 @@ function recordToFile(centralRecord, localRecord) {
     content: localRecord.content,
     comment: centralRecord.comment,
   };
-}
+};
 
 /**
  * @param {CompressedFile} file
  * @returns {UncompressedFile}
  */
-function decompressFile(file) {
+const decompressFile = file => {
   if (file.compressionMethod !== compression.STORE) {
     throw Error(
       `Cannot find decompressor for compression method ${q(
@@ -427,13 +422,13 @@ function decompressFile(file) {
     content: file.content,
     comment: file.comment,
   };
-}
+};
 
 /**
  * @param {UncompressedFile} file
  * @returns {ArchivedFile}
  */
-function decodeFile(file) {
+const decodeFile = file => {
   const name = textDecoder.decode(file.name);
   const comment = textDecoder.decode(file.comment);
   return {
@@ -444,13 +439,13 @@ function decodeFile(file) {
     content: file.content,
     comment,
   };
-}
+};
 
 /**
  * @param {BufferReader} reader
  * @param {string} name
  */
-export function readZip(reader, name = '<unknown>') {
+export const readZip = (reader, name = '<unknown>') => {
   const locator = readEndOfCentralDirectoryRecord(reader);
   const centralRecords = readCentralDirectory(reader, locator);
   const localRecords = readLocalFiles(reader, centralRecords);
@@ -476,4 +471,4 @@ export function readZip(reader, name = '<unknown>') {
     // TODO handle explicit directory entries
   }
   return files;
-}
+};

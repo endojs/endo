@@ -160,6 +160,9 @@ export const { prototype: weaksetPrototype } = WeakSet;
 export const { prototype: functionPrototype } = Function;
 export const { prototype: promisePrototype } = Promise;
 export const { prototype: generatorPrototype } = getPrototypeOf(
+  // Standalone generator expression retained by deliberate exception: an
+  // anonymous sentinel used only to reach the intrinsic generator prototype, not
+  // naturally an object member. See docs/house-style/function-keyword.md.
   // eslint-disable-next-line no-empty-function, func-names
   function* () {},
 );

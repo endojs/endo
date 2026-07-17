@@ -146,7 +146,7 @@ module.exports = {
       ExportNamedDeclaration(node) {
         exportNodes.push(node);
       },
-      'Program:exit': function () {
+      'Program:exit': () => {
         const sourceCode = context.getSourceCode();
 
         for (const exportNode of exportNodes) {

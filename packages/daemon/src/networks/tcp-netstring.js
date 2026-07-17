@@ -35,13 +35,15 @@ export const make = async (powers, context) => {
   //   default: '8080',
   // });
 
-  const connectionNumbers = (function* generateNumbers() {
-    let n = 0;
-    for (;;) {
-      yield n;
-      n += 1;
-    }
-  })();
+  const connectionNumbers = {
+    *generateNumbers() {
+      let n = 0;
+      for (;;) {
+        yield n;
+        n += 1;
+      }
+    },
+  }.generateNumbers();
 
   /** @type {Set<Promise<void>>} */
   const connectionClosedPromises = new Set();

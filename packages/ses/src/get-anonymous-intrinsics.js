@@ -89,6 +89,10 @@ export const getAnonymousIntrinsics = () => {
 
   // 25.2.1 The GeneratorFunction Constructor
 
+  // GeneratorFunctionInstance and AsyncFunctionInstance below retain the
+  // `function` keyword by deliberate exception: named generator/async-function
+  // sentinels used only to reach intrinsic constructors via getConstructorOf,
+  // not naturally object members. See docs/house-style/function-keyword.md.
   // eslint-disable-next-line no-empty-function
   function* GeneratorFunctionInstance() {}
   const GeneratorFunction = getConstructorOf(GeneratorFunctionInstance);

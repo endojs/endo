@@ -381,7 +381,7 @@ export const makeModuleInstance = (
   // The updateRecord must conform to moduleAnalysis.imports
   // updateRecord = Map<specifier, importUpdaters>
   // importUpdaters = Map<importName, [update(newValue)*]>
-  function imports(updateRecord) {
+  const imports = updateRecord => {
     // By the time imports is called, the importedInstances should already be
     // initialized with module instances that satisfy
     // imports.
@@ -452,7 +452,7 @@ export const makeModuleInstance = (
 
     freeze(exportsTarget);
     activate();
-  }
+  };
 
   let optFunctor;
   if (__syncModuleFunctor__ !== undefined) {
@@ -466,7 +466,7 @@ export const makeModuleInstance = (
   }
   let didThrow = false;
   let thrownError;
-  function execute() {
+  const execute = () => {
     if (optFunctor) {
       // uninitialized
       const functor = optFunctor;
@@ -491,7 +491,7 @@ export const makeModuleInstance = (
     if (didThrow) {
       throw thrownError;
     }
-  }
+  };
 
   return freeze({
     notifiers,
