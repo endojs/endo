@@ -26,6 +26,7 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {DaemonCore['formulateMarshalValue']} args.formulateMarshalValue
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
+ * @param {DaemonCore['getAllContentSources']} args.getAllContentSources
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {(node: string) => boolean} args.isLocalKey
@@ -40,6 +41,7 @@ export const makeGuestMaker = ({
   formulateMarshalValue,
   getFormulaForId,
   getAllNetworkAddresses,
+  getAllContentSources,
   makeMailbox,
   makeDirectoryNode,
   isLocalKey,
@@ -57,6 +59,7 @@ export const makeGuestMaker = ({
    * @param {FormulaIdentifier | undefined} mailHubId
    * @param {FormulaIdentifier} mainWorkerId
    * @param {FormulaIdentifier} networksDirectoryId
+   * @param {FormulaIdentifier} planesDirectoryId
    * @param {Context} context
    */
   const makeGuest = async (
@@ -70,6 +73,7 @@ export const makeGuestMaker = ({
     mailHubId,
     mainWorkerId,
     networksDirectoryId,
+    planesDirectoryId,
     context,
   ) => {
     context.thisDiesIfThatDies(hostHandleId);
@@ -81,6 +85,7 @@ export const makeGuestMaker = ({
     }
     context.thisDiesIfThatDies(mainWorkerId);
     context.thisDiesIfThatDies(networksDirectoryId);
+    context.thisDiesIfThatDies(planesDirectoryId);
 
     const baseController = await provideStoreController(petStoreId);
     const mailboxController = await provideStoreController(mailboxStoreId);
@@ -93,15 +98,19 @@ export const makeGuestMaker = ({
       specialNames['@mail'] = mailHubId;
     }
     specialNames['@nets'] = networksDirectoryId;
+    specialNames['@planes'] = planesDirectoryId;
     const specialStore = makePetSitter(baseController, specialNames);
 
     const getNetworkAddresses = () =>
       getAllNetworkAddresses(networksDirectoryId);
+    const getContentSources = identity =>
+      getAllContentSources(planesDirectoryId, identity);
     const directory = makeDirectoryNode(
       specialStore,
       agentNodeNumber,
       isLocalKey,
       getNetworkAddresses,
+      getContentSources,
     );
     const mailbox = await makeMailbox({
       petStore: specialStore,
