@@ -904,6 +904,12 @@ export const makeCapTP = (
     if (importExportTables.hasExport(slot)) {
       importExportTables.getExport(slot) === val ||
         Fail`slot ${slot} is already bound to another export`;
+      // The tables may have been pre-seeded (e.g. restored by a
+      // persistence layer); ensure outbound serialization still finds
+      // the slot by value.
+      if (!valToSlot.has(val)) {
+        valToSlot.set(val, slot);
+      }
       return val;
     }
     const existingSlot = valToSlot.get(val);
