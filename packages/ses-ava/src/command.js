@@ -1,4 +1,4 @@
-/* eslint-disable no-await-in-loop, no-continue, no-labels, no-unreachable-loop */
+/* eslint-disable no-await-in-loop */
 
 /* The ses-ava command allows a single package to run the same test suite with
  * multiple configurations named in package.json under `sesAvaConfigs`.

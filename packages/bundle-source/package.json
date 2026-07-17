@@ -71,16 +71,6 @@
       "test/**/*.test.*"
     ]
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "ignorePatterns": [
-      "dist/",
-      "scripts/",
-      "demo/"
-    ]
-  },
   "typeCoverage": {
     "atLeast": 69.54
   }

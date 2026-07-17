@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
-/* eslint-disable import/no-unresolved */
+
 /* global process */
 
 /**

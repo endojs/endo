@@ -1,5 +1,3 @@
-/* global globalThis */
-
 import harden from '@endo/harden';
 import { isPromise } from '@endo/promise-kit';
 import {

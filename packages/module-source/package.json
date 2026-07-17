@@ -81,41 +81,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "rules": {
-      "import/no-unresolved": [
-        "error",
-        {
-          "ignore": [
-            "^@endo/module-source(?:/.*)?$"
-          ]
-        }
-      ],
-      "jsdoc/check-tag-names": [
-        "error",
-        {
-          "definedTags": [
-            "privateRemarks"
-          ]
-        }
-      ]
-    },
-    "overrides": [
-      {
-        "files": "**/*.ts",
-        "rules": {
-          "vars-on-top": "off",
-          "no-var": "off"
-        }
-      }
-    ],
-    "ignorePatterns": [
-      "test/fixtures/"
-    ]
-  },
   "sesAvaConfigs": {
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",

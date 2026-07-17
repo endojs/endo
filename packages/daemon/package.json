@@ -87,11 +87,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/daemon"
-    ]
-  },
   "ava": {
     "files": [
       "test/**/*.test.*"

@@ -179,7 +179,6 @@ function* loadWithoutErrorAnnotation(
   }
 
   if (typeof moduleDescriptor === 'string') {
-    // eslint-disable-next-line @endo/no-polymorphic-call
     throw makeError(
       X`Cannot map module ${q(moduleSpecifier)} to ${q(
         moduleDescriptor,
@@ -491,7 +490,6 @@ const memoizedLoadWithErrorAnnotation = (
       moduleLoads,
     ],
     error => {
-      // eslint-disable-next-line @endo/no-polymorphic-call
       annotateError(
         error,
         X`${error.message}, loading ${q(moduleSpecifier)} in compartment ${q(

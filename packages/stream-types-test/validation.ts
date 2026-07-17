@@ -1,4 +1,4 @@
-/* eslint-disable no-underscore-dangle, no-empty */
+/* eslint-disable no-empty */
 /// <reference types="ses"/>
 
 import { ONE_N } from '@endo/nat';
@@ -11,7 +11,7 @@ import {
   mapReader,
   mapWriter,
 } from '@endo/stream';
-// eslint-disable-next-line
+
 import type { Stream, Reader, Writer } from '@endo/stream';
 
 async () => {

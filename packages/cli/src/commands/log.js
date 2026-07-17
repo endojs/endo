@@ -1,4 +1,3 @@
-/* global process, setTimeout, clearTimeout */
 /* eslint-disable no-await-in-loop */
 
 import os from 'os';

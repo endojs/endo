@@ -8,8 +8,6 @@
 import type { WILDCARD_POLICY_VALUE } from '../policy-format.js';
 import type { IsAny } from './typescript.js';
 
-/* eslint-disable no-use-before-define */
-
 /**
  * An object representing a full attenuation definition.
  */

@@ -7,7 +7,7 @@ import { bytesToText } from '@endo/bytes/to-string.js';
 import { makeSyrupReader } from '../../src/syrup/decode.js';
 
 // zoo.bin from https://github.com/ocapn/syrup/tree/2214cbb7c0ee081699fdef64edbc2444af2bb1d2/test-data
-// eslint-disable-next-line no-underscore-dangle
+
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const zooBinRaw = fs.readFileSync(path.resolve(__dirname, '_zoo.bin'));
 // nodejs can provide a buffer with a non-zero byteOffset, which confuses the buffer reader

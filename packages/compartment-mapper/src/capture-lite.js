@@ -30,7 +30,6 @@
  */
 
 /* eslint no-shadow: 0 */
-/* global globalThis */
 
 /**
  * @import {

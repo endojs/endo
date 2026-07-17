@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global globalThis */
 
 import { freeze, getPrototypeOf } from '../../src/commons.js';
 import { loggedErrorHandler } from '../../src/error/assert.js';

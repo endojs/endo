@@ -352,7 +352,7 @@ export const makeHostMaker = ({
       );
 
       // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
+
       const { value } = await formulateUnconfined(
         hostId,
         handleId,
@@ -395,7 +395,7 @@ export const makeHostMaker = ({
       );
 
       // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
+
       const { value } = await formulateBundle(
         hostId,
         handleId,

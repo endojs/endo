@@ -1,5 +1,3 @@
-/* global globalThis */
-
 import { environmentOptionsListHas } from '@endo/env-options';
 import test from '@endo/ses-ava/prepare-endo.js';
 

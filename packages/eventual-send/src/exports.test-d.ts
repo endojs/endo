@@ -1,4 +1,3 @@
-/* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals */
 import { expectType } from 'tsd';
 import { E } from '../test/_get-hp.js';
 import type { ERef, EReturn, FarRef } from './exports.js';

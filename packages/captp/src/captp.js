@@ -446,7 +446,7 @@ export const makeCapTP = (
   const importExportTables = makeCapTPImportExportTables({
     gcImports,
     releaseSlot,
-    // eslint-disable-next-line no-use-before-define
+
     makeRemoteKit,
   });
 
