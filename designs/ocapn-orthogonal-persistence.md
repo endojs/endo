@@ -52,6 +52,10 @@ What exists, all verified by tests across three SES configurations:
   engine-failure degradation without session aborts, disconnect
   suppression toward workers, unique CAS temp names; see
   § *Crash-consistency envelope*.
+- **Vat GC** — `collectVats` mark-and-sweep over the table-layer
+  reference graph, explicit `retireWorker` with tombstoned links,
+  `unpublish`, and shared-snapshot-ref guarding
+  (§ *Garbage collection of vats*).
 
 Historical notes on how Phase 3 was rescoped onto the `xsnap` crate
 (skipping the endor supervisor and its broken bundle toolchain) live
@@ -604,6 +608,20 @@ is visible to anyone comparing references rather than names.
 
 ### Garbage collection of vats
 
+**Landed for the current implementation** (per maintainer direction,
+ahead of the name hub, which is still under consideration):
+`host.collectVats({ keep })` is the mark-and-sweep below;
+`host.retireWorker(name)` is explicit retirement with tombstoned
+inbound links (a dead `RetiredWorkerLink` presence for object links, a
+rejected promise for promise links — live holders reject immediately
+via session abort, restarted holders reject via the tombstone
+descriptors); `host.unpublish(secret)` removes locator roots; and both
+sweep and superseded-ref release go through a shared-ref guard so a
+content-addressed snapshot shared by identical sibling heaps is only
+released with its last user (`packages/siesta/test/vat-gc.test.js`,
+including cycle collection of a mutually-linked parent and child).
+When the name hub lands, `named` edges join the same graph.
+
 Vat-level GC comes before object-level GC because the table layer
 already contains the whole vat-reference graph as plain data —
 collectible without waking anything:
@@ -800,13 +818,13 @@ until it lands.
       tests re-derive the location; stable locations arrive with the
       Noise netlayer and persisted keys (Phase 5).
 - [ ] No metering or scheduling; a hostile guest can spin forever.
-- [ ] CAS snapshot refs are not refcounted: two workers with identical
-      heaps share a content-addressed entry, and superseded-ref release
-      (or a future vat sweep) unlinks unconditionally, which could
-      delete a sibling's live snapshot. Refcount by hash when vat GC
-      lands (§ *Garbage collection of vats*).
-- [ ] Nothing deletes a worker yet: vats accumulate until Phase 7's
-      vat GC and explicit retirement land.
+- [x] ~~CAS snapshot refs are not refcounted.~~ Both superseded-ref
+      release and the vat sweep now release a ref only when no current
+      snapshot uses it.
+- [x] ~~Nothing deletes a worker.~~ `collectVats` (mark-and-sweep from
+      publication roots over durable links, awake workers pinned) and
+      `retireWorker` (explicit, with tombstoned inbound links) landed;
+      `named` edges join the graph when the name hub lands.
 
 ## Prompt
 

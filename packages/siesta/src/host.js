@@ -79,6 +79,17 @@ import {
  *   object is later exported into a worker session, its `(type,
  *   description)` is durably recorded against the export slot and the
  *   export is re-instantiated at resume
+ * @property {(secret: string) => void} unpublish removes a publication
+ *   from the locator and the store; without this a published vat could
+ *   never become garbage
+ * @property {(name: string) => Promise<void>} retireWorker permanently
+ *   deletes a worker: live presences reject, inbound durable links
+ *   tombstone (deliveries reject after restarts too), publications drop,
+ *   and the worker's state and snapshot are removed
+ * @property {(options?: { keep?: Array<string> }) => Promise<Array<string>>} collectVats
+ *   vat-level mark-and-sweep: marks workers reachable from publications
+ *   (plus awake workers and the `keep` list) along durable cross-worker
+ *   links, retires the rest, and returns the swept names
  * @property {() => Array<string>} listWorkerNames
  * @property {() => Promise<void>} shutdown puts every worker to sleep
  */
@@ -137,6 +148,10 @@ export const makeSiestaHost = async ({
    * @property {SiestaWorker} facade
    * @property {(slot: string, iface?: string) => any} provideImport
    * @property {() => void} seatRestoredExports
+   * @property {() => Promise<void>} retire
+   * @property {(targetName: string) => void} tombstoneLinksTo
+   * @property {() => Set<string>} getLinkTargets
+   * @property {() => unknown} getSnapshotRef
    */
 
   /** @type {Map<string, WorkerRuntime>} */
@@ -224,6 +239,12 @@ export const makeSiestaHost = async ({
       const runtime = provideWorkerRuntime(record.workerName);
       return runtime.provideImport(record.slot, record.iface ?? undefined);
     }
+    if (record && record.kind === 'retired') {
+      // Tombstone for a link into a retired worker: deliveries reject.
+      // (Promise-slot tombstones are produced by the per-session
+      // instantiateExport wiring, which knows the slot type.)
+      return Far('RetiredWorkerLink', {});
+    }
     if (record && record.kind === 'worker-promise') {
       // A cross-worker promise link: re-mint the origin worker's promise
       // import — whose settler will receive the origin's eventual
@@ -235,6 +256,29 @@ export const makeSiestaHost = async ({
       return runtime.provideImport(record.slot);
     }
     throw Fail`Unknown export description for ${q(forWhom)}`;
+  };
+
+  /**
+   * Releases a snapshot ref to the engine only if no worker's current
+   * snapshot still uses it. Content-addressed refs are shared whenever
+   * two workers have identical heaps, so unconditional release could
+   * delete a sibling's live snapshot. (Non-primitive refs never compare
+   * equal across workers, so at worst this keeps them — safe.)
+   *
+   * @param {unknown} ref
+   */
+  const releaseSnapshotIfUnshared = async ref => {
+    if (ref === null || ref === undefined || !engine.releaseSnapshot) {
+      return;
+    }
+    for (const otherName of store.listWorkerNames()) {
+      const otherRef = store.provideWorkerStore(otherName).getMeta()
+        .snapshot?.ref;
+      if (otherRef === ref) {
+        return;
+      }
+    }
+    await engine.releaseSnapshot(ref);
   };
 
   /** @param {string} name */
@@ -266,8 +310,22 @@ export const makeSiestaHost = async ({
         }
         return undefined;
       },
-      instantiateExport: (description, slot) =>
-        instantiateDescribedExport(description, `worker ${name} ${slot}`),
+      instantiateExport: (description, slot) => {
+        const record = /** @type {any} */ (description);
+        if (record && record.kind === 'retired' && slot[0] === 'p') {
+          // A promise link into a retired worker seats as a rejection,
+          // which provideExport forwards to the importer's settler.
+          const rejection = Promise.reject(
+            Error(`worker ${record.workerName} has been retired`),
+          );
+          rejection.catch(() => {});
+          return rejection;
+        }
+        return instantiateDescribedExport(
+          description,
+          `worker ${name} ${slot}`,
+        );
+      },
     });
 
     /** @type {WorkerIncarnation | undefined} */
@@ -467,14 +525,10 @@ export const makeSiestaHost = async ({
         });
         workerStore.truncateJournal(journalLength);
         // Content-addressed refs alias: an unchanged heap re-suspends to
-        // the same ref, and releasing "the previous" would delete the
-        // snapshot just recorded.
-        if (
-          previousSnapshot &&
-          engine.releaseSnapshot &&
-          previousSnapshot.ref !== ref
-        ) {
-          await engine.releaseSnapshot(previousSnapshot.ref);
+        // the same ref (and identical sibling heaps share entries), so
+        // release only refs no current snapshot uses.
+        if (previousSnapshot && previousSnapshot.ref !== ref) {
+          await releaseSnapshotIfUnshared(previousSnapshot.ref);
         }
       }
       await incarnation.terminate();
@@ -510,7 +564,13 @@ export const makeSiestaHost = async ({
      *
      * @param {Record<string, unknown>} message
      */
+    let retired = false;
+
     const rawSend = message => {
+      if (retired) {
+        // The worker is being deleted; its journal is going with it.
+        return Promise.resolve();
+      }
       if (message.type === 'CTP_DISCONNECT') {
         // Orthogonal persistence's rule: workers never observe
         // disconnects. Journaling one would poison every future
@@ -728,11 +788,79 @@ export const makeSiestaHost = async ({
     };
     harden(facade);
 
+    /**
+     * Permanently ends this worker: live presences reject via captp
+     * abort (whose CTP_DISCONNECT rawSend suppresses), the incarnation
+     * terminates without a snapshot, and no further traffic is
+     * journaled. The caller (retireWorker / collectVats) removes the
+     * durable state.
+     */
+    const retireNow = async () => {
+      retired = true;
+      if (idleTimer !== undefined) {
+        clearTimeout(idleTimer);
+        idleTimer = undefined;
+      }
+      const broken = incarnation;
+      incarnation = undefined;
+      if (broken) {
+        await broken.terminate().catch(() => {});
+      }
+      captp.abort(Error(`worker ${name} has been retired`));
+    };
+
+    /**
+     * Rewrites this worker's durable links into `targetName` as retired
+     * tombstones, so restarts seat rejecting stand-ins instead of
+     * resurrecting the link.
+     *
+     * @param {string} targetName
+     */
+    const tombstoneLinksTo = targetName => {
+      let changed = false;
+      for (const descriptor of Object.values(tablesRecord.exports)) {
+        const description = /** @type {any} */ (descriptor.description);
+        if (
+          description &&
+          (description.kind === 'worker-import' ||
+            description.kind === 'worker-promise') &&
+          description.workerName === targetName
+        ) {
+          descriptor.description = { kind: 'retired', workerName: targetName };
+          changed = true;
+        }
+      }
+      if (changed) {
+        workerStore.setTablesRecord(tablesRecord);
+      }
+    };
+
+    /** Worker names this worker's durable links point into. */
+    const getLinkTargets = () => {
+      /** @type {Set<string>} */
+      const targets = new Set();
+      for (const descriptor of Object.values(tablesRecord.exports)) {
+        const description = /** @type {any} */ (descriptor.description);
+        if (
+          description &&
+          (description.kind === 'worker-import' ||
+            description.kind === 'worker-promise')
+        ) {
+          targets.add(description.workerName);
+        }
+      }
+      return targets;
+    };
+
     /** @type {WorkerRuntime} */
     const runtime = harden({
       facade,
       provideImport: (slot, iface) => captp.provideImport(slot, iface),
       seatRestoredExports,
+      retire: () => enqueue(retireNow),
+      tombstoneLinksTo,
+      getLinkTargets,
+      getSnapshotRef: () => workerStore.getMeta().snapshot?.ref,
     });
     workers.set(name, runtime);
     return runtime;
@@ -821,12 +949,87 @@ export const makeSiestaHost = async ({
     locator.set(secret, presence);
   }
 
+  /**
+   * Deletes one worker completely: tombstones every other worker's
+   * durable links into it, drops its publications, ends its runtime,
+   * removes its durable state, and releases its snapshot if unshared.
+   *
+   * @param {string} name
+   * @param {WorkerRuntime} runtime
+   */
+  const deleteWorkerNow = async (name, runtime) => {
+    for (const [otherName, other] of workers.entries()) {
+      if (otherName !== name) {
+        other.tombstoneLinksTo(name);
+      }
+    }
+    for (const [secret, record] of Object.entries(store.getPublications())) {
+      if (record.workerName === name) {
+        store.deletePublication(secret);
+        locator.delete(secret);
+      }
+    }
+    const snapshotRef = runtime.getSnapshotRef();
+    await runtime.retire();
+    workers.delete(name);
+    store.deleteWorker(name);
+    await releaseSnapshotIfUnshared(snapshotRef);
+  };
+
   /** @type {SiestaHost} */
   const host = {
     locator,
     provideWorker: async name => provideWorkerRuntime(name).facade,
     makeResource: (type, description = null) =>
       instantiateResource({ type, description }),
+    unpublish: secret => {
+      store.deletePublication(secret);
+      locator.delete(secret);
+    },
+    retireWorker: async name => {
+      const runtime = workers.get(name);
+      if (runtime === undefined) {
+        throw Fail`No worker named ${q(name)} to retire`;
+      }
+      await deleteWorkerNow(name, runtime);
+    },
+    collectVats: async ({ keep = [] } = {}) => {
+      // Mark: publications root the graph; awake workers and the keep
+      // list are conservatively pinned. Propagate along durable
+      // cross-worker links (holder keeps target alive). Reads only
+      // table data — no worker wakes.
+      const marked = new Set(keep);
+      for (const record of Object.values(store.getPublications())) {
+        marked.add(record.workerName);
+      }
+      for (const [name, runtime] of workers.entries()) {
+        if (runtime.facade.isAwake()) {
+          marked.add(name);
+        }
+      }
+      const frontier = [...marked];
+      while (frontier.length > 0) {
+        const name = frontier.shift();
+        const runtime = workers.get(/** @type {string} */ (name));
+        if (runtime !== undefined) {
+          for (const target of runtime.getLinkTargets()) {
+            if (!marked.has(target)) {
+              marked.add(target);
+              frontier.push(target);
+            }
+          }
+        }
+      }
+      // Sweep. Unmarked-to-unmarked links (including cycles) go down
+      // together, so tombstoning between them is wasted but harmless.
+      const swept = [...workers.keys()].filter(name => !marked.has(name));
+      for (const name of swept) {
+        const runtime = /** @type {WorkerRuntime} */ (workers.get(name));
+        // eslint-disable-next-line no-await-in-loop
+        await deleteWorkerNow(name, runtime);
+      }
+      return harden(swept.sort());
+    },
     listWorkerNames: () => [...workers.keys()].sort(),
     shutdown: async () => {
       for (const runtime of workers.values()) {

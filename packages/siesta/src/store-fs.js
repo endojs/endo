@@ -7,6 +7,7 @@ import {
   readdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -74,8 +75,11 @@ import { Fail, q } from '@endo/errors';
  * @typedef {object} SiestaStore
  * @property {() => Array<string>} listWorkerNames
  * @property {(name: string) => WorkerStore} provideWorkerStore
+ * @property {(name: string) => void} deleteWorker removes the worker's
+ *   durable state (tables, journal, meta) entirely
  * @property {() => Record<string, PublicationRecord>} getPublications
  * @property {(secret: string, record: PublicationRecord) => void} setPublication
+ * @property {(secret: string) => void} deletePublication
  */
 
 const WORKER_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9-]{0,63}$/;
@@ -247,6 +251,10 @@ export const makeFsStore = statePath => {
     listWorkerNames: () =>
       existsSync(workersPath) ? readdirSync(workersPath).sort() : [],
     provideWorkerStore: makeWorkerStore,
+    deleteWorker: name => {
+      assertWorkerName(name);
+      rmSync(join(workersPath, name), { recursive: true, force: true });
+    },
     getPublications: () => readJsonMaybe(publicationsPath) ?? {},
     setPublication: (secret, record) => {
       const publications = readJsonMaybe(publicationsPath) ?? {};
@@ -255,6 +263,16 @@ export const makeFsStore = statePath => {
         publicationsPath,
         `${JSON.stringify(publications, undefined, 2)}\n`,
       );
+    },
+    deletePublication: secret => {
+      const publications = readJsonMaybe(publicationsPath) ?? {};
+      if (secret in publications) {
+        delete publications[secret];
+        writeFileAtomic(
+          publicationsPath,
+          `${JSON.stringify(publications, undefined, 2)}\n`,
+        );
+      }
     },
   };
   return harden(store);
@@ -314,9 +332,15 @@ export const makeMemoryStore = () => {
   const store = {
     listWorkerNames: () => [...workers.keys()].sort(),
     provideWorkerStore,
+    deleteWorker: name => {
+      workers.delete(name);
+    },
     getPublications: () => ({ ...publications }),
     setPublication: (secret, record) => {
       publications[secret] = record;
+    },
+    deletePublication: secret => {
+      delete publications[secret];
     },
   };
   return harden(store);
