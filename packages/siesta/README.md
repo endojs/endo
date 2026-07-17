@@ -86,9 +86,50 @@ Journals are absolutely indexed, so truncation never moves an offset;
 wakes restore from the snapshot ref plus the journal suffix, which also
 recovers cleanly from host crashes between snapshots.
 
-A production engine backs incarnations with XS machines under a
-snapshotting supervisor (see `rust/endo/xsnap` and
-`designs/ocapn-orthogonal-persistence.md`).
+`makeXsEngine` is the production-shaped engine: each incarnation is a
+`siesta-xs-worker` process (rust/siesta-xs-worker, a minimal runner on
+the `xsnap` crate) hosting the worker shell inside an XS machine, with
+real heap snapshots streamed into a content-addressed store.
+Build it with:
+
+```sh
+git submodule update --init c/moddable
+yarn workspace @endo/siesta build:xs-bundles
+cargo build --release -p siesta-xs-worker
+```
+
+The XS tests (`test/xs-engine.test.js`) skip themselves when those
+artifacts are absent.
+Note: XS workers currently boot without SES lockdown (native
+Compartment plus freeze-based harden); see the design's known gaps.
+
+## Workers creating workers
+
+Grant a worker the built-in `worker-controller` resource and its guest
+can create and endow other workers, with capabilities passed from its
+own heap and the host as the translation layer:
+
+```js
+const controller = host.makeResource('worker-controller');
+await parent.evaluate(
+  `
+  Far('Parent', {
+    setup: async () => {
+      const child = await E(controller).provideWorker('child');
+      const shared = Far('Shared', { secret: () => 'from-parent' });
+      return E(child).evaluate(childSource, ['shared'], [shared]);
+    },
+  })
+  `,
+  ['controller'],
+  [controller],
+);
+```
+
+Cross-worker links are durable at the export-table layer: the child's
+session records the parent-origin endowment as "import slot S of
+worker parent", re-seated on host restart without waking either
+worker.
 
 ## System resources
 
