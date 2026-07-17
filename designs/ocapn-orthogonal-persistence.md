@@ -3,29 +3,54 @@
 | | |
 |---|---|
 | **Created** | 2026-07-16 |
+| **Updated** | 2026-07-17 |
 | **Author** | Aaron Davis (prompted) |
 | **Status** | In Progress |
 
 ## Status
 
-A working prototype landed alongside this document:
+A working prototype landed alongside this document (Phases 1 and 2),
+and a follow-up pass landed the host side of Phase 3 plus all of
+Phase 4:
 
 - `packages/siesta` — the host (`makeSiestaHost`), the OCapN-serving
   daemon wrapper (`makeSiestaDaemon`), serializable CapTP tables
   (`makePersistentTablesKit`), the deterministic worker shell
   (`makeWorkerShell`), the journal-replay reference engine
   (`makeJournalReplayEngine`), and filesystem/memory stores.
-- `packages/captp` — a new `provideImport(slot, iface)` method on the
-  object returned by `makeCapTP`, the restore half of a resumable CapTP
-  session (with tests in `packages/captp/test/provide-import.test.js`).
-- Tests demonstrate the exit criteria end to end: worker state and
-  publications survive host restarts (memory and fs stores), sturdy refs
-  minted from `(location, secret)` remain live across daemon restarts,
-  and sleeping workers wake transparently for local or remote calls
-  (`packages/siesta/test/`).
+- `packages/captp` — new `provideImport(slot, iface)` and
+  `provideExport(slot, val)` methods on the object returned by
+  `makeCapTP`: the two restore halves of a resumable CapTP session
+  (tests in `packages/captp/test/provide-{import,export}.test.js`).
+- Phase 3 host side: journals are absolutely indexed and truncated at
+  every snapshot point (`truncateJournal` on both stores, atomic on the
+  filesystem via header-plus-rename), superseded snapshot refs are
+  released to the engine (`WorkerEngine.releaseSnapshot`), and
+  `makeSnapshottingReplayEngine` (`canSnapshot: true`) proves the whole
+  lifecycle — restore from snapshot ref plus journal suffix, including
+  crash recovery — without an XS build
+  (`packages/siesta/test/snapshot.test.js`).
+- Phase 4: durable host exports. `makeSiestaHost({ resources })` takes
+  a registry of resource makers; `host.makeResource(type, description)`
+  mints capability objects whose `(type, description)` is recorded
+  against the export slot the moment they are exported into a worker
+  session (`exportHook`), and re-instantiated at the same slot on
+  resume (`captp.provideExport`). `worker.evaluate(source, names,
+  values)` carries endowments to guests. `makeTimerResource` is the
+  first resource; a pending `delay` wakes a sleeping worker with no
+  inbound traffic, and timer nondeterminism is journaled so replay
+  stays deterministic (`packages/siesta/test/resources.test.js`).
 
-The XS-engine adapter (§ *The XS engine*) is not yet implemented; the
-prototype runs on the journal-replay engine.
+What remains of Phase 3 is the XS binary adapter itself. Note for
+whoever picks it up: the `rust/endo/xsnap` crate currently does not
+build from a fresh checkout on this branch — its `include_str!` JS
+bundles (`ses_boot.js`, `worker_bootstrap.js`, `daemon_bootstrap.js`)
+are generated files, the documented worker bundler
+(`packages/daemon/scripts/bundle-bus-worker-xs.mjs`, per
+`rust/endo/README.md`) no longer exists, and the manager bundler
+(`bundle-bus-daemon-rust-xs.mjs`) fails on Node-only imports pulled in
+through `packages/git` / `packages/host-spawner` / `packages/platform`.
+Restoring that toolchain is a prerequisite for the adapter.
 
 ## What is the Problem Being Solved?
 
@@ -131,7 +156,7 @@ engine.start({ workerName, snapshot, onOutbound })
   guest must never observe its own suspension, so the host never sends
   `CTP_DISCONNECT` to a worker.
 
-Two implementations:
+Three implementations:
 
 1. **Journal replay** (`makeJournalReplayEngine`, implemented) — the
    reference and test engine.
@@ -139,14 +164,43 @@ Two implementations:
    full journal of previously delivered messages and drops the worker's
    re-emitted replies (the *replay window*).
    `canSnapshot: false` tells the host to retain the whole journal.
-2. **XS snapshots** (future) — incarnations are XS machines under the
-   `endor` supervisor.
+2. **Snapshotting replay** (`makeSnapshottingReplayEngine`,
+   implemented) — `canSnapshot: true` without an XS build.
+   The snapshot ref is the engine's own log of delivered messages: an
+   honest implementation of the snapshot contract (an opaque durable
+   value that fully reconstructs guest state) that stands in for XS
+   heap bytes.
+   It exists to exercise the host's full snapshot lifecycle — journal
+   truncation at sleep, restore from ref plus journal suffix, release
+   of superseded refs — so the XS engine drops into proven host code.
+3. **XS snapshots** (remaining) — incarnations are XS machines under
+   the `endor` supervisor.
    `snapshot()` maps to `suspend_to_cas` (returning the content hash),
    `start({ snapshot })` to `resume_from_cas`, and `deliver` to the
    CBOR-envelope frames on fd 3/4
    (`rust/endo/src/proc.rs`, `rust/endo/xsnap/src/worker_io.rs`).
-   With real snapshots the host still journals, but replays only the
-   suffix since the last snapshot, and may truncate the prefix.
+
+### Journal growth and truncation
+
+The journal would grow without bound if the host kept every message
+forever; snapshots are what let it forget.
+The journal is **absolutely indexed**: entry numbers are stable across
+truncation, so a snapshot's recorded `journalLength` always names the
+same suffix.
+At every sleep on a `canSnapshot` engine the host records
+`(snapshotRef, journalLength)` durably and then truncates the journal
+prefix the snapshot subsumes (`WorkerStore.truncateJournal`; the
+filesystem store rewrites the journal with a base-index header via an
+atomic rename).
+The previous snapshot ref, now superseded, is handed back to the
+engine (`releaseSnapshot`) so engines with external snapshot storage
+(a CAS) can drop the corresponding GC root.
+Ordering is crash-safe: the new snapshot is durable before the journal
+shrinks and before the old snapshot is released, so a crash between
+steps only costs disk space.
+On the plain journal-replay engine (`canSnapshot: false`) the journal
+is the persistence and cannot be dropped; that engine is for tests and
+reference, not deployment.
 
 ### Resuming, not re-establishing, the host–worker session
 
@@ -250,21 +304,32 @@ The adapter work is:
 
 ## Future Work
 
-### Host-provided system resources
+### Host-provided system resources (Phase 4, landed)
 
-Workers eventually need timers, network, storage, and other host
-capabilities.
-The shape: the host exports capability objects into the worker session,
-and — because host exports are *not* inside any snapshot — each such
-export must be re-instantiable from a durable description.
-That is a formula by another name, but scoped to the host's export table
-only: a small `(slot → resource description)` map per worker, hydrated at
-resume, never visible to guests.
-The persistent tables already record export descriptors; what is missing
-is the re-instantiation registry and the attenuation story.
-Timers deserve first attention, since a sleeping worker with a pending
-`E(timer).wakeAt(t)` gives the host a reason to wake it without inbound
-traffic.
+Workers need timers, network, storage, and other host capabilities.
+The shape, now implemented: the host exports capability objects into
+the worker session, and — because host exports are *not* inside any
+snapshot — each such export is re-instantiable from a durable
+description.
+That is a formula by another name, but scoped to the host's export
+table only: a small `(slot → { type, description })` map per worker
+(`WorkerMeta.resources`), recorded by the session's `exportHook` the
+moment a resource is exported, hydrated at resume through
+`captp.provideExport`, never visible to guests.
+`makeSiestaHost({ resources })` supplies the maker registry;
+`host.makeResource(type, description)` mints instances; endowments
+reach guests via `worker.evaluate(source, names, values)`.
+A host that resumes a worker without the maker its exports need fails
+loudly at construction rather than dangling the worker's presences.
+
+Timers came first, as `makeTimerResource`: a pending `delay` gives the
+host a reason to wake a sleeping worker with no inbound traffic (the
+resolution message routes through the session's ordinary wake path),
+and because every timer result is a journaled CapTP reply, replay
+reproduces recorded time rather than consulting the clock — host
+nondeterminism does not infect worker determinism.
+Network and storage resources remain future work, as does the
+attenuation story (per-worker scoping of descriptions).
 
 ### Durable OCapN sessions
 
@@ -310,16 +375,25 @@ until it lands.
 ## Phased Implementation
 
 1. **Phase 1 (landed): captp resume seam.** `provideImport` on
-   `makeCapTP`, with identity-preservation tests.
+   `makeCapTP`, with identity-preservation tests. (`provideExport`,
+   its mirror, landed with Phase 4.)
 2. **Phase 2 (landed): host prototype.** `@endo/siesta`: persistent
    tables, journal, sleepy lifecycle, publications, OCapN daemon
    wrapper, journal-replay engine; end-to-end restart tests over the
    TCP-testing netlayer.
-3. **Phase 3: XS engine.** The adapter in § *The XS engine*; the
-   exit criterion is the existing siesta test suite passing unmodified
-   on XS incarnations with real snapshots.
-4. **Phase 4: system resources.** Durable host exports (timer first),
-   per § *Host-provided system resources*.
+3. **Phase 3 (host side landed): XS engine.** The host's snapshot
+   lifecycle is complete and proven by `makeSnapshottingReplayEngine`:
+   absolute journal indexing, truncation at every snapshot point,
+   restore from ref plus suffix (including crash recovery), and
+   superseded-ref release.
+   Remaining: the `endor` adapter in § *The XS engine*, currently
+   gated on restoring the xsnap JS-bundle toolchain (see § Status);
+   the exit criterion is the existing siesta test suite passing
+   unmodified on XS incarnations with real snapshots.
+4. **Phase 4 (landed): system resources.** Durable host exports per
+   § *Host-provided system resources*: maker registry, export-time
+   description recording, resume-time re-instantiation via
+   `provideExport`, evaluate endowments, and the timer resource.
 5. **Phase 5: production transport.** Noise netlayer with persisted
    signing keys, giving stable locations for sturdy refs.
 6. **Phase 6: durable OCapN sessions.** Gated on the OCapN session-model
@@ -354,16 +428,24 @@ until it lands.
 
 ## Known Gaps and TODOs
 
-- [ ] XS engine adapter (Phase 3).
-- [ ] Host exports to workers are not durable: a worker that retains a
-      host capability across a host restart will find its slot dead
-      (`hasExport` fails). Blocked on the durable-export registry
-      (Phase 4).
+- [ ] XS engine adapter (Phase 3 remainder), gated on restoring the
+      xsnap JS-bundle toolchain (see § Status).
+- [x] ~~Host exports to workers are not durable.~~ Landed as Phase 4:
+      resource exports are recorded by description and re-instantiated
+      at resume via `captp.provideExport`.
+- [x] ~~Journal growth is unbounded.~~ Landed with the Phase 3 host
+      side: snapshots subsume and truncate the journal prefix on every
+      sleep (§ *Journal growth and truncation*). Still true on the
+      plain journal-replay engine, whose journal *is* the persistence.
+- [ ] A worker-to-host call in flight across a host restart is lost:
+      the host's `answers` bookkeeping is in-memory, so a guest
+      awaiting (say) a pending `timer.delay` across a host crash hangs.
+      Durable resource requests need journaling of worker-to-host
+      messages and re-execution against re-instantiated resources — a
+      deliberate follow-up, not an oversight.
 - [ ] The TCP-testing netlayer mints per-boot locations, so restart
       tests re-derive the location; stable locations arrive with the
       Noise netlayer and persisted keys (Phase 5).
-- [ ] Journal growth is unbounded on the replay engine; truncation
-      needs `canSnapshot`.
 - [ ] No metering or scheduling; a hostile guest can spin forever.
 
 ## Prompt

@@ -332,7 +332,7 @@ LLM-agent stack).*
 | [ocapn-noise-key-only-session-boundary](ocapn-noise-key-only-session-boundary.md) | 2026-07-18 | 2026-07-19 | Proposed |
 | [ocapn-noise-network](ocapn-noise-network.md) | 2026-02-14 | 2026-05-18 | **Complete** |
 | [ocapn-noise-session-reconnect](ocapn-noise-session-reconnect.md) | 2026-05-14 | 2026-05-19 | Proposed |
-| [ocapn-orthogonal-persistence](ocapn-orthogonal-persistence.md) | 2026-07-16 | 2026-07-16 | In Progress |
+| [ocapn-orthogonal-persistence](ocapn-orthogonal-persistence.md) | 2026-07-16 | 2026-07-17 | In Progress |
 | [ocapn-tcp-for-test-extraction](ocapn-tcp-for-test-extraction.md) | 2026-02-14 | 2026-02-24 | Not Started |
 | [ocapn-tcp-syrups-framing](ocapn-tcp-syrups-framing.md) | 2026-04-23 | 2026-05-06 | Not Started |
 | [syrups](syrups.md) | 2026-05-04 | 2026-05-06 | Deprecated |
@@ -740,7 +740,7 @@ finalized.
 | ocapn-noise-cryptographic-review | Not Started | External review coordination |
 | daemon-agent-network-identity | Not Started | Per-agent keypairs for network identity |
 | ~~ocapn-noise-network~~ | **Complete** | Noise IK netlayer for OCapN landed via PR #137 (merged 2026-05-08), consolidating the stacked PRs #111 (CBOR codec) + #112 (Noise IK netlayer) + #113 (transport tests) |
-| ocapn-orthogonal-persistence | In Progress | `@endo/siesta` prototype landed (host, persistent CapTP tables via new `@endo/captp` `provideImport` seam, journal-replay engine, sleepy workers, sturdy-ref publication); remaining: XS engine adapter over `rust/endo/xsnap` suspend/resume, durable host exports, Noise transport with persisted keys |
+| ocapn-orthogonal-persistence | In Progress | `@endo/siesta` prototype landed (host, persistent CapTP tables via new `@endo/captp` `provideImport`/`provideExport` seams, journal-replay engine, sleepy workers, sturdy-ref publication). Phase 3 host side landed 2026-07-17: absolute-indexed journals truncated at every snapshot, snapshot+suffix restore incl. crash recovery, superseded-ref release, proven by a `canSnapshot` reference engine. Phase 4 landed 2026-07-17: durable host exports (resource maker registry, export-time description recording, resume re-instantiation, evaluate endowments, timer resource that wakes sleeping workers). Remaining: the `endor` XS adapter (gated on restoring the xsnap JS-bundle toolchain — the worker bundler is absent and the manager bundler fails on Node-only imports), Noise transport with persisted keys |
 
 **Exit criterion:** Two Endo daemons can connect securely over
 OCapN-Noise. Locator format supports node identification via agent
@@ -1320,7 +1320,7 @@ have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
 | cbors | S-M | 3 days | 4 | New `@endo/cbors` package; design merged with syrups in PR #86 |
 | cbor-codec | S | 2-3 days | 4 | New `@endo/cbor` package plus ocapn and slots migrations; slots adoption gated on PR #124 landing |
 | ocapn-noise-cryptographic-review | S | 1 day | 4 | External review coordination |
-| ocapn-orthogonal-persistence | M | 4-5 days | 4 | `@endo/siesta` prototype + `@endo/captp` `provideImport` landed with the design; the estimate covers the remaining XS engine adapter (Phase 3) over the daemon-xs-worker-snapshot substrate |
+| ocapn-orthogonal-persistence | M | 4-5 days | 4 | `@endo/siesta` prototype, `@endo/captp` `provideImport`/`provideExport`, Phase 3 host-side snapshot lifecycle, and Phase 4 durable host exports landed; the estimate covers the remaining `endor` XS adapter, including restoring the xsnap JS-bundle toolchain it is gated on |
 | daemon-agent-network-identity | S-M | 3 days | 4 | Network registration, locator construction |
 | ~~ocapn-noise-network~~ | L | — | 4 | ✅ Complete (PR #137 consolidates stacked PRs #111/#112/#113; merged 2026-05-08) |
 | ocapn-noise-key-only-session-boundary | M | 3-4 days | 4 | Noise-free key-sniffing relay and independent terminating listener, application-injected OCapN network adapter, static SIGHUP-reloadable route configuration from a loosely coupled Node controller exo, and WebSocket-to-relay handoff migration; Node prototype prepared for a Rust data plane behind a CBOR configuration protocol |
