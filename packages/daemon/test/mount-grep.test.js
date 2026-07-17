@@ -10,7 +10,7 @@ import os from 'os';
 import path from 'path';
 import { E } from '@endo/eventual-send';
 
-import { makeFilePowers } from '../src/daemon-node-powers.js';
+import { makeFilePowers } from '../src/manager-node-powers.js';
 import { makeMount, makeRevocableMount } from '../src/mount.js';
 import { buildMountFixture } from './_mount-fixture.js';
 
