@@ -152,6 +152,7 @@ export const relativizeCompartmentMap = compartmentMap => {
  * Strips absolute `file://` prefixes from locations in "renames" Records of {@link CaptureResult}.
  *
  * @see {@link stripCaptureResult}
+ * @knipignore
  * @param {Record<string, string>} renames
  * @returns {Record<string, string>} Stripped renames
  */
@@ -170,6 +171,7 @@ export const stripRenames = renames => {
  * stripped from `sourceLocation` properties.
  *
  * @see {@link stripCaptureResult}
+ * @knipignore
  * @param {Sources} sources
  * @returns {Sources}
  */
@@ -198,6 +200,7 @@ export const stripSources = sources => {
 
 /**
  * Strips absolute `file://` prefixes from locations in a `CaptureResult`.
+ * @knipignore
  * @param {CaptureResult} result
  */
 export const stripCaptureResult = result => ({
