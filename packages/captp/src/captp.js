@@ -874,6 +874,47 @@ export const makeCapTP = (
     return val;
   };
 
+  /**
+   * Reconstruct an export at a slot we previously exported to our peer,
+   * as recorded (for example) by an `exportHook` during an earlier
+   * incarnation of this connection.
+   *
+   * This is the other restore half of a persistent CapTP session (see
+   * `provideImport`): a caller that can re-instantiate an exported object
+   * from a durable description may rebind it to its original slot, so a
+   * peer restored from a heap snapshot can keep using the presences it
+   * already holds.
+   *
+   * The slot is ours-perspective (the same form `exportHook` receives,
+   * e.g. `o+2`) and must name a non-promise object export (`+`
+   * direction). Idempotent for the same `(slot, val)` pair; rebinding a
+   * slot to a different value, or a value that already has another slot,
+   * is an error.
+   *
+   * @param {CapTPSlot} slot ours-perspective slot to rebind
+   * @param {any} val the re-instantiated export
+   */
+  const provideExport = (slot, val) => {
+    typeof slot === 'string' || Fail`provideExport slot must be a string`;
+    slot[1] === '+' ||
+      Fail`provideExport can only reconstruct exports, not ${slot}`;
+    slot[0] === 'o' ||
+      Fail`provideExport can only reconstruct object exports, not ${slot}`;
+    !isPromise(val) || Fail`provideExport cannot reconstruct a promise`;
+    if (importExportTables.hasExport(slot)) {
+      importExportTables.getExport(slot) === val ||
+        Fail`slot ${slot} is already bound to another export`;
+      return val;
+    }
+    const existingSlot = valToSlot.get(val);
+    existingSlot === undefined ||
+      existingSlot === slot ||
+      Fail`value is already exported as ${existingSlot}, not ${slot}`;
+    valToSlot.set(val, slot);
+    importExportTables.markAsExported(slot, val);
+    return val;
+  };
+
   // Get a reference to the other side's bootstrap object.
   const getBootstrap = async () => {
     if (unplug !== false) {
@@ -942,6 +983,7 @@ export const makeCapTP = (
     dispatch,
     getBootstrap,
     provideImport,
+    provideExport,
     getStats,
     isOnlyLocal,
     serialize,
