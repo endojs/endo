@@ -6,6 +6,7 @@ export {
 } from './src/journal-replay-engine.js';
 export { makeTimerResource } from './src/resources.js';
 export { makeWorkerShell } from './src/worker-shell.js';
+export { makeXsEngine } from './src/xs-engine.js';
 export {
   makeFsStore,
   makeMemoryStore,

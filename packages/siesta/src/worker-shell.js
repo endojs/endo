@@ -27,13 +27,16 @@ const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
  * @param {string} [options.name] debug label for the CapTP endpoint
  */
 export const makeWorkerShell = ({ send, name = 'siesta-worker' }) => {
-  const compartment = new Compartment(
-    harden({
-      E,
-      Far,
-      harden,
-    }),
-  );
+  // Assign endowments onto the compartment's global rather than passing
+  // them to the constructor: the SES-shim Compartment takes endowments
+  // as its first argument, XS's native Compartment takes an options bag,
+  // and global assignment works identically on both.
+  const compartment = new Compartment();
+  Object.assign(compartment.globalThis, {
+    E,
+    Far,
+    harden,
+  });
 
   const facet = Far('SiestaWorker', {
     help: () =>

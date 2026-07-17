@@ -17,6 +17,8 @@
  * engine snapshot; this module runs only on first boot, never on
  * restore.
  */
+import '@endo/eventual-send/shim.js';
+
 import { makeWorkerShell } from './worker-shell.js';
 
 const send = /** @type {(json: string) => void} */ (
@@ -26,8 +28,33 @@ if (typeof send !== 'function') {
   throw Error('siesta-xs-worker must register siestaSend before bootstrap');
 }
 
+// Escape non-ASCII so the string crossing the host-function boundary is
+// pure ASCII, where CESU-8, UTF-8, and C strings coincide.
+const asciiJson = value =>
+  JSON.stringify(value).replace(
+    /[\u0080-\uffff]/g,
+    ch => `\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
+
+const trace = /** @type {(text: string) => void} */ (
+  /** @type {any} */ (globalThis).siestaTrace
+);
+if (typeof trace === 'function' && typeof globalThis.console === 'undefined') {
+  const traceAll =
+    tag =>
+    (...args) =>
+      trace(`${tag}: ${args.map(String).join(' ')}`);
+  /** @type {any} */ (globalThis).console = {
+    log: traceAll('log'),
+    info: traceAll('info'),
+    warn: traceAll('warn'),
+    error: traceAll('error'),
+    debug: traceAll('debug'),
+  };
+}
+
 const shell = makeWorkerShell({
-  send: message => send(JSON.stringify(message)),
+  send: message => send(asciiJson(message)),
   name: 'siesta-worker:xs',
 });
 

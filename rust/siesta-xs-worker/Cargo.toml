@@ -1,0 +1,11 @@
+[package]
+name = "siesta-xs-worker"
+version = "0.1.0"
+edition = "2021"
+description = "Minimal snapshottable XS runner for @endo/siesta workers"
+license = "Apache-2.0"
+
+[dependencies]
+xsnap = { path = "../endo/xsnap" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }

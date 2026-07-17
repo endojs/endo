@@ -36,7 +36,8 @@
     "lint:types": "tsc",
     "test": "ses-ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
-    "test:xs": "exit 0"
+    "test:xs": "exit 0",
+    "build:xs-bundles": "node scripts/bundle-xs-worker.mjs"
   },
   "dependencies": {
     "@endo/captp": "workspace:^",
@@ -49,6 +50,7 @@
     "@endo/promise-kit": "workspace:^"
   },
   "devDependencies": {
+    "@endo/compartment-mapper": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
@@ -72,6 +74,9 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
+    ],
+    "ignorePatterns": [
+      "dist-xs/"
     ]
   },
   "sesAvaConfigs": {

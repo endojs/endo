@@ -378,7 +378,7 @@ where
 /// # Safety
 /// Caller must ensure `the` is a valid XS machine pointer and
 /// `index` is within the argument count.
-pub(crate) unsafe fn arg_str(the: *mut XsMachine, index: usize) -> String {
+pub unsafe fn arg_str(the: *mut XsMachine, index: usize) -> String {
     let slot = (*the).frame.sub(1 + index);
     let ptr = fxToString(the, slot);
     xs_string_to_utf8(ptr)
@@ -391,7 +391,7 @@ pub(crate) unsafe fn arg_str(the: *mut XsMachine, index: usize) -> String {
 ///
 /// # Safety
 /// Caller must ensure `the` is a valid XS machine pointer.
-pub(crate) unsafe fn set_result_string(the: *mut XsMachine, s: &str) {
+pub unsafe fn set_result_string(the: *mut XsMachine, s: &str) {
     let cesu = crate::cesu8::encode(s);
     let c_str = std::ffi::CString::new(cesu).unwrap_or_default();
     fxString(the, &mut (*the).scratch, c_str.as_ptr());
