@@ -12,18 +12,18 @@ import { makeNetstringCapTP } from './connection.js';
 import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
 import { makeSerialJobs } from './serial-jobs.js';
-import { makeDaemonDatabase } from './daemon-database-node.js';
+import { makeDaemonDatabase } from './manager-database-node.js';
 // The shared SQLite-backed persistence powers live in
-// ./daemon-persistence-powers.js so the XS-on-Rust supervisor can
+// ./manager-persistence-powers.js so the XS-on-Rust supervisor can
 // use them without importing the Node-only graph above.
-import { makeDaemonicPersistencePowers } from './daemon-persistence-powers.js';
+import { makeDaemonicPersistencePowers } from './manager-persistence-powers.js';
 
 export { makeDaemonicPersistencePowers };
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
 /** @import { CapTpConnectionRegistrar, Config, CryptoPowers, DaemonWorkerFacet, DaemonicPersistencePowers, DaemonicPowers, EndoReadable, FilePowers, Formula, FormulaNumber, NetworkPowers, SocketPowers, WorkerDaemonFacet } from './types.js' */
-/** @import { DaemonDatabase } from './daemon-database.js' */
+/** @import { DaemonDatabase } from './manager-database.js' */
 
 /**
  * @param {object} modules

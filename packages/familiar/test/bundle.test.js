@@ -11,7 +11,7 @@
  *   - esbuild major-version regressions when the Familiar `esbuild`
  *     dep is bumped (e.g. the 0.24 → 0.28 jump that came alongside the
  *     Electron 40 → 42 PR).
- *   - import-time breakage in the Endo CLI, daemon-node, worker-node,
+ *   - import-time breakage in the Endo CLI, manager-node, worker-node,
  *     LAL setup, or the Familiar `electron-main.js` itself.
  *   - Silent loss of an entry point from the bundle script.
  *
@@ -21,7 +21,7 @@
  * The bundle step writes ~10 MiB into `bundles/`; allow generous time.
  *
  * The bundles are emitted as ESM (`.mjs`) rather than CJS so that
- * `packages/daemon/src/daemon-node.js`'s module-level `await` (since the
+ * `packages/daemon/src/manager-node.js`'s module-level `await` (since the
  * SQLite migration) survives bundling — esbuild rejects top-level
  * `await` under `format: 'cjs'`.  See `scripts/bundle.mjs` for the
  * pipeline.

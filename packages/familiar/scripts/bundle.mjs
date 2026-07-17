@@ -3,7 +3,7 @@
  * using esbuild for inclusion in the packaged Electron app.
  *
  * All bundles are emitted as ESM (`.mjs`) so that:
- *   - Module-level `await` (used by `daemon-node.js` for SQLite
+ *   - Module-level `await` (used by `manager-node.js` for SQLite
  *     migrations) survives bundling — esbuild rejects top-level
  *     await under `format: 'cjs'`.
  *   - `import.meta.url` works natively without a CJS shim.
@@ -49,7 +49,7 @@ await build({
 
 await build({
   ...shared,
-  entryPoints: [path.join(repoRoot, 'packages/daemon/src/daemon-node.js')],
+  entryPoints: [path.join(repoRoot, 'packages/daemon/src/manager-node.js')],
   outfile: path.join(familiarRoot, 'bundles/endo-daemon.mjs'),
 });
 

@@ -12,7 +12,7 @@ import {
   bytesToMessage,
   messageToBytes,
 } from '../connection.js';
-import { makeSocketPowers } from '../daemon-node-powers.js';
+import { makeSocketPowers } from '../manager-node-powers.js';
 
 const fsp = { access: fs.promises.access };
 

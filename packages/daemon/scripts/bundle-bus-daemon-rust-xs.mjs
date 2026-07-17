@@ -48,7 +48,7 @@ const EXCLUDED_PACKAGES = new Set([
 
 // Bundle the daemon entry point
 const daemonUrl = url.pathToFileURL(
-  path.resolve(__dirname, '../src/bus-daemon-rust-xs.js'),
+  path.resolve(__dirname, '../src/bus-manager-rust-xs.js'),
 ).href;
 
 const daemonBundle = await makeBundle(readPowers, daemonUrl, {

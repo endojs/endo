@@ -253,7 +253,7 @@ const runEngo = async (detached, config) => {
   const logPath = path.join(config.statePath, 'endo.log');
 
   const endoGoDaemonPath = url.fileURLToPath(
-    new URL('src/daemon-go.js', import.meta.url),
+    new URL('src/manager-go.js', import.meta.url),
   );
 
   const env = {
@@ -313,7 +313,7 @@ const runEndo = async (detached, config) => {
 
   const daemonPath =
     process.env.ENDO_DAEMON_PATH ||
-    url.fileURLToPath(new URL('src/daemon-node.js', import.meta.url));
+    url.fileURLToPath(new URL('src/manager-node.js', import.meta.url));
 
   // TODO modify node-powers to just rely on ENDO_* passed like engo by configToEnv
   const daemonArgs = [
@@ -370,7 +370,7 @@ const runEndo = async (detached, config) => {
   if (typeof message === 'object' && message !== null && 'type' in message) {
     if (message.type === 'ready') {
       // This message corresponds to process.send({ type: 'ready' }) in
-      // src/daemon-node-powers.js and indicates the daemon is ready to receive
+      // src/manager-node-powers.js and indicates the daemon is ready to receive
       // clients.
       console.debug('endo daemon ready', message);
     } else if (

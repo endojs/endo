@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-import { makeFilePowers } from '../src/daemon-node-powers.js';
+import { makeFilePowers } from '../src/manager-node-powers.js';
 
 /**
  * Allocate a fresh temporary directory that is removed at test teardown.

@@ -21,7 +21,7 @@ import { internalHelpers, makeNativeGitBackend } from '@endo/git';
 import { makeGit, makeNotYetImplementedBackend } from '@endo/exo-git';
 
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
-import { makeFilePowers } from '../src/daemon-node-powers.js';
+import { makeFilePowers } from '../src/manager-node-powers.js';
 import { lineageOf, makeMount } from '../src/mount.js';
 
 const execFileAsync = nodePromisify(execFile);

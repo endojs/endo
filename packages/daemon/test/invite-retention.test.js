@@ -14,7 +14,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 import { parseId } from '../src/formula-identifier.js';
 import { idFromLocator } from '../src/locator.js';
-import { makeDaemonDatabase } from '../src/daemon-database-node.js';
+import { makeDaemonDatabase } from '../src/manager-database-node.js';
 
 // Multi-daemon retention tests rely on the TCP network module that
 // is loaded via makeUnconfined (a Node-only path).  Skip the whole

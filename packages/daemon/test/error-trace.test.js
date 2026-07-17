@@ -14,7 +14,7 @@ import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 
 import { start, stop, purge, makeEndoClient } from '../index.js';
-import { makeCryptoPowers } from '../src/daemon-node-powers.js';
+import { makeCryptoPowers } from '../src/manager-node-powers.js';
 
 const cryptoPowers = makeCryptoPowers(crypto);
 

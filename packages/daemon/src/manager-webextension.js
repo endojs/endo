@@ -20,7 +20,7 @@ import url from 'url';
 
 import { makePromiseKit } from '@endo/promise-kit';
 // eslint-disable-next-line import/named
-import { main } from './daemon.js';
+import { main } from './manager.js';
 // eslint-disable-next-line import/no-unresolved
 import { makePowers } from './daemon-webextension-powers.js';
 

@@ -11,7 +11,7 @@ import process from 'node:process';
 import { makeShell } from '@endo/exo-shell';
 import { makeHostSpawner } from '@endo/host-spawner';
 
-import { makeFilePowers } from '../src/daemon-node-powers.js';
+import { makeFilePowers } from '../src/manager-node-powers.js';
 import { normalizeShellPolicy } from '../src/host.js';
 import { getMountBacking, makeMount } from '../src/mount.js';
 
