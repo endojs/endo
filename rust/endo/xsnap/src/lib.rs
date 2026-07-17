@@ -731,11 +731,26 @@ impl Machine {
         cas_dir: &std::path::Path,
     ) -> Result<String, SnapshotError> {
         std::fs::create_dir_all(cas_dir).map_err(SnapshotError::Io)?;
-        let tmp_path = cas_dir.join(".snapshot.tmp");
+        // Unique temp name: a fixed name would let two processes (or two
+        // machines in one process) snapshotting into a shared CAS
+        // directory interleave writes and corrupt each other.
+        static TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let seq = TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let tmp_path = cas_dir.join(format!(
+            ".snapshot.{}.{}.tmp",
+            std::process::id(),
+            seq
+        ));
         let file = std::fs::File::create(&tmp_path)
             .map_err(SnapshotError::Io)?;
         let mut cbs = self.registered_callbacks.borrow().clone();
-        let hash = self.write_snapshot_to_file(signature, &mut cbs, file)?;
+        let hash = match self.write_snapshot_to_file(signature, &mut cbs, file) {
+            Ok(hash) => hash,
+            Err(error) => {
+                let _ = std::fs::remove_file(&tmp_path);
+                return Err(error);
+            }
+        };
         let final_path = cas_dir.join(&hash);
         std::fs::rename(&tmp_path, &final_path).map_err(SnapshotError::Io)?;
         Ok(hash)
