@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-05-28 |
-| **Updated** | 2026-05-28 |
+| **Updated** | 2026-07-17 |
 | **Author** | kumavis (prompted) |
 | **Status** | In Progress |
 
@@ -31,6 +31,8 @@ in the Phase 5 follow-up** via a backend-supplied QID/hash hook on
 anticipated), landed on `llm`:
 
 1. **QID `pathId` is the git object OID as a BigInt (restored).**
+   "QID" follows Plan 9's [`Qid` identity](https://9p.io/magic/man2html/2/stat),
+   whose `path` identifies a file and whose version changes on modification.
    `wrapBackend` probes the backend for an optional `qidFor(path, kind)`
    (a synchronous content-address hook) and uses it when present; the
    git-tree backend (`packages/exo-git/src/git-filesystem.js`) supplies a
