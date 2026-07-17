@@ -4394,6 +4394,19 @@ test('storeContent returns the same xt-only locator as locateContent', async t =
   t.is(stored, located);
 });
 
+test('storeContent returns undefined for an unknown name', async t => {
+  const { host } = await prepareHost(t);
+  t.is(await E(host).storeContent('no-such-name'), undefined);
+});
+
+test('storeContent rejects a non-content formula', async t => {
+  const { host } = await prepareHost(t);
+  await E(host).storeValue(10, 'ten');
+  await t.throwsAsync(E(host).storeContent('ten'), {
+    message: /not a content-bearing formula/,
+  });
+});
+
 test('reverseLocateContent finds the pet names for a content locator', async t => {
   const { host } = await prepareHost(t);
   const readerRef = bytesReaderFromIterator([
@@ -4403,6 +4416,40 @@ test('reverseLocateContent finds the pet names for a content locator', async t =
   const contentLocator = await E(host).locateContent('reverse-blob');
   const names = await E(host).reverseLocateContent(contentLocator);
   t.deepEqual(names, ['reverse-blob']);
+});
+
+test('reverseLocateContent returns all matching names, deduped and sorted', async t => {
+  const { host } = await prepareHost(t);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('shared content\n'),
+  ]);
+  await E(host).storeBlob(readerRef, 'zeta-name');
+  // A second pet name for the same content formula (same content identity).
+  await E(host).copy(['zeta-name'], ['alpha-name']);
+  const contentLocator = await E(host).locateContent('zeta-name');
+  const names = await E(host).reverseLocateContent(contentLocator);
+  t.deepEqual(names, ['alpha-name', 'zeta-name']);
+});
+
+test('reverseLocateContent returns an empty array when no content matches', async t => {
+  const { host } = await prepareHost(t);
+  const readerRef = bytesReaderFromIterator([
+    new TextEncoder().encode('lonely\n'),
+  ]);
+  await E(host).storeBlob(readerRef, 'lonely-blob');
+  const contentLocator = await E(host).locateContent('lonely-blob');
+  await E(host).remove('lonely-blob');
+  t.deepEqual(await E(host).reverseLocateContent(contentLocator), []);
+});
+
+test('reverseLocateContent rejects a malformed content locator', async t => {
+  const { host } = await prepareHost(t);
+  await t.throwsAsync(E(host).reverseLocateContent('not-a-magnet-urn'));
+});
+
+test('internalizeContentLocator rejects a malformed content locator', async t => {
+  const { host } = await prepareHost(t);
+  await t.throwsAsync(E(host).internalizeContentLocator('not-a-magnet-urn'));
 });
 
 test('listContent lists only content-bearing entries', async t => {
