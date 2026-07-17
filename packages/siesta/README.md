@@ -19,6 +19,14 @@ When a worker's CapTP session is quiescent and idle, the host snapshots
 and terminates it; a later message to any of its presences transparently
 wakes it.
 
+Workers have no names.
+Each is identified by a host-generated unguessable id, so reaching a
+worker requires a capability — a publication, a durable cross-worker
+link, or a facade — never a well-known string.
+`createWorker({ debugLabel })` accepts an optional label that appears
+only in logs and error messages; `host.getWorker(workerId)` is the
+embedder's admin route to an existing worker.
+
 ## Example
 
 ```js
@@ -38,7 +46,7 @@ const daemon = await makeSiestaDaemon({
   makeNetlayer: ({ handlers, logger }) => makeTcpNetLayer({ handlers, logger }),
 });
 
-const worker = await daemon.host.provideWorker('counter');
+const worker = await daemon.host.createWorker({ debugLabel: 'counter' });
 const counter = await worker.evaluate(`
   (() => {
     let count = 0;
@@ -115,7 +123,7 @@ await parent.evaluate(
   `
   Far('Parent', {
     setup: async () => {
-      const child = await E(controller).provideWorker('child');
+      const child = await E(controller).createWorker('child');
       const shared = Far('Shared', { secret: () => 'from-parent' });
       return E(child).evaluate(childSource, ['shared'], [shared]);
     },
@@ -127,9 +135,9 @@ await parent.evaluate(
 ```
 
 Cross-worker links are durable at the export-table layer: the child's
-session records the parent-origin endowment as "import slot S of
-worker parent", re-seated on host restart without waking either
-worker.
+session records the parent-origin endowment as "import slot S of the
+parent worker's session" (by worker id), re-seated on host restart
+without waking either worker.
 
 ## System resources
 
@@ -144,7 +152,7 @@ const host = await makeSiestaHost({
   engine,
   resources: { timer: makeTimerResource },
 });
-const worker = await host.provideWorker('clock');
+const worker = await host.createWorker({ debugLabel: 'clock' });
 const timer = host.makeResource('timer');
 const clock = await worker.evaluate(
   `Far('Clock', { read: () => E(timer).now() })`,

@@ -10,7 +10,7 @@ export { makeXsEngine } from './src/xs-engine.js';
 export {
   makeFsStore,
   makeMemoryStore,
-  assertWorkerName,
+  assertWorkerId,
 } from './src/store-fs.js';
 export {
   makePersistentTablesKit,

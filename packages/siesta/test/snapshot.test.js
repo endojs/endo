@@ -31,13 +31,13 @@ test('sleep truncates the journal once a snapshot subsumes it', async t => {
   const engine = makeSnapshottingReplayEngine();
 
   const host = await makeSiestaHost({ store, engine });
-  const worker = await host.provideWorker('counter');
+  const worker = await host.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
   t.is(await E(counter).incr(), 2);
   await worker.publish(counter, 'counter-cap');
 
-  const workerStore = store.provideWorkerStore('counter');
+  const workerStore = store.provideWorkerStore(worker.workerId);
   const lengthBeforeSleep = workerStore.journalLength();
   t.true(lengthBeforeSleep > 0);
   t.is(workerStore.readJournal(0).length, lengthBeforeSleep);
@@ -68,7 +68,7 @@ test('snapshot plus journal suffix survives host restart', async t => {
 
   {
     const host = await makeSiestaHost({ store, engine });
-    const worker = await host.provideWorker('counter');
+    const worker = await host.createWorker({ debugLabel: 'counter' });
     const counter = await worker.evaluate(COUNTER_SOURCE);
     t.is(await E(counter).incr(), 1);
     await worker.publish(counter, 'counter-cap');
@@ -100,7 +100,7 @@ test('snapshot restart works on the filesystem store, including after a crash', 
       store: makeFsStore(statePath),
       engine,
     });
-    const worker = await host.provideWorker('counter');
+    const worker = await host.createWorker({ debugLabel: 'counter' });
     const counter = await worker.evaluate(COUNTER_SOURCE);
     t.is(await E(counter).incr(), 1);
     secret = await worker.publish(counter);
@@ -150,7 +150,7 @@ test('an unchanged content-addressed snapshot ref is not released', async t => {
   });
 
   const host = await makeSiestaHost({ store, engine });
-  const worker = await host.provideWorker('counter');
+  const worker = await host.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
   await worker.sleep();
@@ -180,7 +180,7 @@ test('superseded snapshots are released to the engine', async t => {
   });
 
   const host = await makeSiestaHost({ store, engine });
-  const worker = await host.provideWorker('counter');
+  const worker = await host.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
   await worker.sleep();

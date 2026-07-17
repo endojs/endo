@@ -78,7 +78,7 @@ testXs('XS worker state survives sleep and host restart', async t => {
       store: makeFsStore(statePath),
       engine,
     });
-    const worker = await host.provideWorker('counter');
+    const worker = await host.createWorker({ debugLabel: 'counter' });
     const counter = await worker.evaluate(COUNTER_SOURCE);
     t.is(await E(counter).incr(), 1);
     t.is(await E(counter).incr(), 2);
@@ -87,7 +87,9 @@ testXs('XS worker state survives sleep and host restart', async t => {
     // Sleep takes a real XS heap snapshot and truncates the journal.
     await worker.sleep();
     t.false(worker.isAwake());
-    const workerStore = makeFsStore(statePath).provideWorkerStore('counter');
+    const workerStore = makeFsStore(statePath).provideWorkerStore(
+      worker.workerId,
+    );
     t.is(workerStore.readJournal(0).length, 0, 'journal truncated');
     const snapshotRef = workerStore.getMeta().snapshot?.ref;
     t.is(typeof snapshotRef, 'string');
@@ -121,7 +123,7 @@ testXs('XS worker keeps identity across snapshot restore', async t => {
       store: makeFsStore(statePath),
       engine,
     });
-    const worker = await host.provideWorker('registry');
+    const worker = await host.createWorker({ debugLabel: 'registry' });
     const registry = await worker.evaluate(`
       (() => {
         const thing = Far('Thing', { hi: () => 'hi' });
@@ -162,7 +164,7 @@ testXs('XS worker uses durable host resources across restart', async t => {
       engine,
       resources,
     });
-    const worker = await host.provideWorker('clock');
+    const worker = await host.createWorker({ debugLabel: 'clock' });
     const timer = host.makeResource('timer');
     const clock = await worker.evaluate(
       `Far('Clock', { read: () => E(timer).now() })`,

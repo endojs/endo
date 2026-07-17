@@ -7,7 +7,7 @@ import { E } from '@endo/eventual-send';
 import { Far } from '@endo/far';
 import { getInterfaceOf } from '@endo/pass-style';
 
-import { assertWorkerName } from './store-fs.js';
+import { assertWorkerId } from './store-fs.js';
 import {
   makeFreshTablesRecord,
   makePersistentTablesKit,
@@ -42,10 +42,11 @@ import {
  *   engine-level snapshot ref; if false the host must retain the full
  *   journal and the engine must reconstruct state by replay
  * @property {(options: {
- *   workerName: string,
+ *   debugName: string,
  *   snapshot: unknown,
  *   onOutbound: (message: Record<string, unknown>) => void,
- * }) => Promise<WorkerIncarnation>} start
+ * }) => Promise<WorkerIncarnation>} start `debugName` is for diagnostics
+ *   only — it must not influence engine behavior
  * @property {(ref: unknown) => Promise<void>} [releaseSnapshot] release a
  *   superseded snapshot ref (e.g. drop its content-addressed store root);
  *   called after a newer snapshot is durably recorded
@@ -55,7 +56,9 @@ import {
  * A worker as seen by the host embedder.
  *
  * @typedef {object} SiestaWorker
- * @property {string} name
+ * @property {string} workerId host-generated unguessable identifier
+ * @property {string | undefined} debugLabel diagnostic label; appears
+ *   only in logs and error messages, never used as an identifier
  * @property {(source: string, names?: Array<string>, values?: Array<any>) => Promise<any>} evaluate
  *   evaluates a hardened JavaScript expression in the worker's persistent
  *   compartment, with optional endowments bound as named values (the way
@@ -73,7 +76,13 @@ import {
  * @typedef {object} SiestaHost
  * @property {Map<string, any>} locator swissnum-to-presence table, in the
  *   shape OCapN's `makeOcapn({ locator })` consumes
- * @property {(name: string) => Promise<SiestaWorker>} provideWorker
+ * @property {(options?: { debugLabel?: string }) => Promise<SiestaWorker>} createWorker
+ *   makes a fresh worker under a generated unguessable id; the optional
+ *   `debugLabel` appears only in diagnostics
+ * @property {(workerId: string) => SiestaWorker} getWorker returns the
+ *   facade of an existing worker; throws for unknown ids. This is the
+ *   embedder's admin/debug route — guests and peers reach workers only
+ *   through capabilities (publications, links, facades)
  * @property {(type: string, description?: unknown) => object} makeResource
  *   makes a host resource capability from a registered maker; when the
  *   object is later exported into a worker session, its `(type,
@@ -82,15 +91,15 @@ import {
  * @property {(secret: string) => void} unpublish removes a publication
  *   from the locator and the store; without this a published vat could
  *   never become garbage
- * @property {(name: string) => Promise<void>} retireWorker permanently
+ * @property {(workerId: string) => Promise<void>} retireWorker permanently
  *   deletes a worker: live presences reject, inbound durable links
  *   tombstone (deliveries reject after restarts too), publications drop,
  *   and the worker's state and snapshot are removed
  * @property {(options?: { keep?: Array<string> }) => Promise<Array<string>>} collectVats
  *   vat-level mark-and-sweep: marks workers reachable from publications
- *   (plus awake workers and the `keep` list) along durable cross-worker
- *   links, retires the rest, and returns the swept names
- * @property {() => Array<string>} listWorkerNames
+ *   (plus awake workers and the `keep` list of worker ids) along durable
+ *   cross-worker links, retires the rest, and returns the swept ids
+ * @property {() => Array<string>} listWorkerIds
  * @property {() => Promise<void>} shutdown puts every worker to sleep
  */
 
@@ -98,7 +107,9 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
 const QUIESCENCE_TICKS = 1000;
 
-const defaultMakeSwissnum = () => {
+// 128 random bits as lowercase hex: the shape of both worker ids and
+// default publication swissnums.
+const randomHex128 = () => {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
@@ -139,7 +150,7 @@ export const makeSiestaHost = async ({
   locator = new Map(),
   idleTimeoutMs = Infinity,
   resources = {},
-  makeSwissnum = defaultMakeSwissnum,
+  makeSwissnum = randomHex128,
   // eslint-disable-next-line no-console
   reportError = error => console.error('siesta host:', error),
 }) => {
@@ -149,7 +160,7 @@ export const makeSiestaHost = async ({
    * @property {(slot: string, iface?: string) => any} provideImport
    * @property {() => void} seatRestoredExports
    * @property {() => Promise<void>} retire
-   * @property {(targetName: string) => void} tombstoneLinksTo
+   * @property {(targetId: string) => void} tombstoneLinksTo
    * @property {() => Set<string>} getLinkTargets
    * @property {() => unknown} getSnapshotRef
    */
@@ -172,7 +183,7 @@ export const makeSiestaHost = async ({
    * session be described durably as "import slot S of worker W" and
    * re-seated at resume without waking either worker.
    *
-   * @type {WeakMap<object, { workerName: string, slot: string, iface: string | null }>}
+   * @type {WeakMap<object, { workerId: string, slot: string, iface: string | null }>}
    */
   const presenceOrigins = new WeakMap();
 
@@ -236,7 +247,7 @@ export const makeSiestaHost = async ({
     }
     if (record && record.kind === 'worker-import') {
       // eslint-disable-next-line no-use-before-define
-      const runtime = provideWorkerRuntime(record.workerName);
+      const runtime = provideWorkerRuntime(record.workerId);
       return runtime.provideImport(record.slot, record.iface ?? undefined);
     }
     if (record && record.kind === 'retired') {
@@ -252,7 +263,7 @@ export const makeSiestaHost = async ({
       // captp.provideExport re-attaches the resolution subscription
       // toward the importing worker. Neither worker wakes.
       // eslint-disable-next-line no-use-before-define
-      const runtime = provideWorkerRuntime(record.workerName);
+      const runtime = provideWorkerRuntime(record.workerId);
       return runtime.provideImport(record.slot);
     }
     throw Fail`Unknown export description for ${q(forWhom)}`;
@@ -271,8 +282,8 @@ export const makeSiestaHost = async ({
     if (ref === null || ref === undefined || !engine.releaseSnapshot) {
       return;
     }
-    for (const otherName of store.listWorkerNames()) {
-      const otherRef = store.provideWorkerStore(otherName).getMeta()
+    for (const otherId of store.listWorkerIds()) {
+      const otherRef = store.provideWorkerStore(otherId).getMeta()
         .snapshot?.ref;
       if (otherRef === ref) {
         return;
@@ -281,10 +292,17 @@ export const makeSiestaHost = async ({
     await engine.releaseSnapshot(ref);
   };
 
-  /** @param {string} name */
-  const makeWorkerRuntime = name => {
-    assertWorkerName(name);
-    const workerStore = store.provideWorkerStore(name);
+  /** @param {string} workerId */
+  const makeWorkerRuntime = workerId => {
+    assertWorkerId(workerId);
+    const workerStore = store.provideWorkerStore(workerId);
+    const { debugLabel } = workerStore.getMeta();
+    // Diagnostics only: the label plus enough of the id to correlate
+    // with the store on disk. Never an identifier.
+    const debugName =
+      debugLabel === undefined
+        ? workerId.slice(0, 8)
+        : `${debugLabel}(${workerId.slice(0, 8)})`;
     const tablesRecord =
       workerStore.getTablesRecord() ?? makeFreshTablesRecord();
     const tablesKit = makePersistentTablesKit({
@@ -303,7 +321,7 @@ export const makeSiestaHost = async ({
           return { kind: 'resource', ...resource };
         }
         const origin = presenceOrigins.get(val);
-        if (origin !== undefined && origin.workerName !== name) {
+        if (origin !== undefined && origin.workerId !== workerId) {
           const kind =
             origin.slot[0] === 'p' ? 'worker-promise' : 'worker-import';
           return { kind, ...origin };
@@ -316,14 +334,14 @@ export const makeSiestaHost = async ({
           // A promise link into a retired worker seats as a rejection,
           // which provideExport forwards to the importer's settler.
           const rejection = Promise.reject(
-            Error(`worker ${record.workerName} has been retired`),
+            Error(`worker ${record.workerId} has been retired`),
           );
           rejection.catch(() => {});
           return rejection;
         }
         return instantiateDescribedExport(
           description,
-          `worker ${name} ${slot}`,
+          `worker ${debugName} ${slot}`,
         );
       },
     });
@@ -454,7 +472,7 @@ export const makeSiestaHost = async ({
       const meta = workerStore.getMeta();
       const snapshotInfo = engine.canSnapshot ? meta.snapshot : undefined;
       const newIncarnation = await engine.start({
-        workerName: name,
+        debugName,
         snapshot: snapshotInfo ? snapshotInfo.ref : null,
         onOutbound,
       });
@@ -505,7 +523,7 @@ export const makeSiestaHost = async ({
       }
       for (let i = 0; pendingQuestions > 0; i += 1) {
         i < QUIESCENCE_TICKS ||
-          Fail`worker ${q(name)} did not reach quiescence before sleep`;
+          Fail`worker ${q(debugName)} did not reach quiescence before sleep`;
         // eslint-disable-next-line no-await-in-loop
         await tick();
       }
@@ -576,7 +594,9 @@ export const makeSiestaHost = async ({
         // disconnects. Journaling one would poison every future
         // incarnation with a replayed death.
         reportError(
-          Error(`siesta host: suppressed CTP_DISCONNECT toward worker ${name}`),
+          Error(
+            `siesta host: suppressed CTP_DISCONNECT toward worker ${debugName}`,
+          ),
         );
         return Promise.resolve();
       }
@@ -636,7 +656,7 @@ export const makeSiestaHost = async ({
       });
     };
 
-    const captp = makeCapTP(`siesta-host:${name}`, rawSend, undefined, {
+    const captp = makeCapTP(`siesta-host:${debugName}`, rawSend, undefined, {
       gcImports: false,
       makeCapTPImportExportTables: tablesKit.makeCapTPImportExportTables,
       importHook: (val, slot) => {
@@ -646,7 +666,7 @@ export const makeSiestaHost = async ({
           // export into another worker's session can be described
           // durably as a cross-worker link.
           presenceOrigins.set(/** @type {object} */ (val), {
-            workerName: name,
+            workerId,
             slot,
             iface: getInterfaceOf(val) || null,
           });
@@ -750,7 +770,7 @@ export const makeSiestaHost = async ({
           const facet = await captp.getBootstrap();
           const slot = valToSlot.get(facet);
           slot !== undefined ||
-            Fail`Worker ${q(name)} bootstrap facet has no recorded slot`;
+            Fail`Worker ${q(debugName)} bootstrap facet has no recorded slot`;
           workerStore.setMeta({
             ...workerStore.getMeta(),
             bootSlot: slot,
@@ -764,18 +784,19 @@ export const makeSiestaHost = async ({
 
     /** @type {SiestaWorker} */
     const facade = {
-      name,
+      workerId,
+      debugLabel,
       evaluate: async (source, names = [], values = []) =>
         E(provideBootFacet()).evaluate(source, names, values),
       publish: async (presenceP, secret = makeSwissnum()) => {
         const presence = await presenceP;
         const slot = valToSlot.get(presence);
         slot !== undefined ||
-          Fail`Can only publish presences imported from worker ${q(name)}`;
+          Fail`Can only publish presences imported from worker ${q(debugName)}`;
         slot[0] === 'o' ||
           Fail`Can only publish object presences, not ${q(slot)}`;
         store.setPublication(secret, {
-          workerName: name,
+          workerId,
           slot,
           iface: getInterfaceOf(presence) || null,
         });
@@ -806,17 +827,17 @@ export const makeSiestaHost = async ({
       if (broken) {
         await broken.terminate().catch(() => {});
       }
-      captp.abort(Error(`worker ${name} has been retired`));
+      captp.abort(Error(`worker ${debugName} has been retired`));
     };
 
     /**
-     * Rewrites this worker's durable links into `targetName` as retired
-     * tombstones, so restarts seat rejecting stand-ins instead of
-     * resurrecting the link.
+     * Rewrites this worker's durable links into the worker `targetId` as
+     * retired tombstones, so restarts seat rejecting stand-ins instead
+     * of resurrecting the link.
      *
-     * @param {string} targetName
+     * @param {string} targetId
      */
-    const tombstoneLinksTo = targetName => {
+    const tombstoneLinksTo = targetId => {
       let changed = false;
       for (const descriptor of Object.values(tablesRecord.exports)) {
         const description = /** @type {any} */ (descriptor.description);
@@ -824,9 +845,9 @@ export const makeSiestaHost = async ({
           description &&
           (description.kind === 'worker-import' ||
             description.kind === 'worker-promise') &&
-          description.workerName === targetName
+          description.workerId === targetId
         ) {
-          descriptor.description = { kind: 'retired', workerName: targetName };
+          descriptor.description = { kind: 'retired', workerId: targetId };
           changed = true;
         }
       }
@@ -835,7 +856,7 @@ export const makeSiestaHost = async ({
       }
     };
 
-    /** Worker names this worker's durable links point into. */
+    /** Worker ids this worker's durable links point into. */
     const getLinkTargets = () => {
       /** @type {Set<string>} */
       const targets = new Set();
@@ -846,7 +867,7 @@ export const makeSiestaHost = async ({
           (description.kind === 'worker-import' ||
             description.kind === 'worker-promise')
         ) {
-          targets.add(description.workerName);
+          targets.add(description.workerId);
         }
       }
       return targets;
@@ -862,7 +883,7 @@ export const makeSiestaHost = async ({
       getLinkTargets,
       getSnapshotRef: () => workerStore.getMeta().snapshot?.ref,
     });
-    workers.set(name, runtime);
+    workers.set(workerId, runtime);
     return runtime;
   };
 
@@ -871,52 +892,85 @@ export const makeSiestaHost = async ({
   // (a genuinely new worker has nothing to seat).
   let restoring = true;
 
-  /** @param {string} name */
-  const provideWorkerRuntime = name => {
-    const existing = workers.get(name);
+  /**
+   * Returns the runtime of an existing worker, constructing it from the
+   * store on demand during restore. Never creates a worker: an unknown
+   * id is an error, so a retired worker's stale references fail loudly
+   * instead of resurrecting an empty heap under its id.
+   *
+   * @param {string} workerId
+   */
+  const provideWorkerRuntime = workerId => {
+    const existing = workers.get(workerId);
     if (existing) {
       return existing;
     }
-    const runtime = makeWorkerRuntime(name);
+    store.listWorkerIds().includes(workerId) ||
+      Fail`No worker with id ${q(workerId)}`;
+    const runtime = makeWorkerRuntime(workerId);
     if (!restoring) {
       runtime.seatRestoredExports();
     }
     return runtime;
   };
 
+  /**
+   * Makes a fresh worker under a generated unguessable id. The optional
+   * debug label lands in the worker's meta before the runtime reads it,
+   * and is used only in diagnostics.
+   *
+   * @param {string} [debugLabel]
+   */
+  const createWorkerRuntime = debugLabel => {
+    debugLabel === undefined ||
+      typeof debugLabel === 'string' ||
+      Fail`debugLabel must be a string`;
+    const workerId = randomHex128();
+    const workerStore = store.provideWorkerStore(workerId);
+    if (debugLabel !== undefined) {
+      workerStore.setMeta({ ...workerStore.getMeta(), debugLabel });
+    }
+    const runtime = makeWorkerRuntime(workerId);
+    runtime.seatRestoredExports();
+    return runtime;
+  };
+
   // Built-in resource types. The worker controller is how one worker
   // gains the authority to create and drive other workers; a worker
-  // facade scopes that authority to a single named worker. Both are
-  // durable like any resource: a controller re-instantiates as itself,
-  // a facade from its worker name.
+  // facade scopes that authority to a single worker. Both are durable
+  // like any resource: a controller re-instantiates as itself, a facade
+  // from its worker id.
   const makeWorkerFacadeResource = description => {
-    const { workerName } = /** @type {{ workerName: string }} */ (description);
-    assertWorkerName(workerName);
+    const { workerId } = /** @type {{ workerId: string }} */ (description);
+    assertWorkerId(workerId);
     return Far('SiestaWorkerFacade', {
       help: () =>
-        'SiestaWorkerFacade: evaluate(source, names, values) evaluates in this worker with the given endowments; getName() names the worker.',
-      getName: () => workerName,
+        'SiestaWorkerFacade: evaluate(source, names, values) evaluates in this worker with the given endowments; getId() returns the worker id.',
+      getId: () => workerId,
       /**
        * @param {string} source
        * @param {Array<string>} [names]
        * @param {Array<unknown>} [values]
        */
       evaluate: async (source, names = [], values = []) =>
-        provideWorkerRuntime(workerName).facade.evaluate(source, names, values),
+        provideWorkerRuntime(workerId).facade.evaluate(source, names, values),
     });
   };
   const makeWorkerControllerResource = _description =>
     Far('SiestaWorkerController', {
       help: () =>
-        'SiestaWorkerController: provideWorker(name) makes or finds a worker and returns its facade.',
-      /** @param {string} workerName */
-      provideWorker: async workerName => {
-        assertWorkerName(workerName);
+        'SiestaWorkerController: createWorker(debugLabel?) creates a new worker and returns its facade.',
+      /** @param {string} [debugLabel] */
+      createWorker: async debugLabel => {
+        const runtime = createWorkerRuntime(debugLabel);
         // Instantiate through the resource system so the facade is
         // described durably when exported into a worker session.
         return instantiateResource(
-          { type: 'worker-facade', description: { workerName } },
-          `controller provideWorker(${workerName})`,
+          {
+            type: 'worker-facade',
+            description: { workerId: runtime.facade.workerId },
+          },
+          `controller createWorker(${debugLabel ?? ''})`,
         );
       },
     });
@@ -928,18 +982,18 @@ export const makeSiestaHost = async ({
   // Restore all persisted workers (asleep) and rebind publications.
   // Export seating is a second phase so cross-worker descriptions can
   // name runtimes constructed later in the loop.
-  for (const name of store.listWorkerNames()) {
-    provideWorkerRuntime(name);
+  for (const workerId of store.listWorkerIds()) {
+    provideWorkerRuntime(workerId);
   }
   for (const runtime of workers.values()) {
     runtime.seatRestoredExports();
   }
   restoring = false;
   for (const [secret, record] of Object.entries(store.getPublications())) {
-    const runtime = workers.get(record.workerName);
+    const runtime = workers.get(record.workerId);
     if (runtime === undefined) {
       throw Fail`Publication ${q(secret)} names unknown worker ${q(
-        record.workerName,
+        record.workerId,
       )}`;
     }
     const presence = runtime.provideImport(
@@ -954,44 +1008,52 @@ export const makeSiestaHost = async ({
    * durable links into it, drops its publications, ends its runtime,
    * removes its durable state, and releases its snapshot if unshared.
    *
-   * @param {string} name
+   * @param {string} workerId
    * @param {WorkerRuntime} runtime
    */
-  const deleteWorkerNow = async (name, runtime) => {
-    for (const [otherName, other] of workers.entries()) {
-      if (otherName !== name) {
-        other.tombstoneLinksTo(name);
+  const deleteWorkerNow = async (workerId, runtime) => {
+    for (const [otherId, other] of workers.entries()) {
+      if (otherId !== workerId) {
+        other.tombstoneLinksTo(workerId);
       }
     }
     for (const [secret, record] of Object.entries(store.getPublications())) {
-      if (record.workerName === name) {
+      if (record.workerId === workerId) {
         store.deletePublication(secret);
         locator.delete(secret);
       }
     }
     const snapshotRef = runtime.getSnapshotRef();
     await runtime.retire();
-    workers.delete(name);
-    store.deleteWorker(name);
+    workers.delete(workerId);
+    store.deleteWorker(workerId);
     await releaseSnapshotIfUnshared(snapshotRef);
   };
 
   /** @type {SiestaHost} */
   const host = {
     locator,
-    provideWorker: async name => provideWorkerRuntime(name).facade,
+    createWorker: async ({ debugLabel } = {}) =>
+      createWorkerRuntime(debugLabel).facade,
+    getWorker: workerId => {
+      const runtime = workers.get(workerId);
+      if (runtime === undefined) {
+        throw Fail`No worker with id ${q(workerId)}`;
+      }
+      return runtime.facade;
+    },
     makeResource: (type, description = null) =>
       instantiateResource({ type, description }),
     unpublish: secret => {
       store.deletePublication(secret);
       locator.delete(secret);
     },
-    retireWorker: async name => {
-      const runtime = workers.get(name);
+    retireWorker: async workerId => {
+      const runtime = workers.get(workerId);
       if (runtime === undefined) {
-        throw Fail`No worker named ${q(name)} to retire`;
+        throw Fail`No worker with id ${q(workerId)} to retire`;
       }
-      await deleteWorkerNow(name, runtime);
+      await deleteWorkerNow(workerId, runtime);
     },
     collectVats: async ({ keep = [] } = {}) => {
       // Mark: publications root the graph; awake workers and the keep
@@ -1000,17 +1062,17 @@ export const makeSiestaHost = async ({
       // table data — no worker wakes.
       const marked = new Set(keep);
       for (const record of Object.values(store.getPublications())) {
-        marked.add(record.workerName);
+        marked.add(record.workerId);
       }
-      for (const [name, runtime] of workers.entries()) {
+      for (const [workerId, runtime] of workers.entries()) {
         if (runtime.facade.isAwake()) {
-          marked.add(name);
+          marked.add(workerId);
         }
       }
       const frontier = [...marked];
       while (frontier.length > 0) {
-        const name = frontier.shift();
-        const runtime = workers.get(/** @type {string} */ (name));
+        const workerId = frontier.shift();
+        const runtime = workers.get(/** @type {string} */ (workerId));
         if (runtime !== undefined) {
           for (const target of runtime.getLinkTargets()) {
             if (!marked.has(target)) {
@@ -1022,15 +1084,17 @@ export const makeSiestaHost = async ({
       }
       // Sweep. Unmarked-to-unmarked links (including cycles) go down
       // together, so tombstoning between them is wasted but harmless.
-      const swept = [...workers.keys()].filter(name => !marked.has(name));
-      for (const name of swept) {
-        const runtime = /** @type {WorkerRuntime} */ (workers.get(name));
+      const swept = [...workers.keys()].filter(
+        workerId => !marked.has(workerId),
+      );
+      for (const workerId of swept) {
+        const runtime = /** @type {WorkerRuntime} */ (workers.get(workerId));
         // eslint-disable-next-line no-await-in-loop
-        await deleteWorkerNow(name, runtime);
+        await deleteWorkerNow(workerId, runtime);
       }
       return harden(swept.sort());
     },
-    listWorkerNames: () => [...workers.keys()].sort(),
+    listWorkerIds: () => [...workers.keys()].sort(),
     shutdown: async () => {
       for (const runtime of workers.values()) {
         // eslint-disable-next-line no-await-in-loop

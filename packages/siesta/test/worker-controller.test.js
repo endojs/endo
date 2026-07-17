@@ -28,7 +28,7 @@ const PARENT_SOURCE = `
   });
   return Far('Parent', {
     setup: async () => {
-      const child = await E(controller).provideWorker('child');
+      const child = await E(controller).createWorker('child');
       childRoot = await E(child).evaluate(
         \`
         (() => {
@@ -54,9 +54,14 @@ test('a controlling worker creates a worker with endowments from its own heap', 
   const store = makeMemoryStore();
   const engine = makeJournalReplayEngine();
 
+  /** @type {string} */
+  let parentId;
+  /** @type {string} */
+  let childId;
   {
     const host = await makeSiestaHost({ store, engine });
-    const parent = await host.provideWorker('parent');
+    const parent = await host.createWorker({ debugLabel: 'parent' });
+    parentId = parent.workerId;
     const controller = host.makeResource('worker-controller');
     const parentRoot = await parent.evaluate(
       PARENT_SOURCE,
@@ -69,9 +74,13 @@ test('a controlling worker creates a worker with endowments from its own heap', 
     // a pull crosses child -> host -> parent and back.
     t.deepEqual(await E(childRoot).pull(), [1, 'from-parent']);
     t.deepEqual(await E(childRoot).pull(), [2, 'from-parent']);
-    t.deepEqual(host.listWorkerNames(), ['child', 'parent']);
+    t.is(host.listWorkerIds().length, 2);
+    childId = /** @type {string} */ (
+      host.listWorkerIds().find(id => id !== parentId)
+    );
 
-    const child = await host.provideWorker('child');
+    const child = host.getWorker(childId);
+    t.is(child.debugLabel, 'child', 'the guest-chosen debug label landed');
     await child.publish(childRoot, 'child-cap');
     await host.shutdown();
   }
@@ -79,11 +88,11 @@ test('a controlling worker creates a worker with endowments from its own heap', 
   {
     // Cross-worker links survive the host restart: the child's session
     // records the parent-origin endowment as "import slot S of worker
-    // parent" in its export table, and both workers stay asleep until
-    // the pull arrives.
+    // <parent id>" in its export table, and both workers stay asleep
+    // until the pull arrives.
     const host = await makeSiestaHost({ store, engine });
-    const parent = await host.provideWorker('parent');
-    const child = await host.provideWorker('child');
+    const parent = host.getWorker(parentId);
+    const child = host.getWorker(childId);
     t.false(parent.isAwake());
     t.false(child.isAwake());
 
@@ -108,7 +117,7 @@ test('a cross-worker promise survives a host restart', async t => {
     let release = null;
     return Far('Parent', {
       setup: async () => {
-        const child = await E(controller).provideWorker('child');
+        const child = await E(controller).createWorker('child');
         const gift = new Promise(resolve => {
           release = resolve;
         });
@@ -141,7 +150,7 @@ test('a cross-worker promise survives a host restart', async t => {
 
   {
     const host = await makeSiestaHost({ store, engine });
-    const parent = await host.provideWorker('parent');
+    const parent = await host.createWorker({ debugLabel: 'parent' });
     const controller = host.makeResource('worker-controller');
     const parentRoot = await parent.evaluate(
       PROMISE_PARENT_SOURCE,
@@ -150,7 +159,10 @@ test('a cross-worker promise survives a host restart', async t => {
     );
     const childRoot = await E(parentRoot).setup();
     t.is(await E(childRoot).getGot(), null, 'the gift is still pending');
-    const child = await host.provideWorker('child');
+    const childId = /** @type {string} */ (
+      host.listWorkerIds().find(id => id !== parent.workerId)
+    );
+    const child = host.getWorker(childId);
     await child.publish(childRoot, 'promise-child');
     await parent.publish(parentRoot, 'promise-parent');
     // Crash without shutdown: the promise link must survive through its
@@ -190,7 +202,7 @@ test('controller and facades are durable resources', async t => {
 
   {
     const host = await makeSiestaHost({ store, engine });
-    const parent = await host.provideWorker('parent');
+    const parent = await host.createWorker({ debugLabel: 'parent' });
     const controller = host.makeResource('worker-controller');
     const parentRoot = await parent.evaluate(
       `
@@ -198,8 +210,8 @@ test('controller and facades are durable resources', async t => {
         let facade;
         return Far('Keeper', {
           keep: async () => {
-            facade = await E(controller).provideWorker('kept');
-            return E(facade).getName();
+            facade = await E(controller).createWorker('kept');
+            return E(facade).getId();
           },
           useKept: () => E(facade).evaluate('21 * 2'),
         });
@@ -208,7 +220,12 @@ test('controller and facades are durable resources', async t => {
       ['controller'],
       [controller],
     );
-    t.is(await E(parentRoot).keep(), 'kept');
+    const keptId = await E(parentRoot).keep();
+    t.regex(
+      String(keptId),
+      /^[0-9a-f]{32}$/,
+      'the facade names its worker by generated id',
+    );
     t.is(await E(parentRoot).useKept(), 42);
     await parent.publish(parentRoot, 'keeper');
     await host.shutdown();

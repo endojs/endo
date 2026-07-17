@@ -53,7 +53,7 @@ test('worker exports served as sturdy refs survive daemon restart', async t => {
   let secret;
   {
     const daemon = await makeDaemon(statePath);
-    const worker = await daemon.host.provideWorker('counter');
+    const worker = await daemon.host.createWorker({ debugLabel: 'counter' });
     const counter = await worker.evaluate(COUNTER_SOURCE);
     secret = await worker.publish(counter);
 
@@ -88,7 +88,7 @@ test('a sleeping worker wakes for a sturdy ref call', async t => {
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
 
   const daemon = await makeDaemon(statePath);
-  const worker = await daemon.host.provideWorker('counter');
+  const worker = await daemon.host.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
   const secret = await worker.publish(counter, 'sleepy-counter');
 

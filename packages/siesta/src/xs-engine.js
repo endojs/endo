@@ -52,7 +52,7 @@ export const makeXsEngine = ({
   return harden({
     canSnapshot: true,
     /** @type {WorkerEngine['start']} */
-    start: async ({ workerName, snapshot, onOutbound }) => {
+    start: async ({ debugName, snapshot, onOutbound }) => {
       const args = [
         '--boot',
         bootPath,
@@ -95,16 +95,14 @@ export const makeXsEngine = ({
       child.on('exit', (code, signal) => {
         exited = true;
         failAll(
-          Error(
-            `siesta-xs-worker for ${workerName} exited (${code ?? signal})`,
-          ),
+          Error(`siesta-xs-worker for ${debugName} exited (${code ?? signal})`),
         );
       });
       child.on('error', error => {
         exited = true;
         failAll(
           Error(
-            `siesta-xs-worker for ${workerName} failed to spawn: ${
+            `siesta-xs-worker for ${debugName} failed to spawn: ${
               /** @type {Error} */ (error).message
             }`,
           ),
@@ -128,7 +126,7 @@ export const makeXsEngine = ({
             try {
               reply = JSON.parse(line);
             } catch (_error) {
-              failProtocol(Error(`garbled line from XS worker ${workerName}`));
+              failProtocol(Error(`garbled line from XS worker ${debugName}`));
               return;
             }
             if (reply.op === 'outbound') {
@@ -163,7 +161,7 @@ export const makeXsEngine = ({
       const request = (payload, expect) =>
         new Promise((resolve, reject) => {
           if (exited) {
-            reject(Error(`siesta-xs-worker for ${workerName} has exited`));
+            reject(Error(`siesta-xs-worker for ${debugName} has exited`));
             return;
           }
           pending.push({ expect, resolve, reject });

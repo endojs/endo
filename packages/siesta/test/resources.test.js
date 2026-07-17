@@ -48,7 +48,7 @@ test('granted resources survive host restarts at the same slot', async t => {
   let firstReading;
   {
     const host = await makeSiestaHost({ store, engine, resources });
-    const worker = await host.provideWorker('clock');
+    const worker = await host.createWorker({ debugLabel: 'clock' });
     const timer = host.makeResource('timer');
     t.is(
       host.makeResource('timer'),
@@ -96,7 +96,7 @@ test('restart without the resource maker fails loudly', async t => {
       engine,
       resources: { timer: makeTimerResource },
     });
-    const worker = await host.provideWorker('clock');
+    const worker = await host.createWorker({ debugLabel: 'clock' });
     const timer = host.makeResource('timer');
     await worker.evaluate(CLOCK_SOURCE, ['timer'], [timer]);
     await host.shutdown();
@@ -132,7 +132,7 @@ test('worker-to-host requests pending across a host crash reject instead of hang
 
   {
     const host = await makeSiestaHost({ store, engine, resources });
-    const worker = await host.provideWorker('waiter');
+    const worker = await host.createWorker({ debugLabel: 'waiter' });
     const gate = host.makeResource('gate');
     const echo = host.makeResource('echo');
     const waiter = await worker.evaluate(
@@ -215,7 +215,7 @@ test('a promise resolving while its importer sleeps wakes the worker', async t =
   };
 
   const host = await makeSiestaHost({ store, engine, resources });
-  const worker = await host.provideWorker('watcher');
+  const worker = await host.createWorker({ debugLabel: 'watcher' });
   const deferred = host.makeResource('deferred');
   const watcher = await worker.evaluate(
     WATCHER_SOURCE,
@@ -247,7 +247,7 @@ test('a promise unresolved across a host restart rejects instead of hanging', as
 
   {
     const host = await makeSiestaHost({ store, engine, resources });
-    const worker = await host.provideWorker('watcher');
+    const worker = await host.createWorker({ debugLabel: 'watcher' });
     const deferred = host.makeResource('deferred');
     const watcher = await worker.evaluate(
       WATCHER_SOURCE,
@@ -279,7 +279,7 @@ test('a pending timer wakes a sleeping worker', async t => {
   const resources = { timer: makeTimerResource };
 
   const host = await makeSiestaHost({ store, engine, resources });
-  const worker = await host.provideWorker('waiter');
+  const worker = await host.createWorker({ debugLabel: 'waiter' });
   const timer = host.makeResource('timer');
   const waiter = await worker.evaluate(
     `

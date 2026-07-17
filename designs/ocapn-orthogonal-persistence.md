@@ -56,6 +56,11 @@ What exists, all verified by tests across three SES configurations:
   reference graph, explicit `retireWorker` with tombstoned links,
   `unpublish`, and shared-snapshot-ref guarding
   (§ *Garbage collection of vats*).
+- **Capability-only worker identity** — workers have no names: each
+  is identified by a host-generated unguessable id
+  (`createWorker({ debugLabel })`, `getWorker(workerId)`), and store
+  layout, links, tombstones, publications, and GC all key on the id.
+  Debug labels appear only in diagnostics (Design Decision 7).
 
 Historical notes on how Phase 3 was rescoped onto the `xsnap` crate
 (skipping the endor supervisor and its broken bundle toolchain) live
@@ -153,7 +158,7 @@ The host takes a `WorkerEngine` power
 (`packages/siesta/src/host.js`):
 
 ```js
-engine.start({ workerName, snapshot, onOutbound })
+engine.start({ debugName, snapshot, onOutbound })
   // → { deliver(message), snapshot(), terminate() }
 ```
 
@@ -257,7 +262,7 @@ OCapN's serving path for sturdy refs is
 The host feeds that locator directly:
 
 - `worker.publish(presence, secret?)` verifies the value is an imported
-  object presence, records `(secret → workerName, slot, iface)` durably,
+  object presence, records `(secret → workerId, slot, iface)` durably,
   and sets `locator.set(secret, presence)`.
 - On restart, the host re-mints each published presence from its
   recorded slot and rebinds the locator **without waking any worker**.
@@ -382,14 +387,14 @@ and endowments flow from that worker's own heap.
 Two built-in resource types (registered alongside the embedder's
 makers):
 
-- `worker-controller` — `provideWorker(name)` makes or finds a worker
-  and returns its facade.
+- `worker-controller` — `createWorker(debugLabel?)` makes a fresh
+  worker under a generated id and returns its facade.
 - `worker-facade` — scoped to one worker:
   `evaluate(source, names, values)` evaluates in it with endowments.
 
 ```js
 // In the controlling worker's guest code:
-const child = await E(controller).provideWorker('child');
+const child = await E(controller).createWorker('child');
 const childRoot = await E(child).evaluate(source, ['shared'], [shared]);
 ```
 
@@ -399,7 +404,7 @@ host as pure translation layer, worker to worker.
 
 Durability composes at the export-table layer: the host records which
 worker session each presence was imported from, so a cross-worker
-export is described as `{ kind: 'worker-import', workerName, slot }`
+export is described as `{ kind: 'worker-import', workerId, slot }`
 and re-seated at resume via `captp.provideImport` on the origin
 worker's session — **without waking either worker**. Controller and
 facade objects are themselves described resources. Export seating is
@@ -454,7 +459,7 @@ Across a host restart:
 
 - **Cross-worker promises survive.** A promise imported from worker
   A's session and exported into worker B's is described durably in
-  B's export table as `{ kind: 'worker-promise', workerName: A,
+  B's export table as `{ kind: 'worker-promise', workerId: A,
   slot }` — the promise analogue of a `worker-import` link. At
   restore, the host re-mints A's promise import (whose settler will
   receive A's eventual `CTP_RESOLVE`) and re-seats it into B's
@@ -560,7 +565,7 @@ level of indirection, in the spirit of the endo daemon's pet store:
 make the durable unit of identity a **name binding**, and keep vats
 pure, immortal-code, and disposable.
 
-**The name hub.** A durable table of `name → (workerName, slot)`
+**The name hub.** A durable table of `name → (workerId, slot)`
 bindings — a generalization of what `publications` already is (the
 locator's `swissnum → presence` is a name binding whose consumers are
 remote). Three grades of consumer:
@@ -569,7 +574,7 @@ remote). Three grades of consumer:
    a successor vat's export is client-transparent today.
 2. **Cross-vat grants** gain a new export-descriptor kind:
    `{ kind: 'named', name }`. Where a `worker-import` link pins the
-   origin `(workerName, slot)` forever, a named link resolves through
+   origin `(workerId, slot)` forever, a named link resolves through
    the name hub **per delivery** (the seated value is a host-side
    forwarder; in the non-reifying host, a c-list indirection). The
    granting vat chooses at grant time: direct link for EQ-stable
@@ -644,8 +649,7 @@ asleep and live vats are untouched. Transient in-session state
 is either in-memory (dies with the host) or subject to the
 at-most-once abort machinery.
 
-**Explicit retirement** (`retire(workerName)`, on the controller and
-the host): severs inbound edges by rewriting them to tombstone
+**Explicit retirement** (`retireWorker(workerId)`, on the host): severs inbound edges by rewriting them to tombstone
 descriptors — dead presences whose deliveries reject, reusing the
 at-most-once rejection shape — then sweeps. Retirement is the
 completion of upgrade: after rebinding, the predecessor's remaining
@@ -785,6 +789,14 @@ until it lands.
 6. **No upgrade.** Snapshots pin code; a "new version" of a guest is a
    new worker.
    This is the simplification that separates siesta from the daemon.
+7. **No worker names.** Workers are identified by host-generated
+   unguessable ids; a user-chosen name space would be ambient authority
+   (any holder of the host could reach any worker by guessing a
+   string) and would smuggle in the make-or-find ambiguity that the
+   name hub is designed to own at a higher layer. `createWorker`
+   accepts a `debugLabel` that appears only in diagnostics; store
+   layout, cross-worker link descriptions, tombstones, publications,
+   and GC all key on the id.
 
 ## Known Gaps and TODOs
 

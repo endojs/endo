@@ -23,13 +23,15 @@ import { Fail, q } from '@endo/errors';
  * session, so the host can rebind its locator after a restart.
  *
  * @typedef {object} PublicationRecord
- * @property {string} workerName
+ * @property {string} workerId
  * @property {string} slot ours-perspective import slot, e.g. `o-2`
  * @property {string | null} iface
  */
 
 /**
  * @typedef {object} WorkerMeta
+ * @property {string} [debugLabel] optional human-readable label; used
+ *   only in diagnostics, never as an identifier
  * @property {string} [bootSlot] import slot of the worker's bootstrap facet
  * @property {string | null} [bootIface]
  * @property {{ ref: unknown, journalLength: number } | null} [snapshot]
@@ -73,25 +75,28 @@ import { Fail, q } from '@endo/errors';
 
 /**
  * @typedef {object} SiestaStore
- * @property {() => Array<string>} listWorkerNames
- * @property {(name: string) => WorkerStore} provideWorkerStore
- * @property {(name: string) => void} deleteWorker removes the worker's
- *   durable state (tables, journal, meta) entirely
+ * @property {() => Array<string>} listWorkerIds
+ * @property {(workerId: string) => WorkerStore} provideWorkerStore
+ * @property {(workerId: string) => void} deleteWorker removes the
+ *   worker's durable state (tables, journal, meta) entirely
  * @property {() => Record<string, PublicationRecord>} getPublications
  * @property {(secret: string, record: PublicationRecord) => void} setPublication
  * @property {(secret: string) => void} deletePublication
  */
 
-const WORKER_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9-]{0,63}$/;
+// Worker ids are host-generated unguessable random hex, never
+// user-chosen names: reaching a worker requires a capability (a
+// publication, a durable cross-worker link, or a facade), not a string.
+const WORKER_ID_PATTERN = /^[0-9a-f]{32}$/;
 
-/** @param {string} name */
-export const assertWorkerName = name => {
-  WORKER_NAME_PATTERN.test(name) ||
-    Fail`Worker name must match ${q(WORKER_NAME_PATTERN.source)}, got ${q(
-      name,
+/** @param {string} workerId */
+export const assertWorkerId = workerId => {
+  WORKER_ID_PATTERN.test(workerId) ||
+    Fail`Worker id must match ${q(WORKER_ID_PATTERN.source)}, got ${q(
+      workerId,
     )}`;
 };
-harden(assertWorkerName);
+harden(assertWorkerId);
 
 /**
  * @param {string} path
@@ -124,9 +129,9 @@ const writeFileAtomic = (path, text) => {
  *
  * Layout under `statePath`:
  * - `publications.json`
- * - `workers/<name>/meta.json`
- * - `workers/<name>/tables.json`
- * - `workers/<name>/journal.jsonl`
+ * - `workers/<workerId>/meta.json`
+ * - `workers/<workerId>/tables.json`
+ * - `workers/<workerId>/journal.jsonl`
  *
  * @param {string} statePath
  * @returns {SiestaStore}
@@ -136,10 +141,10 @@ export const makeFsStore = statePath => {
   const publicationsPath = join(statePath, 'publications.json');
   mkdirSync(workersPath, { recursive: true });
 
-  /** @param {string} name */
-  const makeWorkerStore = name => {
-    assertWorkerName(name);
-    const workerPath = join(workersPath, name);
+  /** @param {string} workerId */
+  const makeWorkerStore = workerId => {
+    assertWorkerId(workerId);
+    const workerPath = join(workersPath, workerId);
     mkdirSync(workerPath, { recursive: true });
     const tablesPath = join(workerPath, 'tables.json');
     const metaPath = join(workerPath, 'meta.json');
@@ -248,12 +253,12 @@ export const makeFsStore = statePath => {
 
   /** @type {SiestaStore} */
   const store = {
-    listWorkerNames: () =>
+    listWorkerIds: () =>
       existsSync(workersPath) ? readdirSync(workersPath).sort() : [],
     provideWorkerStore: makeWorkerStore,
-    deleteWorker: name => {
-      assertWorkerName(name);
-      rmSync(join(workersPath, name), { recursive: true, force: true });
+    deleteWorker: workerId => {
+      assertWorkerId(workerId);
+      rmSync(join(workersPath, workerId), { recursive: true, force: true });
     },
     getPublications: () => readJsonMaybe(publicationsPath) ?? {},
     setPublication: (secret, record) => {
@@ -291,13 +296,13 @@ export const makeMemoryStore = () => {
   /** @type {Record<string, PublicationRecord>} */
   const publications = {};
 
-  /** @param {string} name */
-  const provideWorkerStore = name => {
-    assertWorkerName(name);
-    let entry = workers.get(name);
+  /** @param {string} workerId */
+  const provideWorkerStore = workerId => {
+    assertWorkerId(workerId);
+    let entry = workers.get(workerId);
     if (!entry) {
       entry = { tables: undefined, meta: {}, base: 0, journal: [] };
-      workers.set(name, entry);
+      workers.set(workerId, entry);
     }
     const state = entry;
     /** @type {WorkerStore} */
@@ -330,10 +335,10 @@ export const makeMemoryStore = () => {
 
   /** @type {SiestaStore} */
   const store = {
-    listWorkerNames: () => [...workers.keys()].sort(),
+    listWorkerIds: () => [...workers.keys()].sort(),
     provideWorkerStore,
-    deleteWorker: name => {
-      workers.delete(name);
+    deleteWorker: workerId => {
+      workers.delete(workerId);
     },
     getPublications: () => ({ ...publications }),
     setPublication: (secret, record) => {

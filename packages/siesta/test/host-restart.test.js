@@ -42,9 +42,12 @@ test('worker state and publications survive host restart', async t => {
   const store = makeMemoryStore();
   const engine = makeJournalReplayEngine();
 
+  let workerId;
   {
     const host = await makeSiestaHost({ store, engine });
-    const worker = await host.provideWorker('counter');
+    const worker = await host.createWorker({ debugLabel: 'counter' });
+    workerId = worker.workerId;
+    t.is(worker.debugLabel, 'counter');
     const counter = await worker.evaluate(COUNTER_SOURCE);
     t.is(await E(counter).incr(), 1);
     t.is(await E(counter).incr(), 2);
@@ -55,11 +58,12 @@ test('worker state and publications survive host restart', async t => {
 
   {
     const host = await makeSiestaHost({ store, engine });
-    t.deepEqual(host.listWorkerNames(), ['counter']);
+    t.deepEqual(host.listWorkerIds(), [workerId]);
     const counter = host.locator.get('counter-cap');
     t.truthy(counter, 'publication rebinds into the locator on restart');
     // The worker only wakes when the restored presence is used.
-    const worker = await host.provideWorker('counter');
+    const worker = host.getWorker(workerId);
+    t.is(worker.debugLabel, 'counter', 'the debug label survives restart');
     t.false(worker.isAwake());
     t.is(await E(counter).incr(), 3);
     t.true(worker.isAwake());
@@ -78,7 +82,7 @@ test('worker state survives host restart on the filesystem store', async t => {
       store: makeFsStore(statePath),
       engine,
     });
-    const worker = await host.provideWorker('counter');
+    const worker = await host.createWorker({ debugLabel: 'counter' });
     const counter = await worker.evaluate(COUNTER_SOURCE);
     t.is(await E(counter).incr(), 1);
     secret = await worker.publish(counter);
@@ -103,12 +107,14 @@ test('a torn journal tail is repaired instead of bricking the worker', async t =
   const engine = makeJournalReplayEngine();
 
   let secret;
+  let workerId;
   {
     const host = await makeSiestaHost({
       store: makeFsStore(statePath),
       engine,
     });
-    const worker = await host.provideWorker('counter');
+    const worker = await host.createWorker({ debugLabel: 'counter' });
+    workerId = worker.workerId;
     const counter = await worker.evaluate(COUNTER_SOURCE);
     t.is(await E(counter).incr(), 1);
     t.is(await E(counter).incr(), 2);
@@ -120,7 +126,7 @@ test('a torn journal tail is repaired instead of bricking the worker', async t =
   // journal tail. The entry was never delivered, so dropping it is the
   // correct recovery.
   appendFileSync(
-    join(statePath, 'workers', 'counter', 'journal.jsonl'),
+    join(statePath, 'workers', workerId, 'journal.jsonl'),
     '{"type":"CTP_CALL","epoch":0,"questionID":"q-99',
   );
 
@@ -176,7 +182,7 @@ test('a failed delivery recovers without aborting the session', async t => {
     engine,
     reportError: error => reported.push(error),
   });
-  const worker = await host.provideWorker('counter');
+  const worker = await host.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
 
@@ -202,7 +208,7 @@ test('sleepy worker sleeps on demand and wakes on use', async t => {
     store: makeMemoryStore(),
     engine: makeJournalReplayEngine(),
   });
-  const worker = await host.provideWorker('counter');
+  const worker = await host.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
   t.true(worker.isAwake());
@@ -223,7 +229,7 @@ test('idle worker falls asleep on its own and wakes on use', async t => {
     engine: makeJournalReplayEngine(),
     idleTimeoutMs: 25,
   });
-  const worker = await host.provideWorker('idler');
+  const worker = await host.createWorker({ debugLabel: 'idler' });
   const idler = await worker.evaluate(`Far('Idler', { poke: () => 'ok' })`);
   t.is(await E(idler).poke(), 'ok');
   t.true(worker.isAwake());
@@ -241,8 +247,8 @@ test('multiple workers persist independently', async t => {
 
   {
     const host = await makeSiestaHost({ store, engine });
-    const alice = await host.provideWorker('alice');
-    const bob = await host.provideWorker('bob');
+    const alice = await host.createWorker({ debugLabel: 'alice' });
+    const bob = await host.createWorker({ debugLabel: 'bob' });
     const counterA = await alice.evaluate(COUNTER_SOURCE);
     const counterB = await bob.evaluate(COUNTER_SOURCE);
     t.is(await E(counterA).incr(), 1);
@@ -267,7 +273,7 @@ test('published presences keep identity when passed back to their worker', async
 
   {
     const host = await makeSiestaHost({ store, engine });
-    const worker = await host.provideWorker('registry');
+    const worker = await host.createWorker({ debugLabel: 'registry' });
     const registry = await worker.evaluate(`
       (() => {
         const thing = Far('Thing', { hi: () => 'hi' });

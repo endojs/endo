@@ -17,10 +17,10 @@ const macrotask = () => new Promise(resolve => setTimeout(resolve, 0));
  *
  * @param {object} options
  * @param {typeof makeWorkerShell} options.makeShell
- * @param {string} options.workerName
+ * @param {string} options.debugName
  * @param {(message: Record<string, unknown>) => void} options.onOutbound
  */
-const makeShellIncarnation = ({ makeShell, workerName, onOutbound }) => {
+const makeShellIncarnation = ({ makeShell, debugName, onOutbound }) => {
   let alive = true;
   let suppressed = false;
   const shell = makeShell({
@@ -29,7 +29,7 @@ const makeShellIncarnation = ({ makeShell, workerName, onOutbound }) => {
         onOutbound(message);
       }
     },
-    name: `siesta-worker:${workerName}`,
+    name: `siesta-worker:${debugName}`,
   });
   return harden({
     /** @param {boolean} value */
@@ -38,7 +38,7 @@ const makeShellIncarnation = ({ makeShell, workerName, onOutbound }) => {
     },
     /** @param {Record<string, unknown>} message */
     dispatchOne: async message => {
-      alive || Fail`worker ${q(workerName)} incarnation has been terminated`;
+      alive || Fail`worker ${q(debugName)} incarnation has been terminated`;
       shell.dispatch(message);
       // Let the delivery's promise chain settle so any replies are
       // emitted (or suppressed) before the next delivery.
@@ -70,15 +70,15 @@ export const makeJournalReplayEngine = ({ makeShell = makeWorkerShell } = {}) =>
   harden({
     canSnapshot: false,
     /** @type {WorkerEngine['start']} */
-    start: async ({ workerName, snapshot, onOutbound }) => {
+    start: async ({ debugName, snapshot, onOutbound }) => {
       snapshot === null ||
         snapshot === undefined ||
         Fail`journal replay engine cannot restore engine snapshot for worker ${q(
-          workerName,
+          debugName,
         )}`;
       const incarnation = makeShellIncarnation({
         makeShell,
-        workerName,
+        debugName,
         onOutbound,
       });
       /** @type {WorkerIncarnation} */
@@ -115,17 +115,17 @@ export const makeSnapshottingReplayEngine = ({
   harden({
     canSnapshot: true,
     /** @type {WorkerEngine['start']} */
-    start: async ({ workerName, snapshot, onOutbound }) => {
+    start: async ({ debugName, snapshot, onOutbound }) => {
       const incarnation = makeShellIncarnation({
         makeShell,
-        workerName,
+        debugName,
         onOutbound,
       });
       /** @type {Array<Record<string, unknown>>} */
       const log = [];
       if (snapshot !== null && snapshot !== undefined) {
         Array.isArray(snapshot) ||
-          Fail`unrecognized snapshot ref for worker ${q(workerName)}`;
+          Fail`unrecognized snapshot ref for worker ${q(debugName)}`;
         const messages = /** @type {Array<Record<string, unknown>>} */ (
           snapshot
         );
