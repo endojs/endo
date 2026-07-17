@@ -18,7 +18,9 @@ export const makeDaemonEvaluate =
   powers =>
   async ({ source, resultName, globals }) => {
     const codeNames = harden(globals.map(({ name }) => name));
-    const petNames = harden(globals.map(({ petName = name }) => petName));
+    const petNames = harden(
+      globals.map(global => global.petName ?? global.name),
+    );
     return E(powers).evaluate(
       undefined,
       source,
