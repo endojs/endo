@@ -9,62 +9,53 @@
 
 ## Status
 
-A working prototype landed alongside this document (Phases 1 and 2),
-and a follow-up pass landed the host side of Phase 3 plus all of
-Phase 4:
+Phases 1–4 are landed and hardened; Phases 5–6 remain; the sections
+under *Future Work* carry the accepted plans for resource vats, the
+non-reifying host, upgrade by indirection, and vat GC.
 
-- `packages/siesta` — the host (`makeSiestaHost`), the OCapN-serving
-  daemon wrapper (`makeSiestaDaemon`), serializable CapTP tables
-  (`makePersistentTablesKit`), the deterministic worker shell
-  (`makeWorkerShell`), the journal-replay reference engine
-  (`makeJournalReplayEngine`), and filesystem/memory stores.
-- `packages/captp` — new `provideImport(slot, iface)` and
-  `provideExport(slot, val)` methods on the object returned by
-  `makeCapTP`: the two restore halves of a resumable CapTP session
-  (tests in `packages/captp/test/provide-{import,export}.test.js`).
-- Phase 3 host side: journals are absolutely indexed and truncated at
-  every snapshot point (`truncateJournal` on both stores, atomic on the
-  filesystem via header-plus-rename), superseded snapshot refs are
-  released to the engine (`WorkerEngine.releaseSnapshot`), and
-  `makeSnapshottingReplayEngine` (`canSnapshot: true`) proves the whole
-  lifecycle — restore from snapshot ref plus journal suffix, including
-  crash recovery — without an XS build
-  (`packages/siesta/test/snapshot.test.js`).
-- Phase 4: durable host exports. `makeSiestaHost({ resources })` takes
-  a registry of resource makers; `host.makeResource(type, description)`
-  mints capability objects whose `(type, description)` is recorded
-  against the export slot the moment they are exported into a worker
-  session (`exportHook`), and re-instantiated at the same slot on
-  resume (`captp.provideExport`). `worker.evaluate(source, names,
-  values)` carries endowments to guests. `makeTimerResource` is the
-  first resource; a pending `delay` wakes a sleeping worker with no
-  inbound traffic, and timer nondeterminism is journaled so replay
-  stays deterministic (`packages/siesta/test/resources.test.js`).
+What exists, all verified by tests across three SES configurations:
 
-A third pass completed Phase 3 and extended Phase 4:
+- **`packages/siesta`** — the host (`makeSiestaHost`), the
+  OCapN-serving daemon wrapper (`makeSiestaDaemon`), serializable
+  CapTP tables (`makePersistentTablesKit`), the deterministic worker
+  shell (`makeWorkerShell`), filesystem/memory stores, and three
+  engines: journal replay, snapshotting replay, and real XS
+  (`makeXsEngine` over `rust/siesta-xs-worker`, a minimal runner on
+  the `xsnap` crate; the siesta scenarios pass on real XS heap
+  snapshots).
+- **`packages/captp` seams** — `provideImport(slot, iface)` and
+  `provideExport(slot, val)` (objects and promises, with resolution
+  re-subscription): the restore halves of a resumable CapTP session.
+- **Resumable sessions at the export-table layer** — slot counters,
+  import descriptors, and durable export descriptions all live in the
+  serialized tables record; sessions are resumed, never
+  re-established. The tables record is deliberately a c-list
+  serialization (see § *A non-reifying host*).
+- **Sleepy lifecycle with snapshot-subsumed journals** — absolute
+  journal indexing, truncation at every snapshot, restore from
+  snapshot plus suffix, a durable delivered-watermark separating
+  replayed traffic from never-delivered traffic, and alias-safe
+  snapshot release.
+- **System resources (stopgap form)** — maker registry, export-time
+  descriptions, resume re-instantiation, interning by
+  (type, description), the timer resource.
+- **Worker controller** — workers create and endow other workers;
+  cross-worker object and promise links are durable as
+  `worker-import` / `worker-promise` descriptions, re-seated at
+  restore without waking anyone.
+- **At-most-once host obligations** — answers owed to guest questions
+  and resolutions owed on host-origin promise exports are durably
+  indexed and rejected by a restarted host via journaled synthetic
+  messages; cross-worker promises instead survive restarts through
+  their durable links.
+- **Crash hardening** (post-ultrareview) — torn-write immunity,
+  engine-failure degradation without session aborts, disconnect
+  suppression toward workers, unique CAS temp names; see
+  § *Crash-consistency envelope*.
 
-- **Phase 3 landed via a rescope** (§ *The XS engine*): rather than
-  adapting the endor supervisor — whose generated-bundle toolchain is
-  broken on this branch (`bundle-bus-worker-xs.mjs` absent; the
-  manager bundler fails on Node-only imports) — a minimal
-  `rust/siesta-xs-worker` binary sits directly on the `xsnap` crate,
-  with `makeXsEngine` as its `WorkerEngine` adapter and the siesta
-  scenarios passing on real XS heap snapshots
-  (`packages/siesta/test/xs-engine.test.js`).
-  The `xsnap` crate's argument helpers were made `pub` for external
-  engine crates.
-- **Export durability moved to the export-table layer** (per
-  maintainer direction): descriptions live in the serialized tables
-  record's export descriptors, recorded by the tables kit's
-  `describeExport` power and rebuilt by its `restoreExports`; the
-  `WorkerMeta.resources` side table is gone. `provideExport` also
-  registers pre-seeded exports in captp's value-to-slot registry.
-- **Worker controller** (per maintainer direction; § *The worker
-  controller*): built-in `worker-controller` and `worker-facade`
-  resources let a controlling worker create other workers and endow
-  them from its own heap, with cross-worker links durable at the
-  export-table layer as `worker-import` descriptions
-  (`packages/siesta/test/worker-controller.test.js`).
+Historical notes on how Phase 3 was rescoped onto the `xsnap` crate
+(skipping the endor supervisor and its broken bundle toolchain) live
+in § *The XS engine*.
 
 ## What is the Problem Being Solved?
 
@@ -547,6 +538,117 @@ Worker-to-worker slot forwarding could land alone as an incremental
 step, since both sides share the captp wire format and need no codec
 translation.
 
+### Upgrade without breaking orthogonality
+
+Every production orthogonal-persistence system has eventually bolted
+on an upgrade mechanism that breaks the purity: ICP canisters upgrade
+code in place against stable memory, with pre/post-upgrade hooks and a
+schema discipline the application carries forever; Agoric vats upgrade
+against `baggage`, forcing every durable object into upgrade-aware
+kinds. In both, the coupling exists because the **unit of durable
+identity is the stateful code instance** — clients hold references to
+the canister or vat itself, so new code must inhabit the old identity,
+so state must survive a code swap, so the persistence layer must learn
+about versions.
+
+Per maintainer direction, siesta refuses that coupling with one more
+level of indirection, in the spirit of the endo daemon's pet store:
+make the durable unit of identity a **name binding**, and keep vats
+pure, immortal-code, and disposable.
+
+**The name hub.** A durable table of `name → (workerName, slot)`
+bindings — a generalization of what `publications` already is (the
+locator's `swissnum → presence` is a name binding whose consumers are
+remote). Three grades of consumer:
+
+1. **Sturdy refs** already resolve through it: rebinding a swissnum to
+   a successor vat's export is client-transparent today.
+2. **Cross-vat grants** gain a new export-descriptor kind:
+   `{ kind: 'named', name }`. Where a `worker-import` link pins the
+   origin `(workerName, slot)` forever, a named link resolves through
+   the name hub **per delivery** (the seated value is a host-side
+   forwarder; in the non-reifying host, a c-list indirection). The
+   granting vat chooses at grant time: direct link for EQ-stable
+   identity, named link for upgradability. This choice mirrors the
+   petname/edge-name distinction and cannot be papered over: behavior
+   swap behind a stable reference is the *point* of a named link, so
+   `===`-style identity across an upgrade is deliberately not
+   preserved.
+3. **The embedder and guests** rebind through an explicit capability
+   (`nameHub.rebind(name, presence)`), grantable like any resource.
+
+**Upgrade, decomposed.** With names in place, upgrade is not a
+mechanism of the persistence layer at all:
+
+1. Instantiate the successor vat — fresh heap, new code, ordinary
+   orthogonal persistence. (The worker controller already does this.)
+2. Migrate state by **ordinary ocap messages**: the predecessor
+   exports its state to the successor in an explicit, app-designed,
+   testable handoff conversation
+   (`E(successor).adopt(await E(predecessor).exportState())`). No
+   stable-memory schema, no baggage: the migration protocol is just
+   protocol, versioned by the apps that speak it.
+3. Rebind the names. Every named edge everywhere — sturdy refs and
+   cross-vat grants — re-routes atomically at the table layer, without
+   waking a single vat: importers' heaps hold their local slots; only
+   the host-side resolution changes.
+4. Retire the predecessor (vat GC below).
+
+The persistence machinery never learns what a version is. Snapshots
+stay pure heap images; the journal stays a message log; upgrade lives
+entirely in the name hub and in application-level handoff protocols.
+The cost, stated honestly: apps that want upgradability must design
+for handoff (arguably lighter than designing for baggage, and only
+paid by vats that opt in), and identity discontinuity across upgrade
+is visible to anyone comparing references rather than names.
+
+### Garbage collection of vats
+
+Vat-level GC comes before object-level GC because the table layer
+already contains the whole vat-reference graph as plain data —
+collectible without waking anything:
+
+- **Nodes**: workers.
+- **Roots**: name-hub bindings and publications (the locator), plus
+  embedder pins.
+- **Edges**: durable export descriptions in each session's tables
+  record — `worker-import` and `worker-promise` link the exporting
+  session's worker to the origin worker; `named` edges root through
+  the name hub's current target.
+
+**Collector**: mark from roots over the tables records, sweep
+unmarked workers — delete the worker directory (tables, journal,
+meta) and release its CAS snapshot. Cycles between unreferenced vats
+collect naturally under mark-and-sweep. Run at host start and on
+demand; the traversal reads only table data, so sleeping vats stay
+asleep and live vats are untouched. Transient in-session state
+(questions, undescribed promise exports) never keeps a vat alive: it
+is either in-memory (dies with the host) or subject to the
+at-most-once abort machinery.
+
+**Explicit retirement** (`retire(workerName)`, on the controller and
+the host): severs inbound edges by rewriting them to tombstone
+descriptors — dead presences whose deliveries reject, reusing the
+at-most-once rejection shape — then sweeps. Retirement is the
+completion of upgrade: after rebinding, the predecessor's remaining
+direct (non-named) inbound edges are precisely the references whose
+holders chose EQ-stability over upgradability, and tombstoning them
+is the honest expression of that choice.
+
+**Two known sub-problems**:
+
+- **CAS refcounting**: snapshots are content-addressed per host, so
+  two workers with identical heaps share a CAS entry, and both
+  vat-sweep and superseded-ref release must refcount by hash rather
+  than unlink unconditionally (today's release could delete a
+  sibling's identical live snapshot — noted in Known Gaps).
+- **Edge staleness**: a vat stays reachable while any other vat's
+  tables carry a durable link to it, even if the importing guest has
+  long dropped the presence inside its heap. Trimming those edges
+  needs object-level GC inside sessions (captp `gcImports` with
+  journaled drops) or lease/expiry policy on names — the follow-up
+  layer, deliberately after vat-level GC.
+
 ### Durable OCapN sessions
 
 Today a host restart severs live OCapN sessions; remote peers keep
@@ -571,13 +673,17 @@ until it lands.
 
 ### Also deferred
 
-- **GC.** `gcImports` is off on the host side and the worker holds its
-  exports forever; a distributed-GC pass over sleeping workers needs the
-  refcounting messages to be journaled and replayed consistently.
+- **Object-level GC.** `gcImports` is off on the host side and the
+  worker holds its exports forever; a distributed-GC pass over
+  sleeping workers needs the refcounting messages to be journaled and
+  replayed consistently. Vat-level GC (§ *Garbage collection of
+  vats*) deliberately comes first.
 - **Snapshot compaction cadence**, metering
   ([daemon-xs-worker-metering](daemon-xs-worker-metering.md)), and
   multi-tenant scheduling.
-- **Cross-version snapshots** (explicitly out of scope: no upgrade).
+- **Cross-version snapshots** (explicitly out of scope: upgrade is by
+  indirection and succession, never by mutating a snapshot's code —
+  § *Upgrade without breaking orthogonality*).
 
 ## Dependencies
 
@@ -614,6 +720,26 @@ until it lands.
    signing keys, giving stable locations for sturdy refs.
 6. **Phase 6: durable OCapN sessions.** Gated on the OCapN session-model
    revision; tracked as future work.
+7. **Phase 7: names and vat GC.** The name hub (§ *Upgrade without
+   breaking orthogonality*): first-class rebindable name bindings as a
+   description kind resolved per delivery, generalizing publications;
+   upgrade-by-rebinding lands on it. Vat-level mark-and-sweep over the
+   table-layer reference graph plus explicit retirement
+   (§ *Garbage collection of vats*). These two ship together because
+   retirement is what makes upgrade complete (the predecessor vat must
+   be collectible) and names are what make retirement safe (inbound
+   edges route through rebindable bindings, not dead slots).
+8. **Phase 8: resource vats.** Move timers (and future network and
+   storage) behind the engine seam as manually persistent device vats
+   (§ *Toward resource vats*), shrinking the host's reified surface to
+   the OCapN edge and the embedder API.
+9. **Phase 9: the non-reifying host.** After Phases 7–8 remove the
+   host's need for edge values, swap the reifying core for c-list
+   routing per § *A non-reifying host*, adopting the persisted tables
+   records as the routing tables at a quiescent restart.
+   Worker-to-worker slot forwarding may land earlier as an incremental
+   step. Naturally paired with Phase 6, whose durable sessions want
+   persisted c-lists anyway.
 
 ## Design Decisions
 
@@ -674,6 +800,13 @@ until it lands.
       tests re-derive the location; stable locations arrive with the
       Noise netlayer and persisted keys (Phase 5).
 - [ ] No metering or scheduling; a hostile guest can spin forever.
+- [ ] CAS snapshot refs are not refcounted: two workers with identical
+      heaps share a content-addressed entry, and superseded-ref release
+      (or a future vat sweep) unlinks unconditionally, which could
+      delete a sibling's live snapshot. Refcount by hash when vat GC
+      lands (§ *Garbage collection of vats*).
+- [ ] Nothing deletes a worker yet: vats accumulate until Phase 7's
+      vat GC and explicit retirement land.
 
 ## Prompt
 
