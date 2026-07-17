@@ -3057,6 +3057,7 @@ __metadata:
   resolution: "@endo/x402@workspace:packages/x402"
   dependencies:
     "@endo/base64": "workspace:^"
+    "@endo/harden": "workspace:^"
     "@endo/lockdown": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     ava: "catalog:dev"
