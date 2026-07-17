@@ -17,12 +17,16 @@ What exists, all verified by tests across three SES configurations:
 
 - **`packages/siesta`** — the host (`makeSiestaHost`), the
   OCapN-serving daemon wrapper (`makeSiestaDaemon`), serializable
-  CapTP tables (`makePersistentTablesKit`), the deterministic worker
-  shell (`makeWorkerShell`), filesystem/memory stores, and three
-  engines: journal replay, snapshotting replay, and real XS
-  (`makeXsEngine` over `rust/siesta-xs-worker`, a minimal runner on
-  the `xsnap` crate; the siesta scenarios pass on real XS heap
-  snapshots).
+  CapTP tables, the deterministic worker shell, filesystem/memory
+  stores, and the real XS engine (`makeXsEngine` over
+  `rust/siesta-xs-worker`, a minimal runner on the `xsnap` crate; the
+  siesta scenarios pass on real XS heap snapshots). The public
+  surface is deliberately narrow — `makeSiestaHost`,
+  `makeSiestaDaemon`, `makeXsEngine`, `makeFsStore`,
+  `makeTimerResource` — with the deterministic replay engines, the
+  memory store, the tables kit, and the worker shell kept internal as
+  test doubles and plumbing; the `WorkerEngine` type remains the open
+  seam for future JS engines with other heap-snapshot mechanisms.
 - **`packages/captp` seams** — `provideImport(slot, iface)` and
   `provideExport(slot, val)` (objects and promises, with resolution
   re-subscription): the restore halves of a resumable CapTP session.

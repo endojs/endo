@@ -35,13 +35,13 @@ import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
 import {
   makeFsStore,
-  makeJournalReplayEngine,
   makeSiestaDaemon,
+  makeXsEngine,
 } from '@endo/siesta';
 
 const daemon = await makeSiestaDaemon({
   store: makeFsStore(statePath),
-  engine: makeJournalReplayEngine(),
+  engine: makeXsEngine({ workerBinary, bootPath, bundlePath, casPath }),
   codec: syrupCodec,
   makeNetlayer: ({ handlers, logger }) => makeTcpNetLayer({ handlers, logger }),
 });
@@ -78,26 +78,16 @@ leaves every worker asleep until a message arrives.
 
 ## Engines
 
-`makeJournalReplayEngine` is the reference engine: each incarnation
-starts a fresh worker shell and the host replays the journal, suppressing
-the worker's re-emitted replies.
-For a deterministic guest this is behaviorally identical to snapshot
-restoration, but the journal is the persistence and can never be
-dropped.
-
-`makeSnapshottingReplayEngine` implements `canSnapshot: true` without an
-XS build, which activates the host's full snapshot lifecycle: at every
-sleep the host records the snapshot ref durably, truncates the journal
-prefix the snapshot subsumes, and releases the superseded ref to the
-engine.
+`makeXsEngine` is the engine: each incarnation is a `siesta-xs-worker`
+process (rust/siesta-xs-worker, a minimal runner on the `xsnap` crate)
+hosting the worker shell inside an XS machine, with real heap
+snapshots streamed into a content-addressed store.
+At every sleep the host records the snapshot ref durably, truncates
+the journal prefix the snapshot subsumes, and releases the superseded
+ref to the engine.
 Journals are absolutely indexed, so truncation never moves an offset;
 wakes restore from the snapshot ref plus the journal suffix, which also
 recovers cleanly from host crashes between snapshots.
-
-`makeXsEngine` is the production-shaped engine: each incarnation is a
-`siesta-xs-worker` process (rust/siesta-xs-worker, a minimal runner on
-the `xsnap` crate) hosting the worker shell inside an XS machine, with
-real heap snapshots streamed into a content-addressed store.
 Build it with:
 
 ```sh
@@ -110,6 +100,15 @@ The XS tests (`test/xs-engine.test.js`) skip themselves when those
 artifacts are absent.
 Note: XS workers currently boot without SES lockdown (native
 Compartment plus freeze-based harden); see the design's known gaps.
+
+The engine seam stays open for future JS engines with other heap
+snapshot mechanisms: any object satisfying the `WorkerEngine` type in
+`src/host.js` (`canSnapshot`, `start`, optional `releaseSnapshot`)
+plugs in.
+Two internal replay engines (`src/journal-replay-engine.js`) implement
+the same contract deterministically without an XS build; they are test
+doubles for the host's persistence logic, deliberately not part of the
+public API.
 
 ## Workers creating workers
 
