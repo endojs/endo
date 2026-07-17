@@ -1,7 +1,7 @@
 /**
  * The compartment mapper requires certain host capabilities.
  * These are the platform-neutral types for those capabilities.
- * For example, {@file node-powers.js} adapts Node.js how modules
+ * For example, `node-powers.js` adapts Node.js' own modules
  * to various subsets of these capabilities.
  *
  * @module

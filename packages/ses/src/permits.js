@@ -6,7 +6,7 @@ import { arrayPush, arrayForEach } from './commons.js';
 /** @import {GenericErrorConstructor} from '../types.js' */
 
 /**
- * Exports {@code permits}, a recursively defined
+ * Exports `permits`, a recursively defined
  * JSON record enumerating all intrinsics and their properties
  * according to ECMA specs.
  *
@@ -259,20 +259,20 @@ export { NativeErrors };
  *     are also considered blacklisted and are removed.
  * <li>A string value equal to a primitive ("number", "string", etc),
  *     in which case the property is permitted if its value property
- *     is typeof the given type. For example, {@code "Infinity"} leads to
- *     "number" and property values that fail {@code typeof "number"}.
+ *     is typeof the given type. For example, `Infinity` leads to
+ *     "number" and property values that fail `typeof "number`.
  *     are removed.
  * <li>A string value equal to an intinsic name ("ObjectPrototype",
  *     "Array", etc), in which case the property permitted if its
  *     value property is equal to the value of the corresponfing
- *     intrinsics. For example, {@code Map.prototype} leads to
+ *     intrinsics. For example, `Map.prototype` leads to
  *     "MapPrototype" and the property is removed if its value is
  *     not equal to %MapPrototype%
  * <li>Another record, in which case this property is simply
  *     permitted and that next record represents the disposition of
- *     the object which is its value. For example, {@code "Object"}
- *     leads to another record explaining what properties {@code
- *     "Object"} may have and how each such property should be treated.
+ *     the object which is its value. For example, `Object`
+ *     leads to another record explaining what properties
+ *     `Object` may have and how each such property should be treated.
  *
  * <p>Notes:
  * <li>"[[Proto]]" is used to refer to the "[[Prototype]]" internal
