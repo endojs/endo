@@ -2,10 +2,9 @@
 
 A prototype distributed ocap machine with purely orthogonal persistence.
 
-A siesta host is a simpler cousin of the Endo daemon: it spins up workers
-whose guest state is preserved by heap snapshots (or, in the reference
-engine, by deterministic journal replay) rather than by explicit
-formula-based persistence.
+A siesta host is a simpler cousin of the Endo daemon: it spins up
+workers whose guest state is preserved by XS heap snapshots rather
+than by explicit formula-based persistence.
 Guests never observe their own suspension, restoration, or the host's
 restarts — persistence is orthogonal to the guest programming model, and
 there is no upgrade story on purpose.
@@ -18,6 +17,10 @@ Workers are sleepy.
 When a worker's CapTP session is quiescent and idle, the host snapshots
 and terminates it; a later message to any of its presences transparently
 wakes it.
+Sleep is embedder policy, never guest-visible: the host's
+`idleTimeoutMs` option drives automatic sleep, and the worker object's
+`sleep()`/`wake()`/`isAwake()` are explicit hooks for embedders and
+tests — a guest cannot observe (or trigger) any of them.
 
 Workers have no names.
 Each is identified by a host-generated unguessable id, so reaching a
@@ -192,6 +195,41 @@ session's export table and re-linked at restore, so a resolution from
 one worker reaches another across host restarts. Within one host
 lifetime, a promise resolving while its importer sleeps wakes the
 worker like any other message.
+
+## API
+
+`makeSiestaHost({ store, engine, locator?, idleTimeoutMs?, resources?, makeSwissnum?, reportError? })`
+resolves to a host:
+
+- `createWorker({ debugLabel? })` — makes a fresh worker under a
+  generated unguessable id and resolves to its worker object.
+- `getWorker(workerId)` — the worker object of an existing worker;
+  throws for unknown ids (the embedder's admin route).
+- `listWorkerIds()` — sorted ids of the live workers (admin/debug).
+- `makeResource(type, description?)` — instantiates a registered
+  resource maker; interned by `(type, description)`.
+- `unpublish(secret)` — removes a publication from the locator and the
+  store.
+- `collectVats({ keep? })` — vat-level mark-and-sweep; resolves to the
+  swept ids.
+- `locator` — the swissnum-to-presence Map served over OCapN.
+- `shutdown()` — puts every worker to sleep.
+
+Each worker object has:
+
+- `workerId` and `debugLabel` (data properties).
+- `evaluate(source, names?, values?)` — evaluates a hardened
+  JavaScript expression in the worker's persistent compartment, with
+  endowments bound as named values.
+- `publish(presence, secret?)` — durably registers a presence imported
+  from this worker under a swissnum and returns the swissnum.
+- `sleep()`, `wake()`, `isAwake()` — embedder policy hooks; see above.
+- `retire()` — permanently deletes the worker; see _Retirement and
+  vat GC_.
+
+`makeSiestaDaemon({ store, engine, codec, makeNetlayer, idleTimeoutMs?, verbose? })`
+wraps a host in an OCapN node and resolves to
+`{ host, ocapn, location, makeSturdyRefDetails, shutdown }`.
 
 ## Caveats
 
