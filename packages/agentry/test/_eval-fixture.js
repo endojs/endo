@@ -72,14 +72,19 @@ harden(readText);
  * disk. Shared by every per-eval provisioning helper.
  *
  * @param {string} repoRoot
+ * @param {object} [options]
+ * @param {boolean} [options.allowHistoryRewrite]
  * @returns {{ workspace: unknown, git: unknown }}
  */
-export const makePowersOver = repoRoot => {
+export const makePowersOver = (
+  repoRoot,
+  { allowHistoryRewrite = false } = {},
+) => {
   const workspace = makeNodeFilesystem({ rootPath: repoRoot });
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
   const backend = makeNativeGitBackend({ repoRoot });
-  const git = makeGit({ mount, backend, lineageOf });
+  const git = makeGit({ mount, backend, lineageOf }, { allowHistoryRewrite });
   return harden({ workspace, git });
 };
 harden(makePowersOver);

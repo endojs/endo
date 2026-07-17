@@ -147,7 +147,9 @@ export const provisionConflictRebaseRepo = async (
   await run(['reset', '--hard', featureNoteOid]);
   await run(['switch', '-q', featureBranch]);
 
-  const { workspace, git } = makePowersOver(repoRoot);
+  const { workspace, git } = makePowersOver(repoRoot, {
+    allowHistoryRewrite: true,
+  });
   return harden({
     repoRoot,
     workspace,
