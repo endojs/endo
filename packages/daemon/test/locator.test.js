@@ -12,6 +12,12 @@ import {
   parseLocator,
   externalizeId,
   internalizeLocator,
+  assertValidContentLocator,
+  externalizeContent,
+  formatContentLocator,
+  internalizeContentLocator,
+  parseContentLocator,
+  sourcesFromContentLocator,
 } from '../src/locator.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
 
@@ -283,4 +289,200 @@ test('parseLocator - rejects unrecognized search params', t => {
   t.throws(() => parseLocator(badLocator), {
     message: /Invalid search params/,
   });
+});
+
+// Content locators (magnet URNs) — Phase 1: grammar and duality.
+
+// A SHA-256 content address is the same 64-char lowercase-hex shape as a
+// formula number.
+const validHash = validId;
+const otherHash = 'a'.repeat(64);
+
+test('parseContentLocator - blob, xt only', t => {
+  const locator = `magnet:?xt=urn:endo-blob:${validHash}`;
+  t.deepEqual(parseContentLocator(locator), {
+    hash: validHash,
+    kind: 'blob',
+    displayName: undefined,
+    byteLength: undefined,
+    sources: [],
+  });
+});
+
+test('parseContentLocator - tree, xt only', t => {
+  const locator = `magnet:?xt=urn:endo-tree:${validHash}`;
+  const parsed = parseContentLocator(locator);
+  t.is(parsed.kind, 'tree');
+  t.is(parsed.hash, validHash);
+  t.deepEqual(parsed.sources, []);
+});
+
+test('parseContentLocator - dn and xl descriptive parameters', t => {
+  const locator = `magnet:?xt=urn:endo-blob:${validHash}&dn=hello.txt&xl=1234`;
+  const parsed = parseContentLocator(locator);
+  t.is(parsed.displayName, 'hello.txt');
+  t.is(parsed.byteLength, 1234);
+});
+
+test('parseContentLocator - source hints in order', t => {
+  const wsA = 'https://gw.example/content/x?a=1&b=2';
+  const wsB = 'https://mirror.example/blob';
+  const xs = 'p2p://peer/abc';
+  const locator = formatContentLocator(validHash, 'blob', [
+    { plane: 'ws', payload: wsA },
+    { plane: 'xs', payload: xs },
+    { plane: 'ws', payload: wsB },
+  ]);
+  const parsed = parseContentLocator(locator);
+  t.deepEqual(parsed.sources, [
+    { plane: 'ws', payload: wsA },
+    { plane: 'xs', payload: xs },
+    { plane: 'ws', payload: wsB },
+  ]);
+});
+
+test('parseContentLocator - all registered source planes', t => {
+  const locator = formatContentLocator(validHash, 'blob', [
+    { plane: 'ws', payload: 'https://gw.example/a' },
+    { plane: 'xs', payload: 'xs-payload' },
+    { plane: 'as', payload: 'https://fallback.example/a' },
+    { plane: 'tr', payload: 'https://tracker.example/announce' },
+  ]);
+  t.notThrows(() => parseContentLocator(locator));
+});
+
+test('assertValidContentLocator - valid', t => {
+  t.notThrows(() =>
+    assertValidContentLocator(`magnet:?xt=urn:endo-blob:${validHash}`),
+  );
+});
+
+test('assertValidContentLocator - invalid', t => {
+  /** @type {Array<[any, RegExp]>} */
+  const cases = [
+    ['foobar', /Invalid URL.$/u],
+    ['', /Invalid URL.$/u],
+    [null, /Invalid URL.$/u],
+    [undefined, /Invalid URL.$/u],
+    [{}, /Invalid URL.$/u],
+    [`endo://host/${validHash}?type=eval`, /Invalid protocol.$/u],
+    [`magnet://host?xt=urn:endo-blob:${validHash}`, /Invalid magnet URN.$/u],
+    [`magnet:junk?xt=urn:endo-blob:${validHash}`, /Invalid magnet URN.$/u],
+    [`magnet:?xt=urn:endo-blob:${validHash}#frag`, /Invalid magnet URN.$/u],
+    ['magnet:', /Missing xt.$/u],
+    [`magnet:?dn=hello.txt`, /Missing xt.$/u],
+    [
+      `magnet:?xt=urn:endo-blob:${validHash}&xt=urn:endo-tree:${validHash}`,
+      /Duplicate xt.$/u,
+    ],
+    [`magnet:?xt=urn:endo-blob:nothex`, /Invalid xt.$/u],
+    [`magnet:?xt=urn:endo-other:${validHash}`, /Invalid xt.$/u],
+    [`magnet:?xt=${validHash}`, /Invalid xt.$/u],
+    [`magnet:?xt=urn:endo-blob:${validHash}&dn=a&dn=b`, /Duplicate dn.$/u],
+    [`magnet:?xt=urn:endo-blob:${validHash}&xl=1&xl=2`, /Duplicate xl.$/u],
+    [`magnet:?xt=urn:endo-blob:${validHash}&xl=notanumber`, /Invalid xl.$/u],
+    [`magnet:?xt=urn:endo-blob:${validHash}&xl=-1`, /Invalid xl.$/u],
+    [`magnet:?xt=urn:endo-tree:${validHash}&xl=1`, /Invalid xl.$/u],
+    [
+      `magnet:?xt=urn:endo-blob:${validHash}&bad=param`,
+      /Invalid search params.$/u,
+    ],
+  ];
+  for (const [locator, reason] of cases) {
+    t.throws(() => assertValidContentLocator(locator), { message: reason });
+  }
+});
+
+test('formatContentLocator - xt only produces a bare magnet URN', t => {
+  const locator = formatContentLocator(validHash, 'blob');
+  t.is(locator, `magnet:?xt=urn:endo-blob:${validHash}`);
+  t.deepEqual(sourcesFromContentLocator(locator), []);
+});
+
+test('formatContentLocator - rejects invalid hash or kind', t => {
+  t.throws(() => formatContentLocator('nothex', 'blob'), {
+    message: /Invalid content hash/,
+  });
+  t.throws(
+    () => formatContentLocator(validHash, /** @type {any} */ ('other')),
+    { message: /Invalid content kind/ },
+  );
+});
+
+test('formatContentLocator - rejects an unregistered source plane', t => {
+  t.throws(
+    () =>
+      formatContentLocator(validHash, 'blob', [
+        { plane: /** @type {any} */ ('zz'), payload: 'x' },
+      ]),
+    { message: /Invalid content source plane/ },
+  );
+});
+
+test('formatContentLocator - rejects tree byte length', t => {
+  t.throws(
+    () =>
+      formatContentLocator(validHash, 'tree', [], {
+        byteLength: 1,
+      }),
+    { message: /Invalid content byte length/ },
+  );
+});
+
+test('formatContentLocator - rejects a non-string display name', t => {
+  t.throws(
+    () =>
+      formatContentLocator(validHash, 'blob', [], {
+        displayName: /** @type {any} */ (1),
+      }),
+    { message: /Invalid content display name/ },
+  );
+});
+
+test('externalizeContent - xt-only when no sources (empty @planes analogue)', t => {
+  const locator = externalizeContent(validHash, 'tree');
+  t.is(locator, `magnet:?xt=urn:endo-tree:${validHash}`);
+});
+
+test('externalizeContent / internalizeContentLocator round-trip (xt only)', t => {
+  const locator = externalizeContent(validHash, 'blob');
+  t.deepEqual(internalizeContentLocator(locator), {
+    hash: validHash,
+    kind: 'blob',
+    sources: [],
+  });
+});
+
+test('externalizeContent / internalizeContentLocator round-trip (with sources)', t => {
+  const sources = [
+    { plane: 'ws', payload: 'https://gw.example/content/x?token=a&exp=1' },
+    { plane: 'xs', payload: 'p2p://peer/abc' },
+  ];
+  const locator = externalizeContent(otherHash, 'tree', sources);
+  t.deepEqual(internalizeContentLocator(locator), {
+    hash: otherHash,
+    kind: 'tree',
+    sources,
+  });
+});
+
+test('externalizeContent - dn and xl survive parse round-trip', t => {
+  const locator = externalizeContent(validHash, 'blob', [], {
+    displayName: 'a file with spaces & symbols.txt',
+    byteLength: 4096,
+  });
+  const parsed = parseContentLocator(locator);
+  t.is(parsed.displayName, 'a file with spaces & symbols.txt');
+  t.is(parsed.byteLength, 4096);
+  t.is(parsed.hash, validHash);
+  t.is(parsed.kind, 'blob');
+});
+
+test('content locator - source payload with reserved characters round-trips', t => {
+  // A `&` and `=` inside a source URL must not split the magnet query.
+  const payload = 'https://gw.example/c?a=1&b=2&c=urn:endo-blob:x';
+  const locator = externalizeContent(validHash, 'blob', [
+    { plane: 'ws', payload },
+  ]);
+  t.deepEqual(sourcesFromContentLocator(locator), [{ plane: 'ws', payload }]);
 });
