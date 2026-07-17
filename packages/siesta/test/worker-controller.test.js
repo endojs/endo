@@ -196,6 +196,39 @@ test('a cross-worker promise survives a host restart', async t => {
   }
 });
 
+test('a controlling worker can retire a worker it created', async t => {
+  const store = makeMemoryStore();
+  const engine = makeJournalReplayEngine();
+  const host = await makeSiestaHost({ store, engine });
+  const parent = await host.createWorker({ debugLabel: 'parent' });
+  const controller = host.makeResource('worker-controller');
+  const parentRoot = await parent.evaluate(
+    `
+    (() => {
+      let facade;
+      return Far('Reaper', {
+        make: async () => {
+          facade = await E(controller).createWorker('doomed');
+          return E(facade).evaluate('Far("Doomed", { ping: () => "pong" })');
+        },
+        reap: () => E(facade).retire(),
+      });
+    })()
+    `,
+    ['controller'],
+    [controller],
+  );
+  const doomed = await E(parentRoot).make();
+  t.is(await E(doomed).ping(), 'pong');
+  t.is(host.listWorkerIds().length, 2);
+
+  // Retirement is a capability: the facade's holder kills the worker.
+  await E(parentRoot).reap();
+  t.deepEqual(host.listWorkerIds(), [parent.workerId]);
+  await t.throwsAsync(() => E(doomed).ping(), { message: /retired/ });
+  await host.shutdown();
+});
+
 test('controller and facades are durable resources', async t => {
   const store = makeMemoryStore();
   const engine = makeJournalReplayEngine();

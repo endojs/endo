@@ -33,11 +33,7 @@ embedder's admin route to an existing worker.
 import { E } from '@endo/eventual-send';
 import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
-import {
-  makeFsStore,
-  makeSiestaDaemon,
-  makeXsEngine,
-} from '@endo/siesta';
+import { makeFsStore, makeSiestaDaemon, makeXsEngine } from '@endo/siesta';
 
 const daemon = await makeSiestaDaemon({
   store: makeFsStore(statePath),
@@ -137,6 +133,22 @@ Cross-worker links are durable at the export-table layer: the child's
 session records the parent-origin endowment as "import slot S of the
 parent worker's session" (by worker id), re-seated on host restart
 without waking either worker.
+
+## Retirement and vat GC
+
+Retirement is a capability, not a host operation: `retire()` on the
+embedder's worker object (and on the guest-visible `worker-facade`
+resource) permanently deletes the worker — live presences reject,
+durable links from other workers tombstone (their deliveries reject
+even after restarts), publications drop, and the snapshot is released
+unless an identical sibling heap still shares it.
+
+Unreferenced workers die by collection instead:
+`host.collectVats({ keep })` marks workers reachable from publications
+(plus awake workers and the `keep` list of ids) along durable
+cross-worker links and retires the rest, returning the swept ids.
+`host.unpublish(secret)` removes a locator root so a published vat can
+become garbage.
 
 ## System resources
 

@@ -104,7 +104,7 @@ test('collectVats sweeps unreachable vats and keeps the linked graph', async t =
   t.deepEqual(store.listWorkerIds(), []);
 });
 
-test('retireWorker rejects live presences and deletes durable state', async t => {
+test('retire rejects live presences and deletes durable state', async t => {
   const store = makeMemoryStore();
   const engine = makeJournalReplayEngine();
   const host = await makeSiestaHost({ store, engine });
@@ -114,7 +114,7 @@ test('retireWorker rejects live presences and deletes durable state', async t =>
   t.is(await E(counter).incr(), 1);
   const secret = await worker.publish(counter);
 
-  await host.retireWorker(worker.workerId);
+  await worker.retire();
   t.deepEqual(host.listWorkerIds(), []);
   t.deepEqual(store.listWorkerIds(), []);
   t.is(host.locator.get(secret), undefined, 'publication dropped');
@@ -144,7 +144,7 @@ test('retired links tombstone across host restarts', async t => {
     const childId = /** @type {string} */ (
       host.listWorkerIds().find(id => id !== parentId)
     );
-    await host.retireWorker(childId);
+    await host.getWorker(childId).retire();
     t.regex(
       String(await E(parentRoot).askChild()),
       /^failed: /,
@@ -197,8 +197,8 @@ test('a snapshot ref shared between workers is only released with its last user'
   await alice.sleep();
   await bob.sleep();
 
-  await host.retireWorker(alice.workerId);
+  await alice.retire();
   t.deepEqual(released, [], 'bob still uses the shared ref');
-  await host.retireWorker(bob.workerId);
+  await bob.retire();
   t.deepEqual(released, ['shared-hash'], 'the last user releases it');
 });

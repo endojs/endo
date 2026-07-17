@@ -57,8 +57,10 @@ What exists, all verified by tests across three SES configurations:
   suppression toward workers, unique CAS temp names; see
   § *Crash-consistency envelope*.
 - **Vat GC** — `collectVats` mark-and-sweep over the table-layer
-  reference graph, explicit `retireWorker` with tombstoned links,
-  `unpublish`, and shared-snapshot-ref guarding
+  reference graph, retirement as a capability (`retire()` on the
+  embedder's worker facade and on the guest-visible `worker-facade`
+  resource — the host has no retire-by-id operation) with tombstoned
+  links, `unpublish`, and shared-snapshot-ref guarding
   (§ *Garbage collection of vats*).
 - **Capability-only worker identity** — workers have no names: each
   is identified by a host-generated unguessable id
@@ -620,7 +622,9 @@ is visible to anyone comparing references rather than names.
 **Landed for the current implementation** (per maintainer direction,
 ahead of the name hub, which is still under consideration):
 `host.collectVats({ keep })` is the mark-and-sweep below;
-`host.retireWorker(name)` is explicit retirement with tombstoned
+`worker.retire()` — a capability on the embedder's facade and on the
+guest-visible `worker-facade` resource, not a host retire-by-id
+operation — is explicit retirement with tombstoned
 inbound links (a dead `RetiredWorkerLink` presence for object links, a
 rejected promise for promise links — live holders reject immediately
 via session abort, restarted holders reject via the tombstone
@@ -653,7 +657,9 @@ asleep and live vats are untouched. Transient in-session state
 is either in-memory (dies with the host) or subject to the
 at-most-once abort machinery.
 
-**Explicit retirement** (`retireWorker(workerId)`, on the host): severs inbound edges by rewriting them to tombstone
+**Explicit retirement** (`retire()`, a capability on the worker
+facade rather than a host-level retire-by-id operation): severs
+inbound edges by rewriting them to tombstone
 descriptors — dead presences whose deliveries reject, reusing the
 at-most-once rejection shape — then sweeps. Retirement is the
 completion of upgrade: after rebinding, the predecessor's remaining
@@ -839,7 +845,8 @@ until it lands.
       snapshot uses it.
 - [x] ~~Nothing deletes a worker.~~ `collectVats` (mark-and-sweep from
       publication roots over durable links, awake workers pinned) and
-      `retireWorker` (explicit, with tombstoned inbound links) landed;
+      facade `retire()` (explicit, capability-held, with tombstoned
+      inbound links) landed;
       `named` edges join the graph when the name hub lands.
 
 ## Prompt

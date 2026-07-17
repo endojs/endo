@@ -70,6 +70,13 @@ import {
  * @property {() => Promise<void>} wake
  * @property {() => Promise<void>} sleep snapshots (if the engine can) and
  *   terminates the incarnation once the session is quiescent
+ * @property {() => Promise<void>} retire permanently deletes this
+ *   worker: live presences reject, inbound durable links tombstone
+ *   (deliveries reject after restarts too), publications drop, and the
+ *   worker's state and snapshot are removed. Retirement is a
+ *   capability held by whoever holds the facade — the host has no
+ *   retire-by-id operation; unreferenced workers die through
+ *   `collectVats`
  */
 
 /**
@@ -91,10 +98,6 @@ import {
  * @property {(secret: string) => void} unpublish removes a publication
  *   from the locator and the store; without this a published vat could
  *   never become garbage
- * @property {(workerId: string) => Promise<void>} retireWorker permanently
- *   deletes a worker: live presences reject, inbound durable links
- *   tombstone (deliveries reject after restarts too), publications drop,
- *   and the worker's state and snapshot are removed
  * @property {(options?: { keep?: Array<string> }) => Promise<Array<string>>} collectVats
  *   vat-level mark-and-sweep: marks workers reachable from publications
  *   (plus awake workers and the `keep` list of worker ids) along durable
@@ -806,6 +809,14 @@ export const makeSiestaHost = async ({
       isAwake: () => incarnation !== undefined,
       wake: () => enqueue(ensureAwakeNow),
       sleep: () => enqueue(sleepNow),
+      retire: async () => {
+        const current = workers.get(workerId);
+        if (current === undefined) {
+          throw Fail`worker ${q(debugName)} is already retired`;
+        }
+        // eslint-disable-next-line no-use-before-define
+        await deleteWorkerNow(workerId, current);
+      },
     };
     harden(facade);
 
@@ -813,8 +824,8 @@ export const makeSiestaHost = async ({
      * Permanently ends this worker: live presences reject via captp
      * abort (whose CTP_DISCONNECT rawSend suppresses), the incarnation
      * terminates without a snapshot, and no further traffic is
-     * journaled. The caller (retireWorker / collectVats) removes the
-     * durable state.
+     * journaled. The caller (the facade's retire / collectVats)
+     * removes the durable state.
      */
     const retireNow = async () => {
       retired = true;
@@ -945,7 +956,7 @@ export const makeSiestaHost = async ({
     assertWorkerId(workerId);
     return Far('SiestaWorkerFacade', {
       help: () =>
-        'SiestaWorkerFacade: evaluate(source, names, values) evaluates in this worker with the given endowments; getId() returns the worker id.',
+        'SiestaWorkerFacade: evaluate(source, names, values) evaluates in this worker with the given endowments; getId() returns the worker id; retire() permanently deletes the worker.',
       getId: () => workerId,
       /**
        * @param {string} source
@@ -954,6 +965,7 @@ export const makeSiestaHost = async ({
        */
       evaluate: async (source, names = [], values = []) =>
         provideWorkerRuntime(workerId).facade.evaluate(source, names, values),
+      retire: async () => provideWorkerRuntime(workerId).facade.retire(),
     });
   };
   const makeWorkerControllerResource = _description =>
@@ -1047,13 +1059,6 @@ export const makeSiestaHost = async ({
     unpublish: secret => {
       store.deletePublication(secret);
       locator.delete(secret);
-    },
-    retireWorker: async workerId => {
-      const runtime = workers.get(workerId);
-      if (runtime === undefined) {
-        throw Fail`No worker with id ${q(workerId)} to retire`;
-      }
-      await deleteWorkerNow(workerId, runtime);
     },
     collectVats: async ({ keep = [] } = {}) => {
       // Mark: publications root the graph; awake workers and the keep
