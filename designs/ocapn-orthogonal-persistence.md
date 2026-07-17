@@ -41,16 +41,30 @@ Phase 4:
   inbound traffic, and timer nondeterminism is journaled so replay
   stays deterministic (`packages/siesta/test/resources.test.js`).
 
-What remains of Phase 3 is the XS binary adapter itself. Note for
-whoever picks it up: the `rust/endo/xsnap` crate currently does not
-build from a fresh checkout on this branch — its `include_str!` JS
-bundles (`ses_boot.js`, `worker_bootstrap.js`, `daemon_bootstrap.js`)
-are generated files, the documented worker bundler
-(`packages/daemon/scripts/bundle-bus-worker-xs.mjs`, per
-`rust/endo/README.md`) no longer exists, and the manager bundler
-(`bundle-bus-daemon-rust-xs.mjs`) fails on Node-only imports pulled in
-through `packages/git` / `packages/host-spawner` / `packages/platform`.
-Restoring that toolchain is a prerequisite for the adapter.
+A third pass completed Phase 3 and extended Phase 4:
+
+- **Phase 3 landed via a rescope** (§ *The XS engine*): rather than
+  adapting the endor supervisor — whose generated-bundle toolchain is
+  broken on this branch (`bundle-bus-worker-xs.mjs` absent; the
+  manager bundler fails on Node-only imports) — a minimal
+  `rust/siesta-xs-worker` binary sits directly on the `xsnap` crate,
+  with `makeXsEngine` as its `WorkerEngine` adapter and the siesta
+  scenarios passing on real XS heap snapshots
+  (`packages/siesta/test/xs-engine.test.js`).
+  The `xsnap` crate's argument helpers were made `pub` for external
+  engine crates.
+- **Export durability moved to the export-table layer** (per
+  maintainer direction): descriptions live in the serialized tables
+  record's export descriptors, recorded by the tables kit's
+  `describeExport` power and rebuilt by its `restoreExports`; the
+  `WorkerMeta.resources` side table is gone. `provideExport` also
+  registers pre-seeded exports in captp's value-to-slot registry.
+- **Worker controller** (per maintainer direction; § *The worker
+  controller*): built-in `worker-controller` and `worker-facade`
+  resources let a controlling worker create other workers and endow
+  them from its own heap, with cross-worker links durable at the
+  export-table layer as `worker-import` descriptions
+  (`packages/siesta/test/worker-controller.test.js`).
 
 ## What is the Problem Being Solved?
 
@@ -285,24 +299,97 @@ The prototype's guarantees, from weakest to strongest component:
   are re-derivable by replay and questions are transient, this only
   costs the answers to questions nobody remembers asking.
 
-## The XS engine (build plan)
+## The XS engine (landed, rescoped)
 
-The `endor` substrate already implements the hard parts
-([daemon-xs-worker-snapshot](daemon-xs-worker-snapshot.md), Phases 1–2):
-`Machine::write_snapshot`/`from_snapshot`,
-`suspend_to_cas`/`resume_from_cas`, `SuspendedWorker`, and the
-supervisor's suspend/resume verbs.
-The adapter work is:
+Rescoped per maintainer direction: **take the `xsnap` crate, skip the
+`endor` daemon.**
+The endor supervisor is the Rust re-hosting of the endo daemon —
+manager bundles, formula SQLite, worker registries — all of which the
+siesta host already is; routing siesta workers through it would mean
+two overlapping supervisors, and its generated-bundle toolchain is
+what was broken.
+What siesta needs from the Rust side is only the crate: the XS build
+system, the snapshot FFI (`suspend_to_cas`/`resume_from_cas`), and the
+promise-job pump.
 
-1. Bundle the worker shell (`@endo/siesta/src/worker-shell.js`) as the
-   XS machine's bootstrap, wired to the fd 3/4 envelope transport.
-2. Implement `WorkerEngine` over the supervisor's spawn/suspend/resume
-   control verbs; `snapshot()` returns the CAS hash.
-3. Adopt snapshot-time journal truncation and CAS GC roots
-   (the ephemeral-CAS-GC-root bookkeeping flagged as remaining work in
-   daemon-xs-worker-snapshot).
+The landed shape:
+
+- **`rust/siesta-xs-worker`** — a ~250-line binary on the `xsnap`
+  crate: one XS machine, one host function (`siestaSend`, plus a
+  `siestaTrace` diagnostic channel), newline-delimited ASCII JSON over
+  fd 3/4 (`deliver`/`ack` with promise-quiescence per delivery,
+  `snapshot` → CAS sha256, restore via `--restore <hash>`).
+  Boot scripts and the worker bundle are read from files at runtime —
+  no `include_str!` coupling, so the crate's generated-bundle problem
+  is reduced to satisfying stubs.
+- **`packages/siesta/scripts/bundle-xs-worker.mjs`** — generates
+  `dist-xs/boot.js` (xsnap's committed polyfills) and
+  `dist-xs/worker-xs.js` (the worker shell + CapTP bundled via
+  compartment-mapper), and stubs xsnap's `include_str!` inputs.
+- **`makeXsEngine`** (`packages/siesta/src/xs-engine.js`) — the
+  `WorkerEngine` adapter: spawn, restore, deliver, snapshot,
+  `releaseSnapshot` unlinks the superseded CAS entry.
+- **Exit criterion met**: the siesta scenarios pass on real XS heap
+  snapshots (`packages/siesta/test/xs-engine.test.js`), skipped
+  automatically when the binary or bundles are absent.
+
+Build: `yarn workspace @endo/siesta build:xs-bundles`, then
+`cargo build --release -p siesta-xs-worker` (needs the `c/moddable`
+submodule).
+
+Findings that shaped the implementation, for future engine authors:
+
+- `Machine::eval` segfaults on a script whose completion value is an
+  object; the evaluator wrapper pins a primitive completion.
+- XS's native `Compartment` takes an options bag, not the SES shim's
+  endowments-first signature; the worker shell assigns endowments onto
+  `compartment.globalThis`, which is portable to both.
+- The ses shim's `repairIntrinsics` currently fails on XS, so the
+  worker boots with xsnap's polyfills (freeze-based `harden`, `assert`,
+  text codecs) and **no lockdown** — the same substrate endor's XS
+  bundles run on. Guests are isolated per-machine and per-compartment,
+  but share mutable intrinsics with the shell inside their own
+  machine; ses-on-XS lockdown is a known gap.
+- All JSON crossing the pipe and the host-function boundary is
+  ASCII-escaped, making CESU-8/UTF-8/C-string encodings coincide.
 
 ## Future Work
+
+### The worker controller: workers creating workers
+
+Per maintainer direction, a worker can create and endow other workers:
+the host exposes a **worker controller** into a controlling worker,
+and endowments flow from that worker's own heap.
+
+Two built-in resource types (registered alongside the embedder's
+makers):
+
+- `worker-controller` — `provideWorker(name)` makes or finds a worker
+  and returns its facade.
+- `worker-facade` — scoped to one worker:
+  `evaluate(source, names, values)` evaluates in it with endowments.
+
+```js
+// In the controlling worker's guest code:
+const child = await E(controller).provideWorker('child');
+const childRoot = await E(child).evaluate(source, ['shared'], [shared]);
+```
+
+`shared` here is an object in the controlling worker's heap; the host
+imports it from that session and re-exports it into the child's — the
+host as pure translation layer, worker to worker.
+
+Durability composes at the export-table layer: the host records which
+worker session each presence was imported from, so a cross-worker
+export is described as `{ kind: 'worker-import', workerName, slot }`
+and re-seated at resume via `captp.provideImport` on the origin
+worker's session — **without waking either worker**. Controller and
+facade objects are themselves described resources. Export seating is
+two-phase at host startup so cross-worker descriptions can name
+runtimes constructed later (including cycles). The test
+(`packages/siesta/test/worker-controller.test.js`) restarts the host
+with both workers asleep and shows one pull on the child's sturdy
+name waking the child, crossing to the parent, and waking it too.
 
 ### Host-provided system resources (Phase 4, landed)
 
@@ -311,11 +398,15 @@ The shape, now implemented: the host exports capability objects into
 the worker session, and — because host exports are *not* inside any
 snapshot — each such export is re-instantiable from a durable
 description.
-That is a formula by another name, but scoped to the host's export
-table only: a small `(slot → { type, description })` map per worker
-(`WorkerMeta.resources`), recorded by the session's `exportHook` the
-moment a resource is exported, hydrated at resume through
-`captp.provideExport`, never visible to guests.
+That is a formula by another name, but — per maintainer direction —
+it lives **at the export-table layer**: the serialized tables record's
+export descriptors carry the durable description
+(`TablesRecord.exports[slot].description`, recorded by the persistent
+tables' `describeExport` power the moment a resource is exported),
+and the tables kit's `restoreExports` rebuilds each described export
+at resume, seated through `captp.provideExport`. One serialized
+artifact — the session tables — carries everything needed to resume
+the host's half. Never visible to guests.
 `makeSiestaHost({ resources })` supplies the maker registry;
 `host.makeResource(type, description)` mints instances; endowments
 reach guests via `worker.evaluate(source, names, values)`.
@@ -381,19 +472,19 @@ until it lands.
    tables, journal, sleepy lifecycle, publications, OCapN daemon
    wrapper, journal-replay engine; end-to-end restart tests over the
    TCP-testing netlayer.
-3. **Phase 3 (host side landed): XS engine.** The host's snapshot
-   lifecycle is complete and proven by `makeSnapshottingReplayEngine`:
-   absolute journal indexing, truncation at every snapshot point,
-   restore from ref plus suffix (including crash recovery), and
-   superseded-ref release.
-   Remaining: the `endor` adapter in § *The XS engine*, currently
-   gated on restoring the xsnap JS-bundle toolchain (see § Status);
-   the exit criterion is the existing siesta test suite passing
-   unmodified on XS incarnations with real snapshots.
-4. **Phase 4 (landed): system resources.** Durable host exports per
-   § *Host-provided system resources*: maker registry, export-time
-   description recording, resume-time re-instantiation via
-   `provideExport`, evaluate endowments, and the timer resource.
+3. **Phase 3 (landed): XS engine.** The host's snapshot lifecycle
+   (absolute journal indexing, truncation at every snapshot point,
+   restore from ref plus suffix including crash recovery,
+   superseded-ref release) proven first on
+   `makeSnapshottingReplayEngine`, then the exit criterion met on real
+   XS snapshots via `rust/siesta-xs-worker` + `makeXsEngine`
+   (§ *The XS engine*). Remaining follow-up: ses lockdown on XS.
+4. **Phase 4 (landed): system resources.** Durable host exports at the
+   export-table layer per § *Host-provided system resources*: maker
+   registry, export-time description recording in the tables record,
+   resume-time re-instantiation via `provideExport`, evaluate
+   endowments, the timer resource, and the worker controller with
+   durable cross-worker links (§ *The worker controller*).
 5. **Phase 5: production transport.** Noise netlayer with persisted
    signing keys, giving stable locations for sturdy refs.
 6. **Phase 6: durable OCapN sessions.** Gated on the OCapN session-model
@@ -428,11 +519,18 @@ until it lands.
 
 ## Known Gaps and TODOs
 
-- [ ] XS engine adapter (Phase 3 remainder), gated on restoring the
-      xsnap JS-bundle toolchain (see § Status).
+- [x] ~~XS engine adapter.~~ Landed as `rust/siesta-xs-worker` +
+      `makeXsEngine` after the rescope onto the `xsnap` crate.
+- [ ] No SES lockdown inside XS workers: the ses shim's
+      `repairIntrinsics` fails on XS, so guests share mutable
+      intrinsics with the shell inside their own machine (isolation is
+      per-machine and per-compartment). Repairing ses-on-XS (or using
+      XS's native lockdown once enabled) is the follow-up.
 - [x] ~~Host exports to workers are not durable.~~ Landed as Phase 4:
-      resource exports are recorded by description and re-instantiated
-      at resume via `captp.provideExport`.
+      export descriptions live in the serialized tables record and are
+      re-instantiated at resume via `captp.provideExport`; cross-worker
+      links are described as `worker-import` and re-seated without
+      waking either worker.
 - [x] ~~Journal growth is unbounded.~~ Landed with the Phase 3 host
       side: snapshots subsume and truncate the journal prefix on every
       sleep (§ *Journal growth and truncation*). Still true on the
