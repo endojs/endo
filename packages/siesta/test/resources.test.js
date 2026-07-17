@@ -2,6 +2,7 @@
 /* global setTimeout */
 import test from '@endo/ses-ava/test.js';
 
+import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/far';
 
@@ -141,6 +142,103 @@ test('worker-to-host requests pending across a host crash reject instead of hang
       String(await E(waiter).getFailure()),
       /host restarted/,
       'the guest promise rejected instead of hanging',
+    );
+    await host.shutdown();
+  }
+});
+
+const WATCHER_SOURCE = `
+(() => {
+  let seen = null;
+  return Far('Watcher', {
+    watch: async () => {
+      const { promise } = await E(deferred).get();
+      promise.then(
+        value => {
+          seen = value;
+        },
+        reason => {
+          seen = 'rejected: ' + String((reason && reason.message) || reason);
+        },
+      );
+      return 'watching';
+    },
+    getSeen: () => seen,
+  });
+})()
+`;
+
+test('a promise resolving while its importer sleeps wakes the worker', async t => {
+  const store = makeMemoryStore();
+  const engine = makeJournalReplayEngine();
+  /** @type {(value: string) => void} */
+  let release = () => {};
+  const resources = {
+    deferred: () =>
+      Far('Deferred', {
+        get: () =>
+          harden({
+            promise: new Promise(resolve => {
+              release = resolve;
+            }),
+          }),
+      }),
+  };
+
+  const host = await makeSiestaHost({ store, engine, resources });
+  const worker = await host.provideWorker('watcher');
+  const deferred = host.makeResource('deferred');
+  const watcher = await worker.evaluate(
+    WATCHER_SOURCE,
+    ['deferred'],
+    [deferred],
+  );
+  t.is(await E(watcher).watch(), 'watching');
+
+  await worker.sleep();
+  t.false(worker.isAwake());
+
+  // Resolving the host-side promise routes a CTP_RESOLVE through the
+  // worker's session, waking it with no other inbound traffic.
+  release('the-value');
+  await tickUntil(() => worker.isAwake());
+  t.is(await E(watcher).getSeen(), 'the-value');
+  await host.shutdown();
+});
+
+test('a promise unresolved across a host restart rejects instead of hanging', async t => {
+  const store = makeMemoryStore();
+  const engine = makeJournalReplayEngine();
+  const resources = {
+    deferred: () =>
+      Far('Deferred', {
+        get: () => harden({ promise: new Promise(() => {}) }),
+      }),
+  };
+
+  {
+    const host = await makeSiestaHost({ store, engine, resources });
+    const worker = await host.provideWorker('watcher');
+    const deferred = host.makeResource('deferred');
+    const watcher = await worker.evaluate(
+      WATCHER_SOURCE,
+      ['deferred'],
+      [deferred],
+    );
+    t.is(await E(watcher).watch(), 'watching');
+    t.is(await E(watcher).getSeen(), null);
+    await worker.publish(watcher, 'watcher-cap');
+    // Crash: the resolution subscription dies with host memory; only
+    // the recorded pending promise export survives.
+  }
+
+  {
+    const host = await makeSiestaHost({ store, engine, resources });
+    const watcher = host.locator.get('watcher-cap');
+    t.regex(
+      String(await E(watcher).getSeen()),
+      /rejected: .*host restarted/,
+      'the sleeping importer observed a rejection, not a hang',
     );
     await host.shutdown();
   }

@@ -291,6 +291,29 @@ export const makeSiestaHost = async ({
         pendingGuestQuestions: [...pendingGuestQuestions],
       });
 
+    /**
+     * Promise slots (ours-perspective) the host has exported into this
+     * worker's session and not yet resolved, mirrored durably in the
+     * worker's meta. The resolution subscription lives only in host
+     * memory, so a host restart makes these unresolvable; the restart
+     * path rejects them so a sleeping importer is not left waiting on a
+     * resolution that can never arrive.
+     *
+     * @type {Set<string>}
+     */
+    const pendingPromiseExports = new Set(
+      workerStore.getMeta().pendingPromiseExports ?? [],
+    );
+    const recordPendingPromiseExports = () =>
+      workerStore.setMeta({
+        ...workerStore.getMeta(),
+        pendingPromiseExports: [...pendingPromiseExports],
+      });
+
+    /** @param {string} slot */
+    const reverseSlot = slot =>
+      `${slot[0]}${slot[1] === '+' ? '-' : '+'}${slot.slice(2)}`;
+
     /** @param {Record<string, unknown>} message */
     const onOutbound = message => {
       if (replaying) {
@@ -425,6 +448,21 @@ export const makeSiestaHost = async ({
           pendingGuestQuestions.delete(message.answerID);
           recordPendingGuestQuestions();
         }
+        if (
+          message.type === 'CTP_RESOLVE' &&
+          typeof message.promiseID === 'string'
+        ) {
+          // The resolution is durably journaled; the promise export is
+          // no longer at risk from a host restart. The wire carries the
+          // worker's perspective; the record keeps ours.
+          const ourSlot = reverseSlot(
+            /** @type {string} */ (message.promiseID),
+          );
+          if (pendingPromiseExports.has(ourSlot)) {
+            pendingPromiseExports.delete(ourSlot);
+            recordPendingPromiseExports();
+          }
+        }
         bumpIdle();
         await /** @type {WorkerIncarnation} */ (incarnation).deliver(message);
       });
@@ -440,6 +478,14 @@ export const makeSiestaHost = async ({
             slot,
             iface: getInterfaceOf(val) || null,
           });
+        }
+      },
+      exportHook: (_val, slot) => {
+        if (slot[0] === 'p') {
+          // A promise export is a resolution obligation held only in
+          // host memory; record it so a restart can reject it.
+          pendingPromiseExports.add(slot);
+          recordPendingPromiseExports();
         }
       },
       onReject: reportError,
@@ -471,9 +517,9 @@ export const makeSiestaHost = async ({
     // promise instead of a hang. The host stays a pure forwarder: it
     // never re-executes a guest's request.
     {
-      const stale = [...pendingGuestQuestions];
-      if (stale.length > 0) {
-        for (const questionID of stale) {
+      const staleQuestions = [...pendingGuestQuestions];
+      if (staleQuestions.length > 0) {
+        for (const questionID of staleQuestions) {
           const reason = harden(
             Error('siesta host restarted; pending request aborted'),
           );
@@ -486,6 +532,24 @@ export const makeSiestaHost = async ({
           pendingGuestQuestions.delete(questionID);
         }
         recordPendingGuestQuestions();
+      }
+      // Likewise for promises the previous host process exported but
+      // never resolved: reject them so a sleeping importer is not left
+      // waiting on a resolution that can never arrive.
+      const stalePromises = [...pendingPromiseExports];
+      if (stalePromises.length > 0) {
+        for (const slot of stalePromises) {
+          const reason = harden(
+            Error('siesta host restarted; pending promise aborted'),
+          );
+          workerStore.appendJournal({
+            type: 'CTP_RESOLVE',
+            promiseID: reverseSlot(slot),
+            rej: captp.serialize(reason),
+          });
+          pendingPromiseExports.delete(slot);
+        }
+        recordPendingPromiseExports();
       }
     }
 

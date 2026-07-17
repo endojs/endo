@@ -161,16 +161,20 @@ Resource results are journaled CapTP replies, so nondeterministic
 resources (clocks) do not break deterministic replay, and a pending
 `timer.delay` wakes a sleeping worker with no inbound traffic.
 
-Resource requests are at-most-once: a worker-to-host request pending
-across a host restart is rejected (a journaled synthetic answer,
-delivered on the next wake without waking anyone for it), never
-re-executed.
+Resource requests and promise resolutions are at-most-once: an
+obligation the host holds only in memory (an answer owed to a guest
+question, a resolution owed on a promise export) is rejected after a
+host restart via a journaled synthetic message — delivered on the next
+wake, waking nobody for it — never re-executed. Within one host
+lifetime, a promise resolving while its importer sleeps wakes the
+worker like any other message.
 
 ## Caveats
 
 This is a prototype.
 See the design document for the full list of open issues, notably:
-promise imports do not survive restarts, XS workers boot without SES
+promises are at-most-once across host restarts (model durable
+obligations as object capabilities), XS workers boot without SES
 lockdown, and OCapN sessions themselves are ephemeral — only sturdy
 refs are durable.
 

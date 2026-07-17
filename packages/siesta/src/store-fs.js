@@ -36,6 +36,10 @@ import { Fail, q } from '@endo/errors';
  *   worker has asked the host that the host has not yet answered; a
  *   restarted host rejects these (at-most-once), since the answering
  *   computation died with the previous host process
+ * @property {Array<string>} [pendingPromiseExports] ours-perspective
+ *   promise slots the host has exported to this worker but not yet
+ *   resolved; a restarted host rejects these (at-most-once), since the
+ *   resolution subscription died with the previous host process
  */
 
 /**

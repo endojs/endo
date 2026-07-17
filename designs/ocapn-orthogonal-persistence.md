@@ -247,7 +247,11 @@ after a host restart the fresh question counter's reuse of old question
 IDs is benign: the worker's stale `answers` entries are simply
 overwritten, and the restarted host — having forgotten those questions —
 can never pipeline to them.
-Promise imports are likewise transient; a promise that must survive
+Promises are transient with **at-most-once** semantics: obligations
+the host holds only in memory (answers owed to guest questions,
+resolutions owed on promise exports) are durably indexed and rejected
+by a restarted host via journaled synthetic messages, so guests see
+broken promises rather than hangs. A promise that must survive
 restarts should be modeled as an object capability.
 
 ### Sturdy refs over OCapN
@@ -427,6 +431,19 @@ guest question IDs durably and a restarted host rejects them with
 journaled synthetic answers (delivered lazily by suffix replay, waking
 nobody). Guests must treat a broken resource promise as "retry or
 give up", exactly as they would a broken remote promise.
+
+Promise **resolutions** get the same treatment. Within one host
+lifetime, a promise resolving while its importer sleeps simply wakes
+the worker — `CTP_RESOLVE` rides the ordinary send path, whether the
+resolver is the host or another worker. Across a host restart, the
+resolution subscription is a host-memory obligation like an answer,
+so the host durably records its unresolved promise exports per worker
+(cleared when the resolving `CTP_RESOLVE` is journaled) and a
+restarted host rejects the stale ones the same lazy, wake-free way.
+Durable promise *links* — where a cross-worker resolution actually
+crosses a host restart instead of aborting — would require persisting
+promise routing between sessions, a natural companion to resource
+vats.
 
 ### Toward resource vats
 
