@@ -422,6 +422,37 @@ nondeterminism does not infect worker determinism.
 Network and storage resources remain future work, as does the
 attenuation story (per-worker scoping of descriptions).
 
+Resource requests are **at-most-once**: the host records outstanding
+guest question IDs durably and a restarted host rejects them with
+journaled synthetic answers (delivered lazily by suffix replay, waking
+nobody). Guests must treat a broken resource promise as "retry or
+give up", exactly as they would a broken remote promise.
+
+### Toward resource vats
+
+Direction, per maintainer guidance: **the host should do nothing but
+forward between guest vats** — no application behavior in the host
+vat. The `resources` registry is the thin boundary stopgap for effects
+that must touch the OS; the endgame is *resource vats*.
+
+The substrate already permits this: a durability regime is an
+**engine** property behind the `WorkerEngine` seam, invisible to the
+host. A device-style vat runs on an engine whose `snapshot()` returns
+the vat's own *manually serialized* state (and whose restore re-arms
+external effects such as OS timers), while ordinary vats stay
+orthogonally persistent on heap snapshots. The worker controller's
+cross-worker durable links (`worker-import` export descriptions) then
+connect ordinary vats to resource vats with no host-side Far objects
+at all; the host remains a translation layer between sessions.
+
+The painful part — acknowledged, and the reason this is future work —
+is the durability-regime seam itself: a manually persistent vat must
+express its obligations (pending timer wakeups, open connections) in
+its serialized state and reconcile them at restore, which is exactly
+the discipline orthogonal persistence exists to spare application
+authors. Keeping that discipline confined to a few resource vats,
+rather than the host or ordinary guests, is the point of the design.
+
 ### Durable OCapN sessions
 
 Today a host restart severs live OCapN sessions; remote peers keep
@@ -535,12 +566,16 @@ until it lands.
       side: snapshots subsume and truncate the journal prefix on every
       sleep (§ *Journal growth and truncation*). Still true on the
       plain journal-replay engine, whose journal *is* the persistence.
-- [ ] A worker-to-host call in flight across a host restart is lost:
-      the host's `answers` bookkeeping is in-memory, so a guest
-      awaiting (say) a pending `timer.delay` across a host crash hangs.
-      Durable resource requests need journaling of worker-to-host
-      messages and re-execution against re-instantiated resources — a
-      deliberate follow-up, not an oversight.
+- [x] ~~A worker-to-host call in flight across a host restart hangs.~~
+      Resolved with **at-most-once abort semantics**, per maintainer
+      direction: the host durably records outstanding guest question
+      IDs (`WorkerMeta.pendingGuestQuestions`) and a restarted host
+      journals synthetic rejection `CTP_RETURN`s for them — appended
+      without waking the worker; the next wake's suffix replay delivers
+      them to the snapshot-preserved settlers, so the guest sees an
+      ordinary broken promise. The host never re-executes a guest's
+      request; re-execution-grade durability belongs in resource vats
+      (§ *Toward resource vats*).
 - [ ] The TCP-testing netlayer mints per-boot locations, so restart
       tests re-derive the location; stable locations arrive with the
       Noise netlayer and persisted keys (Phase 5).

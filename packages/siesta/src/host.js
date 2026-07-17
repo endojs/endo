@@ -274,6 +274,23 @@ export const makeSiestaHost = async ({
     // eslint-disable-next-line no-use-before-define
     const bumpIdle = () => rearmIdleTimer();
 
+    /**
+     * Question IDs the worker has asked the host that the host has not
+     * yet answered, mirrored durably in the worker's meta. The answering
+     * computation lives only in host memory, so a host restart makes
+     * these unanswerable; abortStaleGuestQuestions rejects them.
+     *
+     * @type {Set<string>}
+     */
+    const pendingGuestQuestions = new Set(
+      workerStore.getMeta().pendingGuestQuestions ?? [],
+    );
+    const recordPendingGuestQuestions = () =>
+      workerStore.setMeta({
+        ...workerStore.getMeta(),
+        pendingGuestQuestions: [...pendingGuestQuestions],
+      });
+
     /** @param {Record<string, unknown>} message */
     const onOutbound = message => {
       if (replaying) {
@@ -283,6 +300,13 @@ export const makeSiestaHost = async ({
       }
       if (message.type === 'CTP_RETURN') {
         pendingQuestions -= 1;
+      }
+      if (
+        message.type === 'CTP_CALL' &&
+        typeof message.questionID === 'string'
+      ) {
+        pendingGuestQuestions.add(message.questionID);
+        recordPendingGuestQuestions();
       }
       bumpIdle();
       // eslint-disable-next-line no-use-before-define
@@ -391,6 +415,16 @@ export const makeSiestaHost = async ({
         if (message.type === 'CTP_CALL' || message.type === 'CTP_BOOTSTRAP') {
           pendingQuestions += 1;
         }
+        if (
+          message.type === 'CTP_RETURN' &&
+          typeof message.answerID === 'string' &&
+          pendingGuestQuestions.has(message.answerID)
+        ) {
+          // The answer is durably journaled; the worker's question is no
+          // longer at risk from a host restart.
+          pendingGuestQuestions.delete(message.answerID);
+          recordPendingGuestQuestions();
+        }
         bumpIdle();
         await /** @type {WorkerIncarnation} */ (incarnation).deliver(message);
       });
@@ -427,6 +461,33 @@ export const makeSiestaHost = async ({
         captp.provideExport(slot, val);
       }
     };
+
+    // At-most-once for worker-to-host requests: questions outstanding
+    // when a previous host process died are unanswerable, since the
+    // answering computation lived only in host memory. Reject each with
+    // a journaled synthetic answer, appended WITHOUT waking the worker —
+    // the next wake's suffix replay delivers it to the settler preserved
+    // in the worker's snapshot, so the guest sees an ordinary broken
+    // promise instead of a hang. The host stays a pure forwarder: it
+    // never re-executes a guest's request.
+    {
+      const stale = [...pendingGuestQuestions];
+      if (stale.length > 0) {
+        for (const questionID of stale) {
+          const reason = harden(
+            Error('siesta host restarted; pending request aborted'),
+          );
+          workerStore.appendJournal({
+            type: 'CTP_RETURN',
+            epoch: 0,
+            answerID: questionID,
+            exception: captp.serialize(reason),
+          });
+          pendingGuestQuestions.delete(questionID);
+        }
+        recordPendingGuestQuestions();
+      }
+    }
 
     /** @type {Promise<any> | undefined} */
     let bootFacetP;

@@ -32,6 +32,10 @@ import { Fail, q } from '@endo/errors';
  * @property {string} [bootSlot] import slot of the worker's bootstrap facet
  * @property {string | null} [bootIface]
  * @property {{ ref: unknown, journalLength: number } | null} [snapshot]
+ * @property {Array<string>} [pendingGuestQuestions] question IDs the
+ *   worker has asked the host that the host has not yet answered; a
+ *   restarted host rejects these (at-most-once), since the answering
+ *   computation died with the previous host process
  */
 
 /**

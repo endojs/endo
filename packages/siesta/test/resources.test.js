@@ -3,6 +3,7 @@
 import test from '@endo/ses-ava/test.js';
 
 import { E } from '@endo/eventual-send';
+import { Far } from '@endo/far';
 
 import { makeSiestaHost } from '../src/host.js';
 import {
@@ -92,6 +93,57 @@ test('restart without the resource maker fails loudly', async t => {
   await t.throwsAsync(() => makeSiestaHost({ store, engine }), {
     message: /No resource maker registered for type "timer"/,
   });
+});
+
+test('worker-to-host requests pending across a host crash reject instead of hanging', async t => {
+  const store = makeMemoryStore();
+  const engine = makeJournalReplayEngine();
+  // A host resource whose answer never comes: the guest's promise can
+  // only settle through the at-most-once abort on restart.
+  const resources = {
+    gate: () =>
+      Far('Gate', {
+        wait: async () => new Promise(() => {}),
+      }),
+  };
+
+  {
+    const host = await makeSiestaHost({ store, engine, resources });
+    const worker = await host.provideWorker('waiter');
+    const gate = host.makeResource('gate');
+    const waiter = await worker.evaluate(
+      `
+      (() => {
+        let failure = null;
+        E(gate)
+          .wait()
+          .catch(reason => {
+            failure = String((reason && reason.message) || reason);
+          });
+        return Far('Waiter', {
+          getFailure: () => failure,
+        });
+      })()
+      `,
+      ['gate'],
+      [gate],
+    );
+    t.is(await E(waiter).getFailure(), null, 'the request is outstanding');
+    await worker.publish(waiter, 'waiter-cap');
+    // Crash: drop the host without shutdown. The gate's answer dies
+    // with host memory; only the recorded question ID survives.
+  }
+
+  {
+    const host = await makeSiestaHost({ store, engine, resources });
+    const waiter = host.locator.get('waiter-cap');
+    t.regex(
+      String(await E(waiter).getFailure()),
+      /host restarted/,
+      'the guest promise rejected instead of hanging',
+    );
+    await host.shutdown();
+  }
 });
 
 test('a pending timer wakes a sleeping worker', async t => {
