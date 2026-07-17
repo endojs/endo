@@ -62,12 +62,13 @@ const writeText = async (petNameOrPath, content) => {
 ```
 
 `writeFile` is the byte-stream analog: identical control flow, but its
-content parameter is a **bytes reader** (a `ReadableBlob` / passable
-bytes-reader remotable) rather than a `string`, so binary content of any
+content parameter is a **passable bytes reader** (`PassableBytesReader`,
+the `streamBase64`-bearing remotable returned by
+`bytesReaderFromIterator`) rather than a `string`, so binary content of any
 size streams into the content-address store rather than materializing as
 a JavaScript string. The single-segment branch is byte-for-byte what the
 agent's `storeBlob` already does; the multi-segment branch delegates to
-the tail hub's `writeBytes` (mount) instead of `writeText`.
+the tail hub's `writeFile` instead of `writeText`.
 
 ## Design
 
@@ -76,32 +77,50 @@ the tail hub's `writeBytes` (mount) instead of `writeText`.
 Signature (daemon-internal, over CapTP):
 
 ```
-writeFile(petNameOrPath: string | string[], readable: ReadableBlob): Promise<void>
+writeFile(
+  petNameOrPath: string | string[],
+  readerRef: PassableBytesReader,
+): Promise<void>
 ```
 
 Behavior, mirroring `writeText`:
 
 - **Single-segment name** (`['photo']`): formulate a `readable-blob` from
-  `readable` and bind the pet name via `storeIdentifier(namePath,
+  `readerRef` and bind the pet name via `storeIdentifier(namePath,
   readableBlobId)`. This is exactly the `storeBlob` code path
   (`formulateReadableBlob(readerRef, tasks)` with a deferred
   `storeIdentifier` task); `storeBlob` becomes a thin caller of the same
   primitive rather than a parallel implementation.
 - **Multi-segment path** (`['proj', 'src', 'index.js']`): resolve the
   prefix to the tail name hub with `lookupTailNameHub`, then call
-  `E(hub).writeBytes(name, readable)` (or the mount's binary `write`; see
-  Open questions on the mount method name). When the prefix resolves to a
+  `E(hub).writeFile(name, readerRef)`. When the prefix resolves to a
   **mount**, the bytes land in the mount's confined filesystem, honoring
   its `readOnly` and symlink-confinement guarantees. When the prefix
   resolves to a **nested `EndoDirectory`**, the tail directory's own
   `writeFile` binds a `readable-blob` leaf there.
 
-`readable` is a `ReadableBlob` (any remotable exposing `streamBase64`), so
-the guard is `M.remotable()` and the content streams rather than buffering
-into a passable string. This is the same object type the CLI already
-builds with `bytesReaderFromIterator(makeNodeReader(...))` for `storeBlob`.
+`readerRef` is a `PassableBytesReader` (a remotable exposing
+`streamBase64`), so the guard is `M.remotable()` and the content streams
+rather than buffering into a passable string. This is the same object type
+the CLI already builds with `bytesReaderFromIterator(makeNodeReader(...))`
+for `storeBlob`.
 
-### 2. `endo store` drives `writeFile`
+### 2. Mounts carry the same named byte-write surface
+
+`EndoMount` currently has the generic `write(path, value)` method, which
+accepts both readable blobs and readable trees. Its `writeBytes` method is
+on `EndoMountFile`, not on `EndoMount`, so calling `writeBytes` on a tail
+name hub would not work. Add `writeFile(path, readerRef)` to `EndoMount` as
+the byte-only facade over `write(path, readerRef)`. It retains the same
+streaming, scratch-then-rename, `assertWritable`, parent-creation, and
+confinement behavior as `write`.
+
+That alias is what makes `writeFile` a uniform tail-hub operation: ordinary
+directories recursively call their own method, and mounts use their named
+byte-write facade. The generic mount `write` remains available for its
+distinct readable-tree operation.
+
+### 3. `endo store` drives `writeFile`
 
 `packages/cli/src/commands/store.js` today routes its **blob** modes
 (`--path`, `--stdin`) to `E(agent).storeBlob(readerRef, parsedName)`.
@@ -130,7 +149,7 @@ value rather than writing file bytes; those are a different axis and are
 out of scope here (see the `cli-store-verb-text-modes` design, which names
 the same blob-vs-value distinction).
 
-### 3. Touchpoints (the `writeText` mirror set)
+### 4. Touchpoints (the `writeText` mirror set)
 
 Adding `writeFile` mirrors every place `writeText` is wired, so the diff
 is mechanical and its completeness is checkable by grepping for
@@ -140,10 +159,12 @@ is mechanical and its completeness is checkable by grepping for
 flowchart LR
   guard["interfaces.js<br/>directoryFileMethodGuards<br/>(add writeFile guard)"]
   dir["directory.js<br/>makeDirectoryNode +<br/>makeIdentifiedDirectory exo"]
+  mount["mount.js / interfaces.js<br/>writeFile facade over write"]
   agent["host.js / guest.js<br/>agent exo delegation<br/>(directoryWriteFile)"]
   ro["daemon.js<br/>read-only mirrors<br/>disallowedMutation"]
   cli["cli/commands/store.js<br/>blob modes -> writeFile"]
   guard --> dir --> agent --> ro
+  mount --> dir
   dir --> cli
 ```
 
@@ -155,6 +176,11 @@ flowchart LR
   `makeIdentifiedDirectory` exo record (alongside `writeText`). Refactor
   the shared single-segment blob-write into one helper that both
   `writeFile` and the agents' `storeBlob` call.
+- **`packages/daemon/src/mount.js` / `interfaces.js`**: add
+  `EndoMount.writeFile(path, readerRef)` as the byte-only facade over
+  `write(path, readerRef)`, with the same `M.remotable()` guard. This is
+  separate from `EndoMountFile.writeBytes(readerRef)`, which writes a file
+  handle that has already been looked up.
 - **`packages/daemon/src/host.js` / `guest.js`**: expose `writeFile` on the
   agent exos via the same delegation as `writeText: directoryWriteText`
   (add `writeFile: directoryWriteFile`), and add the `writeFile` guard to
@@ -166,7 +192,7 @@ flowchart LR
 - **`packages/daemon/src/help-text-data.js`**: add help text for
   `writeFile` (and regenerate `help.md`).
 - **`packages/daemon/src/types.d.ts`**: add `writeFile(petNamePath: string
-  | string[], readable: ReadableBlob): Promise<void>` to the
+  | string[], readerRef: ERef<PassableBytesReader>): Promise<void>` to the
   `EndoDirectory` (and agent) interfaces.
 
 ## Behavior and error cases
@@ -220,7 +246,7 @@ flowchart LR
 
 | Design | Relationship |
 |---|---|
-| [daemon-mount](daemon-mount.md) | Provides the mount exo whose `write` / `writeBytes` the multi-segment branch delegates to; PR #658 (Phase 6) is the precipitating change. |
+| [daemon-mount](daemon-mount.md) | Provides the mount exo whose new `writeFile` facade delegates to its existing generic `write`; PR #658 (Phase 6) is the precipitating change. |
 | [cli-store-verb-text-modes](cli-store-verb-text-modes.md) | Names the same blob-vs-value axis; the reshaped `--blob` source mode is the CLI surface that would drive `writeFile`. Align the two before CLI-flag changes land. |
 | [daemon-content-store-gc](daemon-content-store-gc.md) | Governs GC of the superseded blob when a single-segment name is rewritten. |
 
@@ -236,6 +262,10 @@ flowchart LR
   `packages/cli/test/mount-path-cli.test.js`), assert that a multi-segment
   `writeFile` through a mounted directory lands bytes on the backing
   filesystem and that a read-only mount rejects with no file created.
+- **Unit (nested directory delegation).** Create a nested ordinary
+  `EndoDirectory`, write a binary bytes reader through a multi-segment
+  path, and read the resulting `readable-blob` back. This proves the
+  tail-hub recursion does not assume that every tail is a mount.
 - **CLI end-to-end.** Spin up an isolated daemon; assert `endo store
   --path <bin> --name x` then `endo cat x` round-trips bytes, and that
   `endo store --stdin --name <mount>/sub/file` writes into the mount
@@ -247,12 +277,6 @@ flowchart LR
 
 ## Open questions
 
-- Method name: `writeFile` (as the directive states) versus `writeBytes`
-  for symmetry with the existing text method `writeText` and with the
-  mount-file exo's own `writeText` / `writeBytes` pair. Should the pair be
-  `writeText` / `writeFile` or `writeText` / `writeBytes`? The directive
-  says `writeFile`; confirm the daemon-internal spelling given the existing
-  `writeBytes` precedent on `EndoMountFile`.
 - Should the agent-level `storeBlob` be **deprecated** in favor of
   `writeFile`, or retained indefinitely as an alias? If deprecated, over
   what window, and does the CLI keep any `storeBlob` caller?
