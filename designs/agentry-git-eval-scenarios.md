@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-07-08 |
-| **Updated** | 2026-07-09 |
+| **Updated** | 2026-07-17 |
 | **Author** | 0xpatrickdev (prompted) |
 | **Status** | Not Started |
 
@@ -98,42 +98,84 @@ The repository already has pieces of the right convention:
 | Surface | Today | Gap |
 |---|---|---|
 | JSON-tool `mountReadText` | Truncates at a configurable `maxChars` and appends an explicit truncation marker. | The convention exists in one tool only. |
-| `OpenFile.read(offset, length)` | Byte-ranged. | Line-blind, and no end-of-file or truncation signal. |
+| `OpenFile.read(offset, length)` | Byte-ranged low-level open-file read | Line-blind, with no end-of-file or truncation signal; separate from the public `ReadableBlob` methods below. |
 | `Cursor.read(limit)` | Returns `{ entries, atEnd }`. | Right result shape, directory listings only. |
 | `git.log(options)` | Bounds by `maxCount`. | Bounds row count, not output size. |
 | `git.diff()`, `git.show()`, `stashShow()` | Unbounded strings. | No bounding option at all. |
 
-The anticipated direction, for the companion tools and API designs rather than
-this eval design, is a shared line-window option bag on every string-returning
-text read across the fs and git surfaces:
+The concrete filesystem/blob realization of this sed-like affordance is the
+range-read surface described in
+[platform-range-and-tree-reads.md](platform-range-and-tree-reads.md).
+The corrected public declarations in PR
+[#766](https://github.com/endojs/endo-but-for-bots/pull/766) separate the base
+`ReadableBlob` from the richer range surfaces, so this section uses the
+following contract rather than presenting ReadableBlob reads as an entirely
+separate, not-yet-designed companion API:
 
-- Workspace file reads and git text reads (`diff`, `show`, `log`, `stashShow`)
-  accept a common `{ offset, limit }` bounding shape, defaulting to a bounded
-  window and following the `mountReadText` truncation convention rather than
-  inventing a per-method idiom.
-- For text reads, `offset` is the starting line, preferably 1-based to match
-  editor and search output.
-  An absent `offset` means line 1.
-  `limit` is the maximum number of lines returned.
-  An absent `limit` means the surface's default bounded window.
-- The same shape covers the recovered use cases: first windows are just
-  `{ limit }`; mid-file windows use the line number from search output as
-  `offset`; capped git text output addresses the rendered text.
-  A named head-line count is only the absence of `offset` plus a `limit`, and
-  explicit start/end ranges lower cleanly to `offset` plus a computed `limit`.
-- Every bounded result reports continuation state: an explicit truncation
-  marker or a structured `{ text, truncated, nextOffset }`-shaped result, so
-  the agent knows to request the next window instead of trusting a silent
-  slice.
-- Implementations may also consider an optional character guardrail for very
-  long lines or rendered outputs, but that is a secondary safety cap rather
-  than the main addressing API.
-- A line-numbered search affordance (`rg -n`-like) is the natural companion —
-  ranged reads need targets — but is a separate tool design.
+### `ReadableBlob` byte and line windows
 
-For `git diff`, `git show`, `git log`, `stashShow`, and similar git text
-outputs, `{ offset, limit }` addresses the rendered text output unless a future
-structured API chooses a richer object model.
+- `fetch(offset, length) → Promise<PassableBytesReader>` is the streaming
+  byte-range primitive.
+  It streams only the selected byte window
+  `[offset, offset + length)`, rather than materializing that window as a
+  `Uint8Array` or streaming the whole blob.
+  Both arguments are non-negative
+  `bigint` values.
+  A valid window clamps at EOF, including an empty result for
+  a window beginning at or beyond EOF; invalid negative or non-safe values
+  reject with `EINVAL`.
+- `rangeRead(offset, length) → Promise<Uint8Array>` is the whole-value byte
+  window convenience.
+  It uses the same non-negative `bigint` byte offsets as
+  `fetch`, returns the selected bytes in one materialized array, and applies
+  the same EOF clamping and invalid-domain behavior. “Whole-value” means the
+  selected window is returned as one value, not that the entire blob is read.
+- `rangeReadText(startLine, endLine) → Promise<string>` is the whole-value
+  line window convenience.
+  It decodes the blob as UTF-8 and returns lines
+  `[startLine, endLine)`, with 0-based, end-exclusive line indices, joined by
+  `\n`.
+  A past-the-end `endLine` clamps to the end, an empty or inverted
+  range returns `''`, and a range wholly past the end also returns `''`.
+  Negative or non-integer line indices reject with `EINVAL`; a trailing
+  newline contributes a final empty line, and `\r` is preserved.
+
+The byte methods and the line method deliberately have different addressing
+domains: byte windows use `bigint` offsets because blobs may exceed
+`Number.MAX_SAFE_INTEGER`, while line indices are ordinary JavaScript
+`number` counts.
+The blob methods return the selected bytes or text directly;
+they do not add a truncation marker or `{ truncated, nextOffset }` metadata.
+
+This does not make `{ offset, limit }` the ReadableBlob method signature.
+That vocabulary remains useful for a higher-level tool or rendered-text API
+when it needs a line window:
+
+- `offset` denotes a line position (the existing proposal uses 1-based line
+  positions, with an omitted value meaning the first line), and `limit` is a
+  maximum line count.
+- When such an API is backed by a `ReadableBlob`, it can translate that
+  vocabulary to `rangeReadText` by converting the line origin and computing an
+  exclusive end line.
+  It must not pass those values to `fetch` or `rangeRead`,
+  whose offsets and lengths are byte-oriented `bigint`s.
+- A higher-level tool may choose a truncation marker, continuation metadata, or
+  a character guardrail.
+  Those are tool/rendering policies, not properties of
+  the blob methods.
+
+The remaining Git text surfaces are intentionally separate follow-ups.
+The rendered outputs of `git.diff()`, `git.show()`, `git.log()`, and `stashShow()`
+remain unbounded here; a future tool or Git API design must decide how its
+line-window vocabulary and continuation result apply to those strings.
+The platform design also leaves propagation of `rangeRead` and `rangeReadText` to
+the remote daemon, Git, and mount blob exos as a follow-up.
+This design does
+not implement either follow-up or runtime/declaration changes beyond recording
+the contract above.
+
+A line-numbered search affordance (`rg -n`-like) remains the natural companion:
+ranged reads need targets, but search is a separate tool design.
 
 These are inspection affordances, not scored behavior. Both scenarios below
 stay buildable and scorable without them, and the scorer remains indifferent
@@ -350,9 +392,12 @@ Keep the scenario set small:
 
 ## Open Questions
 
-- Which surfaces adopt the shared `{ offset, limit }` bounded-read convention,
-  what exact result metadata do they return, and is an optional character
-  guardrail needed?
+- Which higher-level tool and rendered Git text APIs adopt `{ offset, limit }`,
+  what exact continuation metadata do they return, and is an optional
+  character guardrail needed?
+- When should the remote daemon, Git, and mount blob exos adopt
+  `rangeRead`/`rangeReadText`, and what feature-detection or interface rollout
+  contract should accompany that propagation?
 
 ## Prompt
 
@@ -378,3 +423,13 @@ Revision 2026-07-09:
 > rows; align `stack-surgery` with `agentry-git-verb-gaps` and its no-reset
 > branch-at-parent route; and name adjacent eval lanes left outside this
 > harness.
+
+Revision 2026-07-17:
+
+> Reconcile issue #753 item 2 with `platform-range-and-tree-reads.md` and the
+> corrected ReadableBlob declarations in PR #766: document streaming `fetch`,
+> whole-value bigint byte `rangeRead`, and 0-based end-exclusive line
+> `rangeReadText` as the filesystem/blob realization of sed-like bounded
+> reads; retain `{ offset, limit }` only for higher-level line-window APIs;
+> and keep rendered Git output bounds and remote daemon/Git/mount propagation
+> as explicit follow-ups.
