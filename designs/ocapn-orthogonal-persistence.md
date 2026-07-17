@@ -501,6 +501,52 @@ the discipline orthogonal persistence exists to spare application
 authors. Keeping that discipline confined to a few resource vats,
 rather than the host or ordinary guests, is the point of the design.
 
+### A non-reifying host (comms-vat analysis)
+
+In Agoric liveslots terminology, the host today plays *liveslots*, not
+*comms*: worker exports become host-side presences and handled
+promises, and a cross-worker message pays two marshal round-trips plus
+presence allocation. A comms-vat-style host would keep only c-lists
+(slot-to-slot translation tables) and forward messages by rewriting
+their slots arrays, never reifying values or interpreting bodies.
+
+Cost-benefit, per maintainer request:
+
+- **What reification costs**: double marshal per hop; a pinned
+  presence per imported object per session (host heap grows with the
+  union of live worker graphs); the entire
+  `provideImport`/`provideExport`/origins/re-subscription machinery,
+  which is the reified simulation of a c-list; and marshal-decoding
+  attacker-shaped capdata inside the trusted host.
+- **What it buys**: the prototype's existence — E/captp/marshal
+  provide routing, pipelining, and promise plumbing for free, versus
+  the comms vat's notorious complexity (promise retirement, c-list GC,
+  resolution races). And the host's edges still need real values: the
+  OCapN locator, the resource registry, the controller facets, the
+  embedder API. Resource vats remove most of that need; the OCapN edge
+  crosses codecs, so bodies must be re-encoded there regardless.
+- **Transparency of a later switch**: workers cannot observe whether
+  the host reifies — same messages, same slots. The migration hazard
+  is slot-binding continuity with existing snapshots, and the
+  persisted tables record *is already a c-list serialization*: a
+  quiescent-restart migration adopts it as the routing table
+  (questions and answers are transient at quiescence). This is the
+  payoff of keeping durability at the export-table layer. The
+  invariant to preserve: durable semantics must never depend on
+  host-side object identity beyond what the tables encode.
+
+**Verdict**: not worth it on the current map — at prototype scale the
+dominant term is comms-vat complexity risk, not marshal overhead.
+Crossover comes with high-volume worker-to-worker traffic, large live
+graphs, TCB minimization, and especially Phase 6: durable OCapN
+sessions want persisted session tables anyway, where "persist c-lists
+and route" decisively beats "persist tables and resurrect presences."
+Sequencing: resource vats first (removing the host's need for
+values), then the non-reifying core with or after Phase 6.
+Worker-to-worker slot forwarding could land alone as an incremental
+step, since both sides share the captp wire format and need no codec
+translation.
+
 ### Durable OCapN sessions
 
 Today a host restart severs live OCapN sessions; remote peers keep
