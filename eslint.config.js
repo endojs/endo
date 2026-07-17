@@ -1,4 +1,5 @@
 // @ts-check
+import { OptionDefaults } from 'typedoc';
 import { configs as endoConfigs, hardenedGlobals } from '@endo/eslint-plugin';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
@@ -97,6 +98,25 @@ export default defineConfig(
       'no-useless-assignment': 'off',
       'no-restricted-globals': 'off',
       '@endo/no-polymorphic-call': 'off',
+    },
+  },
+
+  // allow any tag supported by TypeDoc
+  {
+    files: ['packages/**'],
+    rules: {
+      'jsdoc/check-tag-names': [
+        'error',
+        {
+          // these tags from TypeDoc all begin with @ which the eslint plugin
+          // doesn't expect
+          definedTags: [
+            ...OptionDefaults.blockTags,
+            ...OptionDefaults.modifierTags,
+          ].map(tag => tag.slice(1)),
+          inlineTags: OptionDefaults.inlineTags.map(tag => tag.slice(1)),
+        },
+      ],
     },
   },
 
