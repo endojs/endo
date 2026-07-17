@@ -107,12 +107,7 @@ extern "C" {
     pub fn fxEndHost(the: *mut XsMachine);
 
     // Stack overflow check
-    pub fn fxOverflow(
-        the: *mut XsMachine,
-        count: c_int,
-        file: *const c_char,
-        line: c_int,
-    );
+    pub fn fxOverflow(the: *mut XsMachine, count: c_int, file: *const c_char, line: c_int);
 
     // Type inspection
     pub fn fxTypeOf(the: *mut XsMachine, slot: *mut XsSlot) -> i8;
@@ -124,11 +119,7 @@ extern "C" {
     pub fn fxBoolean(the: *mut XsMachine, slot: *mut XsSlot, value: i32);
     pub fn fxInteger(the: *mut XsMachine, slot: *mut XsSlot, value: i32);
     pub fn fxNumber(the: *mut XsMachine, slot: *mut XsSlot, value: f64);
-    pub fn fxString(
-        the: *mut XsMachine,
-        slot: *mut XsSlot,
-        value: *const c_char,
-    ) -> *mut c_char;
+    pub fn fxString(the: *mut XsMachine, slot: *mut XsSlot, value: *const c_char) -> *mut c_char;
     pub fn fxStringBuffer(
         the: *mut XsMachine,
         slot: *mut XsSlot,
@@ -147,10 +138,7 @@ extern "C" {
     pub fn fxToBoolean(the: *mut XsMachine, slot: *mut XsSlot) -> i32;
     pub fn fxToInteger(the: *mut XsMachine, slot: *mut XsSlot) -> i32;
     pub fn fxToNumber(the: *mut XsMachine, slot: *mut XsSlot) -> f64;
-    pub fn fxToString(
-        the: *mut XsMachine,
-        slot: *mut XsSlot,
-    ) -> *mut c_char;
+    pub fn fxToString(the: *mut XsMachine, slot: *mut XsSlot) -> *mut c_char;
 
     // ArrayBuffer access
     pub fn fxGetArrayBufferData(
@@ -160,10 +148,7 @@ extern "C" {
         buffer: *mut c_void,
         size: i32,
     );
-    pub fn fxGetArrayBufferLength(
-        the: *mut XsMachine,
-        slot: *mut XsSlot,
-    ) -> i32;
+    pub fn fxGetArrayBufferLength(the: *mut XsMachine, slot: *mut XsSlot) -> i32;
     pub fn fxSetArrayBufferData(
         the: *mut XsMachine,
         slot: *mut XsSlot,
@@ -171,11 +156,7 @@ extern "C" {
         buffer: *mut c_void,
         size: i32,
     );
-    pub fn fxSetArrayBufferLength(
-        the: *mut XsMachine,
-        slot: *mut XsSlot,
-        length: i32,
-    );
+    pub fn fxSetArrayBufferLength(the: *mut XsMachine, slot: *mut XsSlot, length: i32);
 
     // Property access (ID-based)
     // These operate on the top of the stack (TOS):
@@ -186,12 +167,7 @@ extern "C" {
     pub fn fxGetID(the: *mut XsMachine, id: i32);
     pub fn fxSetID(the: *mut XsMachine, id: i32);
     pub fn fxDeleteID(the: *mut XsMachine, id: i32);
-    pub fn fxDefineID(
-        the: *mut XsMachine,
-        id: i32,
-        flag: u8,
-        mask: u8,
-    );
+    pub fn fxDefineID(the: *mut XsMachine, id: i32, flag: u8, mask: u8);
 
     // Property access (index-based)
     pub fn fxHasIndex(the: *mut XsMachine, index: u32) -> i32;
@@ -218,15 +194,8 @@ extern "C" {
         the: *mut XsMachine,
         destructor: Option<unsafe extern "C" fn(*mut c_void)>,
     );
-    pub fn fxGetHostData(
-        the: *mut XsMachine,
-        slot: *mut XsSlot,
-    ) -> *mut c_void;
-    pub fn fxSetHostData(
-        the: *mut XsMachine,
-        slot: *mut XsSlot,
-        data: *mut c_void,
-    );
+    pub fn fxGetHostData(the: *mut XsMachine, slot: *mut XsSlot) -> *mut c_void;
+    pub fn fxSetHostData(the: *mut XsMachine, slot: *mut XsSlot, data: *mut c_void);
 
     // Call/construct
     pub fn fxCall(the: *mut XsMachine);
@@ -268,16 +237,14 @@ extern "C" {
     /// Returns 0 on success, or the XS abort status on abort.
     pub fn fxRunPromiseJobsMetered(the: *mut XsMachine) -> c_int;
 
-    // Lockdown host functions (registered during machine creation
-    // when mxLockdown is defined).  Must be in the snapshot
-    // callback table.
+    // Lockdown host functions (compiled in when mxLockdown is
+    // defined; a runner that installs them as globals must include
+    // them in the snapshot callback table).
     pub fn fx_harden(the: *mut XsMachine);
+    pub fn fx_lockdown(the: *mut XsMachine);
 
     // Snapshots
-    pub fn fxWriteSnapshot(
-        the: *mut XsMachine,
-        snapshot: *mut XsSnapshot,
-    ) -> c_int;
+    pub fn fxWriteSnapshot(the: *mut XsMachine, snapshot: *mut XsSnapshot) -> c_int;
     pub fn fxReadSnapshot(
         snapshot: *mut XsSnapshot,
         name: *const c_char,

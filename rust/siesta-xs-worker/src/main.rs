@@ -35,8 +35,9 @@ use xsnap::worker_io::arg_str;
 use xsnap::{ensure_shared_cluster, Machine, MANAGER_CREATION};
 
 /// Tag validating that a snapshot was produced by a compatible
-/// siesta-xs-worker (host-callback table layout: [siestaSend]).
-const SNAPSHOT_SIGNATURE: &[u8] = b"siesta-xs 2";
+/// siesta-xs-worker (host-callback table layout:
+/// [siestaSend, siestaTrace, harden, lockdown]).
+const SNAPSHOT_SIGNATURE: &[u8] = b"siesta-xs 3";
 
 thread_local! {
     static OUTBOUND: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
@@ -56,7 +57,12 @@ unsafe extern "C" fn host_siesta_trace(the: *mut XsMachine) {
 }
 
 fn snapshot_callbacks() -> Vec<xsnap::ffi::XsCallback> {
-    vec![host_siesta_send, host_siesta_trace]
+    vec![
+        host_siesta_send,
+        host_siesta_trace,
+        xsnap::ffi::fx_harden,
+        xsnap::ffi::fx_lockdown,
+    ]
 }
 
 #[derive(Deserialize)]
@@ -145,8 +151,13 @@ fn make_fresh_machine(args: &Args) -> Machine {
         .unwrap_or_else(|| fatal("could not allocate XS machine"));
     machine.define_function("siestaSend", host_siesta_send, 1);
     machine.define_function("siestaTrace", host_siesta_trace, 1);
+    // XS implements Hardened JavaScript natively (mxLockdown): expose
+    // the engine's own harden and lockdown to the boot script, exactly
+    // as xst does. The boot script calls lockdown() after polyfills.
+    machine.define_function("harden", xsnap::ffi::fx_harden, 1);
+    machine.define_function("lockdown", xsnap::ffi::fx_lockdown, 0);
     // The boot file owns everything pre-bundle: any pre-lockdown
-    // polyfills, the SES shim, and the lockdown call.
+    // polyfills and the lockdown call.
     eval_script(&machine, &read_file(&args.boot), "ses-boot");
     machine.quiesce();
     eval_script(&machine, &read_file(&args.bundle), "worker-bundle");

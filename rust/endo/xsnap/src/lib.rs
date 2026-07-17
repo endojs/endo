@@ -163,11 +163,7 @@ impl Machine {
             fxCallID(the, eval_id);
 
             // Push the source string as the argument
-            fxString(
-                the,
-                &mut (*the).scratch,
-                c_source.as_ptr(),
-            );
+            fxString(the, &mut (*the).scratch, c_source.as_ptr());
             fx_push(the, (*the).scratch);
 
             // Execute with 1 argument
@@ -215,12 +211,7 @@ impl Machine {
     ///
     /// The callback receives `the: *mut XsMachine` and can access
     /// arguments via the XS stack (frame[-2 - index]).
-    pub fn define_function(
-        &self,
-        name: &str,
-        callback: XsCallback,
-        length: i32,
-    ) {
+    pub fn define_function(&self, name: &str, callback: XsCallback, length: i32) {
         // Track for snapshot callback table (dedup by pointer).
         {
             let mut cbs = self.registered_callbacks.borrow_mut();
@@ -430,9 +421,7 @@ impl Machine {
             slot_size: 0,
             slots: ptr::null_mut(),
         };
-        let raw = unsafe {
-            ffi::fxReadSnapshot(&mut snapshot, c_name.as_ptr(), ptr::null_mut())
-        };
+        let raw = unsafe { ffi::fxReadSnapshot(&mut snapshot, c_name.as_ptr(), ptr::null_mut()) };
         if raw.is_null() {
             Err(SnapshotError::Read(snapshot.error))
         } else {
@@ -461,17 +450,9 @@ impl Machine {
     ///
     /// Convenience wrapper around `from_snapshot` that unpacks the
     /// suspend data.
-    pub fn resume(
-        data: &SuspendData,
-        name: &str,
-    ) -> Result<Machine, SnapshotError> {
+    pub fn resume(data: &SuspendData, name: &str) -> Result<Machine, SnapshotError> {
         let mut cbs = data.callbacks.clone();
-        Machine::from_snapshot(
-            &data.snapshot,
-            name,
-            &data.signature,
-            &mut cbs,
-        )
+        Machine::from_snapshot(&data.snapshot, name, &data.signature, &mut cbs)
     }
 }
 
@@ -549,22 +530,14 @@ struct MemReadStream<'a> {
     pos: usize,
 }
 
-unsafe extern "C" fn mem_write(
-    stream: *mut c_void,
-    ptr: *mut c_void,
-    size: usize,
-) -> c_int {
+unsafe extern "C" fn mem_write(stream: *mut c_void, ptr: *mut c_void, size: usize) -> c_int {
     let s = &mut *(stream as *mut MemWriteStream);
     let bytes = std::slice::from_raw_parts(ptr as *const u8, size);
     s.data.extend_from_slice(bytes);
     0
 }
 
-unsafe extern "C" fn mem_read(
-    stream: *mut c_void,
-    ptr: *mut c_void,
-    size: usize,
-) -> c_int {
+unsafe extern "C" fn mem_read(stream: *mut c_void, ptr: *mut c_void, size: usize) -> c_int {
     let s = &mut *(stream as *mut MemReadStream);
     if s.pos + size > s.data.len() {
         return 1; // error: not enough data
@@ -596,11 +569,7 @@ struct FileReadStream {
     file: std::fs::File,
 }
 
-unsafe extern "C" fn file_write(
-    stream: *mut c_void,
-    ptr: *mut c_void,
-    size: usize,
-) -> c_int {
+unsafe extern "C" fn file_write(stream: *mut c_void, ptr: *mut c_void, size: usize) -> c_int {
     let s = &mut *(stream as *mut FileWriteStream);
     if s.err.is_some() {
         return 1;
@@ -616,11 +585,7 @@ unsafe extern "C" fn file_write(
     }
 }
 
-unsafe extern "C" fn file_read(
-    stream: *mut c_void,
-    ptr: *mut c_void,
-    size: usize,
-) -> c_int {
+unsafe extern "C" fn file_read(stream: *mut c_void, ptr: *mut c_void, size: usize) -> c_int {
     use std::io::Read;
     let s = &mut *(stream as *mut FileReadStream);
     let dst = std::slice::from_raw_parts_mut(ptr as *mut u8, size);
@@ -708,9 +673,7 @@ impl Machine {
             slot_size: 0,
             slots: ptr::null_mut(),
         };
-        let raw = unsafe {
-            ffi::fxReadSnapshot(&mut snapshot, c_name.as_ptr(), ptr::null_mut())
-        };
+        let raw = unsafe { ffi::fxReadSnapshot(&mut snapshot, c_name.as_ptr(), ptr::null_mut()) };
         if raw.is_null() {
             Err(SnapshotError::Read(snapshot.error))
         } else {
@@ -736,13 +699,8 @@ impl Machine {
         // directory interleave writes and corrupt each other.
         static TMP_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let seq = TMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let tmp_path = cas_dir.join(format!(
-            ".snapshot.{}.{}.tmp",
-            std::process::id(),
-            seq
-        ));
-        let file = std::fs::File::create(&tmp_path)
-            .map_err(SnapshotError::Io)?;
+        let tmp_path = cas_dir.join(format!(".snapshot.{}.{}.tmp", std::process::id(), seq));
+        let file = std::fs::File::create(&tmp_path).map_err(SnapshotError::Io)?;
         let mut cbs = self.registered_callbacks.borrow().clone();
         let hash = match self.write_snapshot_to_file(signature, &mut cbs, file) {
             Ok(hash) => hash,
@@ -771,11 +729,7 @@ impl Machine {
 }
 
 /// Convert an XS slot to a Rust JsValue based on its type tag.
-unsafe fn slot_to_value(
-    the: *mut XsMachine,
-    slot: *mut XsSlot,
-    ty: i8,
-) -> JsValue {
+unsafe fn slot_to_value(the: *mut XsMachine, slot: *mut XsSlot, ty: i8) -> JsValue {
     match ty {
         XS_UNDEFINED_TYPE => JsValue::Undefined,
         XS_NULL_TYPE => JsValue::Null,
@@ -1155,10 +1109,7 @@ fn bootstrap_ses(machine: &Machine, label: &str) {
 /// Returns the raw pointer for later cleanup.
 fn register_host_powers(machine: &Machine) -> *mut powers::HostPowers {
     let mut host_powers = powers::HostPowers::new();
-    if let Ok(root) = cap_std::fs::Dir::open_ambient_dir(
-        "/",
-        cap_std::ambient_authority(),
-    ) {
+    if let Ok(root) = cap_std::fs::Dir::open_ambient_dir("/", cap_std::ambient_authority()) {
         host_powers.add_dir("root", root);
     }
     let powers_ptr = Box::into_raw(Box::new(host_powers));
@@ -1192,10 +1143,7 @@ thread_local! {
 ///
 /// # Safety
 /// Called from C during XS bytecode execution.
-unsafe extern "C" fn metering_callback(
-    _the: *mut ffi::XsMachine,
-    index: u64,
-) -> i32 {
+unsafe extern "C" fn metering_callback(_the: *mut ffi::XsMachine, index: u64) -> i32 {
     CRANK_LIMIT.with(|limit| {
         let lim = limit.get();
         if lim > 0 && index > lim {
@@ -1328,21 +1276,29 @@ fn cbor_read_uint(data: &[u8], pos: usize) -> Option<(u64, usize)> {
     match additional {
         0..=23 => Some((additional as u64, pos + 1)),
         24 => {
-            if pos + 2 > data.len() { return None; }
+            if pos + 2 > data.len() {
+                return None;
+            }
             Some((data[pos + 1] as u64, pos + 2))
         }
         25 => {
-            if pos + 3 > data.len() { return None; }
+            if pos + 3 > data.len() {
+                return None;
+            }
             let v = u16::from_be_bytes([data[pos + 1], data[pos + 2]]);
             Some((v as u64, pos + 3))
         }
         26 => {
-            if pos + 5 > data.len() { return None; }
+            if pos + 5 > data.len() {
+                return None;
+            }
             let v = u32::from_be_bytes(data[pos + 1..pos + 5].try_into().ok()?);
             Some((v as u64, pos + 5))
         }
         27 => {
-            if pos + 9 > data.len() { return None; }
+            if pos + 9 > data.len() {
+                return None;
+            }
             let v = u64::from_be_bytes(data[pos + 1..pos + 9].try_into().ok()?);
             Some((v as u64, pos + 9))
         }
@@ -1357,16 +1313,22 @@ fn cbor_read_length(data: &[u8], pos: usize) -> Option<(usize, usize)> {
     match additional {
         0..=23 => Some((additional as usize, pos + 1)),
         24 => {
-            if pos + 2 > data.len() { return None; }
+            if pos + 2 > data.len() {
+                return None;
+            }
             Some((data[pos + 1] as usize, pos + 2))
         }
         25 => {
-            if pos + 3 > data.len() { return None; }
+            if pos + 3 > data.len() {
+                return None;
+            }
             let v = u16::from_be_bytes([data[pos + 1], data[pos + 2]]);
             Some((v as usize, pos + 3))
         }
         26 => {
-            if pos + 5 > data.len() { return None; }
+            if pos + 5 > data.len() {
+                return None;
+            }
             let v = u32::from_be_bytes(data[pos + 1..pos + 5].try_into().ok()?);
             Some((v as usize, pos + 5))
         }
@@ -1464,7 +1426,8 @@ pub fn run_xs_program(
     //    sendRawFrame/trace/etc. resolve; in standalone mode, only
     //    trace is exercised).
     if let Some(mut t) = transport {
-        let init_result = t.init_handshake()
+        let init_result = t
+            .init_handshake()
             .map_err(|e| XsnapError::Io(format!("init handshake failed: {e}")))?;
         if let worker_io::InitResult::Restore(_, path_bytes) = init_result {
             let path_str = String::from_utf8(path_bytes)
@@ -1482,12 +1445,8 @@ pub fn run_xs_program(
         let file = std::fs::File::open(snap_path)
             .map_err(|e| XsnapError::Io(format!("open snapshot: {e}")))?;
         let mut callbacks = worker_snapshot_callbacks();
-        let m = Machine::from_snapshot_file(
-            file,
-            label,
-            SNAPSHOT_SIGNATURE,
-            &mut callbacks,
-        ).map_err(|e| XsnapError::MachineInit(format!("snapshot restore failed: {e}")))?;
+        let m = Machine::from_snapshot_file(file, label, SNAPSHOT_SIGNATURE, &mut callbacks)
+            .map_err(|e| XsnapError::MachineInit(format!("snapshot restore failed: {e}")))?;
         eprintln!("{label}: machine restored from snapshot");
         m
     } else {
@@ -1574,9 +1533,7 @@ pub fn run_xs_program(
                 // We use eval_wrapped (inline try/catch) as a safety
                 // net for any unexpected synchronous errors.
                 if !eval_wrapped(&machine, src, &format!("{label}/bundle")) {
-                    return Err(XsnapError::Bootstrap(format!(
-                        "{label}: bundle eval threw"
-                    )));
+                    return Err(XsnapError::Bootstrap(format!("{label}: bundle eval threw")));
                 }
                 eprintln!("{label}: bundle eval returned, quiescing");
                 machine.quiesce();
@@ -1754,9 +1711,7 @@ pub fn run_xs_program(
             // Report steps to the supervisor.
             send_meter_report(steps, "ok");
 
-            if let Some(JsValue::Boolean(true)) =
-                machine.eval("__shouldTerminate()")
-            {
+            if let Some(JsValue::Boolean(true)) = machine.eval("__shouldTerminate()") {
                 break;
             }
         }
@@ -2005,14 +1960,21 @@ mod tests {
     #[test]
     fn promise_resolve() {
         let machine = new_machine();
-        machine.eval("Promise.resolve(42); undefined").expect("Promise.resolve failed");
-        machine.eval("new Promise(function(resolve) { resolve(42); }); undefined")
+        machine
+            .eval("Promise.resolve(42); undefined")
+            .expect("Promise.resolve failed");
+        machine
+            .eval("new Promise(function(resolve) { resolve(42); }); undefined")
             .expect("new Promise failed");
         match machine.eval("typeof Promise.resolve(42).then") {
             Some(JsValue::String(s)) => assert_eq!(s, "function"),
-            other => panic!("expected 'function', got {:?}", other.map(|v| js_value_debug(&v))),
+            other => panic!(
+                "expected 'function', got {:?}",
+                other.map(|v| js_value_debug(&v))
+            ),
         }
-        machine.eval("Promise.resolve(42).then(function(v) { return v; }); undefined")
+        machine
+            .eval("Promise.resolve(42).then(function(v) { return v; }); undefined")
             .expect(".then(fn) crashed");
     }
 
@@ -2047,10 +2009,7 @@ mod tests {
     fn eval_to_string_coercion() {
         let machine = new_machine();
         assert_eq!(machine.eval_to_string("1 + 2").unwrap(), "3");
-        assert_eq!(
-            machine.eval_to_string("'hello'").unwrap(),
-            "hello"
-        );
+        assert_eq!(machine.eval_to_string("'hello'").unwrap(), "hello");
     }
 
     #[test]
@@ -2151,9 +2110,7 @@ mod tests {
 
     // --- Phase 2: Host Powers Tests ---
 
-    fn new_machine_with_powers(
-        powers: &mut powers::HostPowers,
-    ) -> Machine {
+    fn new_machine_with_powers(powers: &mut powers::HostPowers) -> Machine {
         let machine = new_machine();
         machine.register_powers(powers as *mut powers::HostPowers);
         machine
@@ -2162,11 +2119,8 @@ mod tests {
     #[test]
     fn fs_write_and_read() {
         let tmp = tempfile::tempdir().unwrap();
-        let dir = cap_std::fs::Dir::open_ambient_dir(
-            tmp.path(),
-            cap_std::ambient_authority(),
-        )
-        .unwrap();
+        let dir =
+            cap_std::fs::Dir::open_ambient_dir(tmp.path(), cap_std::ambient_authority()).unwrap();
 
         let mut powers = powers::HostPowers::new();
         powers.add_dir("test", dir);
@@ -2188,11 +2142,8 @@ mod tests {
     #[test]
     fn fs_exists_and_is_dir() {
         let tmp = tempfile::tempdir().unwrap();
-        let dir = cap_std::fs::Dir::open_ambient_dir(
-            tmp.path(),
-            cap_std::ambient_authority(),
-        )
-        .unwrap();
+        let dir =
+            cap_std::fs::Dir::open_ambient_dir(tmp.path(), cap_std::ambient_authority()).unwrap();
 
         let mut powers = powers::HostPowers::new();
         powers.add_dir("test", dir);
@@ -2222,11 +2173,8 @@ mod tests {
     #[test]
     fn fs_readdir() {
         let tmp = tempfile::tempdir().unwrap();
-        let dir = cap_std::fs::Dir::open_ambient_dir(
-            tmp.path(),
-            cap_std::ambient_authority(),
-        )
-        .unwrap();
+        let dir =
+            cap_std::fs::Dir::open_ambient_dir(tmp.path(), cap_std::ambient_authority()).unwrap();
 
         let mut powers = powers::HostPowers::new();
         powers.add_dir("test", dir);
@@ -2234,12 +2182,8 @@ mod tests {
         let machine = new_machine_with_powers(&mut powers);
 
         // Create some files
-        machine
-            .eval("writeFileText('test', 'a.txt', 'a')")
-            .unwrap();
-        machine
-            .eval("writeFileText('test', 'b.txt', 'b')")
-            .unwrap();
+        machine.eval("writeFileText('test', 'a.txt', 'a')").unwrap();
+        machine.eval("writeFileText('test', 'b.txt', 'b')").unwrap();
 
         // Read directory — returns JSON array
         match machine.eval("readDir('test', '')").unwrap() {
@@ -2254,11 +2198,8 @@ mod tests {
     #[test]
     fn fs_remove_and_rename() {
         let tmp = tempfile::tempdir().unwrap();
-        let dir = cap_std::fs::Dir::open_ambient_dir(
-            tmp.path(),
-            cap_std::ambient_authority(),
-        )
-        .unwrap();
+        let dir =
+            cap_std::fs::Dir::open_ambient_dir(tmp.path(), cap_std::ambient_authority()).unwrap();
 
         let mut powers = powers::HostPowers::new();
         powers.add_dir("test", dir);
@@ -2363,8 +2304,10 @@ mod tests {
         // But NOT visible inside a bare compartment
         machine.eval("var guestC = new Compartment({});").unwrap();
         match machine.eval("guestC.evaluate('typeof sha256')").unwrap() {
-            JsValue::String(s) => assert_eq!(s, "undefined",
-                "guest compartment should NOT see host functions"),
+            JsValue::String(s) => assert_eq!(
+                s, "undefined",
+                "guest compartment should NOT see host functions"
+            ),
             other => panic!("expected 'undefined', got {:?}", js_value_debug(&other)),
         }
     }
@@ -2374,9 +2317,9 @@ mod tests {
         let machine = new_machine();
         // Pass custom globals into the compartment — two separate evals
         // to avoid re-entrant eval issues
-        machine.eval(
-            "var c2 = new Compartment({ globals: { x: 42, greeting: 'hello' } });"
-        ).unwrap();
+        machine
+            .eval("var c2 = new Compartment({ globals: { x: 42, greeting: 'hello' } });")
+            .unwrap();
 
         match machine.eval("c2.evaluate('x + 8')").unwrap() {
             JsValue::Integer(n) => assert_eq!(n, 50),
@@ -2396,14 +2339,16 @@ mod tests {
         machine.eval("var sentinel = 'original'").unwrap();
 
         // Guest compartment has its own sentinel — should not affect host
-        machine.eval(
-            "var c3 = new Compartment({ globals: { sentinel: 'modified' } });"
-        ).unwrap();
+        machine
+            .eval("var c3 = new Compartment({ globals: { sentinel: 'modified' } });")
+            .unwrap();
         machine.eval("c3.evaluate('sentinel')").unwrap();
 
         match machine.eval("sentinel").unwrap() {
-            JsValue::String(s) => assert_eq!(s, "original",
-                "host global should not be modified by guest compartment"),
+            JsValue::String(s) => assert_eq!(
+                s, "original",
+                "host global should not be modified by guest compartment"
+            ),
             other => panic!("expected 'original', got {:?}", js_value_debug(&other)),
         }
     }
@@ -2414,25 +2359,30 @@ mod tests {
         let machine = new_machine_with_powers(&mut powers);
 
         // Create a compartment that only gets sha256, not other host fns
-        machine.eval(
-            "var endowed = new Compartment({ \
+        machine
+            .eval(
+                "var endowed = new Compartment({ \
                 globals: { sha256: sha256 } \
-             });"
-        ).unwrap();
+             });",
+            )
+            .unwrap();
 
-        match machine.eval(
-            "endowed.evaluate('sha256(\"hello\")')"
-        ).unwrap() {
+        match machine
+            .eval("endowed.evaluate('sha256(\"hello\")')")
+            .unwrap()
+        {
             JsValue::String(s) => assert_eq!(
-                s, "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+                s,
+                "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
             ),
             other => panic!("expected hash, got {:?}", js_value_debug(&other)),
         }
 
         // But randomHex256 should NOT be available
-        match machine.eval(
-            "endowed.evaluate('typeof randomHex256')"
-        ).unwrap() {
+        match machine
+            .eval("endowed.evaluate('typeof randomHex256')")
+            .unwrap()
+        {
             JsValue::String(s) => assert_eq!(s, "undefined"),
             other => panic!("expected 'undefined', got {:?}", js_value_debug(&other)),
         }
@@ -2441,21 +2391,30 @@ mod tests {
     #[test]
     fn module_registry_and_load() {
         let mut powers = powers::HostPowers::new();
-        powers.add_module("math-utils", "var exports = { double: function(x) { return x * 2; } }; exports;");
+        powers.add_module(
+            "math-utils",
+            "var exports = { double: function(x) { return x * 2; } }; exports;",
+        );
 
         let machine = new_machine_with_powers(&mut powers);
 
         // Verify the host function can look up module source
         match machine.eval("loadModuleSource('math-utils')").unwrap() {
-            JsValue::String(s) => assert!(s.contains("double"),
-                "expected module source containing 'double', got {}", s),
+            JsValue::String(s) => assert!(
+                s.contains("double"),
+                "expected module source containing 'double', got {}",
+                s
+            ),
             other => panic!("expected string, got {:?}", js_value_debug(&other)),
         }
 
         // Unknown module returns undefined
         match machine.eval("loadModuleSource('nonexistent')").unwrap() {
             JsValue::Undefined => {}
-            other => panic!("expected undefined for missing module, got {:?}", js_value_debug(&other)),
+            other => panic!(
+                "expected undefined for missing module, got {:?}",
+                js_value_debug(&other)
+            ),
         }
     }
 
@@ -2465,13 +2424,19 @@ mod tests {
         let machine = new_machine_with_powers(&mut powers);
 
         // Absolute specifier passes through
-        match machine.eval("resolveModule('@endo/far', 'anything')").unwrap() {
+        match machine
+            .eval("resolveModule('@endo/far', 'anything')")
+            .unwrap()
+        {
             JsValue::String(s) => assert_eq!(s, "@endo/far"),
             other => panic!("expected '@endo/far', got {:?}", js_value_debug(&other)),
         }
 
         // Relative specifier resolves against referrer
-        match machine.eval("resolveModule('./utils', 'lib/main')").unwrap() {
+        match machine
+            .eval("resolveModule('./utils', 'lib/main')")
+            .unwrap()
+        {
             JsValue::String(s) => assert_eq!(s, "lib/utils"),
             other => panic!("expected 'lib/utils', got {:?}", js_value_debug(&other)),
         }
@@ -2483,7 +2448,7 @@ mod tests {
         // Register a module that exports a value
         powers.add_module(
             "greeter",
-            "export default function greet(name) { return 'Hello, ' + name + '!'; }"
+            "export default function greet(name) { return 'Hello, ' + name + '!'; }",
         );
 
         let machine = new_machine_with_powers(&mut powers);
@@ -2492,7 +2457,9 @@ mod tests {
         // that uses our host functions. The loadNowHook must return
         // { source: new ModuleSource(code) } — XS treats a string
         // source as a specifier alias, not source text.
-        machine.eval("\
+        machine
+            .eval(
+                "\
             var modComp = new Compartment({ \
                 resolveHook: function(specifier, referrer) { \
                     return resolveModule(specifier, referrer || ''); \
@@ -2503,11 +2470,14 @@ mod tests {
                         throw new Error('Module not found: ' + specifier); \
                     return { source: new ModuleSource(src) }; \
                 } \
-            });"
-        ).unwrap();
+            });",
+            )
+            .unwrap();
 
         // Import the module synchronously
-        machine.eval("var mod = modComp.importNow('greeter');").unwrap();
+        machine
+            .eval("var mod = modComp.importNow('greeter');")
+            .unwrap();
 
         match machine.eval("mod.default('XS')").unwrap() {
             JsValue::String(s) => assert_eq!(s, "Hello, XS!"),
@@ -2521,7 +2491,9 @@ mod tests {
 
         // Simulate the Endo pattern: a factory function that receives powers
         // and returns a capability object
-        machine.eval("\
+        machine
+            .eval(
+                "\
             var guestFactory = new Compartment({ \
                 globals: { \
                     makeGreeter: function(prefix) { \
@@ -2530,12 +2502,13 @@ mod tests {
                         }; \
                     } \
                 } \
-             });"
-        ).unwrap();
+             });",
+            )
+            .unwrap();
 
-        machine.eval(
-            "var greeter = guestFactory.evaluate('makeGreeter(\"Hi\")');"
-        ).unwrap();
+        machine
+            .eval("var greeter = guestFactory.evaluate('makeGreeter(\"Hi\")');")
+            .unwrap();
 
         match machine.eval("greeter.greet('World')").unwrap() {
             JsValue::String(s) => assert_eq!(s, "Hi World"),
@@ -2549,21 +2522,29 @@ mod tests {
 
         // Outer compartment creates inner compartment — inner should not
         // see outer's globals
-        machine.eval("\
+        machine
+            .eval(
+                "\
             var outer = new Compartment({ \
                 globals: { secret: 'outer-secret' } \
-             });"
-        ).unwrap();
+             });",
+            )
+            .unwrap();
 
         // Evaluate code in outer that creates and queries inner
-        match machine.eval(
-            "outer.evaluate( \
+        match machine
+            .eval(
+                "outer.evaluate( \
                 'var inner = new Compartment({}); ' + \
                 'inner.evaluate(\"typeof secret\")' \
-             )"
-        ).unwrap() {
-            JsValue::String(s) => assert_eq!(s, "undefined",
-                "inner compartment should not see outer's globals"),
+             )",
+            )
+            .unwrap()
+        {
+            JsValue::String(s) => assert_eq!(
+                s, "undefined",
+                "inner compartment should not see outer's globals"
+            ),
             other => panic!("expected 'undefined', got {:?}", js_value_debug(&other)),
         }
     }
@@ -2572,19 +2553,18 @@ mod tests {
     fn module_with_dependencies() {
         let mut powers = powers::HostPowers::new();
         // Register two modules: utils depends on nothing, app depends on utils
-        powers.add_module(
-            "utils",
-            "export function double(x) { return x * 2; }"
-        );
+        powers.add_module("utils", "export function double(x) { return x * 2; }");
         powers.add_module(
             "app",
             "import { double } from 'utils'; \
-             export default function compute(x) { return double(x) + 1; }"
+             export default function compute(x) { return double(x) + 1; }",
         );
 
         let machine = new_machine_with_powers(&mut powers);
 
-        machine.eval("\
+        machine
+            .eval(
+                "\
             var depComp = new Compartment({ \
                 resolveHook: function(specifier, referrer) { \
                     return resolveModule(specifier, referrer || ''); \
@@ -2595,8 +2575,9 @@ mod tests {
                         throw new Error('Module not found: ' + specifier); \
                     return { source: new ModuleSource(src) }; \
                 } \
-            });"
-        ).unwrap();
+            });",
+            )
+            .unwrap();
 
         machine.eval("var app = depComp.importNow('app');").unwrap();
 
@@ -2613,13 +2594,15 @@ mod tests {
         powers.add_module(
             "sneaky",
             "export var hasHash = typeof sha256 !== 'undefined'; \
-             export var hasRandom = typeof randomHex256 !== 'undefined';"
+             export var hasRandom = typeof randomHex256 !== 'undefined';",
         );
 
         let machine = new_machine_with_powers(&mut powers);
 
         // Create compartment WITHOUT host function endowments
-        machine.eval("\
+        machine
+            .eval(
+                "\
             var isolatedComp = new Compartment({ \
                 resolveHook: function(specifier) { return specifier; }, \
                 loadNowHook: function(specifier) { \
@@ -2628,20 +2611,26 @@ mod tests {
                         throw new Error('Module not found: ' + specifier); \
                     return { source: new ModuleSource(src) }; \
                 } \
-            });"
-        ).unwrap();
+            });",
+            )
+            .unwrap();
 
-        machine.eval("var sneaky = isolatedComp.importNow('sneaky');").unwrap();
+        machine
+            .eval("var sneaky = isolatedComp.importNow('sneaky');")
+            .unwrap();
 
         // Module code runs in the compartment's scope — should NOT see host fns
         match machine.eval("sneaky.hasHash").unwrap() {
-            JsValue::Boolean(b) => assert!(!b,
-                "module in isolated compartment should NOT see sha256"),
+            JsValue::Boolean(b) => {
+                assert!(!b, "module in isolated compartment should NOT see sha256")
+            }
             other => panic!("expected false, got {:?}", js_value_debug(&other)),
         }
         match machine.eval("sneaky.hasRandom").unwrap() {
-            JsValue::Boolean(b) => assert!(!b,
-                "module in isolated compartment should NOT see randomHex256"),
+            JsValue::Boolean(b) => assert!(
+                !b,
+                "module in isolated compartment should NOT see randomHex256"
+            ),
             other => panic!("expected false, got {:?}", js_value_debug(&other)),
         }
     }
@@ -2661,16 +2650,15 @@ mod tests {
         );
 
         // Parse the keys in JS and sign a message
-        machine.eval(&format!(
-            "var keys = JSON.parse('{}'); var pk = keys.privateKey;",
-            json.replace('\'', "\\'")
-        )).unwrap();
+        machine
+            .eval(&format!(
+                "var keys = JSON.parse('{}'); var pk = keys.privateKey;",
+                json.replace('\'', "\\'")
+            ))
+            .unwrap();
 
         // Sign hex-encoded message "hello" = 68656c6c6f
-        match machine
-            .eval("ed25519Sign(pk, '68656c6c6f')")
-            .unwrap()
-        {
+        match machine.eval("ed25519Sign(pk, '68656c6c6f')").unwrap() {
             JsValue::String(sig) => {
                 assert_eq!(
                     sig.len(),
@@ -2848,12 +2836,15 @@ mod tests {
         machine.register_worker_io();
 
         // JS echo loop: receive frame, send it back
-        machine.eval("\
+        machine
+            .eval(
+                "\
             var frame; \
             while ((frame = recvFrame()) !== undefined) { \
                 sendFrame(frame); \
-            }"
-        ).unwrap();
+            }",
+            )
+            .unwrap();
 
         // Read back the 3 echoed envelopes
         let mut reader = std::io::BufReader::new(tmp_write_clone);
@@ -2869,10 +2860,7 @@ mod tests {
 
     // --- Archive Import Tests ---
 
-    fn make_test_zip(
-        map: &archive::CompartmentMap,
-        files: &[(&str, &str)],
-    ) -> Vec<u8> {
+    fn make_test_zip(map: &archive::CompartmentMap, files: &[(&str, &str)]) -> Vec<u8> {
         use std::io::Write;
         let mut buf = std::io::Cursor::new(Vec::new());
         {
@@ -2928,20 +2916,20 @@ mod tests {
             vec![(
                 "app-v1",
                 "app",
-                vec![(".", archive::ModuleDescriptor::File {
-                    parser: "mjs".to_string(),
-                    location: Some("index.js".to_string()),
-                    sha512: None,
-                })],
+                vec![(
+                    ".",
+                    archive::ModuleDescriptor::File {
+                        parser: "mjs".to_string(),
+                        location: Some("index.js".to_string()),
+                        sha512: None,
+                    },
+                )],
             )],
             "app-v1",
             ".",
         );
 
-        let zip = make_test_zip(&map, &[(
-            "app-v1/index.js",
-            "export const answer = 42;",
-        )]);
+        let zip = make_test_zip(&map, &[("app-v1/index.js", "export const answer = 42;")]);
 
         let loaded = archive::load_archive(std::io::Cursor::new(zip)).unwrap();
         let machine = new_machine();
@@ -2961,41 +2949,53 @@ mod tests {
                     "app-v1",
                     "app",
                     vec![
-                        (".", archive::ModuleDescriptor::File {
-                            parser: "mjs".to_string(),
-                            location: Some("index.js".to_string()),
-                            sha512: None,
-                        }),
-                        ("utils", archive::ModuleDescriptor::Link {
-                            compartment: "utils-v2".to_string(),
-                            module: ".".to_string(),
-                        }),
+                        (
+                            ".",
+                            archive::ModuleDescriptor::File {
+                                parser: "mjs".to_string(),
+                                location: Some("index.js".to_string()),
+                                sha512: None,
+                            },
+                        ),
+                        (
+                            "utils",
+                            archive::ModuleDescriptor::Link {
+                                compartment: "utils-v2".to_string(),
+                                module: ".".to_string(),
+                            },
+                        ),
                     ],
                 ),
                 (
                     "utils-v2",
                     "utils",
-                    vec![(".", archive::ModuleDescriptor::File {
-                        parser: "mjs".to_string(),
-                        location: Some("index.js".to_string()),
-                        sha512: None,
-                    })],
+                    vec![(
+                        ".",
+                        archive::ModuleDescriptor::File {
+                            parser: "mjs".to_string(),
+                            location: Some("index.js".to_string()),
+                            sha512: None,
+                        },
+                    )],
                 ),
             ],
             "app-v1",
             ".",
         );
 
-        let zip = make_test_zip(&map, &[
-            (
-                "app-v1/index.js",
-                "import { triple } from 'utils'; export const result = triple(7);",
-            ),
-            (
-                "utils-v2/index.js",
-                "export function triple(x) { return x * 3; }",
-            ),
-        ]);
+        let zip = make_test_zip(
+            &map,
+            &[
+                (
+                    "app-v1/index.js",
+                    "import { triple } from 'utils'; export const result = triple(7);",
+                ),
+                (
+                    "utils-v2/index.js",
+                    "export function triple(x) { return x * 3; }",
+                ),
+            ],
+        );
 
         let loaded = archive::load_archive(std::io::Cursor::new(zip)).unwrap();
         let machine = new_machine();
@@ -3137,26 +3137,32 @@ mod tests {
             vec![(
                 "plugin-v1",
                 "plugin",
-                vec![(".", archive::ModuleDescriptor::File {
-                    parser: "mjs".to_string(),
-                    location: Some("index.js".to_string()),
-                    sha512: None,
-                })],
+                vec![(
+                    ".",
+                    archive::ModuleDescriptor::File {
+                        parser: "mjs".to_string(),
+                        location: Some("index.js".to_string()),
+                        sha512: None,
+                    },
+                )],
             )],
             "plugin-v1",
             ".",
         );
 
-        let zip = make_test_zip(&map, &[(
-            "plugin-v1/index.js",
-            "export function make(powers) { \
+        let zip = make_test_zip(
+            &map,
+            &[(
+                "plugin-v1/index.js",
+                "export function make(powers) { \
                 return { \
                     greet: function(name) { \
                         return 'Hello from ' + name + '!'; \
                     } \
                 }; \
             }",
-        )]);
+            )],
+        );
 
         let loaded = archive::load_archive(std::io::Cursor::new(zip)).unwrap();
         let machine = new_machine();
@@ -3208,20 +3214,20 @@ mod tests {
             vec![(
                 "app-v1",
                 "app",
-                vec![(".", archive::ModuleDescriptor::File {
-                    parser: "mjs".to_string(),
-                    location: Some("index.js".to_string()),
-                    sha512: None,
-                })],
+                vec![(
+                    ".",
+                    archive::ModuleDescriptor::File {
+                        parser: "mjs".to_string(),
+                        location: Some("index.js".to_string()),
+                        sha512: None,
+                    },
+                )],
             )],
             "app-v1",
             ".",
         );
 
-        let zip = make_test_zip(&map, &[(
-            "app-v1/index.js",
-            "export const pi = 3;",
-        )]);
+        let zip = make_test_zip(&map, &[("app-v1/index.js", "export const pi = 3;")]);
 
         let b64 = base64::engine::general_purpose::STANDARD.encode(&zip);
         let loaded = archive::load_archive_base64(&b64).unwrap();
@@ -3253,8 +3259,7 @@ mod tests {
             static_size: 0,
             native_stack_size: 0,
         };
-        let machine = Machine::new(&creation, "bootstrap-test")
-            .expect("machine");
+        let machine = Machine::new(&creation, "bootstrap-test").expect("machine");
         let bootstrap = include_str!("worker_bootstrap.js");
         eprintln!("bootstrap length: {}", bootstrap.len());
 
@@ -3302,7 +3307,9 @@ mod tests {
         );
         match machine.eval(&ses_wrapped) {
             Some(JsValue::String(ref s)) if s.starts_with("ERROR") => {
-                for line in s.lines() { eprintln!("  {}", line); }
+                for line in s.lines() {
+                    eprintln!("  {}", line);
+                }
                 panic!("SES boot failed");
             }
             Some(v) => eprintln!("ses_boot result: {}", js_value_debug(&v)),
@@ -3335,7 +3342,10 @@ mod tests {
                 eprintln!("typeof handleCommand = {}", s);
                 assert_eq!(s, "function", "handleCommand should be a function");
             }
-            other => panic!("typeof handleCommand: {:?}", other.map(|v| js_value_debug(&v))),
+            other => panic!(
+                "typeof handleCommand: {:?}",
+                other.map(|v| js_value_debug(&v))
+            ),
         }
         // Diagnostic: check closure-captured fromString.
         let enc_test = "(function() {\
@@ -3349,7 +3359,10 @@ mod tests {
             Some(JsValue::String(s)) => {
                 eprintln!("TextEncoder probe: {}", s);
             }
-            other => panic!("TextEncoder probe failed: {:?}", other.map(|v| js_value_debug(&v))),
+            other => panic!(
+                "TextEncoder probe failed: {:?}",
+                other.map(|v| js_value_debug(&v))
+            ),
         }
         // Check __shouldTerminate
         match machine.eval("typeof __shouldTerminate") {
@@ -3357,7 +3370,10 @@ mod tests {
                 eprintln!("typeof __shouldTerminate = {}", s);
                 assert_eq!(s, "function");
             }
-            other => panic!("typeof __shouldTerminate: {:?}", other.map(|v| js_value_debug(&v))),
+            other => panic!(
+                "typeof __shouldTerminate: {:?}",
+                other.map(|v| js_value_debug(&v))
+            ),
         }
     }
 
@@ -3402,15 +3418,10 @@ mod tests {
 
         machine.eval("var db = sqliteOpen(':memory:')").unwrap();
         // Invalid SQL should return an error string
-        match machine
-            .eval("sqliteExec(db, 'NOT VALID SQL')")
-            .unwrap()
-        {
-            JsValue::String(s) => assert!(
-                s.starts_with("Error: "),
-                "expected error string, got {}",
-                s,
-            ),
+        match machine.eval("sqliteExec(db, 'NOT VALID SQL')").unwrap() {
+            JsValue::String(s) => {
+                assert!(s.starts_with("Error: "), "expected error string, got {}", s,)
+            }
             other => panic!("expected error string, got {:?}", js_value_debug(&other)),
         }
         machine.eval("sqliteClose(db)").unwrap();
@@ -3427,10 +3438,19 @@ mod tests {
             .unwrap();
 
         // Prepare and run an INSERT
-        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO t (id, name) VALUES (?, ?)')").unwrap();
-        match machine.eval("sqliteStmtRun(ins, '[1, \"alice\"]')").unwrap() {
+        machine
+            .eval("var ins = sqlitePrepare(db, 'INSERT INTO t (id, name) VALUES (?, ?)')")
+            .unwrap();
+        match machine
+            .eval("sqliteStmtRun(ins, '[1, \"alice\"]')")
+            .unwrap()
+        {
             JsValue::String(s) => {
-                assert!(s.contains("\"changes\":\"1\""), "expected changes=1, got {}", s);
+                assert!(
+                    s.contains("\"changes\":\"1\""),
+                    "expected changes=1, got {}",
+                    s
+                );
             }
             other => panic!("expected JSON result, got {:?}", js_value_debug(&other)),
         }
@@ -3448,12 +3468,18 @@ mod tests {
         machine
             .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER, val REAL, name TEXT)')")
             .unwrap();
-        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?, ?, ?)')").unwrap();
-        machine.eval("sqliteStmtRun(ins, '[42, 3.14, \"hello\"]')").unwrap();
+        machine
+            .eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?, ?, ?)')")
+            .unwrap();
+        machine
+            .eval("sqliteStmtRun(ins, '[42, 3.14, \"hello\"]')")
+            .unwrap();
         machine.eval("sqliteStmtFinalize(ins)").unwrap();
 
         // Query the row back
-        machine.eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')").unwrap();
+        machine
+            .eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')")
+            .unwrap();
         match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
             JsValue::String(s) => {
                 // INTEGER 42 should be tagged as $bigint
@@ -3491,7 +3517,9 @@ mod tests {
         machine
             .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER)')")
             .unwrap();
-        machine.eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')").unwrap();
+        machine
+            .eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')")
+            .unwrap();
         match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
             JsValue::String(s) => assert_eq!(s, "null"),
             other => panic!("expected 'null' string, got {:?}", js_value_debug(&other)),
@@ -3510,12 +3538,18 @@ mod tests {
         machine
             .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER, name TEXT)')")
             .unwrap();
-        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?, ?)')").unwrap();
-        machine.eval("sqliteStmtRun(ins, '[1, \"alice\"]')").unwrap();
+        machine
+            .eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?, ?)')")
+            .unwrap();
+        machine
+            .eval("sqliteStmtRun(ins, '[1, \"alice\"]')")
+            .unwrap();
         machine.eval("sqliteStmtRun(ins, '[2, \"bob\"]')").unwrap();
         machine.eval("sqliteStmtFinalize(ins)").unwrap();
 
-        machine.eval("var sel = sqlitePrepare(db, 'SELECT * FROM t ORDER BY id')").unwrap();
+        machine
+            .eval("var sel = sqlitePrepare(db, 'SELECT * FROM t ORDER BY id')")
+            .unwrap();
         match machine.eval("sqliteStmtAll(sel, 'null')").unwrap() {
             JsValue::String(s) => {
                 let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
@@ -3546,14 +3580,18 @@ mod tests {
             .unwrap();
 
         // Insert a blob via $bytes tag (base64 of [0xDE, 0xAD, 0xBE, 0xEF])
-        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO blobs VALUES (?)')").unwrap();
+        machine
+            .eval("var ins = sqlitePrepare(db, 'INSERT INTO blobs VALUES (?)')")
+            .unwrap();
         machine
             .eval("sqliteStmtRun(ins, '[{\"$bytes\": \"3q2+7w==\"}]')")
             .unwrap();
         machine.eval("sqliteStmtFinalize(ins)").unwrap();
 
         // Read it back
-        machine.eval("var sel = sqlitePrepare(db, 'SELECT data FROM blobs')").unwrap();
+        machine
+            .eval("var sel = sqlitePrepare(db, 'SELECT data FROM blobs')")
+            .unwrap();
         match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
             JsValue::String(s) => {
                 let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
@@ -3581,14 +3619,18 @@ mod tests {
             .unwrap();
 
         // Insert a large integer via $bigint tag
-        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO big VALUES (?)')").unwrap();
+        machine
+            .eval("var ins = sqlitePrepare(db, 'INSERT INTO big VALUES (?)')")
+            .unwrap();
         machine
             .eval("sqliteStmtRun(ins, '[{\"$bigint\": \"9007199254740993\"}]')")
             .unwrap();
         machine.eval("sqliteStmtFinalize(ins)").unwrap();
 
         // Read it back — should come back as $bigint
-        machine.eval("var sel = sqlitePrepare(db, 'SELECT val FROM big')").unwrap();
+        machine
+            .eval("var sel = sqlitePrepare(db, 'SELECT val FROM big')")
+            .unwrap();
         match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
             JsValue::String(s) => {
                 let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
@@ -3614,11 +3656,15 @@ mod tests {
         machine
             .eval("sqliteExec(db, 'CREATE TABLE t (a INTEGER, b TEXT)')")
             .unwrap();
-        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?, ?)')").unwrap();
+        machine
+            .eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?, ?)')")
+            .unwrap();
         machine.eval("sqliteStmtRun(ins, '[null, null]')").unwrap();
         machine.eval("sqliteStmtFinalize(ins)").unwrap();
 
-        machine.eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')").unwrap();
+        machine
+            .eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')")
+            .unwrap();
         match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
             JsValue::String(s) => {
                 let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
@@ -3641,15 +3687,17 @@ mod tests {
         machine
             .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER, name TEXT)')")
             .unwrap();
-        machine.eval(
-            "var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (:id, :name)')",
-        ).unwrap();
+        machine
+            .eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (:id, :name)')")
+            .unwrap();
         machine
             .eval("sqliteStmtRun(ins, '{\":id\": {\"$bigint\": \"1\"}, \":name\": \"alice\"}')")
             .unwrap();
         machine.eval("sqliteStmtFinalize(ins)").unwrap();
 
-        machine.eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')").unwrap();
+        machine
+            .eval("var sel = sqlitePrepare(db, 'SELECT * FROM t')")
+            .unwrap();
         match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
             JsValue::String(s) => {
                 let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
@@ -3672,7 +3720,9 @@ mod tests {
         machine
             .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER, name TEXT, score REAL)')")
             .unwrap();
-        machine.eval("var sel = sqlitePrepare(db, 'SELECT id, name, score FROM t')").unwrap();
+        machine
+            .eval("var sel = sqlitePrepare(db, 'SELECT id, name, score FROM t')")
+            .unwrap();
         match machine.eval("sqliteStmtColumns(sel)").unwrap() {
             JsValue::String(s) => {
                 let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
@@ -3698,8 +3748,12 @@ mod tests {
         machine
             .eval("sqliteExec(db, 'CREATE TABLE t (id INTEGER)')")
             .unwrap();
-        machine.eval("var s1 = sqlitePrepare(db, 'SELECT * FROM t')").unwrap();
-        machine.eval("var s2 = sqlitePrepare(db, 'INSERT INTO t VALUES (?)')").unwrap();
+        machine
+            .eval("var s1 = sqlitePrepare(db, 'SELECT * FROM t')")
+            .unwrap();
+        machine
+            .eval("var s2 = sqlitePrepare(db, 'INSERT INTO t VALUES (?)')")
+            .unwrap();
 
         // Close db — should clean up both statements
         machine.eval("sqliteClose(db)").unwrap();
@@ -3727,12 +3781,18 @@ mod tests {
 
         // Begin transaction, insert, rollback
         machine.eval("sqliteExec(db, 'BEGIN')").unwrap();
-        machine.eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?)')").unwrap();
-        machine.eval("sqliteStmtRun(ins, '[{\"$bigint\": \"1\"}]')").unwrap();
+        machine
+            .eval("var ins = sqlitePrepare(db, 'INSERT INTO t VALUES (?)')")
+            .unwrap();
+        machine
+            .eval("sqliteStmtRun(ins, '[{\"$bigint\": \"1\"}]')")
+            .unwrap();
         machine.eval("sqliteExec(db, 'ROLLBACK')").unwrap();
 
         // Should have no rows
-        machine.eval("var sel = sqlitePrepare(db, 'SELECT COUNT(*) as cnt FROM t')").unwrap();
+        machine
+            .eval("var sel = sqlitePrepare(db, 'SELECT COUNT(*) as cnt FROM t')")
+            .unwrap();
         match machine.eval("sqliteStmtGet(sel, 'null')").unwrap() {
             JsValue::String(s) => {
                 let parsed: serde_json::Value = serde_json::from_str(&s).unwrap();
@@ -3778,7 +3838,11 @@ mod tests {
 
             if let Some(data) = debug::debug_drain_outbound() {
                 let xml = String::from_utf8_lossy(&data);
-                eprintln!("debug outbound ({} bytes): {}", data.len(), &xml[..std::cmp::min(xml.len(), 500)]);
+                eprintln!(
+                    "debug outbound ({} bytes): {}",
+                    data.len(),
+                    &xml[..std::cmp::min(xml.len(), 500)]
+                );
                 assert!(
                     xml.contains("<login"),
                     "expected <login> element in debug output, got: {}",
@@ -3830,7 +3894,10 @@ mod tests {
 
         // Start with debug NOT enabled.
         debug::debug_reset();
-        assert!(!debug::debug_is_active(), "debug should be inactive initially");
+        assert!(
+            !debug::debug_is_active(),
+            "debug should be inactive initially"
+        );
 
         let mut powers_store = powers::HostPowers::new();
         let machine = new_machine_with_powers(&mut powers_store);
@@ -3852,7 +3919,10 @@ mod tests {
 
         // Process the debug-attach envelope.
         let action = handle_envelope(&machine, &attach_bytes);
-        assert!(matches!(action, EnvelopeAction::Continue), "debug-attach should be handled");
+        assert!(
+            matches!(action, EnvelopeAction::Continue),
+            "debug-attach should be handled"
+        );
 
         // Check that debug is now active (only if mxDebug is in
         // the binary).
@@ -3931,13 +4001,8 @@ mod tests {
 
         assert!(!snap.is_empty(), "snapshot should not be empty");
 
-        let restored = Machine::from_snapshot(
-            &snap,
-            "restored",
-            TEST_SNAPSHOT_SIG,
-            &mut callbacks,
-        )
-        .expect("from_snapshot failed");
+        let restored = Machine::from_snapshot(&snap, "restored", TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("from_snapshot failed");
 
         match restored.eval("x").unwrap() {
             JsValue::Integer(n) => assert_eq!(n, 42),
@@ -3956,13 +4021,8 @@ mod tests {
             .write_snapshot(TEST_SNAPSHOT_SIG, &mut callbacks)
             .expect("write_snapshot failed");
 
-        let restored = Machine::from_snapshot(
-            &snap,
-            "restored",
-            TEST_SNAPSHOT_SIG,
-            &mut callbacks,
-        )
-        .expect("from_snapshot failed");
+        let restored = Machine::from_snapshot(&snap, "restored", TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("from_snapshot failed");
 
         match restored.eval("greeting").unwrap() {
             JsValue::String(s) => assert_eq!(s, "hello snapshot"),
@@ -3982,13 +4042,8 @@ mod tests {
             .write_snapshot(TEST_SNAPSHOT_SIG, &mut callbacks)
             .expect("write_snapshot failed");
 
-        let restored = Machine::from_snapshot(
-            &snap,
-            "restored",
-            TEST_SNAPSHOT_SIG,
-            &mut callbacks,
-        )
-        .expect("from_snapshot failed");
+        let restored = Machine::from_snapshot(&snap, "restored", TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("from_snapshot failed");
 
         match restored.eval("obj.a").unwrap() {
             JsValue::Integer(n) => assert_eq!(n, 1),
@@ -4018,13 +4073,8 @@ mod tests {
             .write_snapshot(TEST_SNAPSHOT_SIG, &mut callbacks)
             .expect("write_snapshot failed");
 
-        let restored = Machine::from_snapshot(
-            &snap,
-            "restored",
-            TEST_SNAPSHOT_SIG,
-            &mut callbacks,
-        )
-        .expect("from_snapshot failed");
+        let restored = Machine::from_snapshot(&snap, "restored", TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("from_snapshot failed");
 
         // Counter should resume from 3
         match restored.eval("inc()").unwrap() {
@@ -4044,12 +4094,7 @@ mod tests {
             .expect("write_snapshot failed");
 
         // Try to restore with a different signature
-        let result = Machine::from_snapshot(
-            &snap,
-            "restored",
-            b"wrong-sig 9",
-            &mut callbacks,
-        );
+        let result = Machine::from_snapshot(&snap, "restored", b"wrong-sig 9", &mut callbacks);
         assert!(result.is_err(), "mismatched signature should fail");
     }
 
@@ -4070,13 +4115,8 @@ mod tests {
             .write_snapshot(TEST_SNAPSHOT_SIG, &mut callbacks)
             .expect("write_snapshot failed");
 
-        let restored = Machine::from_snapshot(
-            &snap,
-            "restored",
-            TEST_SNAPSHOT_SIG,
-            &mut callbacks,
-        )
-        .expect("from_snapshot failed");
+        let restored = Machine::from_snapshot(&snap, "restored", TEST_SNAPSHOT_SIG, &mut callbacks)
+            .expect("from_snapshot failed");
 
         // The cached value should survive
         match restored.eval("cached").unwrap() {
@@ -4098,12 +4138,12 @@ mod tests {
     #[test]
     fn suspend_resume_preserves_state() {
         let machine = new_machine();
-        machine.eval("var counter = 0; function inc() { return ++counter; }").unwrap();
+        machine
+            .eval("var counter = 0; function inc() { return ++counter; }")
+            .unwrap();
         machine.eval("inc(); inc(); inc()").unwrap(); // counter = 3
 
-        let suspend_data = machine
-            .suspend(TEST_SNAPSHOT_SIG)
-            .expect("suspend failed");
+        let suspend_data = machine.suspend(TEST_SNAPSHOT_SIG).expect("suspend failed");
 
         assert!(!suspend_data.snapshot.is_empty());
 
@@ -4111,8 +4151,7 @@ mod tests {
         drop(machine);
 
         // Resume from the suspend data.
-        let restored = Machine::resume(&suspend_data, "resumed")
-            .expect("resume failed");
+        let restored = Machine::resume(&suspend_data, "resumed").expect("resume failed");
 
         // Counter should continue from 3.
         match restored.eval("inc()").unwrap() {
@@ -4133,13 +4172,10 @@ mod tests {
         machine.define_function("hostSeven", return_7, 0);
         machine.eval("var saved = hostSeven()").unwrap();
 
-        let suspend_data = machine
-            .suspend(TEST_SNAPSHOT_SIG)
-            .expect("suspend failed");
+        let suspend_data = machine.suspend(TEST_SNAPSHOT_SIG).expect("suspend failed");
         drop(machine);
 
-        let restored = Machine::resume(&suspend_data, "resumed")
-            .expect("resume failed");
+        let restored = Machine::resume(&suspend_data, "resumed").expect("resume failed");
 
         // Cached value survives.
         match restored.eval("saved").unwrap() {
@@ -4160,22 +4196,17 @@ mod tests {
         machine.eval("var n = 0").unwrap();
 
         // Suspend/resume three times, incrementing each time.
-        let mut data = machine
-            .suspend(TEST_SNAPSHOT_SIG)
-            .expect("first suspend");
+        let mut data = machine.suspend(TEST_SNAPSHOT_SIG).expect("first suspend");
         drop(machine);
 
         for i in 1..=3 {
-            let m = Machine::resume(&data, "cycle")
-                .expect("resume failed");
+            let m = Machine::resume(&data, "cycle").expect("resume failed");
             m.eval("n++").unwrap();
-            data = m.suspend(TEST_SNAPSHOT_SIG)
-                .expect("suspend failed");
+            data = m.suspend(TEST_SNAPSHOT_SIG).expect("suspend failed");
             drop(m);
         }
 
-        let final_m = Machine::resume(&data, "final")
-            .expect("final resume");
+        let final_m = Machine::resume(&data, "final").expect("final resume");
         match final_m.eval("n").unwrap() {
             JsValue::Integer(n) => assert_eq!(n, 3),
             other => panic!("expected 3, got {:?}", js_value_debug(&other)),
@@ -4200,7 +4231,11 @@ mod tests {
 
         // The CAS file should exist.
         let cas_file = cas_dir.join(&hash);
-        assert!(cas_file.exists(), "CAS file should exist at {}", cas_file.display());
+        assert!(
+            cas_file.exists(),
+            "CAS file should exist at {}",
+            cas_file.display()
+        );
         let file_size = std::fs::metadata(&cas_file).unwrap().len();
         assert!(file_size > 0, "CAS file should not be empty");
 
@@ -4212,7 +4247,8 @@ mod tests {
             "restored",
             TEST_SNAPSHOT_SIG,
             &mut callbacks,
-        ).expect("resume_from_cas failed");
+        )
+        .expect("resume_from_cas failed");
 
         match restored.eval("x").unwrap() {
             JsValue::Integer(n) => assert_eq!(n, 42),
@@ -4251,7 +4287,8 @@ mod tests {
             "restored",
             TEST_SNAPSHOT_SIG,
             &mut callbacks,
-        ).expect("resume_from_cas failed");
+        )
+        .expect("resume_from_cas failed");
 
         match restored.eval("cached").unwrap() {
             JsValue::Integer(n) => assert_eq!(n, 11),
@@ -4284,7 +4321,8 @@ mod tests {
                 "cycle",
                 TEST_SNAPSHOT_SIG,
                 &mut cbs,
-            ).expect("resume failed");
+            )
+            .expect("resume failed");
             m.eval("n++").unwrap();
             last_hash = m
                 .suspend_to_cas(TEST_SNAPSHOT_SIG, &cas_dir)
@@ -4304,13 +4342,9 @@ mod tests {
         );
 
         let mut cbs: Vec<ffi::XsCallback> = Vec::new();
-        let final_m = Machine::resume_from_cas(
-            &cas_dir,
-            &last_hash,
-            "final",
-            TEST_SNAPSHOT_SIG,
-            &mut cbs,
-        ).expect("final resume");
+        let final_m =
+            Machine::resume_from_cas(&cas_dir, &last_hash, "final", TEST_SNAPSHOT_SIG, &mut cbs)
+                .expect("final resume");
         match final_m.eval("n").unwrap() {
             JsValue::Integer(n) => assert_eq!(n, 3),
             other => panic!("expected 3, got {:?}", js_value_debug(&other)),
@@ -4330,10 +4364,7 @@ mod tests {
             .expect("loop should succeed");
 
         let computrons = machine.current_computrons();
-        assert!(
-            computrons > 0,
-            "expected computrons > 0, got {computrons}"
-        );
+        assert!(computrons > 0, "expected computrons > 0, got {computrons}");
         machine.end_metering();
     }
 
@@ -4375,22 +4406,21 @@ mod tests {
         // Do this with NO limit so the eval itself succeeds.
         set_crank_limit(0);
         machine.set_meter(0);
-        machine.eval(
-            "Promise.resolve().then(function() { \
+        machine
+            .eval(
+                "Promise.resolve().then(function() { \
                 var s = 0; \
                 for (var i = 0; i < 1000000; i++) { s += i; } \
-            })"
-        ).expect("promise creation should succeed");
+            })",
+            )
+            .expect("promise creation should succeed");
 
         // Now set a low limit and run the promise jobs.
         machine.set_meter(0);
         set_crank_limit(100);
 
         let result = machine.run_promise_jobs_metered();
-        assert!(
-            result.is_err(),
-            "expected metering abort, got Ok"
-        );
+        assert!(result.is_err(), "expected metering abort, got Ok");
         let status = result.unwrap_err();
         assert_eq!(
             status,
@@ -4420,11 +4450,13 @@ mod tests {
         // Queue work without a limit.
         set_crank_limit(0);
         machine.set_meter(0);
-        machine.eval(
-            "Promise.resolve().then(function() { \
+        machine
+            .eval(
+                "Promise.resolve().then(function() { \
                 for (var i = 0; i < 1000000; i++) {} \
-            })"
-        ).expect("promise creation");
+            })",
+            )
+            .expect("promise creation");
 
         // Run with a low limit.
         machine.set_meter(0);
@@ -4485,7 +4517,7 @@ mod tests {
         // Encode {"hard_limit": 50000} manually
         let mut data = Vec::new();
         data.push(0xa1); // map(1)
-        // key: "hard_limit" (10 bytes)
+                         // key: "hard_limit" (10 bytes)
         data.push(0x6a);
         data.extend_from_slice(b"hard_limit");
         // value: 50000 (u16)

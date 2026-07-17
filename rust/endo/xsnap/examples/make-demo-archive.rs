@@ -29,8 +29,8 @@ fn main() {
 
     let file = std::fs::File::create(out_path).expect("create zip");
     let mut zip = zip::ZipWriter::new(file);
-    let opts = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Stored);
+    let opts =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
     zip.start_file("compartment-map.json", opts).unwrap();
     zip.write_all(compartment_map.as_bytes()).unwrap();

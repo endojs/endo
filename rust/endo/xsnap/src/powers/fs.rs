@@ -70,7 +70,11 @@ unsafe fn set_result_bytes(the: *mut XsMachine, bytes: &[u8]) {
     let mut buf = Vec::with_capacity(bytes.len() + 1);
     buf.extend_from_slice(bytes);
     buf.push(0);
-    fxString(the, &mut (*the).scratch, buf.as_ptr() as *const std::os::raw::c_char);
+    fxString(
+        the,
+        &mut (*the).scratch,
+        buf.as_ptr() as *const std::os::raw::c_char,
+    );
     *(*the).frame.add(1) = (*the).scratch;
 }
 
@@ -171,35 +175,22 @@ fn root_to_abs(path: &str) -> std::path::PathBuf {
 ///
 /// # Safety
 /// `the` must be valid, `slot_index` must be in range.
-unsafe fn resolve_dir(
-    the: *mut XsMachine,
-    slot_index: usize,
-) -> Result<cap_std::fs::Dir, String> {
+unsafe fn resolve_dir(the: *mut XsMachine, slot_index: usize) -> Result<cap_std::fs::Dir, String> {
     let slot = (*the).frame.sub(1 + slot_index);
     let ty = fxTypeOf(the, slot);
     if ty == XS_INTEGER_TYPE || ty == XS_NUMBER_TYPE {
         let handle = fxToInteger(the, slot) as u32;
         let map = get_dir_map();
         match map.as_ref().unwrap().get(&handle) {
-            Some(dir) => dir
-                .try_clone()
-                .map_err(|e| format!("Error: {}", e)),
-            None => Err(format!(
-                "Error: invalid directory handle {}",
-                handle
-            )),
+            Some(dir) => dir.try_clone().map_err(|e| format!("Error: {}", e)),
+            None => Err(format!("Error: invalid directory handle {}", handle)),
         }
     } else {
         let token = arg_str(the, slot_index);
         let powers = get_powers(the);
         match powers.get_dir(&token) {
-            Some(dir) => dir
-                .try_clone()
-                .map_err(|e| format!("Error: {}", e)),
-            None => Err(format!(
-                "Error: unknown directory token '{}'",
-                token
-            )),
+            Some(dir) => dir.try_clone().map_err(|e| format!("Error: {}", e)),
+            None => Err(format!("Error: unknown directory token '{}'", token)),
         }
     }
 }
@@ -588,7 +579,8 @@ pub unsafe extern "C" fn host_stat(the: *mut XsMachine) {
                 .modified()
                 .ok()
                 .and_then(|t| {
-                    t.duration_since(cap_std::time::SystemClock::UNIX_EPOCH).ok()
+                    t.duration_since(cap_std::time::SystemClock::UNIX_EPOCH)
+                        .ok()
                 })
                 .map(|d| d.as_millis() as u64)
                 .unwrap_or(0);
@@ -619,10 +611,7 @@ pub unsafe extern "C" fn host_read_dir(the: *mut XsMachine) {
             "[{}]",
             names
                 .iter()
-                .map(|n| format!(
-                    "\"{}\"",
-                    n.replace('\\', "\\\\").replace('"', "\\\"")
-                ))
+                .map(|n| format!("\"{}\"", n.replace('\\', "\\\\").replace('"', "\\\"")))
                 .collect::<Vec<_>>()
                 .join(",")
         )
@@ -822,10 +811,7 @@ pub unsafe extern "C" fn host_open_dir(the: *mut XsMachine) {
 
     if arg_dir_token(the, 0).as_deref() == Some("root") {
         // Open ambiently so symlinks are followed.
-        match cap_std::fs::Dir::open_ambient_dir(
-            root_to_abs(&path),
-            cap_std::ambient_authority(),
-        ) {
+        match cap_std::fs::Dir::open_ambient_dir(root_to_abs(&path), cap_std::ambient_authority()) {
             Ok(sub) => {
                 let handle = NEXT_DIR_HANDLE.fetch_add(1, Ordering::SeqCst);
                 let mut map = get_dir_map();

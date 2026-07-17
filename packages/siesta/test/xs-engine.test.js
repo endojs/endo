@@ -154,6 +154,43 @@ testXs('XS worker keeps identity across snapshot restore', async t => {
   }
 });
 
+testXs('XS worker guests run under lockdown', async t => {
+  const { statePath, engine } = await makeKit(t);
+  const host = await makeSiestaHost({
+    store: makeFsStore(statePath),
+    engine,
+  });
+  const worker = await host.createWorker({ debugLabel: 'probe' });
+  const probe = await worker.evaluate(`
+    (() => {
+      const frozen =
+        Object.isFrozen(Object.prototype) &&
+        Object.isFrozen(Array.prototype) &&
+        Object.isFrozen(Function.prototype);
+      let smuggled = 'unset';
+      try {
+        // Sloppy-mode writes to frozen objects fail silently; probe
+        // whether the property actually landed.
+        Array.prototype.smuggle = () => 'leak';
+        smuggled = typeof Array.prototype.smuggle;
+      } catch (error) {
+        smuggled = 'threw';
+      }
+      return Far('Probe', {
+        report: () => [frozen, smuggled],
+      });
+    })()
+  `);
+  const [frozen, smuggled] = await E(probe).report();
+  t.true(frozen, 'shared intrinsic prototypes are frozen in the guest');
+  t.not(
+    smuggled,
+    'function',
+    'a guest cannot add a property to a shared intrinsic',
+  );
+  await host.shutdown();
+});
+
 testXs('XS worker uses durable host resources across restart', async t => {
   const { statePath, engine } = await makeKit(t);
   const resources = { timer: makeTimerResource };

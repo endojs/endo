@@ -94,8 +94,10 @@ cargo build --release -p siesta-xs-worker
 
 The XS tests (`test/xs-engine.test.js`) skip themselves when those
 artifacts are absent.
-Note: XS workers currently boot without SES lockdown (native
-Compartment plus freeze-based harden); see the design's known gaps.
+XS workers boot under XS's native Hardened JavaScript: the runner
+installs the engine's own `harden` and `lockdown` globals and the
+boot script calls `lockdown()`, so guests evaluate against frozen
+shared intrinsics inside a native `Compartment`.
 
 The engine seam stays open for future JS engines with other heap
 snapshot mechanisms: any object satisfying the `WorkerEngine` type in
@@ -197,8 +199,8 @@ This is a prototype.
 See the design document for the full list of open issues, notably:
 host-origin promises are at-most-once across host restarts (model
 durable host obligations as object capabilities; cross-worker promises
-do survive), XS workers boot without SES lockdown, and OCapN sessions themselves are ephemeral — only sturdy
-refs are durable.
+do survive) and OCapN sessions themselves are ephemeral — only
+sturdy refs are durable.
 
 ## Design
 

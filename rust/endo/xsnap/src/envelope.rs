@@ -226,10 +226,7 @@ pub fn read_frame(r: &mut impl Read) -> io::Result<Option<Vec<u8>>> {
     } else if info == 26 {
         let mut b = [0u8; 4];
         r.read_exact(&mut b)?;
-        ((b[0] as usize) << 24)
-            | ((b[1] as usize) << 16)
-            | ((b[2] as usize) << 8)
-            | b[3] as usize
+        ((b[0] as usize) << 24) | ((b[1] as usize) << 16) | ((b[2] as usize) << 8) | b[3] as usize
     } else {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,

@@ -47,14 +47,19 @@ const packageDependenciesHook = ({ canonicalName, dependencies }) => {
   return { dependencies: filtered };
 };
 
-// --- Boot script: xsnap's committed pre-lockdown polyfills ---
-// The worker runs WITHOUT the ses shim's lockdown: XS provides a native
-// Compartment, and the polyfills provide freeze-based harden and assert
-// shims (the same substrate the endor daemon's XS bundles run on). The
-// ses shim's repairIntrinsics currently fails on XS; true lockdown on XS
-// is tracked as a known gap in the design.
+// --- Boot script: xsnap's committed polyfills, then lockdown ---
+// XS implements Hardened JavaScript natively: siesta-xs-worker
+// registers the engine's own `harden` and `lockdown` as globals
+// (mxLockdown), so the polyfills' freeze-based harden shim steps
+// aside (`if (!globalThis.harden)`) and the boot script ends by
+// freezing the shared intrinsics. The ses shim is neither needed nor
+// usable here (its repairIntrinsics fails on XS).
 const polyfillsPath = path.join(xsnapSrcDir, 'polyfills.js');
-const bootScript = fs.readFileSync(polyfillsPath, 'utf8');
+const bootScript = `${fs.readFileSync(polyfillsPath, 'utf8')}
+// XS native Hardened JavaScript: freeze the shared intrinsics so
+// guest compartments cannot communicate or interfere through them.
+lockdown();
+`;
 const bootDist = path.join(distDir, 'boot.js');
 fs.writeFileSync(bootDist, bootScript);
 console.log(`Wrote ${bootDist} (${bootScript.length} bytes)`);

@@ -122,12 +122,8 @@ pub unsafe extern "C" fn host_real_path(the: *mut XsMachine) {
 }
 
 /// All host callbacks in registration order for snapshot tables.
-pub const CALLBACKS: &[crate::ffi::XsCallback] = &[
-    host_get_pid,
-    host_get_env,
-    host_join_path,
-    host_real_path,
-];
+pub const CALLBACKS: &[crate::ffi::XsCallback] =
+    &[host_get_pid, host_get_env, host_join_path, host_real_path];
 
 /// Register all process host functions on the machine.
 pub unsafe fn register(machine: &crate::Machine) {

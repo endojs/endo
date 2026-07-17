@@ -373,12 +373,16 @@ Findings that shaped the implementation, for future engine authors:
 - XS's native `Compartment` takes an options bag, not the SES shim's
   endowments-first signature; the worker shell assigns endowments onto
   `compartment.globalThis`, which is portable to both.
-- The ses shim's `repairIntrinsics` currently fails on XS, so the
-  worker boots with xsnap's polyfills (freeze-based `harden`, `assert`,
-  text codecs) and **no lockdown** — the same substrate endor's XS
-  bundles run on. Guests are isolated per-machine and per-compartment,
-  but share mutable intrinsics with the shell inside their own
-  machine; ses-on-XS lockdown is a known gap.
+- The ses shim's `repairIntrinsics` fails on XS — and is the wrong
+  tool there anyway: XS implements Hardened JavaScript natively
+  (`mxLockdown`). `siesta-xs-worker` registers the engine's own
+  `fx_harden`/`fx_lockdown` as the `harden`/`lockdown` globals
+  (exactly as `xst` does; both join the snapshot callback table), the
+  polyfills' freeze-based harden shim steps aside, and the boot
+  script ends with `lockdown()`. Guests see frozen shared intrinsics
+  (verified by a probe test that fails to add a property to
+  `Array.prototype`), so isolation holds per-machine, per-compartment,
+  and through the intrinsics.
 - All JSON crossing the pipe and the host-function boundary is
   ASCII-escaped, making CESU-8/UTF-8/C-string encodings coincide.
 
@@ -741,7 +745,8 @@ until it lands.
    superseded-ref release) proven first on
    `makeSnapshottingReplayEngine`, then the exit criterion met on real
    XS snapshots via `rust/siesta-xs-worker` + `makeXsEngine`
-   (§ *The XS engine*). Remaining follow-up: ses lockdown on XS.
+   (§ *The XS engine*). The lockdown follow-up landed via XS's
+   native Hardened JavaScript (see § *The XS engine*).
 4. **Phase 4 (landed): system resources.** Durable host exports at the
    export-table layer per § *Host-provided system resources*: maker
    registry, export-time description recording in the tables record,
@@ -812,11 +817,11 @@ until it lands.
 
 - [x] ~~XS engine adapter.~~ Landed as `rust/siesta-xs-worker` +
       `makeXsEngine` after the rescope onto the `xsnap` crate.
-- [ ] No SES lockdown inside XS workers: the ses shim's
-      `repairIntrinsics` fails on XS, so guests share mutable
-      intrinsics with the shell inside their own machine (isolation is
-      per-machine and per-compartment). Repairing ses-on-XS (or using
-      XS's native lockdown once enabled) is the follow-up.
+- [x] ~~No SES lockdown inside XS workers.~~ Landed via XS's native
+      Hardened JavaScript: the runner installs `fx_harden` /
+      `fx_lockdown` as globals and the boot script calls `lockdown()`
+      after the polyfills; a probe test verifies guests see frozen
+      shared intrinsics.
 - [x] ~~Host exports to workers are not durable.~~ Landed as Phase 4:
       export descriptions live in the serialized tables record and are
       re-instantiated at resume via `captp.provideExport`; cross-worker
