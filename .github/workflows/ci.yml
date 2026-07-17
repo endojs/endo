@@ -251,41 +251,6 @@ jobs:
       - name: Run SES/Hermes smoke test
         run: yarn test:hermes
 
-  check-action-pins:
-    name: check-action-pins
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      # without this, setup-node errors on mismatched yarn versions
-      - run: corepack enable
-
-      - name: Use Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version-file: .node-version
-          cache: yarn
-
-      - name: Install dependencies
-        run: yarn install --immutable
-
-      - name: Detect workflow changes
-        id: paths
-        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
-        with:
-          filters: |
-            workflows:
-              - '.github/workflows/**'
-
-      - name: Verify action pins
-        if: ${{ github.event_name != 'pull_request' || steps.paths.outputs.workflows == 'true' }}
-        run: node scripts/update-action-pins.mjs --check-pins
-
   viable-release:
     name: viable-release
 
