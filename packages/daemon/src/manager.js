@@ -688,6 +688,7 @@ const makeDaemonCore = async (
           ['mailHub', formula.mailHub],
           ['endo', formula.endo],
           ['networks', formula.networks],
+          ['planes', formula.planes],
           ['pins', formula.pins],
         ];
       case 'guest':
@@ -700,6 +701,7 @@ const makeDaemonCore = async (
           ['mailHub', formula.mailHub],
           ['worker', formula.worker],
           ['networks', formula.networks],
+          ['planes', formula.planes],
         ];
       case 'marshal':
         return (formula.slots ?? []).map((s, i) => [`slot${i}`, s]);
