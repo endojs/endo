@@ -1,6 +1,7 @@
 pub mod cas;
 pub mod cas_archive;
 pub mod codec;
+pub mod fetch;
 pub mod registry;
 pub mod semver;
 pub mod endo;
