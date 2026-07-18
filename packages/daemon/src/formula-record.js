@@ -109,6 +109,10 @@ export const makeFormulaRecord = (formula, number, options = {}) => {
         kind: 'reference',
         identifier: formula.networks,
       };
+      properties.planes = {
+        kind: 'reference',
+        identifier: formula.planes,
+      };
       properties.pins = { kind: 'reference', identifier: formula.pins };
       break;
     }

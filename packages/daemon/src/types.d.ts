@@ -198,6 +198,7 @@ export type HostFormula = {
   mailHub: FormulaIdentifier;
   endo: FormulaIdentifier;
   networks: FormulaIdentifier;
+  planes: FormulaIdentifier;
   pins: FormulaIdentifier;
 };
 
@@ -211,6 +212,7 @@ export type GuestFormula = {
   mailHub: FormulaIdentifier;
   worker: FormulaIdentifier;
   networks: FormulaIdentifier;
+  planes: FormulaIdentifier;
 };
 
 export type LeastAuthorityFormula = {
@@ -932,6 +934,21 @@ export type ContentIdentity = {
 };
 
 /**
+ * An extensible data plane represented by a sharing capability in an agent's
+ * `@planes` directory. Phase 3 resolves source hints only. The optional fetch
+ * hook is reserved for the verifying fetch path in Phases 4 and 5.
+ */
+export type ContentDataPlane = {
+  name: string;
+  source: (
+    hash: string,
+    kind: ContentKind,
+    share: unknown,
+  ) => Promise<ContentSourceHint[]>;
+  fetch?: unknown;
+};
+
+/**
  * The content-locate method family (`designs/endo-content-locators-magnet-urn.md`
  * § Interface extension, Design Decision 9). The content-side analogue of the
  * name-resolution family (`locate` / `listLocators` / `reverseLocate`),
@@ -1015,6 +1032,9 @@ export type MakeDirectoryNode = (
   agentNodeNumber: NodeNumber,
   isLocalKey: (node: string) => boolean,
   getNetworkAddresses: () => Promise<string[]>,
+  getContentSources: (
+    identity: ContentIdentity,
+  ) => Promise<ContentSourceHint[]>,
 ) => EndoDirectory & ContentLocatable;
 
 export interface Mail {
@@ -2267,6 +2287,7 @@ type FormulateNumberedGuestParams = {
   mailHubId: FormulaIdentifier;
   workerId: FormulaIdentifier;
   networksDirectoryId: FormulaIdentifier;
+  planesDirectoryId: FormulaIdentifier;
   pinned: FormulaIdentifier[];
 };
 
@@ -2293,6 +2314,7 @@ type FormulateNumberedHostParams = {
   inspectorId: FormulaIdentifier;
   endoId: FormulaIdentifier;
   networksDirectoryId: FormulaIdentifier;
+  planesDirectoryId: FormulaIdentifier;
   pinsDirectoryId: FormulaIdentifier;
   pinned: FormulaIdentifier[];
 };
@@ -2567,6 +2589,15 @@ export interface DaemonCore {
   getAllNetworkAddresses: (
     networksDirectoryId: FormulaIdentifier,
   ) => Promise<string[]>;
+
+  /**
+   * Resolve the source hints contributed by registered data planes vended in
+   * one agent's `@planes` directory. An empty directory yields no hints.
+   */
+  getAllContentSources: (
+    planesDirectoryId: FormulaIdentifier,
+    identity: ContentIdentity,
+  ) => Promise<ContentSourceHint[]>;
 
   getIdForRef: (ref: unknown) => FormulaIdentifier | undefined;
 

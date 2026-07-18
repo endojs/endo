@@ -57,6 +57,7 @@ export const makeDirectoryMaker = ({
     agentNodeNumber,
     isLocalKey,
     getNetworkAddresses,
+    getContentSources,
   ) => {
     /** @type {EndoDirectory['lookup']} */
     const lookup = petNamePath => {
@@ -248,10 +249,9 @@ export const makeDirectoryMaker = ({
     // (`xt`), independent of location. A non-content formula type is rejected,
     // the same way `parseLocator` rejects an unknown query parameter.
     //
-    // This is Phase 2 (the interface methods). With no `@planes` yet (Phase 3),
-    // every locator produced here is `xt`-only: it proves what the content *is*
-    // without advertising any data-plane source, the content analogue of a
-    // hint-free locator from an empty `NETS`.
+    // An empty per-agent `@planes` directory resolves to no source hints, so
+    // every locator remains `xt`-only until a data plane is registered and
+    // vended into that directory.
 
     /**
      * Build the content locator (magnet URN) for an already-resolved content
@@ -259,15 +259,11 @@ export const makeDirectoryMaker = ({
      * hints will thread in.
      *
      * @param {ContentIdentity} identity
-     * @returns {string}
+     * @returns {Promise<string>}
      */
-    const contentLocatorFromIdentity = ({ hash, kind }) => {
-      // Phase 3 seam: an empty `@planes` vends no data-plane sources, so this
-      // is an `xt`-only URN. Phase 3 resolves
-      // `getAllContentSources(planesDirectoryId, hash)` for this hash and
-      // passes the resulting `ws` / `xs` / `as` / `tr` hints as the third
-      // argument to `externalizeContent`.
-      const sources = [];
+    const contentLocatorFromIdentity = async identity => {
+      const { hash, kind } = identity;
+      const sources = await getContentSources(identity);
       return externalizeContent(hash, kind, sources);
     };
 
@@ -309,7 +305,7 @@ export const makeDirectoryMaker = ({
             // `listLocators` listing every name, but restricted to content).
             return;
           }
-          record[name] = contentLocatorFromIdentity(identity);
+          record[name] = await contentLocatorFromIdentity(identity);
         }),
       );
       return harden(record);
@@ -330,13 +326,9 @@ export const makeDirectoryMaker = ({
           `Cannot store content for ${q(petNamePath)}: not a content-bearing formula (readable-blob or readable-tree)`,
         );
       }
-      // Phase 3 seam: `storeContent` is the explicit publish verb behind
-      // `locateContent`'s resolution. When `@planes` exists (Phase 3), this
-      // mints the per-plane sharing capabilities over the agent's `@planes`,
-      // asks each vended plane to begin serving the named readable, and threads
-      // the freshly vended source hints into the returned locator. Until then
-      // there are no planes to vend, so it returns the same `xt`-only content
-      // locator as `locateContent`.
+      // Each resolver receives its `@planes` sharing capability and starts
+      // serving content if its plane supports this identity. With an empty
+      // directory this remains the same `xt`-only result as locateContent.
       return contentLocatorFromIdentity(identity);
     };
 
@@ -614,11 +606,13 @@ export const makeDirectoryMaker = ({
 
     const petStore = await provideStoreController(petStoreId);
     const noNetworkAddresses = async () => [];
+    const noContentSources = async () => [];
     const directory = makeDirectoryNode(
       petStore,
       agentNodeNumber,
       isLocalKey,
       noNetworkAddresses,
+      noContentSources,
     );
 
     const help = makeHelp(directoryHelp);

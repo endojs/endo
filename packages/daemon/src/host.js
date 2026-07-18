@@ -322,6 +322,7 @@ harden(normalizeHttpClientPolicy);
  * @param {DaemonCore['formulateChannel']} args.formulateChannel
  * @param {DaemonCore['formulateTimer']} args.formulateTimer
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
+ * @param {DaemonCore['getAllContentSources']} args.getAllContentSources
  * @param {DaemonCore['getTypeForId']} args.getTypeForId
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {MakeMailbox} args.makeMailbox
@@ -369,6 +370,7 @@ export const makeHostMaker = ({
   formulateChannel,
   formulateTimer,
   getAllNetworkAddresses,
+  getAllContentSources,
   getTypeForId,
   getFormulaForId,
   makeMailbox,
@@ -426,6 +428,7 @@ export const makeHostMaker = ({
    * @param {FormulaIdentifier} nodeWorkerId
    * @param {FormulaIdentifier} endoId
    * @param {FormulaIdentifier} networksDirectoryId
+   * @param {FormulaIdentifier} planesDirectoryId
    * @param {FormulaIdentifier} pinsDirectoryId
    * @param {FormulaIdentifier} leastAuthorityId
    * @param {{[name: string]: FormulaIdentifier}} platformNames
@@ -445,6 +448,7 @@ export const makeHostMaker = ({
     nodeWorkerId,
     endoId,
     networksDirectoryId,
+    planesDirectoryId,
     pinsDirectoryId,
     leastAuthorityId,
     platformNames,
@@ -454,6 +458,7 @@ export const makeHostMaker = ({
     context.thisDiesIfThatDies(mainWorkerId);
     context.thisDiesIfThatDies(nodeWorkerId);
     context.thisDiesIfThatDies(mailboxStoreId);
+    context.thisDiesIfThatDies(planesDirectoryId);
     if (mailHubId !== undefined) {
       context.thisDiesIfThatDies(mailHubId);
     }
@@ -477,6 +482,7 @@ export const makeHostMaker = ({
       '@node': nodeWorkerId,
       '@endo': endoId,
       '@nets': networksDirectoryId,
+      '@planes': planesDirectoryId,
       '@pins': pinsDirectoryId,
       '@none': leastAuthorityId,
     };
@@ -487,11 +493,14 @@ export const makeHostMaker = ({
 
     const getNetworkAddresses = () =>
       getAllNetworkAddresses(networksDirectoryId);
+    const getContentSources = identity =>
+      getAllContentSources(planesDirectoryId, identity);
     const directory = makeDirectoryNode(
       specialStore,
       agentNodeNumber,
       isLocalKey,
       getNetworkAddresses,
+      getContentSources,
     );
     const mailbox = await makeMailbox({
       petStore: specialStore,

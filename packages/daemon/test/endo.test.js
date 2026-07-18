@@ -28,6 +28,7 @@ import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { start, stop, restart, purge, makeEndoClient } from '../index.js';
 import { makeCryptoPowers } from '../src/manager-node-powers.js';
 import { makeDaemonDatabase } from '../src/manager-database-node.js';
+import { makeContentDataPlaneRegistry } from '../src/content-data-plane.js';
 import { formatId, parseId } from '../src/formula-identifier.js';
 import {
   formatLocator,
@@ -3273,6 +3274,47 @@ test('guest has its own @nets special name', async t => {
     guestNetsLocator,
     'host and guest have different @nets directories',
   );
+});
+
+test('agents have distinct empty @planes directories', async t => {
+  const { host } = await prepareHost(t);
+  const guest = await E(host).provideGuest('guest');
+
+  t.deepEqual(await E(host).list('@planes'), []);
+  t.deepEqual(await E(guest).list('@planes'), []);
+
+  const hostPlanesLocator = await E(host).locate('@planes');
+  const guestPlanesLocator = await E(guest).locate('@planes');
+  t.truthy(hostPlanesLocator);
+  t.truthy(guestPlanesLocator);
+  t.not(hostPlanesLocator, guestPlanesLocator);
+});
+
+test('content data plane registry resolves hints from registered shares', async t => {
+  const registry = makeContentDataPlaneRegistry();
+  /** @type {string[]} */
+  const calls = [];
+  registry.register({
+    name: 'web-seed',
+    source: async (hash, kind, share) => {
+      calls.push(`${hash}:${kind}:${share}`);
+      return [{ plane: 'ws', payload: `https://${share}/${hash}` }];
+    },
+  });
+
+  const hash = 'a'.repeat(64);
+  const sources = await registry.getAllContentSources(
+    [
+      { name: 'unregistered', share: 'ignored' },
+      { name: 'web-seed', share: 'example.test/content' },
+    ],
+    { hash, kind: 'blob' },
+  );
+
+  t.deepEqual(calls, [`${hash}:blob:example.test/content`]);
+  t.deepEqual(sources, [
+    { plane: 'ws', payload: `https://example.test/content/${hash}` },
+  ]);
 });
 
 test('locate produces locators with connection hints from agent NETS', async t => {

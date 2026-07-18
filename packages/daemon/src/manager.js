@@ -38,6 +38,7 @@ import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iter
 import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 import { checkinTarTree } from './tar-checkin.js';
 import { makeDirectoryMaker } from './directory.js';
+import { makeContentDataPlaneRegistry } from './content-data-plane.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
@@ -687,6 +688,7 @@ const makeDaemonCore = async (
           ['mailHub', formula.mailHub],
           ['endo', formula.endo],
           ['networks', formula.networks],
+          ['planes', formula.planes],
           ['pins', formula.pins],
         ];
       case 'guest':
@@ -699,6 +701,7 @@ const makeDaemonCore = async (
           ['mailHub', formula.mailHub],
           ['worker', formula.worker],
           ['networks', formula.networks],
+          ['planes', formula.planes],
         ];
       case 'marshal':
         return (formula.slots ?? []).map((s, i) => [`slot${i}`, s]);
@@ -3345,6 +3348,7 @@ const makeDaemonCore = async (
         nodeWorker: nodeWorkerId,
         endo: endoId,
         networks: networksId,
+        planes: planesId,
         pins: pinsId,
       } = formula;
 
@@ -3385,6 +3389,7 @@ const makeDaemonCore = async (
         nodeWorkerId,
         endoId,
         networksId,
+        planesId,
         pinsId,
         leastAuthorityId,
         platformNames,
@@ -3404,6 +3409,7 @@ const makeDaemonCore = async (
         mailHub: mailHubId,
         worker: workerId,
         networks: networksDirectoryId,
+        planes: planesDirectoryId,
       } = formula;
 
       if (mailHubId === undefined) {
@@ -3438,6 +3444,7 @@ const makeDaemonCore = async (
         mailHubId,
         workerId,
         networksDirectoryId,
+        planesDirectoryId,
         context,
       );
       const handle = /** @type {any} */ (agent).handle();
@@ -5066,6 +5073,12 @@ const makeDaemonCore = async (
         'node',
       ),
     );
+    // Every agent owns an initially empty `@planes` directory. A data plane is
+    // opt-in: only a capability the agent places here can contribute a source
+    // hint to its content locators.
+    const planesDirectoryId = pin(
+      (await formulateDirectory(agentNodeNumber)).id,
+    );
     /* eslint-enable no-use-before-define */
 
     return harden({
@@ -5081,6 +5094,7 @@ const makeDaemonCore = async (
       inspectorId,
       mainWorkerId: hostMainWorkerId,
       nodeWorkerId,
+      planesDirectoryId,
       pinned,
     });
   };
@@ -5100,6 +5114,7 @@ const makeDaemonCore = async (
       nodeWorker: identifiers.nodeWorkerId,
       endo: identifiers.endoId,
       networks: identifiers.networksDirectoryId,
+      planes: identifiers.planesDirectoryId,
       pins: identifiers.pinsDirectoryId,
     };
 
@@ -5226,6 +5241,9 @@ const makeDaemonCore = async (
     const networksDirectoryId = pin(
       (await formulateDirectory(agentNodeNumber)).id,
     );
+    const planesDirectoryId = pin(
+      (await formulateDirectory(agentNodeNumber)).id,
+    );
     return harden({
       guestFormulaNumber,
       guestId,
@@ -5238,6 +5256,7 @@ const makeDaemonCore = async (
       mailHubId,
       workerId,
       networksDirectoryId,
+      planesDirectoryId,
       pinned,
     });
   };
@@ -5255,6 +5274,7 @@ const makeDaemonCore = async (
       mailHub: identifiers.mailHubId,
       worker: identifiers.workerId,
       networks: identifiers.networksDirectoryId,
+      planes: identifiers.planesDirectoryId,
     };
 
     return /** @type {FormulateResult<EndoGuest>} */ (
@@ -5916,6 +5936,24 @@ const makeDaemonCore = async (
     return addresses;
   };
 
+  // No plane is registered in Phase 3. The registry and this resolution path
+  // are nevertheless live so a later plane can contribute fresh hints without
+  // changing the agent or locator plumbing.
+  const contentDataPlaneRegistry = makeContentDataPlaneRegistry();
+
+  /** @type {DaemonCore['getAllContentSources']} */
+  const getAllContentSources = async (planesDirectoryId, identity) => {
+    const planesDirectory = await provide(planesDirectoryId, 'directory');
+    const names = await E(planesDirectory).list();
+    const entries = await Promise.all(
+      names.map(async name => ({
+        name,
+        share: await E(planesDirectory).lookup(name),
+      })),
+    );
+    return contentDataPlaneRegistry.getAllContentSources(entries, identity);
+  };
+
   /**
    * @param {FormulaIdentifier} networksDirectoryId
    * @param {NodeNumber} nodeId
@@ -6365,6 +6403,7 @@ const makeDaemonCore = async (
     formulateMarshalValue,
     getFormulaForId,
     getAllNetworkAddresses,
+    getAllContentSources,
     makeMailbox,
     makeDirectoryNode,
     isLocalKey,
@@ -6754,6 +6793,7 @@ const makeDaemonCore = async (
     formulateDirectoryForStore,
     getPeerIdForNodeIdentifier,
     getAllNetworkAddresses,
+    getAllContentSources,
     getTypeForId,
     getFormulaForId,
     formulateChannel,
