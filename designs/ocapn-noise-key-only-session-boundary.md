@@ -87,13 +87,27 @@ Neither it nor any caller allocates `PREFIXED_SYN_LENGTH`, invokes
 `OcapnNoiseSession`, whose `remotePublicKeyBytes` equals the requested public
 key after authentication.
 
-### Controller facet and key-routed accept
+### Static routing configuration and key-routed accept
 
-`makeNoiseProtocolIkRelay` returns a transport-facing relay facet and a separate
-controller facet exo. The controller is the only public authority that mutates
-the relay's routing tables. It is created with administrative authority to
-resolve a registered public key through the protected local-key store;
-recipients receive neither that authority nor a signing key.
+The relay process starts from a static responder mapping. Each entry maps one
+32-byte responder public key to an opaque recipient route and is validated
+against the protected local-key store before it becomes live. The generic relay
+only requires the route to resolve to a `NoiseIkSessionRecipient`; the OCapN
+deployment adapter may represent the route as a daemon name, a local socket, or
+another deployment-specific endpoint. The mapping is configuration, not a
+public capability API: recipients receive neither local-key authority nor a
+way to mutate the routing table.
+
+On POSIX deployments, `SIGHUP` is the control-plane operation. The hosting
+process reads a replacement mapping, resolves every referenced local identity,
+and validates duplicate keys and recipient routes before atomically publishing
+the complete new snapshot to the relay. A bad reload leaves the prior snapshot
+in service. Existing authenticated sessions retain the recipient and transport
+that accepted them; only streams accepted after publication use the replacement
+mapping. This gives operators a declarative route file and graceful rotation or
+reassignment without a controller facet exposed across vat or process
+boundaries. Other hosts provide the same validated, atomic replacement through
+their native service-reload mechanism.
 
 ```ts
 interface NoiseIkAcceptedSession {
@@ -108,12 +122,9 @@ interface NoiseIkSessionRecipient {
   accept(session: NoiseIkAcceptedSession): Promise<void>;
 }
 
-interface NoiseProtocolIkRelayController {
-  registerResponder(
-    responderEd25519: Uint8Array,
-    recipient: NoiseIkSessionRecipient,
-  ): () => void;
-  unregisterResponder(responderEd25519: Uint8Array): void;
+interface StaticResponderRoute {
+  responderEd25519: Uint8Array;
+  recipient: NoiseIkSessionRecipient;
 }
 
 interface NoiseProtocolIkRelay {
@@ -121,13 +132,12 @@ interface NoiseProtocolIkRelay {
 }
 ```
 
-The implementation realizes `NoiseProtocolIkRelayController` as a controller
-facet exo, not a record of mutable callbacks. `registerResponder` validates the
-32-byte key, verifies that the protected key store can use that exact local
-identity, installs one recipient in the key-to-recipient routing table, and
-returns a revoker. Duplicate registration fails rather than silently replacing
-a route. Unregistration and a returned revoker are idempotent: they prevent
-future acceptance for that key but do not revoke a session already delivered.
+The host constructs the relay from a `readonly StaticResponderRoute[]` and
+retains its private route-snapshot replacement hook. That hook validates the
+complete candidate map and replaces the active immutable snapshot in one step;
+it is not exported as a controller exo or handed to recipients. Duplicate keys
+fail rather than silently replacing a route. Removing a key prevents future
+acceptance for that key but does not revoke a session already delivered.
 
 The relay's `accept` is deliberately key-routed, not recipient-selected. It
 reads the prefixed SYN once, selects both the local signing identity and the
@@ -215,8 +225,8 @@ opens the appropriate transport, calls relay `connect`, and wraps the plaintext
 result as `OcapnNoiseSession`. Neither the adapter nor its callers allocate
 `PREFIXED_SYN_LENGTH`, call `initiatorWriteSyn`, or observe a SYNACK.
 
-For accepting sessions, the adapter registers an `OcapnSessionRecipient` for
-each daemon identity through the controller facet. That recipient accepts a
+For accepting sessions, the adapter supplies an `OcapnSessionRecipient` for
+each daemon identity in the static responder mapping. That recipient accepts a
 `NoiseIkAcceptedSession`, validates or interprets OCapN-specific encrypted
 location data where necessary, and attaches the plaintext reader and writer to
 the OCapN or CapTP session manager. Its OCapN-facing record can preserve
@@ -224,7 +234,8 @@ existing names while adding selected responder and authenticated initiator keys.
 
 Every responder must migrate, not just the WebSocket gateway: built-in
 transport listeners, test transports, relay registrations, and direct callers
-that currently expect raw Noise frames all register a session recipient.
+that currently expect raw Noise frames all appear in the static responder
+mapping with a session recipient.
 
 The daemon-side `handleOcapnSession` exo changes from accepting encrypted wire
 frames to accepting the OCapN adaptation of `NoiseIkAcceptedSession`.
@@ -233,8 +244,8 @@ frames to accepting the OCapN adaptation of `NoiseIkAcceptedSession`.
 upgrade it validates only the generic stream shape and calls relay `accept`. It
 no longer reads the first frame, defines intended-responder prefix constants,
 converts a prefix to hex for routing, looks up a daemon from a SYN prefix, or
-defines `prependFrame`. Registration code binds a daemon recipient through the
-relay controller instead.
+defines `prependFrame`. The gateway host loads the static daemon mapping at
+startup and replaces it gracefully on `SIGHUP` instead.
 
 The gateway process contains the relay and its protected key-store authority for
 identities it serves. The daemon receives authenticated plaintext only. A
@@ -250,23 +261,25 @@ existing peer implementations stay interoperable. This is therefore not a
 protocol-version or locator-format change.
 
 It is source and deployment visible. `handleOcapnSession` changes shape,
-gateway registrations move from a public-key-to-raw-stream target table to a
-public-key-to-session-recipient registration, and all responders must update
+gateway routing moves from a public-key-to-raw-stream target table to a static
+public-key-to-session-recipient mapping, and all responders must update
 together. A mixed local deployment cannot hand a raw stream to a new daemon or
 an accepted session to an old daemon. Land the network types and adapters with
 compatibility tests, migrate each responder, then remove the old raw-stream
 handoff in one coordinated change. Do not support `{ stream, prefixedSyn? }`
-as an interim public API.
+as an interim public API. Test a valid `SIGHUP` reload, a rejected invalid
+reload that leaves the old mapping live, and the continuity of sessions accepted
+before a reload.
 
 ## Implementation Plan
 
 1. Create `noise-protocol-ik-relay` with key-store, transport, session,
-   controller-facet, and abuse-limit tests that do not import OCapN.
+   static-route replacement, and abuse-limit tests that do not import OCapN.
 2. Move the generic IK initiator and key-routed responder state machine into the
    package while preserving timeout, close, crossed-hello, and two-stage
    in-progress accounting behavior.
 3. Implement the OCapN adapter that translates locator/session semantics above
-   the package boundary and registers daemon recipients through the controller.
+   the package boundary and supplies daemon recipients from the static mapping.
 4. Reduce `ocapn-ws.js` to a transport adapter. Add an end-to-end test that a
    recipient receives two keys and plaintext but never a SYN.
 
