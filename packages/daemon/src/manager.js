@@ -39,6 +39,7 @@ import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 import { checkinTarTree } from './tar-checkin.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeContentDataPlaneRegistry } from './content-data-plane.js';
+import { makeHttpContentDataPlane } from './http-content-plane.js';
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { assertMailboxStoreName, makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
@@ -57,6 +58,7 @@ import {
   idFromLocator,
   internalizeLocator,
   externalizeId,
+  parseContentLocator,
 } from './locator.js';
 import { makeContextMaker } from './context.js';
 import {
@@ -111,7 +113,7 @@ import { getUnredactedStackString } from './unredacted-stack.js';
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { ReadableBlobRange, SnapshotTree } from '@endo/platform/fs/lite/types' */
 /** @import { ArchiveTreeMethods } from './tar-checkin.js' */
-/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LogChunk, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobFormula, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
+/** @import { AgentDeferredTaskParams, Builtins, CapTpConnectionRegistrar, Context, Controller, DaemonCore, DaemonCoreExternal, DaemonicPowers, DeferredTasks, DirectoryFormula, EndoBootstrap, EndoDirectory, EndoFormula, EndoGateway, EndoGreeter, EndoGuest, EndoHost, EndoInspector, EndoMount, EndoNetwork, EndoPeer, EndoReadable, EndoReadableTree, EndoWorker, EvalFormula, FarContext, Formula, FormulaIdentifier, FormulaNumber, FormulaMakerTable, FormulateResult, GuestFormula, HandleFormula, HostFormula, Invitation, InvitationDeferredTaskParams, InvitationFormula, KnownEndoInspectors, KnownPeersStore, LogChunk, LookupFormula, LoopbackNetworkFormula, MailboxStoreFormula, MailHubFormula, MakeArchiveFormula, MakeCapletDeferredTaskParams, MakeFromTreeFormula, MakeUnconfinedFormula, MarshalDeferredTaskParams, MessageFormula, Name, NameHub, NamePath, NameOrPath, NodeNumber, PetName, PeerFormula, PeerInfo, PetInspectorFormula, PetStore, PetStoreFormula, PromiseFormula, Provide, ReadableBlobDeferredTaskParams, ReadableBlobFormula, ReadableTreeDeferredTaskParams, ResolverFormula, Sha256, Specials, MarshalFormula, WeakMultimap, WorkerDaemonFacet, WorkerFormula, TimerFormula } from './types.js' */
 
 /**
  * @typedef {{ kind: 'bearer', token: string } | { kind: 'basic', username: string, password: string }} GitCredentialMaterial
@@ -1461,6 +1463,101 @@ const makeDaemonCore = async (
         );
       }
       return provide(requestedId);
+    },
+    /**
+     * Stream a content-addressed blob, or a canonical tar representation of a
+     * readable tree, for the HTTP web-seed route.  The hash is a bearer read
+     * capability, but the HTTP receiver still treats these bytes as untrusted
+     * and verifies them against `xt` before using them.
+     *
+     * @param {string} hash
+     * @param {'blob' | 'tree'} kind
+     */
+    async fetchContent(hash, kind) {
+      assertValidNumber(hash);
+      if (kind === 'blob') {
+        return bytesReaderFromIterator(
+          contentStore.fetch(hash).makeFileReader(),
+        );
+      }
+      if (kind !== 'tree') {
+        throw makeError(`Invalid content kind ${q(kind)}`);
+      }
+
+      /** @param {string} text @param {Uint8Array} bytes @param {number} start */
+      const writeTarText = (text, bytes, start) => {
+        bytes.set(new TextEncoder().encode(text), start);
+      };
+      /** @param {number} value @param {number} width */
+      const tarNumber = (value, width) =>
+        `${value.toString(8).padStart(width - 1, '0')}\0`;
+      /** @param {string} path @param {number} size */
+      const tarHeader = (path, size) => {
+        if (new TextEncoder().encode(path).byteLength > 100) {
+          throw makeError(`Tree path is too long for web-seed tar: ${q(path)}`);
+        }
+        const header = new Uint8Array(512);
+        writeTarText(path, header, 0);
+        writeTarText(tarNumber(0o644, 8), header, 100);
+        writeTarText(tarNumber(0, 8), header, 108);
+        writeTarText(tarNumber(0, 8), header, 116);
+        writeTarText(tarNumber(size, 12), header, 124);
+        writeTarText(tarNumber(0, 12), header, 136);
+        header.fill(0x20, 148, 156);
+        header[156] = '0'.charCodeAt(0);
+        writeTarText('ustar\0', header, 257);
+        writeTarText('00', header, 263);
+        let checksum = 0;
+        for (const byte of header) checksum += byte;
+        writeTarText(tarNumber(checksum, 8), header, 148);
+        return header;
+      };
+
+      async function* archiveTree(treeHash, prefix = '') {
+        const entries = await contentStore.fetch(treeHash).json();
+        if (!Array.isArray(entries)) {
+          throw makeError(`Invalid readable tree ${q(treeHash)}`);
+        }
+        for (const entry of entries) {
+          if (!Array.isArray(entry) || entry.length !== 3) {
+            throw makeError(`Invalid readable tree entry in ${q(treeHash)}`);
+          }
+          const [name, type, childHash] = entry;
+          if (
+            typeof name !== 'string' ||
+            typeof type !== 'string' ||
+            typeof childHash !== 'string'
+          ) {
+            throw makeError(`Invalid readable tree entry in ${q(treeHash)}`);
+          }
+          const path = `${prefix}${name}`;
+          if (type === 'tree') {
+            yield* archiveTree(childHash, `${path}/`);
+          } else if (type === 'blob') {
+            const blob = /** @type {DaemonContentStoreBlob} */ (
+              contentStore.fetch(childHash)
+            );
+            const size = Number(await blob.size());
+            if (!Number.isSafeInteger(size)) {
+              throw makeError(`Web-seed blob is too large for tar: ${q(path)}`);
+            }
+            yield tarHeader(path, size);
+            for await (const chunk of blob.makeFileReader()) {
+              yield chunk;
+            }
+            const remainder = size % 512;
+            if (remainder !== 0) yield new Uint8Array(512 - remainder);
+          } else {
+            throw makeError(`Invalid readable tree entry type ${q(type)}`);
+          }
+        }
+      }
+
+      async function* tar() {
+        yield* archiveTree(hash);
+        yield new Uint8Array(1024);
+      }
+      return bytesReaderFromIterator(tar());
     },
     /**
      * Return the formula numbers from `peerNodeNumber` that this
@@ -3909,6 +4006,7 @@ const makeDaemonCore = async (
             storeContent: disallowedFn,
             reverseLocateContent: disallowedFn,
             internalizeContentLocator: disallowedFn,
+            loadContent: disallowedFn,
             followLocatorNameChanges: disallowedFn,
             list: disallowedFn,
             listIdentifiers: disallowedFn,
@@ -5936,10 +6034,10 @@ const makeDaemonCore = async (
     return addresses;
   };
 
-  // No plane is registered in Phase 3. The registry and this resolution path
-  // are nevertheless live so a later plane can contribute fresh hints without
-  // changing the agent or locator plumbing.
+  // A content plane is selected by its sharing-capability name when producing
+  // a locator, then by its magnet source letter when loading one.
   const contentDataPlaneRegistry = makeContentDataPlaneRegistry();
+  contentDataPlaneRegistry.register(makeHttpContentDataPlane());
 
   /** @type {DaemonCore['getAllContentSources']} */
   const getAllContentSources = async (planesDirectoryId, identity) => {
@@ -5952,6 +6050,118 @@ const makeDaemonCore = async (
       })),
     );
     return contentDataPlaneRegistry.getAllContentSources(entries, identity);
+  };
+
+  /**
+   * Check a fetched representation against the locator's `xt`, then create a
+   * fresh local formula.  Content-store deduplication may reuse disk bytes,
+   * but the returned formula is always a distinct local copy.
+   *
+   * @param {string} contentLocator
+   * @param {import('@endo/eventual-send').ERef<EndoReadable | EndoReadableTree>} [inBandReadable]
+   * @returns {Promise<FarRef<EndoReadable> | FarRef<EndoReadableTree>>}
+   */
+  const loadContent = async (contentLocator, inBandReadable = undefined) => {
+    const { hash, kind, sources } = parseContentLocator(contentLocator);
+    /** @type {Error[]} */
+    const failures = [];
+
+    for (const source of sources) {
+      const plane = contentDataPlaneRegistry.getPlaneForSource(source.plane);
+      if (plane !== undefined && typeof plane.fetch === 'function') {
+        try {
+          const bytes = await plane.fetch(source, hash, kind);
+          const digester = cryptoPowers.makeSha256();
+          digester.update(bytes);
+          if (digester.digestHex() !== hash && kind === 'blob') {
+            throw makeError(`Content hash mismatch for ${q(source.payload)}`);
+          }
+
+          if (kind === 'blob') {
+            /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
+            const tasks = makeDeferredTasks();
+            const { value } = await formulateReadableBlob(
+              bytesReaderFromIterator([bytes]),
+              tasks,
+            );
+            // `formulateReadableBlob` hashes while it streams into the local
+            // store. The pre-check above is the trust boundary: never return a
+            // formula for mismatched plane bytes.
+            return value;
+          }
+
+          // Tree web-seeds carry a canonical tar archive. `checkinTarTree`
+          // validates its entries and returns the reassembled tree hash, which
+          // must equal the tree's `xt` before a formula is created.
+          const treeHash = await checkinTarTree(
+            bytesReaderFromIterator([bytes]),
+            contentStore,
+          );
+          if (treeHash !== hash) {
+            throw makeError(`Content hash mismatch for ${q(source.payload)}`);
+          }
+          /** @type {DeferredTasks<ReadableTreeDeferredTaskParams>} */
+          const tasks = makeDeferredTasks();
+          const { value } = await withFormulaGraphLock(async () => {
+            const formulaNumber = /** @type {FormulaNumber} */ (
+              await randomHex256()
+            );
+            await tasks.execute({
+              readableTreeId: formatId({
+                number: formulaNumber,
+                node: localNodeNumber,
+              }),
+            });
+            return formulate(formulaNumber, {
+              type: 'readable-tree',
+              content: treeHash,
+            });
+          });
+          return /** @type {FarRef<EndoReadableTree>} */ (value);
+        } catch (reason) {
+          failures.push(/** @type {Error} */ (reason));
+        }
+      }
+    }
+
+    // In-band CapTP is deliberately last: a caller that already holds a
+    // readable capability can recover from unreachable or mismatched web
+    // seeds, but the copied result must still match `xt` before use. Phase 5
+    // can lift this duplicated verification shape into a generalized wrapper.
+    if (inBandReadable !== undefined) {
+      if (kind === 'blob') {
+        /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
+        const tasks = makeDeferredTasks();
+        const { id, value } = await formulateReadableBlob(
+          /** @type {import('@endo/eventual-send').ERef<import('@endo/exo-stream').PassableBytesReader>} */ (
+            /** @type {unknown} */ (inBandReadable)
+          ),
+          tasks,
+        );
+        const identity = await getContentIdentityForId(id);
+        if (identity?.hash === hash && identity.kind === kind) {
+          return value;
+        }
+        failures.push(makeError('In-band content hash mismatch'));
+      } else {
+        /** @type {DeferredTasks<ReadableTreeDeferredTaskParams>} */
+        const tasks = makeDeferredTasks();
+        const { id, value } =
+          /** @type {{ id: FormulaIdentifier, value: FarRef<EndoReadableTree> }} */ (
+            await checkinTree(inBandReadable, tasks)
+          );
+        const identity = await getContentIdentityForId(id);
+        if (identity?.hash === hash && identity.kind === kind) {
+          return value;
+        }
+        failures.push(makeError('In-band content hash mismatch'));
+      }
+    }
+
+    const detail = failures.map(({ message }) => message).join('; ');
+    throw makeError(
+      `Unable to load content ${q(hash)} from an advertised data plane${detail === '' ? '' : `: ${detail}`}`,
+    );
   };
 
   /**
@@ -6404,6 +6614,7 @@ const makeDaemonCore = async (
     getFormulaForId,
     getAllNetworkAddresses,
     getAllContentSources,
+    loadContent,
     makeMailbox,
     makeDirectoryNode,
     isLocalKey,
@@ -6794,6 +7005,7 @@ const makeDaemonCore = async (
     getPeerIdForNodeIdentifier,
     getAllNetworkAddresses,
     getAllContentSources,
+    loadContent,
     getTypeForId,
     getFormulaForId,
     formulateChannel,

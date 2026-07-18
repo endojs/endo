@@ -940,12 +940,17 @@ export type ContentIdentity = {
  */
 export type ContentDataPlane = {
   name: string;
+  sourcePlanes?: string[];
   source: (
     hash: string,
     kind: ContentKind,
     share: unknown,
   ) => Promise<ContentSourceHint[]>;
-  fetch?: unknown;
+  fetch?: (
+    hint: ContentSourceHint,
+    hash: string,
+    kind: ContentKind,
+  ) => Promise<Uint8Array>;
 };
 
 /**
@@ -999,6 +1004,17 @@ export interface ContentLocatable {
     kind: ContentKind;
     sources: ContentSourceHint[];
   }>;
+}
+
+export interface ContentLoadable {
+  /**
+   * Fetch a content locator through its advertised data planes, hash every
+   * received byte against `xt`, and return a new local readable.
+   */
+  loadContent(
+    contentLocator: string,
+    inBandReadable?: ERef<EndoReadable | EndoReadableTree>,
+  ): Promise<FarRef<EndoReadable> | FarRef<EndoReadableTree>>;
 }
 
 export type GcHooks = {
@@ -1348,6 +1364,10 @@ export interface EndoPeer {
 
 export interface EndoGateway {
   provide: (id: string) => Promise<unknown>;
+  fetchContent: (
+    hash: string,
+    kind: 'blob' | 'tree',
+  ) => Promise<import('@endo/exo-stream').PassableBytesReader>;
   followRetentionSet: (
     peerNodeNumber: string,
   ) => Promise<
@@ -1379,7 +1399,8 @@ export interface EndoNetwork {
   connect: (address: string, farContext: FarContext) => Promise<EndoGateway>;
 }
 
-export interface EndoAgent extends EndoDirectory, ContentLocatable {
+export interface EndoAgent
+  extends EndoDirectory, ContentLocatable, ContentLoadable {
   handle: () => {};
   listMessages: Mail['listMessages'];
   followMessages: Mail['followMessages'];

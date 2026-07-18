@@ -4551,6 +4551,82 @@ test('a guest carries the content-locate family', async t => {
   t.regex(contentLocator, /^magnet:\?xt=urn:endo-blob:[0-9a-f]{64}$/);
 });
 
+test('HTTP web-seed loads and verifies a readable blob', async t => {
+  const { host, config } = await prepareHost(t);
+  const originalBytes = new TextEncoder().encode('web-seed payload\n');
+  await E(host).storeBlob(bytesReaderFromIterator([originalBytes]), 'original');
+  const originalLocator = await E(host).locateContent('original');
+  const { hash } = parseContentLocator(originalLocator);
+  const gatewayAddress = fs
+    .readFileSync(path.join(config.statePath, 'gateway'), 'utf8')
+    .trim();
+
+  // The first source deliberately serves another valid blob. `loadContent`
+  // must reject it on the xt mismatch and continue to the second web seed.
+  await E(host).storeBlob(
+    bytesReaderFromIterator([new TextEncoder().encode('wrong payload\n')]),
+    'wrong',
+  );
+  const wrongLocator = await E(host).locateContent('wrong');
+  const { hash: wrongHash } = parseContentLocator(wrongLocator);
+  const shareLocation = url.pathToFileURL(
+    path.join(dirname, 'test', 'http-content-share.js'),
+  ).href;
+  await E(host).makeUnconfined('@main', shareLocation, {
+    powersName: '@none',
+    resultName: 'http-share',
+    env: {
+      GATEWAY_ADDRESS: gatewayAddress,
+      WRONG_HASH: wrongHash,
+    },
+  });
+  await E(host).move(['http-share'], ['@planes', 'http']);
+
+  const sharedLocator = await E(host).storeContent('original');
+  const shared = parseContentLocator(sharedLocator);
+  t.is(shared.hash, hash);
+  t.is(shared.sources.length, 2);
+
+  const loaded = await E(host).loadContent(sharedLocator);
+  t.is(await E(loaded).text(), 'web-seed payload\n');
+  t.deepEqual(await E(host).reverseLookup(loaded), []);
+
+  const original = await E(host).lookup('original');
+  const copiedInBand = await E(host).loadContent(originalLocator, original);
+  t.is(await E(copiedInBand).text(), 'web-seed payload\n');
+  t.deepEqual(await E(host).reverseLookup(copiedInBand), []);
+});
+
+test('HTTP web-seed loads a tar tree only after its assembled hash matches xt', async t => {
+  const { host, config } = await prepareHost(t);
+  await E(host).storeTree(
+    makeFarTree({
+      'alpha.txt': makeFarBlob('alpha'),
+      nested: makeFarTree({ 'beta.txt': makeFarBlob('beta') }),
+    }),
+    'tree',
+  );
+  const gatewayAddress = fs
+    .readFileSync(path.join(config.statePath, 'gateway'), 'utf8')
+    .trim();
+  const shareLocation = url.pathToFileURL(
+    path.join(dirname, 'test', 'http-content-share.js'),
+  ).href;
+  await E(host).makeUnconfined('@main', shareLocation, {
+    powersName: '@none',
+    resultName: 'http-share',
+    env: { GATEWAY_ADDRESS: gatewayAddress },
+  });
+  await E(host).move(['http-share'], ['@planes', 'http']);
+
+  const locator = await E(host).storeContent('tree');
+  const tree = await E(host).loadContent(locator);
+  t.deepEqual(await E(tree).list(), ['alpha.txt', 'nested']);
+  const nested = await E(tree).lookup('nested');
+  const beta = await E(nested).lookup('beta.txt');
+  t.is(await E(beta).text(), 'beta');
+});
+
 test('store readable tree with blobs', async t => {
   const { host } = await prepareHost(t);
 

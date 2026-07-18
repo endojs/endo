@@ -323,6 +323,7 @@ harden(normalizeHttpClientPolicy);
  * @param {DaemonCore['formulateTimer']} args.formulateTimer
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {DaemonCore['getAllContentSources']} args.getAllContentSources
+ * @param {import('./types.js').ContentLoadable['loadContent']} args.loadContent
  * @param {DaemonCore['getTypeForId']} args.getTypeForId
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {MakeMailbox} args.makeMailbox
@@ -371,6 +372,7 @@ export const makeHostMaker = ({
   formulateTimer,
   getAllNetworkAddresses,
   getAllContentSources,
+  loadContent,
   getTypeForId,
   getFormulaForId,
   makeMailbox,
@@ -2385,6 +2387,7 @@ export const makeHostMaker = ({
       storeContent,
       reverseLocateContent,
       internalizeContentLocator,
+      loadContent,
       followLocatorNameChanges,
       followNameChanges,
       lookup,

@@ -27,6 +27,7 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {DaemonCore['getAllContentSources']} args.getAllContentSources
+ * @param {import('./types.js').ContentLoadable['loadContent']} args.loadContent
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {(node: string) => boolean} args.isLocalKey
@@ -42,6 +43,7 @@ export const makeGuestMaker = ({
   getFormulaForId,
   getAllNetworkAddresses,
   getAllContentSources,
+  loadContent,
   makeMailbox,
   makeDirectoryNode,
   isLocalKey,
@@ -350,6 +352,7 @@ export const makeGuestMaker = ({
       storeContent,
       reverseLocateContent,
       internalizeContentLocator,
+      loadContent,
       followLocatorNameChanges,
       followNameChanges,
       lookup,

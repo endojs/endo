@@ -127,6 +127,9 @@ export const contentLocatorMethodGuards = harden({
   storeContent: M.call().rest(NamePathShape).returns(M.promise()),
   reverseLocateContent: M.call(LocatorShape).returns(M.promise()),
   internalizeContentLocator: M.call(LocatorShape).returns(M.promise()),
+  loadContent: M.call(LocatorShape)
+    .optional(M.remotable())
+    .returns(M.promise()),
 });
 
 export const EnvelopeInterface = M.interface('EndoEnvelope', {});
