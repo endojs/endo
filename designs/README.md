@@ -1,6 +1,6 @@
 # Endo Design Documents
 
-*Last updated: 2026-07-18 (added [ocapn-noise-key-only-session-boundary](ocapn-noise-key-only-session-boundary.md) to M4: moves OCapN-Noise responder selection, peer authentication, and encryption below the gateway/daemon handoff, so connect and accepted sessions exchange Ed25519 public keys and plaintext sessions rather than SYN bytes; summary, dependency graph, M4, and estimate rows synced.
+*Last updated: 2026-07-18 (reframed [ocapn-noise-key-only-session-boundary](ocapn-noise-key-only-session-boundary.md) as `noise-protocol-ik-relay`: an independent Noise Protocol IK multiplexer with a controller facet exo for key-routed plaintext-session delivery; OCapN adapts above it and the package has no OCapN dependency. Summary, dependency graph, M4, and estimate rows synced.
 Layered on 2026-07-17 (revised agentry-git-eval-scenarios for issue #753 item 2: the ReadableBlob fetch, rangeRead, and rangeReadText contract now carries the sed-like filesystem/blob bounded-read affordance, while rendered Git output bounds and remote exo propagation remain follow-ups; summary metadata and M3 notes synced.
 Layered on 2026-07-13 (added [endo-fetch](endo-fetch.md) to M3 (Remote Access and Coding Capabilities): redrafts the confined-outbound-HTTP provisioning as the `@endo/fetch` unconfined plugin over the landed `@endo/exo-http-client` / `@endo/http-confine` capability packages (#566), with durable policy and trust-on-first-bind pins on the virtual file system and restart revival via integration-owned `@pins` retention, per the maintainer's PR #609 unconfined-plugin direction and the [endo-reminder](endo-reminder.md) precedent (design PR #682, implementation PR #721); supersedes [endoclaw-network-fetch](endoclaw-network-fetch.md)'s daemon-provisioning sketch, [cli-http-client](cli-http-client.md)'s formula-pair packaging in part, and the `provideHttpClient` daemon-wiring item of [daemon-agent-tools](daemon-agent-tools.md) Phase 3.6 (the `makeHttpTool` binding survives); summary table, M3 rows, dependency graph, and per-design estimates synced.
 Layered on the 2026-07-12 addition of [cbor-codec](cbor-codec.md) to M4 (Networking): a shared canonical-CBOR primitive codec package, `@endo/cbor`, extracted from the parallel head codecs in `packages/ocapn/src/cbor` and PR #124's `packages/slots/src/cbor.js` per kriskowal's follow-up request on the PR #124 review, with the daemon `envelope.js` codec as an optional later adopter and byte identity with `rust/endo/slots` enforced by shared golden vectors; summary table, M4 bucket and count, and per-design estimate synced.
@@ -730,7 +730,7 @@ finalized.
 | ocapn-noise-cryptographic-review | Not Started | External review coordination |
 | daemon-agent-network-identity | Not Started | Per-agent keypairs for network identity |
 | ~~ocapn-noise-network~~ | **Complete** | Noise IK netlayer for OCapN landed via PR #137 (merged 2026-05-08), consolidating the stacked PRs #111 (CBOR codec) + #112 (Noise IK netlayer) + #113 (transport tests) |
-| ocapn-noise-key-only-session-boundary | Proposed | Network-owned responder selection, peer authentication, and encryption; replaces raw SYN handoff with a key-tagged plaintext session |
+| ocapn-noise-key-only-session-boundary | Proposed | `noise-protocol-ik-relay`: independent key-routed Noise IK multiplexer; OCapN adapts its plaintext sessions above the package boundary |
 
 **Exit criterion:** Two Endo daemons can connect securely over
 OCapN-Noise. Locator format supports node identification via agent
@@ -1309,7 +1309,7 @@ have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
 | ocapn-noise-cryptographic-review | S | 1 day | 4 | External review coordination |
 | daemon-agent-network-identity | S-M | 3 days | 4 | Network registration, locator construction |
 | ~~ocapn-noise-network~~ | L | — | 4 | ✅ Complete (PR #137 consolidates stacked PRs #111/#112/#113; merged 2026-05-08) |
-| ocapn-noise-key-only-session-boundary | M | 3-4 days | 4 | Network-owned acceptance API plus responder, daemon, relay, and WebSocket handoff migration |
+| ocapn-noise-key-only-session-boundary | M | 3-4 days | 4 | Independent Noise IK relay package plus OCapN adapter, responder, daemon, relay, and WebSocket handoff migration |
 | gateway-packaging-ci | S-M | 3 days | 5 | CI workflow that builds and signs OS package artifacts; PR [#356](https://github.com/endojs/endo-but-for-bots/pull/356) stacked sibling |
 | gateway-aws-deployment | M | 4-5 days | 5 | AWS deployment automation; PR #356 stacked sibling |
 | gateway-aws-attuned | M-L | 1.5 weeks | 5 | AWS-native substitutes for five gateway subsystems; PR #356 stacked sibling |
