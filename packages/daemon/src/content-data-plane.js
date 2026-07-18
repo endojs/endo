@@ -31,7 +31,9 @@ export const makeContentDataPlaneRegistry = () => {
       throw makeError(`Invalid content data plane ${q(plane)}`);
     }
     if (planes.has(plane.name)) {
-      throw makeError(`Content data plane already registered: ${q(plane.name)}`);
+      throw makeError(
+        `Content data plane already registered: ${q(plane.name)}`,
+      );
     }
     planes.set(plane.name, plane);
   };

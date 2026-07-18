@@ -1032,7 +1032,9 @@ export type MakeDirectoryNode = (
   agentNodeNumber: NodeNumber,
   isLocalKey: (node: string) => boolean,
   getNetworkAddresses: () => Promise<string[]>,
-  getContentSources: (identity: ContentIdentity) => Promise<ContentSourceHint[]>,
+  getContentSources: (
+    identity: ContentIdentity,
+  ) => Promise<ContentSourceHint[]>,
 ) => EndoDirectory & ContentLocatable;
 
 export interface Mail {
