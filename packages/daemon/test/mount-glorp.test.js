@@ -105,6 +105,7 @@ test('glorp requires both patterns', async t => {
   await t.throwsAsync(
     // Deliberately omitting the required grep pattern; the interface guard
     // rejects it at the exo boundary before the method body runs.
+    // @ts-expect-error deliberate arity violation under test
     () => E(mount).glorp('src/**/*.js'),
     undefined,
     'a single-argument glorp is rejected by the interface guard',
