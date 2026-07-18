@@ -643,14 +643,14 @@ let shouldTerminate = false;
 /** @type {Awaited<ReturnType<typeof import('./manager.js').makeDaemon>> | null} */
 let _daemonResult = null;
 
-const makeRegistryUnavailablePowers = registryUrl => {
+const makeRegistryUnavailablePowers = unavailableRegistryUrl => {
   const unavailable = () => {
     throw makeError(
       X`registry: no registry transport is available on this platform`,
     );
   };
   return harden({
-    registryUrl,
+    registryUrl: unavailableRegistryUrl,
     makeRegistryBackend: () => ({
       fetchVersions: unavailable,
       provideTree: unavailable,

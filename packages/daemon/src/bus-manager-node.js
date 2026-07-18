@@ -14,11 +14,11 @@ import url from 'node:url';
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeDaemon } from './manager.js';
-import { gunzip } from './manager-node-powers.js';
 import {
   makeFilePowers,
   makeNetworkPowers,
   makeCryptoPowers,
+  gunzip,
 } from './manager-node-powers.js';
 import { makeDaemonicBusPowers } from './bus-manager-node-powers.js';
 import {
