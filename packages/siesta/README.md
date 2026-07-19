@@ -143,6 +143,42 @@ session records the parent-origin endowment as "import slot S of the
 parent worker's session" (by worker id), re-seated on host restart
 without waking either worker.
 
+## Durable sessions (transport resumption)
+
+OCapN has no session-resumption message, so siesta prototypes it
+beneath the protocol, at the netlayer: `makeDurableNetLayer` wraps a
+transport netlayer (e.g. TCP) with resumable logical connections.
+Each logical connection carries an unguessable resume token; every
+OCapN frame rides in a sequence-numbered envelope; both sides retain
+unacknowledged frames; and when the socket dies, the originator
+reconnects with a `resume` preamble and each side replays what the
+other has not seen.
+The OCapN layer above is never told the socket dropped, so the
+session — and every live remote reference in it — survives
+transparently:
+
+```js
+const daemon = await makeSiestaDaemon({
+  // ...
+  makeNetlayer: ({ handlers, logger }) =>
+    makeDurableNetLayer({
+      handlers,
+      logger,
+      makeBaseNetlayer: powers => makeTcpNetLayer(powers),
+    }),
+});
+```
+
+Wrap both peers.
+This layer survives connection failures between two live processes;
+surviving a daemon _restart_ additionally requires the daemon's half
+of each session to be persisted and re-seated (the same
+export-table-layer treatment its worker sessions get) — that is the
+next layer of the design, not yet built.
+Prototype limits: retransmit buffers are unbounded until acked, and
+an acceptor parks a dropped logical connection indefinitely awaiting
+resume.
+
 ## Retirement and vat GC
 
 Retirement is a capability, not a host operation: `retire()` on the
