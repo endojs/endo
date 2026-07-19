@@ -75,6 +75,9 @@ import { makeSlot, parseSlot } from '../captp/pairwise.js';
  * @property {(signedGive: HandoffGiveSigEnvelope) => Promise<unknown>} provideHandoff
  * @property {(signedGive: HandoffGiveDetails) => HandoffGiveSigEnvelope} sendHandoff
  * @property {(value: object) => ValInfo} getInfoForVal
+ * @property {(position: bigint, value: object) => void} restoreLocalExport
+ *   re-seat a local export at a recorded position (session resumption);
+ *   idempotent, and advances the export counter past the position
  */
 
 /** @type {Record<SlotType, SlotTypeName>} */
@@ -447,6 +450,21 @@ export const makeReferenceKit = (
       return makeHandoff(signedGive);
     },
     sendHandoff,
+
+    restoreLocalExport: (position, value) => {
+      // Re-seat an export at the position a previous process assigned
+      // it, so a resumed session's peer-held references keep working.
+      // The embedder is responsible for providing an equivalent value.
+      const type = value instanceof Promise ? 'p' : 'o';
+      const slot = makeSlot(type, true, position);
+      if (ocapnTable.getValueForSlot(slot) !== undefined) {
+        return;
+      }
+      ocapnTable.registerSlot(slot, value);
+      if (position >= nextExportPosition) {
+        nextExportPosition = position + ONE_N;
+      }
+    },
 
     getInfoForVal: val => {
       // Special handling for local answers.

@@ -51,9 +51,10 @@ const handleActiveSessionMessageData = (
 };
 
 /**
+ * @param {(locationId: LocationId, connection: Connection, session: InternalSession) => void} [onSessionResolved]
  * @returns {SessionManager}
  */
-const makeSessionManager = () => {
+const makeSessionManager = onSessionResolved => {
   /** @type {Map<LocationId, InternalSession>} */
   const activeSessions = new Map();
   /** @type {Map<LocationId, PendingSession>} */
@@ -99,6 +100,13 @@ const makeSessionManager = () => {
       if (pendingSession !== undefined) {
         pendingSession.resolve(session);
         pendingSessions.delete(locationId);
+      }
+      if (onSessionResolved !== undefined) {
+        try {
+          onSessionResolved(locationId, connection, session);
+        } catch (_err) {
+          // Observation must not break session establishment.
+        }
       }
     },
     endSession: session => {
@@ -191,6 +199,11 @@ const makeSessionManager = () => {
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
+ * @param {import('./types.js').SessionHooks} [options.sessionHooks] - Optional
+ *   observation hooks for durable-session embedders: `onSessionEstablished`
+ *   fires whenever a session resolves (with its durable identity fields) and
+ *   `onExport` fires whenever a session assigns a local export slot. Netlayers
+ *   that do not provide durability are unaffected.
  * @param {Logger} [options.logger] - If provided, overrides the default console-based logger. When omitted, defaults to a console-based logger labelled with `debugLabel`; `info` is suppressed unless `verbose` is true.
  * @returns {Promise<Client>}
  */
@@ -204,6 +217,7 @@ export const makeOcapn = async ({
   captpVersion = '1.0',
   enableImportCollection = true,
   debugMode = false,
+  sessionHooks = undefined,
   logger: providedLogger,
 }) => {
   if (!codec) {
@@ -262,7 +276,18 @@ export const makeOcapn = async ({
         verbose && console.info(`${debugLabel} [${Date.now()}]:`, ...args),
     });
 
-  const sessionManager = makeSessionManager();
+  const sessionManager = makeSessionManager(
+    (locationId, connection, session) => {
+      if (sessionHooks && sessionHooks.onSessionEstablished) {
+        sessionHooks.onSessionEstablished(connection, {
+          sessionId: session.id,
+          peerLocation: session.peer.location,
+          peerLocationSignature: session.peer.locationSignature,
+          peerPublicKeyBytes: session.peer.publicKey.bytes,
+        });
+      }
+    },
+  );
 
   /**
    * The resolved network. Assigned exactly once, after any factory is
@@ -514,6 +539,14 @@ export const makeOcapn = async ({
       debugLabel,
       enableImportCollection,
       debugMode,
+      sessionHooks && sessionHooks.onExport
+        ? {
+            onExport: (slot, value) =>
+              /** @type {NonNullable<import('./types.js').SessionHooks['onExport']>} */ (
+                sessionHooks.onExport
+              )(connection, slot, value),
+          }
+        : undefined,
     );
   };
 
@@ -629,11 +662,55 @@ export const makeOcapn = async ({
     return connection;
   };
 
+  /**
+   * Resume a previously established session on a fresh connection
+   * without an op:start-session handshake: the durable netlayer has
+   * already authenticated the resumption (its resume token), and the
+   * embedder supplies the session's durable identity. The session
+   * resumes with fresh session keys — the persistent identity is the
+   * session id, whose continuity keeps gift-table and grant bookkeeping
+   * coherent; key-continuity for cross-restart handoffs is future work.
+   *
+   * @param {Connection} connection
+   * @param {import('./types.js').SessionResumption} resumption
+   * @returns {import('./types.js').ResumedSession}
+   */
+  const resumeSession = (connection, resumption) => {
+    const { sessionId, peerLocation, peerLocationSignature } = resumption;
+    const peerPublicKey = cryptography.makeOcapnPublicKey(
+      resumption.peerPublicKeyBytes,
+    );
+    const selfIdentity = getSelfIdentityForConnection(connection);
+    const ocapn = prepareOcapn(
+      connection,
+      /** @type {import('./types.js').SessionId} */ (sessionId),
+      peerLocation,
+    );
+    const session = makeSession({
+      id: /** @type {import('./types.js').SessionId} */ (sessionId),
+      selfIdentity,
+      peerLocation,
+      peerPublicKey,
+      peerLocationSig: peerLocationSignature,
+      ocapn,
+      connection,
+    });
+    sessionManager.resolveSession(
+      locationToLocationId(peerLocation),
+      connection,
+      session,
+    );
+    return harden({
+      restoreExport: (position, value) => ocapn.restoreExport(position, value),
+    });
+  };
+
   /** @type {NetlayerHandlers} */
   const netlayerHandlers = harden({
     makeConnection,
     handleMessageData,
     handleConnectionClose,
+    resumeSession,
   });
 
   // Resolve the network: either use the object directly, or invoke the

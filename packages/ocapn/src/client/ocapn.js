@@ -676,6 +676,8 @@ const makeBootstrapObject = (
  * @property {((data: Uint8Array) => void)} dispatchMessageData
  * @property {() => object} getRemoteBootstrap
  * @property {ReferenceKit} referenceKit
+ * @property {(position: bigint, value: object) => void} restoreExport
+ *   re-seat a local export at a recorded position (session resumption)
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  * @property {OcapnDebug} [_debug] - **EXPERIMENTAL**: Internal APIs for testing. Only present when `debugMode` is true.
  */
@@ -697,6 +699,10 @@ const makeBootstrapObject = (
  * @param {string} [ourIdLabel]
  * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object with internal APIs for testing. Default: false.
+ * @param {{ onExport?: (slot: Slot, value: object) => void }} [sessionHooks]
+ *   optional per-session observation hooks; `onExport` fires whenever a
+ *   local value is assigned an export slot, letting an embedder record
+ *   a durable description of the export (session resumption)
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -716,6 +722,7 @@ export const makeOcapn = (
   ourIdLabel = 'OCapN',
   enableImportCollection = true,
   debugMode = false,
+  sessionHooks = undefined,
 ) => {
   const onReject = reason => {
     logger.info(`onReject`, reason);
@@ -1052,6 +1059,14 @@ export const makeOcapn = (
 
   const exportHook = (val, slot) => {
     logger.info(`exported`, slot, val);
+    if (sessionHooks && sessionHooks.onExport) {
+      try {
+        sessionHooks.onExport(slot, val);
+      } catch (err) {
+        // Observation must not break the export path.
+        logger.error(`sessionHooks.onExport failed`, err);
+      }
+    }
   };
 
   const slotCollectedHook = (slot, refcount) => {
@@ -1277,6 +1292,8 @@ export const makeOcapn = (
     getRemoteBootstrap,
     writeOcapnMessage,
     referenceKit,
+    restoreExport: (position, value) =>
+      referenceKit.restoreLocalExport(position, value),
   };
   if (debugMode) {
     // eslint-disable-next-line no-underscore-dangle

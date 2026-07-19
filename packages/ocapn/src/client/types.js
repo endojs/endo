@@ -208,6 +208,40 @@
  * Caller is responsible for initiating handshake if needed (client does this in establishSession).
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
+ * @property {(connection: Connection, resumption: SessionResumption) => ResumedSession} resumeSession
+ * Resume a previously established session on a fresh connection without an
+ * op:start-session handshake. For durable netlayers only: the netlayer is
+ * responsible for having authenticated the resumption (e.g. an unguessable
+ * resume token), and the embedder supplies the session's durable identity.
+ */
+
+/**
+ * The deliberately narrow surface handed back from `resumeSession`,
+ * just enough for the embedder to re-seat the session's exports.
+ *
+ * @typedef {object} ResumedSession
+ * @property {(position: bigint, value: object) => void} restoreExport
+ */
+
+/**
+ * The durable identity of a session, sufficient to resume it in a new
+ * process. Captured via `SessionHooks.onSessionEstablished`; replayed
+ * via `NetlayerHandlers.resumeSession`.
+ *
+ * @typedef {object} SessionResumption
+ * @property {ArrayBufferLike} sessionId
+ * @property {OcapnLocation} peerLocation
+ * @property {OcapnSignature} peerLocationSignature
+ * @property {ArrayBufferLike} peerPublicKeyBytes
+ */
+
+/**
+ * Optional observation hooks for durable-session embedders. Netlayers
+ * and embedders that do not provide durability never see them.
+ *
+ * @typedef {object} SessionHooks
+ * @property {(connection: Connection, resumption: SessionResumption) => void} [onSessionEstablished]
+ * @property {(connection: Connection, slot: import('../captp/types.js').Slot, value: object) => void} [onExport]
  */
 
 /**
