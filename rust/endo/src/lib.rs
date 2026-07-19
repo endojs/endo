@@ -1,3 +1,4 @@
+pub mod assemble;
 pub mod cas;
 pub mod cas_archive;
 pub mod codec;
@@ -7,6 +8,7 @@ pub mod registry;
 pub mod semver;
 pub mod endo;
 pub mod engine;
+pub mod execute;
 pub mod error;
 pub mod inproc;
 pub mod iroh_net;

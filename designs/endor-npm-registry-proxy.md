@@ -9,7 +9,7 @@
 
 ## Status
 
-Phases 1–3 implemented, plus the resolver half of Phase 4:
+Phases 1–4 implemented:
 
 - **Phase 1**: `rust/endo/src/registry.rs` — SQLite-backed
   `RegistryTable` with `lookup`, `insert`, `list_versions`,
@@ -38,10 +38,27 @@ Phases 1–3 implemented, plus the resolver half of Phase 4:
   [--registry <url>] <name[@range]>...`. A fully cached graph
   resolves with zero network traffic — the registry table and
   CAS acting as the npm-registry proxy this design names.
+- **Phase 4 (assembly + execution)**: `rust/endo/src/assemble.rs`
+  locates the entry package root, resolves and fetches its
+  transitive dependencies via `npm_resolve`, ingests the entry
+  package into the CAS as a tree (never `node_modules` or VCS
+  metadata), and stores a deterministic compartment map whose
+  locations are `cas:sha256:<tree>` URIs and whose dependency
+  edges name the MVS-selected compartments.
+  `rust/endo/src/execute.rs` loads that map back out of the CAS
+  into a runnable archive — module files from the CAS trees,
+  `"."` edges bound to each target's concrete main module
+  (npm's `main` completions), sources normalized to ESM
+  (`.json` → default export; CommonJS via a best-effort
+  `module.exports` shim with **no `require`**) — and
+  `endor run <entry.js>` executes it in an XS machine.
 
-Remaining: Phase 4 (compartment-mapper `moduleMapHook` /
-`importHook` wiring so `endor run entry.js` loads the resolved
-modules from the CAS), Phase 5 (offline flag, .npmrc).
+Remaining: Phase 5 (`--offline` flag, `.npmrc`, scoped
+registries). Known gaps recorded below; execution adds: full
+CommonJS linkage (`require` is absent by design of the shim),
+directory-relative resolution for nested package modules (the
+archive loader's resolve hook is identity), and `exports`-map
+consultation.
 
 ## What is the Problem Being Solved?
 

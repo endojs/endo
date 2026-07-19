@@ -443,20 +443,22 @@ pub fn extract_tarball_to_cas(
     Ok(tree_hash)
 }
 
-/// In-memory mirror of the tarball's directory layout, used to
-/// stage the CAS tree-manifest writes in post-order.
+/// In-memory mirror of a directory layout (a tarball's or a local
+/// package directory's), used to stage the CAS tree-manifest writes
+/// in post-order. Shared with the entry-package ingestion in
+/// [`crate::assemble`].
 #[derive(Default)]
-struct DirNode {
+pub(crate) struct DirNode {
     files: HashMap<String, (String, u64)>,
     dirs: HashMap<String, DirNode>,
 }
 
 impl DirNode {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         DirNode::default()
     }
 
-    fn insert(&mut self, parts: &[String], hash: String, size: u64) {
+    pub(crate) fn insert(&mut self, parts: &[String], hash: String, size: u64) {
         match parts {
             [] => {}
             [name] => {
@@ -472,7 +474,7 @@ impl DirNode {
     }
 }
 
-fn materialise(node: &DirNode, cas: &ContentStore) -> Result<String, FetchError> {
+pub(crate) fn materialise(node: &DirNode, cas: &ContentStore) -> Result<String, FetchError> {
     // Stage entries in a HashMap so we honour `TreeManifest`'s
     // declared type, then hand-serialise the JSON with sorted keys
     // for tree-hash determinism (a plain `serde_json::to_vec` on a

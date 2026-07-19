@@ -78,13 +78,17 @@ fn main() -> ExitCode {
                         // Run from CAS root hash.
                         result_to_exit("endor", cmd_run_from_cas(&hash))
                     } else if let Some(ref p) = path {
-                        if no_cas {
+                        if is_entry_module(p) {
+                            result_to_exit("endor", cmd_run_entry(rest, p))
+                        } else if no_cas {
                             xsnap_result_to_exit(xsnap::run_xs_archive(p))
                         } else {
                             result_to_exit("endor", cmd_run_with_cas(p))
                         }
                     } else {
-                        eprintln!("usage: endor run [-e xs] [--cas <hash>] [--no-cas] <archive.zip>");
+                        eprintln!(
+                            "usage: endor run [-e xs] [--cas <hash>] [--no-cas] [--registry <url>] <archive.zip | entry.js>"
+                        );
                         ExitCode::from(2)
                     }
                 }
@@ -126,6 +130,7 @@ fn print_help() {
     eprintln!("Child-facing commands (XS engine by default):");
     eprintln!("  worker  [-e xs]                Run a supervised worker child");
     eprintln!("  run     [-e xs] <archive.zip>  Run a compartment-map archive");
+    eprintln!("  run     <entry.js>             Run an entry module, npm deps via CAS");
     eprintln!();
     eprintln!("Maintenance:");
     eprintln!("  gc                             Garbage-collect the CAS");
@@ -195,15 +200,24 @@ fn print_subcommand_help(sub: &str) {
             eprintln!("  -e, --engine <engine>  Engine to use (default: xs)");
         }
         "run" => {
-            eprintln!("Usage: endor run [-e xs] <archive.zip>");
+            eprintln!("Usage: endor run [-e xs] [--registry <url>] <archive.zip | entry.js>");
             eprintln!();
-            eprintln!("Run a compartment-map archive standalone.");
+            eprintln!("Run a compartment-map archive, or an entry module, standalone.");
             eprintln!();
-            eprintln!("Executes the given .zip archive in an XS machine without a");
-            eprintln!("running daemon. Useful for testing and one-off execution.");
+            eprintln!("A .zip archive executes in an XS machine without a running");
+            eprintln!("daemon. Useful for testing and one-off execution.");
+            eprintln!();
+            eprintln!("A .js/.mjs/.cjs entry module instead resolves the entry");
+            eprintln!("package's npm dependencies (Go-like minimal version");
+            eprintln!("selection), fetches them content-addressed into the CAS,");
+            eprintln!("assembles the compartment map binding them — no npm CLI,");
+            eprintln!("no node_modules, no lockfile — and executes it in an XS");
+            eprintln!("machine. A fully cached graph runs without network access.");
             eprintln!();
             eprintln!("Options:");
             eprintln!("  -e, --engine <engine>  Engine to use (default: xs)");
+            eprintln!("  --registry <url>       Registry base URL for entry-module runs");
+            eprintln!("                         (default: https://registry.npmjs.org/)");
         }
         "gc" => {
             eprintln!("Usage: endor gc");
@@ -301,13 +315,14 @@ fn parse_positional_path(args: &[String]) -> Option<PathBuf> {
     let mut i = 0;
     while i < args.len() {
         let a = &args[i];
-        if a == "-e" || a == "--engine" || a == "--cas" || a == "--cas-dir" {
+        if a == "-e" || a == "--engine" || a == "--cas" || a == "--cas-dir" || a == "--registry" {
             // skip the flag value as well
             i += 2;
             continue;
         }
         if a.starts_with("--engine=") || a.starts_with("-e=")
             || a.starts_with("--cas=") || a.starts_with("--cas-dir=")
+            || a.starts_with("--registry=")
         {
             i += 1;
             continue;
@@ -401,6 +416,66 @@ fn cmd_ping() -> Result<(), EndoError> {
     let conn = UnixStream::connect(&paths.sock_path)?;
     let _ = conn.shutdown(Shutdown::Both);
     eprintln!("pong");
+    Ok(())
+}
+
+/// A `.js`/`.mjs`/`.cjs` positional is an entry module for the
+/// npm-registry-proxy path; anything else stays an archive.
+fn is_entry_module(path: &std::path::Path) -> bool {
+    matches!(
+        path.extension().and_then(|e| e.to_str()),
+        Some("js") | Some("mjs") | Some("cjs")
+    )
+}
+
+/// `endor run <entry.js>`: Phase 4 of
+/// `designs/endor-npm-registry-proxy.md`, end to end. Resolves the
+/// entry package's transitive npm dependencies (Go-like MVS),
+/// fetches them content-addressed into the CAS (the registry table
+/// as cache/lock file), ingests the entry package, stores the
+/// compartment map binding them — then loads that map back out of
+/// the CAS and executes it in an XS machine. State lives beside the
+/// daemon's, as for `endor npm-resolve`.
+fn cmd_run_entry(args: &[String], entry_path: &std::path::Path) -> Result<(), EndoError> {
+    let registry_url = parse_flag_value(args, "--registry")
+        .unwrap_or(endo::fetch::DEFAULT_REGISTRY)
+        .to_string();
+
+    let paths = endo::paths::resolve_paths()?;
+    std::fs::create_dir_all(&paths.state_path)
+        .map_err(|e| EndoError::Config(format!("state dir: {e}")))?;
+    let cas = endo::cas::ContentStore::open(&paths.state_path.join("store-sha256"))
+        .map_err(|e| EndoError::Config(format!("CAS open: {e}")))?;
+    let registry_table =
+        endo::registry::RegistryTable::open(&paths.state_path.join("registry.db"))
+            .map_err(|e| EndoError::Config(format!("registry table open: {e}")))?;
+
+    let http = endo::fetch::UreqClient::new();
+    let assembled =
+        endo::assemble::assemble_entry(&http, &cas, &registry_table, &registry_url, entry_path)
+            .map_err(|e| EndoError::Config(format!("{e}")))?;
+
+    eprintln!(
+        "endor[run]: assembled {} ({} packages)",
+        assembled.package_name,
+        assembled.resolution.len()
+    );
+    for package in assembled.resolution.packages() {
+        eprintln!(
+            "endor[run]:   {}@{} {}",
+            package.name, package.version, package.tree_hash
+        );
+    }
+    eprintln!("endor[run]: entry tree {}", assembled.entry_tree_hash);
+    eprintln!(
+        "endor[run]: compartment map {}",
+        assembled.compartment_map_hash
+    );
+
+    let archive = endo::execute::load_assembled_archive(&cas, &assembled.compartment_map_hash)
+        .map_err(|e| EndoError::Config(format!("{e}")))?;
+    xsnap::run_xs_archive_loaded(&archive)
+        .map_err(|e| EndoError::Config(format!("run: {e}")))?;
     Ok(())
 }
 
