@@ -87,7 +87,7 @@ fn main() -> ExitCode {
                         }
                     } else {
                         eprintln!(
-                            "usage: endor run [-e xs] [--cas <hash>] [--no-cas] [--registry <url>] <archive.zip | entry.js>"
+                            "usage: endor run [-e xs] [--cas <hash>] [--no-cas] [--registry <url>] [--offline] <archive.zip | entry.js>"
                         );
                         ExitCode::from(2)
                     }
@@ -136,7 +136,7 @@ fn print_help() {
     eprintln!("  gc                             Garbage-collect the CAS");
     eprintln!();
     eprintln!("NPM registry proxy:");
-    eprintln!("  npm-resolve [--registry <url>] <name[@range]>...");
+    eprintln!("  npm-resolve [--registry <url>] [--offline] <name[@range]>...");
     eprintln!("                                 Resolve and fetch an npm dependency");
     eprintln!("                                 graph into the CAS");
 }
@@ -200,7 +200,7 @@ fn print_subcommand_help(sub: &str) {
             eprintln!("  -e, --engine <engine>  Engine to use (default: xs)");
         }
         "run" => {
-            eprintln!("Usage: endor run [-e xs] [--registry <url>] <archive.zip | entry.js>");
+            eprintln!("Usage: endor run [-e xs] [--registry <url>] [--offline] <archive.zip | entry.js>");
             eprintln!();
             eprintln!("Run a compartment-map archive, or an entry module, standalone.");
             eprintln!();
@@ -214,10 +214,18 @@ fn print_subcommand_help(sub: &str) {
             eprintln!("no node_modules, no lockfile — and executes it in an XS");
             eprintln!("machine. A fully cached graph runs without network access.");
             eprintln!();
+            eprintln!("The registry is configured npm-style: ~/.npmrc, then the");
+            eprintln!("entry package's .npmrc, then NPM_CONFIG_REGISTRY, then");
+            eprintln!("--registry. Supported .npmrc keys: registry,");
+            eprintln!("@scope:registry, //host/path/:_authToken.");
+            eprintln!();
             eprintln!("Options:");
             eprintln!("  -e, --engine <engine>  Engine to use (default: xs)");
             eprintln!("  --registry <url>       Registry base URL for entry-module runs");
             eprintln!("                         (default: https://registry.npmjs.org/)");
+            eprintln!("  --offline              Refuse network access: only packages");
+            eprintln!("                         already in the CAS and registry table");
+            eprintln!("                         resolve");
         }
         "gc" => {
             eprintln!("Usage: endor gc");
@@ -229,7 +237,7 @@ fn print_subcommand_help(sub: &str) {
             eprintln!("Safe to run while the daemon is stopped.");
         }
         "npm-resolve" => {
-            eprintln!("Usage: endor npm-resolve [--registry <url>] <name[@range]>...");
+            eprintln!("Usage: endor npm-resolve [--registry <url>] [--offline] <name[@range]>...");
             eprintln!();
             eprintln!("Resolve an npm dependency graph and fetch it into the CAS.");
             eprintln!();
@@ -244,9 +252,15 @@ fn print_subcommand_help(sub: &str) {
             eprintln!("Prints one line per resolved package:");
             eprintln!("  <name> <version> <tree-hash>");
             eprintln!();
+            eprintln!("The registry is configured npm-style: ~/.npmrc, then the");
+            eprintln!("current directory's .npmrc, then NPM_CONFIG_REGISTRY, then");
+            eprintln!("--registry.");
+            eprintln!();
             eprintln!("Options:");
             eprintln!("  --registry <url>  Registry base URL");
             eprintln!("                    (default: https://registry.npmjs.org/)");
+            eprintln!("  --offline         Refuse network access: only cached");
+            eprintln!("                    packages resolve");
         }
         "help" => {
             eprintln!("Usage: endor help [command]");
@@ -437,9 +451,17 @@ fn is_entry_module(path: &std::path::Path) -> bool {
 /// the CAS and executes it in an XS machine. State lives beside the
 /// daemon's, as for `endor npm-resolve`.
 fn cmd_run_entry(args: &[String], entry_path: &std::path::Path) -> Result<(), EndoError> {
-    let registry_url = parse_flag_value(args, "--registry")
-        .unwrap_or(endo::fetch::DEFAULT_REGISTRY)
-        .to_string();
+    let offline = args.iter().any(|a| a == "--offline");
+
+    // npm-style configuration: ~/.npmrc, then the entry package's
+    // .npmrc, then NPM_CONFIG_REGISTRY, then the --registry flag.
+    let (package_root, _) = endo::assemble::find_package_root(entry_path)
+        .map_err(|e| EndoError::Config(format!("{e}")))?;
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    let mut config = endo::npmrc::NpmConfig::load(Some(&package_root), home.as_deref());
+    if let Some(url) = parse_flag_value(args, "--registry") {
+        config.set_default_registry(url);
+    }
 
     let paths = endo::paths::resolve_paths()?;
     std::fs::create_dir_all(&paths.state_path)
@@ -450,10 +472,20 @@ fn cmd_run_entry(args: &[String], entry_path: &std::path::Path) -> Result<(), En
         endo::registry::RegistryTable::open(&paths.state_path.join("registry.db"))
             .map_err(|e| EndoError::Config(format!("registry table open: {e}")))?;
 
-    let http = endo::fetch::UreqClient::new();
-    let assembled =
-        endo::assemble::assemble_entry(&http, &cas, &registry_table, &registry_url, entry_path)
-            .map_err(|e| EndoError::Config(format!("{e}")))?;
+    let http: Box<dyn endo::fetch::HttpClient> = if offline {
+        Box::new(endo::fetch::OfflineClient)
+    } else {
+        Box::new(endo::fetch::UreqClient::with_config(config.clone()))
+    };
+    let http_ref: &dyn endo::fetch::HttpClient = http.as_ref();
+    let assembled = endo::assemble::assemble_entry_with_config(
+        &http_ref,
+        &cas,
+        &registry_table,
+        &config,
+        entry_path,
+    )
+    .map_err(|e| EndoError::Config(format!("{e}")))?;
 
     eprintln!(
         "endor[run]: assembled {} ({} packages)",
@@ -531,9 +563,7 @@ fn cmd_gc() -> Result<(), EndoError> {
 }
 
 fn cmd_npm_resolve(args: &[String]) -> Result<(), EndoError> {
-    let registry_url = parse_flag_value(args, "--registry")
-        .unwrap_or(endo::fetch::DEFAULT_REGISTRY)
-        .to_string();
+    let mut offline = false;
 
     // Positional specs: every argument that is not a flag or a flag
     // value.
@@ -548,6 +578,10 @@ fn cmd_npm_resolve(args: &[String]) -> Result<(), EndoError> {
             skip_next = true;
             continue;
         }
+        if a == "--offline" {
+            offline = true;
+            continue;
+        }
         if a.starts_with("--") {
             return Err(EndoError::Config(format!("unknown flag: {a}")));
         }
@@ -555,8 +589,17 @@ fn cmd_npm_resolve(args: &[String]) -> Result<(), EndoError> {
     }
     if roots.is_empty() {
         return Err(EndoError::Config(
-            "usage: endor npm-resolve [--registry <url>] <name[@range]>...".to_string(),
+            "usage: endor npm-resolve [--registry <url>] [--offline] <name[@range]>...".to_string(),
         ));
+    }
+
+    // npm-style configuration: ~/.npmrc, then the current
+    // directory's .npmrc, then NPM_CONFIG_REGISTRY, then --registry.
+    let cwd = std::env::current_dir().ok();
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    let mut config = endo::npmrc::NpmConfig::load(cwd.as_deref(), home.as_deref());
+    if let Some(url) = parse_flag_value(args, "--registry") {
+        config.set_default_registry(url);
     }
 
     let paths = endo::paths::resolve_paths()?;
@@ -568,12 +611,17 @@ fn cmd_npm_resolve(args: &[String]) -> Result<(), EndoError> {
         endo::registry::RegistryTable::open(&paths.state_path.join("registry.db"))
             .map_err(|e| EndoError::Config(format!("registry table open: {e}")))?;
 
-    let http = endo::fetch::UreqClient::new();
-    let resolved = endo::npm_resolve::resolve_transitive(
-        &http,
+    let http: Box<dyn endo::fetch::HttpClient> = if offline {
+        Box::new(endo::fetch::OfflineClient)
+    } else {
+        Box::new(endo::fetch::UreqClient::with_config(config.clone()))
+    };
+    let http_ref: &dyn endo::fetch::HttpClient = http.as_ref();
+    let resolved = endo::npm_resolve::resolve_transitive_with_config(
+        &http_ref,
         &cas,
         &registry_table,
-        &registry_url,
+        &config,
         &roots,
     )
     .map_err(|e| EndoError::Config(format!("npm-resolve: {e}")))?;

@@ -43,6 +43,7 @@ use serde::Deserialize;
 
 use crate::cas::ContentStore;
 use crate::fetch::{fetch_metadata_cached, fetch_package, FetchError, HttpClient};
+use crate::npmrc::NpmConfig;
 use crate::registry::RegistryTable;
 use crate::semver::{Range, Version};
 
@@ -134,11 +135,29 @@ struct PackageJsonDeps {
 /// set is sorted by `(name, version)` and contains one entry per
 /// selected `(name, major)` — distinct majors of one package
 /// coexist.
+///
+/// Every package fetches from `registry_url`; for per-scope
+/// registry routing use [`resolve_transitive_with_config`].
 pub fn resolve_transitive<H: HttpClient>(
     http: &H,
     cas: &ContentStore,
     registry_table: &RegistryTable,
     registry_url: &str,
+    roots: &[(String, String)],
+) -> Result<Vec<ResolvedPackage>, ResolveError> {
+    let config = NpmConfig::with_registry(registry_url);
+    resolve_transitive_with_config(http, cas, registry_table, &config, roots)
+}
+
+/// [`resolve_transitive`] with full registry configuration: each
+/// package routes through [`NpmConfig::registry_for`], so a scoped
+/// name (`@scope/pkg`) fetches from its scope's registry while
+/// everything else stays on the default (Phase 5 of the design).
+pub fn resolve_transitive_with_config<H: HttpClient>(
+    http: &H,
+    cas: &ContentStore,
+    registry_table: &RegistryTable,
+    config: &NpmConfig,
     roots: &[(String, String)],
 ) -> Result<Vec<ResolvedPackage>, ResolveError> {
     // Package name → every range string declared for it anywhere in
@@ -156,7 +175,7 @@ pub fn resolve_transitive<H: HttpClient>(
     let mut expanded: BTreeSet<(String, String)> = BTreeSet::new();
 
     loop {
-        let selection = select_all(http, registry_table, registry_url, &requirements)?;
+        let selection = select_all(http, registry_table, config, &requirements)?;
 
         let mut grew = false;
         for (name, version) in &selection {
@@ -166,7 +185,14 @@ pub fn resolve_transitive<H: HttpClient>(
             if expanded.len() >= MAX_PACKAGES {
                 return Err(ResolveError::GraphTooLarge);
             }
-            let fetched = fetch_package(http, cas, registry_table, registry_url, name, version)?;
+            let fetched = fetch_package(
+                http,
+                cas,
+                registry_table,
+                config.registry_for(name),
+                name,
+                version,
+            )?;
             let deps = read_dependencies(cas, name, version, &fetched.tree_hash)?;
             expanded.insert((name.clone(), version.clone()));
             grew = true;
@@ -204,7 +230,7 @@ pub fn resolve_transitive<H: HttpClient>(
 fn select_all<H: HttpClient>(
     http: &H,
     registry_table: &RegistryTable,
-    registry_url: &str,
+    config: &NpmConfig,
     requirements: &BTreeMap<String, BTreeSet<String>>,
 ) -> Result<Vec<(String, String)>, ResolveError> {
     let mut selection = Vec::new();
@@ -220,7 +246,8 @@ fn select_all<H: HttpClient>(
             ranges.push((s.clone(), range));
         }
 
-        let meta_body = fetch_metadata_cached(http, registry_table, registry_url, name)?;
+        let meta_body =
+            fetch_metadata_cached(http, registry_table, config.registry_for(name), name)?;
         let meta: MetaVersions = serde_json::from_slice(&meta_body).map_err(|e| {
             ResolveError::Fetch(FetchError::BadMetadata(format!(
                 "parse metadata for {name}: {e}"
@@ -652,5 +679,96 @@ mod tests {
                 .unwrap();
         assert_eq!(offline.call_count(), 0);
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn offline_client_replays_cached_graph_and_refuses_cold() {
+        // Phase 5: `--offline` is the OfflineClient, which turns
+        // "would have gone to the network" into a typed error rather
+        // than relying on a registry URL that happens to be
+        // unreachable.
+        let tmp = tempfile::tempdir().unwrap();
+        let cas = ContentStore::open(tmp.path()).unwrap();
+        let table = RegistryTable::open_in_memory().unwrap();
+
+        let b_tar = package_tarball("b", "2.0.0", &[]);
+        let a_tar = package_tarball("a", "1.0.0", &[("b", "^2.0.0")]);
+        let http = MockHttp::new()
+            .respond(&format!("{REGISTRY}a"), meta_doc("a", &[("1.0.0", &a_tar)]))
+            .respond(&format!("{REGISTRY}b"), meta_doc("b", &[("2.0.0", &b_tar)]))
+            .respond(&tarball_url("a", "1.0.0"), a_tar.clone())
+            .respond(&tarball_url("b", "2.0.0"), b_tar.clone());
+
+        let first =
+            resolve_transitive(&http, &cas, &table, REGISTRY, &roots(&[("a", "^1.0.0")])).unwrap();
+
+        let offline = crate::fetch::OfflineClient;
+        let second =
+            resolve_transitive(&offline, &cas, &table, REGISTRY, &roots(&[("a", "^1.0.0")]))
+                .unwrap();
+        assert_eq!(first, second);
+
+        // A root the cache has never seen must surface `Offline`.
+        match resolve_transitive(&offline, &cas, &table, REGISTRY, &roots(&[("zzz", "^1.0.0")])) {
+            Err(ResolveError::Fetch(FetchError::Offline { url })) => {
+                assert_eq!(url, format!("{REGISTRY}zzz"));
+            }
+            other => panic!("expected Offline, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn scoped_packages_route_to_their_scope_registry() {
+        // Phase 5: an `@scope:registry` line routes the scope's
+        // metadata fetch to the scope registry; unscoped packages
+        // stay on the default. (Tarball URLs come from the metadata
+        // document itself, so routing is a metadata-URL concern.)
+        let tmp = tempfile::tempdir().unwrap();
+        let cas = ContentStore::open(tmp.path()).unwrap();
+        let table = RegistryTable::open_in_memory().unwrap();
+
+        const SCOPE_REGISTRY: &str = "https://scope.test/";
+        let b_tar = package_tarball("b", "1.0.0", &[]);
+        let a_tar = package_tarball("@acme/a", "1.0.0", &[("b", "^1.0.0")]);
+        let http = MockHttp::new()
+            .respond(
+                &format!("{SCOPE_REGISTRY}@acme/a"),
+                meta_doc("@acme/a", &[("1.0.0", &a_tar)]),
+            )
+            .respond(&format!("{REGISTRY}b"), meta_doc("b", &[("1.0.0", &b_tar)]))
+            .respond(&tarball_url("@acme/a", "1.0.0"), a_tar.clone())
+            .respond(&tarball_url("b", "1.0.0"), b_tar.clone());
+
+        let mut config = NpmConfig::with_registry(REGISTRY);
+        config.apply_npmrc(&format!("@acme:registry={SCOPE_REGISTRY}\n"));
+
+        let resolved = resolve_transitive_with_config(
+            &http,
+            &cas,
+            &table,
+            &config,
+            &roots(&[("@acme/a", "^1.0.0")]),
+        )
+        .unwrap();
+
+        let summary: Vec<(&str, &str)> = resolved
+            .iter()
+            .map(|p| (p.name.as_str(), p.version.as_str()))
+            .collect();
+        assert_eq!(summary, vec![("@acme/a", "1.0.0"), ("b", "1.0.0")]);
+
+        let calls = http.calls.borrow();
+        assert!(
+            calls.iter().any(|c| c == &format!("META {SCOPE_REGISTRY}@acme/a")),
+            "scoped metadata must come from the scope registry: {calls:?}"
+        );
+        assert!(
+            !calls.iter().any(|c| c == &format!("META {REGISTRY}@acme/a")),
+            "scoped metadata must not hit the default registry: {calls:?}"
+        );
+        assert!(
+            calls.iter().any(|c| c == &format!("META {REGISTRY}b")),
+            "unscoped metadata stays on the default registry: {calls:?}"
+        );
     }
 }
