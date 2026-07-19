@@ -3,7 +3,7 @@
 ---
 
 `@endo/zip` now exposes `inflate` and `deflate` at
-`@endo/zip/inflate.js` and `@endo/zip/deflate.js`.
+`@endo/zip/inflate` and `@endo/zip/deflate`.
 Each is a thin async wrapper over the platform's
 `DecompressionStream('deflate-raw')` and
 `CompressionStream('deflate-raw')` and is the recommended argument

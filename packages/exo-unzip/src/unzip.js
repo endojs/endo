@@ -16,6 +16,8 @@ import {
   ReadableTreeInterface,
   makeIteratorRef,
 } from '@endo/platform/fs/lite';
+import { bytesToText } from '@endo/bytes/to-string.js';
+import { Fail } from '@endo/errors';
 
 // `@endo/zip/inflate.js` is implemented atop `DecompressionStream`,
 // which is available in every host the project targets (Node 18+,
@@ -37,7 +39,6 @@ try {
   // eslint-disable-next-line no-empty
 } catch {}
 
-const textDecoder = new TextDecoder('utf-8', { fatal: false });
 
 /**
  * @typedef {object} TreeNode
@@ -67,13 +68,7 @@ const addEntry = (root, fullPath, archiveName) => {
     if (!node.children) {
       // Reached a leaf where a directory was expected: an existing
       // file's path is a prefix of the current entry's path.
-      throw new Error(
-        `Zip ${archiveName} entry ${JSON.stringify(
-          fullPath,
-        )} collides with an existing file at ${JSON.stringify(
-          segments.slice(0, i).join('/'),
-        )}`,
-      );
+      throw Fail`Zip ${archiveName} entry ${JSON.stringify(fullPath)} collides with an existing file at ${JSON.stringify(segments.slice(0, i).join('/'))}`,
     }
     let child = node.children.get(segment);
     if (!child) {
@@ -85,24 +80,14 @@ const addEntry = (root, fullPath, archiveName) => {
 
   const leaf = segments[segments.length - 1];
   if (!node.children) {
-    throw new Error(
-      `Zip ${archiveName} entry ${JSON.stringify(
-        fullPath,
-      )} collides with an existing file`,
-    );
+    throw Fail`Zip ${archiveName} entry ${JSON.stringify(fullPath)} collides with an existing file`,
   }
   if (node.children.has(leaf)) {
     const existing = /** @type {TreeNode} */ (node.children.get(leaf));
     if (existing.children) {
-      throw new Error(
-        `Zip ${archiveName} entry ${JSON.stringify(
-          fullPath,
-        )} collides with an existing directory of the same name`,
-      );
+      throw Fail`Zip ${archiveName} entry ${JSON.stringify(fullPath)} collides with an existing directory of the same name`,
     }
-    throw new Error(
-      `Zip ${archiveName} contains duplicate entry ${JSON.stringify(fullPath)}`,
-    );
+    throw Fail`Zip ${archiveName} contains duplicate entry ${JSON.stringify(fullPath)}`,
   }
   node.children.set(leaf, { fullPath });
 };
@@ -206,11 +191,11 @@ const makeUnzipBlob = (zipReader, fullPath) => {
     },
     text: async () => {
       const bytes = await zipReader.get(fullPath);
-      return textDecoder.decode(bytes);
+      return bytesToText(bytes);
     },
     json: async () => {
       const bytes = await zipReader.get(fullPath);
-      return JSON.parse(textDecoder.decode(bytes));
+      return JSON.parse(bytesToText(bytes));
     },
   });
 };
@@ -231,7 +216,7 @@ harden(makeUnzipBlob);
 const makeUnzipTree = (zipReader, node, archiveName) => {
   const children = node.children;
   if (!children) {
-    throw new Error('makeUnzipTree called on a leaf node');
+    throw Fail`makeUnzipTree called on a leaf node`
   }
 
   /** @type {ReadableTree} */
@@ -255,16 +240,16 @@ const makeUnzipTree = (zipReader, node, archiveName) => {
       let target = node;
       for (const name of names) {
         if (!target.children) {
-          throw new Error(`Cannot list ${JSON.stringify(name)} inside a blob`);
+          throw Fail`Cannot list ${JSON.stringify(name)} inside a blob`
         }
         const next = target.children.get(name);
         if (next === undefined) {
-          throw new Error(`No such entry: ${JSON.stringify(name)}`);
+          throw Fail`No such entry: ${JSON.stringify(name)}`
         }
         target = next;
       }
       if (!target.children) {
-        throw new Error(`Cannot list a blob entry`);
+        throw Fail`Cannot list a blob entry`
       }
       return harden([...target.children.keys()].sort());
     },
@@ -272,7 +257,7 @@ const makeUnzipTree = (zipReader, node, archiveName) => {
       const namePath =
         typeof petNamePath === 'string' ? [petNamePath] : petNamePath;
       if (namePath.length === 0) {
-        throw new Error('lookup requires at least one name');
+        throw Fail`lookup requires at least one name`
       }
       assertSafePathSegments(namePath, archiveName);
       // Walk the synthesized tree synchronously. Both intermediate
@@ -282,25 +267,21 @@ const makeUnzipTree = (zipReader, node, archiveName) => {
       let target = node;
       for (let i = 0; i < namePath.length - 1; i += 1) {
         if (!target.children) {
-          throw new Error(
-            `Cannot descend into a blob at ${JSON.stringify(
-              namePath.slice(0, i).join('/'),
-            )}`,
-          );
+          throw Fail`Cannot descend into a blob at ${JSON.stringify(namePath.slice(0, i).join('/'))}`,
         }
         const next = target.children.get(namePath[i]);
         if (next === undefined) {
-          throw new Error(`No such entry: ${JSON.stringify(namePath[i])}`);
+          throw Fail`No such entry: ${JSON.stringify(namePath[i])}`
         }
         target = next;
       }
       if (!target.children) {
-        throw new Error(`Cannot descend into a blob`);
+        throw Fail`Cannot descend into a blob`
       }
       const last = namePath[namePath.length - 1];
       const child = target.children.get(last);
       if (child === undefined) {
-        throw new Error(`No such entry: ${JSON.stringify(last)}`);
+        throw Fail`No such entry: ${JSON.stringify(last)}`
       }
       if (child.children) {
         return makeUnzipTree(zipReader, child, archiveName);
