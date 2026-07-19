@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-07-18 |
-| **Updated** | 2026-07-18 |
+| **Updated** | 2026-07-19 |
 | **Author** | Kriscendo Bot (prompted by Kris Kowal) |
 | **Status** | Proposed |
 | **Tracks** | [endojs/endo-but-for-bots#606](https://github.com/endojs/endo-but-for-bots/issues/606) |
@@ -252,26 +252,62 @@ Net: the honest "snapshot-only" degradation in #606 can be replaced with
 and sandbox permit," with the fallback guaranteeing no regression where
 they do not.
 
-## Open questions
+## Design decisions
 
-1. **Pull vs push at the XS boundary.** `watchNext(timeout)` (pull) is
-   simplest to bind but ties up a host call; a registered XS callback /
-   port would integrate better with the daemon's async loop. Which fits
-   the Rust/XS event model best?
-2. **Poll cadence / debounce** for the fallback and macOS diff — reuse
-   the Node powers' existing debounce window for cross-host parity?
-3. **Loosen the container seccomp profile** to allow unprivileged
-   `fanotify_init`, or ship fallback-only inside the sandbox and reserve
-   fanotify for host deployments? (Operational decision for the garden
-   fleet specifically.)
-4. **Vendor vs publish.** Keep `cap-std-watch` internal to
-   `rust/endo/xsnap` first; only extract a standalone crate (and
-   potentially offer it upstream to the bytecodealliance/cap-std
-   ecosystem, per #606 follow-up item 1) once the API stabilizes.
-5. **Rename fidelity.** fanotify `FAN_MOVED_FROM`/`FAN_MOVED_TO` and
-   Windows `RENAMED_OLD/NEW` carry rename pairs; the current contract
-   flattens to add/remove/replace. Is a `rename` kind worth surfacing, or
-   is the flattened model deliberate?
+These five questions were open in the exploration; the review on #793
+resolved each. They are recorded here as decisions so the direction is
+durable.
+
+1. **Pull vs push at the XS boundary — favor push / wake-on-change,
+   behind one high-level watch abstraction.** The dominant trade-off is
+   *liveness and power* versus *implementation simplicity and
+   portability*: a registered XS callback / port (push) lets the process
+   stay asleep and wake only on change — lower power, timely updates —
+   but is more platform-specific to bind and less portable; a
+   `watchNext(timeout)` pull is trivial to bind and uniform across
+   platforms but ties up a host call and cannot sleep. **Decision:**
+   favor liveness — prefer true wake-on-change wherever the platform
+   supports it (fanotify push on Linux, `ReadDirectoryChangesW` on
+   Windows). What must hold is that *every* platform satisfies the same
+   high-level watch abstraction by whatever means; a platform that can
+   only offer poll/pull under the hood is acceptable **as long as it
+   presents that same abstraction**, so the push-preferred design and the
+   pull fallback live behind one interface.
+2. **Poll cadence / debounce — designer's discretion; default to the
+   Node powers' window.** Left to implementation discretion. The default
+   is to reuse the Node powers' existing debounce window for the fallback
+   and the macOS diff, so cross-host behavior stays at parity.
+3. **Container seccomp — do both, and always degrade gracefully.**
+   Pursue *both* paths: loosen the container seccomp profile to allow
+   unprivileged `fanotify_init` where the operator opts in (so the fleet
+   gets true push events), **and** always ship the poll/diff fallback so
+   a constrained environment — one that still gates `fanotify_init` —
+   tolerates the absence gracefully rather than failing. fanotify is
+   never a hard dependency; it is an acceleration behind a capability
+   probe.
+4. **Vendor vs publish — vendor now, leave the door open.** Keep
+   `cap-std-watch` internal to `rust/endo/xsnap` for now. Factor the API
+   so a later extraction to a standalone crate — and a potential upstream
+   offer to the bytecodealliance/cap-std ecosystem (#606 follow-up
+   item 1) — remains possible once it stabilizes, without committing to
+   publication yet.
+5. **Rename fidelity — keep the flattened contract; treat rename as a
+   hidden optimization.** The public contract stays add/remove/replace;
+   rename detail is hidden from the consumer. Trade-off: a `rename` kind
+   would carry *identity continuity* — the same inode moving lets a
+   watcher preserve object state instead of tearing it down and rebuilding
+   it — and the OS backends that can supply it do so cheaply (fanotify
+   `FAN_MOVED_FROM`/`FAN_MOVED_TO`, Windows `RENAMED_OLD/NEW`). But not
+   every backend delivers rename pairs: the universal poll/diff fallback
+   cannot distinguish a rename from an unrelated remove-then-add, and a
+   move whose source and target filesystems differ is a genuine
+   copy+delete with no continuity to surface. Forcing a `rename` kind into
+   the public contract would therefore be uneven across platforms.
+   **Decision:** hide the details behind the flattened model, and allow
+   the implementation to *optimize internally* where the platform (or an
+   aligned source/target filesystem) makes a true atomic move
+   observable — surfacing it as a coherent replace rather than a new
+   public `kind`.
 
 ## Alternatives considered
 
@@ -294,4 +330,5 @@ all platforms, no sandbox change), then (2) Linux unprivileged-fanotify
 push backend behind a capability probe, then (3) Windows
 `ReadDirectoryChangesW` when a Windows supervisor is targeted. No code in
 this PR; it captures the design and the corrected feasibility verdict so
-the decision is durable.
+the decision is durable. The five open questions above were resolved in
+the #793 review and are now recorded as design decisions.
