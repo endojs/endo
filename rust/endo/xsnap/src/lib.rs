@@ -1569,9 +1569,27 @@ pub fn run_xs_program(
             }
             XsProgram::Archive(bytes) => {
                 // Provide globals visible inside archive Compartments.
+                // `console` mirrors the standalone runner's endowment
+                // (log/info/debug → stdout, warn/error → trace).
                 machine.eval(
                     "globalThis.__archiveEndowments = { \
                         print: trace, trace, \
+                        console: (function () { \
+                            var format = function (args) { \
+                                var parts = []; \
+                                for (var i = 0; i < args.length; i++) { \
+                                    var a = args[i]; \
+                                    if (typeof a === 'string') { parts.push(a); continue; } \
+                                    var s; \
+                                    try { s = JSON.stringify(a); } catch (e) { s = undefined; } \
+                                    parts.push(s === undefined ? String(a) : s); \
+                                } \
+                                return parts.join(' '); \
+                            }; \
+                            var out = function () { stdoutLine(format(arguments)); }; \
+                            var err = function () { trace(format(arguments)); }; \
+                            return { log: out, info: out, debug: out, trace: out, warn: err, error: err }; \
+                        })(), \
                         readFileText, writeFileText, readDir, mkdir, \
                         remove, rename, exists, isDir, readLink, \
                         openReader, read, closeReader, \
@@ -1823,10 +1841,29 @@ pub fn run_xs_archive_loaded(loaded: &archive::LoadedArchive) -> Result<(), Xsna
     machine.register_worker_io();
     register_host_powers(&machine);
 
-    // Provide archive endowments.
+    // Provide archive endowments. `console` is what npm code
+    // actually calls: log/info/debug go to the process stdout so a
+    // program's output is separable from the runner's stderr
+    // diagnostics; warn/error ride the trace channel (stderr).
     machine.eval(
         "globalThis.__archiveEndowments = { \
             print: trace, trace, \
+            console: (function () { \
+                var format = function (args) { \
+                    var parts = []; \
+                    for (var i = 0; i < args.length; i++) { \
+                        var a = args[i]; \
+                        if (typeof a === 'string') { parts.push(a); continue; } \
+                        var s; \
+                        try { s = JSON.stringify(a); } catch (e) { s = undefined; } \
+                        parts.push(s === undefined ? String(a) : s); \
+                    } \
+                    return parts.join(' '); \
+                }; \
+                var out = function () { stdoutLine(format(arguments)); }; \
+                var err = function () { trace(format(arguments)); }; \
+                return { log: out, info: out, debug: out, trace: out, warn: err, error: err }; \
+            })(), \
             readFileText, writeFileText, readDir, mkdir, \
             remove, rename, exists, isDir, readLink, \
             openReader, read, closeReader, \
@@ -2927,6 +2964,36 @@ mod tests {
             JsValue::String(s) => assert_eq!(s, "Hello from XS!"),
             other => panic!("expected greeting, got {:?}", js_value_debug(&other)),
         }
+    }
+
+    #[test]
+    fn import_archive_entry_throw_fails_cleanly() {
+        // A throw during the entry import — here a ReferenceError
+        // from an undefined global, the shape of a program run with
+        // a missing endowment — must come back as `false`, not
+        // crash the process.
+        let map = make_archive_map(
+            vec![(
+                "app-v1",
+                "app",
+                vec![("./main.js", archive::ModuleDescriptor::File {
+                    parser: "mjs".to_string(),
+                    location: Some("main.js".to_string()),
+                    sha512: None,
+                })],
+            )],
+            "app-v1",
+            "./main.js",
+        );
+
+        let zip = make_test_zip(&map, &[(
+            "app-v1/main.js",
+            "noSuchGlobal(42); export const unreachable = 1;",
+        )]);
+
+        let loaded = archive::load_archive(std::io::Cursor::new(zip)).unwrap();
+        let machine = new_machine();
+        assert!(!machine.import_archive(&loaded));
     }
 
     #[test]

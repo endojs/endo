@@ -286,7 +286,14 @@ function __makeArchiveCompartment(compName) {{
         escape_js_string(&archive.map.entry.module),
     );
 
-    // Execute in separate evals
+    // Execute in separate evals. The first three are generated
+    // declarations that run no user code and must stay unwrapped: a
+    // `function` declaration inside a try block does not hoist to
+    // the global scope. The last two run arbitrary module code, so
+    // they go through the inline try/catch wrapper — a throw that
+    // unwinds out of an eval into the host frame crashes XS, and a
+    // ReferenceError in the program being run must surface as a
+    // clean failure, not a SIGSEGV.
     if machine.eval(&registry_js).is_none() {
         return false;
     }
@@ -296,10 +303,10 @@ function __makeArchiveCompartment(compName) {{
     if machine.eval(&compartments_js).is_none() {
         return false;
     }
-    if machine.eval(&make_entry_comp_js).is_none() {
+    if !crate::eval_wrapped(machine, &make_entry_comp_js, "endor[archive]/entry-compartment") {
         return false;
     }
-    machine.eval(&import_entry_js).is_some()
+    crate::eval_wrapped(machine, &import_entry_js, "endor[archive]/entry-import")
 }
 
 /// Escape a string for use inside JS single-quoted strings.
