@@ -3,6 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-07-18 |
+| **Updated** | 2026-07-19 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Proposed |
 
@@ -68,10 +69,10 @@ sequenceDiagram
     Note over Listener: plaintext OCapN / CapTP stays inside the listener
 ```
 
-## Two Components, Two Packages
+## Independent Components
 
-The redirection splits the earlier single package into two independently useful
-pieces with a strict dependency direction.
+The redirection separates the earlier single package into independently useful
+components. Applications compose them at their network boundary.
 
 ### The relay (dumb ciphertext router)
 
@@ -186,11 +187,13 @@ protocol with no locator.
 
 ### Dependency direction
 
-`@endo/ocapn-noise` may depend on both the relay package and the terminating
-listener package; neither of those may depend on `@endo/ocapn-noise` to borrow
-OCapN behavior. The relay package must not depend on the listener package or on
-any Noise implementation — it is dumb by construction, and a build-time
-dependency on Noise would be a design regression.
+The relay, the Noise listener, and OCapN are independent protocol components.
+The relay depends on neither Noise nor OCapN. The Noise listener depends on the
+relay only through the byte-stream network boundary, not by importing its
+package. OCapN likewise depends on neither component. An application composes
+them by injecting a network layer, such as a Noise-over-WebSocket adapter, into
+its OCapN session manager. A build-time dependency between these components
+would collapse the intended boundary and is a design regression.
 
 ## Responder Algorithm and Abuse Limits
 
@@ -230,30 +233,28 @@ intended-responder forwarding cap, malformed or timed-out prefix, and target
 connect failure; and at the listener: full authenticated-initiator cap,
 malformed or timed-out SYN, and session-manager rejection.
 
-## OCapN Adaptation
+## Application Composition
 
-`@endo/ocapn-noise` supplies the OCapN-specific adapters on both sides.
+An application chooses its network layer and injects it into OCapN. For example,
+an application may pair an OCapN session manager with a Noise-over-WebSocket
+adapter. The adapter derives `peerEd25519` from the application's peer
+configuration, opens a transport, calls `connect`, and gives the resulting
+plaintext stream to the OCapN session manager. OCapN itself does not allocate
+`PREFIXED_SYN_LENGTH`, invoke `initiatorWriteSyn`, observe a SYNACK, or import
+the relay or listener package.
 
-`provideSession(remote, options)` remains the OCapN-core convenience surface for
-dialing: it derives `peerEd25519` from an OCapN locator, opens the appropriate
-transport, calls listener `connect`, and wraps the plaintext result as
-`OcapnNoiseSession`. Neither it nor any caller allocates `PREFIXED_SYN_LENGTH`,
-invokes `initiatorWriteSyn`, or observes a SYNACK; that split — which
-`runInitiator` already realizes internally — becomes the public contract.
+For accepting sessions, the application's configuration maps each responder key
+to a forwarding target toward the process that owns that identity. That process
+terminates its forwarded stream with a `NoiseIkListener` bound to its private
+key, then injects the plaintext result into its OCapN session manager. The
+daemon-side `handleOcapnSession` exo remains an application integration point:
+it receives a session after the recipient terminates Noise, rather than after a
+gateway reads and reconstructs a SYN.
 
-For accepting sessions, each true listener appears in the relay's static
-responder mapping with a forwarding target toward its own process, and
-terminates the forwarded stream with its own `NoiseIkListener` bound to its
-private key. The listener's OCapN-facing record can preserve existing names
-while carrying the selected responder key and the authenticated initiator key.
-The daemon-side `handleOcapnSession` exo continues to terminate Noise; what
-changes is that the stream reaches it via the relay's forwarding, not via a
-gateway that already read and reconstructed the SYN.
-
-Every responder must migrate, not just the WebSocket gateway: built-in transport
-listeners, test transports, relay registrations, and direct callers that
-currently expect raw Noise frames all appear in the static responder mapping
-with a forwarding target and terminate their own stream.
+Every application responder must migrate, not just the WebSocket gateway:
+built-in transport listeners, test transports, relay registrations, and direct
+callers that currently expect raw Noise frames need an injected network adapter
+and a forwarding target that terminates its own stream.
 
 `packages/gateway/src/ocapn-ws.js` becomes a transport-to-relay adapter. On
 WebSocket upgrade it validates only the generic stream shape and calls relay
@@ -261,8 +262,11 @@ WebSocket upgrade it validates only the generic stream shape and calls relay
 constants for its own use, converts a prefix to hex for daemon lookup, defines
 `prependFrame`, or constructs an `OcapnReplayReader`. The gateway host loads the
 static daemon-forwarding mapping at startup and replaces it gracefully on
-`SIGHUP`. Because the gateway process no longer terminates Noise, it holds no
-daemon key material; the true listener's process does.
+`SIGHUP`. The Node host's controller exo supplies this configuration while
+remaining loosely coupled: it does not become a relay facet, and the relay does
+not depend on the controller or Node. Because the gateway process no longer
+terminates Noise, it holds no daemon key material; the true listener's process
+does.
 
 ## Compatibility and Rollout
 
@@ -288,28 +292,29 @@ Prototype the whole thing in Node to validate the split and the tests, but
 prepare for the data plane to be replaced by Rust. The intended end state is a
 **parallel Rust crate and JS package** pair, following the precedent already in
 this repository — `rust/ocapn_noise` (`ocapn_noise_protocol_facilities`, built
-as a `cdylib`) paired with `@endo/ocapn-noise`.
+  as a `cdylib`) paired with an independent JS application adapter.
 
 - The **data plane** — the byte-splicing relay and the Noise IK responder/
   initiator state machine — is the part that moves to Rust. It is CPU- and
   I/O-bound, security-sensitive, and benefits from a memory-safe systems
   implementation and the existing Rust Noise stack.
-- The **control plane** — the static route snapshot and its atomic replacement,
-  abuse-limit configuration, and session hand-off — is expressed as a **bespoke
-  CBOR controller protocol** between the Rust data plane and the JS facade. A
-  `SIGHUP`-driven reload becomes a validated CBOR snapshot-replacement message
-  rather than an in-process hook, but keeps the same atomic, bad-reload-safe
-  semantics.
-- The **JS facade** adapts that controller protocol to **Exo interfaces**, so
-  the control surface and any session hand-off remain object-capabilities on the
-  JS side, regardless of whether the data plane is Node or Rust underneath.
+- The **control plane** is the application's configuration: static route
+  snapshots, atomic replacement, and abuse-limit configuration. The Node
+  controller exo translates its configuration and `SIGHUP` into a validated
+  snapshot-replacement message. A Rust relay may accept the same message as a
+  bespoke CBOR controller protocol, without acquiring a dependency on that
+  controller or on any JS facade.
+- The **JS application adapter** may expose its own Exo interfaces for
+  application control and session hand-off. Those interfaces remain outside the
+  relay and listener packages regardless of whether the data plane is Node or
+  Rust underneath.
 
 Design the Node prototype so the JS/Rust seam falls exactly at this control/data
-split: the JS side never assumes it can reach into data-plane internals beyond
-the CBOR controller messages, and the Rust side never assumes a JS-object
-routing table. Keeping the seam at the CBOR controller protocol lets the Node
-data-plane prototype be swapped for the Rust crate without changing the Exo
-facade its OCapN consumers depend on.
+split: the application side never assumes it can reach into data-plane internals
+beyond configuration replacement, and the Rust side never assumes a JS-object
+routing table. Keeping the seam at the configuration protocol lets the Node
+data-plane prototype be swapped for the Rust crate without changing application
+adapters or OCapN itself.
 
 ## Implementation Plan
 
@@ -319,15 +324,15 @@ facade its OCapN consumers depend on.
 2. Create/relocate the terminating listener package: the generic IK initiator
    and responder state machine, preserving timeout, close, crossed-hello, and
    two-stage in-progress accounting behavior.
-3. Implement the OCapN adapters in `@endo/ocapn-noise`: dial via listener
-   `connect`, and place each daemon's forwarding target in the static relay
-   mapping while the daemon terminates its own forwarded stream.
+3. Implement application-owned network adapters: dial via listener `connect`,
+   place each daemon's forwarding target in the static relay mapping, and inject
+   each terminated plaintext stream into the application's OCapN manager.
 4. Reduce `ocapn-ws.js` to a transport-to-relay adapter. Add an end-to-end test
    that a forwarded listener terminates Noise and sees two authenticated keys and
    plaintext, while the relay never decrypts and never sees a SYN body.
 5. Structure the data plane so it can be replaced by a Rust crate behind a CBOR
-   controller protocol adapted to Exo interfaces on the JS facade, paralleling
-   `rust/ocapn_noise` ↔ `@endo/ocapn-noise`.
+   configuration protocol used by the Node controller exo, without coupling the
+   relay, listener, or OCapN packages to one another.
 
 ## Resolved Decisions
 
@@ -349,7 +354,7 @@ direction dated 2026-07-18.
 
 | Design | Relationship |
 |---|---|
-| [ocapn-noise-network](ocapn-noise-network.md) | Existing network, handshake, transport, and session substrate. The terminating listener package draws its responder/initiator state machine from here; the relay draws only the SYN-prefix framing constant. |
+| [ocapn-noise-network](ocapn-noise-network.md) | Existing network, handshake, transport, and session substrate. The terminating listener draws its responder/initiator state machine from here; the relay draws only the SYN-prefix framing constant. |
 | [ocapn-noise-session-reconnect](ocapn-noise-session-reconnect.md) | Session ownership and close behavior must remain compatible with reconnection and crossed-hello settlement at the terminating listener. |
 | [gateway-package](gateway-package.md) | Its OCapN WebSocket feature becomes a transport-to-relay adapter that forwards ciphertext instead of owning a raw-SYN termination path. |
 
@@ -363,5 +368,6 @@ responder key, and Noise termination, authentication, and decryption stay with
 the recipient. The routing table is static configuration with a validated,
 atomic, `SIGHUP`-driven replacement rather than a controller exo. The same
 direction calls for prototyping in Node while preparing to replace the data
-plane with a Rust crate and a bespoke CBOR controller protocol adapted to Exo
-interfaces on the JS facade, yielding a parallel Rust crate and JS package pair.
+plane with a Rust crate and a CBOR configuration protocol supplied by a loosely
+coupled Node controller exo. OCapN depends on neither the relay nor Noise; an
+application injects its network layer, such as Noise over WebSocket.
