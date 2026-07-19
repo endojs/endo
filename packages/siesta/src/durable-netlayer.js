@@ -33,10 +33,18 @@ import { Fail } from '@endo/errors';
  *   the OCapN layer is finally told.
  *
  * Prototype limits (documented in the design): retransmit buffers are
- * unbounded until acked, an acceptor parks a dropped logical
- * connection indefinitely awaiting resume, and resumption state is
- * held in memory — a process restart still ends the session (the
- * durable-session-across-restart layer builds on this seam).
+ * unbounded until acked, and an acceptor parks a dropped logical
+ * connection indefinitely awaiting resume.
+ *
+ * With the optional `resumption` power, the acceptor side additionally
+ * persists each durable logical connection — its received/sent frame
+ * watermarks and unacknowledged outbound frames — and can resume a
+ * session in a NEW process: a resume for a token this process has
+ * never seen is looked up durably, the OCapN session is reconstructed
+ * via `handlers.resumeSession` (identity and exports re-seated by the
+ * embedder), and frame replay proceeds as if the socket had merely
+ * dropped. Originator-side durability is not implemented: the peer
+ * that restarts must be the acceptor (the siesta daemon).
  *
  * The types below are structural mirrors of the OCapN netlayer
  * interface (`packages/ocapn/src/client/types.js`), which the ocapn
@@ -59,6 +67,8 @@ import { Fail } from '@endo/errors';
  * @property {(netlayer: any, isOutgoing: boolean, socket: SocketOperations) => Connection} makeConnection
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
+ * @property {(connection: Connection, resumption: any) => { restoreExport: (position: bigint, value: object) => void }} [resumeSession]
+ *   present on OCapN layers that support durable-session resumption
  *
  * @typedef {object} Logger
  * @property {(...args: Array<unknown>) => void} log
@@ -72,6 +82,31 @@ import { Fail } from '@endo/errors';
  * @property {any} locationId
  * @property {(location: OcapnLocation) => Connection} connect
  * @property {() => void} shutdown
+ */
+
+/**
+ * The embedder-provided power that makes acceptor-side sessions
+ * durable across process restarts. All frame bookkeeping methods must
+ * persist synchronously (write-through), in the same discipline as the
+ * worker stores.
+ *
+ * @typedef {object} SessionResumptionPower
+ * @property {(token: string) => boolean} isDurableToken shape-validates
+ *   a remote-supplied token before it is used as a storage key
+ * @property {(token: string) => void} onHello a fresh durable logical
+ *   connection opened; create/reset its record
+ * @property {(token: string) => { recvSeq: number, sendSeq: number, frames: Array<{ n: number, bytes: Uint8Array }> } | undefined} loadForResume
+ *   load the durable record for a token unknown to this process;
+ *   undefined refuses the resumption
+ * @property {(handlers: NetlayerHandlers, connection: Connection, token: string) => void} restoreSession
+ *   reconstruct the OCapN session on the given logical connection
+ *   (identity via `handlers.resumeSession`, exports re-seated)
+ * @property {(token: string, n: number, bytes: Uint8Array) => void} recordOutbound
+ * @property {(token: string, n: number) => void} recordAck
+ * @property {(token: string, n: number) => void} recordInbound persist
+ *   the received watermark BEFORE the frame is dispatched (at-most-once)
+ * @property {(token: string) => void} onEnd deliberate close; delete
+ *   the record
  */
 
 const textEncoder = new TextEncoder();
@@ -125,7 +160,9 @@ const makeToken = () => {
  *   factory for the underlying transport netlayer (e.g. TCP)
  * @param {number} [options.reconnectDelayMs] initial reconnect backoff
  * @param {number} [options.maxReconnectDelayMs]
- * @returns {Promise<NetLayer>}
+ * @param {SessionResumptionPower} [options.resumption] acceptor-side
+ *   durability across process restarts
+ * @returns {Promise<NetLayer & { getResumeToken: (connection: Connection) => string | undefined }>}
  */
 export const makeDurableNetLayer = async ({
   handlers,
@@ -133,6 +170,7 @@ export const makeDurableNetLayer = async ({
   makeBaseNetlayer,
   reconnectDelayMs = 50,
   maxReconnectDelayMs = 1000,
+  resumption = undefined,
 }) => {
   /**
    * One resumable logical connection. `ocapnConnection` is the stable
@@ -152,6 +190,8 @@ export const makeDurableNetLayer = async ({
    *   the current transport, so writes may flow (before that they only
    *   accumulate in `sendBuf`)
    * @property {boolean} destroyed
+   * @property {boolean} durable acceptor-side record persists across
+   *   process restarts via the resumption power
    * @property {ReturnType<typeof setTimeout> | undefined} reconnectTimer
    * @property {number} reconnectDelay
    */
@@ -162,6 +202,8 @@ export const makeDurableNetLayer = async ({
   const logicalByTransport = new Map();
   /** @type {Map<string, LogicalConnection>} */
   const outgoingByLocationId = new Map();
+  /** @type {Map<Connection, LogicalConnection>} */
+  const logicalByOcapnConnection = new Map();
 
   let shuttingDown = false;
 
@@ -269,6 +311,7 @@ export const makeDurableNetLayer = async ({
       transport.end();
     }
     logicalByToken.delete(logical.token);
+    logicalByOcapnConnection.delete(logical.ocapnConnection);
     if (logical.transport) {
       logicalByTransport.delete(logical.transport);
       logical.transport = undefined;
@@ -277,6 +320,9 @@ export const makeDurableNetLayer = async ({
       if (value === logical) {
         outgoingByLocationId.delete(key);
       }
+    }
+    if (logical.durable && resumption) {
+      resumption.onEnd(logical.token);
     }
     handlers.handleConnectionClose(
       logical.ocapnConnection,
@@ -304,6 +350,7 @@ export const makeDurableNetLayer = async ({
       transport: undefined,
       flowing: false,
       destroyed: false,
+      durable: false,
       reconnectTimer: undefined,
       reconnectDelay: reconnectDelayMs,
     };
@@ -316,6 +363,12 @@ export const makeDurableNetLayer = async ({
         logical.sendSeq += 1;
         const entry = { n: logical.sendSeq, bytes };
         logical.sendBuf.push(entry);
+        if (logical.durable && resumption) {
+          // Persist before the wire: an unpersisted frame that reached
+          // the peer is fine (it acks; we forget), but a persisted-ack
+          // for a frame a restarted process cannot replay is not.
+          resumption.recordOutbound(logical.token, entry.n, bytes);
+        }
         if (logical.flowing) {
           transportWrite(logical, { t: 'f', n: entry.n }, entry.bytes);
         }
@@ -332,6 +385,7 @@ export const makeDurableNetLayer = async ({
       logicalOps,
     );
     logicalByToken.set(token, logical);
+    logicalByOcapnConnection.set(logical.ocapnConnection, logical);
     return logical;
   };
 
@@ -383,6 +437,10 @@ export const makeDurableNetLayer = async ({
             return;
           }
           const logical = makeLogical(header.tok, false, undefined);
+          if (resumption && resumption.isDurableToken(header.tok)) {
+            logical.durable = true;
+            resumption.onHello(header.tok);
+          }
           logical.transport = physical;
           logicalByTransport.set(physical, logical);
           transportWrite(logical, { t: 'welcome', rcv: logical.recvSeq });
@@ -394,12 +452,44 @@ export const makeDurableNetLayer = async ({
             physical.end();
             return;
           }
-          const logical = logicalByToken.get(header.tok);
+          let logical = logicalByToken.get(header.tok);
+          if (
+            logical === undefined &&
+            resumption &&
+            resumption.isDurableToken(header.tok)
+          ) {
+            // This process has never seen the token: a resumption
+            // across a restart. Rebuild the logical connection from
+            // the durable record and let the embedder reconstruct the
+            // OCapN session on it before any frame flows.
+            const record = resumption.loadForResume(header.tok);
+            if (record !== undefined) {
+              logical = makeLogical(header.tok, false, undefined);
+              logical.durable = true;
+              logical.recvSeq = record.recvSeq;
+              logical.sendSeq = record.sendSeq;
+              logical.sendBuf = record.frames.map(({ n, bytes }) => ({
+                n,
+                bytes,
+              }));
+              try {
+                resumption.restoreSession(
+                  handlers,
+                  logical.ocapnConnection,
+                  header.tok,
+                );
+              } catch (error) {
+                logger.error('durable netlayer: session restore failed', error);
+                destroyLogical(logical, 'session restore failed');
+                physical.end();
+                return;
+              }
+            }
+          }
           if (logical === undefined || logical.destroyed) {
             // Unknown logical connection: nothing to resume. Close the
             // physical link; the originator's OCapN session stays in
-            // limbo until it deliberately ends it. (The durable-session
-            // layer will answer with state restored from disk instead.)
+            // limbo until it deliberately ends it.
             logger.info('durable netlayer: resume for unknown token');
             physical.end();
             return;
@@ -444,6 +534,12 @@ export const makeDurableNetLayer = async ({
             return;
           }
           bound.recvSeq = n;
+          if (bound.durable && resumption) {
+            // Watermark before dispatch: a crash between the two loses
+            // the frame's effects (at-most-once) rather than replaying
+            // a delivery whose side effects already landed.
+            resumption.recordInbound(bound.token, n);
+          }
           transportWrite(bound, { t: 'ack', n });
           handlers.handleMessageData(bound.ocapnConnection, payload);
           break;
@@ -454,6 +550,9 @@ export const makeDurableNetLayer = async ({
           }
           const n = Number(header.n);
           bound.sendBuf = bound.sendBuf.filter(entry => entry.n > n);
+          if (bound.durable && resumption) {
+            resumption.recordAck(bound.token, n);
+          }
           break;
         }
         case 'bye': {
@@ -517,17 +616,43 @@ export const makeDurableNetLayer = async ({
   const shutdown = () => {
     shuttingDown = true;
     for (const logical of [...logicalByToken.values()]) {
-      destroyLogical(logical, 'netlayer shutdown');
+      if (logical.durable) {
+        // Park, don't end: the durable record outlives this process,
+        // and the peer's session must stay live so it can resume
+        // against our successor. Close the transport without a bye.
+        if (logical.reconnectTimer !== undefined) {
+          clearTimeout(logical.reconnectTimer);
+          logical.reconnectTimer = undefined;
+        }
+        if (logical.transport !== undefined) {
+          logical.transport.end();
+        }
+      } else {
+        destroyLogical(logical, 'netlayer shutdown');
+      }
     }
     base.shutdown();
   };
 
-  /** @type {NetLayer} */
   const netlayer = harden({
     location: base.location,
     locationId: base.locationId,
     connect,
     shutdown,
+    /**
+     * The resume token of the durable logical connection carrying the
+     * given OCapN connection, or undefined when the connection is not
+     * durable. The embedder's session hooks key persistence on this.
+     *
+     * @param {Connection} ocapnConnection
+     */
+    getResumeToken: ocapnConnection => {
+      const logical = logicalByOcapnConnection.get(ocapnConnection);
+      if (logical === undefined || !logical.durable) {
+        return undefined;
+      }
+      return logical.token;
+    },
   });
   return netlayer;
 };

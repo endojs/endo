@@ -143,7 +143,7 @@ session records the parent-origin endowment as "import slot S of the
 parent worker's session" (by worker id), re-seated on host restart
 without waking either worker.
 
-## Durable sessions (transport resumption)
+## Durable sessions
 
 OCapN has no session-resumption message, so siesta prototypes it
 beneath the protocol, at the netlayer: `makeDurableNetLayer` wraps a
@@ -170,14 +170,31 @@ const daemon = await makeSiestaDaemon({
 ```
 
 Wrap both peers.
-This layer survives connection failures between two live processes;
-surviving a daemon _restart_ additionally requires the daemon's half
-of each session to be persisted and re-seated (the same
-export-table-layer treatment its worker sessions get) — that is the
-next layer of the design, not yet built.
-Prototype limits: retransmit buffers are unbounded until acked, and
-an acceptor parks a dropped logical connection indefinitely awaiting
-resume.
+
+On the daemon side the sessions are also durable across **daemon
+restarts**: the daemon persists, per resume token, each session's
+identity (session id, peer key, location), its received/sent frame
+watermarks, its unacknowledged outbound frames, and a durable
+description of every export the session makes — a daemon-side OCapN
+export is almost always a presence imported from some worker session,
+so its description is the same `{ workerId, slot }` link shape the
+worker sessions already use.
+A successor process pins the same port; the peer's netlayer
+reconnects and resumes; the daemon rebuilds the OCapN session (same
+session id, no handshake, via the `resumeSession` seam in
+`@endo/ocapn`) and re-seats every export at its recorded position
+without waking any worker.
+Live remote references then keep working as if nothing happened —
+including calls issued while the daemon was down, which buffer in the
+peer's netlayer and complete against the successor.
+
+Known limits of the prototype: retransmit buffers are unbounded until
+acked; parked sessions are kept indefinitely (no session GC); resumed
+sessions mint fresh session keys (the session id carries continuity,
+so cross-restart third-party handoffs are future work); daemon-side
+imports re-mint lazily (identity across the restart is per-session
+only); and exports with no durable description (session-internal
+resolvers) re-seat as tombstones that fail loudly.
 
 ## Retirement and vat GC
 

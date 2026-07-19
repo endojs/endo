@@ -6,6 +6,9 @@
   },
   "references": [
     {
+      "path": "../bytes/tsconfig.composite.json"
+    },
+    {
       "path": "../captp/tsconfig.composite.json"
     },
     {

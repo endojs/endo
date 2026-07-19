@@ -74,6 +74,19 @@ import { Fail, q } from '@endo/errors';
  */
 
 /**
+ * Durable storage for one resumable OCapN session: its identity and
+ * export descriptions (meta) and its unacknowledged outbound frames.
+ *
+ * @typedef {object} SessionStore
+ * @property {() => Record<string, any>} getMeta
+ * @property {(meta: Record<string, any>) => void} setMeta
+ * @property {(entry: { n: number, b64: string }) => void} appendFrame
+ * @property {() => Array<{ n: number, b64: string }>} readFrames
+ * @property {(upToN: number) => void} truncateFramesUpTo drops frames
+ *   with sequence number <= upToN (the peer acknowledged them)
+ */
+
+/**
  * @typedef {object} SiestaStore
  * @property {() => Array<string>} listWorkerIds
  * @property {(workerId: string) => WorkerStore} provideWorkerStore
@@ -82,12 +95,31 @@ import { Fail, q } from '@endo/errors';
  * @property {() => Record<string, PublicationRecord>} getPublications
  * @property {(secret: string, record: PublicationRecord) => void} setPublication
  * @property {(secret: string) => void} deletePublication
+ * @property {() => Array<string>} listSessionTokens
+ * @property {(token: string) => SessionStore} provideSessionStore
+ * @property {(token: string) => void} deleteSession
  */
 
 // Worker ids are host-generated unguessable random hex, never
 // user-chosen names: reaching a worker requires a capability (a
 // publication, a durable cross-worker link, or a facade), not a string.
 const WORKER_ID_PATTERN = /^[0-9a-f]{32}$/;
+
+// Resume tokens arrive over the network and become directory names:
+// validate the exact shape the durable netlayer mints before any
+// filesystem use.
+const SESSION_TOKEN_PATTERN = /^[0-9a-f]{32}$/;
+
+/** @param {string} token */
+export const isSessionToken = token =>
+  typeof token === 'string' && SESSION_TOKEN_PATTERN.test(token);
+harden(isSessionToken);
+
+/** @param {string} token */
+const assertSessionToken = token => {
+  isSessionToken(token) ||
+    Fail`Session token must match ${q(SESSION_TOKEN_PATTERN.source)}`;
+};
 
 /** @param {string} workerId */
 export const assertWorkerId = workerId => {
@@ -132,14 +164,73 @@ const writeFileAtomic = (path, text) => {
  * - `workers/<workerId>/meta.json`
  * - `workers/<workerId>/tables.json`
  * - `workers/<workerId>/journal.jsonl`
+ * - `sessions/<token>/meta.json`
+ * - `sessions/<token>/frames.jsonl`
  *
  * @param {string} statePath
  * @returns {SiestaStore}
  */
 export const makeFsStore = statePath => {
   const workersPath = join(statePath, 'workers');
+  const sessionsPath = join(statePath, 'sessions');
   const publicationsPath = join(statePath, 'publications.json');
   mkdirSync(workersPath, { recursive: true });
+
+  /** @param {string} token */
+  const makeSessionStore = token => {
+    assertSessionToken(token);
+    const sessionPath = join(sessionsPath, token);
+    mkdirSync(sessionPath, { recursive: true });
+    const metaPath = join(sessionPath, 'meta.json');
+    const framesPath = join(sessionPath, 'frames.jsonl');
+
+    /** @returns {Array<{ n: number, b64: string }>} */
+    const readFramesFile = () => {
+      if (!existsSync(framesPath)) {
+        return [];
+      }
+      const lines = readFileSync(framesPath, 'utf8')
+        .split('\n')
+        .filter(line => line !== '');
+      /** @type {Array<{ n: number, b64: string }>} */
+      const entries = [];
+      for (const line of lines) {
+        try {
+          entries.push(JSON.parse(line));
+        } catch (_error) {
+          // Torn tail from a crash mid-append: the frame was never
+          // acknowledged, so the peer will retransmit-tolerate its loss.
+          break;
+        }
+      }
+      return entries;
+    };
+
+    /** @param {Array<{ n: number, b64: string }>} entries */
+    const writeFramesFile = entries => {
+      const text = [...entries.map(entry => JSON.stringify(entry)), ''].join(
+        '\n',
+      );
+      writeFileAtomic(framesPath, text);
+    };
+
+    /** @type {SessionStore} */
+    const sessionStore = {
+      getMeta: () => readJsonMaybe(metaPath) ?? {},
+      setMeta: meta => writeFileAtomic(metaPath, `${JSON.stringify(meta)}\n`),
+      appendFrame: entry => {
+        if (!existsSync(framesPath)) {
+          writeFramesFile([]);
+        }
+        appendFileSync(framesPath, `${JSON.stringify(entry)}\n`);
+      },
+      readFrames: readFramesFile,
+      truncateFramesUpTo: upToN => {
+        writeFramesFile(readFramesFile().filter(entry => entry.n > upToN));
+      },
+    };
+    return harden(sessionStore);
+  };
 
   /** @param {string} workerId */
   const makeWorkerStore = workerId => {
@@ -279,6 +370,13 @@ export const makeFsStore = statePath => {
         );
       }
     },
+    listSessionTokens: () =>
+      existsSync(sessionsPath) ? readdirSync(sessionsPath).sort() : [],
+    provideSessionStore: makeSessionStore,
+    deleteSession: token => {
+      assertSessionToken(token);
+      rmSync(join(sessionsPath, token), { recursive: true, force: true });
+    },
   };
   return harden(store);
 };
@@ -333,6 +431,33 @@ export const makeMemoryStore = () => {
     return harden(workerStore);
   };
 
+  /** @type {Map<string, { meta: Record<string, any>, frames: Array<{ n: number, b64: string }> }>} */
+  const sessions = new Map();
+
+  /** @param {string} token */
+  const provideSessionStore = token => {
+    assertSessionToken(token);
+    let entry = sessions.get(token);
+    if (!entry) {
+      entry = { meta: {}, frames: [] };
+      sessions.set(token, entry);
+    }
+    const state = entry;
+    /** @type {SessionStore} */
+    const sessionStore = {
+      getMeta: () => state.meta,
+      setMeta: meta => {
+        state.meta = JSON.parse(JSON.stringify(meta));
+      },
+      appendFrame: frame => state.frames.push({ ...frame }),
+      readFrames: () => state.frames.map(frame => ({ ...frame })),
+      truncateFramesUpTo: upToN => {
+        state.frames = state.frames.filter(frame => frame.n > upToN);
+      },
+    };
+    return harden(sessionStore);
+  };
+
   /** @type {SiestaStore} */
   const store = {
     listWorkerIds: () => [...workers.keys()].sort(),
@@ -346,6 +471,11 @@ export const makeMemoryStore = () => {
     },
     deletePublication: secret => {
       delete publications[secret];
+    },
+    listSessionTokens: () => [...sessions.keys()].sort(),
+    provideSessionStore,
+    deleteSession: token => {
+      sessions.delete(token);
     },
   };
   return harden(store);

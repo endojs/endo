@@ -39,12 +39,11 @@ const makeDroppableTcp = () => {
   /** @param {{ handlers: any, logger: any }} powers */
   const factory = ({ handlers, logger }) => {
     const wrapped = harden({
+      ...handlers,
       makeConnection: (netlayer, isOutgoing, socketOps) => {
         live.add(socketOps);
         return handlers.makeConnection(netlayer, isOutgoing, socketOps);
       },
-      handleMessageData: handlers.handleMessageData,
-      handleConnectionClose: handlers.handleConnectionClose,
     });
     return makeTcpNetLayer({ handlers: wrapped, logger });
   };

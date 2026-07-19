@@ -3,6 +3,7 @@ import harden from '@endo/harden';
 import { Fail } from '@endo/errors';
 import { makeOcapn } from '@endo/ocapn';
 
+import { makeDurableSessions } from './durable-sessions.js';
 import { makeSiestaHost } from './host.js';
 
 /**
@@ -28,11 +29,18 @@ import { makeSiestaHost } from './host.js';
  * The netlayer is injected as a power so the embedder chooses the
  * transport (TCP-testing for tests, Noise for production).
  *
+ * The daemon always offers session durability: `makeNetlayer` receives
+ * a `resumption` power alongside `handlers`, and a netlayer that wires
+ * it (the durable netlayer does) gets sessions that survive daemon
+ * restarts — identity and export descriptions persisted per resume
+ * token, exports re-seated from the host's capability linkage at
+ * resume. Netlayers that ignore `resumption` are unaffected.
+ *
  * @param {object} options
  * @param {SiestaStore} options.store
  * @param {WorkerEngine} options.engine
  * @param {any} options.codec an OCapN codec, e.g. `syrupCodec`
- * @param {(powers: { handlers: any, logger: any }) => Promise<any> | any} options.makeNetlayer
+ * @param {(powers: { handlers: any, logger: any, resumption: any }) => Promise<any> | any} options.makeNetlayer
  * @param {number} [options.idleTimeoutMs]
  * @param {boolean} [options.verbose]
  * @returns {Promise<SiestaDaemon>}
@@ -48,6 +56,7 @@ export const makeSiestaDaemon = async ({
   /** @type {Map<string, any>} */
   const locator = new Map();
   const host = await makeSiestaHost({ store, engine, locator, idleTimeoutMs });
+  const durableSessions = makeDurableSessions({ store, host });
 
   /** @type {{ netlayer?: any }} */
   const netlayerRef = {};
@@ -55,9 +64,17 @@ export const makeSiestaDaemon = async ({
     codec,
     locator,
     verbose,
+    sessionHooks: durableSessions.sessionHooks,
     network: (handlers, logger) =>
-      Promise.resolve(makeNetlayer({ handlers, logger })).then(netlayer => {
+      Promise.resolve(
+        makeNetlayer({
+          handlers,
+          logger,
+          resumption: durableSessions.resumption,
+        }),
+      ).then(netlayer => {
         netlayerRef.netlayer = netlayer;
+        durableSessions.setNetlayer(netlayer);
         return netlayer;
       }),
   });

@@ -102,6 +102,14 @@ import {
  *   vat-level mark-and-sweep: marks workers reachable from publications
  *   (plus awake workers and the `keep` list of worker ids) along durable
  *   cross-worker links, retires the rest, and returns the swept ids
+ * @property {(value: object) => unknown} describeCapability the linkage
+ *   seam for durable sessions: returns the kind-tagged durable
+ *   description of a host-side capability (a made resource, or a
+ *   presence/promise imported from a worker session), or undefined for
+ *   values with no durable description
+ * @property {(description: unknown) => object} provideCapability
+ *   rebuilds a capability from its durable description, minting worker
+ *   links at their recorded slots without waking anyone
  * @property {() => Array<string>} listWorkerIds
  * @property {() => Promise<void>} shutdown puts every worker to sleep
  */
@@ -1099,6 +1107,21 @@ export const makeSiestaHost = async ({
       }
       return harden(swept.sort());
     },
+    describeCapability: value => {
+      const resource = resourceDescriptions.get(value);
+      if (resource !== undefined) {
+        return harden({ kind: 'resource', ...resource });
+      }
+      const origin = presenceOrigins.get(value);
+      if (origin !== undefined) {
+        const kind =
+          origin.slot[0] === 'p' ? 'worker-promise' : 'worker-import';
+        return harden({ kind, ...origin });
+      }
+      return undefined;
+    },
+    provideCapability: description =>
+      instantiateDescribedExport(description, 'a durable session export'),
     listWorkerIds: () => [...workers.keys()].sort(),
     shutdown: async () => {
       for (const runtime of workers.values()) {

@@ -9,9 +9,10 @@
 
 ## Status
 
-Phases 1–4 are landed and hardened; Phases 5–6 remain; the sections
-under *Future Work* carry the accepted plans for resource vats, the
-non-reifying host, upgrade by indirection, and vat GC.
+Phases 1–4 and 6 are landed and hardened; Phase 5 (production Noise
+transport) remains; the sections under *Future Work* carry the
+accepted plans for resource vats, the non-reifying host, and upgrade
+by indirection.
 
 What exists, all verified by tests across three SES configurations:
 
@@ -65,12 +66,17 @@ What exists, all verified by tests across three SES configurations:
   resource — the host has no retire-by-id operation) with tombstoned
   links, `unpublish`, and shared-snapshot-ref guarding
   (§ *Garbage collection of vats*).
-- **Durable sessions, layer 1** — `makeDurableNetLayer` wraps any
-  transport netlayer with token-identified, sequence-numbered,
-  ack-tracked resumable logical connections, so OCapN sessions (and
-  every live remote reference in them) survive connection drops
-  between live processes; the resume handshake lives entirely at the
-  netlayer, adding no OCapN protocol messages
+- **Durable sessions** — `makeDurableNetLayer` wraps any transport
+  netlayer with token-identified, sequence-numbered, ack-tracked
+  resumable logical connections, so OCapN sessions (and every live
+  remote reference in them) survive connection drops between live
+  processes; and with the daemon's `resumption` power
+  (`durable-sessions.js` + additive `@endo/ocapn` seams), sessions
+  survive **daemon restarts**: identity, watermarks, outbound frames,
+  and export descriptions persist per resume token, and a successor
+  process re-seats every export from the host's capability linkage
+  without waking workers. The resume handshake lives entirely at the
+  netlayer; no OCapN protocol messages were added
   (§ *Durable OCapN sessions*).
 - **Capability-only worker identity** — workers have no names: each
   is identified by a host-generated unguessable id
@@ -725,17 +731,23 @@ issued while disconnected and drops that race in-flight deliveries.
 Prototype limits: retransmit buffers are unbounded until acked, and
 an acceptor parks a dropped logical connection indefinitely.
 
-**Layer 2 (planned): daemon-restart survival.** A daemon restart
-loses the daemon's in-memory `Ocapn` instance, so resumption must
-rebuild it from durable state. The plan mirrors the host–worker
+**Layer 2 (landed): daemon-restart survival.** A daemon restart
+loses the daemon's in-memory `Ocapn` instance, so resumption rebuilds
+it from durable state
+(`packages/siesta/src/durable-sessions.js` plus the `resumption`
+power in the durable netlayer; `test/durable-sessions.test.js` shows
+a live counter presence surviving single and repeated daemon
+restarts, and a call issued while the daemon is down completing
+against the successor). The implementation mirrors the host–worker
 session treatment:
 
 - persist per remote session, keyed by resume token: the session
-  identity (the daemon-side session keypair, the peer's public key
-  and location, and the derived session id — so the resumed session
-  *is* the old session, not a lookalike), the delivered/received
-  frame watermarks, and an outbound frame journal (acks truncate it,
-  exactly like worker journals);
+  identity (the peer's public key, location, and location signature,
+  and the derived session id — so the resumed session *is* the old
+  session, not a lookalike; the daemon side mints fresh session keys
+  on resume, so cross-restart third-party handoffs remain future
+  work), the received/sent frame watermarks, and an outbound frame
+  journal (acks truncate it, exactly like worker journals);
 - describe the session's **exports** durably at the export-table
   layer: a daemon-side OCapN export is (almost always) a presence
   imported from some worker session, so its description is the
@@ -748,17 +760,36 @@ session treatment:
   discipline the worker sessions already use, rather than re-executing
   deliveries (replaying inbound frames is NOT an option: op:deliver
   replay would re-invoke worker methods);
-- required `@endo/ocapn` seams (the analogue of the `provideImport` /
-  `provideExport` seams landed in `@endo/captp`): construct a session
-  from injected identity (keypair, peer key, session id) instead of a
-  fresh handshake, and pre-seed/enumerate table positions with
-  export-description hooks. The netlayer drives this via its `resume`
-  preamble; no new OCapN protocol messages.
+- `@endo/ocapn` seams (the analogue of the `provideImport` /
+  `provideExport` seams landed in `@endo/captp`), all additive and
+  inert for netlayers that do not provide durability:
+  `handlers.resumeSession(connection, identity)` constructs an active
+  session from injected identity instead of a fresh handshake
+  (returning a deliberately narrow `{ restoreExport }` surface);
+  `makeOcapn({ sessionHooks })` observes session establishment (with
+  durable identity fields) and export-slot assignment;
+  `referenceKit.restoreLocalExport` re-seats an export at a recorded
+  position and advances the position counter. The netlayer drives
+  resumption via its `resume` preamble; no new OCapN protocol
+  messages, and the full ocapn test suite passes unchanged (the
+  api-surface snapshot gained only the new seam types).
+
+Layer 2's crash-consistency envelope: the received watermark is
+persisted before dispatch (at-most-once — a crash between the two
+loses that frame's effects rather than double-executing them), and
+outbound frames are persisted before the wire so a persisted ack can
+never name a frame the successor cannot replay. Store-and-forward
+netlayers get their persistence requirement met by the same outbound
+frame journal. Known gaps: no session GC for parked sessions,
+lazily re-minted daemon-side imports (per-session identity only),
+tombstoned re-seating for exports with no durable description
+(session-internal resolvers), and local answer positions are not
+restored (a peer pipelining onto a pre-restart answer after the
+restart errors rather than hangs).
 
 [ocapn-noise-session-reconnect](ocapn-noise-session-reconnect.md) is
-the related design for the Noise netlayer; Layer 1 here is
-transport-agnostic and should compose with it. Until Layer 2 lands,
-sturdy refs remain the durability boundary across daemon restarts.
+the related design for the Noise netlayer; both layers here are
+transport-agnostic and should compose with it.
 
 ### Also deferred
 
@@ -808,11 +839,12 @@ sturdy refs remain the durability boundary across daemon restarts.
    durable cross-worker links (§ *The worker controller*).
 5. **Phase 5: production transport.** Noise netlayer with persisted
    signing keys, giving stable locations for sturdy refs.
-6. **Phase 6: durable OCapN sessions.** Layer 1 (netlayer-level
-   transport resumption, `makeDurableNetLayer`) is landed; Layer 2
-   (daemon-restart survival: persisted session identity, export
-   descriptions, and outbound journals, plus session-injection seams
-   in `@endo/ocapn`) is planned in § *Durable OCapN sessions*.
+6. **Phase 6 (landed): durable OCapN sessions.** Layer 1
+   (netlayer-level transport resumption, `makeDurableNetLayer`) and
+   Layer 2 (daemon-restart survival: persisted session identity,
+   export descriptions, and outbound journals, plus additive
+   session-resumption seams in `@endo/ocapn`); see
+   § *Durable OCapN sessions*.
 7. **Phase 7: names and vat GC.** The name hub (§ *Upgrade without
    breaking orthogonality*): first-class rebindable name bindings as a
    description kind resolved per delivery, generalizing publications;
