@@ -67,7 +67,7 @@ import { Fail } from '@endo/errors';
  * @property {(netlayer: any, isOutgoing: boolean, socket: SocketOperations) => Connection} makeConnection
  * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
- * @property {(connection: Connection, resumption: any) => { restoreExport: (position: bigint, value: object) => void }} [resumeSession]
+ * @property {(connection: Connection, resumption: any) => { restoreExport: (position: bigint, value: object) => void, restorePendingResolver: (record: { resolverPosition: bigint, target: { kind: 'promise' | 'answer', position: bigint } }) => void }} [resumeSession]
  *   present on OCapN layers that support durable-session resumption
  *
  * @typedef {object} Logger

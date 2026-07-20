@@ -780,16 +780,114 @@ loses that frame's effects rather than double-executing them), and
 outbound frames are persisted before the wire so a persisted ack can
 never name a frame the successor cannot replay. Store-and-forward
 netlayers get their persistence requirement met by the same outbound
-frame journal. Known gaps: no session GC for parked sessions,
-lazily re-minted daemon-side imports (per-session identity only),
-tombstoned re-seating for exports with no durable description
-(session-internal resolvers), and local answer positions are not
-restored (a peer pipelining onto a pre-restart answer after the
-restart errors rather than hangs).
+frame journal. A crash with a non-quiescent worker (a question owed
+forever) also restarts cleanly: the journal already holds everything,
+so clean shutdown is an optimization, not a correctness requirement
+(`test/durable-sessions.test.js`).
+
+**Session identity is fully durable.** The session's own private key
+persists in the session record and a resumed session re-signs as
+itself: same session id, same keys, byte-identical across restarts
+(verified by test), so pre-restart third-party-handoff signatures
+keep verifying.
+
+**Resolver obligations are durable.** OCapN's wire protocol expresses
+promise subscriptions through per-session resolver objects; their
+meaning was previously a memory-only `.then` chain. The daemon now
+persists each obligation as a row — (peer's resolver slot) → (durable
+target: a promise export position, or an answer position) — via the
+`onPendingResolver` / `onResolverSettled` session hooks, and the
+resumed session re-attaches them: promise targets re-subscribe the
+peer's resolver to the restored durable promise (a worker resolving
+after the restart reaches the waiting client), and answer targets
+reject at-most-once (the computation died with the process — a
+rejection, never a hang). These rows are exactly the durable
+subscription table a comms-vat daemon needs; only the execution
+(reified re-attachment vs. table-driven routing) is interim — see
+§ *Protocol unification*.
+
+Remaining gaps: no session GC for parked sessions; a *client-origin*
+promise passed into a worker is still at-most-once across restarts
+(its worker-session export lacks an `ocapn-promise` description — the
+cross-layer link § *Protocol unification* addresses); and local
+answer positions are not restored (a peer pipelining onto a
+pre-restart answer errors rather than hangs).
 
 [ocapn-noise-session-reconnect](ocapn-noise-session-reconnect.md) is
 the related design for the Noise netlayer; both layers here are
 transport-agnostic and should compose with it.
+
+### Protocol unification: OCapN end-to-end (proposed)
+
+Per maintainer direction, the comms-vat conversion is worth
+implementing for its properties, not its performance; and the option
+of replacing the host–worker endo-captp edge with the OCapN
+point-to-point wire protocol should be weighed so the machine has
+fewer protocols. The choice is by end result, not effort.
+
+**Option A — comms-vat daemon over the existing two protocols.**
+Keep endo-captp inside, OCapN outside; make settlement routing
+table-driven (the durable subscription rows above), and add the
+mirror description kinds (`ocapn-promise`, `ocapn-import`,
+`ocapn-resolver`) to worker-session export tables so client-origin
+capabilities passed into workers survive restarts. Reaches full
+promise durability in both directions. What it cannot reach: the
+daemon translates between two marshal formats (captp JSON marshal vs.
+OCapN syrup/cbor passables) and two slot schemes forever, and it
+carries two durability regimes side by side — the worker-session
+journal/tables machinery AND the durable-session machinery — the
+regime seam the maintainer has repeatedly flagged as the painful
+kind.
+
+**Option B — OCapN end-to-end.** Workers speak the OCapN p2p wire
+protocol to the host over a trusted pipe netlayer; the daemon becomes
+an OCapN relay: one protocol, one marshal format, one session model.
+
+- **One durability mechanism.** The host side of every worker session
+  becomes a durable OCapN session — the exact machinery that just
+  landed (session records, frame journals, watermarks, resumption).
+  The worker's half lives in the guest heap, snapshot-covered, the
+  same property the captp shell has today. The bespoke worker
+  journal/tables layer in `host.js` is eventually subsumed.
+- **Comms-vat routing becomes natural.** With one protocol, the
+  daemon forwards deliveries and settlements by rewriting c-list
+  positions between pairwise sessions; sleeping workers wake because
+  the forwarded message lands in their session journal — promise
+  wake and promise durability fall out of one mechanism.
+- **Worker-side profile.** The worker runs a reduced OCapN client:
+  a pipe netlayer (fd 3/4, no crypto handshake — the pipe is the
+  trust boundary, via the `provideSession`-style network seam so no
+  ed25519 runs in the guest's critical path), no grantTracker or
+  handoff machinery (workers connect only to their host; third-party
+  handoff remains daemon-mediated), sturdy-ref minting daemon-side.
+  Costs: the OCapN client + codec in the XS bundle (larger than the
+  captp shell), and porting the worker bootstrap/evaluate facet onto
+  the OCapN bootstrap.
+- **End state.** Everything is an OCapN peer; the daemon is a relay
+  with durable sessions, a locator, and worker lifecycle (snapshots,
+  GC). This is also the shortest honest path to the non-reifying
+  host (§ *A non-reifying host*): frame forwarding with slot
+  rewriting is only possible when both edges speak the same wire
+  format.
+
+**Recommendation: Option B**, phased:
+
+1. Pipe netlayer for fd transports (no crypto, trusted-channel
+   session establishment) and a reduced worker-profile OCapN client
+   bundle for XS.
+2. Worker shell v2: the evaluate facet served from the worker's OCapN
+   bootstrap over the pipe.
+3. Host worker sessions become durable OCapN sessions (reusing the
+   session stores and resumption seams); snapshots capture the
+   worker's half, as today.
+4. Comms-vat settlement routing replaces reified re-attachment; the
+   durable subscription rows are already the right schema.
+5. Retire the captp worker layer (the `@endo/captp` seams remain for
+   their other consumers).
+
+Option A remains the fallback if the XS OCapN client proves too
+heavy; the durable schema landed so far is identical under both, so
+no persisted state is thrown away by choosing either.
 
 ### Also deferred
 

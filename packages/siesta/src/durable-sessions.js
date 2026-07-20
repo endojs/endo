@@ -41,6 +41,19 @@ const encodeHex = value =>
   ).join('');
 
 /** @param {string} hex */
+const decodeHexToUint8 = hex => {
+  (typeof hex === 'string' &&
+    hex.length % 2 === 0 &&
+    /^[0-9a-f]*$/.test(hex)) ||
+    Fail`invalid hex`;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+};
+
+/** @param {string} hex */
 const decodeHexToBuffer = hex => {
   (typeof hex === 'string' &&
     hex.length % 2 === 0 &&
@@ -132,6 +145,12 @@ export const makeDurableSessions = ({
           peerLocation: info.peerLocation,
           peerLocationSignature: serializeSignature(info.peerLocationSignature),
           peerPublicKey: encodeHex(info.peerPublicKeyBytes),
+          // The session's own private key: a resumed session keeps the
+          // SAME keys, so handoff signatures made before a restart
+          // keep verifying after it.
+          ...(info.selfPrivateKeyBytes !== undefined
+            ? { selfPrivateKey: encodeHex(info.selfPrivateKeyBytes) }
+            : {}),
         });
       } catch (error) {
         reportError(error);
@@ -149,12 +168,64 @@ export const makeDurableSessions = ({
           return;
         }
         const description = host.describeCapability(value) ?? null;
+        if (description === null) {
+          // The machine's invariant is that every session export is a
+          // durable worker capability or a host resource; protocol
+          // resolvers are persisted separately as obligations. An
+          // undescribable export survives restarts only as a loudly
+          // failing tombstone — report it when it happens, not when
+          // it bites.
+          reportError(
+            Error(
+              `siesta durable sessions: export at ${slot} has no durable description`,
+            ),
+          );
+        }
         const sessionStore = store.provideSessionStore(token);
         const meta = sessionStore.getMeta();
         sessionStore.setMeta({
           ...meta,
           exports: { ...meta.exports, [slot]: description },
         });
+      } catch (error) {
+        reportError(error);
+      }
+    },
+    onPendingResolver: (connection, resolverSlot, target) => {
+      const token = tokenForConnection(connection);
+      if (token === undefined) {
+        return;
+      }
+      try {
+        const sessionStore = store.provideSessionStore(token);
+        const meta = sessionStore.getMeta();
+        sessionStore.setMeta({
+          ...meta,
+          pendingResolvers: {
+            ...meta.pendingResolvers,
+            [resolverSlot]: {
+              kind: target.kind,
+              position: target.position.toString(),
+            },
+          },
+        });
+      } catch (error) {
+        reportError(error);
+      }
+    },
+    onResolverSettled: (connection, resolverSlot) => {
+      const token = tokenForConnection(connection);
+      if (token === undefined) {
+        return;
+      }
+      try {
+        const sessionStore = store.provideSessionStore(token);
+        const meta = sessionStore.getMeta();
+        if (meta.pendingResolvers && resolverSlot in meta.pendingResolvers) {
+          const pendingResolvers = { ...meta.pendingResolvers };
+          delete pendingResolvers[resolverSlot];
+          sessionStore.setMeta({ ...meta, pendingResolvers });
+        }
       } catch (error) {
         reportError(error);
       }
@@ -202,17 +273,36 @@ export const makeDurableSessions = ({
         peerLocation: meta.peerLocation,
         peerLocationSignature: deserializeSignature(meta.peerLocationSignature),
         peerPublicKeyBytes: decodeHexToBuffer(meta.peerPublicKey),
+        ...(meta.selfPrivateKey !== undefined
+          ? { selfPrivateKeyBytes: decodeHexToUint8(meta.selfPrivateKey) }
+          : {}),
       });
       for (const [slot, description] of Object.entries(meta.exports ?? {})) {
         const position = BigInt(slot.slice(2));
         if (description === null) {
-          // No durable description was available at export time (e.g.
-          // a session-internal resolver). Seat a tombstone so the
-          // position space stays aligned; calls to it fail loudly.
+          // No durable description was available at export time. Seat
+          // a tombstone so the position space stays aligned; calls to
+          // it fail loudly.
           resumed.restoreExport(position, Far('UnrestorableExport', {}));
         } else {
           resumed.restoreExport(position, host.provideCapability(description));
         }
+      }
+      // Re-attach resolver obligations: promise targets re-subscribe
+      // the peer's resolver to the restored durable promise export;
+      // answer targets reject at-most-once (the computation died with
+      // the previous process) — the peer sees a rejection, never a
+      // hang.
+      for (const [resolverSlot, target] of Object.entries(
+        meta.pendingResolvers ?? {},
+      )) {
+        resumed.restorePendingResolver({
+          resolverPosition: BigInt(resolverSlot.slice(2)),
+          target: {
+            kind: target.kind,
+            position: BigInt(target.position),
+          },
+        });
       }
     },
     recordOutbound: (token, n, bytes) => {

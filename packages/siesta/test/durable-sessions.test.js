@@ -1,6 +1,7 @@
 // @ts-check
 import test from '@endo/ses-ava/test.js';
 
+import { readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -94,6 +95,147 @@ test('live remote references survive a daemon restart', async t => {
     'the same live presence works across the daemon restart',
   );
   t.is(await E(remoteCounter).getCount(), 3, 'no call was lost or doubled');
+});
+
+test('a resumed session keeps its identity, including its keys', async t => {
+  const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-keys-'));
+  t.teardown(() => rm(statePath, { recursive: true, force: true }));
+
+  const daemon1 = await makeDaemon(statePath, 0);
+  const port = Number(daemon1.location.hints.port);
+  const worker = await daemon1.host.createWorker({ debugLabel: 'counter' });
+  const counter = await worker.evaluate(COUNTER_SOURCE);
+  const secret = await worker.publish(counter);
+
+  const client = await makeDurableClient('keys-client');
+  t.teardown(() => client.shutdown());
+  const remoteCounter = await client.enlivenSturdyRef(
+    client.makeSturdyRef(daemon1.location, secret),
+  );
+  t.is(await E(remoteCounter).incr(), 1);
+
+  const store = makeFsStore(statePath);
+  const [token] = store.listSessionTokens();
+  const metaPath = join(statePath, 'sessions', token, 'meta.json');
+  const before = JSON.parse(readFileSync(metaPath, 'utf8'));
+  t.regex(String(before.sessionId), /^[0-9a-f]{64}$/);
+  t.regex(String(before.selfPrivateKey), /^[0-9a-f]{64}$/);
+
+  await daemon1.shutdown();
+  const daemon2 = await makeDaemon(statePath, port);
+  t.teardown(() => daemon2.shutdown());
+  t.is(await E(remoteCounter).incr(), 2);
+
+  // The resumed session re-recorded its identity: same session id,
+  // same session private key — not a lookalike with fresh keys.
+  const after = JSON.parse(readFileSync(metaPath, 'utf8'));
+  t.is(after.sessionId, before.sessionId, 'session id survives');
+  t.is(
+    after.selfPrivateKey,
+    before.selfPrivateKey,
+    'the session keys survive, so pre-restart handoff signatures keep verifying',
+  );
+  t.is(after.peerPublicKey, before.peerPublicKey);
+});
+
+test('a promise resolution crosses a daemon restart', async t => {
+  const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-prom-'));
+  t.teardown(() => rm(statePath, { recursive: true, force: true }));
+
+  const GIFT_SOURCE = `
+  (() => {
+    let release = null;
+    const gift = new Promise(resolve => {
+      release = resolve;
+    });
+    return Far('Gifter', {
+      getGift: () => harden({ gift }),
+      release: value => {
+        release(value);
+        return 'released';
+      },
+    });
+  })()
+  `;
+
+  const daemon1 = await makeDaemon(statePath, 0);
+  const port = Number(daemon1.location.hints.port);
+  const worker = await daemon1.host.createWorker({ debugLabel: 'gifter' });
+  const gifter = await worker.evaluate(GIFT_SOURCE);
+  const secret = await worker.publish(gifter);
+
+  const client = await makeDurableClient('promise-client');
+  t.teardown(() => client.shutdown());
+  const remoteGifter = await client.enlivenSturdyRef(
+    client.makeSturdyRef(daemon1.location, secret),
+  );
+
+  // The client imports the worker's still-pending promise (and its
+  // netlayer auto-subscribes to it via op:listen).
+  const { gift } = await E(remoteGifter).getGift();
+  /** @type {any} */
+  let settled;
+  const observed = Promise.resolve(gift).then(
+    value => {
+      settled = { value };
+    },
+    reason => {
+      settled = { reason };
+    },
+  );
+
+  await daemon1.shutdown();
+  const daemon2 = await makeDaemon(statePath, port);
+  t.teardown(() => daemon2.shutdown());
+
+  // The worker resolves the promise AFTER the restart: the resolution
+  // flows worker -> restored worker-promise export -> re-attached
+  // resolver obligation -> client.
+  t.is(await E(remoteGifter).release('gifted'), 'released');
+  await observed;
+  t.deepEqual(
+    settled,
+    { value: 'gifted' },
+    'the promise a client awaited resolved across the daemon restart',
+  );
+});
+
+test('an answer pending across a restart rejects instead of hanging', async t => {
+  const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-ans-'));
+  t.teardown(() => rm(statePath, { recursive: true, force: true }));
+
+  const daemon1 = await makeDaemon(statePath, 0);
+  const port = Number(daemon1.location.hints.port);
+  const worker = await daemon1.host.createWorker({ debugLabel: 'hanger' });
+  const hanger = await worker.evaluate(
+    `Far('Hanger', { hang: () => new Promise(() => {}), ping: () => 'pong' })`,
+  );
+  const secret = await worker.publish(hanger);
+
+  const client = await makeDurableClient('answer-client');
+  t.teardown(() => client.shutdown());
+  const remoteHanger = await client.enlivenSturdyRef(
+    client.makeSturdyRef(daemon1.location, secret),
+  );
+
+  const hung = E(remoteHanger).hang();
+  hung.catch(() => {});
+  t.is(await E(remoteHanger).ping(), 'pong');
+
+  // Crash, not clean shutdown: a worker owing an answer is not
+  // quiescent, so it cannot sleep — but the journal already holds
+  // everything durable. Tear down only the network (freeing the
+  // port), abandoning the first daemon's memory.
+  daemon1.ocapn.shutdown();
+  const daemon2 = await makeDaemon(statePath, port);
+  t.teardown(() => daemon2.shutdown());
+
+  // The computation that owed the answer died with the first daemon:
+  // at-most-once means the client sees a rejection, never a hang.
+  t.is(await E(remoteHanger).ping(), 'pong', 'the session itself resumed');
+  await t.throwsAsync(() => hung, {
+    message: /pending answer aborted/,
+  });
 });
 
 test('a call issued while the daemon is down completes after restart', async t => {
