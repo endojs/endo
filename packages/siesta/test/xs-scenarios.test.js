@@ -60,12 +60,24 @@ const makeKit = async t => {
   const statePath = await mkdtemp(join(tmpdir(), 'siesta-xs-scenario-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
   const casPath = join(statePath, 'cas');
-  const engine = makeXsEngine({
+  const rawEngine = makeXsEngine({
     workerBinary,
     bootPath,
     bundlePath,
     casPath,
   });
+  // Track every incarnation so a test that deliberately "crashes" a
+  // host (dropping it without shutdown) still reaps its XS worker
+  // processes; a leaked child's open pipes prevent AVA from exiting.
+  const engine = {
+    ...rawEngine,
+    /** @type {typeof rawEngine.start} */
+    start: async options => {
+      const incarnation = await rawEngine.start(options);
+      t.teardown(() => incarnation.terminate());
+      return incarnation;
+    },
+  };
   return { statePath, casPath, engine };
 };
 
