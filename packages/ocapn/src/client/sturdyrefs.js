@@ -38,6 +38,21 @@ export const isSturdyRef = value => sturdyRefDetails.has(value);
 export const getSturdyRefDetails = sturdyRef => sturdyRefDetails.get(sturdyRef);
 
 /**
+ * Mint a `SturdyRef` value for `(location, secret)`. Sturdyrefs are
+ * opaque pointers: user space passes them around as plain values and
+ * only the OCapN layer (via `getSturdyRefDetails`) can see inside.
+ *
+ * @param {OcapnLocation} location
+ * @param {string | Uint8Array} secret
+ * @returns {SturdyRef}
+ */
+export const makeSturdyRef = (location, secret) => {
+  const sturdyRef = makeTagged('ocapn-sturdyref', undefined);
+  sturdyRefDetails.set(sturdyRef, { location, secret });
+  return harden(sturdyRef);
+};
+
+/**
  * Resolve a `SturdyRef` to an actual reference: local values come from
  * the injected `locator`; remote values are fetched from the peer's
  * bootstrap over a session.
@@ -100,11 +115,7 @@ export const enlivenSturdyRef = async (
 export const makeSturdyRefTracker = locator => {
   const textDecoder = new TextDecoder('ascii', { fatal: true });
   return harden({
-    makeSturdyRef: (location, secret) => {
-      const sturdyRef = makeTagged('ocapn-sturdyref', undefined);
-      sturdyRefDetails.set(sturdyRef, { location, secret });
-      return harden(sturdyRef);
-    },
+    makeSturdyRef: (location, secret) => makeSturdyRef(location, secret),
     lookup: async secretBytes => {
       const view =
         secretBytes instanceof Uint8Array

@@ -143,6 +143,10 @@ export const makeSiestaDaemon = async ({
       });
       holder.sink = hub.attachSession(workerId, {
         send: (/** @type {Uint8Array} */ bytes) => transport.write(bytes),
+        // The worker transport journals frames against heap snapshots;
+        // hub frames toward a momentarily-detached worker session must
+        // queue, never break.
+        durable: true,
       });
       entry = { transport, sink: holder.sink };
       workers.set(workerId, entry);
@@ -231,10 +235,9 @@ export const makeSiestaDaemon = async ({
 
   // --- remote peers: netlayer sessions on the hub ---
 
-  /** @type {Map<object, { deliver: any, key: string } | undefined>} */
+  /** @type {Map<object, { deliver: any, detach: any, key: string } | undefined>} */
   const connectionSessions = new Map();
   const cryptography = makeCryptography(codec);
-  let ephemeralCount = 0;
 
   /** @type {any} */
   const netlayerRef = {};
@@ -246,9 +249,17 @@ export const makeSiestaDaemon = async ({
   const bindConnectionToHub = (connection, sessionKey) => {
     const sink = hub.attachSession(sessionKey, {
       send: (/** @type {Uint8Array} */ bytes) => connection.write(bytes),
+      // Only resumable peers are durable: frames toward them queue
+      // across a disconnect. An ephemeral peer that is gone is gone.
+      durable: sessionKey.startsWith('peer:'),
+      // A bad frame from beyond the process boundary aborts the
+      // session and drops the connection.
+      remote: true,
+      onAbort: () => connection.end(),
     });
     connectionSessions.set(connection, {
       deliver: sink.deliver,
+      detach: sink.detach,
       key: sessionKey,
     });
     return sink;
@@ -264,8 +275,10 @@ export const makeSiestaDaemon = async ({
     if (token !== undefined && isSessionToken(token)) {
       return `peer:${token}`;
     }
-    ephemeralCount += 1;
-    return `conn:${ephemeralCount}`;
+    // Ephemeral keys must be globally unique forever: a counter would
+    // reset in a successor process and inherit the persisted hub
+    // tables of a previous process's connection.
+    return `conn:${randomHex128()}`;
   };
 
   const captpVersion = '1.0';
@@ -358,7 +371,20 @@ export const makeSiestaDaemon = async ({
       }
     },
     handleConnectionClose: (/** @type {any} */ connection) => {
+      const bound = connectionSessions.get(connection);
       connectionSessions.delete(connection);
+      if (bound === undefined) {
+        return;
+      }
+      if (bound.key.startsWith('conn:')) {
+        // An ephemeral peer never comes back: retire its rows (holders
+        // break loudly) and drop its table entry — the key is never
+        // reused.
+        hub.forgetSession(bound.key);
+      } else {
+        // A resumable peer may return: detach so hub frames queue.
+        bound.detach();
+      }
     },
     resumeSession: () => {
       throw Error('siesta hub daemon: client resumeSession seam unused');
@@ -510,7 +536,9 @@ export const makeSiestaDaemon = async ({
       await entry.transport.retire();
       entry.sink.detach();
     }
-    hub.retireSession(workerId);
+    // Worker ids are random and never reused: drop the session's
+    // table entry along with its rows.
+    hub.forgetSession(workerId);
     store.deleteWorker(workerId);
   };
 
