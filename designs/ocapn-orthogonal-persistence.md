@@ -22,56 +22,69 @@ in-process endpoint session for resources and admin). Two earlier
 machines were built first and retired in turn — the captp host, then
 the client-based unified daemon — each proving the full property set
 before being subsumed; their descriptions below are the historical
-record. Restart semantics sharpened with the hub: worker-owed answers
-now survive restarts by heap replay, and at-most-once aborts narrow
-to answers host resources owe.
+record. Restart semantics sharpened with the hub: a worker-owed
+answer survives restarts because its pending state is simply in the
+heap snapshot (with at most a journal-suffix replay of post-snapshot
+frames on top), so at-most-once aborts narrow to answers host
+resources owe.
 
 What exists, all verified by tests across three SES configurations,
 with the distinguishing scenarios on real XS heap snapshots:
 
-- **`packages/siesta`** — the unified daemon (`makeSiestaDaemon`),
+- **`@endo/ocapn/hub`** — the non-reifying forwarding node: c-list
+  tables, structural transcoding through the ordinary wire codecs
+  against a table-backed reference kit, bootstrap-fetch publications,
+  out-of-band `introduce`, wire-refcounted gc with origin
+  propagation, retirement tombstones, JSON write-through persistence.
+- **`packages/siesta`** — the hub daemon (`makeSiestaDaemon`: hub +
+  worker transports + netlayer handshake/resumption + the endpoint),
   the OCapN worker peer and its XS bundle, the deterministic pipe
   identity kit, the durable worker transport (snapshot-keyed frame
-  journal + outbound watermark), worker-session records (durable
-  export descriptions: resources, cross-worker links, internal
-  tombstones; publications; resolver obligations; answer epochs),
-  the durable netlayer for remote peers, filesystem/memory stores,
-  and the real XS engine (`makeXsEngine` over `rust/siesta-xs-worker`
-  evaluating `dist-xs/worker-peer.js`). Public surface:
-  `makeSiestaDaemon`, `makeXsEngine`, `makeFsStore`,
-  `makeTimerResource`, `makeDurableNetLayer`; the peer replay
-  engines, memory store, transport, records, and pipe network are
+  journal + outbound watermark; hub mode is pure frame callbacks),
+  the endpoint-scoped session records (resource descriptions,
+  at-most-once answer obligations), the durable netlayer for remote
+  peers, filesystem/memory stores, and the real XS engine
+  (`makeXsEngine` over `rust/siesta-xs-worker` evaluating
+  `dist-xs/worker-peer.js`). Public surface: `makeSiestaDaemon`,
+  `makeXsEngine`, `makeFsStore`, `makeTimerResource`,
+  `makeDurableNetLayer`; the peer replay engines, memory store,
+  transport, records, pipe network, and hub-facing plumbing are
   internal. The `WorkerEngine` type (`src/worker-engine.js`) remains
   the open seam for future JS engines with other heap-snapshot
   mechanisms.
-- **`packages/ocapn` seams**, all additive: `resumeSession` (with
-  persisted session keys), `ResumedSession`
+- **`packages/ocapn` client seams**, all additive and now serving the
+  endpoint (and any other embedder): `resumeSession`,
+  `ResumedSession`
   restoreExport/restorePendingResolver/provideImport/
   advanceAnswerPosition, sessionHooks
   (established/export/import/pendingResolver/resolverSettled),
   `shouldHandoff` relay policy, `provideSession` decline, portable
   entropy.
 - **Sleepy lifecycle** — sleep = drain + snapshot + journal cut +
-  terminate under one serialized operation chain; wake = restore +
-  journal-suffix replay with watermark-absorbed regenerated frames;
-  crash-without-sleep recovers from snapshot + suffix (clean shutdown
-  is an optimization, not a correctness requirement).
-- **Daemon restarts** — worker sessions re-establish from derived
-  identity (nothing persisted because nothing contingent), records
-  re-seat exports and publications without waking anyone, remote
-  durable sessions resume with identical keys, settlements route
-  across the restart (a promise minted in worker A and held in
-  worker B settles after a restart with both asleep).
+  terminate under one serialized operation chain; wake = snapshot
+  restore + replay of only the post-snapshot journal suffix (empty
+  after a clean sleep), with regenerated outbound frames absorbed by
+  the persisted watermark. Crash-without-sleep recovers from the
+  snapshot plus the full suffix; full-journal replay exists only in
+  the no-snapshot test engines. Clean shutdown is an optimization,
+  not a correctness requirement.
+- **Daemon restarts** — hub tables reload; worker transports reattach
+  asleep; the endpoint re-seats resources by name and rejects its
+  pending answers at-most-once; remote peers resume by duct rebind.
+  Settlements route across the restart (a promise minted in worker A
+  and held in worker B settles after a restart with both asleep)
+  because both the subscription frames and the c-list rows are
+  durable — nothing is re-seated because nothing was reified.
 - **Vat GC and retirement as a capability**, **system resources**
   (timer, worker-controller, worker-facade), **capability-only worker
-  identity** — all re-pointed at session records, semantics unchanged
-  from the captp machine (Design Decision 7, § *Garbage collection of
-  vats*).
+  identity** — vat GC marks over the hub's reference tables (resolver
+  rows excluded), retirement tombstones rows so holders' calls break
+  loudly, and semantics otherwise match the captp machine (Design
+  Decision 7, § *Garbage collection of vats*).
 
-Known deliberate regression: automatic idle-sleep policy is not yet
-reinstated on the unified daemon (sleep is explicit or
-supervisor-driven). Historical notes on how Phase 3 was rescoped onto
-the `xsnap` crate live in § *The XS engine*.
+The hub's deliberate limits are enumerated in § *Hub limits*.
+Historical notes on how Phase 3 was rescoped onto the `xsnap` crate
+live in § *The XS engine*.
 
 ## What is the Problem Being Solved?
 
@@ -1059,6 +1072,61 @@ non-reifying core this document's comms-vat analysis pointed at.
   settlement, hub restart from tables mid-session) plus the entire
   migrated scenario suite on the hub daemon — including the XS
   restart acid test — pass across three SES configurations.
+
+#### Hub limits
+
+Every limit is loud (a thrown error and a logged drop, or a
+synthesized `break`), never a silent wrong answer.
+
+1. **No third-party handoffs.** A remote peer whose client uses the
+   default `shouldHandoff` policy will express a reference imported
+   from some OTHER node as a `desc:sig-envelope` handoff-give; the
+   hub's reference kit rejects it (`provideHandoff` throws), the
+   frame is dropped with a logged error, and the sender's call never
+   settles. This only arises when a truly external third node is
+   involved — references between hub-fronted sessions never need
+   handoffs, because hub re-export IS the relay. Mitigations today:
+   peers front their own imports (shouldHandoff: false toward the
+   daemon), or route such references by sturdy ref out of band.
+   Future work: a hub-side handoff-receive path, which requires
+   outbound connections and gift withdrawal — i.e., a deliberate,
+   narrow client-shaped edge, to be added only if the need is real.
+2. **No sturdy refs in transit.** A sturdy-ref VALUE embedded in a
+   message (as an argument or resolution) fails to transcode
+   (`makeSturdyRef` throws in the table kit) and the frame drops
+   loudly. Sturdy refs TO the daemon are unaffected — that is the
+   bootstrap-fetch path. Since a sturdy ref is plain data
+   `(location, secret)`, verbatim passthrough is easy future work;
+   it throws today only because the codec's read side routes through
+   a client tracker the hub deliberately lacks.
+3. **No cross-session answer promotion.** A `desc:answer` may only be
+   referenced in messages routed to the session that owes the answer
+   (the ordinary pipelining pattern). Mentioning a pending answer in
+   a message bound for a DIFFERENT session throws and drops the
+   frame: promoting an answer for a third party requires the hub to
+   subscribe to it and mint a promise row — the classic comms-vat
+   complication, and a deliberate reintroduction of a small piece of
+   promise-awareness if it is ever needed. Workaround: await a
+   result before passing it across parties.
+4. **No protocol error replies for undecodable frames.** A frame
+   that fails transcoding (including cases 1–3) is dropped with a
+   logged error; the hub synthesizes `break` only for deliveries and
+   listens whose target is a retired (tombstoned) reference. The
+   affected caller's promise therefore jams rather than rejects.
+   Future work: synthesize `break` toward the sender's resolver for
+   any recognizable deliver/listen that fails after the envelope has
+   been parsed far enough to know its resolver.
+5. **No idle-sleep policy.** Sleep is explicit
+   (`worker.sleep()`/`shutdown()`) or supervisor-driven; the captp
+   host's `idleTimeoutMs` timer has not been reinstated. The natural
+   home is the durable worker transport (a last-activity clock and a
+   park timer on its operation chain) — mechanical future work.
+6. **Table growth.** Dead-reference tombstones are retained forever
+   (that is what keeps retired-target calls breaking loudly instead
+   of jamming), gc rows for publications are pinned while published,
+   and per-frame write-through serializes the whole hub state (fine
+   at prototype scale; an incremental store is future work). The hub
+   never dials out and accepts only inbound sessions.
 
 ### Also deferred
 

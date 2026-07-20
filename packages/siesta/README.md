@@ -330,7 +330,8 @@ Each worker object has:
 This is a prototype.
 See the design document for the full list of open issues, notably:
 answers owed by host resources are at-most-once (they reject after a
-restart; worker-owed answers and promises survive by heap replay),
+restart; worker-owed answers and promises survive in the heap
+snapshots),
 automatic idle-sleep policy is not yet reinstated (sleep is explicit
 or supervisor-driven), and the hub loudly rejects third-party
 handoffs, sturdy refs in transit, and cross-session answer promotion.
