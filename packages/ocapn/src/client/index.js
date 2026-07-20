@@ -251,9 +251,8 @@ export const makeOcapn = async ({
       privateKeyBytes === undefined
         ? cryptography.makeOcapnKeyPairWithPrivateBytes()
         : {
-            keyPair: cryptography.makeOcapnKeyPairFromPrivateKey(
-              privateKeyBytes,
-            ),
+            keyPair:
+              cryptography.makeOcapnKeyPairFromPrivateKey(privateKeyBytes),
             privateKeyBytes,
           };
     // tcp-testing-only does not have a Noise transcript hash to bind
@@ -590,7 +589,7 @@ export const makeOcapn = async ({
                 )(connection, resolverSlot, target)),
             onResolverSettled:
               sessionHooks.onResolverSettled &&
-              ((resolverSlot) =>
+              (resolverSlot =>
                 /** @type {NonNullable<import('./types.js').SessionHooks['onResolverSettled']>} */ (
                   sessionHooks.onResolverSettled
                 )(connection, resolverSlot)),

@@ -489,10 +489,7 @@ export const makeReferenceKit = (
       const grantDetails = grantTracker.getGrantDetails(val);
       const grantIsThirdParty =
         grantDetails !== undefined && grantDetails.location !== peerLocation;
-      if (
-        grantDetails &&
-        (!grantIsThirdParty || shouldHandoff(grantDetails))
-      ) {
+      if (grantDetails && (!grantIsThirdParty || shouldHandoff(grantDetails))) {
         // This is a grant, either imported from this location or exported from another.
         const { location, slot } = grantDetails;
         const { type, isLocal } = parseSlot(slot);

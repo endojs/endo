@@ -1379,9 +1379,8 @@ export const makeOcapn = (
     restoreExport: (position, value) =>
       referenceKit.restoreLocalExport(position, value),
     restorePendingResolver: ({ resolverPosition, target }) => {
-      const resolver = referenceKit.provideRemoteResolverValue(
-        resolverPosition,
-      );
+      const resolver =
+        referenceKit.provideRemoteResolverValue(resolverPosition);
       if (target.kind === 'promise') {
         const promise = referenceKit.provideLocalExportValue(target.position);
         fulfillRemoteResolverWithPromise(
@@ -1393,7 +1392,9 @@ export const makeOcapn = (
         // The computation that owed this answer died with the
         // previous process: reject rather than hang or re-execute.
         E.sendOnly(resolver).break(
-          harden(Error('session resumed after restart; pending answer aborted')),
+          harden(
+            Error('session resumed after restart; pending answer aborted'),
+          ),
         );
       }
     },
