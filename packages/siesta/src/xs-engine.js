@@ -27,7 +27,7 @@ const asciiJson = value =>
 /**
  * A {@link WorkerEngine} backed by real XS heap snapshots: each
  * incarnation is a `siesta-xs-worker` process (rust/siesta-xs-worker)
- * running the worker shell inside an XS machine, speaking
+ * running the worker peer inside an XS machine, speaking
  * newline-delimited JSON over fd 3/4. `snapshot()` streams the heap into
  * the content-addressed `casPath` and returns its sha256; `start` with a
  * snapshot ref restores the heap without re-evaluating anything.
@@ -38,7 +38,7 @@ const asciiJson = value =>
  * @param {object} options
  * @param {string} options.workerBinary path to the siesta-xs-worker binary
  * @param {string} options.bootPath pre-bundle boot script (dist-xs/boot.js)
- * @param {string} options.bundlePath worker shell bundle (dist-xs/worker-xs.js)
+ * @param {string} options.bundlePath worker peer bundle (dist-xs/worker-peer.js)
  * @param {string} options.casPath directory for content-addressed snapshots
  * @returns {WorkerEngine}
  */

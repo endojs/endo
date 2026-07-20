@@ -12,8 +12,8 @@ import { makeWorkerPeer } from './worker-peer.js';
 
 /**
  * In-process {@link WorkerEngine} doubles that host the OCapN worker
- * peer (`worker-peer.js`) instead of the captp worker shell — the
- * protocol-unified mirrors of `journal-replay-engine.js`. They speak
+ * peer (`worker-peer.js`) — successors of the captp-era journal
+ * replay engines, same engine contract. They speak
  * the same duct envelopes as the XS peer bundle
  * (`{ t: 'init', workerId }` then `{ t: 'f', b64 }`), so the durable
  * worker transport cannot tell them from `makeXsEngine` running
