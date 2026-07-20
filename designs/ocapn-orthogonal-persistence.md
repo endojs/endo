@@ -948,16 +948,37 @@ an OCapN relay: one protocol, one marshal format, one session model.
    the OCapN worker peer; `test/durable-worker-session.test.js` and
    `test/durable-worker-session-xs.test.js` prove sleep/wake, crash
    recovery, retirement aborts, and pending promises across parks —
-   the XS variant on real heap snapshots. **Remaining (3b):**
-   daemon-restart restore of the host's worker-session c-lists
-   (session records with export descriptions via the `sessionHooks`
-   seam, re-seated through the `establish()` restore controls), and
-   the unified daemon assembly that carries worker lifecycle, vat GC,
-   and resources over these sessions. The bespoke captp worker
-   journal/tables layer in `host.js` is then subsumed.
-4. Comms-vat settlement routing replaces reified re-attachment; the
-   durable subscription rows landed in layer 2 are already the right
-   schema.
+   the XS variant on real heap snapshots. **Landed (3b, restart
+   restore):** `src/worker-session-records.js` — the daemon's side of
+   every worker session described durably per export slot (host
+   resources `{ kind: 'resource', name }`; cross-worker links
+   `{ kind: 'link', workerId, slot }`, re-materialized on restore via
+   the new `provideImport` restore control without waking anyone;
+   protocol-internal resolvers `{ kind: 'internal' }`, whose function
+   restores through obligations, re-seated as position-preserving
+   tombstones), plus durable publications as descriptions, plus
+   resolver-obligation rows exactly as in the TCP sessions. A
+   restarted daemon establishes each worker session with the same
+   deterministic `resumeSession` call, re-seats records, and
+   partitions the answer-position space by a persisted daemon epoch
+   (`advanceAnswerPosition`) so fresh question counters never collide
+   with answer registrations still held in worker heaps.
+   `test/worker-session-restart.test.js` and its XS twin prove
+   resources, links, and publications across a daemon crash on real
+   heap snapshots. The bespoke captp worker journal/tables layer in
+   `host.js` is now subsumed in principle; its retirement is phase 5.
+4. ~~Comms-vat settlement routing~~ (landed with 3b — it fell out of
+   unification rather than being built): within a daemon lifetime,
+   settlements route between sessions because the daemon is ONE OCapN
+   client relaying re-exports, and a settlement frame toward a
+   sleeping worker wakes it through its transport. Across a restart,
+   the chain recomposes from parts that already existed: restoring a
+   promise-typed link import eagerly re-subscribes (`op:listen`) to
+   the worker that owns the promise, and the holder's re-attached
+   resolver obligation (`restorePendingResolver`) forwards the
+   settlement on. The restart tests' acid case — a promise minted in
+   worker A, held in worker B, settled after a daemon restart —
+   passes on real XS heaps with no reified re-attachment machinery.
 5. Retire the captp worker layer (the `@endo/captp` seams remain for
    their other consumers), and re-point vat GC and the worker
    controller at session records.

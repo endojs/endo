@@ -215,6 +215,12 @@ export const makeDurableWorkerTransport = ({
     debugLabel,
     peerLocation: resumption.peerLocation,
     /**
+     * The session's connection object, the key under which the OCapN
+     * client attributes this session's traffic — embedder glue (e.g.
+     * worker-session records) binds it to the worker id.
+     */
+    connection,
+    /**
      * Register the worker session with the OCapN client — same call
      * whether the worker is brand new or restored after a daemon
      * restart. Returns the narrow restore controls for re-seating
