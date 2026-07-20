@@ -66,6 +66,8 @@ const hardenedEndowments = harden({
   TextEncoder,
   TextDecoder,
   URL,
+  // This one is important for exo to work.
+  Promise,
 });
 
 const globalProps = collectPropsAndBind(window);
@@ -75,8 +77,8 @@ delete globalProps.NaN;
 delete globalProps.Infinity;
 
 const endowments = Object.freeze({
-  ...hardenedEndowments,
   ...globalProps,
+  ...hardenedEndowments,
   process: {
     env: {},
   },
