@@ -489,7 +489,7 @@ export const makeSiestaHost = async ({
       });
       incarnation = newIncarnation;
       try {
-        const from = snapshotInfo ? snapshotInfo.journalLength : 0;
+        const from = snapshotInfo ? (snapshotInfo.journalLength ?? 0) : 0;
         // The live-delivered prefix replays with the worker's re-emitted
         // replies suppressed: the host already processed them.
         replaying = true;

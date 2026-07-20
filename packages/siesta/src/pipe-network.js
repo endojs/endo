@@ -47,8 +47,43 @@ const makeSideIdentity = (cryptography, workerId, role) => {
     designator: `${workerId}-${role}`,
     hints: /** @type {const} */ (false),
   });
-  return harden({ keyPair, location });
+  return harden({ seed, keyPair, location });
 };
+
+/**
+ * The deterministic session-resumption record for one end of a worker
+ * pipe: everything `handlers.resumeSession` needs, derived from the
+ * worker id alone. Because both identities and the session id are
+ * derived, the host can (re-)establish its side of a worker session at
+ * any time — fresh worker, wake from snapshot, or daemon restart —
+ * with no wire handshake and nothing persisted.
+ *
+ * @param {object} options
+ * @param {any} options.codec
+ * @param {string} options.workerId
+ * @param {PipeRole} [options.role] which end this resumption is for
+ *   (default `'host'`)
+ */
+export const derivePipeResumption = ({ codec, workerId, role = 'host' }) => {
+  const cryptography = makeCryptography(codec);
+  const self = makeSideIdentity(cryptography, workerId, role);
+  const peer = makeSideIdentity(cryptography, workerId, otherRole(role));
+  return harden({
+    sessionId: makeSessionId(
+      self.keyPair.publicKey.id,
+      peer.keyPair.publicKey.id,
+    ),
+    peerLocation: peer.location,
+    peerLocationSignature: cryptography.signLocation(
+      peer.location,
+      peer.keyPair,
+      new ArrayBuffer(0),
+    ),
+    peerPublicKeyBytes: peer.keyPair.publicKey.bytes,
+    selfPrivateKeyBytes: self.seed,
+  });
+};
+harden(derivePipeResumption);
 
 /**
  * @param {object} options

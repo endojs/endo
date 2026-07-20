@@ -928,13 +928,32 @@ an OCapN relay: one protocol, one marshal format, one session model.
    `"type": "module"` need `commonjsLanguageForExtension:
    { js: 'mjs' }` because the always-on `import` condition selects
    their ESM files.
-3. Host worker sessions become durable OCapN sessions: the durable
-   netlayer's logical-connection machinery (frame journal, watermarks,
-   resumption) carries the pipe transport too, with one policy
-   difference — worker frames are retained until a *snapshot* commits,
-   not until acked, so a worker restored from its last snapshot
-   replays the tail exactly as today's journal suffix does. Sleep =
-   park + snapshot; wake = resume. The bespoke captp worker
+3. Host worker sessions become durable OCapN sessions. **Landed (3a,
+   the transport):** `src/durable-worker-transport.js` — one worker =
+   one OCapN session on the daemon's client, established through the
+   `resumeSession` netlayer seam with a deterministic resumption
+   record (`derivePipeResumption`): no wire handshake, and the *same*
+   establishment call serves a fresh worker, a wake, and a daemon
+   restart, because nothing about the session's identity is
+   contingent. Host→worker frames are journaled before the duct and
+   retained until a *snapshot* commits (`{ ref, cut }`), not until
+   acked; wake = restore + replay the journal suffix, with the
+   worker's deterministically regenerated outbound frames absorbed by
+   a persisted watermark (`outboundSinceSnapshot`, written before
+   each dispatch — at-most-once). Every incarnation-touching
+   operation (delivery, wake, park, crash, retire) serializes on one
+   operation chain, so parking drains exactly the deliveries queued
+   ahead of it. In-process peer replay engines
+   (`src/peer-replay-engine.js`) mirror the captp replay doubles for
+   the OCapN worker peer; `test/durable-worker-session.test.js` and
+   `test/durable-worker-session-xs.test.js` prove sleep/wake, crash
+   recovery, retirement aborts, and pending promises across parks —
+   the XS variant on real heap snapshots. **Remaining (3b):**
+   daemon-restart restore of the host's worker-session c-lists
+   (session records with export descriptions via the `sessionHooks`
+   seam, re-seated through the `establish()` restore controls), and
+   the unified daemon assembly that carries worker lifecycle, vat GC,
+   and resources over these sessions. The bespoke captp worker
    journal/tables layer in `host.js` is then subsumed.
 4. Comms-vat settlement routing replaces reified re-attachment; the
    durable subscription rows landed in layer 2 are already the right

@@ -34,7 +34,14 @@ import { Fail, q } from '@endo/errors';
  *   only in diagnostics, never as an identifier
  * @property {string} [bootSlot] import slot of the worker's bootstrap facet
  * @property {string | null} [bootIface]
- * @property {{ ref: unknown, journalLength: number } | null} [snapshot]
+ * @property {{ ref: unknown, journalLength?: number, cut?: number } | null} [snapshot]
+ *   the engine snapshot and the absolute journal index it subsumes —
+ *   `journalLength` under the captp host, `cut` under the durable
+ *   worker transport (protocol unification)
+ * @property {number} [outboundSinceSnapshot] durable worker transport:
+ *   count of worker→host OCapN frames processed since the last
+ *   snapshot, persisted before each dispatch; a wake's replay discards
+ *   regenerated frames up to this watermark
  * @property {Array<string>} [pendingGuestQuestions] question IDs the
  *   worker has asked the host that the host has not yet answered; a
  *   restarted host rejects these (at-most-once), since the answering
