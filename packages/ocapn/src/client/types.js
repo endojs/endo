@@ -225,6 +225,14 @@
  * @typedef {object} ResumedSession
  * @property {(position: bigint, value: object) => void} restoreExport
  * @property {(record: { resolverPosition: bigint, target: { kind: 'promise' | 'answer', position: bigint } }) => void} restorePendingResolver
+ * @property {(slotInfo: { type: 'o' | 'p', position: bigint }) => object} provideImport
+ * Materialize (or find) this session's import at a peer export
+ * position — the restore-time counterpart of receiving the reference
+ * in a message, used to re-link references that cross sessions.
+ * @property {(minimum: bigint) => void} advanceAnswerPosition
+ * Skip the question counter past every answer position a previous
+ * process could have used (the peer still holds those registrations),
+ * e.g. by partitioning the position space by process epoch.
  */
 
 /**
@@ -249,6 +257,7 @@
  * @typedef {object} SessionHooks
  * @property {(connection: Connection, resumption: SessionResumption) => void} [onSessionEstablished]
  * @property {(connection: Connection, slot: import('../captp/types.js').Slot, value: object) => void} [onExport]
+ * @property {(connection: Connection, slot: import('../captp/types.js').Slot, value: object) => void} [onImport]
  * @property {(connection: Connection, resolverSlot: import('../captp/types.js').Slot, target: { kind: 'promise' | 'answer', position: bigint }) => void} [onPendingResolver]
  * @property {(connection: Connection, resolverSlot: import('../captp/types.js').Slot) => void} [onResolverSettled]
  */

@@ -78,6 +78,9 @@ import { makeSlot, parseSlot } from '../captp/pairwise.js';
  * @property {(position: bigint, value: object) => void} restoreLocalExport
  *   re-seat a local export at a recorded position (session resumption);
  *   idempotent, and advances the export counter past the position
+ * @property {(minimum: bigint) => void} advanceAnswerPosition
+ *   skip the question counter past answer positions a previous
+ *   process could have used (session resumption)
  */
 
 /** @type {Record<SlotType, SlotTypeName>} */
@@ -471,6 +474,18 @@ export const makeReferenceKit = (
       ocapnTable.registerSlot(slot, value);
       if (position >= nextExportPosition) {
         nextExportPosition = position + ONE_N;
+      }
+    },
+
+    advanceAnswerPosition: minimum => {
+      // A resumed session's peer may still hold answer registrations
+      // from previous processes (they are only released by op:gc-answers,
+      // which a dead process cannot send). A restarted embedder skips
+      // its question counter past every position any predecessor could
+      // have used — e.g. partitioning the position space by process
+      // epoch — so re-used positions never collide in the peer's table.
+      if (nextAnswerPosition < minimum) {
+        nextAnswerPosition = minimum;
       }
     },
 

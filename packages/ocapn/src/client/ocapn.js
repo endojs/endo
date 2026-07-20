@@ -683,6 +683,13 @@ const makeBootstrapObject = (
  *   targets re-subscribe the peer's resolver to the restored promise
  *   export; answer targets reject (the answering computation died with
  *   the previous process — at-most-once, never a hang)
+ * @property {(slotInfo: { type: 'o' | 'p', position: bigint }) => object} provideImport
+ *   materialize (or find) this session's import at a peer export
+ *   position (session resumption; re-links references that cross
+ *   sessions)
+ * @property {(minimum: bigint) => void} advanceAnswerPosition
+ *   skip the question counter past answer positions a previous
+ *   process could have used (session resumption)
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  * @property {OcapnDebug} [_debug] - **EXPERIMENTAL**: Internal APIs for testing. Only present when `debugMode` is true.
  */
@@ -709,13 +716,14 @@ const makeBootstrapObject = (
  *   as a relay; see makeReferenceKit
  * @param {{
  *   onExport?: (slot: Slot, value: object) => void,
+ *   onImport?: (slot: Slot, value: object) => void,
  *   onPendingResolver?: (resolverSlot: Slot, target: { kind: 'promise' | 'answer', position: bigint }) => void,
  *   onResolverSettled?: (resolverSlot: Slot) => void,
  * }} [sessionHooks]
  *   optional per-session observation hooks for durable-session
- *   embedders: export-slot assignment, resolver obligations taken on
- *   (with the durable name of their target), and resolver obligations
- *   settled (record can be dropped)
+ *   embedders: export- and import-slot assignment, resolver
+ *   obligations taken on (with the durable name of their target), and
+ *   resolver obligations settled (record can be dropped)
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -1138,6 +1146,14 @@ export const makeOcapn = (
     if (!isLocal && type === 'p') {
       eagerlySubscribeToRemotePromise(val);
     }
+    if (sessionHooks && sessionHooks.onImport) {
+      try {
+        sessionHooks.onImport(slot, val);
+      } catch (err) {
+        // Observation must not break the import path.
+        logger.error(`sessionHooks.onImport failed`, err);
+      }
+    }
   };
 
   const exportHook = (val, slot) => {
@@ -1378,6 +1394,12 @@ export const makeOcapn = (
     referenceKit,
     restoreExport: (position, value) =>
       referenceKit.restoreLocalExport(position, value),
+    provideImport: ({ type, position }) =>
+      type === 'p'
+        ? referenceKit.provideRemotePromiseValue(position)
+        : referenceKit.provideRemoteObjectValue(position),
+    advanceAnswerPosition: minimum =>
+      referenceKit.advanceAnswerPosition(minimum),
     restorePendingResolver: ({ resolverPosition, target }) => {
       const resolver =
         referenceKit.provideRemoteResolverValue(resolverPosition);

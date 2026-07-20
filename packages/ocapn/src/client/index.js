@@ -581,6 +581,12 @@ export const makeOcapn = async ({
                 /** @type {NonNullable<import('./types.js').SessionHooks['onExport']>} */ (
                   sessionHooks.onExport
                 )(connection, slot, value)),
+            onImport:
+              sessionHooks.onImport &&
+              ((slot, value) =>
+                /** @type {NonNullable<import('./types.js').SessionHooks['onImport']>} */ (
+                  sessionHooks.onImport
+                )(connection, slot, value)),
             onPendingResolver:
               sessionHooks.onPendingResolver &&
               ((resolverSlot, target) =>
@@ -769,6 +775,8 @@ export const makeOcapn = async ({
     return harden({
       restoreExport: (position, value) => ocapn.restoreExport(position, value),
       restorePendingResolver: record => ocapn.restorePendingResolver(record),
+      provideImport: slotInfo => ocapn.provideImport(slotInfo),
+      advanceAnswerPosition: minimum => ocapn.advanceAnswerPosition(minimum),
     });
   };
 
