@@ -234,10 +234,20 @@ export const makeOcapn = async ({
 
   /**
    * @param {OcapnLocation} myLocation
-   * @returns {SelfIdentity}
+   * @param {Uint8Array} [privateKeyBytes] resume with a persisted
+   *   session key instead of minting a fresh one
+   * @returns {{ selfIdentity: SelfIdentity, privateKeyBytes: Uint8Array }}
    */
-  const makeSelfIdentity = myLocation => {
-    const keyPair = cryptography.makeOcapnKeyPair();
+  const makeSelfIdentity = (myLocation, privateKeyBytes = undefined) => {
+    const { keyPair, privateKeyBytes: keyBytes } =
+      privateKeyBytes === undefined
+        ? cryptography.makeOcapnKeyPairWithPrivateBytes()
+        : {
+            keyPair: cryptography.makeOcapnKeyPairFromPrivateKey(
+              privateKeyBytes,
+            ),
+            privateKeyBytes,
+          };
     // tcp-testing-only does not have a Noise transcript hash to bind
     // against; sign with an empty channel-binding value.  The np
     // netlayer mints its own per-session SelfIdentity that binds to
@@ -248,9 +258,12 @@ export const makeOcapn = async ({
       new ArrayBuffer(0),
     );
     return {
-      keyPair,
-      location: myLocation,
-      locationSignature: myLocationSig,
+      selfIdentity: {
+        keyPair,
+        location: myLocation,
+        locationSignature: myLocationSig,
+      },
+      privateKeyBytes: keyBytes,
     };
   };
 
@@ -284,6 +297,7 @@ export const makeOcapn = async ({
           peerLocation: session.peer.location,
           peerLocationSignature: session.peer.locationSignature,
           peerPublicKeyBytes: session.peer.publicKey.bytes,
+          selfPrivateKeyBytes: connectionSessionPrivateKey.get(connection),
         });
       }
     },
@@ -300,6 +314,15 @@ export const makeOcapn = async ({
 
   /** @type {WeakMap<Connection, SelfIdentity>} */
   const connectionSelfIdentityMap = new WeakMap();
+
+  /**
+   * Session private keys by connection, for durable-session embedders
+   * that persist and resume session identity. Absent for connections
+   * whose identity came from the network (e.g. Noise).
+   *
+   * @type {WeakMap<Connection, Uint8Array>}
+   */
+  const connectionSessionPrivateKey = new WeakMap();
 
   /**
    * Get the self identity for a connection.
@@ -539,12 +562,26 @@ export const makeOcapn = async ({
       debugLabel,
       enableImportCollection,
       debugMode,
-      sessionHooks && sessionHooks.onExport
+      sessionHooks
         ? {
-            onExport: (slot, value) =>
-              /** @type {NonNullable<import('./types.js').SessionHooks['onExport']>} */ (
-                sessionHooks.onExport
-              )(connection, slot, value),
+            onExport:
+              sessionHooks.onExport &&
+              ((slot, value) =>
+                /** @type {NonNullable<import('./types.js').SessionHooks['onExport']>} */ (
+                  sessionHooks.onExport
+                )(connection, slot, value)),
+            onPendingResolver:
+              sessionHooks.onPendingResolver &&
+              ((resolverSlot, target) =>
+                /** @type {NonNullable<import('./types.js').SessionHooks['onPendingResolver']>} */ (
+                  sessionHooks.onPendingResolver
+                )(connection, resolverSlot, target)),
+            onResolverSettled:
+              sessionHooks.onResolverSettled &&
+              ((resolverSlot) =>
+                /** @type {NonNullable<import('./types.js').SessionHooks['onResolverSettled']>} */ (
+                  sessionHooks.onResolverSettled
+                )(connection, resolverSlot)),
           }
         : undefined,
     );
@@ -637,7 +674,9 @@ export const makeOcapn = async ({
    */
   const makeConnection = (netlayer, isOutgoing, socket) => {
     let isDestroyed = false;
-    const selfIdentity = makeSelfIdentity(netlayer.location);
+    const { selfIdentity, privateKeyBytes } = makeSelfIdentity(
+      netlayer.location,
+    );
 
     /** @type {Connection} */
     const connection = harden({
@@ -658,6 +697,7 @@ export const makeOcapn = async ({
 
     // Store self identity for this connection
     connectionSelfIdentityMap.set(connection, selfIdentity);
+    connectionSessionPrivateKey.set(connection, privateKeyBytes);
 
     return connection;
   };
@@ -666,10 +706,10 @@ export const makeOcapn = async ({
    * Resume a previously established session on a fresh connection
    * without an op:start-session handshake: the durable netlayer has
    * already authenticated the resumption (its resume token), and the
-   * embedder supplies the session's durable identity. The session
-   * resumes with fresh session keys — the persistent identity is the
-   * session id, whose continuity keeps gift-table and grant bookkeeping
-   * coherent; key-continuity for cross-restart handoffs is future work.
+   * embedder supplies the session's durable identity — including,
+   * when persisted, the session's own private key, so the resumed
+   * session keeps the same keys and cross-restart handoff signatures
+   * keep verifying.
    *
    * @param {Connection} connection
    * @param {import('./types.js').SessionResumption} resumption
@@ -680,7 +720,21 @@ export const makeOcapn = async ({
     const peerPublicKey = cryptography.makeOcapnPublicKey(
       resumption.peerPublicKeyBytes,
     );
-    const selfIdentity = getSelfIdentityForConnection(connection);
+    let selfIdentity;
+    if (resumption.selfPrivateKeyBytes !== undefined) {
+      // Resume with the persisted session key: the resumed session
+      // keeps the same self identity, so handoff signatures made
+      // before the restart keep verifying after it.
+      const remade = makeSelfIdentity(
+        /** @type {NetLayer} */ (network).location,
+        resumption.selfPrivateKeyBytes,
+      );
+      selfIdentity = remade.selfIdentity;
+      connectionSelfIdentityMap.set(connection, selfIdentity);
+      connectionSessionPrivateKey.set(connection, remade.privateKeyBytes);
+    } else {
+      selfIdentity = getSelfIdentityForConnection(connection);
+    }
     const ocapn = prepareOcapn(
       connection,
       /** @type {import('./types.js').SessionId} */ (sessionId),
@@ -702,6 +756,7 @@ export const makeOcapn = async ({
     );
     return harden({
       restoreExport: (position, value) => ocapn.restoreExport(position, value),
+      restorePendingResolver: record => ocapn.restorePendingResolver(record),
     });
   };
 

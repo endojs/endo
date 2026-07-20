@@ -104,6 +104,7 @@ export const randomGiftId = () => {
  * @property {(publicKeyDescriptor: OcapnPublicKeyDescriptor) => OcapnPublicKey} publicKeyDescriptorToPublicKey
  * @property {(privateKeyBytes: Uint8Array) => OcapnKeyPair} makeOcapnKeyPairFromPrivateKey
  * @property {() => OcapnKeyPair} makeOcapnKeyPair
+ * @property {() => { keyPair: OcapnKeyPair, privateKeyBytes: Uint8Array }} makeOcapnKeyPairWithPrivateBytes
  * @property {(location: OcapnLocation, keyPair: OcapnKeyPair, binding: ArrayBufferLike) => OcapnSignature} signLocation
  * @property {(location: OcapnLocation, signature: OcapnSignature, publicKey: OcapnPublicKey, binding: ArrayBufferLike) => void} assertLocationSignatureValid
  * @property {(handoffGive: HandoffGive, keyPair: OcapnKeyPair) => OcapnSignature} signHandoffGive
@@ -189,6 +190,21 @@ export const makeCryptography = codec => {
   const makeOcapnKeyPair = () => {
     const privateKeyBytes = ed25519.utils.randomPrivateKey();
     return makeOcapnKeyPairFromPrivateKey(privateKeyBytes);
+  };
+
+  /**
+   * As makeOcapnKeyPair, but also returns the private key bytes so a
+   * durable-session embedder can persist the session identity and
+   * resume with the same keys after a process restart.
+   *
+   * @returns {{ keyPair: OcapnKeyPair, privateKeyBytes: Uint8Array }}
+   */
+  const makeOcapnKeyPairWithPrivateBytes = () => {
+    const privateKeyBytes = ed25519.utils.randomPrivateKey();
+    return {
+      keyPair: makeOcapnKeyPairFromPrivateKey(privateKeyBytes),
+      privateKeyBytes,
+    };
   };
 
   /**
@@ -394,6 +410,7 @@ export const makeCryptography = codec => {
 
   return harden({
     makeOcapnPublicKey,
+    makeOcapnKeyPairWithPrivateBytes,
     publicKeyDescriptorToPublicKey,
     makeOcapnKeyPairFromPrivateKey,
     makeOcapnKeyPair,

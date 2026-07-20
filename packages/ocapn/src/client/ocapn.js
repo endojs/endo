@@ -678,6 +678,11 @@ const makeBootstrapObject = (
  * @property {ReferenceKit} referenceKit
  * @property {(position: bigint, value: object) => void} restoreExport
  *   re-seat a local export at a recorded position (session resumption)
+ * @property {(record: { resolverPosition: bigint, target: { kind: 'promise' | 'answer', position: bigint } }) => void} restorePendingResolver
+ *   re-attach a persisted resolver obligation after a restart: promise
+ *   targets re-subscribe the peer's resolver to the restored promise
+ *   export; answer targets reject (the answering computation died with
+ *   the previous process — at-most-once, never a hang)
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  * @property {OcapnDebug} [_debug] - **EXPERIMENTAL**: Internal APIs for testing. Only present when `debugMode` is true.
  */
@@ -699,10 +704,15 @@ const makeBootstrapObject = (
  * @param {string} [ourIdLabel]
  * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object with internal APIs for testing. Default: false.
- * @param {{ onExport?: (slot: Slot, value: object) => void }} [sessionHooks]
- *   optional per-session observation hooks; `onExport` fires whenever a
- *   local value is assigned an export slot, letting an embedder record
- *   a durable description of the export (session resumption)
+ * @param {{
+ *   onExport?: (slot: Slot, value: object) => void,
+ *   onPendingResolver?: (resolverSlot: Slot, target: { kind: 'promise' | 'answer', position: bigint }) => void,
+ *   onResolverSettled?: (resolverSlot: Slot) => void,
+ * }} [sessionHooks]
+ *   optional per-session observation hooks for durable-session
+ *   embedders: export-slot assignment, resolver obligations taken on
+ *   (with the durable name of their target), and resolver obligations
+ *   settled (record can be dropped)
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -787,7 +797,51 @@ export const makeOcapn = (
     }
   };
 
-  const fulfillRemoteResolverWithPromise = (resolveMeDesc, promise) => {
+  /**
+   * @param {any} resolveMeDesc the peer's resolver presence
+   * @param {Promise<unknown>} promise
+   * @param {{ kind: 'promise' | 'answer', position: bigint } | undefined} [pendingTarget]
+   *   when the obligation should be observable by a durable-session
+   *   embedder: the durable name of what the resolver is waiting on (a
+   *   local promise export position, or a local answer position)
+   */
+  const fulfillRemoteResolverWithPromise = (
+    resolveMeDesc,
+    promise,
+    pendingTarget = undefined,
+  ) => {
+    // Let a durable-session embedder record the resolver obligation so
+    // a restarted process can re-attach (promise targets) or reject
+    // (answer targets) instead of leaving the peer hanging.
+    // eslint-disable-next-line no-use-before-define
+    const resolverSlot = ocapnTable.getSlotForValue(resolveMeDesc);
+    const observed =
+      pendingTarget !== undefined &&
+      resolverSlot !== undefined &&
+      sessionHooks !== undefined &&
+      sessionHooks.onPendingResolver !== undefined;
+    if (observed) {
+      try {
+        /** @type {NonNullable<NonNullable<typeof sessionHooks>['onPendingResolver']>} */ (
+          sessionHooks.onPendingResolver
+        )(resolverSlot, pendingTarget);
+      } catch (err) {
+        logger.error(`sessionHooks.onPendingResolver failed`, err);
+      }
+    }
+    const settled = () => {
+      if (
+        observed &&
+        sessionHooks !== undefined &&
+        sessionHooks.onResolverSettled !== undefined
+      ) {
+        try {
+          sessionHooks.onResolverSettled(resolverSlot);
+        } catch (err) {
+          logger.error(`sessionHooks.onResolverSettled failed`, err);
+        }
+      }
+    };
     // Use E.sendOnly since we don't need a response from fulfill/break
     // calls. This emits op:deliver with both `answerPosition` and
     // `resolveMeDesc` set to `false` (the post-fold replacement for
@@ -795,9 +849,11 @@ export const makeOcapn = (
     Promise.resolve(promise).then(
       val => {
         E.sendOnly(resolveMeDesc).fulfill(val);
+        settled();
       },
       reason => {
         E.sendOnly(resolveMeDesc).break(reason);
+        settled();
       },
     );
   };
@@ -818,7 +874,13 @@ export const makeOcapn = (
       }
 
       if (resolveMeDesc !== false) {
-        fulfillRemoteResolverWithPromise(resolveMeDesc, deliverPromise);
+        fulfillRemoteResolverWithPromise(
+          resolveMeDesc,
+          deliverPromise,
+          answerPosition !== false
+            ? { kind: 'answer', position: answerPosition }
+            : undefined,
+        );
       } else {
         // Fire-and-forget delivery (the folded `op:deliver-only`
         // case): there's no resolver to break, so surface any
@@ -838,7 +900,24 @@ export const makeOcapn = (
       if (!(listenTarget instanceof Promise)) {
         throw Error(`OCapN: Expected a promise, got ${listenTarget}`);
       }
-      fulfillRemoteResolverWithPromise(resolveMeDesc, listenTarget);
+      // When the listen target is one of our own promise exports, its
+      // position is a durable name a restarted process can re-attach
+      // to; record it for durable-session embedders.
+      // eslint-disable-next-line no-use-before-define
+      const targetSlot = ocapnTable.getSlotForValue(listenTarget);
+      /** @type {{ kind: 'promise', position: bigint } | undefined} */
+      let pendingTarget;
+      if (targetSlot !== undefined) {
+        const { type, isLocal, position } = parseSlot(targetSlot);
+        if (type === 'p' && isLocal) {
+          pendingTarget = { kind: 'promise', position };
+        }
+      }
+      fulfillRemoteResolverWithPromise(
+        resolveMeDesc,
+        listenTarget,
+        pendingTarget,
+      );
     },
     'op:get': message => {
       const { receiverDesc, fieldName, answerPosition } = message;
@@ -1294,6 +1373,25 @@ export const makeOcapn = (
     referenceKit,
     restoreExport: (position, value) =>
       referenceKit.restoreLocalExport(position, value),
+    restorePendingResolver: ({ resolverPosition, target }) => {
+      const resolver = referenceKit.provideRemoteResolverValue(
+        resolverPosition,
+      );
+      if (target.kind === 'promise') {
+        const promise = referenceKit.provideLocalExportValue(target.position);
+        fulfillRemoteResolverWithPromise(
+          resolver,
+          /** @type {Promise<unknown>} */ (promise),
+          target,
+        );
+      } else {
+        // The computation that owed this answer died with the
+        // previous process: reject rather than hang or re-execute.
+        E.sendOnly(resolver).break(
+          harden(Error('session resumed after restart; pending answer aborted')),
+        );
+      }
+    },
   };
   if (debugMode) {
     // eslint-disable-next-line no-underscore-dangle

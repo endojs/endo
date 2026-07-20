@@ -221,6 +221,7 @@
  *
  * @typedef {object} ResumedSession
  * @property {(position: bigint, value: object) => void} restoreExport
+ * @property {(record: { resolverPosition: bigint, target: { kind: 'promise' | 'answer', position: bigint } }) => void} restorePendingResolver
  */
 
 /**
@@ -233,6 +234,9 @@
  * @property {OcapnLocation} peerLocation
  * @property {OcapnSignature} peerLocationSignature
  * @property {ArrayBufferLike} peerPublicKeyBytes
+ * @property {Uint8Array} [selfPrivateKeyBytes] resume with the same
+ *   session keys the previous process used, so cross-restart handoff
+ *   signatures keep verifying; omitted, fresh keys are minted
  */
 
 /**
@@ -242,6 +246,8 @@
  * @typedef {object} SessionHooks
  * @property {(connection: Connection, resumption: SessionResumption) => void} [onSessionEstablished]
  * @property {(connection: Connection, slot: import('../captp/types.js').Slot, value: object) => void} [onExport]
+ * @property {(connection: Connection, resolverSlot: import('../captp/types.js').Slot, target: { kind: 'promise' | 'answer', position: bigint }) => void} [onPendingResolver]
+ * @property {(connection: Connection, resolverSlot: import('../captp/types.js').Slot) => void} [onResolverSettled]
  */
 
 /**
