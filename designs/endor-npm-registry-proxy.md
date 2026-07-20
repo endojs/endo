@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-04-17 |
-| **Updated** | 2026-07-19 |
+| **Updated** | 2026-07-20 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
@@ -435,6 +435,12 @@ The tree's children are the package's files, stored as blobs.
       does not execute arbitrary install scripts).
 - [ ] Binary packages (`.node` native modules) — not
       supported in XS.
+- [ ] Top-level `await` in the entry module (or any module in
+      the graph): the execution path loads the assembled map
+      through XS's synchronous `importNow`, so a module using
+      top-level `await` fails at import with
+      `TypeError: async module`. Needs an asynchronous import
+      path through the archive loader.
 
 ## Prompt
 
