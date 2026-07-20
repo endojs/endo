@@ -9,6 +9,8 @@
  */
 
 import harden from '@endo/harden';
+import { E } from '@endo/eventual-send';
+import { Far } from '@endo/marshal';
 import { makePromiseKit } from '@endo/promise-kit';
 import { writeOcapnHandshakeMessage } from '../codecs/operations.js';
 import { makeCryptography } from '../cryptography.js';
@@ -211,6 +213,14 @@ const makeSessionManager = onSessionResolved => {
  *   fires whenever a session resolves (with its durable identity fields) and
  *   `onExport` fires whenever a session assigns a local export slot. Netlayers
  *   that do not provide durability are unaffected.
+ * @param {boolean} [options.relayPromises] - Non-reifying promise relay
+ *   for clients that front other peers (e.g. a siesta daemon): this
+ *   client never subscribes to promise imports for itself, and a peer's
+ *   op:listen on a promise imported from another session is forwarded
+ *   to the owning session with a forwarder resolver — an ordinary
+ *   export (see `getListenForwarderInfo`) — instead of being absorbed
+ *   into an in-memory promise linkage. Subscription state then lives
+ *   only in the endpoints. Default: false.
  * @param {Logger} [options.logger] - If provided, overrides the default console-based logger. When omitted, defaults to a console-based logger labelled with `debugLabel`; `info` is suppressed unless `verbose` is true.
  * @returns {Promise<Client>}
  */
@@ -226,6 +236,7 @@ export const makeOcapn = async ({
   debugMode = false,
   sessionHooks = undefined,
   shouldHandoff = undefined,
+  relayPromises = false,
   logger: providedLogger,
 }) => {
   if (!codec) {
@@ -548,6 +559,43 @@ export const makeOcapn = async ({
     return newSessionPromise;
   };
 
+  // Non-reifying promise relay (relayPromises: true): forwarder
+  // resolvers minted for relayed op:listen subscriptions, with their
+  // provenance recorded so a durable-session embedder can describe and
+  // re-seat them like any other export.
+  /** @type {WeakMap<object, { connection: Connection, resolverSlot: import('../captp/types.js').Slot }>} */
+  const listenForwarderInfo = new WeakMap();
+  const listenRelay = relayPromises
+    ? harden({
+        /**
+         * @param {any} resolveMeDesc the subscriber's resolver presence
+         * @param {import('../captp/types.js').Slot | undefined} resolverSlot
+         *   its slot in the subscriber session (this client's import)
+         * @param {Connection} connection the subscriber session's
+         *   connection
+         */
+        makeForwarder: (resolveMeDesc, resolverSlot, connection) => {
+          const forwarder = Far('ListenForwarder', {
+            /** @param {unknown} value */
+            fulfill: value => {
+              E.sendOnly(resolveMeDesc).fulfill(value);
+            },
+            /** @param {unknown} reason */
+            break: reason => {
+              E.sendOnly(resolveMeDesc).break(reason);
+            },
+          });
+          if (resolverSlot !== undefined) {
+            listenForwarderInfo.set(
+              forwarder,
+              harden({ connection, resolverSlot }),
+            );
+          }
+          return forwarder;
+        },
+      })
+    : undefined;
+
   const prepareOcapn = (connection, sessionId, peerLocation) => {
     return makeOcapnCore(
       logger,
@@ -602,6 +650,7 @@ export const makeOcapn = async ({
           }
         : undefined,
       shouldHandoff,
+      listenRelay,
     );
   };
 
@@ -906,6 +955,19 @@ export const makeOcapn = async ({
     shutdown() {
       logger.info(`shutdown called`);
       network.shutdown();
+    },
+    /**
+     * The provenance of a forwarder resolver minted by the
+     * non-reifying listen relay (`relayPromises: true`): the
+     * subscriber session's connection and the resolver's slot there.
+     * Durable-session embedders use it to describe forwarder exports
+     * so a restarted process can re-seat them. Undefined for any
+     * other value.
+     *
+     * @param {object} value
+     */
+    getListenForwarderInfo(value) {
+      return listenForwarderInfo.get(value);
     },
   };
 

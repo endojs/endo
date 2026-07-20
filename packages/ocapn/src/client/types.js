@@ -310,6 +310,11 @@
  *   through the injected locator; remote SturdyRefs fetch from the
  *   peer's bootstrap.
  * @property {() => void} shutdown
+ * @property {(value: object) => { connection: Connection, resolverSlot: import('../captp/types.js').Slot } | undefined} getListenForwarderInfo
+ *   The provenance of a forwarder resolver minted by the non-reifying
+ *   listen relay (`relayPromises: true`): the subscriber session's
+ *   connection and the resolver's slot there. Undefined for any other
+ *   value.
  * @property {ClientDebug} [_debug]
  *   Only present when the client was constructed with `debugMode:
  *   true`. Exposes internal APIs for testing.
