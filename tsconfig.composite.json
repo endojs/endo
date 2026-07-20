@@ -93,6 +93,12 @@
       "path": "packages/exo-stream/tsconfig.composite.json"
     },
     {
+      "path": "packages/exo-unzip/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/exo-zip/tsconfig.composite.json"
+    },
+    {
       "path": "packages/familiar/tsconfig.composite.json"
     },
     {
