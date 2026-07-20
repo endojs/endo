@@ -3,7 +3,7 @@
 
 import harden from '@endo/harden';
 import { E } from '@endo/far';
-import { decodeBase64 } from '@endo/base64';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 import { ZipWriter } from '@endo/zip/writer.js';
 import { deflate } from '@endo/zip/deflate.js';
 
@@ -24,34 +24,37 @@ try {
 } catch {}
 
 /**
- * Drain a `streamBase64()` async iterator into the underlying bytes.
- * The iterator may yield one or more base64-encoded chunks; we
- * accumulate the encoded strings and decode the concatenation in a
- * single pass.
+ * Drain a blob's `streamBase64` reader into the underlying bytes.
  *
- * Base64 does not concatenate trivially: per-chunk `=` padding in the
- * middle of the stream produces an invalid composite string and a
- * naive per-chunk decode would silently misinterpret the byte
- * boundaries. The blob producers in `@endo/exo-unzip` and
- * `@endo/platform`'s `makeReaderRef` therefore guarantee that every
- * chunk except possibly the last has a length divisible by 4 (i.e.
- * encodes a raw-byte slice whose length is a multiple of 3), so the
- * concatenation is itself a valid base64 string.
+ * The blob conforms to the platform's syn/ack reader-pump protocol
+ * (`@endo/platform`'s `ReadableBlobInterface`): `streamBase64(synHead)`
+ * returns a `StreamNode` chain, which `iterateBytesReader` consumes —
+ * base64-DECODING each ack chunk to a `Uint8Array` before yielding it.
+ * Each chunk is decoded independently, so there is no interior-padding
+ * concern; we simply concatenate the decoded byte chunks.
  *
- * @param {any} readerRef
+ * @param {unknown} blobRef A remotable exposing `streamBase64`.
  * @returns {Promise<Uint8Array>}
  */
-const drainBase64 = async readerRef => {
-  /** @type {string[]} */
-  const encodedChunks = [];
-  let result = await E(readerRef).next();
-  while (!result.done) {
-    encodedChunks.push(result.value);
-    result = await E(readerRef).next();
+const drainBytes = async blobRef => {
+  /** @type {Uint8Array[]} */
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of iterateBytesReader(
+    /** @type {any} */ (blobRef),
+  )) {
+    chunks.push(chunk);
+    total += chunk.length;
   }
-  return decodeBase64(encodedChunks.join(''));
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return bytes;
 };
-harden(drainBase64);
+harden(drainBytes);
 
 /**
  * Recursively walk a readable tree (local or remote), accumulating
@@ -80,15 +83,15 @@ const walkTree = async (node, pathSegments, writer, entryOptions) => {
     }
     return;
   }
-  // Leaf blob: drain the base64 stream and write the entry. Use the
+  // Leaf blob: drain the base64 reader and write the entry. Use the
   // async `set()` because the configured compressor (`deflate`,
   // when injected) is itself async; the legacy sync `write()` only
-  // works for STORE.
+  // works for STORE. `node` IS the reader — `iterateBytesReader`
+  // initiates the stream by calling its `streamBase64` method.
   if (pathSegments.length === 0) {
     throw new Error('zip: cannot serialize a bare blob without a path');
   }
-  const readerRef = await E(/** @type {any} */ (node)).streamBase64();
-  const bytes = await drainBase64(readerRef);
+  const bytes = await drainBytes(node);
   await writer.set(pathSegments.join('/'), bytes, entryOptions);
 };
 harden(walkTree);

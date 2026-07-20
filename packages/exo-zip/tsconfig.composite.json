@@ -6,7 +6,7 @@
   },
   "references": [
     {
-      "path": "../base64/tsconfig.composite.json"
+      "path": "../exo-stream/tsconfig.composite.json"
     },
     {
       "path": "../far/tsconfig.composite.json"

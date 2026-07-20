@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import url from 'node:url';
 import { ZipWriter } from '@endo/zip/writer.js';
 import { ZipReader } from '@endo/zip/reader.js';
-import { decodeBase64, encodeBase64 } from '@endo/base64';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 
 import { unzip } from '../index.js';
 
@@ -28,30 +28,30 @@ const zipOf = entries => {
 };
 
 /**
- * Drain a chunked base64 stream into the underlying bytes.
+ * Drain a blob's `streamBase64` reader into the underlying bytes via
+ * the platform's syn/ack reader-pump protocol. `iterateBytesReader`
+ * initiates the stream (calling `streamBase64(synHead)`) and yields
+ * each ack chunk base64-DECODED to a `Uint8Array`; we concatenate the
+ * decoded byte chunks. Matches `@endo/exo-zip`'s `drainBytes`.
  *
- * The blob producer guarantees that every chunk except possibly the
- * last has a length divisible by 4 (i.e. encodes a raw-byte slice
- * whose length is a multiple of 3), so the concatenation of the
- * yielded strings is itself a valid base64 string and decodes in a
- * single pass. A naive per-chunk decode would also work for that
- * particular chunking, but accumulating the encoded strings first
- * exercises the contract documented for `ReadableBlobInterface`
- * consumers and matches `@endo/exo-zip`'s `drainBase64`.
- *
- * @param {any} readerRef
+ * @param {any} blob A blob exo exposing `streamBase64`.
  * @returns {Promise<Uint8Array>}
  */
-const drainBase64 = async readerRef => {
-  /** @type {string[]} */
-  const encodedChunks = [];
-  let result = await readerRef.next();
-  while (!result.done) {
-    encodedChunks.push(result.value);
-    // eslint-disable-next-line no-await-in-loop
-    result = await readerRef.next();
+const drainBytes = async blob => {
+  /** @type {Uint8Array[]} */
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of iterateBytesReader(blob)) {
+    chunks.push(chunk);
+    total += chunk.length;
   }
-  return decodeBase64(encodedChunks.join(''));
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return bytes;
 };
 
 test('round-trip: list and lookup match the input shape', async t => {
@@ -90,16 +90,15 @@ test('streamBase64 decodes to original bytes', async t => {
   const bytes = zipOf({ 'binary.dat': original });
   const tree = unzip(bytes);
   const blob = await tree.lookup('binary.dat');
-  const stream = /** @type {any} */ (blob).streamBase64();
-  const round = await drainBase64(stream);
+  const round = await drainBytes(/** @type {any} */ (blob));
   t.deepEqual([...round], [...original]);
 });
 
-test('streamBase64 chunks at 3-byte raw boundaries (no mid-stream padding)', async t => {
-  // The producer chunks at 48 KiB raw -> 64 KiB encoded boundaries.
-  // Construct a payload that crosses two such boundaries and is itself
-  // not a multiple of 3 bytes, so the natural concern (mid-stream `=`
-  // padding ruining the concatenation) is exercised end-to-end.
+test('streamBase64 streams multiple chunks that reconstruct the bytes exactly', async t => {
+  // The producer chunks at 48 KiB raw boundaries to keep CapTP frames
+  // small. Construct a payload that crosses two such boundaries and is
+  // itself not a multiple of 3 bytes, so the multi-chunk streaming path
+  // and the per-chunk byte decode are exercised end-to-end.
   // 48 KiB = 49152 bytes. Use 100_000 so we get [49152, 49152, 1696].
   const total = 100_000;
   const original = new Uint8Array(total);
@@ -111,116 +110,31 @@ test('streamBase64 chunks at 3-byte raw boundaries (no mid-stream padding)', asy
   const tree = unzip(bytes);
   const blob = await tree.lookup('big.bin');
 
-  // Drain the stream, capturing the chunk shape so the test fails loudly
-  // if the producer ever yields a non-3-byte-aligned non-final chunk.
-  const stream = /** @type {any} */ (blob).streamBase64();
-  /** @type {string[]} */
+  // Drain via the platform byte reader, capturing the decoded chunk
+  // shape so the test fails loudly if the producer stops streaming in
+  // multiple chunks. Each ack chunk is decoded to bytes independently,
+  // so the historical base64 mid-stream-padding concern is subsumed by
+  // per-chunk decode; the verifiable intent preserved here is
+  // multi-chunk streaming plus byte-exact reconstruction.
+  /** @type {Uint8Array[]} */
   const seen = [];
-  let result = await stream.next();
-  while (!result.done) {
-    seen.push(result.value);
-    // eslint-disable-next-line no-await-in-loop
-    result = await stream.next();
+  let recovered = 0;
+  for await (const chunk of iterateBytesReader(/** @type {any} */ (blob))) {
+    seen.push(chunk);
+    recovered += chunk.length;
   }
   t.true(
     seen.length >= 2,
     `expected multi-chunk stream for ${total}-byte payload, got ${seen.length}`,
   );
-  for (let i = 0; i < seen.length - 1; i += 1) {
-    t.is(
-      seen[i].length % 4,
-      0,
-      `non-final chunk ${i} length ${seen[i].length} not divisible by 4`,
-    );
-    t.false(seen[i].includes('='), `non-final chunk ${i} contains '=' padding`);
+
+  const round = new Uint8Array(recovered);
+  let offset = 0;
+  for (const chunk of seen) {
+    round.set(chunk, offset);
+    offset += chunk.length;
   }
-
-  // Concatenate-then-decode (the documented contract) round-trips.
-  const round = decodeBase64(seen.join(''));
   t.deepEqual([...round], [...original]);
-});
-
-test('drainBase64 handles a synthetic multi-chunk stream split mid-payload', async t => {
-  // Synthesize a producer that splits a 7-byte payload as [3, 4],
-  // i.e. encoded as ["AAEC", "AwQFBg=="]. The first chunk is 4 chars
-  // with no padding (3 bytes is a complete base64 group); the second
-  // chunk is 4 bytes (1 complete group + 1 trailing byte, encoded as
-  // 4 + 4 chars with `==` padding on the trailing partial group). The
-  // accumulate-then-decode strategy decodes the concatenation
-  // "AAECAwQFBg==" (12 chars) in a single call and recovers all 7
-  // original bytes.
-  //
-  // A naive per-chunk decode would also handle this particular shape
-  // because each chunk happens to be a self-contained valid base64
-  // string. The point of this test is to pin the contract documented
-  // for `ReadableBlobInterface` consumers: the producer guarantees
-  // every non-final chunk is unpadded, and the consumer joins encoded
-  // strings before decoding. If the producer ever yielded a non-aligned
-  // first chunk (e.g. encoded a 4-byte slice as `AwQFBg==`), the same
-  // accumulate-then-decode call would surface the violation immediately
-  // by failing to round-trip.
-  const original = new Uint8Array([0, 1, 2, 3, 4, 5, 6]);
-  const encodedChunks = [
-    encodeBase64(original.subarray(0, 3)),
-    encodeBase64(original.subarray(3, 7)),
-  ];
-  t.is(encodedChunks[0], 'AAEC');
-  t.is(encodedChunks[1], 'AwQFBg==');
-  // The intermediate chunk has no padding; only the final chunk does.
-  t.is(encodedChunks[0].length % 4, 0);
-  t.false(encodedChunks[0].includes('='));
-
-  let i = 0;
-  const fakeReader = {
-    next: async () => {
-      if (i >= encodedChunks.length) {
-        return harden({ done: true, value: undefined });
-      }
-      const value = encodedChunks[i];
-      i += 1;
-      return harden({ done: false, value });
-    },
-  };
-  const round = await drainBase64(fakeReader);
-  t.deepEqual([...round], [...original]);
-});
-
-test('drainBase64 fails loudly on an unaligned multi-chunk stream', async t => {
-  // Companion to the previous test: a producer that violates the
-  // alignment contract by yielding a non-final chunk that ENDS with `=`
-  // padding produces a composite base64 string with padding in the
-  // middle, which `decodeBase64` rejects (or in some implementations
-  // silently misaligns the trailing bytes). Either way the caller sees
-  // a failure rather than silently corrupted bytes.
-  //
-  // Encode a 7-byte payload as [4, 3]: the first 4-byte slice picks up
-  // `==` padding, the second 3-byte slice has none. Concatenating the
-  // two ("AwQFBg==" + "AAEC") gives "AwQFBg==AAEC", which `atob`
-  // rejects because of the embedded `=`.
-  //
-  // This test pins the desired failure mode: a misbehaving producer
-  // must not be able to silently corrupt the decoded bytes.
-  const original = new Uint8Array([3, 4, 5, 6, 0, 1, 2]);
-  const misalignedChunks = [
-    encodeBase64(original.subarray(0, 4)),
-    encodeBase64(original.subarray(4, 7)),
-  ];
-  t.is(misalignedChunks[0], 'AwQFBg==');
-  t.is(misalignedChunks[1], 'AAEC');
-  t.true(misalignedChunks[0].includes('='));
-
-  let i = 0;
-  const fakeReader = {
-    next: async () => {
-      if (i >= misalignedChunks.length) {
-        return harden({ done: true, value: undefined });
-      }
-      const value = misalignedChunks[i];
-      i += 1;
-      return harden({ done: false, value });
-    },
-  };
-  await t.throwsAsync(() => drainBase64(fakeReader));
 });
 
 test('text() decodes UTF-8 content', async t => {
@@ -586,8 +500,7 @@ test('round-trip via ZipWriter walker recovers the original entries', async t =>
         await walk(child, [...path, name]);
       }
     } else {
-      const stream = node.streamBase64();
-      const blobBytes = await drainBase64(stream);
+      const blobBytes = await drainBytes(node);
       writer.write(path.join('/'), blobBytes);
     }
   };

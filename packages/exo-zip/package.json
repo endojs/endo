@@ -37,7 +37,7 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/base64": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/zip": "workspace:^"

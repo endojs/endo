@@ -4,8 +4,8 @@
 
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
-import { Far } from '@endo/far';
 import { encodeBase64 } from '@endo/base64';
+import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 import { ZipReader } from '@endo/zip/reader.js';
 import { inflate } from '@endo/zip/inflate.js';
 import {
@@ -18,43 +18,6 @@ import {
 } from '@endo/platform/fs/lite';
 import { bytesToText } from '@endo/bytes/to-string.js';
 import { Fail } from '@endo/errors';
-
-/**
- * Wrap an async iterator (or iterable) as a hardened, CapTP-passable
- * remotable exposing `next`/`return`/`throw`, so a `streamBase64`
- * consumer can drain it over an eventual-send boundary via
- * `E(ref).next()`. Mirrors `@endo/daemon`'s `makeIteratorRef`
- * (referenced by the shared `@endo/platform` fs design), reproduced
- * locally because this workspace does not depend on `@endo/daemon`.
- *
- * @param {AsyncIterator<unknown> | AsyncIterable<unknown>} iterable
- */
-const makeIteratorRef = iterable => {
-  const iterator =
-    Symbol.asyncIterator in iterable
-      ? /** @type {AsyncIterable<unknown>} */ (iterable)[Symbol.asyncIterator]()
-      : /** @type {AsyncIterator<unknown>} */ (iterable);
-  return Far('AsyncIterator', {
-    async next() {
-      return iterator.next();
-    },
-    /** @param {unknown} [value] */
-    async return(value) {
-      if (iterator.return !== undefined) {
-        return iterator.return(value);
-      }
-      return harden({ value, done: true });
-    },
-    /** @param {unknown} [error] */
-    async throw(error) {
-      if (iterator.throw !== undefined) {
-        return iterator.throw(error);
-      }
-      return harden({ value: undefined, done: true });
-    },
-  });
-};
-harden(makeIteratorRef);
 
 // `@endo/zip/inflate.js` is implemented atop `DecompressionStream`,
 // which is available in every host the project targets (Node 18+,
@@ -159,10 +122,9 @@ harden(buildTree);
 
 /**
  * Maximum raw byte count per yielded base64 chunk. A multiple of 3 so
- * each non-final encoded chunk lands on a base64 4-character group
- * boundary and carries no `=` padding; only the final chunk may be
- * padded. This invariant lets a consumer concatenate the yielded
- * strings and decode the result in a single `decodeBase64` call.
+ * each yielded chunk encodes a whole number of base64 4-character
+ * groups and carries no interior `=` padding — each chunk is a
+ * self-contained, independently decodable base64 string.
  *
  * 48 KiB raw -> 64 KiB base64 keeps a single chunk well within typical
  * CapTP frame budgets while amortising the per-yield overhead.
@@ -172,15 +134,12 @@ const BASE64_CHUNK_RAW_BYTES = 48 * 1024;
 /**
  * Yield base64-encoded chunks for the given bytes via an async iterator.
  *
- * Contract: every chunk except possibly the last has a length divisible
- * by 4 (i.e. encodes a raw-byte slice whose length is a multiple of 3).
- * Only the final chunk may carry `=` padding. This means a consumer can
- * accumulate the yielded strings and decode the concatenation in a
- * single `decodeBase64(chunks.join(''))` call. Decoding each chunk
- * independently and concatenating the resulting bytes happens to work
- * here too, but the encoded-string-concat strategy is cheaper (one
- * decoder pass) and matches the contract documented for downstream
- * consumers.
+ * Each yielded chunk is the independent base64 encoding of a
+ * `BASE64_CHUNK_RAW_BYTES`-sized raw-byte slice, so it stands alone:
+ * the syn/ack reader-pump protocol (`@endo/exo-stream`) carries each
+ * ack chunk across CapTP and the consumer (`iterateBytesReader`)
+ * decodes each one to a `Uint8Array` independently — no concatenation
+ * of encoded strings and no interior-padding concern.
  *
  * Chunking at `BASE64_CHUNK_RAW_BYTES` (48 KiB raw, ~64 KiB encoded)
  * keeps individual frames small enough for CapTP without amplifying
@@ -188,9 +147,8 @@ const BASE64_CHUNK_RAW_BYTES = 48 * 1024;
  *
  * Accepts either a `Uint8Array` or a `Promise<Uint8Array>` so the
  * caller can defer (potentially async) decompression to the moment
- * the consumer asks for the first chunk; the `streamBase64()` exo
- * method must return a remotable iterator synchronously per its
- * `M.remotable()` guard, but the iterator body itself is async.
+ * the consumer asks for the first chunk; the reader pump awaits the
+ * promise inside the async iterator body when the consumer pulls.
  *
  * @param {Uint8Array | Promise<Uint8Array>} bytesOrPromise
  */
@@ -215,11 +173,17 @@ const makeUnzipBlob = (zipReader, fullPath) => {
   // path runs the configured `inflate` (DEFLATE) once per call.
   // STORE entries skip inflate entirely.
   return makeExo('UnzipBlob', ReadableBlobInterface, {
-    streamBase64: () => {
-      // `get` returns a Promise; pass it to the async iterator and
-      // await inside so `streamBase64` can return its remotable
-      // iterator synchronously per the `M.remotable()` guard.
-      return makeIteratorRef(base64Chunks(zipReader.get(fullPath)));
+    /** @param {unknown} synHead The initiator's syn-chain head. */
+    streamBase64: synHead => {
+      // Conform to the platform's syn/ack reader-pump protocol
+      // (`ReadableBlobInterface.streamBase64: M.call(M.any()).returns
+      // (M.promise())`), mirroring `@endo/platform`'s `local-blob`.
+      // A fresh pump per call keeps the blob re-streamable; `get`
+      // returns a Promise the async iterator awaits lazily on the
+      // first pull. `base64Chunks` yields base64 strings, which are
+      // exactly the ack values `iterateBytesReader` decodes to bytes.
+      const pump = makeReaderPump(base64Chunks(zipReader.get(fullPath)));
+      return pump(/** @type {any} */ (synHead));
     },
     text: async () => {
       const bytes = await zipReader.get(fullPath);
