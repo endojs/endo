@@ -220,7 +220,12 @@ const makeUnzipTree = (zipReader, node, archiveName) => {
     throw Fail`makeUnzipTree called on a leaf node`;
   }
 
-  /** @type {ReadableTree} */
+  // `ReadableTree` (the platform's read contract) does not itself
+  // declare the conventional `help` method, but `ReadableTreeInterface`
+  // guards it (`help: HelpMethod`), so widen the annotation to include
+  // it — matching the guard while keeping the body type-checked against
+  // `ReadableTree`.
+  /** @type {ReadableTree & { help: (method?: string) => string }} */
   const methods = {
     has: async (...names) => {
       assertSafePathSegments(names, archiveName);
@@ -360,7 +365,15 @@ const makeUnzipTree = (zipReader, node, archiveName) => {
         : `No documentation for method ${method}.`,
   };
 
-  return makeExo('UnzipTree', ReadableTreeInterface, methods);
+  // `ReadableTree` declares `listTree` optional, so the guarded-method
+  // overload rejects the annotated `methods` object (its `listTree` type
+  // still admits `undefined`); cast at the call site, mirroring
+  // `@endo/platform`'s `makeLocalTree`.
+  return makeExo(
+    'UnzipTree',
+    ReadableTreeInterface,
+    /** @type {any} */ (methods),
+  );
 };
 harden(makeUnzipTree);
 

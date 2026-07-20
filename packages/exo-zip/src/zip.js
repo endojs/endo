@@ -40,9 +40,7 @@ const drainBytes = async blobRef => {
   /** @type {Uint8Array[]} */
   const chunks = [];
   let total = 0;
-  for await (const chunk of iterateBytesReader(
-    /** @type {any} */ (blobRef),
-  )) {
+  for await (const chunk of iterateBytesReader(/** @type {any} */ (blobRef))) {
     chunks.push(chunk);
     total += chunk.length;
   }
