@@ -197,10 +197,6 @@ const BASE64_CHUNK_RAW_BYTES = 48 * 1024;
 async function* base64Chunks(bytesOrPromise) {
   const bytes = await bytesOrPromise;
   const total = bytes.length;
-  if (total === 0) {
-    yield '';
-    return;
-  }
   for (let offset = 0; offset < total; offset += BASE64_CHUNK_RAW_BYTES) {
     const end = Math.min(offset + BASE64_CHUNK_RAW_BYTES, total);
     yield encodeBase64(bytes.subarray(offset, end));
