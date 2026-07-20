@@ -97,6 +97,8 @@ import { Fail, q } from '@endo/errors';
 
 /**
  * @typedef {object} SiestaStore
+ * @property {() => any} getHubState the OCapN hub's persisted tables
+ * @property {(state: any) => void} setHubState
  * @property {() => Array<string>} listWorkerIds
  * @property {(workerId: string) => WorkerStore} provideWorkerStore
  * @property {(workerId: string) => void} deleteWorker removes the
@@ -360,6 +362,12 @@ export const makeFsStore = statePath => {
       assertWorkerId(workerId);
       rmSync(join(workersPath, workerId), { recursive: true, force: true });
     },
+    getHubState: () => readJsonMaybe(join(statePath, 'hub.json')),
+    setHubState: state =>
+      writeFileAtomic(
+        join(statePath, 'hub.json'),
+        `${JSON.stringify(state)}\n`,
+      ),
     getPublications: () => readJsonMaybe(publicationsPath) ?? {},
     setPublication: (secret, record) => {
       const publications = readJsonMaybe(publicationsPath) ?? {};
@@ -402,6 +410,8 @@ export const makeMemoryStore = () => {
   const workers = new Map();
   /** @type {Record<string, PublicationRecord>} */
   const publications = {};
+  /** @type {any} */
+  let hubState;
 
   /** @param {string} workerId */
   const provideWorkerStore = workerId => {
@@ -473,6 +483,10 @@ export const makeMemoryStore = () => {
     provideWorkerStore,
     deleteWorker: workerId => {
       workers.delete(workerId);
+    },
+    getHubState: () => hubState,
+    setHubState: state => {
+      hubState = JSON.parse(JSON.stringify(state));
     },
     getPublications: () => ({ ...publications }),
     setPublication: (secret, record) => {

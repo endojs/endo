@@ -49,26 +49,41 @@ import { derivePipeResumption } from './pipe-network.js';
  * naturally drains the deliveries queued before it, and deliveries
  * queued after it reopen the worker from the snapshot it just took.
  *
+ * Two host-side integration modes:
+ * - client mode (`handlers` + `codec`): the session registers with an
+ *   OCapN client through the resumeSession seam (the transitional
+ *   client-based daemon);
+ * - hub mode (`onFrame`): worker→host frames flow to the callback and
+ *   host→hub frames enter through `write` — the OCapN hub owns
+ *   routing, and the transport is purely the durability envelope.
+ *
  * @param {object} options
  * @param {string} options.workerId
  * @param {WorkerStore} options.store
  * @param {WorkerEngine} options.engine
- * @param {any} options.handlers the daemon OCapN client's netlayer
- *   handlers (captured by its network factory)
- * @param {any} options.codec
+ * @param {any} [options.handlers] the daemon OCapN client's netlayer
+ *   handlers (client mode)
+ * @param {any} [options.codec] (client mode)
+ * @param {(bytes: Uint8Array) => void} [options.onFrame] worker→host
+ *   frames (hub mode)
  * @param {string} [options.debugLabel]
  */
 export const makeDurableWorkerTransport = ({
   workerId,
   store,
   engine,
-  handlers,
-  codec,
+  handlers = undefined,
+  codec = undefined,
+  onFrame = undefined,
   debugLabel = undefined,
 }) => {
-  typeof handlers.resumeSession === 'function' ||
-    Fail`durable worker transport requires the resumeSession netlayer seam`;
-  const resumption = derivePipeResumption({ codec, workerId, role: 'host' });
+  onFrame !== undefined ||
+    typeof handlers?.resumeSession === 'function' ||
+    Fail`durable worker transport requires onFrame or the resumeSession netlayer seam`;
+  const resumption =
+    onFrame === undefined
+      ? derivePipeResumption({ codec, workerId, role: 'host' })
+      : undefined;
   const debugName = `${debugLabel ?? 'worker'}(${workerId.slice(0, 8)})`;
 
   let destroyed = false;
@@ -126,7 +141,12 @@ export const makeDurableWorkerTransport = ({
     // into the (non-replayable) host session state twice.
     store.setMeta({ ...meta, outboundSinceSnapshot: seenOutbound + 1 });
     seenOutbound += 1;
-    handlers.handleMessageData(connection, decodeBase64(envelope.b64));
+    const frame = decodeBase64(envelope.b64);
+    if (onFrame !== undefined) {
+      onFrame(frame);
+    } else {
+      handlers.handleMessageData(connection, frame);
+    }
   };
 
   /** Chain-context only: start an incarnation if none is running. */
@@ -166,7 +186,7 @@ export const makeDurableWorkerTransport = ({
 
   connection = harden({
     // Never consulted on the resumeSession path; present for shape.
-    netlayer: harden({ location: resumption.peerLocation }),
+    netlayer: harden({ location: resumption?.peerLocation }),
     isOutgoing: true,
     get isDestroyed() {
       return destroyed;
@@ -213,7 +233,7 @@ export const makeDurableWorkerTransport = ({
   return harden({
     workerId,
     debugLabel,
-    peerLocation: resumption.peerLocation,
+    peerLocation: resumption?.peerLocation,
     /**
      * The session's connection object, the key under which the OCapN
      * client attributes this session's traffic — embedder glue (e.g.
@@ -227,11 +247,15 @@ export const makeDurableWorkerTransport = ({
      * exports recorded in a session record.
      */
     establish: () => {
+      resumption !== undefined ||
+        Fail`worker ${q(debugName)} transport is in hub mode`;
       resumed === undefined ||
         Fail`worker ${q(debugName)} session already established`;
       resumed = handlers.resumeSession(connection, resumption);
       return resumed;
     },
+    /** Hub mode: one host→worker OCapN frame. */
+    write: (/** @type {Uint8Array} */ bytes) => connection.write(bytes),
     isAwake: () => incarnation !== undefined,
     wake: async () => {
       await enqueue(ensureAwake);
@@ -306,10 +330,12 @@ export const makeDurableWorkerTransport = ({
           await engine.releaseSnapshot(ref);
         }
       });
-      handlers.handleConnectionClose(
-        connection,
-        Error(`worker ${debugName} has been retired`),
-      );
+      if (handlers !== undefined) {
+        handlers.handleConnectionClose(
+          connection,
+          Error(`worker ${debugName} has been retired`),
+        );
+      }
     },
   });
 };

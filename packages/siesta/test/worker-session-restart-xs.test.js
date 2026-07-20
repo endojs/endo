@@ -181,21 +181,21 @@ testXs('XS worker sessions survive a daemon restart', async t => {
     t.teardown(() => d2.shutdown());
     t.false(d2.getWorker(idB).isAwake(), 'restore woke no worker');
 
-    const greeter = /** @type {any} */ (d2.locator.get('greeter-cap'));
+    const greeter = await d2.lookup('greeter-cap');
     t.is(
       await E(greeter).greet('again'),
       'HELLO AGAIN',
       'the resource endowment restored into the XS heap',
     );
 
-    const watcher = /** @type {any} */ (d2.locator.get('watcher-cap'));
+    const watcher = await d2.lookup('watcher-cap');
     t.is(
       await E(watcher).pull(),
       2,
       'the cross-worker link survived the restart on real snapshots',
     );
 
-    const gifter = /** @type {any} */ (d2.locator.get('gifter-cap'));
+    const gifter = await d2.lookup('gifter-cap');
     t.is(await E(gifter).release('gifted'), 'released');
     /** @type {any} */
     let got = null;

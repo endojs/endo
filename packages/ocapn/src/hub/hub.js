@@ -103,6 +103,8 @@ export const makeOcapnHub = ({
    *   origin: string,
    *   position: string,
    *   flavor: 'object' | 'promise',
+   *   resolver: boolean,
+   *   dead: boolean,
    *   mentionsIn: number,
    *   facing: Map<string, string>,
    *   refcounts: Map<string, number>,
@@ -145,6 +147,8 @@ export const makeOcapnHub = ({
         origin: row.origin,
         position: row.position,
         flavor: row.flavor,
+        resolver: row.resolver,
+        dead: row.dead,
         mentionsIn: row.mentionsIn,
         refcounts: Object.fromEntries(row.refcounts),
       };
@@ -193,6 +197,8 @@ export const makeOcapnHub = ({
         origin: r.origin,
         position: r.position,
         flavor: r.flavor,
+        resolver: Boolean(r.resolver),
+        dead: Boolean(r.dead),
         mentionsIn: r.mentionsIn,
         facing: new Map(),
         refcounts: new Map(
@@ -228,7 +234,7 @@ export const makeOcapnHub = ({
    * @param {bigint} position
    * @param {'object' | 'promise'} flavor
    */
-  const provideRef = (origin, position, flavor) => {
+  const provideRef = (origin, position, flavor, { resolver = false } = {}) => {
     const refId = `${origin}:${position}`;
     let row = refs.get(refId);
     if (row === undefined) {
@@ -237,11 +243,17 @@ export const makeOcapnHub = ({
         origin,
         position: String(position),
         flavor,
+        resolver,
+        dead: false,
         mentionsIn: 0,
         facing: new Map(),
         refcounts: new Map(),
       };
       refs.set(refId, row);
+      dirty = true;
+    } else if (row.resolver && !resolver) {
+      // Re-introduced as an ordinary reference: it retains after all.
+      row.resolver = false;
       dirty = true;
     }
     return row;
@@ -347,7 +359,12 @@ export const makeOcapnHub = ({
       provideRemoteResolverValue: position =>
         makeToken({
           kind: 'ref',
-          refId: provideRef(sessionKey, position, 'object').refId,
+          // Resolver rows are one-shot protocol plumbing: they route
+          // like any reference but do not retain their origin for
+          // vat-level GC (`inspect` omits them).
+          refId: provideRef(sessionKey, position, 'object', {
+            resolver: true,
+          }).refId,
           introduced: true,
         }),
       provideHandoff: () => {
@@ -482,12 +499,50 @@ export const makeOcapnHub = ({
    */
   const sendMessage = (sessionKey, message) => {
     const session = provideSessionState(sessionKey);
+    if (!session.attached) {
+      // A detached or retired destination: drop, loudly. Deliveries
+      // to retired references break at the routing layer instead.
+      logError(`dropping message toward detached session ${sessionKey}`);
+      persist();
+      return;
+    }
     const { writeOcapnMessage } = provideCodecKit(sessionKey);
     const bytes = writeOcapnMessage(message);
     // Tables before wire: the rows any allocation created must be
     // durable before the frame that names them exists anywhere.
     persist();
     session.send(bytes);
+  };
+
+  /**
+   * Synthesize a rejection toward a session's resolver: the loud end
+   * of a message routed at something retired.
+   *
+   * @param {string} sessionKey
+   * @param {any} message the original op:deliver/op:listen
+   * @param {string} reason
+   */
+  const breakToSender = (sessionKey, message, reason) => {
+    const session = provideSessionState(sessionKey);
+    if (
+      message.answerPosition !== undefined &&
+      message.answerPosition !== false
+    ) {
+      session.answersOwed.set(String(message.answerPosition), { local: null });
+      dirty = true;
+    }
+    const { resolveMeDesc } = message;
+    if (resolveMeDesc !== undefined && resolveMeDesc !== false) {
+      sendMessage(sessionKey, {
+        type: 'op:deliver',
+        to: resolveMeDesc,
+        args: [makeSelector('break'), harden(Error(reason))],
+        answerPosition: false,
+        resolveMeDesc: false,
+      });
+    } else {
+      persist();
+    }
   };
 
   // --- the hub's one piece of endpoint behavior: bootstrap fetch ---
@@ -586,6 +641,15 @@ export const makeOcapnHub = ({
           handleBootstrapDeliver(sessionKey, message);
           return;
         }
+        const targetInfo = infoOf(message.to);
+        if (targetInfo.kind === 'ref' && refs.get(targetInfo.refId)?.dead) {
+          breakToSender(
+            sessionKey,
+            message,
+            'ocapn hub: the target session has been retired',
+          );
+          return;
+        }
         let { answerPosition } = message;
         if (answerPosition !== false) {
           const destinationState = provideSessionState(destination);
@@ -625,6 +689,15 @@ export const makeOcapnHub = ({
         const destination = routeOf(sessionKey, message.to);
         if (destination === undefined) {
           throw Error('ocapn hub: cannot listen on the hub bootstrap');
+        }
+        const targetInfo = infoOf(message.to);
+        if (targetInfo.kind === 'ref' && refs.get(targetInfo.refId)?.dead) {
+          breakToSender(
+            sessionKey,
+            message,
+            'ocapn hub: the target session has been retired',
+          );
+          return;
         }
         sendMessage(destination, message);
         return;
@@ -750,6 +823,81 @@ export const makeOcapnHub = ({
       dirty = true;
       persist();
     },
+    /**
+     * Introduce a reference into a session out of band: allocate (or
+     * find) the hub's export position toward `to` for the reference
+     * `(session, position)`, as if it had been mentioned in a
+     * forwarded message. The embedder's endpoint uses this to reach
+     * worker bootstraps without rooting them in the publications
+     * table.
+     *
+     * @param {string} to
+     * @param {{ session: string, position: bigint, flavor?: 'object' | 'promise' }} at
+     * @returns {bigint} the hub's export position toward `to`
+     */
+    introduce: (to, { session, position, flavor = 'object' }) => {
+      const row = provideRef(session, position, flavor);
+      const token = makeToken({ kind: 'ref', refId: row.refId });
+      const facing = provideFacingPosition(to, token);
+      persist();
+      return facing;
+    },
+    /**
+     * Publish the reference a session HOLDS at one of the hub's export
+     * positions toward it — the natural form for an embedder endpoint
+     * that knows its own import positions.
+     *
+     * @param {string | Uint8Array} swissnum
+     * @param {{ session: string, position: bigint }} at
+     */
+    publishHeld: (swissnum, { session, position }) => {
+      const sessionState = provideSessionState(session);
+      const refId = sessionState.ourExports.get(String(position));
+      if (refId === undefined) {
+        throw Error(
+          `ocapn hub: session ${session} holds nothing at ${position}`,
+        );
+      }
+      const key =
+        typeof swissnum === 'string'
+          ? hexFromBytes(new TextEncoder().encode(swissnum))
+          : hexFromBytes(swissnum);
+      publications.set(key, refId);
+      dirty = true;
+      persist();
+    },
+    /**
+     * Permanently drop a session and every row rooted in it: its
+     * origin references (other sessions' calls on them will dangle
+     * loudly), the hub's exports toward it, its answer routes, and any
+     * publications of its objects.
+     *
+     * @param {string} sessionKey
+     */
+    retireSession: sessionKey => {
+      const session = sessions.get(sessionKey);
+      if (session !== undefined) {
+        session.attached = false;
+      }
+      for (const [swissnum, refId] of [...publications.entries()]) {
+        const row = refs.get(refId);
+        if (row !== undefined && row.origin === sessionKey) {
+          publications.delete(swissnum);
+        }
+      }
+      // Tombstone, don't delete: holders' positions must keep
+      // resolving so their calls break loudly instead of jamming.
+      for (const row of refs.values()) {
+        if (row.origin === sessionKey) {
+          row.dead = true;
+        } else {
+          row.facing.delete(sessionKey);
+          row.refcounts.delete(sessionKey);
+        }
+      }
+      dirty = true;
+      persist();
+    },
     /** @param {string | Uint8Array} swissnum */
     unpublish: swissnum => {
       const key =
@@ -781,10 +929,12 @@ export const makeOcapnHub = ({
               .filter(origin => origin !== undefined),
           ),
         ],
-        holdings: [...refs.values()].map(row => ({
-          origin: row.origin,
-          holders: [...row.facing.keys()],
-        })),
+        holdings: [...refs.values()]
+          .filter(row => !row.resolver)
+          .map(row => ({
+            origin: row.origin,
+            holders: [...row.facing.keys()],
+          })),
       }),
   });
 };

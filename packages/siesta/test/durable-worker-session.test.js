@@ -91,7 +91,9 @@ test('a worker session sleeps and wakes by journal replay', async t => {
   transport.establish();
   t.false(transport.isAwake(), 'establishment alone does not wake the worker');
 
-  const session = await client.provideSession(transport.peerLocation);
+  const session = await client.provideSession(
+    /** @type {any} */ (transport.peerLocation),
+  );
   const shell = await E(session.getBootstrap()).fetch(SHELL_SWISSNUM);
   t.true(transport.isAwake(), 'the first delivery woke the worker');
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
@@ -125,7 +127,9 @@ test('a worker session survives snapshot, sleep, and crash', async t => {
   });
   transport.establish();
 
-  const session = await client.provideSession(transport.peerLocation);
+  const session = await client.provideSession(
+    /** @type {any} */ (transport.peerLocation),
+  );
   const shell = await E(session.getBootstrap()).fetch(SHELL_SWISSNUM);
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
@@ -194,7 +198,9 @@ test('a retired worker session breaks its imports', async t => {
   });
   transport.establish();
 
-  const session = await client.provideSession(transport.peerLocation);
+  const session = await client.provideSession(
+    /** @type {any} */ (transport.peerLocation),
+  );
   const shell = await E(session.getBootstrap()).fetch(SHELL_SWISSNUM);
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);

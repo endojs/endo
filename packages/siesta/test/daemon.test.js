@@ -95,7 +95,7 @@ test('workers create workers; vat GC sweeps the unreachable', async t => {
   t.deepEqual(daemon.listWorkerIds(), [childId]);
 
   t.is(
-    await E(/** @type {any} */ (daemon.locator.get('child-cap'))).incr(),
+    await E(await daemon.lookup('child-cap')).incr(),
     3,
     'the surviving vat still serves its publication',
   );
@@ -104,9 +104,11 @@ test('workers create workers; vat GC sweeps the unreachable', async t => {
   // its publications go together.
   await daemon.getWorker(/** @type {string} */ (childId)).retire();
   t.deepEqual(daemon.listWorkerIds(), []);
-  t.false(daemon.locator.has('child-cap'), 'the publication went with it');
+  await t.throwsAsync(() => daemon.lookup('child-cap'), {
+    message: /not found/,
+  });
   await t.throwsAsync(() => E(childCounter).incr(), {
-    message: /Session disconnected/,
+    message: /retired/,
   });
 });
 

@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { E } from '@endo/eventual-send';
+import { Far } from '@endo/far';
 import { makeOcapn } from '@endo/ocapn';
 import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
@@ -34,11 +35,12 @@ const COUNTER_SOURCE = `
  * @param {number} port 0 to pick a port; a restarted daemon must pin
  *   its predecessor's port so the peer's reconnect finds it
  */
-const makeDaemon = (statePath, port) =>
+const makeDaemon = (statePath, port, resources = {}) =>
   makeSiestaDaemon({
     store: makeFsStore(statePath),
     engine: makePeerJournalReplayEngine(),
     codec: syrupCodec,
+    resources,
     makeNetlayer: ({ handlers, logger, resumption }) =>
       makeDurableNetLayer({
         handlers,
@@ -97,7 +99,7 @@ test('live remote references survive a daemon restart', async t => {
   t.is(await E(remoteCounter).getCount(), 3, 'no call was lost or doubled');
 });
 
-test('a resumed session keeps its identity, including its keys', async t => {
+test('a resumed session continues without a handshake', async t => {
   const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-keys-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
 
@@ -118,24 +120,23 @@ test('a resumed session keeps its identity, including its keys', async t => {
   const [token] = store.listSessionTokens();
   const metaPath = join(statePath, 'sessions', token, 'meta.json');
   const before = JSON.parse(readFileSync(metaPath, 'utf8'));
-  t.regex(String(before.sessionId), /^[0-9a-f]{64}$/);
-  t.regex(String(before.selfPrivateKey), /^[0-9a-f]{64}$/);
+  t.true(before.established, 'the session recorded its frame watermarks');
+  t.true(Number(before.recvSeq) > 0);
 
   await daemon1.shutdown();
   const daemon2 = await makeDaemon(statePath, port);
   t.teardown(() => daemon2.shutdown());
-  t.is(await E(remoteCounter).incr(), 2);
-
-  // The resumed session re-recorded its identity: same session id,
-  // same session private key — not a lookalike with fresh keys.
-  const after = JSON.parse(readFileSync(metaPath, 'utf8'));
-  t.is(after.sessionId, before.sessionId, 'session id survives');
   t.is(
-    after.selfPrivateKey,
-    before.selfPrivateKey,
-    'the session keys survive, so pre-restart handoff signatures keep verifying',
+    await E(remoteCounter).incr(),
+    2,
+    'the resumed session continued: same hub rows, no new handshake',
   );
-  t.is(after.peerPublicKey, before.peerPublicKey);
+
+  const after = JSON.parse(readFileSync(metaPath, 'utf8'));
+  t.true(
+    Number(after.recvSeq) > Number(before.recvSeq),
+    'the successor advanced the same watermark record',
+  );
 });
 
 test('a promise resolution crosses a daemon restart', async t => {
@@ -200,42 +201,72 @@ test('a promise resolution crosses a daemon restart', async t => {
   );
 });
 
-test('an answer pending across a restart rejects instead of hanging', async t => {
+test('an answer a resource owes rejects after a restart', async t => {
   const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-ans-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
 
-  const daemon1 = await makeDaemon(statePath, 0);
+  // A host-resource answer is the one kind of pending obligation that
+  // genuinely dies with the daemon process: worker heaps replay their
+  // pending state, hub rows persist, but a resource promise lives in
+  // endpoint memory. The endpoint's records reject it at-most-once on
+  // restart, so the guest sees a rejection, never a hang.
+  const resources = {
+    gate: () =>
+      Far('Gate', {
+        wait: () => new Promise(() => {}),
+      }),
+  };
+
+  const daemon1 = await makeDaemon(statePath, 0, resources);
   const port = Number(daemon1.location.hints.port);
-  const worker = await daemon1.createWorker({ debugLabel: 'hanger' });
-  const hanger = await worker.evaluate(
-    `Far('Hanger', { hang: () => new Promise(() => {}), ping: () => 'pong' })`,
+  const worker = await daemon1.createWorker({ debugLabel: 'waiter' });
+  const gate = daemon1.makeResource('gate');
+  const waiter = await worker.evaluate(
+    `
+    (() => {
+      let failure = null;
+      E(gate)
+        .wait()
+        .catch(reason => {
+          failure = String((reason && reason.message) || reason);
+        });
+      return Far('Waiter', {
+        ping: () => 'pong',
+        getFailure: () => failure,
+      });
+    })()
+    `,
+    ['gate'],
+    [gate],
   );
-  const secret = daemon1.publish(hanger);
+  const secret = daemon1.publish(waiter);
 
   const client = await makeDurableClient('answer-client');
   t.teardown(() => client.shutdown());
-  const remoteHanger = await client.enlivenSturdyRef(
+  const remoteWaiter = await client.enlivenSturdyRef(
     client.makeSturdyRef(daemon1.location, secret),
   );
+  t.is(await E(remoteWaiter).ping(), 'pong');
+  t.is(await E(remoteWaiter).getFailure(), null, 'the wait is outstanding');
 
-  const hung = E(remoteHanger).hang();
-  hung.catch(() => {});
-  t.is(await E(remoteHanger).ping(), 'pong');
-
-  // Crash, not clean shutdown: a worker owing an answer is not
-  // quiescent, so a park would have to wait for it — but the journal
-  // already holds everything durable. Abandon the first daemon's
-  // live state exactly as a power failure would.
+  // Crash, not clean shutdown: the resource promise dies with the
+  // process; everything else is rows and heaps.
   await daemon1.crash();
-  const daemon2 = await makeDaemon(statePath, port);
+  const daemon2 = await makeDaemon(statePath, port, resources);
   t.teardown(() => daemon2.shutdown());
 
-  // The computation that owed the answer died with the first daemon:
-  // at-most-once means the client sees a rejection, never a hang.
-  t.is(await E(remoteHanger).ping(), 'pong', 'the session itself resumed');
-  await t.throwsAsync(() => hung, {
-    message: /pending answer aborted/,
-  });
+  t.is(await E(remoteWaiter).ping(), 'pong', 'the session itself resumed');
+  /** @type {any} */
+  let failure = null;
+  for (let i = 0; i < 1000 && failure === null; i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    failure = await E(remoteWaiter).getFailure();
+  }
+  t.regex(
+    String(failure),
+    /aborted/,
+    'the guest saw the at-most-once rejection, not a hang',
+  );
 });
 
 test('a call issued while the daemon is down completes after restart', async t => {

@@ -113,7 +113,9 @@ testXs('an XS worker session sleeps, wakes, and survives crashes', async t => {
   t.teardown(() => transport.retire());
   transport.establish();
 
-  const session = await client.provideSession(transport.peerLocation);
+  const session = await client.provideSession(
+    /** @type {any} */ (transport.peerLocation),
+  );
   const shell = await E(session.getBootstrap()).fetch(SHELL_SWISSNUM);
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);

@@ -2,17 +2,14 @@
 /* global setTimeout */
 
 /**
- * Worker sessions survive a daemon restart (protocol unification
- * phases 3b+4, on the unified daemon): the daemon's exports into each
- * worker (resources and cross-worker links), its listen forwarders,
- * and its publications re-seat in a successor process through the same
- * handshake-free establishment a fresh worker uses; the worker halves
- * live in their heap snapshots.
+ * Worker sessions survive a daemon restart on the hub daemon: the hub
+ * tables (c-lists, answer routes, publications) and the endpoint's
+ * resource records reload from the store; worker heaps restore from
+ * snapshots; nothing is re-seated because nothing was reified.
  *
  * Also the settlement acid test: a promise minted in worker A, held in
- * worker B, settles across the restart — with the daemon non-reifying
- * throughout (the subscription lives as a durable forwarder export in
- * A's session record, never as daemon memory).
+ * worker B, settles across the restart — the subscription is nothing
+ * but rows and a wire subscription in A's heap.
  */
 import test from '@endo/ses-ava/test.js';
 
@@ -150,27 +147,11 @@ test('worker sessions survive a daemon restart', async t => {
     d1.publish(watcher, 'watcher-cap');
     d1.publish(gifter, 'gifter-cap');
 
-    // The daemon is non-reifying: B's subscription to the gift lives
-    // as a forwarder export in the OWNER's (A's) session record, and
-    // no reified promise obligation was absorbed into daemon memory.
-    const recordA =
-      /** @type {any} */ (store.provideWorkerStore(idA).getTablesRecord()) ??
-      {};
-    t.true(
-      Object.values(recordA.exports ?? {}).some(
-        (/** @type {any} */ d) => d?.kind === 'listen-forwarder',
-      ),
-      'the gift subscription is a durable forwarder export in the owner session',
-    );
-    const recordB =
-      /** @type {any} */ (store.provideWorkerStore(idB).getTablesRecord()) ??
-      {};
-    t.false(
-      Object.values(recordB.pendingResolvers ?? {}).some(
-        (/** @type {any} */ r) => r.kind === 'promise',
-      ),
-      'no promise-flavored resolver obligation was recorded for the relayed gift',
-    );
+    // The daemon is non-reifying: the cross-worker references and the
+    // gift subscription exist only as hub c-list rows.
+    const hubState = store.getHubState();
+    t.truthy(hubState.sessions[idA], 'worker A has hub session rows');
+    t.truthy(hubState.sessions[idB], 'worker B has hub session rows');
 
     await workerA.sleep();
     await workerB.sleep();
@@ -190,14 +171,14 @@ test('worker sessions survive a daemon restart', async t => {
       'restoring records and obligations woke no worker',
     );
 
-    const greeter = /** @type {any} */ (d2.locator.get('greeter-cap'));
+    const greeter = await d2.lookup('greeter-cap');
     t.is(
       await E(greeter).greet('again'),
       'HELLO AGAIN',
       'the resource endowment was re-instantiated across the restart',
     );
 
-    const watcher = /** @type {any} */ (d2.locator.get('watcher-cap'));
+    const watcher = await d2.lookup('watcher-cap');
     t.is(
       await E(watcher).pull(),
       2,
@@ -206,9 +187,9 @@ test('worker sessions survive a daemon restart', async t => {
     t.is(await E(watcher).getGot(), null, 'the gift is still pending');
 
     // Settle the promise minted in A and held in B, across the
-    // restart: the restored forwarder in A's session delivers straight
-    // to B's resolver — the daemon never re-subscribed for itself.
-    const gifter = /** @type {any} */ (d2.locator.get('gifter-cap'));
+    // restart: A's heap still holds the wire subscription; the hub
+    // rows still route it; nobody re-subscribed anything.
+    const gifter = await d2.lookup('gifter-cap');
     t.is(await E(gifter).release('gifted'), 'released');
     /** @type {any} */
     let got = null;

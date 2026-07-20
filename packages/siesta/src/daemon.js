@@ -5,10 +5,16 @@ import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
 import { Fail, q } from '@endo/errors';
 import { E, Far } from '@endo/far';
 import { makeOcapn } from '@endo/ocapn';
+import { makeOcapnHub } from '@endo/ocapn/hub';
+import { makeCryptography, makeSessionId } from '@endo/ocapn/cryptography';
+import {
+  readOcapnHandshakeMessage,
+  writeOcapnHandshakeMessage,
+} from '@endo/ocapn/operations';
 
-import { makeDurableSessions } from './durable-sessions.js';
 import { makeDurableWorkerTransport } from './durable-worker-transport.js';
-import { assertWorkerId } from './store-fs.js';
+import { derivePipeResumption } from './pipe-network.js';
+import { isSessionToken } from './store-fs.js';
 import { makeWorkerSessionRecords } from './worker-session-records.js';
 
 /**
@@ -16,58 +22,34 @@ import { makeWorkerSessionRecords } from './worker-session-records.js';
  * @import {SiestaStore} from './store-fs.js'
  */
 
-// 128 random bits as lowercase hex: the shape of both worker ids and
-// default publication swissnums.
-const randomHex128 = () => {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-};
-
-// The well-known swissnum of every worker's shell in its own locator.
-const SHELL_SWISSNUM_TEXT = 'shell';
-
 /**
- * Compose per-connection session hooks: each observer sees every event
- * and attributes only the connections it registered.
+ * The siesta daemon, hub edition: mostly a forwarding and
+ * slot-rewriting hub, per design. The daemon is NOT an OCapN client —
+ * the OCapN hub (`@endo/ocapn/hub`) routes every message between
+ * sessions by structural transcoding over persisted c-list tables, so
+ * the daemon reifies nothing that flows between workers and peers:
+ * no presences, no promises, no subscriptions, no obligation rows.
  *
- * @param {Array<Record<string, ((...args: Array<any>) => void) | undefined>>} hooksList
- */
-const combineSessionHooks = hooksList => {
-  /** @type {Record<string, (...args: Array<any>) => void>} */
-  const combined = {};
-  const names = new Set(hooksList.flatMap(hooks => Object.keys(hooks)));
-  for (const name of names) {
-    combined[name] = (...args) => {
-      for (const hooks of hooksList) {
-        const hook = hooks[name];
-        if (hook !== undefined) {
-          hook(...args);
-        }
-      }
-    };
-  }
-  return harden(combined);
-};
-
-/**
- * The protocol-unified siesta daemon: ONE OCapN client for everything.
+ * Sessions on the hub:
+ * - each worker, over a durable worker transport (frames journaled
+ *   against heap snapshots; the worker runs the full OCapN peer);
+ * - each remote peer, over the injected netlayer (with the durable
+ *   netlayer, frames and identity persist per resume token and the
+ *   session reattaches to the hub on resume — the hub's tables carry
+ *   the rest);
+ * - ONE reifying endpoint: an in-process OCapN client that hosts the
+ *   daemon's genuine objects (system resources, the worker
+ *   controller) and gives the embedder its admin route (evaluate,
+ *   publish). It is the only place values live, it is restored across
+ *   restarts by the worker-session-records machinery (resources
+ *   re-instantiated by name at their recorded positions, pending
+ *   answers rejected at-most-once), and nothing routed between other
+ *   sessions ever touches it.
  *
- * Workers are OCapN peers over durable worker transports — each worker
- * session is established through the handshake-free `resumeSession`
- * seam with identity derived from the worker id, its frames journaled
- * against heap snapshots, its daemon-side exports described in
- * worker-session records. Remote peers connect through the injected
- * netlayer; with the durable netlayer, their sessions survive daemon
- * restarts through the same record-and-re-seat machinery. The daemon
- * itself is a relay: pipe-origin grants re-export as its own objects
- * (worker locations are unreachable by design), and settlements route
- * between sessions because both edges terminate in the same client.
- *
- * A restarted daemon re-establishes every worker session from the
- * store, re-seats recorded exports and publications without waking any
- * worker, and partitions each session's answer-position space by a
- * persisted epoch.
+ * A daemon restart is: reload hub tables, reattach worker transports
+ * (asleep), restore the endpoint's session, and let remote peers
+ * resume. Positions are rows; nothing is re-seated because nothing
+ * was reified.
  *
  * @typedef {object} SiestaWorkerFacade
  * @property {string} workerId
@@ -79,8 +61,6 @@ const combineSessionHooks = hooksList => {
  * @property {() => Promise<void>} retire
  *
  * @typedef {object} SiestaDaemon
- * @property {Awaited<ReturnType<typeof makeOcapn>>} ocapn
- * @property {Map<string, any>} locator
  * @property {any} location this daemon's OCapN location; combine with a
  *   publication's swissnum to mint a sturdy ref on any peer
  * @property {(secret: string) => { location: any, secret: string }} makeSturdyRefDetails
@@ -90,15 +70,27 @@ const combineSessionHooks = hooksList => {
  * @property {(name: string, description?: unknown) => object} makeResource
  * @property {(value: object, secret?: string) => string} publish
  * @property {(secret: string) => void} unpublish
+ * @property {(secret: string) => Promise<any>} lookup the embedder's
+ *   in-process route to a publication, through the endpoint
  * @property {(options?: { keep?: Array<string> }) => Promise<Array<string>>} collectVats
- * @property {() => Promise<void>} shutdown park every worker (snapshot
- *   + terminate), sever the ducts, close the client
- * @property {() => Promise<void>} crash abandon this process's live
- *   state the way a real crash would: sever worker ducts (no frames,
- *   no snapshots), kill incarnations, close the network — the store is
- *   left exactly as a power failure would leave it, for a successor to
- *   recover from
+ * @property {() => Promise<void>} shutdown
+ * @property {() => Promise<void>} crash abandon live state the way a
+ *   power failure would; the store remains recoverable
  */
+
+// 128 random bits as lowercase hex: worker ids and default swissnums.
+const randomHex128 = () => {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+};
+
+const textEncoder = new TextEncoder();
+const SHELL_SWISSNUM = bytesToImmutable(textEncoder.encode('shell'));
+// The endpoint's pseudo-worker id: its session records (resource
+// descriptions, pending answers) live in this worker store.
+const ENDPOINT_ID = 'e'.repeat(32);
+const ENDPOINT_SESSION = 'endpoint';
 
 /**
  * @param {object} options
@@ -118,120 +110,394 @@ export const makeSiestaDaemon = async ({
   resources = {},
   verbose = false,
 }) => {
-  /** @type {Map<string, any>} */
-  const locator = new Map();
-  /** @type {Map<string, { transport: any, resumed: any, shellP?: Promise<any> }>} */
-  const workers = new Map();
+  const logError = verbose
+    ? // eslint-disable-next-line no-console
+      (...args) => console.error('siesta daemon:', ...args)
+    : () => {};
 
-  // Built-ins are assigned below, after the daemon internals they
-  // close over exist; records holds the live reference.
-  /** @type {Record<string, (description?: unknown) => object>} */
-  const resourceMakers = {};
-  const records = makeWorkerSessionRecords({
-    store,
-    resources: resourceMakers,
-  });
-  const durableSessions = makeDurableSessions({
-    store,
-    linkage: harden({
-      describeCapability: records.describeCapability,
-      provideCapability: records.provideCapability,
-    }),
-  });
-
-  /** @type {any} */
-  let handlers;
-  /** @type {{ netlayer?: any }} */
-  const netlayerRef = {};
-  const ocapn = await makeOcapn({
+  const hub = makeOcapnHub({
     codec,
-    locator,
-    verbose,
-    debugLabel: 'siesta-daemon',
-    sessionHooks: combineSessionHooks([
-      records.sessionHooks,
-      durableSessions.sessionHooks,
-    ]),
-    // Non-reifying promise relay: the daemon never subscribes to a
-    // promise itself; peers' subscriptions to relayed promises forward
-    // to the owning session as durable forwarder exports, so
-    // subscription state lives only in the endpoints.
-    relayPromises: true,
-    // Relay policy: pipe-origin grants re-export as the daemon's own
-    // objects and the daemon proxies deliveries — worker locations are
-    // unreachable by design. Handoffs between reachable peers are
-    // unchanged.
-    shouldHandoff: (/** @type {any} */ grantDetails) =>
-      (grantDetails.location.network ?? grantDetails.location.transport) !==
-      'siesta-pipe',
-    network: (/** @type {any} */ h, /** @type {any} */ logger) => {
-      handlers = h;
-      return Promise.resolve(
-        makeNetlayer({
-          handlers: h,
-          logger,
-          resumption: durableSessions.resumption,
-        }),
-      ).then(netlayer => {
-        netlayerRef.netlayer = netlayer;
-        durableSessions.setNetlayer(netlayer);
-        return netlayer;
-      });
-    },
-  });
-  netlayerRef.netlayer !== undefined ||
-    Fail`makeNetlayer did not produce a netlayer`;
-  const { location } = netlayerRef.netlayer;
-  records.setForwarderPowers(
-    harden({
-      getForwarderInfo: (/** @type {object} */ value) =>
-        ocapn.getListenForwarderInfo(value),
-      tokenForConnection: (/** @type {object} */ connection) =>
-        netlayerRef.netlayer.getResumeToken === undefined
-          ? undefined
-          : netlayerRef.netlayer.getResumeToken(connection),
-      whenTokenResumed: durableSessions.whenSessionResumed,
+    store: harden({
+      getState: () => store.getHubState(),
+      setState: (/** @type {any} */ state) => store.setHubState(state),
     }),
-  );
+  });
+
+  /** @type {Map<string, { transport: any, sink: any, shellP?: Promise<any> }>} */
+  const workers = new Map();
 
   /** @param {string} workerId */
   const provideWorkerSession = workerId => {
     let entry = workers.get(workerId);
     if (entry === undefined) {
       const workerStore = store.provideWorkerStore(workerId);
+      /** @type {any} */
+      const holder = {};
       const transport = makeDurableWorkerTransport({
         workerId,
         store: workerStore,
         engine,
-        handlers,
-        codec,
         debugLabel: workerStore.getMeta().debugLabel,
+        onFrame: (/** @type {Uint8Array} */ bytes) =>
+          holder.sink.deliver(bytes),
       });
-      records.registerWorkerConnection(transport.connection, workerId);
-      const resumed = transport.establish();
-      records.registerResumedSession(workerId, resumed);
-      entry = { transport, resumed };
+      holder.sink = hub.attachSession(workerId, {
+        send: (/** @type {Uint8Array} */ bytes) => transport.write(bytes),
+      });
+      entry = { transport, sink: holder.sink };
       workers.set(workerId, entry);
     }
     return entry;
   };
 
+  // --- the endpoint: the daemon's one reifying session ---
+
+  // Records scoped to the endpoint: resource descriptions per export
+  // slot, and at-most-once answer obligations. Links and forwarders
+  // no longer arise — the hub carries all cross-session references.
+  const resourceMakers = /** @type {Record<string, any>} */ ({});
+  const records = makeWorkerSessionRecords({
+    store,
+    resources: resourceMakers,
+  });
+
+  /** @type {Map<object, bigint>} endpoint import presence -> hub-facing position */
+  const importPositions = new Map();
+
+  /** @type {any} */
+  let endpointSink;
+  /** @type {any} */
+  let endpointHandlers;
+  const endpointResumption = derivePipeResumption({
+    codec,
+    workerId: ENDPOINT_ID,
+    role: 'worker',
+  });
+  const endpointClient = await makeOcapn({
+    codec,
+    debugLabel: 'siesta-endpoint',
+    sessionHooks: {
+      ...records.sessionHooks,
+      onImport: (
+        /** @type {any} */ connection,
+        /** @type {string} */ slot,
+        /** @type {object} */ value,
+      ) => {
+        records.sessionHooks.onImport(connection, slot, value);
+        if (slot[0] === 'o' && slot[1] === '-') {
+          importPositions.set(value, BigInt(slot.slice(2)));
+        }
+      },
+    },
+    network: (/** @type {any} */ h) => {
+      endpointHandlers = h;
+      return harden({
+        networkId: 'siesta-endpoint',
+        codec,
+        location: harden({
+          type: /** @type {const} */ ('ocapn-peer'),
+          network: 'siesta-endpoint',
+          transport: 'siesta-endpoint',
+          designator: 'endpoint',
+          hints: /** @type {const} */ (false),
+        }),
+        shutdown: () => {},
+      });
+    },
+  });
+  // The endpoint's session with the hub: established through the
+  // resumeSession seam (handshake-free, restorable exports), frames
+  // flowing directly between the hub duct and the client's message
+  // handler.
+  const endpointConnection = harden({
+    netlayer: harden({ location: endpointResumption.peerLocation }),
+    isOutgoing: true,
+    get isDestroyed() {
+      return false;
+    },
+    write: (/** @type {Uint8Array} */ bytes) => endpointSink.deliver(bytes),
+    end: () => {},
+  });
+  endpointSink = hub.attachSession(ENDPOINT_SESSION, {
+    send: (/** @type {Uint8Array} */ bytes) =>
+      endpointHandlers.handleMessageData(endpointConnection, bytes),
+  });
+  records.registerWorkerConnection(endpointConnection, ENDPOINT_ID);
+  const endpointResumed = endpointHandlers.resumeSession(
+    endpointConnection,
+    endpointResumption,
+  );
+  records.registerResumedSession(ENDPOINT_ID, endpointResumed);
+
+  // --- remote peers: netlayer sessions on the hub ---
+
+  /** @type {Map<object, { deliver: any, key: string } | undefined>} */
+  const connectionSessions = new Map();
+  const cryptography = makeCryptography(codec);
+  let ephemeralCount = 0;
+
+  /** @type {any} */
+  const netlayerRef = {};
+
   /**
-   * The worker's shell presence (its evaluate facet), fetched through
-   * the session bootstrap on first use. Fetching wakes the worker.
+   * @param {any} connection
+   * @param {string} sessionKey
+   */
+  const bindConnectionToHub = (connection, sessionKey) => {
+    const sink = hub.attachSession(sessionKey, {
+      send: (/** @type {Uint8Array} */ bytes) => connection.write(bytes),
+    });
+    connectionSessions.set(connection, {
+      deliver: sink.deliver,
+      key: sessionKey,
+    });
+    return sink;
+  };
+
+  /** @param {any} connection */
+  const sessionKeyForConnection = connection => {
+    const { netlayer } = netlayerRef;
+    const token =
+      netlayer !== undefined && netlayer.getResumeToken !== undefined
+        ? netlayer.getResumeToken(connection)
+        : undefined;
+    if (token !== undefined && isSessionToken(token)) {
+      return `peer:${token}`;
+    }
+    ephemeralCount += 1;
+    return `conn:${ephemeralCount}`;
+  };
+
+  const captpVersion = '1.0';
+
+  /** @type {any} */
+  const hubHandlers = harden({
+    makeConnection: (
+      /** @type {any} */ netlayer,
+      /** @type {boolean} */ isOutgoing,
+      /** @type {any} */ socket,
+    ) => {
+      let destroyed = false;
+      /** @type {any} */
+      const connection = harden({
+        netlayer,
+        isOutgoing,
+        get isDestroyed() {
+          return destroyed;
+        },
+        write: (/** @type {Uint8Array} */ bytes) => socket.write(bytes),
+        end: () => {
+          if (!destroyed) {
+            destroyed = true;
+            socket.end();
+          }
+        },
+      });
+      connectionSessions.set(connection, undefined);
+      return connection;
+    },
+    handleMessageData: (
+      /** @type {any} */ connection,
+      /** @type {Uint8Array} */ data,
+    ) => {
+      const bound = connectionSessions.get(connection);
+      if (bound !== undefined) {
+        bound.deliver(data);
+        return;
+      }
+      // Handshake: answer op:start-session with a per-connection
+      // identity, then bind the connection to a hub session.
+      try {
+        const reader = codec.makeReader(data);
+        const message = readOcapnHandshakeMessage(reader);
+        message.type === 'op:start-session' ||
+          Fail`expected op:start-session, got ${q(message.type)}`;
+        message.captpVersion === captpVersion ||
+          Fail`invalid captp version ${q(message.captpVersion)}`;
+        const peerPublicKey = cryptography.makeOcapnPublicKey(
+          message.sessionPublicKey.q,
+        );
+        cryptography.assertLocationSignatureValid(
+          message.location,
+          message.locationSignature,
+          peerPublicKey,
+          new ArrayBuffer(0),
+        );
+        const keyPair = cryptography.makeOcapnKeyPair();
+        const { location } = netlayerRef.netlayer;
+        const locationSignature = cryptography.signLocation(
+          location,
+          keyPair,
+          new ArrayBuffer(0),
+        );
+        // Computed for protocol fidelity; the hub itself keys sessions
+        // by resume token or connection, not by session id.
+        makeSessionId(keyPair.publicKey.id, peerPublicKey.id);
+        connection.write(
+          writeOcapnHandshakeMessage(
+            {
+              type: 'op:start-session',
+              captpVersion,
+              sessionPublicKey: keyPair.publicKey.descriptor,
+              location,
+              locationSignature,
+            },
+            codec,
+          ),
+        );
+        bindConnectionToHub(connection, sessionKeyForConnection(connection));
+      } catch (error) {
+        logError('handshake failed:', error);
+        connection.write(
+          writeOcapnHandshakeMessage(
+            { type: 'op:abort', reason: 'invalid handshake' },
+            codec,
+          ),
+        );
+        connection.end();
+      }
+    },
+    handleConnectionClose: (/** @type {any} */ connection) => {
+      connectionSessions.delete(connection);
+    },
+    resumeSession: () => {
+      throw Error('siesta hub daemon: client resumeSession seam unused');
+    },
+  });
+
+  /**
+   * The netlayer's session-resumption power: frame-level durability in
+   * the session stores (as before), but restoration just rebinds the
+   * duct to the hub session — the tables are already there.
+   */
+  const base64FromBytes = (/** @type {Uint8Array} */ bytes) => {
+    let binary = '';
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte);
+    }
+    // eslint-disable-next-line no-undef
+    return btoa(binary);
+  };
+  const bytesFromBase64 = (/** @type {string} */ b64) => {
+    // eslint-disable-next-line no-undef
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  };
+  const resumption = harden({
+    isDurableToken: (/** @type {string} */ token) => isSessionToken(token),
+    onHello: (/** @type {string} */ token) => {
+      store.deleteSession(token);
+      store.provideSessionStore(token).setMeta({});
+      // A fresh logical connection under a reused token supersedes any
+      // prior hub session rows for it.
+      hub.retireSession(`peer:${token}`);
+    },
+    loadForResume: (/** @type {string} */ token) => {
+      if (!store.listSessionTokens().includes(token)) {
+        return undefined;
+      }
+      const sessionStore = store.provideSessionStore(token);
+      const meta = sessionStore.getMeta();
+      if (meta.established === undefined) {
+        return undefined;
+      }
+      return {
+        recvSeq: meta.recvSeq ?? 0,
+        sendSeq: meta.sendSeq ?? 0,
+        frames: sessionStore
+          .readFrames()
+          .map(({ n, b64 }) => ({ n, bytes: bytesFromBase64(b64) })),
+      };
+    },
+    restoreSession: (
+      /** @type {any} */ _handlers,
+      /** @type {any} */ connection,
+      /** @type {string} */ token,
+    ) => {
+      // The peer resumed: its hub session rows are the session state.
+      // No handshake, no re-seating; just rebind the duct.
+      bindConnectionToHub(connection, `peer:${token}`);
+    },
+    recordOutbound: (
+      /** @type {string} */ token,
+      /** @type {number} */ n,
+      /** @type {Uint8Array} */ bytes,
+    ) => {
+      const sessionStore = store.provideSessionStore(token);
+      sessionStore.appendFrame({ n, b64: base64FromBytes(bytes) });
+      sessionStore.setMeta({
+        ...sessionStore.getMeta(),
+        sendSeq: n,
+        established: true,
+      });
+    },
+    recordAck: (/** @type {string} */ token, /** @type {number} */ n) => {
+      store.provideSessionStore(token).truncateFramesUpTo(n);
+    },
+    recordInbound: (/** @type {string} */ token, /** @type {number} */ n) => {
+      const sessionStore = store.provideSessionStore(token);
+      sessionStore.setMeta({
+        ...sessionStore.getMeta(),
+        recvSeq: n,
+        established: true,
+      });
+    },
+    onEnd: (/** @type {string} */ token) => {
+      store.deleteSession(token);
+      hub.retireSession(`peer:${token}`);
+    },
+  });
+
+  netlayerRef.netlayer = await makeNetlayer({
+    handlers: hubHandlers,
+    logger: harden({
+      log: logError,
+      error: logError,
+      info: logError,
+    }),
+    resumption,
+  });
+  const { location } = netlayerRef.netlayer;
+
+  // --- the embedder API, through the endpoint ---
+
+  const endpointSessionP = endpointClient.provideSession(
+    endpointResumption.peerLocation,
+  );
+
+  /** @param {string | Uint8Array} secret */
+  const lookup = async secret => {
+    const session = await endpointSessionP;
+    const bytes =
+      typeof secret === 'string'
+        ? bytesToImmutable(textEncoder.encode(secret))
+        : bytesToImmutable(secret);
+    return E(session.getBootstrap()).fetch(bytes);
+  };
+
+  /**
+   * The worker's shell, reached by introducing the worker's bootstrap
+   * into the endpoint session out of band — never via the publications
+   * table, which roots vat GC.
    *
    * @param {string} workerId
    */
   const provideShell = workerId => {
     const entry = provideWorkerSession(workerId);
     if (entry.shellP === undefined) {
-      entry.shellP = ocapn
-        .provideSession(entry.transport.peerLocation)
-        .then((/** @type {any} */ session) =>
-          E(session.getBootstrap()).fetch(
-            bytesToImmutable(new TextEncoder().encode(SHELL_SWISSNUM_TEXT)),
-          ),
-        );
+      const facing = hub.introduce(ENDPOINT_SESSION, {
+        session: workerId,
+        position: 0n,
+      });
+      const bootstrap = endpointResumed.provideImport({
+        type: 'o',
+        position: facing,
+      });
+      entry.shellP = Promise.resolve(E(bootstrap).fetch(SHELL_SWISSNUM));
     }
     return entry.shellP;
   };
@@ -242,29 +508,13 @@ export const makeSiestaDaemon = async ({
     if (entry !== undefined) {
       workers.delete(workerId);
       await entry.transport.retire();
+      entry.sink.detach();
     }
-    // Publications rooted in the retired worker go with it.
-    for (const [secret, description] of Object.entries(
-      store.getPublications(),
-    )) {
-      const desc = /** @type {any} */ (description);
-      if (
-        (desc.kind === 'link' && desc.workerId === workerId) ||
-        (desc.kind === 'resource' &&
-          desc.name === 'worker-facade' &&
-          desc.description?.workerId === workerId)
-      ) {
-        store.deletePublication(secret);
-        locator.delete(secret);
-      }
-    }
+    hub.retireSession(workerId);
     store.deleteWorker(workerId);
   };
 
   /**
-   * The embedder's admin route to a worker. Guests and peers reach
-   * workers only through capabilities (shells, facades, publications).
-   *
    * @param {string} workerId
    * @returns {SiestaWorkerFacade}
    */
@@ -290,14 +540,9 @@ export const makeSiestaDaemon = async ({
     });
   };
 
-  // Built-in resource types. The worker controller is how one worker
-  // gains the authority to create and drive other workers; a worker
-  // facade scopes that authority to a single worker. Both are durable
-  // like any resource: a controller re-instantiates as itself, a
-  // facade from its worker id.
+  // Built-in resources: live in the endpoint like any resource.
   const makeWorkerFacadeResource = (/** @type {any} */ description) => {
     const { workerId } = /** @type {{ workerId: string }} */ (description);
-    assertWorkerId(workerId);
     return Far('SiestaWorkerFacade', {
       help: () =>
         'SiestaWorkerFacade: evaluate(source, names, values) evaluates in this worker with the given endowments; getId() returns the worker id; retire() permanently deletes the worker.',
@@ -329,8 +574,6 @@ export const makeSiestaDaemon = async ({
           workerStore.setMeta({ ...workerStore.getMeta(), debugLabel });
         }
         provideWorkerSession(workerId);
-        // Instantiate through the resource system so the facade is
-        // described durably when exported into a worker session.
         return records.provideResource('worker-facade', { workerId });
       },
     });
@@ -339,47 +582,18 @@ export const makeSiestaDaemon = async ({
     'worker-controller': makeWorkerControllerResource,
   });
 
-  /**
-   * The worker ids a session record keeps alive: link exports and
-   * worker-facade resource exports.
-   *
-   * @param {Record<string, any>} descriptions slot/secret -> description
-   */
-  const linkTargetsOf = descriptions => {
-    /** @type {Array<string>} */
-    const targets = [];
-    for (const description of Object.values(descriptions)) {
-      if (description === null || description === undefined) {
-        // eslint-disable-next-line no-continue
-        continue;
-      }
-      if (description.kind === 'link') {
-        targets.push(description.workerId);
-      } else if (
-        description.kind === 'resource' &&
-        description.name === 'worker-facade'
-      ) {
-        targets.push(description.description?.workerId);
-      }
-    }
-    return targets.filter(target => typeof target === 'string');
-  };
-
-  // Restore every persisted worker session (asleep), then re-seat
-  // recorded exports and publications. Two phases, because links can
-  // point both ways.
+  // Restore: reattach every worker transport (asleep) and re-seat the
+  // endpoint's recorded exports (resources by name; pending answers
+  // reject at-most-once). Hub tables restored themselves.
   for (const workerId of store.listWorkerIds()) {
-    provideWorkerSession(workerId);
+    if (workerId !== ENDPOINT_ID) {
+      provideWorkerSession(workerId);
+    }
   }
-  for (const workerId of workers.keys()) {
-    records.restoreWorker(workerId);
-  }
-  records.restorePublications(locator);
+  records.restoreWorker(ENDPOINT_ID);
 
   /** @type {SiestaDaemon} */
   const daemon = {
-    ocapn,
-    locator,
     location,
     makeSturdyRefDetails: secret => harden({ location, secret }),
     createWorker: async ({ debugLabel } = {}) => {
@@ -402,46 +616,51 @@ export const makeSiestaDaemon = async ({
     makeResource: (name, description = null) =>
       records.provideResource(name, description),
     publish: (value, secret = randomHex128()) => {
-      records.publish(locator, secret, value);
+      const position = importPositions.get(value);
+      if (position === undefined) {
+        throw Fail`publish: value is not an import held by the daemon endpoint`;
+      }
+      hub.publishHeld(secret, { session: ENDPOINT_SESSION, position });
       return secret;
     },
-    unpublish: secret => {
-      locator.delete(secret);
-      store.deletePublication(secret);
-    },
+    unpublish: secret => hub.unpublish(secret),
+    lookup,
     collectVats: async ({ keep = [] } = {}) => {
-      // Mark: publications root the graph; awake workers and the keep
-      // list are conservatively pinned. Propagate along durable
-      // cross-worker links (holder keeps target alive). Reads only
-      // record data — no worker wakes.
+      const { publishedOrigins, holdings } = hub.inspect();
       const marked = new Set(keep);
-      for (const target of linkTargetsOf(store.getPublications())) {
-        marked.add(target);
+      for (const origin of publishedOrigins) {
+        if (workers.has(/** @type {string} */ (origin))) {
+          marked.add(origin);
+        }
       }
       for (const [workerId, entry] of workers.entries()) {
         if (entry.transport.isAwake()) {
           marked.add(workerId);
         }
       }
-      const frontier = [...marked];
-      while (frontier.length > 0) {
-        const workerId = /** @type {string} */ (frontier.shift());
-        if (!workers.has(workerId)) {
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        const record = /** @type {any} */ (
-          store.provideWorkerStore(workerId).getTablesRecord() ?? {}
-        );
-        for (const target of linkTargetsOf(record.exports ?? {})) {
-          if (!marked.has(target)) {
-            marked.add(target);
-            frontier.push(target);
+      // Holder keeps target: a worker stays if a remote peer, a
+      // marked worker, or the keep list holds a reference into it.
+      // The endpoint is deliberately not a root (its cached shells
+      // must not pin every worker). Propagate to a fixpoint.
+      const isRootHolder = (/** @type {string} */ holder) =>
+        holder !== ENDPOINT_SESSION && !workers.has(holder);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const { origin, holders } of holdings) {
+          if (workers.has(origin) && !marked.has(origin)) {
+            if (
+              holders.some(
+                (/** @type {string} */ holder) =>
+                  isRootHolder(holder) || marked.has(holder),
+              )
+            ) {
+              marked.add(origin);
+              changed = true;
+            }
           }
         }
       }
-      // Sweep. Unmarked-to-unmarked links (including cycles) go down
-      // together.
       const swept = [...workers.keys()].filter(
         workerId => !marked.has(workerId),
       );
@@ -452,9 +671,6 @@ export const makeSiestaDaemon = async ({
       return harden(swept.sort());
     },
     shutdown: async () => {
-      // Snapshot and park every worker, then sever the ducts so the
-      // dying client's session aborts never reach the journals, then
-      // close the client (durable netlayers park their sessions).
       for (const entry of workers.values()) {
         // eslint-disable-next-line no-await-in-loop
         await entry.transport.sleep();
@@ -462,12 +678,10 @@ export const makeSiestaDaemon = async ({
       for (const entry of workers.values()) {
         entry.transport.connection.end();
       }
-      ocapn.shutdown();
+      endpointClient.shutdown();
+      netlayerRef.netlayer.shutdown();
     },
     crash: async () => {
-      // Sever first so nothing — including finalization-driven GC
-      // frames from this dying process — reaches the journals a
-      // successor may already be appending to.
       for (const entry of workers.values()) {
         entry.transport.connection.end();
       }
@@ -475,7 +689,8 @@ export const makeSiestaDaemon = async ({
         // eslint-disable-next-line no-await-in-loop
         await entry.transport.crash();
       }
-      ocapn.shutdown();
+      endpointClient.shutdown();
+      netlayerRef.netlayer.shutdown();
     },
   };
   return harden(daemon);
