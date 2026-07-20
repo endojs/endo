@@ -48,7 +48,9 @@
     "@endo/harden": "workspace:^",
     "@endo/ocapn": "workspace:^",
     "@endo/pass-style": "workspace:^",
-    "@endo/promise-kit": "workspace:^"
+    "@endo/promise-kit": "workspace:^",
+    "@endo/stream": "workspace:^",
+    "@noble/hashes": "^2.0.1"
   },
   "devDependencies": {
     "@endo/compartment-mapper": "workspace:^",

@@ -817,13 +817,47 @@ pre-restart answer errors rather than hangs).
 the related design for the Noise netlayer; both layers here are
 transport-agnostic and should compose with it.
 
-### Protocol unification: OCapN end-to-end (proposed)
+### Protocol unification: OCapN end-to-end (accepted, in progress)
 
-Per maintainer direction, the comms-vat conversion is worth
-implementing for its properties, not its performance; and the option
-of replacing the host–worker endo-captp edge with the OCapN
-point-to-point wire protocol should be weighed so the machine has
-fewer protocols. The choice is by end result, not effort.
+Per maintainer direction, Option B below is accepted: the machine
+unifies on the OCapN wire protocol end-to-end, chosen by end result
+(one protocol, one durability regime), not effort.
+
+**Landed (unification phase 1 — the wire substrate):**
+
+- `@endo/ocapn` enablers, all additive: portable entropy (Web Crypto
+  instead of `node:crypto`, unblocking XS bundling — the client+codec
+  graph now has no Node-only imports), `provideSession` may decline a
+  location by resolving undefined (fall through to the handshake
+  path, enabling hybrid routing networks), and a `shouldHandoff`
+  relay policy (see below).
+- `packages/siesta/src/pipe-network.js` — the host↔worker OCapN
+  network over a trusted byte duct: no wire handshake at all; both
+  ends derive BOTH (authority-free) identities deterministically from
+  the worker id and fabricate the same fully-authenticated session
+  independently via `provideSession`. Deterministic identity makes
+  worker sessions restart-stable by construction.
+- `packages/siesta/src/worker-peer.js` — the OCapN-native worker
+  shell: the persistent Compartment behind a full OCapN peer; the
+  evaluate facet is fetched from the worker's own locator (swissnum
+  `shell`) through the session bootstrap.
+- `packages/siesta/src/routing-network.js` — one daemon client fronts
+  both transports: `siesta-pipe` locations resolve to worker ducts
+  (handshake-free), everything else falls back to the durable TCP
+  netlayer, in a single session manager.
+- **Relay, not handoff**: passing a worker import onward to a TCP
+  peer triggered OCapN's third-party handoff, directing the peer to
+  connect to the worker's (deliberately unreachable) pipe location.
+  The new `shouldHandoff` policy lets the daemon re-export
+  pipe-origin grants as its own objects and proxy deliveries — the
+  comms-vat stance. Handoffs between genuinely reachable peers are
+  unchanged (default policy).
+- End-to-end test (`test/worker-peer.test.js`): a TCP OCapN client's
+  calls route TCP → daemon → pipe → worker heap through the daemon's
+  single client, with identity preserved and worker promises
+  resolving across the pipe.
+
+**Recorded rationale — the weighed options:**
 
 **Option A — comms-vat daemon over the existing two protocols.**
 Keep endo-captp inside, OCapN outside; make settlement routing
@@ -870,24 +904,33 @@ an OCapN relay: one protocol, one marshal format, one session model.
   rewriting is only possible when both edges speak the same wire
   format.
 
-**Recommendation: Option B**, phased:
+**Remaining phases** (the plan of record):
 
-1. Pipe netlayer for fd transports (no crypto, trusted-channel
-   session establishment) and a reduced worker-profile OCapN client
-   bundle for XS.
-2. Worker shell v2: the evaluate facet served from the worker's OCapN
-   bootstrap over the pipe.
-3. Host worker sessions become durable OCapN sessions (reusing the
-   session stores and resumption seams); snapshots capture the
-   worker's half, as today.
+1. ~~Pipe network + worker-peer shell + routing network + relay
+   policy~~ (landed, above).
+2. XS worker-peer bundle: the OCapN worker profile bundled for the XS
+   engine (binary frames ride the existing NDJSON duct base64-encoded;
+   the polyfill set gains nothing Node-only — verified none remain in
+   the client graph), replacing `worker-xs.js`'s captp shell.
+3. Host worker sessions become durable OCapN sessions: the durable
+   netlayer's logical-connection machinery (frame journal, watermarks,
+   resumption) carries the pipe transport too, with one policy
+   difference — worker frames are retained until a *snapshot* commits,
+   not until acked, so a worker restored from its last snapshot
+   replays the tail exactly as today's journal suffix does. Sleep =
+   park + snapshot; wake = resume. The bespoke captp worker
+   journal/tables layer in `host.js` is then subsumed.
 4. Comms-vat settlement routing replaces reified re-attachment; the
-   durable subscription rows are already the right schema.
+   durable subscription rows landed in layer 2 are already the right
+   schema.
 5. Retire the captp worker layer (the `@endo/captp` seams remain for
-   their other consumers).
+   their other consumers), and re-point vat GC and the worker
+   controller at session records.
 
-Option A remains the fallback if the XS OCapN client proves too
-heavy; the durable schema landed so far is identical under both, so
-no persisted state is thrown away by choosing either.
+Option A (comms vat over two protocols) was weighed and remains the
+fallback if the XS OCapN client proves too heavy; the durable schema
+landed so far is identical under both, so no persisted state is
+thrown away either way.
 
 ### Also deferred
 
