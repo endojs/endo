@@ -66,9 +66,13 @@ All five phases implemented:
   than assumed.
 
 Known gaps recorded below; execution adds: full CommonJS
-linkage (`require` is absent by design of the shim) and
-directory-relative resolution for nested package modules (the
-archive loader's resolve hook is identity).
+linkage (`require` is absent by design of the shim).
+Directory-relative resolution for nested package modules is
+resolved: the archive loader's resolve hook resolves `./` and
+`../` specifiers against the referrer module's directory
+(escaping the package root is a clean error), so multi-file
+packages whose modules import one another relatively — and
+packages whose entry lives in a subdirectory — execute.
 
 ## What is the Problem Being Solved?
 

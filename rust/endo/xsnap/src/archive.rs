@@ -213,6 +213,38 @@ function __lookupSource(compName, spec) {
     return undefined;
 }
 
+// Resolve a relative specifier ('./x', '../x') against its
+// referrer module's directory, returning the './'-rooted full
+// specifier the load hooks key on. Bare specifiers pass through
+// untouched (the load hooks route them through the link map), as
+// does any call without a string referrer (a full-specifier
+// import has no referrer to be relative to). Climbing above the
+// package root is a clean error: archive compartments hold one
+// package tree, so there is nothing above '.' to name.
+function __resolveRelative(specifier, referrer) {
+    if (specifier.charCodeAt(0) !== 46 /* '.' */) return specifier;
+    if (typeof referrer !== 'string' || referrer === '') return specifier;
+    var stack = referrer.split('/');
+    stack.pop();
+    if (stack.length === 0) stack = ['.'];
+    var segments = specifier.split('/');
+    for (var i = 0; i < segments.length; i++) {
+        var segment = segments[i];
+        if (segment === '' || segment === '.') continue;
+        if (segment === '..') {
+            if (stack.length <= 1) {
+                throw new Error(
+                    "Cannot resolve '" + specifier + "' from '" + referrer +
+                    "': escapes the package root");
+            }
+            stack.pop();
+            continue;
+        }
+        stack.push(segment);
+    }
+    return stack.length === 1 ? '.' : stack.join('/');
+}
+
 var __archiveManifests = {};
 
 // Parsed package.json for a compartment, memoised; null when absent
@@ -454,7 +486,7 @@ function __makeArchiveCompartment(compName) {{
     var comp = new Compartment({{
         globals: endowments,
         resolveHook: function(specifier, referrer) {{
-            return specifier;
+            return __resolveRelative(specifier, referrer);
         }},
         loadNowHook: function(specifier) {{
             // Check for cross-compartment link first.
