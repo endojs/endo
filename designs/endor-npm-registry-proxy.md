@@ -435,12 +435,15 @@ The tree's children are the package's files, stored as blobs.
       does not execute arbitrary install scripts).
 - [ ] Binary packages (`.node` native modules) — not
       supported in XS.
-- [ ] Top-level `await` in the entry module (or any module in
-      the graph): the execution path loads the assembled map
-      through XS's synchronous `importNow`, so a module using
-      top-level `await` fails at import with
-      `TypeError: async module`. Needs an asynchronous import
-      path through the archive loader.
+- [x] Top-level `await` in the entry module (or any module in
+      the graph): the standalone runners now import the entry
+      through the asynchronous `Compartment.prototype.import`
+      path (an async `loadHook` beside `loadNowHook`, with
+      cross-compartment edges as lazy namespace descriptors),
+      so async modules evaluate instead of failing with
+      `TypeError: async module`. The daemon-side archive
+      install (worker host power) still uses the synchronous
+      path.
 
 ## Prompt
 

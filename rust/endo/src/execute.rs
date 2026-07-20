@@ -524,6 +524,59 @@ mod tests {
         xsnap::run_xs_archive_loaded(&archive).expect("XS execution of the assembled graph");
     }
 
+    /// Top-level await in both the entry module and a dependency:
+    /// the async import path (`loadHook` + lazy cross-compartment
+    /// descriptors) evaluates the graph where the synchronous
+    /// `importNow` path failed with `TypeError: async module`.
+    #[test]
+    fn executes_top_level_await_graph_in_xs() {
+        let tla_tar = make_tarball(&[
+            (
+                "package/package.json",
+                br#"{"name":"tla-dep","version":"1.0.0","type":"module","main":"index.js"}"#,
+            ),
+            (
+                "package/index.js",
+                b"export const d = await Promise.resolve(7);\n",
+            ),
+        ]);
+        let http = MockHttp::new()
+            .respond(
+                "https://registry.npmjs.org/tla-dep",
+                registry_meta("tla-dep", &["1.0.0"]),
+            )
+            .respond(&tarball_url("tla-dep", "1.0.0"), tla_tar);
+
+        let cas_tmp = tempfile::tempdir().unwrap();
+        let cas = ContentStore::open(cas_tmp.path()).unwrap();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let app = tempfile::tempdir().unwrap();
+        fs::write(
+            app.path().join("package.json"),
+            r#"{"name":"app","type":"module","dependencies":{"tla-dep":"^1.0.0"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            app.path().join("main.js"),
+            "import { d } from 'tla-dep';\n\
+             const e = await Promise.resolve(1);\n\
+             print(`d+e=${d + e}`);\n",
+        )
+        .unwrap();
+        let run = assemble_entry(
+            &http,
+            &cas,
+            &registry,
+            DEFAULT_REGISTRY,
+            &app.path().join("main.js"),
+        )
+        .unwrap();
+
+        let archive = load_assembled_archive(&cas, &run.compartment_map_hash).unwrap();
+        xsnap::run_xs_archive_loaded(&archive)
+            .expect("XS execution of the top-level-await graph");
+    }
+
     #[test]
     fn normalizes_cjs_and_json_sources() {
         let cjs = normalize_to_esm("index.js", b"module.exports = 5;", false);

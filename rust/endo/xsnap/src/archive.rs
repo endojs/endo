@@ -356,6 +356,22 @@ function __resolveExports(compName, subpath) {
 /// 4. Wires `resolveHook` to resolve cross-compartment links
 /// 5. Calls `importNow` on the entry compartment/module
 pub fn install_archive(machine: &crate::Machine, archive: &LoadedArchive) -> bool {
+    if !install_archive_prelude(machine, archive) {
+        return false;
+    }
+    let import_entry_js = format!(
+        "var __entryNs = __entryComp.importNow('{}');",
+        escape_js_string(&archive.map.entry.module),
+    );
+    crate::eval_wrapped(machine, &import_entry_js, "endor[archive]/entry-import")
+}
+
+/// Shared installation steps: build the source registry and link map,
+/// declare the compartment factory and exports resolver, and create
+/// the entry compartment. Everything up to — but not including — the
+/// entry module import, which differs between the sync
+/// ([`install_archive`]) and async ([`install_archive_async`]) paths.
+fn install_archive_prelude(machine: &crate::Machine, archive: &LoadedArchive) -> bool {
     // Step 1: Build the JS source registry and compartment link map
     let mut registry_js = String::from("var __archiveRegistry = {};\n");
     let mut links_js = String::from("var __archiveLinks = {};\n");
@@ -419,29 +435,33 @@ function __makeArchiveCompartment(compName) {{
     var links = __archiveLinks[compName] || {{}};
 
     var endowments = globalThis.__archiveEndowments || {{}};
+    // Translate a cross-compartment link's target specifier. A '.'
+    // link module loads the target's literal '.' source when the
+    // archive registers one (the zip-archive convention, where the
+    // mapper already resolved entries); otherwise it defers to the
+    // target package's exports map ('main' / index.js when it has
+    // none).
+    var linkTarget = function(link) {{
+        var mod = link.module;
+        if (mod === '.') {{
+            var fsources = __archiveRegistry[link.compartment] || {{}};
+            mod = fsources['.'] !== undefined
+                ? '.'
+                : __resolveExports(link.compartment, '.');
+        }}
+        return mod;
+    }};
     var comp = new Compartment({{
         globals: endowments,
         resolveHook: function(specifier, referrer) {{
             return specifier;
         }},
         loadNowHook: function(specifier) {{
-            // Check for cross-compartment link first. A '.' link
-            // module loads the target's literal '.' source when the
-            // archive registers one (the zip-archive convention,
-            // where the mapper already resolved entries); otherwise
-            // it defers to the target package's exports map
-            // ('main' / index.js when it has none).
+            // Check for cross-compartment link first.
             var link = links[specifier];
             if (link) {{
                 var foreignComp = __makeArchiveCompartment(link.compartment);
-                var mod = link.module;
-                if (mod === '.') {{
-                    var fsources = __archiveRegistry[link.compartment] || {{}};
-                    mod = fsources['.'] !== undefined
-                        ? '.'
-                        : __resolveExports(link.compartment, '.');
-                }}
-                return {{ namespace: foreignComp.importNow(mod) }};
+                return {{ namespace: foreignComp.importNow(linkTarget(link)) }};
             }}
             // A bare specifier with a subpath ('pkg/sub',
             // '@scope/pkg/sub') follows the package's link, then
@@ -464,6 +484,39 @@ function __makeArchiveCompartment(compName) {{
                 throw new Error('Module not found: ' + compName + '/' + specifier);
             }}
             return {{ source: new ModuleSource(sources[key]) }};
+        }},
+        loadHook: function(specifier) {{
+            // Async twin of loadNowHook, used by the async entry
+            // import so a module graph may use top-level await.
+            // Cross-compartment edges return the lazy descriptor
+            // naming the target specifier and compartment, so the
+            // engine drives the foreign module's (possibly async)
+            // evaluation itself; an eager foreignComp.import()
+            // awaited here would deadlock the loader.
+            var link = links[specifier];
+            if (link) {{
+                return {{
+                    namespace: linkTarget(link),
+                    compartment: __makeArchiveCompartment(link.compartment)
+                }};
+            }}
+            if (specifier.charCodeAt(0) !== 46 /* '.' */) {{
+                var parsed = __parsePackageName(specifier);
+                if (parsed !== undefined) {{
+                    var plink = links[parsed.name];
+                    if (plink) {{
+                        return {{
+                            namespace: __resolveExports(plink.compartment, './' + parsed.rest),
+                            compartment: __makeArchiveCompartment(plink.compartment)
+                        }};
+                    }}
+                }}
+            }}
+            var key = __lookupSource(compName, specifier);
+            if (key === undefined) {{
+                throw new Error('Module not found: ' + compName + '/' + specifier);
+            }}
+            return {{ source: new ModuleSource(sources[key]) }};
         }}
     }});
     __archiveCompartments[compName] = comp;
@@ -472,26 +525,23 @@ function __makeArchiveCompartment(compName) {{
 "#
     );
 
-    // Step 3: Import the entry module — split into multiple evals
-    // to avoid XS SIGSEGV when Compartment creation + importNow
+    // Step 3: Create the entry compartment — split into multiple
+    // evals to avoid XS SIGSEGV when Compartment creation + import
     // happen in the same eval call
     let make_entry_comp_js = format!(
         "var __entryComp = __makeArchiveCompartment('{}');",
         escape_js_string(&archive.map.entry.compartment),
     );
-    let import_entry_js = format!(
-        "var __entryNs = __entryComp.importNow('{}');",
-        escape_js_string(&archive.map.entry.module),
-    );
 
     // Execute in separate evals. The first four are generated
     // declarations that run no user code and must stay unwrapped: a
     // `function` declaration inside a try block does not hoist to
-    // the global scope. The last two run arbitrary module code, so
-    // they go through the inline try/catch wrapper — a throw that
-    // unwinds out of an eval into the host frame crashes XS, and a
-    // ReferenceError in the program being run must surface as a
-    // clean failure, not a SIGSEGV.
+    // the global scope. The last (and the entry import that the
+    // caller runs next) run arbitrary user code, so they go through
+    // the inline try/catch wrapper — a throw that unwinds out of an
+    // eval into the host frame crashes XS, and a ReferenceError in
+    // the program being run must surface as a clean failure, not a
+    // SIGSEGV.
     if machine.eval(&registry_js).is_none() {
         return false;
     }
@@ -504,10 +554,66 @@ function __makeArchiveCompartment(compName) {{
     if machine.eval(EXPORTS_RESOLVER_JS).is_none() {
         return false;
     }
-    if !crate::eval_wrapped(machine, &make_entry_comp_js, "endor[archive]/entry-compartment") {
+    crate::eval_wrapped(machine, &make_entry_comp_js, "endor[archive]/entry-compartment")
+}
+
+/// Install a loaded archive like [`install_archive`], but import the
+/// entry module through the asynchronous `Compartment.prototype.import`
+/// path so the module graph may use top-level `await`.
+///
+/// The synchronous `importNow` path fails on any async module with
+/// `TypeError: async module`; this variant kicks off the async import
+/// and records its settlement in the machine globals `__entryDone` /
+/// `__entryErr` / `__entryNs`. The caller must drain the job queue
+/// (`Machine::quiesce`) and then consult [`entry_import_result`] to
+/// learn whether the entry module resolved or rejected — a `true`
+/// return here only means the import was successfully started.
+pub fn install_archive_async(machine: &crate::Machine, archive: &LoadedArchive) -> bool {
+    if !install_archive_prelude(machine, archive) {
         return false;
     }
+    let import_entry_js = format!(
+        "var __entryNs = undefined; var __entryErr = undefined; var __entryDone = false; \
+         __entryComp.import('{}').then( \
+             function (ns) {{ __entryNs = ns; __entryDone = true; }}, \
+             function (e) {{ \
+                 __entryErr = e === undefined ? new Error('rejected with undefined') : e; \
+                 __entryDone = true; \
+             }});",
+        escape_js_string(&archive.map.entry.module),
+    );
     crate::eval_wrapped(machine, &import_entry_js, "endor[archive]/entry-import")
+}
+
+/// Report how the async entry import kicked off by
+/// [`install_archive_async`] settled, after the caller has drained
+/// the machine's job queue.
+///
+/// Prints the rejection's message and stack to stderr (mirroring
+/// `eval_wrapped`'s clean error surface) before returning an error.
+pub fn entry_import_result(machine: &crate::Machine) -> Result<(), crate::XsnapError> {
+    let check = "__entryErr !== undefined \
+         ? 'ERROR: ' + (__entryErr && __entryErr.message ? __entryErr.message : String(__entryErr)) \
+           + '\\nSTACK: ' + (__entryErr && __entryErr.stack ? __entryErr.stack : '') \
+         : (__entryDone ? 'ok' : 'pending')";
+    match machine.eval(check) {
+        Some(crate::JsValue::String(ref s)) if s == "ok" => Ok(()),
+        Some(crate::JsValue::String(ref s)) if s == "pending" => Err(crate::XsnapError::Archive(
+            "entry module import did not settle (async work still pending)".to_string(),
+        )),
+        Some(crate::JsValue::String(s)) => {
+            eprintln!("endor[archive]/entry-import: entry module rejected:");
+            for line in s.lines() {
+                eprintln!("  {line}");
+            }
+            Err(crate::XsnapError::Archive(
+                "entry module evaluation failed".to_string(),
+            ))
+        }
+        _ => Err(crate::XsnapError::Archive(
+            "entry import settlement check failed".to_string(),
+        )),
+    }
 }
 
 /// Escape a string for use inside JS single-quoted strings.
