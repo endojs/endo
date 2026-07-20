@@ -4,6 +4,7 @@
 
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
+import { Far } from '@endo/far';
 import { encodeBase64 } from '@endo/base64';
 import { ZipReader } from '@endo/zip/reader.js';
 import { inflate } from '@endo/zip/inflate.js';
@@ -14,10 +15,46 @@ import {
 import {
   ReadableBlobInterface,
   ReadableTreeInterface,
-  makeIteratorRef,
 } from '@endo/platform/fs/lite';
 import { bytesToText } from '@endo/bytes/to-string.js';
 import { Fail } from '@endo/errors';
+
+/**
+ * Wrap an async iterator (or iterable) as a hardened, CapTP-passable
+ * remotable exposing `next`/`return`/`throw`, so a `streamBase64`
+ * consumer can drain it over an eventual-send boundary via
+ * `E(ref).next()`. Mirrors `@endo/daemon`'s `makeIteratorRef`
+ * (referenced by the shared `@endo/platform` fs design), reproduced
+ * locally because this workspace does not depend on `@endo/daemon`.
+ *
+ * @param {AsyncIterator<unknown> | AsyncIterable<unknown>} iterable
+ */
+const makeIteratorRef = iterable => {
+  const iterator =
+    Symbol.asyncIterator in iterable
+      ? /** @type {AsyncIterable<unknown>} */ (iterable)[Symbol.asyncIterator]()
+      : /** @type {AsyncIterator<unknown>} */ (iterable);
+  return Far('AsyncIterator', {
+    async next() {
+      return iterator.next();
+    },
+    /** @param {unknown} [value] */
+    async return(value) {
+      if (iterator.return !== undefined) {
+        return iterator.return(value);
+      }
+      return harden({ value, done: true });
+    },
+    /** @param {unknown} [error] */
+    async throw(error) {
+      if (iterator.throw !== undefined) {
+        return iterator.throw(error);
+      }
+      return harden({ value: undefined, done: true });
+    },
+  });
+};
+harden(makeIteratorRef);
 
 // `@endo/zip/inflate.js` is implemented atop `DecompressionStream`,
 // which is available in every host the project targets (Node 18+,
@@ -38,7 +75,6 @@ try {
   canInflate = true;
   // eslint-disable-next-line no-empty
 } catch {}
-
 
 /**
  * @typedef {object} TreeNode
@@ -68,7 +104,7 @@ const addEntry = (root, fullPath, archiveName) => {
     if (!node.children) {
       // Reached a leaf where a directory was expected: an existing
       // file's path is a prefix of the current entry's path.
-      throw Fail`Zip ${archiveName} entry ${JSON.stringify(fullPath)} collides with an existing file at ${JSON.stringify(segments.slice(0, i).join('/'))}`,
+      throw Fail`Zip ${archiveName} entry ${JSON.stringify(fullPath)} collides with an existing file at ${JSON.stringify(segments.slice(0, i).join('/'))}`;
     }
     let child = node.children.get(segment);
     if (!child) {
@@ -80,14 +116,14 @@ const addEntry = (root, fullPath, archiveName) => {
 
   const leaf = segments[segments.length - 1];
   if (!node.children) {
-    throw Fail`Zip ${archiveName} entry ${JSON.stringify(fullPath)} collides with an existing file`,
+    throw Fail`Zip ${archiveName} entry ${JSON.stringify(fullPath)} collides with an existing file`;
   }
   if (node.children.has(leaf)) {
     const existing = /** @type {TreeNode} */ (node.children.get(leaf));
     if (existing.children) {
-      throw Fail`Zip ${archiveName} entry ${JSON.stringify(fullPath)} collides with an existing directory of the same name`,
+      throw Fail`Zip ${archiveName} entry ${JSON.stringify(fullPath)} collides with an existing directory of the same name`;
     }
-    throw Fail`Zip ${archiveName} contains duplicate entry ${JSON.stringify(fullPath)}`,
+    throw Fail`Zip ${archiveName} contains duplicate entry ${JSON.stringify(fullPath)}`;
   }
   node.children.set(leaf, { fullPath });
 };
@@ -197,6 +233,11 @@ const makeUnzipBlob = (zipReader, fullPath) => {
       const bytes = await zipReader.get(fullPath);
       return JSON.parse(bytesToText(bytes));
     },
+    /** @param {string} [method] */
+    help: method =>
+      method === undefined
+        ? 'UnzipBlob: read-only view of a single ZIP entry (streamBase64, text, json).'
+        : `No documentation for method ${method}.`,
   });
 };
 harden(makeUnzipBlob);
@@ -216,7 +257,7 @@ harden(makeUnzipBlob);
 const makeUnzipTree = (zipReader, node, archiveName) => {
   const children = node.children;
   if (!children) {
-    throw Fail`makeUnzipTree called on a leaf node`
+    throw Fail`makeUnzipTree called on a leaf node`;
   }
 
   /** @type {ReadableTree} */
@@ -240,24 +281,88 @@ const makeUnzipTree = (zipReader, node, archiveName) => {
       let target = node;
       for (const name of names) {
         if (!target.children) {
-          throw Fail`Cannot list ${JSON.stringify(name)} inside a blob`
+          throw Fail`Cannot list ${JSON.stringify(name)} inside a blob`;
         }
         const next = target.children.get(name);
         if (next === undefined) {
-          throw Fail`No such entry: ${JSON.stringify(name)}`
+          throw Fail`No such entry: ${JSON.stringify(name)}`;
         }
         target = next;
       }
       if (!target.children) {
-        throw Fail`Cannot list a blob entry`
+        throw Fail`Cannot list a blob entry`;
       }
       return harden([...target.children.keys()].sort());
+    },
+    /**
+     * Recursive listing of the subtree under `petNamePath` (a single
+     * name, a path of segments, or `[]` for the whole tree). Returns
+     * every descendant as a `{ path, type }` record — `path` relative
+     * to the queried node, lexically sorted, each directory emitted
+     * before its own children (matching `@endo/platform`'s `LocalTree`).
+     * `options.ignore` augments the set of top-level segment names to
+     * skip for this call. The synthesized tree lives entirely in local
+     * Maps, so the walk is synchronous under an async signature.
+     *
+     * @param {string | string[]} petNamePath
+     * @param {{ ignore?: string[] }} [listTreeOptions]
+     * @returns {Promise<Array<{ path: string[], type: 'file' | 'directory' }>>}
+     */
+    listTree: async (petNamePath, listTreeOptions = {}) => {
+      const namePath =
+        typeof petNamePath === 'string' ? [petNamePath] : petNamePath;
+      assertSafePathSegments(namePath, archiveName);
+      const { ignore = [] } = listTreeOptions;
+      const ignoredHere = new Set(ignore);
+
+      let start = node;
+      for (const name of namePath) {
+        if (!start.children) {
+          throw Fail`Cannot descend into a blob at ${JSON.stringify(name)}`;
+        }
+        const next = start.children.get(name);
+        if (next === undefined) {
+          throw Fail`No such entry: ${JSON.stringify(name)}`;
+        }
+        start = next;
+      }
+      if (!start.children) {
+        throw Fail`Cannot list a blob entry`;
+      }
+
+      /** @type {Array<{ path: string[], type: 'file' | 'directory' }>} */
+      const entries = [];
+
+      /**
+       * @param {TreeNode} current
+       * @param {string[]} relSegments
+       */
+      const walk = (current, relSegments) => {
+        const kept = [...(current.children?.keys() ?? [])]
+          .filter(name => !(relSegments.length === 0 && ignoredHere.has(name)))
+          .sort();
+        for (const name of kept) {
+          const child = /** @type {TreeNode} */ (
+            /** @type {Map<string, TreeNode>} */ (current.children).get(name)
+          );
+          const childRel = harden([...relSegments, name]);
+          if (child.children) {
+            entries.push(harden({ path: childRel, type: 'directory' }));
+            walk(child, childRel);
+          } else {
+            entries.push(harden({ path: childRel, type: 'file' }));
+          }
+        }
+      };
+
+      walk(start, []);
+      return harden(entries);
     },
     lookup: async petNamePath => {
       const namePath =
         typeof petNamePath === 'string' ? [petNamePath] : petNamePath;
       if (namePath.length === 0) {
-        throw Fail`lookup requires at least one name`
+        throw Fail`lookup requires at least one name`;
       }
       assertSafePathSegments(namePath, archiveName);
       // Walk the synthesized tree synchronously. Both intermediate
@@ -267,27 +372,32 @@ const makeUnzipTree = (zipReader, node, archiveName) => {
       let target = node;
       for (let i = 0; i < namePath.length - 1; i += 1) {
         if (!target.children) {
-          throw Fail`Cannot descend into a blob at ${JSON.stringify(namePath.slice(0, i).join('/'))}`,
+          throw Fail`Cannot descend into a blob at ${JSON.stringify(namePath.slice(0, i).join('/'))}`;
         }
         const next = target.children.get(namePath[i]);
         if (next === undefined) {
-          throw Fail`No such entry: ${JSON.stringify(namePath[i])}`
+          throw Fail`No such entry: ${JSON.stringify(namePath[i])}`;
         }
         target = next;
       }
       if (!target.children) {
-        throw Fail`Cannot descend into a blob`
+        throw Fail`Cannot descend into a blob`;
       }
       const last = namePath[namePath.length - 1];
       const child = target.children.get(last);
       if (child === undefined) {
-        throw Fail`No such entry: ${JSON.stringify(last)}`
+        throw Fail`No such entry: ${JSON.stringify(last)}`;
       }
       if (child.children) {
         return makeUnzipTree(zipReader, child, archiveName);
       }
       return makeUnzipBlob(zipReader, /** @type {string} */ (child.fullPath));
     },
+    /** @param {string} [method] */
+    help: method =>
+      method === undefined
+        ? 'UnzipTree: read-only view of an in-memory ZIP archive (has, list, listTree, lookup).'
+        : `No documentation for method ${method}.`,
   };
 
   return makeExo('UnzipTree', ReadableTreeInterface, methods);
