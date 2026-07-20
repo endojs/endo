@@ -188,13 +188,37 @@ Live remote references then keep working as if nothing happened —
 including calls issued while the daemon was down, which buffer in the
 peer's netlayer and complete against the successor.
 
+Resumed sessions keep their identity fully: the session's private key
+persists with the record, so handoff signatures issued before the
+restart still verify after it.
 Known limits of the prototype: retransmit buffers are unbounded until
-acked; parked sessions are kept indefinitely (no session GC); resumed
-sessions mint fresh session keys (the session id carries continuity,
-so cross-restart third-party handoffs are future work); daemon-side
-imports re-mint lazily (identity across the restart is per-session
-only); and exports with no durable description (session-internal
-resolvers) re-seat as tombstones that fail loudly.
+acked; parked sessions are kept indefinitely (no session GC);
+daemon-side imports re-mint lazily (identity across the restart is
+per-session only); and an export that lacks a durable description —
+the invariant is that every daemon export originates from a durable
+worker or a host resource — re-seats as a tombstone that fails
+loudly.
+
+## OCapN end-to-end (in progress)
+
+The machine is unifying on the OCapN wire protocol for the
+host↔worker edge too, replacing the internal captp shell (see the
+design's *Protocol unification* section).
+`src/pipe-network.js` runs OCapN over the trusted worker duct with no
+wire handshake: both ends derive both (authority-free) identities
+deterministically from the worker id and fabricate the same session
+independently, so worker sessions are restart-stable by construction.
+`src/worker-peer.js` is the OCapN-native worker shell — a full OCapN
+peer whose evaluate facet is fetched from the worker's own locator —
+and `src/worker-peer-xs.js` is its XS bundle entry
+(`dist-xs/worker-peer.js`, built by the same `build:xs-bundles`
+script), with binary frames riding the NDJSON duct base64-encoded.
+`src/routing-network.js` lets one daemon OCapN client front both
+transports, relaying TCP peers to worker heaps without third-party
+handoff (worker locations are unreachable by design).
+`test/worker-peer-xs.test.js` proves the orthogonal-persistence
+property over the unified protocol: the host's live OCapN session
+continues across an XS heap snapshot → process kill → restore.
 
 ## Retirement and vat GC
 

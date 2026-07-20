@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-07-16 |
-| **Updated** | 2026-07-17 |
+| **Updated** | 2026-07-20 |
 | **Author** | Aaron Davis (prompted) |
 | **Status** | In Progress |
 
@@ -908,10 +908,26 @@ an OCapN relay: one protocol, one marshal format, one session model.
 
 1. ~~Pipe network + worker-peer shell + routing network + relay
    policy~~ (landed, above).
-2. XS worker-peer bundle: the OCapN worker profile bundled for the XS
-   engine (binary frames ride the existing NDJSON duct base64-encoded;
-   the polyfill set gains nothing Node-only — verified none remain in
-   the client graph), replacing `worker-xs.js`'s captp shell.
+2. ~~XS worker-peer bundle~~ (landed): the OCapN worker peer runs in
+   the real XS machine. `src/worker-peer-xs.js` is the bundle entry
+   (`dist-xs/worker-peer.js`, built by `scripts/bundle-xs-worker.mjs`
+   alongside the captp shell it will replace); binary OCapN frames
+   ride the existing NDJSON duct base64-encoded in
+   `{ t: 'f', b64 }` envelopes, after a `{ t: 'init', workerId }`
+   first message (pipe identity derives from the worker id, so the
+   peer cannot boot before it). No Node-only modules remain in the
+   bundled graph (verified: zero `require` in the bundle output;
+   the deterministic pipe identities avoid `getRandomValues` in the
+   guest). The end-to-end test
+   (`test/worker-peer-xs.test.js`) drives `siesta-xs-worker` through
+   `makeXsEngine`: the host's live OCapN session continues across a
+   heap snapshot → process kill → restore, with counter state,
+   presence identity, and a pre-snapshot promise all carrying over —
+   the orthogonal-persistence property, now over the unified
+   protocol. Bundling note: dual-build noble packages without
+   `"type": "module"` need `commonjsLanguageForExtension:
+   { js: 'mjs' }` because the always-on `import` condition selects
+   their ESM files.
 3. Host worker sessions become durable OCapN sessions: the durable
    netlayer's logical-connection machinery (frame journal, watermarks,
    resumption) carries the pipe transport too, with one policy

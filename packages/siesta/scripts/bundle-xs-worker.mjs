@@ -64,7 +64,7 @@ const bootDist = path.join(distDir, 'boot.js');
 fs.writeFileSync(bootDist, bootScript);
 console.log(`Wrote ${bootDist} (${bootScript.length} bytes)`);
 
-// --- Worker shell bundle ---
+// --- Worker shell bundle (endo-captp edge, being retired) ---
 const workerUrl = url.pathToFileURL(
   path.resolve(dirname, '../src/worker-xs.js'),
 ).href;
@@ -74,6 +74,24 @@ const workerBundle = await makeBundle(readPowers, workerUrl, {
 const workerDist = path.join(distDir, 'worker-xs.js');
 fs.writeFileSync(workerDist, workerBundle);
 console.log(`Wrote ${workerDist} (${workerBundle.length} bytes)`);
+
+// --- OCapN worker peer bundle (protocol unification) ---
+const peerUrl = url.pathToFileURL(
+  path.resolve(dirname, '../src/worker-peer-xs.js'),
+).href;
+const peerBundle = await makeBundle(readPowers, peerUrl, {
+  packageDependenciesHook,
+  // Dual-build dependencies without `"type": "module"` (@noble/curves
+  // 1.9.x and the @noble/hashes 1.8 it pins) default to the CJS parser,
+  // but the always-on `import` condition resolves their exports to ESM
+  // files. Parse `.js` in such packages as ESM to match. Every other
+  // package in this graph declares `"type": "module"`, so the override
+  // is inert for them.
+  commonjsLanguageForExtension: { js: 'mjs' },
+});
+const peerDist = path.join(distDir, 'worker-peer.js');
+fs.writeFileSync(peerDist, peerBundle);
+console.log(`Wrote ${peerDist} (${peerBundle.length} bytes)`);
 
 // --- Stubs for xsnap's other include_str! inputs, if absent ---
 for (const stub of [

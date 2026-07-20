@@ -40,6 +40,7 @@
     "build:xs-bundles": "node scripts/bundle-xs-worker.mjs"
   },
   "dependencies": {
+    "@endo/base64": "workspace:^",
     "@endo/bytes": "workspace:^",
     "@endo/captp": "workspace:^",
     "@endo/errors": "workspace:^",
