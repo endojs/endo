@@ -1957,7 +1957,7 @@ __metadata:
     "@endo/bytes": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/exo": "workspace:^"
-    "@endo/far": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/patterns": "workspace:^"
@@ -1975,7 +1975,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/exo-zip@workspace:packages/exo-zip"
   dependencies:
-    "@endo/base64": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
     "@endo/exo-unzip": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/harden": "workspace:^"
