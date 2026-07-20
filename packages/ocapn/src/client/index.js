@@ -199,6 +199,13 @@ const makeSessionManager = onSessionResolved => {
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
+ * @param {(grantDetails: import('./grant-tracker.js').GrantDetails) => boolean} [options.shouldHandoff] -
+ *   Policy for passing a reference imported from one session onward to a
+ *   different peer. Default (undefined) uses the OCapN third-party
+ *   handoff. A relay fronting peers others cannot reach (e.g. a siesta
+ *   daemon and its pipe-connected workers) returns false for those
+ *   grants, re-exporting the reference as its own object and proxying
+ *   deliveries instead.
  * @param {import('./types.js').SessionHooks} [options.sessionHooks] - Optional
  *   observation hooks for durable-session embedders: `onSessionEstablished`
  *   fires whenever a session resolves (with its durable identity fields) and
@@ -218,6 +225,7 @@ export const makeOcapn = async ({
   enableImportCollection = true,
   debugMode = false,
   sessionHooks = undefined,
+  shouldHandoff = undefined,
   logger: providedLogger,
 }) => {
   if (!codec) {
@@ -448,17 +456,21 @@ export const makeOcapn = async ({
     }
 
     // Networks that manage their own full session lifecycle (connect,
-    // authenticate, encrypt) short-circuit the handshake machinery.
+    // authenticate, encrypt) short-circuit the handshake machinery. A
+    // routing network that fronts several transports may return
+    // undefined for locations that use the handshake path instead.
     const asNetwork = /** @type {OcapnNetwork} */ (network);
     if (asNetwork.provideSession) {
       const networkSession = await asNetwork.provideSession(location);
-      const session = makeInternalSessionFromNetwork(networkSession, network);
-      sessionManager.resolveSession(
-        destinationLocationId,
-        session.connection,
-        session,
-      );
-      return Promise.resolve(session);
+      if (networkSession !== undefined) {
+        const session = makeInternalSessionFromNetwork(networkSession, network);
+        sessionManager.resolveSession(
+          destinationLocationId,
+          session.connection,
+          session,
+        );
+        return Promise.resolve(session);
+      }
     }
 
     const asNetlayer = /** @type {NetLayer} */ (network);
@@ -584,6 +596,7 @@ export const makeOcapn = async ({
                 )(connection, resolverSlot)),
           }
         : undefined,
+      shouldHandoff,
     );
   };
 

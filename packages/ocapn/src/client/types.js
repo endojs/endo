@@ -48,9 +48,12 @@
  *   Establish a raw connection to a peer. Required unless the network
  *   implements `provideSession`. May be synchronous or asynchronous;
  *   the client always awaits the result.
- * @property {((location: OcapnLocation) => Promise<NetworkSession>)} [provideSession] -
+ * @property {((location: OcapnLocation) => Promise<NetworkSession | undefined>)} [provideSession] -
  *   Return a fully authenticated session; the client bypasses its own
  *   handshake machinery. Required unless the network implements `connect`.
+ *   May resolve undefined to decline the location, in which case the
+ *   client falls back to the `connect` + handshake path (used by
+ *   routing networks that front several transports).
  * @property {OcapnLocation} [location] - A representative location of
  *   this network, used for self-location checks. Networks that do not
  *   have a single fixed location may omit this.

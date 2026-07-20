@@ -1,6 +1,5 @@
 // @ts-check
-import { randomBytes } from 'node:crypto';
-
+/* global crypto */
 import harden from '@endo/harden';
 import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
 import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
@@ -92,10 +91,16 @@ export const makeSessionId = (peerIdOne, peerIdTwo) => {
 };
 
 /**
+ * Portable random bytes: Web Crypto is present on Node (>= 19),
+ * browsers, and can be shimmed on embedded engines (an engine profile
+ * that never mints gift ids may shim a throwing stub).
+ *
  * @returns {ArrayBufferLike}
  */
 export const randomGiftId = () => {
-  return bytesToImmutable(randomBytes(16));
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return bytesToImmutable(bytes);
 };
 
 /**
