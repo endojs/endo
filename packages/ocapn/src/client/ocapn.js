@@ -690,9 +690,6 @@ const makeBootstrapObject = (
  * @property {(minimum: bigint) => void} advanceAnswerPosition
  *   skip the question counter past answer positions a previous
  *   process could have used (session resumption)
- * @property {(promise: Promise<unknown>, resolverObject: object) => void} subscribeToPromise
- *   send op:listen for a promise this session imported, with a
- *   caller-supplied resolver (the non-reifying relay's forwarder)
  * @property {(message: any) => Uint8Array} writeOcapnMessage
  * @property {OcapnDebug} [_debug] - **EXPERIMENTAL**: Internal APIs for testing. Only present when `debugMode` is true.
  */
@@ -727,12 +724,6 @@ const makeBootstrapObject = (
  *   embedders: export- and import-slot assignment, resolver
  *   obligations taken on (with the durable name of their target), and
  *   resolver obligations settled (record can be dropped)
- * @param {{ makeForwarder: (resolveMeDesc: any, resolverSlot: Slot | undefined, connection: Connection) => object }} [listenRelay]
- *   non-reifying promise relay for relaying clients: when present,
- *   this client never subscribes to promise imports for itself, and
- *   an op:listen whose target is a third-party import is forwarded to
- *   the owning session with a durable forwarder resolver instead of
- *   being absorbed into an in-memory promise linkage
  * @returns {Ocapn}
  */
 export const makeOcapn = (
@@ -754,7 +745,6 @@ export const makeOcapn = (
   debugMode = false,
   sessionHooks = undefined,
   shouldHandoff = undefined,
-  listenRelay = undefined,
 ) => {
   const onReject = reason => {
     logger.info(`onReject`, reason);
@@ -921,38 +911,6 @@ export const makeOcapn = (
       const { to: listenTarget, resolveMeDesc } = message;
       if (!(listenTarget instanceof Promise)) {
         throw Error(`OCapN: Expected a promise, got ${listenTarget}`);
-      }
-      if (listenRelay !== undefined) {
-        // Non-reifying relay: when the listen target is a promise this
-        // client imported from ANOTHER session, do not absorb the
-        // subscription into an in-memory linkage. Subscribe on the
-        // owning session instead, with a forwarder resolver that
-        // delivers the eventual resolution straight to the
-        // subscriber's resolver — an ordinary, durably describable
-        // export, so the whole subscription chain lives in the
-        // endpoints and their session records, never in this
-        // process's memory.
-        const grantDetails = grantTracker.getGrantDetails(listenTarget);
-        if (
-          grantDetails !== undefined &&
-          locationToLocationId(grantDetails.location) !==
-            locationToLocationId(peerLocation)
-        ) {
-          const ownerSession = getActiveSession(
-            locationToLocationId(grantDetails.location),
-          );
-          if (ownerSession !== undefined) {
-            // eslint-disable-next-line no-use-before-define
-            const resolverSlot = ocapnTable.getSlotForValue(resolveMeDesc);
-            const forwarder = listenRelay.makeForwarder(
-              resolveMeDesc,
-              resolverSlot,
-              connection,
-            );
-            ownerSession.ocapn.subscribeToPromise(listenTarget, forwarder);
-            return;
-          }
-        }
       }
       // When the listen target is one of our own promise exports, its
       // position is a durable name a restarted process can re-attach
@@ -1184,11 +1142,8 @@ export const makeOcapn = (
     const grantDetails = makeGrantDetails(peerLocation, slot);
     grantTracker.recordImport(val, grantDetails);
     const { type, isLocal } = parseSlot(slot);
-    // Only subscribe to promises, not questions. A relaying client
-    // never subscribes for itself: subscription state must live in
-    // the (durable) endpoints, so it subscribes only on demand — when
-    // a peer listens — and with a durable forwarder (see op:listen).
-    if (!isLocal && type === 'p' && listenRelay === undefined) {
+    // Only subscribe to promises, not questions.
+    if (!isLocal && type === 'p') {
       eagerlySubscribeToRemotePromise(val);
     }
     if (sessionHooks && sessionHooks.onImport) {
@@ -1445,17 +1400,6 @@ export const makeOcapn = (
         : referenceKit.provideRemoteObjectValue(position),
     advanceAnswerPosition: minimum =>
       referenceKit.advanceAnswerPosition(minimum),
-    subscribeToPromise: (promise, resolverObject) => {
-      // As eagerlySubscribeToRemotePromise, but with a caller-supplied
-      // resolver — the seam the non-reifying listen relay uses to
-      // subscribe on the promise-owning session with a forwarder.
-      send({
-        type: 'op:listen',
-        to: promise,
-        resolveMeDesc: resolverObject,
-        wantsPartial: false,
-      });
-    },
     restorePendingResolver: ({ resolverPosition, target }) => {
       const resolver =
         referenceKit.provideRemoteResolverValue(resolverPosition);

@@ -124,31 +124,6 @@ export const makeDurableSessions = ({
    */
   const netlayerRef = { netlayer: undefined };
 
-  /**
-   * Sessions this process has resumed, for restored listen-forwarders
-   * whose subscriber is a remote peer: a forwarder re-seated at boot
-   * can only materialize its resolver once the peer's session resumes.
-   *
-   * @type {Map<string, any>}
-   */
-  const resumedByToken = new Map();
-  /** @type {Map<string, Array<(resumed: any) => void>>} */
-  const resumeWaiters = new Map();
-  /**
-   * @param {string} token
-   * @param {any} resumed
-   */
-  const noteResumed = (token, resumed) => {
-    resumedByToken.set(token, resumed);
-    const waiters = resumeWaiters.get(token);
-    if (waiters !== undefined) {
-      resumeWaiters.delete(token);
-      for (const waiter of waiters) {
-        waiter(resumed);
-      }
-    }
-  };
-
   /** @param {object} connection */
   const tokenForConnection = connection => {
     const { netlayer } = netlayerRef;
@@ -304,7 +279,6 @@ export const makeDurableSessions = ({
           ? { selfPrivateKeyBytes: decodeHexToUint8(meta.selfPrivateKey) }
           : {}),
       });
-      noteResumed(token, resumed);
       for (const [slot, description] of Object.entries(meta.exports ?? {})) {
         const position = BigInt(slot.slice(2));
         if (description === null) {
@@ -349,7 +323,6 @@ export const makeDurableSessions = ({
       sessionStore.setMeta({ ...sessionStore.getMeta(), recvSeq: n });
     },
     onEnd: token => {
-      resumedByToken.delete(token);
       store.deleteSession(token);
     },
   });
@@ -357,24 +330,6 @@ export const makeDurableSessions = ({
   return harden({
     sessionHooks,
     resumption,
-    /**
-     * Resolves with the ResumedSession controls for a resume token,
-     * as soon as (or whenever) that session resumes in this process.
-     *
-     * @param {string} token
-     * @returns {Promise<any>}
-     */
-    whenSessionResumed: token => {
-      const existing = resumedByToken.get(token);
-      if (existing !== undefined) {
-        return Promise.resolve(existing);
-      }
-      return new Promise(resolve => {
-        const waiters = resumeWaiters.get(token) ?? [];
-        waiters.push(resolve);
-        resumeWaiters.set(token, waiters);
-      });
-    },
     /** @param {any} netlayer */
     setNetlayer: netlayer => {
       netlayerRef.netlayer = netlayer;

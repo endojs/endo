@@ -9,12 +9,14 @@ Guests never observe their own suspension, restoration, or the
 daemon's restarts — persistence is orthogonal to the guest programming
 model, and there is no upgrade story on purpose.
 
-The machine speaks the OCapN p2p wire protocol end to end: one OCapN
-client serves remote peers over the injected netlayer AND every worker
-over an in-process pipe transport, so the daemon is a relay with one
-protocol, one marshal format, and one durability regime.
+The machine speaks the OCapN p2p wire protocol end to end, and the
+daemon is mostly a forwarding and slot-rewriting hub
+(`@endo/ocapn/hub`): workers and remote peers are hub sessions, and
+every message between them is structurally transcoded through
+persisted c-list tables — the daemon reifies no presences, no
+promises, no subscriptions for routed traffic.
 Worker exports published under a swissnum become OCapN sturdy refs
-served from the daemon's locator.
+answered by the hub's bootstrap from its publications table.
 
 Workers are sleepy.
 When a worker is quiescent, the daemon can snapshot and terminate it;
@@ -90,49 +92,38 @@ A crash without sleep restarts from the last snapshot plus the full
 journal suffix; clean shutdown is an optimization, not a correctness
 requirement.
 
-## How daemon restarts work
+## The hub, and how daemon restarts work
 
-The worker half of each session lives inside the guest heap, so the
-engine snapshot preserves it.
-The session identity derives from the worker id, so nothing about it
-is persisted.
-What the daemon records (`src/worker-session-records.js`) is its own
-export table per worker session — the capabilities it has passed
-*into* each worker — and its publications, both as durable
-descriptions:
+The hub (`@endo/ocapn/hub`) holds only per-session c-lists (position ↔
+reference row), answer routes, and publications — plain JSON tables,
+written through to the store before any frame that names them exists.
+Every message is decoded with the ordinary wire codecs against a
+table-backed reference kit, routed by its target's origin, and
+re-encoded toward the destination with its c-lists; subscriptions,
+resolutions, pipelined answers, and gc hints are all just messages
+whose slots get rewritten.
+Promises are not special anywhere: an `op:listen` forwards like any
+delivery, and a settlement frame toward a sleeping worker wakes it
+through its transport.
 
-- a host resource: `{ kind: 'resource', name, description }`,
-  re-instantiated by the registered factory;
-- an import from another worker session (a cross-worker link the
-  daemon relays): `{ kind: 'link', workerId, slot }`, re-materialized
-  through the linked session's `provideImport` without waking anyone;
-- listen forwarders: `{ kind: 'listen-forwarder', holder, slot }`.
-  The daemon is **non-reifying about promises**: it never subscribes
-  to a promise itself. When a peer listens on a relayed promise, the
-  daemon forwards the subscription to the owning session with a
-  forwarder resolver — an ordinary export that delivers the eventual
-  resolution straight to the subscriber's resolver. Subscription
-  state therefore lives only in the (orthogonally persistent)
-  endpoints, and a restart re-seats forwarders like any other export
-  (deferred, when the subscriber is a remote session that has not yet
-  resumed);
-- residual protocol-internal resolvers: `{ kind: 'internal' }`,
-  re-seated as position-preserving tombstones.
+Exactly one session reifies values: the **endpoint**, an in-process
+OCapN client hosting the daemon's genuine objects — system resources
+and the worker controller — and the embedder's admin route.
+Its session records shrink to resource descriptions (re-instantiated
+by name at recorded positions) and at-most-once answer obligations —
+the one kind of pending obligation that genuinely dies with the
+process, since worker-owed answers now survive restarts by heap
+replay.
 
-A restarted daemon re-establishes every worker session from the store,
-re-seats records and publications, partitions each session's
-answer-position space by a persisted epoch (so fresh question counters
-never collide with answer registrations still held in worker heaps),
-and leaves every worker asleep until a message arrives.
-
-Settlement routing is the comms-vat property and it falls out of
-unification: within a lifetime a settlement frame flows
-owner → forwarder → subscriber and wakes a sleeping holder through
-its transport; across a restart, the restored forwarder in the
-owner's session record carries the same route with no daemon-side
-subscription to rebuild. A promise minted in worker A and held in
-worker B settles after a daemon restart with both workers starting
-asleep.
+A daemon restart is: reload hub tables, reattach worker transports
+(asleep), restore the endpoint session, and let remote peers resume by
+rebinding their ducts.
+Nothing is re-seated because nothing was reified.
+A promise minted in worker A and held in worker B settles after a
+daemon restart with both workers starting asleep — the subscription is
+nothing but rows and a wire subscription in A's heap.
+Retired workers leave dead-reference tombstones in the tables, so
+holders' calls break loudly instead of jamming.
 
 ## Engines
 
@@ -230,15 +221,12 @@ const daemon = await makeSiestaDaemon({
 Wrap both peers.
 
 On the daemon side the sessions are also durable across **daemon
-restarts**: the daemon persists, per resume token, each session's
-identity (session id, peer key, location, and the session's own
-private key — so pre-restart handoff signatures keep verifying), its
-frame watermarks, its unacknowledged outbound frames, and the same
-durable export descriptions the worker sessions use.
+restarts**: frame watermarks and unacknowledged outbound frames
+persist per resume token, and the session's state proper is its hub
+rows.
 A successor process pins the same port; the peer's netlayer reconnects
-and resumes; the daemon rebuilds the OCapN session (same session id,
-same keys, no handshake) and re-seats every export at its recorded
-position without waking any worker.
+and resumes; the daemon rebinds the duct to the same hub session — no
+handshake, no re-seating, no worker wakes.
 Live remote references then keep working as if nothing happened —
 including calls issued while the daemon was down, which buffer in the
 peer's netlayer and complete against the successor.
@@ -314,17 +302,16 @@ resolves to a daemon:
 - `listWorkerIds()` — sorted ids of the live workers (admin/debug).
 - `makeResource(name, description?)` — instantiates a registered
   resource maker; interned by `(name, description)`.
-- `publish(value, secret?)` — durably registers a capability under a
-  swissnum and returns the swissnum.
-- `unpublish(secret)` — removes a publication from the locator and the
-  store.
-- `collectVats({ keep? })` — vat-level mark-and-sweep; resolves to the
-  swept ids.
-- `locator` — the swissnum-to-presence Map served over OCapN.
+- `publish(value, secret?)` — durably registers a capability the
+  endpoint holds under a swissnum and returns the swissnum.
+- `unpublish(secret)` — removes a publication.
+- `lookup(secret)` — the embedder's in-process route to a publication.
+- `collectVats({ keep? })` — vat-level mark-and-sweep over the hub's
+  reference tables; resolves to the swept ids.
 - `location` and `makeSturdyRefDetails(secret)` — what a peer needs to
   mint a sturdy ref.
 - `shutdown()` — snapshots and parks every worker, then closes the
-  client.
+  endpoint and the netlayer.
 - `crash()` — abandons live state the way a power failure would (for
   tests and supervisors; the store is left recoverable).
 
@@ -342,11 +329,11 @@ Each worker object has:
 
 This is a prototype.
 See the design document for the full list of open issues, notably:
-answers owed by a crashed process are at-most-once (they reject after
-a restart; durable promise links do survive), automatic idle-sleep
-policy is not yet reinstated on the unified daemon (sleep is explicit
-or supervisor-driven), and worker heaps retain answer registrations
-from previous daemon epochs until object-level GC lands.
+answers owed by host resources are at-most-once (they reject after a
+restart; worker-owed answers and promises survive by heap replay),
+automatic idle-sleep policy is not yet reinstated (sleep is explicit
+or supervisor-driven), and the hub loudly rejects third-party
+handoffs, sturdy refs in transit, and cross-session answer promotion.
 
 ## Design
 

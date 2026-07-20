@@ -9,16 +9,22 @@
 
 ## Status
 
-The machine is **protocol-unified**: OCapN end to end (see § *Protocol
-unification*, all five phases landed). `makeSiestaDaemon` is one OCapN
-client whose workers are embedded OCapN peers over durable worker
-transports and whose remote peers ride the injected (durable)
-netlayer. The captp worker layer this document originally specified
-was built first, proved every property, and has been retired; the
-descriptions of the captp host below (§ *Architecture* through
-§ *Crash-consistency envelope*) are the historical record of that
-first machine — the properties carry over, the mechanisms now live at
-the frame layer.
+The machine is **protocol-unified and non-reifying**: OCapN end to
+end, with the daemon standing on the OCapN hub (`@endo/ocapn/hub`) —
+a forwarding and slot-rewriting node holding only persisted c-list
+tables, per maintainer direction ("the siesta host should not even be
+much of a client implementation, mostly just a forwarding and slot
+rewriting hub"). This is § *A non-reifying host* realized: every
+message between workers and peers is structurally transcoded through
+the tables; presences, promises, and subscriptions exist only in the
+endpoints (worker heaps, remote clients, and the daemon's one
+in-process endpoint session for resources and admin). Two earlier
+machines were built first and retired in turn — the captp host, then
+the client-based unified daemon — each proving the full property set
+before being subsumed; their descriptions below are the historical
+record. Restart semantics sharpened with the hub: worker-owed answers
+now survive restarts by heap replay, and at-most-once aborts narrow
+to answers host resources owe.
 
 What exists, all verified by tests across three SES configurations,
 with the distinguishing scenarios on real XS heap snapshots:
@@ -803,7 +809,7 @@ pre-restart answer errors rather than hangs).
 the related design for the Noise netlayer; both layers here are
 transport-agnostic and should compose with it.
 
-### Protocol unification: OCapN end-to-end (landed)
+### Protocol unification: OCapN end-to-end (landed; superseded in part by the hub — see below)
 
 Per maintainer direction, Option B below is accepted: the machine
 unifies on the OCapN wire protocol end-to-end, chosen by end result
@@ -1006,6 +1012,53 @@ Option A (comms vat over two protocols) was weighed and remains the
 fallback if the XS OCapN client proves too heavy; the durable schema
 landed so far is identical under both, so no persisted state is
 thrown away either way.
+
+### The hub (landed)
+
+The client-based unified daemon was itself then replaced, per
+maintainer direction, by the **OCapN hub** (`@endo/ocapn/hub`): the
+non-reifying core this document's comms-vat analysis pointed at.
+
+- The hub holds per-session c-lists (`position ↔ reference row` with
+  flavor, wire refcounts, and dead-tombstone bits), answer routes,
+  and publications — plain JSON tables written through to the store
+  before any frame that names them exists. Messages are decoded with
+  the ordinary wire codecs against a table-backed reference kit that
+  materializes descriptors as inert tokens, routed by target origin,
+  and re-encoded with the destination session's kit. Deliveries,
+  listens, pipelined answers (`op:get`/`op:index` included), gc
+  hints, and settlements are all the same operation: slot rewriting.
+  Promises are not special anywhere — the machinery phases 3b–4
+  built for them (export descriptions, obligation rows, forwarders,
+  answer epochs, `relayPromises`) was deleted; hub rows subsume all
+  of it.
+- The hub's one endpoint behavior is its bootstrap: `fetch(swissnum)`
+  answers from the publications table, recording the answer route so
+  pipelined delivers through it forward.
+- The daemon (`makeSiestaDaemon`) composes: worker sessions over the
+  durable worker transports (hub mode: pure frame callbacks, no
+  client seams), remote sessions over the injected netlayer (daemon-
+  side `op:start-session` handshake per connection; the durable
+  netlayer's resumption power persists frame watermarks per token,
+  and restoration is a duct rebind), and the **endpoint** — one
+  in-process OCapN client hosting resources and the worker
+  controller, restored across restarts by the (now endpoint-scoped)
+  session records: resources by name at recorded positions, pending
+  answers rejected at-most-once. Worker bootstraps reach the
+  endpoint via the hub's out-of-band `introduce` seam, so vat GC is
+  never rooted by plumbing; vat GC itself marks over the hub's
+  reference tables (resolver rows excluded — they are one-shot
+  plumbing), and retirement tombstones a session's rows so holders'
+  calls break loudly.
+- Semantics sharpened: a worker-owed answer legitimately survives a
+  daemon restart (the heap replays to the same pending state), so
+  at-most-once aborts apply only to answers host resources owe.
+  Loud, documented hub limits: no third-party handoffs, no sturdy
+  refs in transit, no cross-session answer promotion (future work).
+- Tests: `test/hub.test.js` (pure forwarding, identity, pipelining,
+  settlement, hub restart from tables mid-session) plus the entire
+  migrated scenario suite on the hub daemon — including the XS
+  restart acid test — pass across three SES configurations.
 
 ### Also deferred
 
