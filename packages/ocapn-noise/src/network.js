@@ -928,6 +928,37 @@ export const makeOcapnNoiseNetwork = ({
         await stream.writer.return(undefined);
         return;
       }
+      // Late crossed hello: we already hold an active session with
+      // this peer. `decrementAndSettle` never displaces an adopted
+      // session, so finishing this handshake would mint a session we
+      // immediately close — and the peer may have adopted it by then,
+      // tearing it out from under their CapTP layer (the two sides
+      // can even close each other's adopted sessions mutually).
+      // Refuse before SYNACK instead: the peer's dial fails fast, and
+      // its own settlement converges on the session both sides
+      // already share.
+      //
+      // Exception: an active session still sitting unclaimed in
+      // `pendingInbound` has no consumer whose read side would ever
+      // notice the peer closing it. A fresh SYN from that same peer
+      // is evidence the peer's side of it is gone (a live peer's dial
+      // would have been answered from its own active cache), so
+      // displace the unclaimed session and let this handshake
+      // proceed.
+      const existingActive = active.get(initiatorKeyHex);
+      if (existingActive) {
+        const pendingIdx = pendingInbound.indexOf(existingActive.session);
+        if (pendingIdx === -1) {
+          await stream.writer.return(undefined);
+          return;
+        }
+        pendingInbound.splice(pendingIdx, 1);
+        // `close` fires the session's onClose, which forgets the
+        // active entry; the copy already queued on `inboundSessions`
+        // surfaces as a dead session, exactly as the
+        // MAX_PENDING_INBOUND_SESSIONS overflow path leaves one.
+        existingActive.close();
+      }
       registeredPeerId = initiatorKeyHex;
       bumpInProgress(initiatorKeyHex);
       const tiebreaker = tiebreakerFromPrefixedSyn(prefixedSyn);
