@@ -8,40 +8,30 @@ import { Far } from '@endo/far';
  */
 
 /**
- * Worker-session records (protocol unification phase 3b): the durable
- * description of the daemon's side of every worker session, so a
- * daemon restart re-seats each daemon export into a worker session —
- * and each publication — without waking any worker.
+ * Endpoint session records: the durable description of the daemon's
+ * one reifying session (the endpoint), so a daemon restart re-seats
+ * its exports without reconstructing any live state elsewhere — the
+ * hub's tables carry every other session.
  *
- * The worker's half of the session lives in its heap snapshot; the
- * session identity derives from the worker id; frames are covered by
- * the durable worker transport. What remains contingent is the
- * daemon's export table (the capabilities it has passed *into* each
- * worker) and its publications, and the machine invariant makes both
- * describable — every daemon export originates from a durable worker
- * or a host resource:
+ * The machine invariant makes the endpoint's exports describable:
+ * every value the endpoint exports is either
  *
  * - a host resource: described as `{ kind: 'resource', name,
  *   description }`, re-instantiated by the registered factory on
  *   restore (instances are per-process singletons per name and
- *   description);
- * - an import from another worker session (a cross-worker link the
- *   daemon relays): described as `{ kind: 'link', workerId, slot }`,
- *   re-materialized on restore through the linked session's
- *   `provideImport` — no worker wakes;
+ *   description); or
+ * - protocol-internal plumbing — the resolver objects the OCapN layer
+ *   mints for op:listen subscriptions and op:deliver replies. Their
+ *   function is restored separately (resolver obligations re-attach),
+ *   so they are recorded as `{ kind: 'internal' }` and re-seat as
+ *   tombstones that only keep the position space aligned; calls to one
+ *   fail loudly.
  *
- * Everything else the daemon exports into a worker session is, by
- * that same invariant, protocol-internal — the resolver objects the
- * OCapN layer mints for op:listen subscriptions and op:deliver
- * replies. Their *function* is restored separately (resolver
- * obligations re-attach, promise imports re-subscribe), so they are
- * recorded as `{ kind: 'internal' }` and re-seat as tombstones that
- * only keep the position space aligned; calls to one fail loudly.
- *
- * Descriptions are keyed by export slot in each worker store's tables
- * record; resolver obligations ride along exactly as in the durable
- * TCP sessions (promise targets re-subscribe, answer targets reject
- * at-most-once).
+ * Descriptions are keyed by export slot in the endpoint's worker-store
+ * tables record; resolver obligations ride along (promise targets
+ * re-subscribe, answer targets reject at-most-once), and the answer
+ * epoch partitions the endpoint's question positions across daemon
+ * processes.
  *
  * @param {object} options
  * @param {SiestaStore} options.store
@@ -58,8 +48,6 @@ export const makeWorkerSessionRecords = ({
 }) => {
   /** @type {WeakMap<object, string>} connection -> workerId */
   const workerIdForConnection = new WeakMap();
-  /** @type {WeakMap<object, { workerId: string, slot: string }>} */
-  const valueOrigins = new WeakMap();
   /** @type {WeakMap<object, { name: string, description: unknown }>} */
   const resourceOrigins = new WeakMap();
   /** @type {Map<string, object>} (name, description) -> singleton */
@@ -88,40 +76,12 @@ export const makeWorkerSessionRecords = ({
   };
 
   /**
-   * @param {object} value
-   * @returns {Record<string, unknown> | undefined}
-   */
-  const describeValue = value => {
-    const resource = resourceOrigins.get(value);
-    if (resource !== undefined) {
-      return harden({ kind: 'resource', ...resource });
-    }
-    const origin = valueOrigins.get(value);
-    if (origin !== undefined) {
-      return harden({ kind: 'link', ...origin });
-    }
-    return undefined;
-  };
-
-  /**
    * @param {any} description
    * @returns {object}
    */
   const provideCapability = description => {
     if (description.kind === 'resource') {
       return provideResource(description.name, description.description ?? null);
-    }
-    if (description.kind === 'link') {
-      const resumed = resumedByWorkerId.get(description.workerId);
-      resumed !== undefined ||
-        Fail`siesta worker sessions: link to unrestored worker ${q(
-          description.workerId,
-        )}`;
-      const slot = String(description.slot);
-      return resumed.provideImport({
-        type: slot[0],
-        position: BigInt(slot.slice(2)),
-      });
     }
     if (description.kind === 'internal') {
       // A protocol-internal resolver from the previous process; its
@@ -141,18 +101,6 @@ export const makeWorkerSessionRecords = ({
      * @param {string} slot
      * @param {object} value
      */
-    onImport: (connection, slot, value) => {
-      const workerId = workerIdForConnection.get(connection);
-      if (workerId === undefined) {
-        return;
-      }
-      valueOrigins.set(value, { workerId, slot });
-    },
-    /**
-     * @param {object} connection
-     * @param {string} slot
-     * @param {object} value
-     */
     onExport: (connection, slot, value) => {
       const workerId = workerIdForConnection.get(connection);
       if (workerId === undefined || restoring) {
@@ -164,8 +112,11 @@ export const makeWorkerSessionRecords = ({
         if (slot.endsWith('+0')) {
           return;
         }
+        const resource = resourceOrigins.get(value);
         const description =
-          describeValue(value) ?? harden({ kind: 'internal' });
+          resource === undefined
+            ? harden({ kind: 'internal' })
+            : harden({ kind: 'resource', ...resource });
         const workerStore = store.provideWorkerStore(workerId);
         const record = /** @type {any} */ (workerStore.getTablesRecord()) ?? {};
         workerStore.setTablesRecord({
@@ -215,10 +166,7 @@ export const makeWorkerSessionRecords = ({
       try {
         const workerStore = store.provideWorkerStore(workerId);
         const record = /** @type {any} */ (workerStore.getTablesRecord()) ?? {};
-        if (
-          record.pendingResolvers &&
-          resolverSlot in record.pendingResolvers
-        ) {
+        if (record.pendingResolvers && resolverSlot in record.pendingResolvers) {
           const pendingResolvers = { ...record.pendingResolvers };
           delete pendingResolvers[resolverSlot];
           workerStore.setTablesRecord({ ...record, pendingResolvers });
@@ -233,23 +181,8 @@ export const makeWorkerSessionRecords = ({
     sessionHooks,
     provideResource,
     /**
-     * The linkage seam shared with durable TCP sessions: the durable
-     * description of a host-side capability (a made resource, or an
-     * import from a worker session), or undefined.
-     *
-     * @param {object} value
-     */
-    describeCapability: value => describeValue(value),
-    /**
-     * Rebuild a capability from its durable description, minting
-     * worker links at their recorded slots without waking anyone.
-     *
-     * @param {unknown} description
-     */
-    provideCapability: description => provideCapability(description),
-    /**
-     * Bind a transport's connection to its worker id so the hooks can
-     * attribute session traffic. Call before `transport.establish()`.
+     * Bind a connection to its session's record id so the hooks can
+     * attribute session traffic. Call before restoring the session.
      *
      * @param {object} connection
      * @param {string} workerId
@@ -258,20 +191,18 @@ export const makeWorkerSessionRecords = ({
       workerIdForConnection.set(connection, workerId);
     },
     /**
-     * Note a worker session's restore controls (fresh or restored
-     * daemon alike), so links into this worker can re-materialize.
+     * Note a session's restore controls (fresh or restored daemon
+     * alike), so `restoreWorker` can re-seat into it.
      *
      * @param {string} workerId
-     * @param {any} resumed the transport's `establish()` result
+     * @param {any} resumed the client's `resumeSession` result
      */
     registerResumedSession: (workerId, resumed) => {
       resumedByWorkerId.set(workerId, resumed);
     },
     /**
-     * Re-seat every recorded export and resolver obligation for a
-     * worker session in a restarted daemon. Call after every worker's
-     * session has been established and registered (links may point
-     * both ways). No worker wakes.
+     * Re-seat every recorded export and resolver obligation for the
+     * session in a restarted daemon.
      *
      * @param {string} workerId
      */
@@ -281,7 +212,7 @@ export const makeWorkerSessionRecords = ({
         Fail`siesta worker sessions: worker ${q(workerId)} is not established`;
       const workerStore = store.provideWorkerStore(workerId);
       const record = /** @type {any} */ (workerStore.getTablesRecord()) ?? {};
-      // The worker's heap still holds answer registrations from every
+      // The hub's tables still hold answer registrations from every
       // previous daemon process (only op:gc-answers releases them, and
       // a dead process sends none). Partition the answer-position
       // space by daemon epoch so this process's fresh question counter
@@ -314,39 +245,6 @@ export const makeWorkerSessionRecords = ({
         }
       } finally {
         restoring = false;
-      }
-    },
-    /**
-     * Publish a value under a swissnum, durably: the publication
-     * record is the value's durable description, so a restarted
-     * daemon re-materializes it without waking anything.
-     *
-     * @param {Map<string, object>} locator the daemon client's locator
-     * @param {string} secret
-     * @param {object} value
-     */
-    publish: (locator, secret, value) => {
-      const description = describeValue(value);
-      description !== undefined ||
-        Fail`siesta worker sessions: published value has no durable description`;
-      store.setPublication(secret, /** @type {any} */ (description));
-      locator.set(secret, value);
-    },
-    /**
-     * Re-seat every publication into the locator of a restarted
-     * daemon. Call after `restoreWorker` for all workers.
-     *
-     * @param {Map<string, object>} locator
-     */
-    restorePublications: locator => {
-      for (const [secret, description] of Object.entries(
-        store.getPublications(),
-      )) {
-        try {
-          locator.set(secret, provideCapability(description));
-        } catch (error) {
-          reportError(error);
-        }
       }
     },
   });

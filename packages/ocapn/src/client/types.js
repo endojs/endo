@@ -237,8 +237,9 @@
 
 /**
  * The durable identity of a session, sufficient to resume it in a new
- * process. Captured via `SessionHooks.onSessionEstablished`; replayed
- * via `NetlayerHandlers.resumeSession`.
+ * process — supplied by the embedder (persisted, or derived
+ * deterministically as siesta's pipe sessions do) and replayed via
+ * `NetlayerHandlers.resumeSession`.
  *
  * @typedef {object} SessionResumption
  * @property {ArrayBufferLike} sessionId
@@ -255,7 +256,6 @@
  * and embedders that do not provide durability never see them.
  *
  * @typedef {object} SessionHooks
- * @property {(connection: Connection, resumption: SessionResumption) => void} [onSessionEstablished]
  * @property {(connection: Connection, slot: import('../captp/types.js').Slot, value: object) => void} [onExport]
  * @property {(connection: Connection, slot: import('../captp/types.js').Slot, value: object) => void} [onImport]
  * @property {(connection: Connection, resolverSlot: import('../captp/types.js').Slot, target: { kind: 'promise' | 'answer', position: bigint }) => void} [onPendingResolver]

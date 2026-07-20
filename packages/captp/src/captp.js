@@ -840,114 +840,6 @@ export const makeCapTP = (
     },
   };
 
-  /**
-   * Reconstruct an import for a slot our peer previously exported to us,
-   * as recorded (for example) by an `importHook` during an earlier
-   * incarnation of this connection.
-   *
-   * This is the restore half of a persistent CapTP session: a caller that
-   * records `(slot, iface)` pairs for its imports (and persists its
-   * export/promise counters via `makeCapTPImportExportTables`) can
-   * reconstruct the same presences after a restart, so long as the peer
-   * still holds the corresponding exports — as a peer restored from a
-   * heap snapshot does.
-   *
-   * The slot is ours-perspective (the same form `importHook` and
-   * `exportHook` receive, e.g. `o-3`), and must name an import (`-`
-   * direction). Returns the same value as the original import would have:
-   * a presence for `o-` slots or a handled promise for `p-` slots.
-   * Idempotent: repeated calls for the same slot return the same value.
-   *
-   * @param {CapTPSlot} slot ours-perspective slot to reconstruct
-   * @param {string} [iface] interface name for the new presence
-   */
-  const provideImport = (slot, iface = undefined) => {
-    typeof slot === 'string' || Fail`provideImport slot must be a string`;
-    slot[1] === '-' ||
-      Fail`provideImport can only reconstruct imports, not ${slot}`;
-    // convertSlotToVal takes the slot in the peer's perspective, as
-    // received on the wire.
-    const val = convertSlotToVal(reverseSlot(slot), iface);
-    // Commit the reference bookkeeping convertSlotToVal staged, as
-    // dispatch would have for an inbound message.
-    recvSlot.commit();
-    return val;
-  };
-
-  /**
-   * Reconstruct an export at a slot we previously exported to our peer,
-   * as recorded (for example) by an `exportHook` during an earlier
-   * incarnation of this connection.
-   *
-   * This is the other restore half of a persistent CapTP session (see
-   * `provideImport`): a caller that can re-instantiate an exported object
-   * from a durable description may rebind it to its original slot, so a
-   * peer restored from a heap snapshot can keep using the presences it
-   * already holds.
-   *
-   * The slot is ours-perspective (the same form `exportHook` receives,
-   * e.g. `o+2` or `p+3`) and must name an export (`+` direction). An
-   * object slot takes a non-promise; a promise slot takes a promise,
-   * and rebinding it re-attaches the resolution subscription so the
-   * peer's held import still settles when the promise does. Idempotent
-   * for the same `(slot, val)` pair; rebinding a slot to a different
-   * value, or a value that already has another slot, is an error.
-   *
-   * @param {CapTPSlot} slot ours-perspective slot to rebind
-   * @param {any} val the re-instantiated export
-   */
-  const provideExport = (slot, val) => {
-    typeof slot === 'string' || Fail`provideExport slot must be a string`;
-    slot[1] === '+' ||
-      Fail`provideExport can only reconstruct exports, not ${slot}`;
-    slot[0] === 'o' ||
-      slot[0] === 'p' ||
-      Fail`provideExport can only reconstruct object or promise exports, not ${slot}`;
-    if (slot[0] === 'p') {
-      isPromise(val) ||
-        Fail`provideExport for promise slot ${slot} requires a promise`;
-    } else {
-      !isPromise(val) ||
-        Fail`provideExport for object slot ${slot} cannot take a promise`;
-    }
-    if (importExportTables.hasExport(slot)) {
-      importExportTables.getExport(slot) === val ||
-        Fail`slot ${slot} is already bound to another export`;
-      // The tables may have been pre-seeded (e.g. restored by a
-      // persistence layer); ensure outbound serialization still finds
-      // the slot by value.
-      if (!valToSlot.has(val)) {
-        valToSlot.set(val, slot);
-      }
-      return val;
-    }
-    const existingSlot = valToSlot.get(val);
-    existingSlot === undefined ||
-      existingSlot === slot ||
-      Fail`value is already exported as ${existingSlot}, not ${slot}`;
-    valToSlot.set(val, slot);
-    importExportTables.markAsExported(slot, val);
-    if (isPromise(val)) {
-      // Re-attach the resolution subscription, as convertValToSlot sets
-      // up for a first-time promise export.
-      const promiseID = reverseSlot(slot);
-      const resolved = result =>
-        send({
-          type: 'CTP_RESOLVE',
-          promiseID,
-          res: serialize(harden(result)),
-        });
-      const rejected = reason =>
-        send({
-          type: 'CTP_RESOLVE',
-          promiseID,
-          rej: serialize(harden(reason)),
-        });
-      E.when(val, resolved, rejected).catch(rejected);
-    }
-    return val;
-  };
-
   // Get a reference to the other side's bootstrap object.
   const getBootstrap = async () => {
     if (unplug !== false) {
@@ -1015,8 +907,6 @@ export const makeCapTP = (
     abort,
     dispatch,
     getBootstrap,
-    provideImport,
-    provideExport,
     getStats,
     isOnlyLocal,
     serialize,

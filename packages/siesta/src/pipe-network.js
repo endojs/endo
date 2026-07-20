@@ -230,18 +230,3 @@ export const makePipeNetwork = ({ codec, workerId, role, send }) => {
   });
 };
 harden(makePipeNetwork);
-
-/**
- * The OCapN location of a worker's pipe end, as the host addresses it.
- *
- * @param {string} workerId
- */
-export const workerPipeLocation = workerId =>
-  harden({
-    type: /** @type {const} */ ('ocapn-peer'),
-    network: NETWORK_ID,
-    transport: NETWORK_ID,
-    designator: `${workerId}-worker`,
-    hints: /** @type {const} */ (false),
-  });
-harden(workerPipeLocation);

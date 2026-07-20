@@ -199,7 +199,6 @@ export const makeSiestaDaemon = async ({
         /** @type {string} */ slot,
         /** @type {object} */ value,
       ) => {
-        records.sessionHooks.onImport(connection, slot, value);
         if (slot[0] === 'o' && slot[1] === '-') {
           importPositions.set(value, BigInt(slot.slice(2)));
         }
@@ -714,14 +713,14 @@ export const makeSiestaDaemon = async ({
         await entry.transport.sleep();
       }
       for (const entry of workers.values()) {
-        entry.transport.connection.end();
+        entry.transport.end();
       }
       endpointClient.shutdown();
       netlayerRef.netlayer.shutdown();
     },
     crash: async () => {
       for (const entry of workers.values()) {
-        entry.transport.connection.end();
+        entry.transport.end();
       }
       for (const entry of workers.values()) {
         // eslint-disable-next-line no-await-in-loop

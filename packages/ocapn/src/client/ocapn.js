@@ -711,9 +711,6 @@ const makeBootstrapObject = (
  * @param {string} [ourIdLabel]
  * @param {boolean} [enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object with internal APIs for testing. Default: false.
- * @param {(grantDetails: import('./grant-tracker.js').GrantDetails) => boolean} [shouldHandoff]
- *   policy for third-party references: handoff (default) or re-export
- *   as a relay; see makeReferenceKit
  * @param {{
  *   onExport?: (slot: Slot, value: object) => void,
  *   onImport?: (slot: Slot, value: object) => void,
@@ -744,7 +741,6 @@ export const makeOcapn = (
   enableImportCollection = true,
   debugMode = false,
   sessionHooks = undefined,
-  shouldHandoff = undefined,
 ) => {
   const onReject = reason => {
     logger.info(`onReject`, reason);
@@ -1319,7 +1315,6 @@ export const makeOcapn = (
     makeRemoteKit,
     makeHandoff,
     sendHandoff,
-    shouldHandoff,
   );
 
   const { readOcapnMessage, writeOcapnMessage } = makeCodecKit(

@@ -15,48 +15,24 @@ import { join } from 'node:path';
 import { Fail, q } from '@endo/errors';
 
 /**
- * The daemon-side record of one worker session: under the unified
- * daemon, export descriptions, resolver obligations, and the answer
- * epoch (worker-session-records.js).
+ * The daemon-side record of one endpoint session: export descriptions,
+ * resolver obligations, and the answer epoch
+ * (worker-session-records.js).
  *
  * @typedef {Record<string, any>} TablesRecord
- */
-
-/**
- * A publication binds an OCapN swissnum to the durable description of a
- * capability (worker-session-records.js), so the daemon can rebind its
- * locator after a restart.
- *
- * @typedef {Record<string, any>} PublicationRecord
  */
 
 /**
  * @typedef {object} WorkerMeta
  * @property {string} [debugLabel] optional human-readable label; used
  *   only in diagnostics, never as an identifier
- * @property {string} [bootSlot] import slot of the worker's bootstrap facet
- * @property {string | null} [bootIface]
- * @property {{ ref: unknown, journalLength?: number, cut?: number } | null} [snapshot]
- *   the engine snapshot and the absolute journal index it subsumes —
- *   `journalLength` under the captp host, `cut` under the durable
- *   worker transport (protocol unification)
- * @property {number} [outboundSinceSnapshot] durable worker transport:
- *   count of worker→host OCapN frames processed since the last
- *   snapshot, persisted before each dispatch; a wake's replay discards
- *   regenerated frames up to this watermark
- * @property {Array<string>} [pendingGuestQuestions] question IDs the
- *   worker has asked the host that the host has not yet answered; a
- *   restarted host rejects these (at-most-once), since the answering
- *   computation died with the previous host process
- * @property {Array<string>} [pendingPromiseExports] ours-perspective
- *   promise slots the host has exported to this worker but not yet
- *   resolved; a restarted host rejects these (at-most-once), since the
- *   resolution subscription died with the previous host process
- * @property {number} [deliveredLength] absolute journal index of the
- *   live-delivered prefix: entries below it had their outbound effects
- *   processed by some host incarnation (replay them suppressed); entries
- *   at or above it were journaled but never live-delivered (deliver them
- *   as fresh traffic on the next wake)
+ * @property {{ ref: unknown, cut?: number } | null} [snapshot]
+ *   the engine snapshot and the absolute journal index (`cut`) it
+ *   subsumes
+ * @property {number} [outboundSinceSnapshot] count of worker→host
+ *   OCapN frames processed since the last snapshot, persisted before
+ *   each dispatch; a wake's replay discards regenerated frames up to
+ *   this watermark
  */
 
 /**
@@ -103,9 +79,6 @@ import { Fail, q } from '@endo/errors';
  * @property {(workerId: string) => WorkerStore} provideWorkerStore
  * @property {(workerId: string) => void} deleteWorker removes the
  *   worker's durable state (tables, journal, meta) entirely
- * @property {() => Record<string, PublicationRecord>} getPublications
- * @property {(secret: string, record: PublicationRecord) => void} setPublication
- * @property {(secret: string) => void} deletePublication
  * @property {() => Array<string>} listSessionTokens
  * @property {(token: string) => SessionStore} provideSessionStore
  * @property {(token: string) => void} deleteSession
@@ -171,7 +144,6 @@ const writeFileAtomic = (path, text) => {
  * worker ("disk before graph").
  *
  * Layout under `statePath`:
- * - `publications.json`
  * - `workers/<workerId>/meta.json`
  * - `workers/<workerId>/tables.json`
  * - `workers/<workerId>/journal.jsonl`
@@ -184,7 +156,6 @@ const writeFileAtomic = (path, text) => {
 export const makeFsStore = statePath => {
   const workersPath = join(statePath, 'workers');
   const sessionsPath = join(statePath, 'sessions');
-  const publicationsPath = join(statePath, 'publications.json');
   mkdirSync(workersPath, { recursive: true });
 
   /** @param {string} token */
@@ -381,25 +352,6 @@ export const makeFsStore = statePath => {
         join(statePath, 'hub.json'),
         `${JSON.stringify(state)}\n`,
       ),
-    getPublications: () => readJsonMaybe(publicationsPath) ?? {},
-    setPublication: (secret, record) => {
-      const publications = readJsonMaybe(publicationsPath) ?? {};
-      publications[secret] = record;
-      writeFileAtomic(
-        publicationsPath,
-        `${JSON.stringify(publications, undefined, 2)}\n`,
-      );
-    },
-    deletePublication: secret => {
-      const publications = readJsonMaybe(publicationsPath) ?? {};
-      if (secret in publications) {
-        delete publications[secret];
-        writeFileAtomic(
-          publicationsPath,
-          `${JSON.stringify(publications, undefined, 2)}\n`,
-        );
-      }
-    },
     listSessionTokens: () =>
       existsSync(sessionsPath) ? readdirSync(sessionsPath).sort() : [],
     provideSessionStore: makeSessionStore,
@@ -421,8 +373,6 @@ harden(makeFsStore);
 export const makeMemoryStore = () => {
   /** @type {Map<string, { tables?: TablesRecord, meta: WorkerMeta, base: number, journal: Array<any> }>} */
   const workers = new Map();
-  /** @type {Record<string, PublicationRecord>} */
-  const publications = {};
   /** @type {any} */
   let hubState;
 
@@ -500,13 +450,6 @@ export const makeMemoryStore = () => {
     getHubState: () => hubState,
     setHubState: state => {
       hubState = JSON.parse(JSON.stringify(state));
-    },
-    getPublications: () => ({ ...publications }),
-    setPublication: (secret, record) => {
-      publications[secret] = record;
-    },
-    deletePublication: secret => {
-      delete publications[secret];
     },
     listSessionTokens: () => [...sessions.keys()].sort(),
     provideSessionStore,

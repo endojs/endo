@@ -4,26 +4,17 @@ import harden from '@endo/harden';
 import { decodeBase64, encodeBase64 } from '@endo/base64';
 import { Fail, q } from '@endo/errors';
 
-import { derivePipeResumption } from './pipe-network.js';
-
 /**
  * @import {WorkerEngine, WorkerIncarnation} from './worker-engine.js'
  * @import {WorkerStore} from './store-fs.js'
  */
 
 /**
- * The host end of a worker session as a durable OCapN transport
- * (protocol unification phase 3): one worker = one OCapN session on
- * the daemon's client, whose "wire" is the worker engine's duct and
- * whose durability is snapshot-keyed frame retention.
- *
- * The session is established through the `resumeSession` netlayer
- * seam — never a wire handshake. Both identities and the session id
- * derive deterministically from the worker id
- * ({@link derivePipeResumption}), so establishment is the *same
- * operation* for a fresh worker, a wake from snapshot, and a daemon
- * restart: nothing about the session's identity is persisted because
- * nothing about it is contingent.
+ * The durability envelope of one worker's hub session: the "wire" is
+ * the worker engine's duct, the durability is snapshot-keyed frame
+ * retention, and the OCapN hub owns all routing. Worker→host frames
+ * flow to the `onFrame` callback; host→worker frames enter through
+ * `write`.
  *
  * Durability discipline (the same envelope the captp host proved):
  *
@@ -50,23 +41,12 @@ import { derivePipeResumption } from './pipe-network.js';
  * naturally drains the deliveries queued before it, and deliveries
  * queued after it reopen the worker from the snapshot it just took.
  *
- * Two host-side integration modes:
- * - client mode (`handlers` + `codec`): the session registers with an
- *   OCapN client through the resumeSession seam (the transitional
- *   client-based daemon);
- * - hub mode (`onFrame`): worker→host frames flow to the callback and
- *   host→hub frames enter through `write` — the OCapN hub owns
- *   routing, and the transport is purely the durability envelope.
- *
  * @param {object} options
  * @param {string} options.workerId
  * @param {WorkerStore} options.store
  * @param {WorkerEngine} options.engine
- * @param {any} [options.handlers] the daemon OCapN client's netlayer
- *   handlers (client mode)
- * @param {any} [options.codec] (client mode)
- * @param {(bytes: Uint8Array) => void} [options.onFrame] worker→host
- *   frames (hub mode)
+ * @param {(bytes: Uint8Array) => void} options.onFrame worker→host
+ *   frames
  * @param {number} [options.idleSleepMs] park the worker after this long
  *   with no operations. The XS worker binary drains the engine's
  *   promise-job queue to quiescence after every delivery and workers
@@ -81,19 +61,12 @@ export const makeDurableWorkerTransport = ({
   workerId,
   store,
   engine,
-  handlers = undefined,
-  codec = undefined,
-  onFrame = undefined,
+  onFrame,
   idleSleepMs = undefined,
   debugLabel = undefined,
 }) => {
-  onFrame !== undefined ||
-    typeof handlers?.resumeSession === 'function' ||
-    Fail`durable worker transport requires onFrame or the resumeSession netlayer seam`;
-  const resumption =
-    onFrame === undefined
-      ? derivePipeResumption({ codec, workerId, role: 'host' })
-      : undefined;
+  typeof onFrame === 'function' ||
+    Fail`durable worker transport requires an onFrame callback`;
   const debugName = `${debugLabel ?? 'worker'}(${workerId.slice(0, 8)})`;
 
   let destroyed = false;
@@ -110,9 +83,6 @@ export const makeDurableWorkerTransport = ({
    * @type {Promise<unknown>}
    */
   let chain = Promise.resolve();
-
-  /** @type {any} */
-  let connection;
 
   // --- idle-sleep policy ---
 
@@ -170,11 +140,9 @@ export const makeDurableWorkerTransport = ({
    * @returns {Promise<T>}
    */
   const enqueue = operation => {
-    // eslint-disable-next-line no-use-before-define
     noteActivity();
     const result = chain.then(operation);
     chain = result.catch(() => {});
-    // eslint-disable-next-line no-use-before-define
     result.then(armIdleTimer, armIdleTimer);
     return result;
   };
@@ -217,12 +185,7 @@ export const makeDurableWorkerTransport = ({
     // into the (non-replayable) host session state twice.
     store.setMeta({ ...meta, outboundSinceSnapshot: seenOutbound + 1 });
     seenOutbound += 1;
-    const frame = decodeBase64(envelope.b64);
-    if (onFrame !== undefined) {
-      onFrame(frame);
-    } else {
-      handlers.handleMessageData(connection, frame);
-    }
+    onFrame(decodeBase64(envelope.b64));
   };
 
   /** Chain-context only: start an incarnation if none is running. */
@@ -264,13 +227,7 @@ export const makeDurableWorkerTransport = ({
     return started;
   };
 
-  connection = harden({
-    // Never consulted on the resumeSession path; present for shape.
-    netlayer: harden({ location: resumption?.peerLocation }),
-    isOutgoing: true,
-    get isDestroyed() {
-      return destroyed;
-    },
+  const connection = harden({
     /** @param {Uint8Array} bytes one OCapN frame toward the worker */
     write: bytes => {
       if (destroyed) {
@@ -312,9 +269,6 @@ export const makeDurableWorkerTransport = ({
       destroyed = true;
     },
   });
-
-  /** @type {any} */
-  let resumed;
 
   /**
    * Park the worker: after the deliveries already queued drain,
@@ -363,29 +317,10 @@ export const makeDurableWorkerTransport = ({
   return harden({
     workerId,
     debugLabel,
-    peerLocation: resumption?.peerLocation,
-    /**
-     * The session's connection object, the key under which the OCapN
-     * client attributes this session's traffic — embedder glue (e.g.
-     * worker-session records) binds it to the worker id.
-     */
-    connection,
-    /**
-     * Register the worker session with the OCapN client — same call
-     * whether the worker is brand new or restored after a daemon
-     * restart. Returns the narrow restore controls for re-seating
-     * exports recorded in a session record.
-     */
-    establish: () => {
-      resumption !== undefined ||
-        Fail`worker ${q(debugName)} transport is in hub mode`;
-      resumed === undefined ||
-        Fail`worker ${q(debugName)} session already established`;
-      resumed = handlers.resumeSession(connection, resumption);
-      return resumed;
-    },
-    /** Hub mode: one host→worker OCapN frame. */
+    /** One host→worker OCapN frame: journal, then deliver in order. */
     write: (/** @type {Uint8Array} */ bytes) => connection.write(bytes),
+    /** Stop accepting frames; deliveries in flight drain. */
+    end: () => connection.end(),
     isAwake: () => incarnation !== undefined,
     wake: async () => {
       await enqueue(ensureAwake);
@@ -429,12 +364,6 @@ export const makeDurableWorkerTransport = ({
           await engine.releaseSnapshot(ref);
         }
       });
-      if (handlers !== undefined) {
-        handlers.handleConnectionClose(
-          connection,
-          Error(`worker ${debugName} has been retired`),
-        );
-      }
     },
   });
 };

@@ -1,31 +1,35 @@
 // @ts-check
 
 /**
- * Protocol unification phase 3: one worker = one durable OCapN session
- * on the daemon's client. The durable worker transport journals
- * host→worker frames before the duct, wakes sleeping workers by
- * replaying the journal suffix into a snapshot-restored incarnation,
- * and absorbs the deterministically regenerated outbound frames with a
- * persisted watermark. Exercised here against the in-process peer
- * replay engines; `test/durable-worker-session-xs.test.js` runs the
- * same lifecycle on real XS heap snapshots.
+ * The durable worker transport as the hub's durability envelope: the
+ * transport journals host→worker frames before the duct, wakes
+ * sleeping workers by replaying the journal suffix into a
+ * snapshot-restored incarnation, and absorbs the deterministically
+ * regenerated outbound frames with a persisted watermark — while the
+ * OCapN hub owns all routing. Exercised here against the in-process
+ * peer replay engines; `test/durable-worker-session-xs.test.js` runs
+ * the same lifecycle on real XS heap snapshots.
  */
 import test from '@endo/ses-ava/test.js';
-import harden from '@endo/harden';
 
 import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
 import { E } from '@endo/eventual-send';
 import { makeOcapn } from '@endo/ocapn';
+import { makeOcapnHub } from '@endo/ocapn/hub';
 import { syrupCodec } from '@endo/ocapn/syrup';
 
 import { makeDurableWorkerTransport } from '../src/durable-worker-transport.js';
+import { makePipeNetwork } from '../src/pipe-network.js';
 import {
   makePeerJournalReplayEngine,
   makePeerSnapshottingReplayEngine,
 } from '../src/peer-replay-engine.js';
 import { makeMemoryStore } from '../src/store-fs.js';
 
-const SHELL_SWISSNUM = bytesToImmutable(new TextEncoder().encode('shell'));
+const textEncoder = new TextEncoder();
+/** @param {string} text */
+const bytesOf = text => bytesToImmutable(textEncoder.encode(text));
+const SHELL_SWISSNUM = bytesOf('shell');
 
 const COUNTER_SOURCE = `
 (() => {
@@ -40,61 +44,79 @@ const COUNTER_SOURCE = `
 })()
 `;
 
-const DAEMON_LOCATION = harden({
-  type: /** @type {const} */ ('ocapn-peer'),
-  network: 'siesta-daemon',
-  transport: 'siesta-daemon',
-  designator: 'daemon',
-  hints: /** @type {const} */ (false),
-});
-
 /**
- * A daemon OCapN client whose network is inert: every worker session
- * is pre-established through the resumeSession seam, so the network
- * only contributes a location. Captures the netlayer handlers the
- * durable worker transport plugs into.
+ * The daemon-shaped wiring: a hub, one worker on a durable transport,
+ * and an ordinary OCapN client standing in for the embedder.
  *
  * @param {import('ava').ExecutionContext} t
+ * @param {object} options
+ * @param {string} options.workerId
+ * @param {any} options.engine
+ * @param {any} options.store a SiestaStore
+ * @param {string} [options.debugLabel]
  */
-const makeDaemonKit = async t => {
+const makeHubKit = async (t, { workerId, engine, store, debugLabel }) => {
+  const hub = makeOcapnHub({ codec: syrupCodec });
   /** @type {any} */
-  let handlers;
-  const client = await makeOcapn({
-    codec: syrupCodec,
-    debugLabel: 'unified-daemon',
-    network: (/** @type {any} */ h) => {
-      handlers = h;
-      return harden({
-        networkId: 'siesta-daemon',
-        codec: syrupCodec,
-        location: DAEMON_LOCATION,
-        shutdown: () => {},
-      });
-    },
-  });
-  t.teardown(() => client.shutdown());
-  return { client, handlers };
-};
-
-test('a worker session sleeps and wakes by journal replay', async t => {
-  const { client, handlers } = await makeDaemonKit(t);
-  const store = makeMemoryStore();
-  const workerId = 'd'.repeat(32);
+  const holder = {};
   const transport = makeDurableWorkerTransport({
     workerId,
     store: store.provideWorkerStore(workerId),
-    engine: makePeerJournalReplayEngine(),
-    handlers,
+    engine,
+    debugLabel,
+    onFrame: (/** @type {Uint8Array} */ bytes) => holder.sink.deliver(bytes),
+  });
+  holder.sink = hub.attachSession(workerId, {
+    send: (/** @type {Uint8Array} */ bytes) => transport.write(bytes),
+    durable: true,
+  });
+  hub.publish('worker', { session: workerId, position: 0n });
+
+  const clientKey = 'c'.repeat(32);
+  /** @type {{ sink: any, pending: Array<Uint8Array> }} */
+  const outbound = { sink: undefined, pending: [] };
+  const pipe = makePipeNetwork({
     codec: syrupCodec,
+    workerId: clientKey,
+    role: 'worker',
+    send: frame => {
+      if (outbound.sink === undefined) {
+        outbound.pending.push(frame);
+      } else {
+        outbound.sink.deliver(frame);
+      }
+    },
+  });
+  const client = await makeOcapn({
+    codec: syrupCodec,
+    network: pipe.network,
+    debugLabel: 'embedder',
+  });
+  t.teardown(() => client.shutdown());
+  const session = await client.provideSession(pipe.peerLocation);
+  outbound.sink = hub.attachSession(clientKey, {
+    send: (/** @type {Uint8Array} */ bytes) => pipe.deliver(bytes),
+  });
+  for (const frame of outbound.pending.splice(0)) {
+    outbound.sink.deliver(frame);
+  }
+  return { hub, transport, session };
+};
+
+test('a worker session sleeps and wakes by journal replay', async t => {
+  const store = makeMemoryStore();
+  const workerId = 'd'.repeat(32);
+  const { transport, session } = await makeHubKit(t, {
+    workerId,
+    engine: makePeerJournalReplayEngine(),
+    store,
     debugLabel: 'sleeper',
   });
-  transport.establish();
-  t.false(transport.isAwake(), 'establishment alone does not wake the worker');
+  t.false(transport.isAwake(), 'attachment alone does not wake the worker');
 
-  const session = await client.provideSession(
-    /** @type {any} */ (transport.peerLocation),
+  const shell = await E(E(session.getBootstrap()).fetch(bytesOf('worker'))).fetch(
+    SHELL_SWISSNUM,
   );
-  const shell = await E(session.getBootstrap()).fetch(SHELL_SWISSNUM);
   t.true(transport.isAwake(), 'the first delivery woke the worker');
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
@@ -106,31 +128,26 @@ test('a worker session sleeps and wakes by journal replay', async t => {
   // The next delivery wakes the worker: a fresh peer replays the whole
   // journal (this engine has no snapshots), regenerates every outbound
   // frame it ever sent — all absorbed by the watermark — and then
-  // handles the new frame. The host session never noticed.
+  // handles the new frame. The hub session never noticed.
   t.is(await E(counter).incr(), 3, 'state survived sleep via replay');
   t.true(transport.isAwake());
   t.is(await E(counter).getCount(), 3);
 });
 
 test('a worker session survives snapshot, sleep, and crash', async t => {
-  const { client, handlers } = await makeDaemonKit(t);
   const store = makeMemoryStore();
   const workerId = 'e'.repeat(32);
   const workerStore = store.provideWorkerStore(workerId);
-  const transport = makeDurableWorkerTransport({
+  const { transport, session } = await makeHubKit(t, {
     workerId,
-    store: workerStore,
     engine: makePeerSnapshottingReplayEngine(),
-    handlers,
-    codec: syrupCodec,
+    store,
     debugLabel: 'napper',
   });
-  transport.establish();
 
-  const session = await client.provideSession(
-    /** @type {any} */ (transport.peerLocation),
+  const shell = await E(E(session.getBootstrap()).fetch(bytesOf('worker'))).fetch(
+    SHELL_SWISSNUM,
   );
-  const shell = await E(session.getBootstrap()).fetch(SHELL_SWISSNUM);
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
   t.is(await E(counter).incr(), 2);
@@ -185,34 +202,26 @@ test('a worker session survives snapshot, sleep, and crash', async t => {
 });
 
 test('a retired worker session breaks its imports', async t => {
-  const { client, handlers } = await makeDaemonKit(t);
   const store = makeMemoryStore();
   const workerId = 'f'.repeat(32);
-  const transport = makeDurableWorkerTransport({
+  const { hub, transport, session } = await makeHubKit(t, {
     workerId,
-    store: store.provideWorkerStore(workerId),
     engine: makePeerJournalReplayEngine(),
-    handlers,
-    codec: syrupCodec,
+    store,
     debugLabel: 'retiree',
   });
-  transport.establish();
 
-  const session = await client.provideSession(
-    /** @type {any} */ (transport.peerLocation),
+  const shell = await E(E(session.getBootstrap()).fetch(bytesOf('worker'))).fetch(
+    SHELL_SWISSNUM,
   );
-  const shell = await E(session.getBootstrap()).fetch(SHELL_SWISSNUM);
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
 
+  // The daemon pairs the transport's retirement with the hub's, as
+  // retireWorkerNow does.
   await transport.retire();
-  // The session aborts with the retirement as its cause.
-  const failure = await t.throwsAsync(() => E(counter).incr(), {
-    message: /Session disconnected/,
+  hub.retireSession(workerId);
+  await t.throwsAsync(() => E(counter).incr(), {
+    message: /retired/,
   });
-  t.regex(
-    String(/** @type {any} */ (failure)?.cause?.message),
-    /retired/,
-    'the abort reason names the retirement',
-  );
 });

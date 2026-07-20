@@ -111,13 +111,6 @@ export const slotTypeToName = type => {
  * @param {MakeRemoteKit} makeRemoteKit
  * @param {MakeHandoff} makeHandoff
  * @param {SendHandoff} sendHandoff
- * @param {(grantDetails: GrantDetails) => boolean} [shouldHandoff] policy
- *   for passing a reference imported from ANOTHER session to this peer:
- *   true (default) uses the OCapN third-party handoff, telling the peer
- *   to contact the exporter directly; false re-exports the reference as
- *   this side's own object, proxying deliveries — what a relay in front
- *   of unreachable peers (e.g. a siesta daemon fronting pipe-connected
- *   workers) must do
  * @returns {ReferenceKit}
  */
 export const makeReferenceKit = (
@@ -129,7 +122,6 @@ export const makeReferenceKit = (
   makeRemoteKit,
   makeHandoff,
   sendHandoff,
-  shouldHandoff = () => true,
 ) => {
   let nextExportPosition = ONE_N;
   const provideSlotForValue = value => {
@@ -502,9 +494,7 @@ export const makeReferenceKit = (
         };
       }
       const grantDetails = grantTracker.getGrantDetails(val);
-      const grantIsThirdParty =
-        grantDetails !== undefined && grantDetails.location !== peerLocation;
-      if (grantDetails && (!grantIsThirdParty || shouldHandoff(grantDetails))) {
+      if (grantDetails) {
         // This is a grant, either imported from this location or exported from another.
         const { location, slot } = grantDetails;
         const { type, isLocal } = parseSlot(slot);

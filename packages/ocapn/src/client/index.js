@@ -51,10 +51,9 @@ const handleActiveSessionMessageData = (
 };
 
 /**
- * @param {(locationId: LocationId, connection: Connection, session: InternalSession) => void} [onSessionResolved]
  * @returns {SessionManager}
  */
-const makeSessionManager = onSessionResolved => {
+const makeSessionManager = () => {
   /** @type {Map<LocationId, InternalSession>} */
   const activeSessions = new Map();
   /** @type {Map<LocationId, PendingSession>} */
@@ -100,13 +99,6 @@ const makeSessionManager = onSessionResolved => {
       if (pendingSession !== undefined) {
         pendingSession.resolve(session);
         pendingSessions.delete(locationId);
-      }
-      if (onSessionResolved !== undefined) {
-        try {
-          onSessionResolved(locationId, connection, session);
-        } catch (_err) {
-          // Observation must not break session establishment.
-        }
       }
     },
     endSession: session => {
@@ -199,17 +191,9 @@ const makeSessionManager = onSessionResolved => {
  * @param {string} [options.captpVersion] - For testing: override the CapTP version sent in handshakes
  * @param {boolean} [options.enableImportCollection] - If true, imports are tracked with WeakRefs and GC'd when unreachable. Default: true.
  * @param {boolean} [options.debugMode] - **EXPERIMENTAL**: If true, exposes `_debug` object on Ocapn instances with internal APIs for testing. Default: false.
- * @param {(grantDetails: import('./grant-tracker.js').GrantDetails) => boolean} [options.shouldHandoff] -
- *   Policy for passing a reference imported from one session onward to a
- *   different peer. Default (undefined) uses the OCapN third-party
- *   handoff. A relay fronting peers others cannot reach (e.g. a siesta
- *   daemon and its pipe-connected workers) returns false for those
- *   grants, re-exporting the reference as its own object and proxying
- *   deliveries instead.
  * @param {import('./types.js').SessionHooks} [options.sessionHooks] - Optional
- *   observation hooks for durable-session embedders: `onSessionEstablished`
- *   fires whenever a session resolves (with its durable identity fields) and
- *   `onExport` fires whenever a session assigns a local export slot. Netlayers
+ *   observation hooks for durable-session embedders: e.g. `onExport`
+ *   fires whenever a session assigns a local export slot. Netlayers
  *   that do not provide durability are unaffected.
  * @param {Logger} [options.logger] - If provided, overrides the default console-based logger. When omitted, defaults to a console-based logger labelled with `debugLabel`; `info` is suppressed unless `verbose` is true.
  * @returns {Promise<Client>}
@@ -225,7 +209,6 @@ export const makeOcapn = async ({
   enableImportCollection = true,
   debugMode = false,
   sessionHooks = undefined,
-  shouldHandoff = undefined,
   logger: providedLogger,
 }) => {
   if (!codec) {
@@ -296,19 +279,7 @@ export const makeOcapn = async ({
         verbose && console.info(`${debugLabel} [${Date.now()}]:`, ...args),
     });
 
-  const sessionManager = makeSessionManager(
-    (locationId, connection, session) => {
-      if (sessionHooks && sessionHooks.onSessionEstablished) {
-        sessionHooks.onSessionEstablished(connection, {
-          sessionId: session.id,
-          peerLocation: session.peer.location,
-          peerLocationSignature: session.peer.locationSignature,
-          peerPublicKeyBytes: session.peer.publicKey.bytes,
-          selfPrivateKeyBytes: connectionSessionPrivateKey.get(connection),
-        });
-      }
-    },
-  );
+  const sessionManager = makeSessionManager();
 
   /**
    * The resolved network. Assigned exactly once, after any factory is
@@ -321,15 +292,6 @@ export const makeOcapn = async ({
 
   /** @type {WeakMap<Connection, SelfIdentity>} */
   const connectionSelfIdentityMap = new WeakMap();
-
-  /**
-   * Session private keys by connection, for durable-session embedders
-   * that persist and resume session identity. Absent for connections
-   * whose identity came from the network (e.g. Noise).
-   *
-   * @type {WeakMap<Connection, Uint8Array>}
-   */
-  const connectionSessionPrivateKey = new WeakMap();
 
   /**
    * Get the self identity for a connection.
@@ -601,7 +563,6 @@ export const makeOcapn = async ({
                 )(connection, resolverSlot)),
           }
         : undefined,
-      shouldHandoff,
     );
   };
 
@@ -692,9 +653,7 @@ export const makeOcapn = async ({
    */
   const makeConnection = (netlayer, isOutgoing, socket) => {
     let isDestroyed = false;
-    const { selfIdentity, privateKeyBytes } = makeSelfIdentity(
-      netlayer.location,
-    );
+    const { selfIdentity } = makeSelfIdentity(netlayer.location);
 
     /** @type {Connection} */
     const connection = harden({
@@ -715,7 +674,6 @@ export const makeOcapn = async ({
 
     // Store self identity for this connection
     connectionSelfIdentityMap.set(connection, selfIdentity);
-    connectionSessionPrivateKey.set(connection, privateKeyBytes);
 
     return connection;
   };
@@ -749,7 +707,6 @@ export const makeOcapn = async ({
       );
       selfIdentity = remade.selfIdentity;
       connectionSelfIdentityMap.set(connection, selfIdentity);
-      connectionSessionPrivateKey.set(connection, remade.privateKeyBytes);
     } else {
       selfIdentity = getSelfIdentityForConnection(connection);
     }
