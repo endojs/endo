@@ -195,6 +195,17 @@ export const makeFsStore = statePath => {
     const metaPath = join(sessionPath, 'meta.json');
     const framesPath = join(sessionPath, 'frames.jsonl');
 
+    let framesRepaired = false;
+
+    /** @param {Array<{ n: number, b64: string }>} entries */
+    const writeFramesFile = entries => {
+      const text = [...entries.map(entry => JSON.stringify(entry)), ''].join(
+        '\n',
+      );
+      writeFileAtomic(framesPath, text);
+      framesRepaired = true;
+    };
+
     /** @returns {Array<{ n: number, b64: string }>} */
     const readFramesFile = () => {
       if (!existsSync(framesPath)) {
@@ -205,24 +216,23 @@ export const makeFsStore = statePath => {
         .filter(line => line !== '');
       /** @type {Array<{ n: number, b64: string }>} */
       const entries = [];
+      let torn = false;
       for (const line of lines) {
         try {
           entries.push(JSON.parse(line));
         } catch (_error) {
           // Torn tail from a crash mid-append: the frame was never
           // acknowledged, so the peer will retransmit-tolerate its loss.
+          torn = true;
           break;
         }
       }
+      if (torn) {
+        // Repair the file so a later append cannot concatenate onto the
+        // partial line and swallow the next frame.
+        writeFramesFile(entries);
+      }
       return entries;
-    };
-
-    /** @param {Array<{ n: number, b64: string }>} entries */
-    const writeFramesFile = entries => {
-      const text = [...entries.map(entry => JSON.stringify(entry)), ''].join(
-        '\n',
-      );
-      writeFileAtomic(framesPath, text);
     };
 
     /** @type {SessionStore} */
@@ -232,6 +242,9 @@ export const makeFsStore = statePath => {
       appendFrame: entry => {
         if (!existsSync(framesPath)) {
           writeFramesFile([]);
+        } else if (!framesRepaired) {
+          readFramesFile();
+          framesRepaired = true;
         }
         appendFileSync(framesPath, `${JSON.stringify(entry)}\n`);
       },

@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout, clearTimeout */
 import harden from '@endo/harden';
 import { decodeBase64, encodeBase64 } from '@endo/base64';
 import { Fail, q } from '@endo/errors';
@@ -66,6 +67,14 @@ import { derivePipeResumption } from './pipe-network.js';
  * @param {any} [options.codec] (client mode)
  * @param {(bytes: Uint8Array) => void} [options.onFrame] worker→host
  *   frames (hub mode)
+ * @param {number} [options.idleSleepMs] park the worker after this long
+ *   with no operations. The XS worker binary drains the engine's
+ *   promise-job queue to quiescence after every delivery and workers
+ *   have no timer queue, so "no inbound frames for a while" is an
+ *   exact dormancy signal, not a heuristic — a worker awaiting a
+ *   remote promise parks as heap state and the settlement frame wakes
+ *   it. If a future engine surfaces its own dormancy signal, it can
+ *   feed this same seam.
  * @param {string} [options.debugLabel]
  */
 export const makeDurableWorkerTransport = ({
@@ -75,6 +84,7 @@ export const makeDurableWorkerTransport = ({
   handlers = undefined,
   codec = undefined,
   onFrame = undefined,
+  idleSleepMs = undefined,
   debugLabel = undefined,
 }) => {
   onFrame !== undefined ||
@@ -104,6 +114,51 @@ export const makeDurableWorkerTransport = ({
   /** @type {any} */
   let connection;
 
+  // --- idle-sleep policy ---
+
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let idleTimer;
+  let opGeneration = 0;
+
+  const noteActivity = () => {
+    opGeneration += 1;
+    if (idleTimer !== undefined) {
+      clearTimeout(idleTimer);
+      idleTimer = undefined;
+    }
+  };
+
+  const armIdleTimer = () => {
+    if (idleSleepMs === undefined || destroyed || incarnation === undefined) {
+      return;
+    }
+    if (idleTimer !== undefined) {
+      clearTimeout(idleTimer);
+    }
+    const generation = opGeneration;
+    const timer = setTimeout(() => {
+      idleTimer = undefined;
+      if (
+        destroyed ||
+        opGeneration !== generation ||
+        incarnation === undefined
+      ) {
+        return;
+      }
+      // eslint-disable-next-line no-use-before-define
+      sleepInternal().catch(error =>
+        console.error(
+          `siesta worker transport ${debugName}: idle sleep failed`,
+          error,
+        ),
+      );
+    }, idleSleepMs);
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
+    idleTimer = timer;
+  };
+
   /**
    * Enqueue an incarnation-touching operation. The returned promise
    * settles with the operation; the chain itself swallows rejections
@@ -115,9 +170,30 @@ export const makeDurableWorkerTransport = ({
    * @returns {Promise<T>}
    */
   const enqueue = operation => {
+    // eslint-disable-next-line no-use-before-define
+    noteActivity();
     const result = chain.then(operation);
     chain = result.catch(() => {});
+    // eslint-disable-next-line no-use-before-define
+    result.then(armIdleTimer, armIdleTimer);
     return result;
+  };
+
+  /**
+   * The incarnation's engine process died (a delivery or snapshot
+   * failed): drop it so the next operation restarts from the snapshot
+   * plus the journal suffix instead of wedging on a dead process.
+   *
+   * @param {unknown} error
+   * @returns {never}
+   */
+  const abandonIncarnation = error => {
+    const dying = incarnation;
+    incarnation = undefined;
+    if (dying !== undefined) {
+      Promise.resolve(dying.terminate()).catch(() => {});
+    }
+    throw error;
   };
 
   /** @param {any} envelope */
@@ -168,18 +244,22 @@ export const makeDurableWorkerTransport = ({
     // frames can reach userland before the replay loop returns, and an
     // observer reacting to one must see the worker awake.
     incarnation = started;
-    if (snapshotRef === null) {
-      // The peer boots from the init message on first incarnation (or
-      // on every incarnation for replay engines without snapshots);
-      // restored heaps already contain the booted peer.
-      await started.deliver(harden({ t: 'init', workerId, debugLabel }));
-    }
-    const entries = store.readJournal(cut);
-    deliveredUpTo = cut;
-    for (const b64 of entries) {
-      // eslint-disable-next-line no-await-in-loop
-      await started.deliver(harden({ t: 'f', b64 }));
-      deliveredUpTo += 1;
+    try {
+      if (snapshotRef === null) {
+        // The peer boots from the init message on first incarnation (or
+        // on every incarnation for replay engines without snapshots);
+        // restored heaps already contain the booted peer.
+        await started.deliver(harden({ t: 'init', workerId, debugLabel }));
+      }
+      const entries = store.readJournal(cut);
+      deliveredUpTo = cut;
+      for (const b64 of entries) {
+        // eslint-disable-next-line no-await-in-loop
+        await started.deliver(harden({ t: 'f', b64 }));
+        deliveredUpTo += 1;
+      }
+    } catch (error) {
+      abandonIncarnation(error);
     }
     return started;
   };
@@ -213,7 +293,13 @@ export const makeDurableWorkerTransport = ({
         }
         index === deliveredUpTo ||
           Fail`worker ${q(debugName)}: journal delivery out of order`;
-        await running.deliver(harden({ t: 'f', b64 }));
+        try {
+          await running.deliver(harden({ t: 'f', b64 }));
+        } catch (error) {
+          // The frame stays in the journal; the wake this failure
+          // provokes replays it against a fresh incarnation.
+          abandonIncarnation(error);
+        }
         deliveredUpTo = index + 1;
       }).catch(error => {
         console.error(
@@ -229,6 +315,50 @@ export const makeDurableWorkerTransport = ({
 
   /** @type {any} */
   let resumed;
+
+  /**
+   * Park the worker: after the deliveries already queued drain,
+   * snapshot, record the snapshot ref and journal cut, reset the
+   * outbound watermark, truncate the subsumed journal prefix, and
+   * terminate the incarnation. The OCapN session stays live; the
+   * next frame wakes the worker.
+   */
+  const sleepInternal = () =>
+    enqueue(async () => {
+      if (incarnation === undefined) {
+        return;
+      }
+      if (engine.canSnapshot) {
+        const cut = deliveredUpTo;
+        /** @type {unknown} */
+        let ref;
+        try {
+          ref = await incarnation.snapshot();
+        } catch (error) {
+          abandonIncarnation(error);
+        }
+        const previous = store.getMeta().snapshot?.ref;
+        // Record the snapshot before truncating: a crash between the
+        // two leaves subsumed entries in the journal, which the next
+        // wake skips via the recorded cut.
+        store.setMeta({
+          ...store.getMeta(),
+          snapshot: { ref, cut },
+          outboundSinceSnapshot: 0,
+        });
+        store.truncateJournal(cut);
+        if (
+          previous !== undefined &&
+          previous !== ref &&
+          engine.releaseSnapshot
+        ) {
+          await engine.releaseSnapshot(previous);
+        }
+      }
+      const parked = incarnation;
+      incarnation = undefined;
+      await parked.terminate();
+    });
 
   return harden({
     workerId,
@@ -260,42 +390,9 @@ export const makeDurableWorkerTransport = ({
     wake: async () => {
       await enqueue(ensureAwake);
     },
-    /**
-     * Park the worker: after the deliveries already queued drain,
-     * snapshot, record the snapshot ref and journal cut, reset the
-     * outbound watermark, truncate the subsumed journal prefix, and
-     * terminate the incarnation. The OCapN session stays live; the
-     * next frame wakes the worker.
-     */
+    /** See {@link sleepInternal}, which the idle timer shares. */
     sleep: async () => {
-      await enqueue(async () => {
-        if (incarnation === undefined) {
-          return;
-        }
-        if (engine.canSnapshot) {
-          const cut = deliveredUpTo;
-          const ref = await incarnation.snapshot();
-          const previous = store.getMeta().snapshot?.ref;
-          // Record the snapshot before truncating: a crash between the
-          // two leaves subsumed entries in the journal, which the next
-          // wake skips via the recorded cut.
-          store.setMeta({
-            ...store.getMeta(),
-            snapshot: { ref, cut },
-            outboundSinceSnapshot: 0,
-          });
-          store.truncateJournal(cut);
-          if (
-            previous !== undefined &&
-            previous !== ref &&
-            engine.releaseSnapshot
-          ) {
-            await engine.releaseSnapshot(previous);
-          }
-        }
-        await incarnation.terminate();
-        incarnation = undefined;
-      });
+      await sleepInternal();
     },
     /**
      * Simulate worker-process death: terminate the incarnation with no
@@ -307,8 +404,9 @@ export const makeDurableWorkerTransport = ({
         if (incarnation === undefined) {
           return;
         }
-        await incarnation.terminate();
+        const dying = incarnation;
         incarnation = undefined;
+        await dying.terminate();
       });
     },
     /**
@@ -322,8 +420,9 @@ export const makeDurableWorkerTransport = ({
       destroyed = true;
       await enqueue(async () => {
         if (incarnation !== undefined) {
-          await incarnation.terminate();
+          const dying = incarnation;
           incarnation = undefined;
+          await dying.terminate();
         }
         const ref = store.getMeta().snapshot?.ref;
         if (ref !== undefined && engine.releaseSnapshot) {

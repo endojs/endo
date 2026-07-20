@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout */
 
 /**
  * The unified siesta daemon (protocol unification phase 5): worker
@@ -128,4 +129,35 @@ test('a host resource reaches a guest as an endowment', async t => {
   t.false(worker.isAwake());
   t.is(typeof (await E(clock).read()), 'number');
   t.true(worker.isAwake());
+});
+
+test('an idle worker parks itself and wakes on the next call', async t => {
+  t.timeout(10_000);
+  const statePath = await mkdtemp(join(tmpdir(), 'siesta-daemon-test-'));
+  t.teardown(() => rm(statePath, { recursive: true, force: true }));
+  const daemon = await makeSiestaDaemon({
+    store: makeFsStore(statePath),
+    engine: makePeerJournalReplayEngine(),
+    codec: syrupCodec,
+    idleSleepMs: 100,
+    makeNetlayer: ({ handlers, logger }) =>
+      makeTcpNetLayer({ handlers, logger }),
+  });
+  t.teardown(() => daemon.shutdown());
+
+  const worker = await daemon.createWorker({ debugLabel: 'napper' });
+  const counter = await worker.evaluate(COUNTER_SOURCE);
+  t.is(await E(counter).incr(), 1);
+  t.true(worker.isAwake());
+
+  // Workers run to quiescence after every delivery and have no timer
+  // queue, so "no inbound frames for a while" is exact dormancy: the
+  // idle policy parks the worker without being asked.
+  const deadline = Date.now() + 5000;
+  while (worker.isAwake() && Date.now() < deadline) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  t.false(worker.isAwake(), 'the worker parked itself');
+  t.is(await E(counter).incr(), 2, 'the next delivery wakes it');
 });

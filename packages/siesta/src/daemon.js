@@ -1,6 +1,7 @@
 // @ts-check
 /* global crypto */
 import harden from '@endo/harden';
+import { decodeBase64, encodeBase64 } from '@endo/base64';
 import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
 import { Fail, q } from '@endo/errors';
 import { E, Far } from '@endo/far';
@@ -99,6 +100,9 @@ const ENDPOINT_SESSION = 'endpoint';
  * @param {any} options.codec an OCapN codec, e.g. `syrupCodec`
  * @param {(powers: { handlers: any, logger: any, resumption: any }) => Promise<any> | any} options.makeNetlayer
  * @param {Record<string, (description?: unknown) => object>} [options.resources]
+ * @param {number} [options.idleSleepMs] park a worker after this long
+ *   with no deliveries (see the durable worker transport's idle-sleep
+ *   policy); omitted means workers sleep only on request
  * @param {boolean} [options.verbose]
  * @returns {Promise<SiestaDaemon>}
  */
@@ -108,6 +112,7 @@ export const makeSiestaDaemon = async ({
   codec,
   makeNetlayer,
   resources = {},
+  idleSleepMs = undefined,
   verbose = false,
 }) => {
   const logError = verbose
@@ -137,6 +142,7 @@ export const makeSiestaDaemon = async ({
         workerId,
         store: workerStore,
         engine,
+        idleSleepMs,
         debugLabel: workerStore.getMeta().debugLabel,
         onFrame: (/** @type {Uint8Array} */ bytes) =>
           holder.sink.deliver(bytes),
@@ -165,8 +171,14 @@ export const makeSiestaDaemon = async ({
     resources: resourceMakers,
   });
 
-  /** @type {Map<object, bigint>} endpoint import presence -> hub-facing position */
-  const importPositions = new Map();
+  /**
+   * Endpoint import presence -> hub-facing position, for `publish`.
+   * Weak, so the map does not itself pin every import the endpoint
+   * ever saw.
+   *
+   * @type {WeakMap<object, bigint>}
+   */
+  const importPositions = new WeakMap();
 
   /** @type {any} */
   let endpointSink;
@@ -396,23 +408,6 @@ export const makeSiestaDaemon = async ({
    * the session stores (as before), but restoration just rebinds the
    * duct to the hub session — the tables are already there.
    */
-  const base64FromBytes = (/** @type {Uint8Array} */ bytes) => {
-    let binary = '';
-    for (const byte of bytes) {
-      binary += String.fromCharCode(byte);
-    }
-    // eslint-disable-next-line no-undef
-    return btoa(binary);
-  };
-  const bytesFromBase64 = (/** @type {string} */ b64) => {
-    // eslint-disable-next-line no-undef
-    const binary = atob(b64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-  };
   const resumption = harden({
     isDurableToken: (/** @type {string} */ token) => isSessionToken(token),
     onHello: (/** @type {string} */ token) => {
@@ -431,12 +426,20 @@ export const makeSiestaDaemon = async ({
       if (meta.established === undefined) {
         return undefined;
       }
+      const frames = sessionStore
+        .readFrames()
+        .map(({ n, b64 }) => ({ n, bytes: decodeBase64(b64) }));
+      // A crash can land between the frame append and the sendSeq
+      // meta write; the frames file is the authority on how far the
+      // sequence actually advanced.
+      const sendSeq = frames.reduce(
+        (max, frame) => Math.max(max, Number(frame.n)),
+        Number(meta.sendSeq ?? 0),
+      );
       return {
         recvSeq: meta.recvSeq ?? 0,
-        sendSeq: meta.sendSeq ?? 0,
-        frames: sessionStore
-          .readFrames()
-          .map(({ n, b64 }) => ({ n, bytes: bytesFromBase64(b64) })),
+        sendSeq,
+        frames,
       };
     },
     restoreSession: (
@@ -454,7 +457,7 @@ export const makeSiestaDaemon = async ({
       /** @type {Uint8Array} */ bytes,
     ) => {
       const sessionStore = store.provideSessionStore(token);
-      sessionStore.appendFrame({ n, b64: base64FromBytes(bytes) });
+      sessionStore.appendFrame({ n, b64: encodeBase64(bytes) });
       sessionStore.setMeta({
         ...sessionStore.getMeta(),
         sendSeq: n,
@@ -477,17 +480,6 @@ export const makeSiestaDaemon = async ({
       hub.retireSession(`peer:${token}`);
     },
   });
-
-  netlayerRef.netlayer = await makeNetlayer({
-    handlers: hubHandlers,
-    logger: harden({
-      log: logError,
-      error: logError,
-      info: logError,
-    }),
-    resumption,
-  });
-  const { location } = netlayerRef.netlayer;
 
   // --- the embedder API, through the endpoint ---
 
@@ -513,7 +505,12 @@ export const makeSiestaDaemon = async ({
    * @param {string} workerId
    */
   const provideShell = workerId => {
-    const entry = provideWorkerSession(workerId);
+    // Look up, never create: a retired worker must not come back as a
+    // zombie session with no store behind it.
+    const entry = workers.get(workerId);
+    if (entry === undefined) {
+      throw Fail`worker ${q(workerId)} has been retired`;
+    }
     if (entry.shellP === undefined) {
       const facing = hub.introduce(ENDPOINT_SESSION, {
         session: workerId,
@@ -619,6 +616,19 @@ export const makeSiestaDaemon = async ({
     }
   }
   records.restoreWorker(ENDPOINT_ID);
+
+  // Only after every session is seated does the daemon accept
+  // connections: an early resume must never race the restore.
+  netlayerRef.netlayer = await makeNetlayer({
+    handlers: hubHandlers,
+    logger: harden({
+      log: logError,
+      error: logError,
+      info: logError,
+    }),
+    resumption,
+  });
+  const { location } = netlayerRef.netlayer;
 
   /** @type {SiestaDaemon} */
   const daemon = {
