@@ -2,23 +2,24 @@
 
 A prototype distributed ocap machine with purely orthogonal persistence.
 
-A siesta host is a simpler cousin of the Endo daemon: it spins up
+A siesta daemon is a simpler cousin of the Endo daemon: it spins up
 workers whose guest state is preserved by XS heap snapshots rather
 than by explicit formula-based persistence.
-Guests never observe their own suspension, restoration, or the host's
-restarts — persistence is orthogonal to the guest programming model, and
-there is no upgrade story on purpose.
+Guests never observe their own suspension, restoration, or the
+daemon's restarts — persistence is orthogonal to the guest programming
+model, and there is no upgrade story on purpose.
 
-The host speaks `@endo/captp` to each worker and OCapN to the outside
-world, acting as a translation layer: worker exports published under a
-swissnum become OCapN sturdy refs served from the host's locator.
+The machine speaks the OCapN p2p wire protocol end to end: one OCapN
+client serves remote peers over the injected netlayer AND every worker
+over an in-process pipe transport, so the daemon is a relay with one
+protocol, one marshal format, and one durability regime.
+Worker exports published under a swissnum become OCapN sturdy refs
+served from the daemon's locator.
 
 Workers are sleepy.
-When a worker's CapTP session is quiescent and idle, the host snapshots
-and terminates it; a later message to any of its presences transparently
-wakes it.
-Sleep is embedder policy, never guest-visible: the host's
-`idleTimeoutMs` option drives automatic sleep, and the worker object's
+When a worker is quiescent, the daemon can snapshot and terminate it;
+a later message to any of its presences transparently wakes it.
+Sleep is embedder policy, never guest-visible: the worker object's
 `sleep()`/`wake()`/`isAwake()` are explicit hooks for embedders and
 tests — a guest cannot observe (or trigger) any of them.
 
@@ -27,7 +28,7 @@ Each is identified by a host-generated unguessable id, so reaching a
 worker requires a capability — a publication, a durable cross-worker
 link, or a facade — never a well-known string.
 `createWorker({ debugLabel })` accepts an optional label that appears
-only in logs and error messages; `host.getWorker(workerId)` is the
+only in logs and error messages; `daemon.getWorker(workerId)` is the
 embedder's admin route to an existing worker.
 
 ## Example
@@ -45,48 +46,95 @@ const daemon = await makeSiestaDaemon({
   makeNetlayer: ({ handlers, logger }) => makeTcpNetLayer({ handlers, logger }),
 });
 
-const worker = await daemon.host.createWorker({ debugLabel: 'counter' });
+const worker = await daemon.createWorker({ debugLabel: 'counter' });
 const counter = await worker.evaluate(`
   (() => {
     let count = 0;
     return Far('Counter', { incr: () => (count += 1) });
   })()
 `);
-const secret = await worker.publish(counter);
+const secret = daemon.publish(counter);
 // Any OCapN peer can now mint a sturdy ref from (daemon.location, secret)
 // and call the counter — across worker sleeps and daemon restarts.
 ```
 
-## How restarts work
+## Worker sessions
 
-The worker half of each host–worker CapTP session lives inside the guest
-heap, so the engine snapshot preserves it.
-The host half is persisted per worker:
+Each worker runs a full (reduced-profile) OCapN peer —
+`src/worker-peer.js`, a persistent `Compartment` behind an OCapN
+client whose evaluate facet is fetched from the worker's own locator
+under the well-known swissnum `shell`.
+The daemon's side of the session is a durable worker transport
+(`src/durable-worker-transport.js`): the session is established
+through the `resumeSession` seam in `@endo/ocapn` with both identities
+and the session id derived deterministically from the worker id
+(`src/pipe-network.js`), so there is no wire handshake and the *same*
+establishment call serves a fresh worker, a wake from snapshot, and a
+daemon restart.
 
-- a **tables record** — the CapTP export/promise slot counters and
-  slot-to-interface descriptors, written through on every change
-  (`makePersistentTablesKit` plugs into `makeCapTP`'s
-  `makeCapTPImportExportTables` option);
-- a **journal** of every message the host delivered to the worker;
-- **metadata** — the bootstrap facet's slot and the engine snapshot ref.
+Durability is snapshot-keyed frame retention:
 
-On restart the host resumes each session rather than re-establishing it:
-it re-mints presences for recorded import slots with
-`captp.provideImport`, rebinds publications into the OCapN locator, and
-leaves every worker asleep until a message arrives.
+- daemon→worker frames are journaled before they reach the duct, and
+  retained until a snapshot commits (not until acknowledged);
+- wake = restore the snapshot and replay the journal suffix; the
+  worker deterministically regenerates the outbound frames that
+  suffix produced, and the daemon absorbs them with a persisted
+  watermark (written before each frame is processed — at-most-once
+  after a crash, never twice);
+- sleep = drain, snapshot, record `{ ref, cut }`, truncate the
+  subsumed journal prefix, terminate. The OCapN session — and every
+  live remote reference through it — stays live; the next inbound
+  frame wakes the worker.
+
+A crash without sleep restarts from the last snapshot plus the full
+journal suffix; clean shutdown is an optimization, not a correctness
+requirement.
+
+## How daemon restarts work
+
+The worker half of each session lives inside the guest heap, so the
+engine snapshot preserves it.
+The session identity derives from the worker id, so nothing about it
+is persisted.
+What the daemon records (`src/worker-session-records.js`) is its own
+export table per worker session — the capabilities it has passed
+*into* each worker — and its publications, both as durable
+descriptions:
+
+- a host resource: `{ kind: 'resource', name, description }`,
+  re-instantiated by the registered factory;
+- an import from another worker session (a cross-worker link the
+  daemon relays): `{ kind: 'link', workerId, slot }`, re-materialized
+  through the linked session's `provideImport` without waking anyone;
+- protocol-internal resolvers: `{ kind: 'internal' }`, whose function
+  is restored separately (resolver obligations re-attach, promise
+  imports re-subscribe) and which re-seat as position-preserving
+  tombstones.
+
+A restarted daemon re-establishes every worker session from the store,
+re-seats records and publications, partitions each session's
+answer-position space by a persisted epoch (so fresh question counters
+never collide with answer registrations still held in worker heaps),
+and leaves every worker asleep until a message arrives.
+
+Settlement routing is the comms-vat property and it falls out of
+unification: within a lifetime the daemon is one OCapN client relaying
+re-exports, and a settlement frame toward a sleeping worker wakes it
+through its transport; across a restart, restoring a promise-typed
+link eagerly re-subscribes to the worker that owns the promise, and
+the holder's re-attached resolver obligation forwards the settlement.
+A promise minted in worker A and held in worker B settles after a
+daemon restart with both workers starting asleep.
 
 ## Engines
 
 `makeXsEngine` is the engine: each incarnation is a `siesta-xs-worker`
 process (rust/siesta-xs-worker, a minimal runner on the `xsnap` crate)
-hosting the worker shell inside an XS machine, with real heap
+evaluating the worker peer bundle inside an XS machine, with real heap
 snapshots streamed into a content-addressed store.
-At every sleep the host records the snapshot ref durably, truncates
-the journal prefix the snapshot subsumes, and releases the superseded
-ref to the engine.
-Journals are absolutely indexed, so truncation never moves an offset;
-wakes restore from the snapshot ref plus the journal suffix, which also
-recovers cleanly from host crashes between snapshots.
+Binary OCapN frames ride the binary's ASCII NDJSON duct base64-encoded
+(`src/worker-peer-xs.js` is the bundle entry; `dist-xs/worker-peer.js`
+the artifact).
 Build it with:
 
 ```sh
@@ -95,10 +143,11 @@ yarn workspace @endo/siesta build:xs-bundles
 cargo build --release -p siesta-xs-worker
 ```
 
-The XS tests (`test/xs-engine.test.js` for the engine mechanics,
-`test/xs-scenarios.test.js` for end-to-end parity: cross-worker links
-and promises across restarts, at-most-once aborts after a crash, and
-vat GC with content-addressed snapshot release) skip themselves when
+The XS tests (`test/worker-peer-xs.test.js`,
+`test/durable-worker-session-xs.test.js`, and
+`test/worker-session-restart-xs.test.js` — snapshot restore under a
+live session, sleepy workers with crash recovery, and a full daemon
+restart with cross-worker links and settlements) skip themselves when
 those artifacts are absent — build them so the engine you actually
 ship is the engine you test.
 XS workers boot under XS's native Hardened JavaScript: the runner
@@ -108,21 +157,21 @@ shared intrinsics inside a native `Compartment`.
 
 The engine seam stays open for future JS engines with other heap
 snapshot mechanisms: any object satisfying the `WorkerEngine` type in
-`src/host.js` (`canSnapshot`, `start`, optional `releaseSnapshot`)
-plugs in.
-Two internal replay engines (`src/journal-replay-engine.js`) implement
+`src/worker-engine.js` (`canSnapshot`, `start`, optional
+`releaseSnapshot`) plugs in.
+Two internal replay engines (`src/peer-replay-engine.js`) implement
 the same contract deterministically without an XS build; they are test
-doubles for the host's persistence logic, deliberately not part of the
-public API.
+doubles for the daemon's persistence logic, deliberately not part of
+the public API.
 
 ## Workers creating workers
 
 Grant a worker the built-in `worker-controller` resource and its guest
 can create and endow other workers, with capabilities passed from its
-own heap and the host as the translation layer:
+own heap and the daemon as the relay:
 
 ```js
-const controller = host.makeResource('worker-controller');
+const controller = daemon.makeResource('worker-controller');
 await parent.evaluate(
   `
   Far('Parent', {
@@ -138,12 +187,12 @@ await parent.evaluate(
 );
 ```
 
-Cross-worker links are durable at the export-table layer: the child's
-session records the parent-origin endowment as "import slot S of the
-parent worker's session" (by worker id), re-seated on host restart
-without waking either worker.
+Cross-worker links are durable at the session-record layer: the
+child's session records the parent-origin endowment as a link to the
+parent session's slot, re-seated on daemon restart without waking
+either worker.
 
-## Durable sessions
+## Durable sessions with remote peers
 
 OCapN has no session-resumption message, so siesta prototypes it
 beneath the protocol, at the netlayer: `makeDurableNetLayer` wraps a
@@ -160,10 +209,11 @@ transparently:
 ```js
 const daemon = await makeSiestaDaemon({
   // ...
-  makeNetlayer: ({ handlers, logger }) =>
+  makeNetlayer: ({ handlers, logger, resumption }) =>
     makeDurableNetLayer({
       handlers,
       logger,
+      resumption,
       makeBaseNetlayer: powers => makeTcpNetLayer(powers),
     }),
 });
@@ -173,84 +223,54 @@ Wrap both peers.
 
 On the daemon side the sessions are also durable across **daemon
 restarts**: the daemon persists, per resume token, each session's
-identity (session id, peer key, location), its received/sent frame
-watermarks, its unacknowledged outbound frames, and a durable
-description of every export the session makes — a daemon-side OCapN
-export is almost always a presence imported from some worker session,
-so its description is the same `{ workerId, slot }` link shape the
-worker sessions already use.
-A successor process pins the same port; the peer's netlayer
-reconnects and resumes; the daemon rebuilds the OCapN session (same
-session id, no handshake, via the `resumeSession` seam in
-`@endo/ocapn`) and re-seats every export at its recorded position
-without waking any worker.
+identity (session id, peer key, location, and the session's own
+private key — so pre-restart handoff signatures keep verifying), its
+frame watermarks, its unacknowledged outbound frames, and the same
+durable export descriptions the worker sessions use.
+A successor process pins the same port; the peer's netlayer reconnects
+and resumes; the daemon rebuilds the OCapN session (same session id,
+same keys, no handshake) and re-seats every export at its recorded
+position without waking any worker.
 Live remote references then keep working as if nothing happened —
 including calls issued while the daemon was down, which buffer in the
 peer's netlayer and complete against the successor.
 
-Resumed sessions keep their identity fully: the session's private key
-persists with the record, so handoff signatures issued before the
-restart still verify after it.
 Known limits of the prototype: retransmit buffers are unbounded until
-acked; parked sessions are kept indefinitely (no session GC);
+acked; parked sessions are kept indefinitely (no session GC); and
 daemon-side imports re-mint lazily (identity across the restart is
-per-session only); and an export that lacks a durable description —
-the invariant is that every daemon export originates from a durable
-worker or a host resource — re-seats as a tombstone that fails
-loudly.
-
-## OCapN end-to-end (in progress)
-
-The machine is unifying on the OCapN wire protocol for the
-host↔worker edge too, replacing the internal captp shell (see the
-design's *Protocol unification* section).
-`src/pipe-network.js` runs OCapN over the trusted worker duct with no
-wire handshake: both ends derive both (authority-free) identities
-deterministically from the worker id and fabricate the same session
-independently, so worker sessions are restart-stable by construction.
-`src/worker-peer.js` is the OCapN-native worker shell — a full OCapN
-peer whose evaluate facet is fetched from the worker's own locator —
-and `src/worker-peer-xs.js` is its XS bundle entry
-(`dist-xs/worker-peer.js`, built by the same `build:xs-bundles`
-script), with binary frames riding the NDJSON duct base64-encoded.
-`src/routing-network.js` lets one daemon OCapN client front both
-transports, relaying TCP peers to worker heaps without third-party
-handoff (worker locations are unreachable by design).
-`test/worker-peer-xs.test.js` proves the orthogonal-persistence
-property over the unified protocol: the host's live OCapN session
-continues across an XS heap snapshot → process kill → restore.
+per-session only).
 
 ## Retirement and vat GC
 
 Retirement is a capability, not a host operation: `retire()` on the
 embedder's worker object (and on the guest-visible `worker-facade`
-resource) permanently deletes the worker — live presences reject,
-durable links from other workers tombstone (their deliveries reject
-even after restarts), publications drop, and the snapshot is released
-unless an identical sibling heap still shares it.
+resource) permanently deletes the worker — its session aborts so live
+presences reject, publications rooted in it drop, its store is
+deleted, and its snapshot is released.
 
 Unreferenced workers die by collection instead:
-`host.collectVats({ keep })` marks workers reachable from publications
-(plus awake workers and the `keep` list of ids) along durable
-cross-worker links and retires the rest, returning the swept ids.
-`host.unpublish(secret)` removes a locator root so a published vat can
-become garbage.
+`daemon.collectVats({ keep })` marks workers reachable from
+publications (plus awake workers and the `keep` list of ids) along
+durable cross-worker links and worker facades, retires the rest, and
+returns the swept ids.
+`daemon.unpublish(secret)` removes a locator root so a published vat
+can become garbage.
 
 ## System resources
 
 Host capabilities reach guests as durable exports.
-Register makers on the host and pass instances as evaluate endowments:
+Register makers on the daemon and pass instances as evaluate
+endowments:
 
 ```js
 import { makeTimerResource } from '@endo/siesta';
 
-const host = await makeSiestaHost({
-  store,
-  engine,
+const daemon = await makeSiestaDaemon({
+  // ...
   resources: { timer: makeTimerResource },
 });
-const worker = await host.createWorker({ debugLabel: 'clock' });
-const timer = host.makeResource('timer');
+const worker = await daemon.createWorker({ debugLabel: 'clock' });
+const timer = daemon.makeResource('timer');
 const clock = await worker.evaluate(
   `Far('Clock', { read: () => E(timer).now() })`,
   ['timer'],
@@ -259,42 +279,44 @@ const clock = await worker.evaluate(
 ```
 
 When a resource is exported into a worker session, its
-`(type, description)` is recorded against the export slot; on host
+`(name, description)` is recorded against the export slot; on daemon
 restart the export is re-instantiated at the same slot, so presences
 inside the worker's snapshot keep working.
-Resource results are journaled CapTP replies, so nondeterministic
-resources (clocks) do not break deterministic replay, and a pending
-`timer.delay` wakes a sleeping worker with no inbound traffic.
+Resource results reach the worker as OCapN frames, which the daemon
+journals before delivery, so nondeterministic resources (clocks) do
+not break deterministic replay, and a pending `timer.delay` wakes a
+sleeping worker with no inbound traffic.
 
-Resource requests and host-origin promises are at-most-once: an
-obligation the host holds only in memory (an answer owed to a guest
-question, a resolution owed on a host-made promise) is rejected after
-a host restart via a journaled synthetic message — delivered on the
-next wake, waking nobody for it — never re-executed. Cross-worker
-promises are different: they are described durably in the importing
-session's export table and re-linked at restore, so a resolution from
-one worker reaches another across host restarts. Within one host
-lifetime, a promise resolving while its importer sleeps wakes the
-worker like any other message.
+Answers the daemon owes are at-most-once: a resolver obligation
+pending across a restart rejects (`pending answer aborted`) rather
+than hanging or re-executing, while durable promise links settle
+normally.
 
 ## API
 
-`makeSiestaHost({ store, engine, locator?, idleTimeoutMs?, resources?, makeSwissnum?, reportError? })`
-resolves to a host:
+`makeSiestaDaemon({ store, engine, codec, makeNetlayer, resources?, verbose? })`
+resolves to a daemon:
 
 - `createWorker({ debugLabel? })` — makes a fresh worker under a
   generated unguessable id and resolves to its worker object.
 - `getWorker(workerId)` — the worker object of an existing worker;
   throws for unknown ids (the embedder's admin route).
 - `listWorkerIds()` — sorted ids of the live workers (admin/debug).
-- `makeResource(type, description?)` — instantiates a registered
-  resource maker; interned by `(type, description)`.
+- `makeResource(name, description?)` — instantiates a registered
+  resource maker; interned by `(name, description)`.
+- `publish(value, secret?)` — durably registers a capability under a
+  swissnum and returns the swissnum.
 - `unpublish(secret)` — removes a publication from the locator and the
   store.
 - `collectVats({ keep? })` — vat-level mark-and-sweep; resolves to the
   swept ids.
 - `locator` — the swissnum-to-presence Map served over OCapN.
-- `shutdown()` — puts every worker to sleep.
+- `location` and `makeSturdyRefDetails(secret)` — what a peer needs to
+  mint a sturdy ref.
+- `shutdown()` — snapshots and parks every worker, then closes the
+  client.
+- `crash()` — abandons live state the way a power failure would (for
+  tests and supervisors; the store is left recoverable).
 
 Each worker object has:
 
@@ -302,24 +324,19 @@ Each worker object has:
 - `evaluate(source, names?, values?)` — evaluates a hardened
   JavaScript expression in the worker's persistent compartment, with
   endowments bound as named values.
-- `publish(presence, secret?)` — durably registers a presence imported
-  from this worker under a swissnum and returns the swissnum.
 - `sleep()`, `wake()`, `isAwake()` — embedder policy hooks; see above.
 - `retire()` — permanently deletes the worker; see _Retirement and
   vat GC_.
-
-`makeSiestaDaemon({ store, engine, codec, makeNetlayer, idleTimeoutMs?, verbose? })`
-wraps a host in an OCapN node and resolves to
-`{ host, ocapn, location, makeSturdyRefDetails, shutdown }`.
 
 ## Caveats
 
 This is a prototype.
 See the design document for the full list of open issues, notably:
-host-origin promises are at-most-once across host restarts (model
-durable host obligations as object capabilities; cross-worker promises
-do survive) and OCapN sessions themselves are ephemeral — only
-sturdy refs are durable.
+answers owed by a crashed process are at-most-once (they reject after
+a restart; durable promise links do survive), automatic idle-sleep
+policy is not yet reinstated on the unified daemon (sleep is explicit
+or supervisor-driven), and worker heaps retain answer registrations
+from previous daemon epochs until object-level GC lands.
 
 ## Design
 

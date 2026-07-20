@@ -7,7 +7,7 @@ import { Fail, q } from '@endo/errors';
 import { makeWorkerPeer } from './worker-peer.js';
 
 /**
- * @import {WorkerEngine, WorkerIncarnation} from './host.js'
+ * @import {WorkerEngine, WorkerIncarnation} from './worker-engine.js'
  */
 
 /**

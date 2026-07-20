@@ -9,84 +9,63 @@
 
 ## Status
 
-Phases 1–4 and 6 are landed and hardened; Phase 5 (production Noise
-transport) remains; the sections under *Future Work* carry the
-accepted plans for resource vats, the non-reifying host, and upgrade
-by indirection.
+The machine is **protocol-unified**: OCapN end to end (see § *Protocol
+unification*, all five phases landed). `makeSiestaDaemon` is one OCapN
+client whose workers are embedded OCapN peers over durable worker
+transports and whose remote peers ride the injected (durable)
+netlayer. The captp worker layer this document originally specified
+was built first, proved every property, and has been retired; the
+descriptions of the captp host below (§ *Architecture* through
+§ *Crash-consistency envelope*) are the historical record of that
+first machine — the properties carry over, the mechanisms now live at
+the frame layer.
 
-What exists, all verified by tests across three SES configurations:
+What exists, all verified by tests across three SES configurations,
+with the distinguishing scenarios on real XS heap snapshots:
 
-- **`packages/siesta`** — the host (`makeSiestaHost`), the
-  OCapN-serving daemon wrapper (`makeSiestaDaemon`), serializable
-  CapTP tables, the deterministic worker shell, filesystem/memory
-  stores, and the real XS engine (`makeXsEngine` over
-  `rust/siesta-xs-worker`, a minimal runner on the `xsnap` crate; the
-  siesta scenarios pass on real XS heap snapshots, including a
-  scenario-parity suite — cross-worker links and promises across
-  restarts, at-most-once aborts, vat GC with CAS release — so the
-  shipped engine is the tested engine). The public
-  surface is deliberately narrow — `makeSiestaHost`,
+- **`packages/siesta`** — the unified daemon (`makeSiestaDaemon`),
+  the OCapN worker peer and its XS bundle, the deterministic pipe
+  identity kit, the durable worker transport (snapshot-keyed frame
+  journal + outbound watermark), worker-session records (durable
+  export descriptions: resources, cross-worker links, internal
+  tombstones; publications; resolver obligations; answer epochs),
+  the durable netlayer for remote peers, filesystem/memory stores,
+  and the real XS engine (`makeXsEngine` over `rust/siesta-xs-worker`
+  evaluating `dist-xs/worker-peer.js`). Public surface:
   `makeSiestaDaemon`, `makeXsEngine`, `makeFsStore`,
-  `makeTimerResource` — with the deterministic replay engines, the
-  memory store, the tables kit, and the worker shell kept internal as
-  test doubles and plumbing; the `WorkerEngine` type remains the open
-  seam for future JS engines with other heap-snapshot mechanisms.
-- **`packages/captp` seams** — `provideImport(slot, iface)` and
-  `provideExport(slot, val)` (objects and promises, with resolution
-  re-subscription): the restore halves of a resumable CapTP session.
-- **Resumable sessions at the export-table layer** — slot counters,
-  import descriptors, and durable export descriptions all live in the
-  serialized tables record; sessions are resumed, never
-  re-established. The tables record is deliberately a c-list
-  serialization (see § *A non-reifying host*).
-- **Sleepy lifecycle with snapshot-subsumed journals** — absolute
-  journal indexing, truncation at every snapshot, restore from
-  snapshot plus suffix, a durable delivered-watermark separating
-  replayed traffic from never-delivered traffic, and alias-safe
-  snapshot release.
-- **System resources (stopgap form)** — maker registry, export-time
-  descriptions, resume re-instantiation, interning by
-  (type, description), the timer resource.
-- **Worker controller** — workers create and endow other workers;
-  cross-worker object and promise links are durable as
-  `worker-import` / `worker-promise` descriptions, re-seated at
-  restore without waking anyone.
-- **At-most-once host obligations** — answers owed to guest questions
-  and resolutions owed on host-origin promise exports are durably
-  indexed and rejected by a restarted host via journaled synthetic
-  messages; cross-worker promises instead survive restarts through
-  their durable links.
-- **Crash hardening** (post-ultrareview) — torn-write immunity,
-  engine-failure degradation without session aborts, disconnect
-  suppression toward workers, unique CAS temp names; see
-  § *Crash-consistency envelope*.
-- **Vat GC** — `collectVats` mark-and-sweep over the table-layer
-  reference graph, retirement as a capability (`retire()` on the
-  embedder's worker facade and on the guest-visible `worker-facade`
-  resource — the host has no retire-by-id operation) with tombstoned
-  links, `unpublish`, and shared-snapshot-ref guarding
-  (§ *Garbage collection of vats*).
-- **Durable sessions** — `makeDurableNetLayer` wraps any transport
-  netlayer with token-identified, sequence-numbered, ack-tracked
-  resumable logical connections, so OCapN sessions (and every live
-  remote reference in them) survive connection drops between live
-  processes; and with the daemon's `resumption` power
-  (`durable-sessions.js` + additive `@endo/ocapn` seams), sessions
-  survive **daemon restarts**: identity, watermarks, outbound frames,
-  and export descriptions persist per resume token, and a successor
-  process re-seats every export from the host's capability linkage
-  without waking workers. The resume handshake lives entirely at the
-  netlayer; no OCapN protocol messages were added
-  (§ *Durable OCapN sessions*).
-- **Capability-only worker identity** — workers have no names: each
-  is identified by a host-generated unguessable id
-  (`createWorker({ debugLabel })`, `getWorker(workerId)`), and store
-  layout, links, tombstones, publications, and GC all key on the id.
-  Debug labels appear only in diagnostics (Design Decision 7).
+  `makeTimerResource`, `makeDurableNetLayer`; the peer replay
+  engines, memory store, transport, records, and pipe network are
+  internal. The `WorkerEngine` type (`src/worker-engine.js`) remains
+  the open seam for future JS engines with other heap-snapshot
+  mechanisms.
+- **`packages/ocapn` seams**, all additive: `resumeSession` (with
+  persisted session keys), `ResumedSession`
+  restoreExport/restorePendingResolver/provideImport/
+  advanceAnswerPosition, sessionHooks
+  (established/export/import/pendingResolver/resolverSettled),
+  `shouldHandoff` relay policy, `provideSession` decline, portable
+  entropy.
+- **Sleepy lifecycle** — sleep = drain + snapshot + journal cut +
+  terminate under one serialized operation chain; wake = restore +
+  journal-suffix replay with watermark-absorbed regenerated frames;
+  crash-without-sleep recovers from snapshot + suffix (clean shutdown
+  is an optimization, not a correctness requirement).
+- **Daemon restarts** — worker sessions re-establish from derived
+  identity (nothing persisted because nothing contingent), records
+  re-seat exports and publications without waking anyone, remote
+  durable sessions resume with identical keys, settlements route
+  across the restart (a promise minted in worker A and held in
+  worker B settles after a restart with both asleep).
+- **Vat GC and retirement as a capability**, **system resources**
+  (timer, worker-controller, worker-facade), **capability-only worker
+  identity** — all re-pointed at session records, semantics unchanged
+  from the captp machine (Design Decision 7, § *Garbage collection of
+  vats*).
 
-Historical notes on how Phase 3 was rescoped onto the `xsnap` crate
-(skipping the endor supervisor and its broken bundle toolchain) live
-in § *The XS engine*.
+Known deliberate regression: automatic idle-sleep policy is not yet
+reinstated on the unified daemon (sleep is explicit or
+supervisor-driven). Historical notes on how Phase 3 was rescoped onto
+the `xsnap` crate live in § *The XS engine*.
 
 ## What is the Problem Being Solved?
 
@@ -817,7 +796,7 @@ pre-restart answer errors rather than hangs).
 the related design for the Noise netlayer; both layers here are
 transport-agnostic and should compose with it.
 
-### Protocol unification: OCapN end-to-end (accepted, in progress)
+### Protocol unification: OCapN end-to-end (landed)
 
 Per maintainer direction, Option B below is accepted: the machine
 unifies on the OCapN wire protocol end-to-end, chosen by end result
@@ -979,9 +958,28 @@ an OCapN relay: one protocol, one marshal format, one session model.
    settlement on. The restart tests' acid case — a promise minted in
    worker A, held in worker B, settled after a daemon restart —
    passes on real XS heaps with no reified re-attachment machinery.
-5. Retire the captp worker layer (the `@endo/captp` seams remain for
-   their other consumers), and re-point vat GC and the worker
-   controller at session records.
+5. ~~Retire the captp worker layer~~ (landed): `makeSiestaDaemon` is
+   now the unified daemon — one OCapN client whose worker sessions
+   ride durable worker transports and whose remote sessions ride the
+   injected (durable) netlayer, with one composed sessionHooks
+   observer and the worker-session records as the capability-linkage
+   seam for both. Worker lifecycle (create/admin facades), the
+   built-in `worker-controller`/`worker-facade` resources, durable
+   publications, and vat-level mark-and-sweep (roots: publications,
+   awake workers, keep-list; edges: link and facade descriptions in
+   session records) are re-pointed at session records. The captp
+   layer — `host.js`, the worker shell, the captp XS entry, the
+   persistent-tables kit, and the captp replay engines — is deleted
+   along with its tests; every scenario they proved (sleepy wakes,
+   crash recovery, cross-worker links and promises across restarts,
+   at-most-once answer aborts, key-identical TCP session resumption,
+   buffered calls across downtime, repeated restarts, vat GC with
+   snapshot release, XS lockdown) now passes over the unified
+   protocol, most on real XS heap snapshots. The `@endo/captp` seams
+   built along the way (`provideImport`, persistent tables) remain in
+   that package for other consumers. Known regression, deliberate:
+   automatic idle-sleep policy is not yet reinstated on the unified
+   daemon (sleep is explicit or supervisor-driven).
 
 Option A (comms vat over two protocols) was weighed and remains the
 fallback if the XS OCapN client proves too heavy; the durable schema

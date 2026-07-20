@@ -98,7 +98,7 @@ testXs('an XS worker peer survives snapshot restore mid-session', async t => {
   // The duct: OCapN frames ride `{ t: 'f', b64 }` JSON envelopes over
   // the binary's deliver/outbound protocol. `incarnation` is mutable so
   // the same pipe network spans a terminate/restore.
-  /** @type {import('../src/host.js').WorkerIncarnation} */
+  /** @type {import('../src/worker-engine.js').WorkerIncarnation} */
   let incarnation;
   const hostPipe = makePipeNetwork({
     codec: syrupCodec,

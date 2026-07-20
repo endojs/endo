@@ -13,7 +13,7 @@ import { syrupCodec } from '@endo/ocapn/syrup';
 
 import { makeSiestaDaemon } from '../src/daemon.js';
 import { makeDurableNetLayer } from '../src/durable-netlayer.js';
-import { makeJournalReplayEngine } from '../src/journal-replay-engine.js';
+import { makePeerJournalReplayEngine } from '../src/peer-replay-engine.js';
 import { makeFsStore } from '../src/store-fs.js';
 
 const COUNTER_SOURCE = `
@@ -68,7 +68,7 @@ const makeDurableDaemon = async t => {
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
   const daemon = await makeSiestaDaemon({
     store: makeFsStore(statePath),
-    engine: makeJournalReplayEngine(),
+    engine: makePeerJournalReplayEngine(),
     codec: syrupCodec,
     makeNetlayer: ({ handlers, logger }) =>
       makeDurableNetLayer({
@@ -101,9 +101,9 @@ const makeDurableClient = async (label, baseFactory) => {
 test('live remote references survive dropped connections', async t => {
   const daemon = await makeDurableDaemon(t);
   t.teardown(() => daemon.shutdown());
-  const worker = await daemon.host.createWorker({ debugLabel: 'counter' });
+  const worker = await daemon.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
-  const secret = await worker.publish(counter);
+  const secret = daemon.publish(counter);
 
   const dropper = makeDroppableTcp();
   const client = await makeDurableClient('durable-client', dropper.factory);
@@ -141,9 +141,9 @@ test('live remote references survive dropped connections', async t => {
 test('a sleeping worker wakes for a call that crossed a drop', async t => {
   const daemon = await makeDurableDaemon(t);
   t.teardown(() => daemon.shutdown());
-  const worker = await daemon.host.createWorker({ debugLabel: 'counter' });
+  const worker = await daemon.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
-  const secret = await worker.publish(counter);
+  const secret = daemon.publish(counter);
 
   const dropper = makeDroppableTcp();
   const client = await makeDurableClient('durable-client-2', dropper.factory);

@@ -29,7 +29,6 @@ import { isSessionToken } from './store-fs.js';
  * stays aligned with the peer; calls to them fail loudly.
  *
  * @import {SiestaStore} from './store-fs.js'
- * @import {SiestaHost} from './host.js'
  */
 
 /** @param {ArrayBufferLike | Uint8Array} value OCapN identity fields are
@@ -104,12 +103,15 @@ const bytesFromBase64 = b64 => {
 /**
  * @param {object} options
  * @param {SiestaStore} options.store
- * @param {SiestaHost} options.host
+ * @param {{ describeCapability: (value: object) => unknown, provideCapability: (description: unknown) => object }} options.linkage
+ *   the capability linkage seam: durable descriptions of host-side
+ *   capabilities and their re-instantiation (worker-session records
+ *   in the unified daemon)
  * @param {(error: unknown) => void} [options.reportError]
  */
 export const makeDurableSessions = ({
   store,
-  host,
+  linkage,
   // eslint-disable-next-line no-console
   reportError = error => console.error('siesta durable sessions:', error),
 }) => {
@@ -167,7 +169,7 @@ export const makeDurableSessions = ({
         if (slot.endsWith('+0')) {
           return;
         }
-        const description = host.describeCapability(value) ?? null;
+        const description = linkage.describeCapability(value) ?? null;
         if (description === null) {
           // The machine's invariant is that every session export is a
           // durable worker capability or a host resource; protocol
@@ -285,7 +287,10 @@ export const makeDurableSessions = ({
           // it fail loudly.
           resumed.restoreExport(position, Far('UnrestorableExport', {}));
         } else {
-          resumed.restoreExport(position, host.provideCapability(description));
+          resumed.restoreExport(
+            position,
+            linkage.provideCapability(description),
+          );
         }
       }
       // Re-attach resolver obligations: promise targets re-subscribe

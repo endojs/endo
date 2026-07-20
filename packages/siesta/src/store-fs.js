@@ -15,17 +15,19 @@ import { join } from 'node:path';
 import { Fail, q } from '@endo/errors';
 
 /**
- * @import {TablesRecord} from './persistent-tables.js'
+ * The daemon-side record of one worker session: under the unified
+ * daemon, export descriptions, resolver obligations, and the answer
+ * epoch (worker-session-records.js).
+ *
+ * @typedef {Record<string, any>} TablesRecord
  */
 
 /**
- * A publication binds an OCapN swissnum to a slot in one worker's CapTP
- * session, so the host can rebind its locator after a restart.
+ * A publication binds an OCapN swissnum to the durable description of a
+ * capability (worker-session-records.js), so the daemon can rebind its
+ * locator after a restart.
  *
- * @typedef {object} PublicationRecord
- * @property {string} workerId
- * @property {string} slot ours-perspective import slot, e.g. `o-2`
- * @property {string | null} iface
+ * @typedef {Record<string, any>} PublicationRecord
  */
 
 /**

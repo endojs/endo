@@ -21,8 +21,10 @@ import { Far } from '@endo/far';
  * describable — every daemon export originates from a durable worker
  * or a host resource:
  *
- * - a host resource: described as `{ kind: 'resource', name }`,
- *   re-instantiated by the resource factory on restore;
+ * - a host resource: described as `{ kind: 'resource', name,
+ *   description }`, re-instantiated by the registered factory on
+ *   restore (instances are per-process singletons per name and
+ *   description);
  * - an import from another worker session (a cross-worker link the
  *   daemon relays): described as `{ kind: 'link', workerId, slot }`,
  *   re-materialized on restore through the linked session's
@@ -43,8 +45,9 @@ import { Far } from '@endo/far';
  *
  * @param {object} options
  * @param {SiestaStore} options.store
- * @param {Record<string, () => object>} [options.resources] named
- *   resource factories; instances are per-process singletons
+ * @param {Record<string, (description?: unknown) => object>} [options.resources]
+ *   named resource factories; instances are per-process singletons per
+ *   (name, description) pair
  * @param {(error: unknown) => void} [options.reportError]
  */
 export const makeWorkerSessionRecords = ({
@@ -57,25 +60,29 @@ export const makeWorkerSessionRecords = ({
   const workerIdForConnection = new WeakMap();
   /** @type {WeakMap<object, { workerId: string, slot: string }>} */
   const valueOrigins = new WeakMap();
-  /** @type {WeakMap<object, string>} resource instance -> name */
+  /** @type {WeakMap<object, { name: string, description: unknown }>} */
   const resourceOrigins = new WeakMap();
-  /** @type {Map<string, object>} name -> per-process singleton */
+  /** @type {Map<string, object>} (name, description) -> singleton */
   const resourceInstances = new Map();
   /** @type {Map<string, any>} workerId -> ResumedSession controls */
   const resumedByWorkerId = new Map();
   /** True while re-seating exports, whose re-fired hooks are echoes. */
   let restoring = false;
 
-  /** @param {string} name */
-  const provideResource = name => {
-    let instance = resourceInstances.get(name);
+  /**
+   * @param {string} name
+   * @param {unknown} [description]
+   */
+  const provideResource = (name, description = null) => {
+    const key = `${name}|${JSON.stringify(description)}`;
+    let instance = resourceInstances.get(key);
     if (instance === undefined) {
       const makeResource = resources[name];
       typeof makeResource === 'function' ||
         Fail`siesta worker sessions: unknown resource ${q(name)}`;
-      instance = makeResource();
-      resourceInstances.set(name, instance);
-      resourceOrigins.set(instance, name);
+      instance = makeResource(description);
+      resourceInstances.set(key, instance);
+      resourceOrigins.set(instance, harden({ name, description }));
     }
     return instance;
   };
@@ -85,9 +92,9 @@ export const makeWorkerSessionRecords = ({
    * @returns {Record<string, unknown> | undefined}
    */
   const describeValue = value => {
-    const resourceName = resourceOrigins.get(value);
-    if (resourceName !== undefined) {
-      return harden({ kind: 'resource', name: resourceName });
+    const resource = resourceOrigins.get(value);
+    if (resource !== undefined) {
+      return harden({ kind: 'resource', ...resource });
     }
     const origin = valueOrigins.get(value);
     if (origin !== undefined) {
@@ -102,7 +109,7 @@ export const makeWorkerSessionRecords = ({
    */
   const provideCapability = description => {
     if (description.kind === 'resource') {
-      return provideResource(description.name);
+      return provideResource(description.name, description.description ?? null);
     }
     if (description.kind === 'link') {
       const resumed = resumedByWorkerId.get(description.workerId);
@@ -225,6 +232,21 @@ export const makeWorkerSessionRecords = ({
   return harden({
     sessionHooks,
     provideResource,
+    /**
+     * The linkage seam shared with durable TCP sessions: the durable
+     * description of a host-side capability (a made resource, or an
+     * import from a worker session), or undefined.
+     *
+     * @param {object} value
+     */
+    describeCapability: value => describeValue(value),
+    /**
+     * Rebuild a capability from its durable description, minting
+     * worker links at their recorded slots without waking anyone.
+     *
+     * @param {unknown} description
+     */
+    provideCapability: description => provideCapability(description),
     /**
      * Bind a transport's connection to its worker id so the hooks can
      * attribute session traffic. Call before `transport.establish()`.

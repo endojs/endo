@@ -6,7 +6,7 @@ import { Fail, q } from '@endo/errors';
 import { derivePipeResumption } from './pipe-network.js';
 
 /**
- * @import {WorkerEngine, WorkerIncarnation} from './host.js'
+ * @import {WorkerEngine, WorkerIncarnation} from './worker-engine.js'
  * @import {WorkerStore} from './store-fs.js'
  */
 

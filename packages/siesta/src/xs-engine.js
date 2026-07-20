@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { Fail, q } from '@endo/errors';
 
 /**
- * @import {WorkerEngine, WorkerIncarnation} from './host.js'
+ * @import {WorkerEngine, WorkerIncarnation} from './worker-engine.js'
  */
 
 /**

@@ -13,7 +13,7 @@ import { syrupCodec } from '@endo/ocapn/syrup';
 
 import { makeSiestaDaemon } from '../src/daemon.js';
 import { makeDurableNetLayer } from '../src/durable-netlayer.js';
-import { makeJournalReplayEngine } from '../src/journal-replay-engine.js';
+import { makePeerJournalReplayEngine } from '../src/peer-replay-engine.js';
 import { makeFsStore } from '../src/store-fs.js';
 
 const COUNTER_SOURCE = `
@@ -37,7 +37,7 @@ const COUNTER_SOURCE = `
 const makeDaemon = (statePath, port) =>
   makeSiestaDaemon({
     store: makeFsStore(statePath),
-    engine: makeJournalReplayEngine(),
+    engine: makePeerJournalReplayEngine(),
     codec: syrupCodec,
     makeNetlayer: ({ handlers, logger, resumption }) =>
       makeDurableNetLayer({
@@ -69,9 +69,9 @@ test('live remote references survive a daemon restart', async t => {
 
   const daemon1 = await makeDaemon(statePath, 0);
   const port = Number(daemon1.location.hints.port);
-  const worker = await daemon1.host.createWorker({ debugLabel: 'counter' });
+  const worker = await daemon1.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
-  const secret = await worker.publish(counter);
+  const secret = daemon1.publish(counter);
 
   const client = await makeDurableClient('restart-client');
   t.teardown(() => client.shutdown());
@@ -103,9 +103,9 @@ test('a resumed session keeps its identity, including its keys', async t => {
 
   const daemon1 = await makeDaemon(statePath, 0);
   const port = Number(daemon1.location.hints.port);
-  const worker = await daemon1.host.createWorker({ debugLabel: 'counter' });
+  const worker = await daemon1.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
-  const secret = await worker.publish(counter);
+  const secret = daemon1.publish(counter);
 
   const client = await makeDurableClient('keys-client');
   t.teardown(() => client.shutdown());
@@ -160,9 +160,9 @@ test('a promise resolution crosses a daemon restart', async t => {
 
   const daemon1 = await makeDaemon(statePath, 0);
   const port = Number(daemon1.location.hints.port);
-  const worker = await daemon1.host.createWorker({ debugLabel: 'gifter' });
+  const worker = await daemon1.createWorker({ debugLabel: 'gifter' });
   const gifter = await worker.evaluate(GIFT_SOURCE);
-  const secret = await worker.publish(gifter);
+  const secret = daemon1.publish(gifter);
 
   const client = await makeDurableClient('promise-client');
   t.teardown(() => client.shutdown());
@@ -206,11 +206,11 @@ test('an answer pending across a restart rejects instead of hanging', async t =>
 
   const daemon1 = await makeDaemon(statePath, 0);
   const port = Number(daemon1.location.hints.port);
-  const worker = await daemon1.host.createWorker({ debugLabel: 'hanger' });
+  const worker = await daemon1.createWorker({ debugLabel: 'hanger' });
   const hanger = await worker.evaluate(
     `Far('Hanger', { hang: () => new Promise(() => {}), ping: () => 'pong' })`,
   );
-  const secret = await worker.publish(hanger);
+  const secret = daemon1.publish(hanger);
 
   const client = await makeDurableClient('answer-client');
   t.teardown(() => client.shutdown());
@@ -223,10 +223,10 @@ test('an answer pending across a restart rejects instead of hanging', async t =>
   t.is(await E(remoteHanger).ping(), 'pong');
 
   // Crash, not clean shutdown: a worker owing an answer is not
-  // quiescent, so it cannot sleep — but the journal already holds
-  // everything durable. Tear down only the network (freeing the
-  // port), abandoning the first daemon's memory.
-  daemon1.ocapn.shutdown();
+  // quiescent, so a park would have to wait for it — but the journal
+  // already holds everything durable. Abandon the first daemon's
+  // live state exactly as a power failure would.
+  await daemon1.crash();
   const daemon2 = await makeDaemon(statePath, port);
   t.teardown(() => daemon2.shutdown());
 
@@ -244,9 +244,9 @@ test('a call issued while the daemon is down completes after restart', async t =
 
   const daemon1 = await makeDaemon(statePath, 0);
   const port = Number(daemon1.location.hints.port);
-  const worker = await daemon1.host.createWorker({ debugLabel: 'counter' });
+  const worker = await daemon1.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
-  const secret = await worker.publish(counter);
+  const secret = daemon1.publish(counter);
 
   const client = await makeDurableClient('gap-client');
   t.teardown(() => client.shutdown());
@@ -274,9 +274,9 @@ test('sessions survive repeated daemon restarts', async t => {
 
   let daemon = await makeDaemon(statePath, 0);
   const port = Number(daemon.location.hints.port);
-  const worker = await daemon.host.createWorker({ debugLabel: 'counter' });
+  const worker = await daemon.createWorker({ debugLabel: 'counter' });
   const counter = await worker.evaluate(COUNTER_SOURCE);
-  const secret = await worker.publish(counter);
+  const secret = daemon.publish(counter);
 
   const client = await makeDurableClient('serial-client');
   t.teardown(() => client.shutdown());

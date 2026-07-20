@@ -7,8 +7,9 @@
  *   packages/siesta/dist-xs/boot.js        — pre-bundle boot script (a
  *     copy of xsnap's committed polyfills: TextEncoder/TextDecoder plus
  *     freeze-based harden and assert shims)
- *   packages/siesta/dist-xs/worker-xs.js   — bundle of src/worker-xs.js
- *     (worker shell + CapTP wired to the siestaSend host function)
+ *   packages/siesta/dist-xs/worker-peer.js — bundle of
+ *     src/worker-peer-xs.js (the OCapN worker peer wired to the
+ *     siestaSend host function)
  *   rust/endo/xsnap/src/{ses_boot,worker_bootstrap,daemon_bootstrap}.js —
  *     stubs, written ONLY if absent: they satisfy xsnap's include_str!
  *     so the crate compiles; siesta-xs-worker never evaluates them. The
@@ -64,18 +65,7 @@ const bootDist = path.join(distDir, 'boot.js');
 fs.writeFileSync(bootDist, bootScript);
 console.log(`Wrote ${bootDist} (${bootScript.length} bytes)`);
 
-// --- Worker shell bundle (endo-captp edge, being retired) ---
-const workerUrl = url.pathToFileURL(
-  path.resolve(dirname, '../src/worker-xs.js'),
-).href;
-const workerBundle = await makeBundle(readPowers, workerUrl, {
-  packageDependenciesHook,
-});
-const workerDist = path.join(distDir, 'worker-xs.js');
-fs.writeFileSync(workerDist, workerBundle);
-console.log(`Wrote ${workerDist} (${workerBundle.length} bytes)`);
-
-// --- OCapN worker peer bundle (protocol unification) ---
+// --- OCapN worker peer bundle ---
 const peerUrl = url.pathToFileURL(
   path.resolve(dirname, '../src/worker-peer-xs.js'),
 ).href;
