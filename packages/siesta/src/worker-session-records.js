@@ -1,7 +1,7 @@
 // @ts-check
 import harden from '@endo/harden';
 import { Fail, q } from '@endo/errors';
-import { Far } from '@endo/far';
+import { E, Far } from '@endo/far';
 
 /**
  * @import {SiestaStore} from './store-fs.js'
@@ -28,7 +28,16 @@ import { Far } from '@endo/far';
  * - an import from another worker session (a cross-worker link the
  *   daemon relays): described as `{ kind: 'link', workerId, slot }`,
  *   re-materialized on restore through the linked session's
- *   `provideImport` — no worker wakes.
+ *   `provideImport` — no worker wakes;
+ * - a listen forwarder minted by the non-reifying promise relay
+ *   (`relayPromises`): described as
+ *   `{ kind: 'listen-forwarder', holder, slot }` where `holder` names
+ *   the subscriber's session (`{ workerId }` or a durable-netlayer
+ *   `{ token }`) and `slot` its resolver import there. Restored as a
+ *   fresh forwarder to the re-materialized resolver — deferred, when
+ *   the subscriber is a remote session that has not yet resumed. The
+ *   daemon never subscribes to a promise itself; subscription state
+ *   lives only in the (durable) endpoints.
  *
  * Everything else the daemon exports into a worker session is, by
  * that same invariant, protocol-internal — the resolver objects the
@@ -66,6 +75,17 @@ export const makeWorkerSessionRecords = ({
   const resourceInstances = new Map();
   /** @type {Map<string, any>} workerId -> ResumedSession controls */
   const resumedByWorkerId = new Map();
+  /**
+   * Late-bound by the daemon once the client and netlayer exist:
+   * introspection for listen forwarders and remote-session resolution.
+   *
+   * @type {{
+   *   getForwarderInfo: (value: object) => { connection: object, resolverSlot: string } | undefined,
+   *   tokenForConnection: (connection: object) => string | undefined,
+   *   whenTokenResumed: (token: string) => Promise<any>,
+   * } | undefined}
+   */
+  let forwarderPowers;
   /** True while re-seating exports, whose re-fired hooks are echoes. */
   let restoring = false;
 
@@ -100,6 +120,27 @@ export const makeWorkerSessionRecords = ({
     if (origin !== undefined) {
       return harden({ kind: 'link', ...origin });
     }
+    if (forwarderPowers !== undefined) {
+      const info = forwarderPowers.getForwarderInfo(value);
+      if (info !== undefined) {
+        const workerId = workerIdForConnection.get(info.connection);
+        if (workerId !== undefined) {
+          return harden({
+            kind: 'listen-forwarder',
+            holder: { workerId },
+            slot: info.resolverSlot,
+          });
+        }
+        const token = forwarderPowers.tokenForConnection(info.connection);
+        if (token !== undefined) {
+          return harden({
+            kind: 'listen-forwarder',
+            holder: { token },
+            slot: info.resolverSlot,
+          });
+        }
+      }
+    }
     return undefined;
   };
 
@@ -121,6 +162,50 @@ export const makeWorkerSessionRecords = ({
       return resumed.provideImport({
         type: slot[0],
         position: BigInt(slot.slice(2)),
+      });
+    }
+    if (description.kind === 'listen-forwarder') {
+      const slot = String(description.slot);
+      const slotInfo = harden({
+        type: slot[0],
+        position: BigInt(slot.slice(2)),
+      });
+      const { holder } = description;
+      // Materialize the subscriber's resolver lazily: for a worker
+      // holder it is immediate (and wakes nobody); for a remote
+      // holder it waits until that session resumes in this process.
+      const provideResolver = () => {
+        if (holder.workerId !== undefined) {
+          const resumed = resumedByWorkerId.get(holder.workerId);
+          resumed !== undefined ||
+            Fail`siesta worker sessions: forwarder to unrestored worker ${q(
+              holder.workerId,
+            )}`;
+          return Promise.resolve(resumed.provideImport(slotInfo));
+        }
+        holder.token !== undefined ||
+          Fail`siesta worker sessions: forwarder holder names no session`;
+        const powers = forwarderPowers;
+        if (powers === undefined) {
+          throw Fail`siesta worker sessions: forwarder powers are not bound`;
+        }
+        return powers
+          .whenTokenResumed(holder.token)
+          .then(resumed => resumed.provideImport(slotInfo));
+      };
+      return Far('ListenForwarder', {
+        /** @param {unknown} value */
+        fulfill: value => {
+          provideResolver()
+            .then(resolver => E.sendOnly(resolver).fulfill(value))
+            .catch(reportError);
+        },
+        /** @param {unknown} reason */
+        break: reason => {
+          provideResolver()
+            .then(resolver => E.sendOnly(resolver).break(reason))
+            .catch(reportError);
+        },
       });
     }
     if (description.kind === 'internal') {
@@ -232,6 +317,15 @@ export const makeWorkerSessionRecords = ({
   return harden({
     sessionHooks,
     provideResource,
+    /**
+     * Bind the listen-forwarder introspection and remote-session
+     * powers, once the daemon's client and netlayer exist.
+     *
+     * @param {NonNullable<typeof forwarderPowers>} powers
+     */
+    setForwarderPowers: powers => {
+      forwarderPowers = powers;
+    },
     /**
      * The linkage seam shared with durable TCP sessions: the durable
      * description of a host-side capability (a made resource, or an

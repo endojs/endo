@@ -106,10 +106,18 @@ descriptions:
 - an import from another worker session (a cross-worker link the
   daemon relays): `{ kind: 'link', workerId, slot }`, re-materialized
   through the linked session's `provideImport` without waking anyone;
-- protocol-internal resolvers: `{ kind: 'internal' }`, whose function
-  is restored separately (resolver obligations re-attach, promise
-  imports re-subscribe) and which re-seat as position-preserving
-  tombstones.
+- listen forwarders: `{ kind: 'listen-forwarder', holder, slot }`.
+  The daemon is **non-reifying about promises**: it never subscribes
+  to a promise itself. When a peer listens on a relayed promise, the
+  daemon forwards the subscription to the owning session with a
+  forwarder resolver — an ordinary export that delivers the eventual
+  resolution straight to the subscriber's resolver. Subscription
+  state therefore lives only in the (orthogonally persistent)
+  endpoints, and a restart re-seats forwarders like any other export
+  (deferred, when the subscriber is a remote session that has not yet
+  resumed);
+- residual protocol-internal resolvers: `{ kind: 'internal' }`,
+  re-seated as position-preserving tombstones.
 
 A restarted daemon re-establishes every worker session from the store,
 re-seats records and publications, partitions each session's
@@ -118,13 +126,13 @@ never collide with answer registrations still held in worker heaps),
 and leaves every worker asleep until a message arrives.
 
 Settlement routing is the comms-vat property and it falls out of
-unification: within a lifetime the daemon is one OCapN client relaying
-re-exports, and a settlement frame toward a sleeping worker wakes it
-through its transport; across a restart, restoring a promise-typed
-link eagerly re-subscribes to the worker that owns the promise, and
-the holder's re-attached resolver obligation forwards the settlement.
-A promise minted in worker A and held in worker B settles after a
-daemon restart with both workers starting asleep.
+unification: within a lifetime a settlement frame flows
+owner → forwarder → subscriber and wakes a sleeping holder through
+its transport; across a restart, the restored forwarder in the
+owner's session record carries the same route with no daemon-side
+subscription to rebuild. A promise minted in worker A and held in
+worker B settles after a daemon restart with both workers starting
+asleep.
 
 ## Engines
 
@@ -287,10 +295,12 @@ journals before delivery, so nondeterministic resources (clocks) do
 not break deterministic replay, and a pending `timer.delay` wakes a
 sleeping worker with no inbound traffic.
 
-Answers the daemon owes are at-most-once: a resolver obligation
-pending across a restart rejects (`pending answer aborted`) rather
-than hanging or re-executing, while durable promise links settle
-normally.
+Answers the daemon itself owes (host-resource computations) are
+at-most-once: a resolver obligation pending across a restart rejects
+(`pending answer aborted`) rather than hanging or re-executing.
+Relayed promises are not daemon obligations at all — their
+subscriptions live as durable forwarders and settle normally across
+restarts.
 
 ## API
 

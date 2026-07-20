@@ -509,6 +509,13 @@ rather than the host or ordinary guests, is the point of the design.
 
 ### A non-reifying host (comms-vat analysis)
 
+*Update: the **listen path is now non-reifying** — the unified daemon
+never subscribes to a promise for itself and forwards peer
+subscriptions as durable forwarder exports (see § Protocol
+unification, phase 4). What follows analyzes the remaining reified
+surface: deliveries and answers still pay presence/handled-promise
+reification per hop.*
+
 In Agoric liveslots terminology, the host today plays *liveslots*, not
 *comms*: worker exports become host-side presences and handled
 promises, and a cross-worker message pays two marshal round-trips plus
@@ -946,18 +953,32 @@ an OCapN relay: one protocol, one marshal format, one session model.
    resources, links, and publications across a daemon crash on real
    heap snapshots. The bespoke captp worker journal/tables layer in
    `host.js` is now subsumed in principle; its retirement is phase 5.
-4. ~~Comms-vat settlement routing~~ (landed with 3b — it fell out of
-   unification rather than being built): within a daemon lifetime,
-   settlements route between sessions because the daemon is ONE OCapN
-   client relaying re-exports, and a settlement frame toward a
-   sleeping worker wakes it through its transport. Across a restart,
-   the chain recomposes from parts that already existed: restoring a
-   promise-typed link import eagerly re-subscribes (`op:listen`) to
-   the worker that owns the promise, and the holder's re-attached
-   resolver obligation (`restorePendingResolver`) forwards the
-   settlement on. The restart tests' acid case — a promise minted in
-   worker A, held in worker B, settled after a daemon restart —
-   passes on real XS heaps with no reified re-attachment machinery.
+4. ~~Comms-vat settlement routing~~ (landed with 3b, then refined to
+   be **non-reifying**): within a daemon lifetime, settlements route
+   between sessions because the daemon is ONE OCapN client relaying
+   re-exports, and a settlement frame toward a sleeping worker wakes
+   it through its transport. Per maintainer direction — the daemon,
+   which is not orthogonally persistent, should never itself
+   subscribe to a promise — the daemon runs the client's
+   `relayPromises` mode (additive `@endo/ocapn` seam, inert for
+   normal clients): no eager self-subscription on promise imports,
+   and a peer's `op:listen` on a relayed promise is *forwarded* to
+   the owning session with a forwarder resolver — an ordinary export,
+   described durably as `{ kind: 'listen-forwarder', holder, slot }`
+   in the owner's session record and re-seated on restart like any
+   other export (deferred, when the subscribing session has not yet
+   resumed — `whenSessionResumed` on the durable-sessions glue). The
+   subscription chain thus lives only in the endpoints: the owner's
+   heap holds the wire subscription, the record holds the route, and
+   the daemon holds no promise linkage in memory at all — no
+   promise-flavored resolver-obligation rows are minted for relayed
+   promises (`restorePendingResolver`'s promise branch now serves
+   only daemon-origin promises; the answer branch keeps at-most-once
+   aborts for host-resource computations). The restart tests' acid
+   case — a promise minted in worker A, held in worker B, settled
+   after a daemon restart — passes on real XS heaps through a
+   restored forwarder, with the tests asserting the forwarder record
+   exists and no reified obligation was recorded.
 5. ~~Retire the captp worker layer~~ (landed): `makeSiestaDaemon` is
    now the unified daemon — one OCapN client whose worker sessions
    ride durable worker transports and whose remote sessions ride the

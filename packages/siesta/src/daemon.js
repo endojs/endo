@@ -152,6 +152,11 @@ export const makeSiestaDaemon = async ({
       records.sessionHooks,
       durableSessions.sessionHooks,
     ]),
+    // Non-reifying promise relay: the daemon never subscribes to a
+    // promise itself; peers' subscriptions to relayed promises forward
+    // to the owning session as durable forwarder exports, so
+    // subscription state lives only in the endpoints.
+    relayPromises: true,
     // Relay policy: pipe-origin grants re-export as the daemon's own
     // objects and the daemon proxies deliveries — worker locations are
     // unreachable by design. Handoffs between reachable peers are
@@ -177,6 +182,17 @@ export const makeSiestaDaemon = async ({
   netlayerRef.netlayer !== undefined ||
     Fail`makeNetlayer did not produce a netlayer`;
   const { location } = netlayerRef.netlayer;
+  records.setForwarderPowers(
+    harden({
+      getForwarderInfo: (/** @type {object} */ value) =>
+        ocapn.getListenForwarderInfo(value),
+      tokenForConnection: (/** @type {object} */ connection) =>
+        netlayerRef.netlayer.getResumeToken === undefined
+          ? undefined
+          : netlayerRef.netlayer.getResumeToken(connection),
+      whenTokenResumed: durableSessions.whenSessionResumed,
+    }),
+  );
 
   /** @param {string} workerId */
   const provideWorkerSession = workerId => {

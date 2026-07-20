@@ -2,35 +2,32 @@
 /* global setTimeout */
 
 /**
- * Protocol unification phase 3b: worker sessions survive a daemon
- * restart. The daemon's side of each worker session — its exports into
- * the worker (resources and cross-worker links), its resolver
- * obligations, and its publications — is recorded durably
- * (`worker-session-records.js`) and re-seated in a successor process
- * through the same handshake-free `resumeSession` establishment a
- * fresh worker uses. The worker halves live in their heap snapshots;
- * nothing about session identity is persisted because nothing about it
- * is contingent.
+ * Worker sessions survive a daemon restart (protocol unification
+ * phases 3b+4, on the unified daemon): the daemon's exports into each
+ * worker (resources and cross-worker links), its listen forwarders,
+ * and its publications re-seat in a successor process through the same
+ * handshake-free establishment a fresh worker uses; the worker halves
+ * live in their heap snapshots.
  *
- * Also the phase 4 acid test: a promise minted in worker A, held in
- * worker B, settles across the restart — relay, re-subscription, and
- * resolver re-attachment compose into comms-vat settlement routing.
+ * Also the settlement acid test: a promise minted in worker A, held in
+ * worker B, settles across the restart — with the daemon non-reifying
+ * throughout (the subscription lives as a durable forwarder export in
+ * A's session record, never as daemon memory).
  */
 import test from '@endo/ses-ava/test.js';
-import harden from '@endo/harden';
 
-import { bytesToImmutable } from '@endo/bytes/to-immutable.js';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/far';
-import { makeOcapn } from '@endo/ocapn';
+import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
 
-import { makeDurableWorkerTransport } from '../src/durable-worker-transport.js';
+import { makeSiestaDaemon } from '../src/daemon.js';
 import { makePeerSnapshottingReplayEngine } from '../src/peer-replay-engine.js';
-import { makeMemoryStore } from '../src/store-fs.js';
-import { makeWorkerSessionRecords } from '../src/worker-session-records.js';
-
-const SHELL_SWISSNUM = bytesToImmutable(new TextEncoder().encode('shell'));
+import { makeFsStore } from '../src/store-fs.js';
 
 const COUNTER_SOURCE = `
 (() => {
@@ -44,14 +41,6 @@ const COUNTER_SOURCE = `
   });
 })()
 `;
-
-const DAEMON_LOCATION = harden({
-  type: /** @type {const} */ ('ocapn-peer'),
-  network: 'siesta-daemon',
-  transport: 'siesta-daemon',
-  designator: 'daemon',
-  hints: /** @type {const} */ (false),
-});
 
 const macrotask = () => new Promise(resolve => setTimeout(resolve, 0));
 
@@ -68,96 +57,44 @@ const tickUntil = async predicate => {
   throw Error('tickUntil timed out');
 };
 
-/**
- * One unified-daemon process: a single OCapN client whose worker
- * sessions ride durable worker transports, with worker-session records
- * observing through the sessionHooks seam.
- *
- * @param {object} options
- * @param {any} options.store
- * @param {Array<string>} options.workerIds
- * @param {Record<string, () => object>} options.resources
- * @param {(error: unknown) => void} [options.reportError]
- */
-const makeDaemon = async ({ store, workerIds, resources, reportError }) => {
-  /** @type {any} */
-  let handlers;
-  /** @type {Map<string, object>} */
-  const locator = new Map();
-  const records = makeWorkerSessionRecords({ store, resources, reportError });
-  const client = await makeOcapn({
-    codec: syrupCodec,
-    locator,
-    debugLabel: 'unified-daemon',
-    sessionHooks: records.sessionHooks,
-    // Relay policy: pipe-origin grants re-export as the daemon's own
-    // objects; worker locations are unreachable by design.
-    shouldHandoff: (/** @type {any} */ grantDetails) =>
-      (grantDetails.location.network ?? grantDetails.location.transport) !==
-      'siesta-pipe',
-    network: (/** @type {any} */ h) => {
-      handlers = h;
-      return harden({
-        networkId: 'siesta-daemon',
-        codec: syrupCodec,
-        location: DAEMON_LOCATION,
-        shutdown: () => {},
-      });
-    },
-  });
-  /** @type {Map<string, ReturnType<typeof makeDurableWorkerTransport>>} */
-  const transports = new Map();
-  for (const workerId of workerIds) {
-    const transport = makeDurableWorkerTransport({
-      workerId,
-      store: store.provideWorkerStore(workerId),
-      engine: makePeerSnapshottingReplayEngine(),
-      handlers,
-      codec: syrupCodec,
-      debugLabel: `worker-${workerId.slice(0, 2)}`,
-    });
-    records.registerWorkerConnection(transport.connection, workerId);
-    records.registerResumedSession(workerId, transport.establish());
-    transports.set(workerId, transport);
-  }
-  return { client, records, transports, locator };
+const resources = {
+  echo: () =>
+    Far('Echo', {
+      shout: (/** @type {string} */ text) => text.toUpperCase(),
+    }),
 };
 
-test('worker sessions survive a daemon restart', async t => {
-  const store = makeMemoryStore();
-  const resources = {
-    echo: () =>
-      Far('Echo', {
-        shout: (/** @type {string} */ text) => text.toUpperCase(),
-      }),
-  };
-  const idA = 'a1'.repeat(16);
-  const idB = 'b2'.repeat(16);
-  /** @type {Array<unknown>} */
-  const reported = [];
-  const reportError = (/** @type {unknown} */ error) => {
-    reported.push(error);
-  };
+/** @param {string} statePath */
+const makeDaemon = statePath =>
+  makeSiestaDaemon({
+    store: makeFsStore(statePath),
+    engine: makePeerSnapshottingReplayEngine(),
+    codec: syrupCodec,
+    resources,
+    makeNetlayer: ({ handlers, logger }) =>
+      makeTcpNetLayer({ handlers, logger }),
+  });
 
+test('worker sessions survive a daemon restart', async t => {
+  const statePath = await mkdtemp(join(tmpdir(), 'siesta-wsr-'));
+  t.teardown(() => rm(statePath, { recursive: true, force: true }));
+  const store = makeFsStore(statePath);
+
+  /** @type {string} */
+  let idA;
+  /** @type {string} */
+  let idB;
   {
     // Daemon incarnation 1.
-    const d1 = await makeDaemon({
-      store,
-      workerIds: [idA, idB],
-      resources,
-      reportError,
-    });
-    const tA = /** @type {any} */ (d1.transports.get(idA));
-    const tB = /** @type {any} */ (d1.transports.get(idB));
-
-    const sessionA = await d1.client.provideSession(tA.peerLocation);
-    const shellA = await E(sessionA.getBootstrap()).fetch(SHELL_SWISSNUM);
-    const sessionB = await d1.client.provideSession(tB.peerLocation);
-    const shellB = await E(sessionB.getBootstrap()).fetch(SHELL_SWISSNUM);
+    const d1 = await makeDaemon(statePath);
+    const workerA = await d1.createWorker({ debugLabel: 'owner' });
+    const workerB = await d1.createWorker({ debugLabel: 'holder' });
+    idA = workerA.workerId;
+    idB = workerB.workerId;
 
     // A resource endowment into worker A.
-    const echo = d1.records.provideResource('echo');
-    const greeter = await E(shellA).evaluate(
+    const echo = d1.makeResource('echo');
+    const greeter = await workerA.evaluate(
       `Far('Greeter', { greet: name => E(echo).shout('hello ' + name) })`,
       ['echo'],
       [echo],
@@ -166,8 +103,8 @@ test('worker sessions survive a daemon restart', async t => {
 
     // A cross-worker link and a cross-worker pending promise, both
     // relayed by the daemon into worker B.
-    const counter = await E(shellA).evaluate(COUNTER_SOURCE);
-    const gifter = await E(shellA).evaluate(
+    const counter = await workerA.evaluate(COUNTER_SOURCE);
+    const gifter = await workerA.evaluate(
       `
       (() => {
         let release;
@@ -185,7 +122,7 @@ test('worker sessions survive a daemon restart', async t => {
       `,
     );
     const { gift } = await E(gifter).getGift();
-    const watcher = await E(shellB).evaluate(
+    const watcher = await workerB.evaluate(
       `
       (() => {
         let got = null;
@@ -209,39 +146,48 @@ test('worker sessions survive a daemon restart', async t => {
     t.is(await E(watcher).pull(), 1, 'the cross-worker link works live');
     t.is(await E(watcher).getGot(), null, 'the gift is still pending');
 
-    d1.records.publish(d1.locator, 'greeter-cap', greeter);
-    d1.records.publish(d1.locator, 'watcher-cap', watcher);
-    d1.records.publish(d1.locator, 'gifter-cap', gifter);
+    d1.publish(greeter, 'greeter-cap');
+    d1.publish(watcher, 'watcher-cap');
+    d1.publish(gifter, 'gifter-cap');
 
-    await tA.sleep();
-    await tB.sleep();
-    t.false(tA.isAwake());
-    t.false(tB.isAwake());
+    // The daemon is non-reifying: B's subscription to the gift lives
+    // as a forwarder export in the OWNER's (A's) session record, and
+    // no reified promise obligation was absorbed into daemon memory.
+    const recordA =
+      /** @type {any} */ (store.provideWorkerStore(idA).getTablesRecord()) ??
+      {};
+    t.true(
+      Object.values(recordA.exports ?? {}).some(
+        (/** @type {any} */ d) => d?.kind === 'listen-forwarder',
+      ),
+      'the gift subscription is a durable forwarder export in the owner session',
+    );
+    const recordB =
+      /** @type {any} */ (store.provideWorkerStore(idB).getTablesRecord()) ??
+      {};
+    t.false(
+      Object.values(recordB.pendingResolvers ?? {}).some(
+        (/** @type {any} */ r) => r.kind === 'promise',
+      ),
+      'no promise-flavored resolver obligation was recorded for the relayed gift',
+    );
 
-    // Crash the daemon: sever the ducts first so the dying client's
-    // session aborts never reach the journals, then drop it.
-    tA.connection.end();
-    tB.connection.end();
-    await d1.client.shutdown();
+    await workerA.sleep();
+    await workerB.sleep();
+    t.false(workerA.isAwake());
+    t.false(workerB.isAwake());
+
+    await d1.crash();
   }
 
   {
     // Daemon incarnation 2, from the store alone.
-    const d2 = await makeDaemon({
-      store,
-      workerIds: [idA, idB],
-      resources,
-      reportError,
-    });
-    t.teardown(() => d2.client.shutdown());
-    d2.records.restoreWorker(idA);
-    d2.records.restoreWorker(idB);
-    d2.records.restorePublications(d2.locator);
+    const d2 = await makeDaemon(statePath);
+    t.teardown(() => d2.shutdown());
 
-    const tB2 = /** @type {any} */ (d2.transports.get(idB));
     t.false(
-      tB2.isAwake(),
-      'restoring object links and obligations woke no worker',
+      d2.getWorker(idB).isAwake(),
+      'restoring records and obligations woke no worker',
     );
 
     const greeter = /** @type {any} */ (d2.locator.get('greeter-cap'));
@@ -260,7 +206,8 @@ test('worker sessions survive a daemon restart', async t => {
     t.is(await E(watcher).getGot(), null, 'the gift is still pending');
 
     // Settle the promise minted in A and held in B, across the
-    // restart: relay, re-subscription, and resolver re-attachment.
+    // restart: the restored forwarder in A's session delivers straight
+    // to B's resolver — the daemon never re-subscribed for itself.
     const gifter = /** @type {any} */ (d2.locator.get('gifter-cap'));
     t.is(await E(gifter).release('gifted'), 'released');
     /** @type {any} */
@@ -270,7 +217,5 @@ test('worker sessions survive a daemon restart', async t => {
       return got !== null;
     });
     t.is(got, 'gifted', 'the settlement crossed the restart and both workers');
-
-    t.deepEqual(reported, [], 'every session export had a durable description');
   }
 });
