@@ -42,14 +42,11 @@
   "dependencies": {
     "@endo/base64": "workspace:^",
     "@endo/bytes": "workspace:^",
-    "@endo/captp": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/far": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/ocapn": "workspace:^",
-    "@endo/pass-style": "workspace:^",
-    "@endo/promise-kit": "workspace:^",
     "@endo/stream": "workspace:^",
     "@noble/hashes": "^2.0.1"
   },
