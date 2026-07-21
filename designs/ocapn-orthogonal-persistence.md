@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-07-16 |
-| **Updated** | 2026-07-20 |
+| **Updated** | 2026-07-21 |
 | **Author** | Aaron Davis (prompted) |
 | **Status** | In Progress |
 
@@ -32,10 +32,19 @@ What exists, all verified by tests across three SES configurations,
 with the distinguishing scenarios on real XS heap snapshots:
 
 - **`@endo/ocapn/hub`** — the non-reifying forwarding node: c-list
-  tables, structural transcoding through the ordinary wire codecs
-  against a table-backed reference kit, bootstrap-fetch publications,
-  out-of-band `introduce`, wire-refcounted gc with origin
-  propagation, retirement tombstones, JSON write-through persistence.
+  tables namespaced by session epoch, structural transcoding through
+  the ordinary wire codecs against a table-backed reference kit,
+  bootstrap-fetch publications, out-of-band `introduce`,
+  wire-refcounted gc with origin propagation and tombstone pruning,
+  answers re-exported as promises (cross-session answer promotion),
+  frame queues for detached durable sessions, an inbound sequence
+  watermark that commits atomically with each frame's effects, a
+  rollback ledger for failed encodes, per-op break-to-sender for
+  dead/disconnected targets, retirement that also breaks pending
+  listens, sturdyref value passthrough, third-party gifts in both
+  roles (deposit/withdraw on the hub bootstrap as exporter;
+  hub-performed redemption via the embedder's `handoffs.connect`
+  dial power as receiver), and JSON write-through persistence.
 - **`packages/siesta`** — the hub daemon (`makeSiestaDaemon`: hub +
   worker transports + netlayer handshake/resumption + the endpoint),
   the OCapN worker peer and its XS bundle, the deterministic pipe
@@ -57,9 +66,11 @@ with the distinguishing scenarios on real XS heap snapshots:
   `ResumedSession`
   restoreExport/restorePendingResolver/provideImport/
   advanceAnswerPosition, sessionHooks
-  (established/export/import/pendingResolver/resolverSettled),
-  `shouldHandoff` relay policy, `provideSession` decline, portable
-  entropy.
+  (export/import/pendingResolver/resolverSettled), `provideSession`
+  decline, portable entropy. (The `shouldHandoff` relay policy and
+  the `onSessionEstablished` identity-capture hook served the retired
+  relay architecture and were deleted; resumption identity is
+  supplied by the embedder.)
 - **Sleepy lifecycle** — sleep = drain + snapshot + journal cut +
   terminate under one serialized operation chain; wake = snapshot
   restore + replay of only the post-snapshot journal suffix (empty
@@ -1064,77 +1075,91 @@ non-reifying core this document's comms-vat analysis pointed at.
   plumbing), and retirement tombstones a session's rows so holders'
   calls break loudly.
 - Semantics sharpened: a worker-owed answer legitimately survives a
-  daemon restart (the heap replays to the same pending state), so
-  at-most-once aborts apply only to answers host resources owe.
-  Loud, documented hub limits: no third-party handoffs, no sturdy
-  refs in transit, no cross-session answer promotion (future work).
-- Tests: `test/hub.test.js` (pure forwarding, identity, pipelining,
-  settlement, hub restart from tables mid-session) plus the entire
-  migrated scenario suite on the hub daemon — including the XS
-  restart acid test — pass across three SES configurations.
+  daemon restart (its pending state is in the heap snapshot; at most
+  a journal-suffix replay reconstructs it), so at-most-once aborts
+  apply only to answers host resources owe.
+- A review-driven rework then hardened the hub wholesale:
+  - **Epoch-namespaced tables.** Reference rows are keyed
+    `origin#epoch:position`; `retireSession` bumps the epoch and
+    resets the session's persisted tables, so a successor under a
+    reused key (a netlayer `onHello`, a reconnect) can neither
+    collide with nor resurrect the retired incarnation. Dead rows are
+    tombstones that keep holders' calls breaking loudly, pruned when
+    the last holder lets go; `forgetSession` additionally drops the
+    table entry for keys that never recur (ephemeral connections,
+    deleted workers — the daemon keys ephemeral sessions by random
+    id, never a counter).
+  - **Full GC accounting.** Wire mentions from the origin are counted
+    and returned as `op:gc-exports` when a row dies; releasing an
+    answer-backed row returns `op:gc-answers` to its owner; retiring
+    a holder releases everything it held; publications and deposited
+    gifts pin rows.
+  - **Answers as promises.** A forwarded `answerPosition` is backed
+    by an ordinary promise-flavored row — `desc:answer` toward its
+    owner, a promise import toward anyone else — so pending answers
+    are mentionable across sessions, listened on, pipelined through,
+    and collected uniformly. Listens are recorded per target row and
+    broken at the target's retirement; a listen on a locally settled
+    answer synthesizes its fulfillment.
+  - **Failure atomicity.** A mutation ledger rolls back
+    row/refcount/route allocations when a decode or encode throws;
+    the sender gets a `break` instead of silence. Dead and
+    disconnected targets break to the sender on every operation
+    (`op:untag` included). Frames toward a detached durable session
+    queue in the tables and drain on reattach; the inbound sink
+    accepts a sequence number whose watermark commits atomically with
+    the frame's effects, making transport redelivery harmless. A bad
+    frame from a remote session aborts that session; from a local one
+    it drops loudly.
+  - **Sturdyrefs and gifts.** Sturdyref values transit as opaque
+    pointers, re-encoded verbatim. Third-party gifts work in both hub
+    roles: as exporter, `deposit-gift`/`withdraw-gift` on the hub
+    bootstrap with the signature chain verified against session
+    identities the daemon records at each handshake (withdraw-before-
+    deposit parks on the gift key); as receiver, the hub redeems an
+    inbound `desc:handoff-give` itself — the gift becomes an
+    answer-backed promise row at an outbound exporter session, the
+    embedder's `handoffs.connect` power dials, and the hub signs the
+    withdrawal with the gifter session's persisted key. No hub
+    subscription in either role.
+- Tests: `test/hub.test.js` (forwarding, identity, pipelining,
+  settlement, hub restart from tables mid-session, retirement
+  epochs and pending-listen breaks, durable queues across restarts,
+  sequence-watermark dedupe, cross-session pending-answer transfer,
+  sturdyref transit, holder-retirement gc) plus the daemon suite
+  (both gift roles over real TCP, idle sleep, vat GC) and the
+  migrated scenario suite — including the XS restart acid test —
+  pass across three SES configurations.
 
 #### Hub limits
 
-Every limit is loud (a thrown error and a logged drop, or a
-synthesized `break`), never a silent wrong answer.
+The review-driven rework retired the first enumeration of limits:
+third-party handoffs (both roles), sturdyref transit, answer
+promotion, break-to-sender coverage, idle sleep (the transport's
+`idleSleepMs`, exact because workers run to quiescence per delivery
+and have no timer queue), and tombstone pruning are all implemented
+above. What remains, still loud rather than silent:
 
-1. **No third-party handoffs.** A remote peer whose client uses the
-   default `shouldHandoff` policy will express a reference imported
-   from some OTHER node as a `desc:sig-envelope` handoff-give; the
-   hub's reference kit rejects it (`provideHandoff` throws), the
-   frame is dropped with a logged error, and the sender's call never
-   settles. This only arises when a truly external third node is
-   involved — references between hub-fronted sessions never need
-   handoffs, because hub re-export IS the relay. Mitigations today:
-   peers front their own imports (shouldHandoff: false toward the
-   daemon), or route such references by sturdy ref out of band.
-   Future work: a hub-side handoff-receive path, which requires
-   outbound connections and gift withdrawal — i.e., a deliberate,
-   narrow client-shaped edge, to be added only if the need is real.
-2. **No sturdy refs in transit.** A sturdy-ref VALUE embedded in a
-   message (as an argument or resolution) fails to transcode
-   (`makeSturdyRef` throws in the table kit) and the frame drops
-   loudly. Sturdy refs TO the daemon are unaffected — that is the
-   bootstrap-fetch path. Since a sturdy ref is plain data
-   `(location, secret)`, verbatim passthrough is easy future work;
-   it throws today only because the codec's read side routes through
-   a client tracker the hub deliberately lacks.
-3. **No cross-session answer promotion.** A `desc:answer` may only be
-   referenced in messages routed to the session that owes the answer
-   (the ordinary pipelining pattern). Mentioning a pending answer in
-   a message bound for a DIFFERENT session throws and drops the
-   frame: promoting an answer for a third party requires the hub to
-   subscribe to it and mint a promise row — the classic comms-vat
-   complication, and a deliberate reintroduction of a small piece of
-   promise-awareness if it is ever needed. Workaround: await a
-   result before passing it across parties.
-4. **No protocol error replies for undecodable frames.** A frame
-   that fails transcoding (including cases 1–3) is dropped with a
-   logged error; the hub synthesizes `break` only for deliveries and
-   listens whose target is a retired (tombstoned) reference. The
-   affected caller's promise therefore jams rather than rejects.
-   Future work: synthesize `break` toward the sender's resolver for
-   any recognizable deliver/listen that fails after the envelope has
-   been parsed far enough to know its resolver.
-5. **No idle-sleep policy.** Sleep is explicit
-   (`worker.sleep()`/`shutdown()`) or supervisor-driven; the captp
-   host's `idleTimeoutMs` timer has not been reinstated. The natural
-   home is the durable worker transport (a last-activity clock and a
-   park timer on its operation chain) — mechanical future work.
-6. **Table growth.** Dead-reference tombstones are retained forever
-   (that is what keeps retired-target calls breaking loudly instead
-   of jamming), gc rows for publications are pinned while published,
-   and per-frame write-through serializes the whole hub state (fine
-   at prototype scale; an incremental store is future work). The hub
-   never dials out and accepts only inbound sessions.
+1. **Own-session resolvers.** A message routed at the sender's own
+   export cannot carry a `resolveMeDesc` — the wire format cannot
+   hand a session its own resolver back — so such listens break to
+   the sender. (Clients shortcut self-sends locally, so this arises
+   only in unusual relaying patterns.)
+2. **Pipelining onto an undeposited gift** breaks to the sender
+   rather than queueing; listens on it settle at the deposit.
+3. **Whole-state write-through.** Every mutating frame serializes the
+   entire hub state through the store (fine at prototype scale; an
+   incremental store is future work).
 
 ### Also deferred
 
-- **Object-level GC.** `gcImports` is off on the host side and the
-  worker holds its exports forever; a distributed-GC pass over
-  sleeping workers needs the refcounting messages to be journaled and
-  replayed consistently. Vat-level GC (§ *Garbage collection of
-  vats*) deliberately comes first.
+- **Full distributed object GC.** The hub's side is done (wire
+  refcounts, origin propagation, answer releases, tombstone
+  pruning); worker clients emit finalization-driven `op:gc-answers`
+  today, and gc frames journal and replay like any other. What
+  remains is the worker-side import-collection sweep over sleeping
+  heaps and an end-to-end soak of the full cycle. Vat-level GC
+  (§ *Garbage collection of vats*) deliberately came first.
 - **Snapshot compaction cadence**, metering
   ([daemon-xs-worker-metering](daemon-xs-worker-metering.md)), and
   multi-tenant scheduling.

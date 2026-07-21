@@ -27,8 +27,8 @@ tests — a guest cannot observe (or trigger) any of them.
 
 Workers have no names.
 Each is identified by a host-generated unguessable id, so reaching a
-worker requires a capability — a publication, a durable cross-worker
-link, or a facade — never a well-known string.
+worker requires a capability — a publication, a reference relayed
+through the hub, or a facade — never a well-known string.
 `createWorker({ debugLabel })` accepts an optional label that appears
 only in logs and error messages; `daemon.getWorker(workerId)` is the
 embedder's admin route to an existing worker.
@@ -36,14 +36,22 @@ embedder's admin route to an existing worker.
 ## Example
 
 ```js
+// The daemon runs under Hardened JavaScript: lock down first.
+import '@endo/init';
+
 import { E } from '@endo/eventual-send';
 import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
 import { makeFsStore, makeSiestaDaemon, makeXsEngine } from '@endo/siesta';
 
 const daemon = await makeSiestaDaemon({
-  store: makeFsStore(statePath),
-  engine: makeXsEngine({ workerBinary, bootPath, bundlePath, casPath }),
+  store: makeFsStore('/var/lib/siesta'),
+  engine: makeXsEngine({
+    workerBinary: 'target/release/siesta-xs-worker',
+    bootPath: 'dist-xs/boot.js',
+    bundlePath: 'dist-xs/worker-peer.js',
+    casPath: '/var/lib/siesta/cas',
+  }),
   codec: syrupCodec,
   makeNetlayer: ({ handlers, logger }) => makeTcpNetLayer({ handlers, logger }),
 });
@@ -58,7 +66,15 @@ const counter = await worker.evaluate(`
 const secret = daemon.publish(counter);
 // Any OCapN peer can now mint a sturdy ref from (daemon.location, secret)
 // and call the counter — across worker sleeps and daemon restarts.
+console.log(await E(counter).incr()); // 1, via the in-process endpoint
+
+await daemon.shutdown(); // parks every worker; the store resumes it all
 ```
+
+A restarted daemon must serve the same address its peers hold: pin the
+netlayer's port (`makeTcpNetLayer({ ..., specifiedPort })`, or the
+equivalent for your netlayer) rather than letting a successor process
+pick a fresh ephemeral port.
 
 ## Worker sessions
 
@@ -67,12 +83,10 @@ Each worker runs a full (reduced-profile) OCapN peer —
 client whose evaluate facet is fetched from the worker's own locator
 under the well-known swissnum `shell`.
 The daemon's side of the session is a durable worker transport
-(`src/durable-worker-transport.js`): the session is established
-through the `resumeSession` seam in `@endo/ocapn` with both identities
-and the session id derived deterministically from the worker id
-(`src/pipe-network.js`), so there is no wire handshake and the *same*
-establishment call serves a fresh worker, a wake from snapshot, and a
-daemon restart.
+(`src/durable-worker-transport.js`), the durability envelope of the
+worker's hub session: no wire handshake, no client — the OCapN hub
+owns routing, and attaching the transport is the *same* operation for
+a fresh worker, a wake from snapshot, and a daemon restart.
 
 Durability is snapshot-keyed frame retention:
 
@@ -292,8 +306,10 @@ restarts.
 
 ## API
 
-`makeSiestaDaemon({ store, engine, codec, makeNetlayer, resources?, verbose? })`
-resolves to a daemon:
+`makeSiestaDaemon({ store, engine, codec, makeNetlayer, resources?, idleSleepMs?, verbose? })`
+resolves to a daemon (`idleSleepMs` parks any worker that has seen no
+deliveries for that long; workers run to quiescence per delivery and
+have no timer queue, so frame silence is exact dormancy):
 
 - `createWorker({ debugLabel? })` — makes a fresh worker under a
   generated unguessable id and resolves to its worker object.
@@ -331,10 +347,13 @@ This is a prototype.
 See the design document for the full list of open issues, notably:
 answers owed by host resources are at-most-once (they reject after a
 restart; worker-owed answers and promises survive in the heap
-snapshots),
-automatic idle-sleep policy is not yet reinstated (sleep is explicit
-or supervisor-driven), and the hub loudly rejects third-party
-handoffs, sturdy refs in transit, and cross-session answer promotion.
+snapshots), and the remaining loud hub limits — a listen on the
+sender's own export breaks (the wire format cannot hand a session its
+own resolver back), and pipelining onto an undeposited gift breaks
+rather than queueing.
+Third-party gifts otherwise work in both hub roles, sturdyrefs pass
+through as opaque values, pending answers transfer across sessions,
+and idle sleep is available via `idleSleepMs`.
 
 ## Design
 
