@@ -609,4 +609,74 @@ mod tests {
         };
         assert!(matches!(err, ExecuteError::BadLocation { .. }), "got {err}");
     }
+
+    // --- Run-machine hardening (relanded from PR #791) ---
+
+    /// Store one blob and return its hash.
+    fn store_blob(cas: &ContentStore, content: &str) -> String {
+        cas.store(content.as_bytes(), "blob").unwrap()
+    }
+
+    /// Store a flat tree from `(name, hash)` blob entries.
+    fn store_flat_tree(cas: &ContentStore, entries: &[(&str, &str)]) -> String {
+        let mut map = serde_json::Map::new();
+        for (name, hash) in entries {
+            map.insert(
+                name.to_string(),
+                serde_json::json!({ "type": "blob", "hash": hash }),
+            );
+        }
+        let tree = serde_json::json!({ "entries": map });
+        cas.store_tree(&serde_json::to_vec(&tree).unwrap()).unwrap()
+    }
+
+    /// A single-module entry compartment (type module) whose
+    /// `main.js` is `source`, stored as a compartment map in the CAS.
+    fn single_module_map(cas: &ContentStore, source: &str) -> String {
+        let entry_main = store_blob(cas, source);
+        let entry_manifest = store_blob(cas, r#"{"name": "app", "type": "module"}"#);
+        let entry_tree = store_flat_tree(
+            cas,
+            &[("main.js", &entry_main), ("package.json", &entry_manifest)],
+        );
+        let map = serde_json::json!({
+            "tags": [],
+            "entry": { "compartment": "<entry>", "module": "./main.js" },
+            "compartments": {
+                "<entry>": {
+                    "name": "app",
+                    "location": format!("cas:sha256:{entry_tree}"),
+                    "modules": {},
+                },
+            },
+        });
+        cas.store(&serde_json::to_vec(&map).unwrap(), "compartment-map")
+            .unwrap()
+    }
+
+    /// Real npm entry code calls `console.log`; the standalone runner
+    /// must endow it rather than let the reference throw.
+    #[test]
+    fn console_log_is_endowed_in_the_run_machine() {
+        let cas_tmp = tempfile::tempdir().unwrap();
+        let cas = ContentStore::open(cas_tmp.path()).unwrap();
+        let map_hash = single_module_map(
+            &cas,
+            "console.log('hello', 42, { a: 1 });\nconsole.error('to stderr');\nexport const done = true;\n",
+        );
+        let archive = load_assembled_archive(&cas, &map_hash).unwrap();
+        xsnap::run_xs_archive_loaded(&archive).expect("console endowment lets the run complete");
+    }
+
+    /// A throw in the program being run (here a ReferenceError) must
+    /// come back as `Err` from the runner, not SIGSEGV the process.
+    #[test]
+    fn entry_throw_surfaces_as_error_not_crash() {
+        let cas_tmp = tempfile::tempdir().unwrap();
+        let cas = ContentStore::open(cas_tmp.path()).unwrap();
+        let map_hash =
+            single_module_map(&cas, "noSuchGlobal(1);\nexport const unreachable = 1;\n");
+        let archive = load_assembled_archive(&cas, &map_hash).unwrap();
+        assert!(xsnap::run_xs_archive_loaded(&archive).is_err());
+    }
 }
