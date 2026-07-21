@@ -18,7 +18,7 @@ Not started. This document answers the question raised in kriskowal/garden#59
 `@agoric/store` (in `agoric-sdk`) provides the mutable, incrementally-updatable
 collection abstractions that Agoric contract and vat code rely on:
 `makeScalarMapStore`, `makeScalarSetStore`, `makeScalarWeakMapStore`, and their
-`MapStore` / `SetStore` / `WeakMapStore` interface types. A guest holds a store
+`MapStore` / `SetStore` / `WeakMapStore` / sorted-store interface types. A guest holds a store
 capability and calls `init` / `set` / `get` / `delete` / `has` incrementally;
 the collection is durable, so it survives a restart of the hosting vat.
 
@@ -73,70 +73,106 @@ for keys/patterns and `@endo/exo` for the guarded object.
 
 ### Shape of the capability
 
-A new formula type, **`map-store`**, plus (in later phases) **`set-store`** and
-weak variants. A `map-store` formula is minimal — it records only the store's
-identity and kind; the entries live in a dedicated SQLite table keyed by the
-store's formula number. This mirrors exactly how `pet-store`, `mailbox-store`,
-`known-peers-store`, and `synced-store` were each added: a formula type + a
-table + a factory the manager dispatches to.
+The daemon implements the complete persistent collection family directly. It
+does not wrap a directory and does not import `@agoric/store`. A single formula
+type, **`collection-store`**, identifies every store; its formula record is
+`{ type: 'collection-store', kind }`, where `kind` is one of `map`, `set`,
+`weak-map`, `weak-set`, `sorted-map`, or `sorted-set`. The formula has no entry
+snapshot. Entries are rows keyed by its formula number, so the same formula is
+reformulated after restart and reconnects to the same collection.
 
 ```
-formula-type.js:   add 'map-store' (and later 'set-store') to formulaTypes
-formula-record.js: schema for the map-store formula record { type, ... }
-manager-database.js: new table
-    map_store_entry(store_number, key_body, key_slots, value_body, value_slots)
-    PRIMARY KEY (store_number, key_body)
-manager.js:        dispatch 'map-store' → makeIdentifiedMapStore(number, ...)
-src/map-store.js:  the persistent MapStore exo factory (new file)
+formula-type.js:     add 'collection-store' to formulaTypes
+formula-record.js:   validate { type: 'collection-store', kind }
+manager-database.js: collection_store_entry and collection_store_weak_key tables
+manager.js:          dispatch 'collection-store' to makeIdentifiedCollectionStore
+src/collection-store.js: factories for all six guarded collection exos
 ```
+
+`map` and `set` are strong stores. `weak-map` and `weak-set` are weak-key
+stores. `sorted-map` and `sorted-set` are strong stores with an ordered-key
+interface. The common formula type keeps lifecycle and cleanup uniform while
+the `kind` selects the allowed methods and retention policy.
 
 ### Keys, values, and durable serialization
 
-`@agoric/store`'s *scalar* stores restrict keys to **scalar keys** (primitives
-and remotables — anything with no nested structure), which keeps key comparison
-cheap and, crucially for us, keeps the *stored key* a small, stable byte string.
-We adopt the same restriction for v1 (`M.scalar()` guard on keys); structured
-keys (`M.key()`) are a later phase.
+The first `MapStore` milestone accepts **scalar keys**, guarded by `M.scalar()`.
+The next strong-map milestone broadens that guard to `M.key()`, including nested
+passable keys and remotables at any depth. All later collection kinds use
+`M.key()` unless their weak-key rule is narrower. A weak key must be a remotable
+key: it is the formula identity of that remotable, rather than a JavaScript
+weak-reference implementation detail, that gives the daemon an observable
+durable collection event.
 
 Keys and values are **passable**, so they are serialized with the daemon's
 existing marshal machinery — the same body+slots encoding used by the `marshal`
 formula (`formula-record.js`) and by `synced-store` entries:
 
-- A **remotable** key or value serializes to a slot that is a **formula id**;
-  storing it therefore creates a **retention edge** from the store to that
-  formula, so the referenced capability is not garbage-collected while the
-  store holds it. This reuses the existing retention/refcount graph
-  (`src/store-controller.js` already does exactly this bookkeeping for pet
-  stores via `onPetStoreWrite` / `onPetStoreRemove`).
+- A strong-store **remotable key or value**, including a remotable nested inside
+  an `M.key()` key, serializes to formula-id slots. The entry creates retention
+  edges from the store to every referenced formula, so a strong store retains
+  both keys and values. This reuses the existing formula refcount/retention
+  graph, with per-entry add/remove accounting rather than only pet-store names.
+- A weak-store key serializes to its formula id for identity and lookup but
+  creates **no retention edge to that key**. A weak-map value remains strongly
+  retained while its entry exists. The weak-key index lets formula collection
+  find every affected entry; when the key formula is collected, collection
+  atomically removes those rows and releases each entry's value edges. Thus a
+  weak entry cannot keep its key alive, and no stale value edge survives the
+  key's collection. Deleting an entry first removes its weak-key index and its
+  value edges, so later collection has nothing to do.
 - A **primitive** (number, string, bigint, boolean, null) serializes inline
   with no slots and no retention edge.
 
-On restart, the manager reformulates the `map-store` formula and constructs the
-exo; entries are read back from `map_store_entry` (eagerly for small stores, or
-lazily row-by-row — see Design Decision 4) and unmarshalled on access.
+On restart, the manager reformulates the `collection-store` formula and
+constructs the kind-specific exo. Entries are read from
+`collection_store_entry` and unmarshalled on access. The graph also rebuilds
+the strong entry edges and the weak-key collection index before guest traffic
+is served.
 
 ### Interface
 
-The exo presents the `@agoric/store` **`MapStore` method surface**, guarded with
-`@endo/patterns` `M` in a `map-store` interface, so the API a guest sees matches
-what they already know from Agoric:
+Each exo is guarded with `@endo/patterns` `M`. The family follows the familiar
+`@agoric/store` method names and error semantics, but is daemon-native. The
+strong stores expose the following surfaces (the initial `MapStore` has
+`ScalarKeyShape`; after the full-key milestone it becomes `M.key()`):
 
 ```js
 export const MapStoreInterface = M.interface('MapStore', {
-  has:     M.callWhen(ScalarKeyShape).returns(M.boolean()),
-  get:     M.callWhen(ScalarKeyShape).returns(M.any()),
-  init:    M.callWhen(ScalarKeyShape, M.any()).returns(),
-  set:     M.callWhen(ScalarKeyShape, M.any()).returns(),
-  delete:  M.callWhen(ScalarKeyShape).returns(),
+  has:     M.callWhen(KeyShape).returns(M.boolean()),
+  get:     M.callWhen(KeyShape).returns(M.any()),
+  init:    M.callWhen(KeyShape, M.any()).returns(),
+  set:     M.callWhen(KeyShape, M.any()).returns(),
+  delete:  M.callWhen(KeyShape).returns(),
   getSize: M.callWhen().returns(M.number()),
-  keys:    M.callWhen().returns(M.arrayOf(M.any())),
-  values:  M.callWhen().returns(M.arrayOf(M.any())),
-  entries: M.callWhen().returns(M.arrayOf(M.array())),
+  keys:    M.callWhen(M.opt(M.pattern())).returns(M.arrayOf(M.any())),
+  values:  M.callWhen(M.opt(M.pattern())).returns(M.arrayOf(M.any())),
+  entries: M.callWhen(M.opt(M.pattern())).returns(M.arrayOf(M.array())),
   snapshot: M.callWhen().returns(M.any()), // a passable CopyMap
 });
 ```
 
-Semantics match `@agoric/store` exactly:
+`SetStore` replaces `init` and `set` with `add(key)`, and has no `get` or
+`values`; it provides `has`, `delete`, `getSize`, `keys`, `entries` where an
+entry is the key, and `snapshot` as a `CopySet`. `WeakMapStore` has
+`has`/`get`/`init`/`set`/`delete`; `WeakSetStore` has `has`/`add`/`delete`.
+Weak stores deliberately have no `getSize`, enumeration, or `snapshot`.
+
+`SortedMapStore` and `SortedSetStore` have their corresponding strong-store
+methods, always accept `M.key()` keys, and add bounded scans:
+
+```js
+keys(pattern = M.any(), bounds = undefined)
+values(pattern = M.any(), bounds = undefined)
+entries(pattern = M.any(), bounds = undefined)
+```
+
+`bounds` is a passable record of optional inclusive/exclusive `start` and `end`
+keys. `pattern` is checked with `@endo/patterns`; its rank cover narrows the SQL
+scan before exact matching. An omitted pattern means all keys. The final exact
+pattern check is required because a rank cover can be a superset.
+
+For all map-like kinds, semantics match `@agoric/store`:
 
 - `init(key, value)` — throws if `key` already present.
 - `set(key, value)` — throws if `key` absent.
@@ -149,9 +185,49 @@ Semantics match `@agoric/store` exactly:
 
 Every mutating method **writes through to SQLite in the same turn** before
 resolving, so a crash between the in-memory update and the row write cannot
-diverge (the row write *is* the commit). Iteration methods return arrays rather
-than live iterators so the CapTP boundary stays simple in v1 (`@agoric/store`'s
-lazy iterators are a later ergonomic upgrade).
+diverge (the row write is the commit). Iteration methods return arrays rather
+than live iterators so the CapTP boundary stays simple.
+
+### SQLite schema and sorted-key index
+
+All entry kinds use one entry table. `key_body`/`key_slots` and
+`value_body`/`value_slots` are the existing durable marshal representation;
+set entries have null value columns. `key_rank` is a canonical rank-order
+encoding made with `@endo/marshal` `makeEncodePassable`, configured to encode
+remotables by stable formula id. It is ASCII and compared with SQLite `BINARY`
+collation. This is the same rank order used by `@endo/patterns` rank covers and
+the sorted-store lineage in `@agoric/store`.
+
+```sql
+CREATE TABLE collection_store_entry (
+  store_number TEXT NOT NULL,
+  key_rank TEXT COLLATE BINARY NOT NULL,
+  key_body TEXT NOT NULL,
+  key_slots TEXT NOT NULL,
+  value_body TEXT,
+  value_slots TEXT,
+  PRIMARY KEY (store_number, key_rank)
+);
+CREATE INDEX collection_store_entry_rank
+  ON collection_store_entry (store_number, key_rank COLLATE BINARY);
+
+CREATE TABLE collection_store_weak_key (
+  key_formula_number TEXT NOT NULL,
+  store_number TEXT NOT NULL,
+  key_rank TEXT COLLATE BINARY NOT NULL,
+  PRIMARY KEY (key_formula_number, store_number, key_rank)
+);
+CREATE INDEX collection_store_weak_key_lookup
+  ON collection_store_weak_key (key_formula_number);
+```
+
+For `SortedMapStore` and `SortedSetStore`, `keys(pattern, bounds)` converts the
+pattern with `getRankCover(pattern, encodePassable)`, intersects that cover with
+the encoded bounds, and issues `WHERE store_number = ? AND key_rank >= ? AND
+key_rank < ? ORDER BY key_rank`. The composite index makes a bounded scan
+`O(log n + k)` for `k` returned candidates, rather than loading and sorting the
+collection. `values` and `entries` use the same cursor. Exact pattern matching
+filters false positives from a broad rank cover without changing ordering.
 
 ### Exposure to guests and hosts
 
@@ -160,18 +236,26 @@ affordances on the guest/host interface:
 
 ```js
 // on the Guest and Host interfaces (src/interfaces.js)
-makeMapStore: M.callWhen(PetNameShape /* , options */).returns(M.remotable('MapStore')),
+makeMapStore: M.callWhen(PetNameShape).returns(M.remotable('MapStore')),
+makeSetStore: M.callWhen(PetNameShape).returns(M.remotable('SetStore')),
+makeWeakMapStore: M.callWhen(PetNameShape).returns(M.remotable('WeakMapStore')),
+makeWeakSetStore: M.callWhen(PetNameShape).returns(M.remotable('WeakSetStore')),
+makeSortedMapStore: M.callWhen(PetNameShape).returns(M.remotable('SortedMapStore')),
+makeSortedSetStore: M.callWhen(PetNameShape).returns(M.remotable('SortedSetStore')),
 ```
 
-`makeMapStore(petName)`:
+Each constructor follows the same sequence. `makeMapStore(petName)` is the
+representative case:
 
-1. formulates a fresh `map-store` formula (new formula number),
+1. formulates a fresh `collection-store` formula with the selected kind (new
+   formula number),
 2. binds the resulting store id to `petName` in the agent's pet store (so it is
    nameable, lookup-able, and survives restart like any other named cap), and
 3. returns the live `MapStore` exo.
 
 Re-looking-up the pet name after a restart returns a store backed by the same
-`map_store_entry` rows — persistence demonstrated end to end.
+`collection_store_entry` rows. Each variant must demonstrate that end-to-end
+persistence before it lands.
 
 ### Relationship to `@agoric/store`
 
@@ -179,7 +263,7 @@ Re-looking-up the pet name after a restart returns a store backed by the same
 |---|---|---|
 | Key/pattern vocabulary | `@endo/patterns` (`M`, keys) | same — `@endo/patterns` |
 | Guarded object | exo | same — `@endo/exo` |
-| Method surface | `MapStore` / `SetStore` / `WeakMapStore` | **mirrors** the same method names/semantics |
+| Method surface | `MapStore` / `SetStore` / weak and sorted variants | **mirrors** the same method names/semantics |
 | Durability substrate | `@agoric/vat-data` durable kinds / vatstore | **daemon formula + SQLite** |
 | Constructor | `makeScalarMapStore(label, opts)` | `makeMapStore(petName)` over CapTP |
 
@@ -208,6 +292,8 @@ and `--as <agent>`. The store constructors join it, one flat verb per kind:
 | `endo mkset --name <n>`     | strong `SetStore`     | `makeSetStore` |
 | `endo mkweakmap --name <n>` | `WeakMapStore`        | `makeWeakMapStore` |
 | `endo mkweakset --name <n>` | `WeakSetStore`        | `makeWeakSetStore` |
+| `endo mksortedmap --name <n>` | `SortedMapStore`     | `makeSortedMapStore` |
+| `endo mksortedset --name <n>` | `SortedSetStore`     | `makeSortedSetStore` |
 
 The bound pet name is nameable / lookup-able / restart-surviving like any other
 cap, exactly as `mkdir`'s directory is.
@@ -245,6 +331,11 @@ The **weak** variants (`endo weakmap …` / `endo weakset …`) share the mutati
 verbs (`init`/`set`/`get`/`has`/`delete` or `add`/`has`/`delete`) but **omit the
 enumeration verbs** (`keys`/`values`/`entries`/`size`/`snapshot`), because weak
 stores are non-enumerable by design (Phase 3).
+
+`endo sortedmap` and `endo sortedset` use the corresponding strong-store verbs.
+Their `keys`, `values`, and `entries` commands accept the pattern encoding and
+optional `--from` / `--to` bounds, which are converted to the same rank range
+as the daemon API. They return key-rank order.
 
 #### Expressing keys and values
 
@@ -315,7 +406,8 @@ between the two surfaces.
 | `@endo/patterns` | Provides `M`, `Key` comparison, and `makeCopyMap`/`makeCopySet` for `snapshot()`. Reused, not modified. |
 | `@endo/exo` | Provides `makeExo` for the guarded store object. Reused. |
 | daemon `marshal` formula (`src/formula-record.js`) | The body+slots durable serialization we reuse for keys/values. |
-| daemon `store-controller.js` retention graph | The refcount/retention edges a store's remotable entries must join. |
+| daemon formula graph and `store-controller.js` | The refcount/retention edges strong entries must join, plus the collection callback that drops weak-key entries. |
+| `@endo/marshal` `makeEncodePassable` | Canonical rank-order encoding for every key and the indexed range scans of sorted stores. |
 | `synced-store` (`synced_store_entry`) | Precedent for a passable-payload SQLite table; a later phase may replicate stores across peers the same way. |
 | `packages/cli` (`endo.js`, `message-parse.js`) | Host of the `mk*` constructors, the `endo map`/`endo set` verb groups, and the `@pet-name` key/value reference syntax. |
 | `marshal-justin.js` (`@endo/marshal`) | The total, non-evaluating Justin decoder the CLI/WUI use to accept passable keys/values (`--justin`, `--out justin`). |
@@ -324,31 +416,35 @@ between the two surfaces.
 
 ## Phased Implementation
 
-**Phase 1 — durable strong `MapStore` (scalar keys).**
-`map-store` formula type + `map_store_entry` table + `src/map-store.js` exo +
-`makeMapStore` on guest/host + retention edges for remotable entries. Tests:
-`init`/`set`/`get`/`delete`/`has`/`getSize`/`keys`/`values`/`entries`/`snapshot`
-semantics (including the throw-conditions), CapTP round-trip of a remotable
-value, and **restart persistence** (create → set → restart daemon → still
-there; `test/endo.test.js` is the established home for restart-survival tests).
-This phase is the deliverable that closes issue #59.
+**Phase 1 — durable strong `MapStore`.** Land `collection-store` with `kind:
+'map'`, its entry schema, `makeMapStore`, and scalar (`M.scalar()`) keys.
+Prove all mutator/query throw conditions, strong retention for remotable keys
+and values, and restart persistence. In the next incremental change in this
+phase, broaden the same map to full `M.key()` keys, including nested remotables,
+and add its restart-persistence coverage. This establishes the common codec,
+formula cleanup, and strong edge accounting.
 
-**Phase 2 — durable strong `SetStore`.** `set-store` formula type +
-`set_store_entry` table + `add`/`delete`/`has`/`getSize`/`keys`/`snapshot`
-(→ `CopySet`). Small delta on Phase 1.
+**Phase 2 — durable strong `SetStore`.** Add `kind: 'set'`, `makeSetStore`, and
+the `add` / membership / enumeration / `CopySet` surface using the proven
+strong-entry substrate. Include a restart-persistence test.
 
-**Phase 3 — weak variants (`WeakMapStore` / `WeakSetStore`).** No enumeration;
-a key that is a remotable does **not** create a retention edge (weak reference
-semantics), so the entry is reaped when the key formula is collected. This
-interacts with the GC graph and is deliberately deferred until Phase 1's
-retention semantics are proven.
+**Phase 3 — weak variants (`WeakMapStore` / `WeakSetStore`).** Add the two weak
+kinds and the reverse weak-key index. Prove that an entry does not retain its
+remotable key, that collecting the key removes the entry and releases a weak
+map's retained value, and that restart reconstructs the weak index before
+serving the store. Include restart-persistence tests while the key remains
+live, plus formula-collection tests for entry removal.
 
-**Phase 4 — parity polish.** Structured keys (`M.key()` beyond `M.scalar()`),
-key/value pattern arguments to `keys`/`values`/`entries`/`getSize`,
-`addAll`/`clear`, and lazy iterators. Optional: multiplayer replication via the
-synced-store substrate.
+**Phase 4 — sorted variants and range queries.** Add `SortedMapStore` and
+`SortedSetStore`, `makeEncodePassable` key-rank encoding, the composite SQLite
+index, and `keys(pattern, bounds)` / `values` / `entries` scans. Test arbitrary
+`M.key()` ordering, pattern covers, inclusive/exclusive bounds, `O(log n + k)`
+query-plan use, and restart persistence for each sorted variant.
 
-**Phase 5 — human surfaces (CLI + WUI).** The command vocabulary specified in
+**Phase 5 — parity polish.** `addAll`/`clear`, lazy iterators, and optional
+multiplayer replication via the synced-store substrate.
+
+**Phase 6 — human surfaces (CLI + WUI).** The command vocabulary specified in
 *Design → CLI and WUI command vocabulary*: the `mk*` constructors, the
 `endo map`/`endo set` (and weak) verb groups, the typed key/value encodings
 (`--json`/`--justin`/`--shon`/`@pet-name`) over a total non-evaluating decoder,
@@ -377,21 +473,24 @@ new dependency.
    diverged. Cost is one small write per mutation — acceptable, and identical
    to how pet-store mutations already persist.
 
-4. **Scalar keys and eager small-store load in v1.** Scalar keys keep the
-   stored key a stable byte string and match `makeScalarMapStore`. Small stores
-   load eagerly on formulation; a size threshold switching to lazy row reads is
-   a Phase 4 optimization, not a v1 requirement.
+4. **Scalar first, `M.key()` next.** Scalar keys make the first MapStore small
+   and focused. Full passable key support follows on the same strong substrate,
+   before the other collection variants, so the family does not permanently
+   inherit a scalar-only limitation.
 
 5. **`snapshot()` returns a `CopyMap`.** This bridges the mutable durable store
    to a passable value symmetric with the existing write-once `storeValue`, and
    reuses `@endo/patterns`' `makeCopyMap` so the result is pattern-matchable and
    CapTP-safe.
 
-6. **Arrays over live iterators in v1.** Keeps the CapTP boundary simple;
-   `@agoric/store`'s lazy, pattern-filtered iterators are a Phase 4 ergonomic
-   upgrade.
+6. **Indexed rank scans for sorted stores.** `makeEncodePassable` produces the
+   canonical rank order that pattern rank covers understand. Persisting it,
+   rather than sorting marshalled bodies at read time, makes bounded scans an
+   indexed SQLite operation over arbitrary passable keys.
 
-7. **`mk*` constructors flat; per-store verbs in a named group.** Constructors
+7. **Arrays over live iterators in v1.** Keeps the CapTP boundary simple.
+
+8. **`mk*` constructors flat; per-store verbs in a named group.** Constructors
    join the existing flat `mk*` family (`mkdir`/`mkhost`/`mkguest`/`mktmp`) so
    `mkmap`/`mkset` read as siblings. The ~10 interface methods per store go under
    `endo map <name> …` / `endo set <name> …` subcommand groups rather than flat
@@ -399,7 +498,7 @@ new dependency.
    write-once `store`) and swamp `endo --help`. This introduces the CLI's first
    subcommand groups, a departure the method count justifies.
 
-8. **Keys expressed via total, non-evaluating DSLs — never `eval`.** A key on a
+9. **Keys expressed via total, non-evaluating DSLs — never `eval`.** A key on a
    CLI or in a form is *data*, so it is accepted only through JSON, Justin, or
    SHON decoders (plus `@pet-name` for remotables), each of which is total
    (guaranteed to halt) and does not run user code. Raw source (as in
@@ -407,7 +506,7 @@ new dependency.
    key expression diverge or execute. This directly answers the review's
    requirement that keys be "a deterministically halting DSL for passable keys."
 
-9. **Same verbs across CLI and WUI.** The Store Space uses the same words
+10. **Same verbs across CLI and WUI.** The Store Space uses the same words
    (`add`/`set`/`get`/`delete`/`snapshot`) and the same encoding selector as the
    CLI, so the mental model and documentation transfer between surfaces; the WUI
    is a direct-manipulation skin over the identical vocabulary, not a second one.
@@ -415,12 +514,14 @@ new dependency.
 ## Known Gaps and TODOs
 
 - [ ] Phase 1 implementation and restart-persistence tests (closes #59).
-- [ ] Decide whether `makeMapStore` accepts an options record (label, key
-      shape) in v1 or defers all options to Phase 4.
+- [ ] Confirm the exact formula-graph callback contract for collection of a
+      weak key, including transactional ordering of row deletion and value-edge
+      release.
+- [ ] Confirm the stable formula-id encoder/decoder passed to
+      `makeEncodePassable` for remotable keys and nested remotables.
 - [ ] Confirm the marshal body+slots encoding used by the `marshal` formula is
       reusable verbatim for entry rows, or whether store entries need their own
       thin codec.
-- [ ] Weak-reference GC semantics (Phase 3) against the retention graph.
 - [ ] Vendor or depend on a **SHON** (Shell-friendly Object Notation) decoder for
       the `--shon` key/value encoding; not yet present in this repo. JSON,
       Justin, and `@pet-name` references need no new dependency.
