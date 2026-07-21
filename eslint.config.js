@@ -39,7 +39,7 @@ export default defineConfig(
       'import/no-extraneous-dependencies': [
         'error',
         {
-          devDependencies: ['packages/*/test/**', 'packages/**/*.test-d.ts'],
+          devDependencies: ['**/test/**', '**/*.test-d.ts'],
           whitelist: ['ava', 'tsd', 'typescript'],
         },
       ],
