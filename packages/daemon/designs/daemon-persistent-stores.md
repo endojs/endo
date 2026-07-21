@@ -133,7 +133,7 @@ constructs the kind-specific exo. Entries are read from
 the strong entry edges and the weak-key collection index before guest traffic
 is served.
 
-#### Two encoding roles (body vs. rank), and the marshal → CBOR option
+#### Two encoding roles (body vs. rank), and the marshal -> CBOR option
 
 A store entry carries a key and value under **two independent encodings**, and
 keeping them separate is what makes the eventual serialization choice a
@@ -152,10 +152,13 @@ free variable:
   stores scan and order by; it exists precisely because the body encoding is not
   order-preserving.
 
-Because order lives entirely in `key_rank`, the body serialization is a swap-out:
-today it is marshal; a later revision may switch it to a **CBOR-encoded passable**
-without touching sort behaviour, indexes, or scan queries. Only `key_body` /
-`value_body` change; `key_rank` stays `makeEncodePassable`.
+Because order lives entirely in `key_rank`, a key **must** retain an
+`encodePassable`-equivalent rank encoding even if its body representation
+changes. Today the body is marshal; a later revision may use a
+**CBOR-encoded passable** body without touching sort behaviour, indexes, or
+scan queries, provided `key_rank` remains `makeEncodePassable` (or an
+equivalent order-preserving codec). Only `key_body` / `value_body` change.
+Values need no rank encoding and remain free to use any passable codec.
 
 This directly answers the review question *"does CBOR-encoded passable preserve
 passable order?"* — **it does not need to, and general CBOR does not.** CBOR
@@ -167,7 +170,7 @@ representation**, never a substitute for the `key_rank` sort key. If one instead
 wanted the sort key *itself* to be CBOR bytes, general/canonical CBOR would be
 unsuitable — an order-preserving encoding (`makeEncodePassable`, or a
 purpose-built order-preserving CBOR profile) would still be required. The design
-therefore keeps `key_rank = makeEncodePassable` fixed and treats the marshal↔CBOR
+therefore keeps `key_rank = makeEncodePassable` fixed and treats the marshal->CBOR
 choice as scoped to the body columns alone. Whether and when to actually adopt
 CBOR bodies is a downstream endo serialization decision left to @kriskowal /
 endo maintainers; this design only guarantees the switch is order-neutral.
@@ -583,10 +586,11 @@ new dependency.
    encoding); the `*_body`/`*_slots` columns are a value representation with no
    ordering role. This makes the value body a swap-out: the marshal body may
    later become a **CBOR-encoded passable** with no effect on ordering, indexes,
-   or scans. General/canonical CBOR is *not* order-preserving and is therefore
-   never a candidate for `key_rank` itself — answering the review question, order
-   preservation is not a property the body encoding needs to have. See § Two
-   encoding roles. Whether to adopt CBOR bodies is a downstream endo
+   or scans. A key still requires `key_rank = makeEncodePassable` or an
+   equivalent order-preserving codec; values need no rank encoding. General /
+   canonical CBOR is not order-preserving and is therefore never a candidate
+   for `key_rank` itself. See § Two encoding roles. Whether to adopt CBOR bodies
+   is a downstream endo
    serialization call (deferred to @kriskowal / endo maintainers).
 
 ## Known Gaps and TODOs
@@ -605,8 +609,9 @@ new dependency.
 - [ ] Confirm the marshal body+slots encoding used by the `marshal` formula is
       reusable verbatim for entry rows, or whether store entries need their own
       thin codec. Either way this is the **body** encoding only; `key_rank`
-      remains `makeEncodePassable` (see § Two encoding roles, Design Decision 12),
-      so a future marshal→CBOR body swap is order-neutral.
+      remains `makeEncodePassable` (or an equivalent order-preserving codec; see
+      § Two encoding roles, Design Decision 12), so a future marshal->CBOR body
+      swap is order-neutral.
 - [ ] **Defer SHON.** See design decision 11: wait for a scholar to ingest
       kriskowal.com/shon and kriskowal.com/yay before vendorizing or depending on a
       SHON decoder. The `--shon` key/value encoding is not yet present; JSON, Justin,
