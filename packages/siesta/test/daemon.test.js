@@ -242,3 +242,79 @@ test('a third-party gift routes through the hub bootstrap', async t => {
   );
   t.is(await E(counterAtGifter).incr(), 3, 'same counter, same state');
 });
+
+test('the hub redeems an inbound gift on behalf of a worker', async t => {
+  t.timeout(15_000);
+  const statePath = await mkdtemp(join(tmpdir(), 'siesta-daemon-redeem-'));
+  t.teardown(() => rm(statePath, { recursive: true, force: true }));
+  const daemon = await makeSiestaDaemon({
+    store: makeFsStore(statePath),
+    engine: makePeerJournalReplayEngine(),
+    codec: syrupCodec,
+    makeNetlayer: ({ handlers, logger }) =>
+      makeTcpNetLayer({ handlers, logger, specifiedDesignator: 'daemon' }),
+  });
+  t.teardown(() => daemon.shutdown());
+  const worker = await daemon.createWorker({ debugLabel: 'holder' });
+  const holder = await worker.evaluate(
+    `Far('Holder', { hold: gadget => E(gadget).poke() })`,
+  );
+  const secret = daemon.publish(holder);
+
+  // The exporter: a third node holding the gadget.
+  /** @type {Map<string, any>} */
+  const exporterLocator = new Map();
+  /** @type {any} */
+  let exporterNetlayer;
+  const exporter = await makeOcapn({
+    codec: syrupCodec,
+    debugLabel: 'exporter',
+    locator: exporterLocator,
+    network: async (
+      /** @type {any} */ handlers,
+      /** @type {any} */ logger,
+    ) => {
+      exporterNetlayer = await makeTcpNetLayer({
+        handlers,
+        logger,
+        specifiedDesignator: 'exporter',
+      });
+      return exporterNetlayer;
+    },
+  });
+  t.teardown(() => exporter.shutdown());
+  exporterLocator.set(
+    'gadget',
+    Far('Gadget', {
+      poke: () => 'poked',
+    }),
+  );
+
+  // The gifter: a peer with sessions to both the exporter and the
+  // daemon. Passing the exporter's gadget into the worker's holder is
+  // a third-party handoff with the DAEMON as receiver: the hub cannot
+  // hand the give to the worker (workers cannot dial), so it redeems
+  // the gift itself — dialing the exporter, withdrawing, and giving
+  // the worker an ordinary promise for the gadget.
+  const gifter = await makeOcapn({
+    codec: syrupCodec,
+    debugLabel: 'redeeming-gifter',
+    network: (/** @type {any} */ handlers, /** @type {any} */ logger) =>
+      makeTcpNetLayer({ handlers, logger, specifiedDesignator: 'gifter2' }),
+  });
+  t.teardown(() => gifter.shutdown());
+
+  const gadgetAtGifter = await gifter.enlivenSturdyRef(
+    gifter.makeSturdyRef(exporterNetlayer.location, 'gadget'),
+  );
+  t.is(await E(gadgetAtGifter).poke(), 'poked');
+
+  const holderAtGifter = await gifter.enlivenSturdyRef(
+    gifter.makeSturdyRef(daemon.location, secret),
+  );
+  t.is(
+    await E(holderAtGifter).hold(gadgetAtGifter),
+    'poked',
+    'the worker called through the hub-redeemed gift',
+  );
+});

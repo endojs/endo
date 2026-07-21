@@ -121,6 +121,8 @@ export const makeSiestaDaemon = async ({
     : () => {};
 
   const cryptography = makeCryptography(codec);
+  /** @type {any} */
+  const handoffDialRef = {};
   const hub = makeOcapnHub({
     codec,
     store: harden({
@@ -128,6 +130,10 @@ export const makeSiestaDaemon = async ({
       setState: (/** @type {any} */ state) => store.setHubState(state),
     }),
     cryptography,
+    handoffs: harden({
+      connect: (/** @type {any} */ location, /** @type {string} */ key) =>
+        handoffDialRef.connect(location, key),
+    }),
   });
 
   /** @type {Map<string, { transport: any, sink: any, shellP?: Promise<any> }>} */
@@ -257,15 +263,17 @@ export const makeSiestaDaemon = async ({
   /**
    * @param {any} connection
    * @param {string} sessionKey
-   * @param {{ sessionId: any, peerPublicKeyQ: any }} [identity] the
-   *   wire identity from the handshake; omitted on resume
+   * @param {{ sessionId: any, peerPublicKeyQ: any, selfPrivateKeyBytes?: any }} [identity]
+   *   the wire identity from the handshake; omitted on resume
    */
   const bindConnectionToHub = (connection, sessionKey, identity = undefined) => {
     const sink = hub.attachSession(sessionKey, {
       send: (/** @type {Uint8Array} */ bytes) => connection.write(bytes),
-      // Only resumable peers are durable: frames toward them queue
-      // across a disconnect. An ephemeral peer that is gone is gone.
-      durable: sessionKey.startsWith('peer:'),
+      // Resumable peers and outbound exporter sessions are durable:
+      // frames toward them queue across a disconnect. An ephemeral
+      // peer that is gone is gone.
+      durable:
+        sessionKey.startsWith('peer:') || sessionKey.startsWith('handoff:'),
       // A bad frame from beyond the process boundary aborts the
       // session and drops the connection.
       remote: true,
@@ -300,6 +308,62 @@ export const makeSiestaDaemon = async ({
   };
 
   const captpVersion = '1.0';
+
+  // --- outbound exporter sessions for hub gift redemption ---
+
+  /**
+   * Outgoing connections whose op:start-session reply is pending:
+   * connection -> the dial in progress.
+   *
+   * @type {Map<object, { sessionKey: string, keyPair: any, privateKeyBytes: Uint8Array }>}
+   */
+  const pendingOutbound = new Map();
+  /** @type {Set<string>} handoff session keys currently connected/dialing */
+  const dialingSessions = new Set();
+
+  /**
+   * The hub's `handoffs.connect` power: dial an exporter, perform the
+   * client side of the op:start-session handshake, and attach the
+   * connection to the hub under the given session key. Idempotent per
+   * key while a dial or connection is live.
+   *
+   * @param {any} location
+   * @param {string} sessionKey
+   */
+  handoffDialRef.connect = (location, sessionKey) => {
+    if (dialingSessions.has(sessionKey)) {
+      return;
+    }
+    dialingSessions.add(sessionKey);
+    try {
+      const connection = netlayerRef.netlayer.connect(location);
+      const { keyPair, privateKeyBytes } =
+        cryptography.makeOcapnKeyPairWithPrivateBytes();
+      pendingOutbound.set(connection, { sessionKey, keyPair, privateKeyBytes });
+      const { location: myLocation } = netlayerRef.netlayer;
+      const locationSignature = cryptography.signLocation(
+        myLocation,
+        keyPair,
+        new ArrayBuffer(0),
+      );
+      connection.write(
+        writeOcapnHandshakeMessage(
+          {
+            type: 'op:start-session',
+            captpVersion,
+            sessionPublicKey: keyPair.publicKey.descriptor,
+            location: myLocation,
+            locationSignature,
+          },
+          codec,
+        ),
+      );
+    } catch (error) {
+      dialingSessions.delete(sessionKey);
+      logError('handoff dial failed:', error);
+      hub.retireSession(sessionKey);
+    }
+  };
 
   /** @type {any} */
   const hubHandlers = harden({
@@ -336,6 +400,41 @@ export const makeSiestaDaemon = async ({
         bound.deliver(data);
         return;
       }
+      const dial = pendingOutbound.get(connection);
+      if (dial !== undefined) {
+        // The exporter's reply to our outbound handshake.
+        pendingOutbound.delete(connection);
+        try {
+          const reader = codec.makeReader(data);
+          const message = readOcapnHandshakeMessage(reader);
+          message.type === 'op:start-session' ||
+            Fail`expected op:start-session, got ${q(message.type)}`;
+          const peerPublicKey = cryptography.makeOcapnPublicKey(
+            message.sessionPublicKey.q,
+          );
+          cryptography.assertLocationSignatureValid(
+            message.location,
+            message.locationSignature,
+            peerPublicKey,
+            new ArrayBuffer(0),
+          );
+          const sessionId = makeSessionId(
+            dial.keyPair.publicKey.id,
+            peerPublicKey.id,
+          );
+          bindConnectionToHub(connection, dial.sessionKey, {
+            sessionId,
+            peerPublicKeyQ: message.sessionPublicKey.q,
+            selfPrivateKeyBytes: dial.privateKeyBytes,
+          });
+        } catch (error) {
+          logError('handoff handshake failed:', error);
+          dialingSessions.delete(dial.sessionKey);
+          hub.retireSession(dial.sessionKey);
+          connection.end();
+        }
+        return;
+      }
       // Handshake: answer op:start-session with a per-connection
       // identity, then bind the connection to a hub session.
       try {
@@ -354,7 +453,8 @@ export const makeSiestaDaemon = async ({
           peerPublicKey,
           new ArrayBuffer(0),
         );
-        const keyPair = cryptography.makeOcapnKeyPair();
+        const { keyPair, privateKeyBytes } =
+          cryptography.makeOcapnKeyPairWithPrivateBytes();
         const { location } = netlayerRef.netlayer;
         const locationSignature = cryptography.signLocation(
           location,
@@ -377,6 +477,8 @@ export const makeSiestaDaemon = async ({
         bindConnectionToHub(connection, sessionKeyForConnection(connection), {
           sessionId,
           peerPublicKeyQ: message.sessionPublicKey.q,
+          // The hub signs gift handoff receives with this session key.
+          selfPrivateKeyBytes: privateKeyBytes,
         });
       } catch (error) {
         logError('handshake failed:', error);
@@ -390,6 +492,14 @@ export const makeSiestaDaemon = async ({
       }
     },
     handleConnectionClose: (/** @type {any} */ connection) => {
+      const dial = pendingOutbound.get(connection);
+      if (dial !== undefined) {
+        // The dial died before its handshake: the gift withdrawal can
+        // never happen; retire the session so its rows break loudly.
+        pendingOutbound.delete(connection);
+        dialingSessions.delete(dial.sessionKey);
+        hub.retireSession(dial.sessionKey);
+      }
       const bound = connectionSessions.get(connection);
       connectionSessions.delete(connection);
       if (bound === undefined) {
@@ -401,8 +511,12 @@ export const makeSiestaDaemon = async ({
         // reused.
         hub.forgetSession(bound.key);
       } else {
-        // A resumable peer may return: detach so hub frames queue.
+        // A resumable peer (or exporter) may return: detach so hub
+        // frames queue; a future gift toward the exporter redials.
         bound.detach();
+        if (bound.key.startsWith('handoff:')) {
+          dialingSessions.delete(bound.key);
+        }
       }
     },
     resumeSession: () => {

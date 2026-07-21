@@ -3,7 +3,12 @@ import harden from '@endo/harden';
 import { bytesFromImmutable } from '@endo/bytes/from-immutable.js';
 import { Far } from '@endo/marshal';
 
-import { makeDescCodecs } from '../codecs/descriptors.js';
+import {
+  DescHandoffGiveSigEnvelopeCodec,
+  makeDescCodecs,
+  makeHandoffReceiveDescriptor,
+  makeHandoffReceiveSigEnvelope,
+} from '../codecs/descriptors.js';
 import { makePassableCodecs } from '../codecs/passable.js';
 import { makeOcapnOperationsCodecs } from '../codecs/operations.js';
 import { getSelectorName, makeSelector } from '../selector.js';
@@ -70,12 +75,19 @@ import { makeSturdyRef } from '../client/sturdyrefs.js';
  * against the identities its embedder recorded at each session's
  * handshake. Gifts and their waiters are rows like everything else.
  *
- * Known limits (loud, not silent): an inbound desc:handoff-give — the
- * hub as gift RECEIVER, which would require the hub to dial the
- * exporter — is rejected (hub-performed outbound redemption is
- * planned); a message routed at the sender's own export cannot carry
- * a resolveMeDesc (the wire format has no way to hand a session its
- * own resolver back), so such listens break to the sender.
+ * In the receiver role — an inbound desc:handoff-give naming an
+ * exporter elsewhere — the hub redeems the gift itself (the sessions
+ * behind it, like workers, cannot dial): the gift becomes an
+ * answer-backed promise row at an outbound session with the exporter,
+ * the embedder's `handoffs.connect` power dials and attaches that
+ * session, and the hub signs and sends the withdrawal using the
+ * session keys its embedder recorded. No hub subscription: listens on
+ * the gift forward to the exporter's answer like any other promise.
+ *
+ * Known limits (loud, not silent): a message routed at the sender's
+ * own export cannot carry a resolveMeDesc (the wire format has no way
+ * to hand a session its own resolver back), so such listens break to
+ * the sender.
  *
  * @typedef {object} HubStore
  * @property {() => any} getState previously persisted state, or
@@ -141,12 +153,18 @@ const makeMemoryHubStore = () => {
  *   instance; required for third-party gift handling (deposit-gift /
  *   withdraw-gift on the hub bootstrap), whose signatures the hub
  *   verifies against attached sessions' identities
+ * @param {{ connect: (location: any, sessionKey: string) => void }} [options.handoffs]
+ *   the outbound-redemption power: asked to dial an exporter location
+ *   and attach it to the hub under the given session key (with its
+ *   handshake identity); required for the hub to RECEIVE third-party
+ *   gifts on behalf of its sessions
  * @param {(...args: Array<unknown>) => void} [options.logError]
  */
 export const makeOcapnHub = ({
   codec,
   store = makeMemoryHubStore(),
   cryptography = undefined,
+  handoffs = undefined,
   // eslint-disable-next-line no-console
   logError = (...args) => console.error('ocapn hub:', ...args),
 }) => {
@@ -201,7 +219,16 @@ export const makeOcapnHub = ({
    * derivation) provides one: the OCapN session id and the peer's
    * public key bytes, both hex. Gift signatures verify against these.
    *
-   * @typedef {{ sessionId: string, peerPublicKeyQ: string }} SessionIdentity
+   * @typedef {{ sessionId: string, peerPublicKeyQ: string, selfPrivateKey?: string }} SessionIdentity
+   */
+
+  /**
+   * A gift the hub has been given but not yet withdrawn from its
+   * exporter: the give envelope (hex bytes), the session the give
+   * arrived on (whose keys sign the receive), and the answer position
+   * the withdrawal will use at the exporter session.
+   *
+   * @typedef {{ position: string, giveHex: string, gifterSession: string }} PendingWithdraw
    */
 
   /**
@@ -216,6 +243,8 @@ export const makeOcapnHub = ({
    *   queue: Array<string>,
    *   identity: SessionIdentity | undefined,
    *   usedGiftHandoffs: Array<string>,
+   *   pendingWithdraws: Array<PendingWithdraw>,
+   *   nextHandoffCount: bigint,
    *   send: (bytes: Uint8Array) => void,
    *   attached: boolean,
    *   remote: boolean,
@@ -332,6 +361,10 @@ export const makeOcapnHub = ({
         queue: [...session.queue],
         identity: session.identity,
         usedGiftHandoffs: [...session.usedGiftHandoffs],
+        pendingWithdraws: session.pendingWithdraws.map(pending => ({
+          ...pending,
+        })),
+        nextHandoffCount: String(session.nextHandoffCount),
       };
     }
     state.publications = Object.fromEntries(publications);
@@ -359,6 +392,8 @@ export const makeOcapnHub = ({
         queue: [],
         identity: undefined,
         usedGiftHandoffs: [],
+        pendingWithdraws: [],
+        nextHandoffCount: 1n,
         send: () => {
           throw Error(`ocapn hub: session ${sessionKey} is not attached`);
         },
@@ -414,6 +449,10 @@ export const makeOcapnHub = ({
       session.queue = [...(sd.queue ?? [])];
       session.identity = sd.identity;
       session.usedGiftHandoffs = [...(sd.usedGiftHandoffs ?? [])];
+      session.pendingWithdraws = (sd.pendingWithdraws ?? []).map(
+        (/** @type {any} */ pending) => ({ ...pending }),
+      );
+      session.nextHandoffCount = BigInt(sd.nextHandoffCount ?? '1');
       for (const [position, refId] of session.ourExports.entries()) {
         const row = refs.get(refId);
         if (row !== undefined) {
@@ -721,8 +760,55 @@ export const makeOcapnHub = ({
             mention: true,
           }).refId,
         ),
-      provideHandoff: () => {
-        throw Error('ocapn hub: third-party handoffs are not supported');
+      /**
+       * An inbound gift give: the hub redeems it on behalf of the
+       * destination. The withdrawal is an ordinary answer at an
+       * outbound session with the exporter — allocated now, encoded
+       * and sent once the embedder's dial completes — so the gift is
+       * an answer-backed promise row like any other, listened on and
+       * pipelined through with no hub subscription.
+       *
+       * @param {any} signedGive
+       */
+      provideHandoff: signedGive => {
+        if (handoffs === undefined || cryptography === undefined) {
+          throw Error(
+            'ocapn hub: third-party handoffs require the handoffs power',
+          );
+        }
+        const { exporterLocation } = signedGive.object;
+        const outKey = `handoff:${swissnumHex(
+          JSON.stringify(exporterLocation),
+        )}`;
+        const outSession = provideSessionState(outKey);
+        // Frames toward the exporter queue until the dial completes.
+        outSession.durable = true;
+        const position = outSession.nextAnswer;
+        outSession.nextAnswer += 1n;
+        const row = provideAnswerRef(outKey, position);
+        const writer = codec.makeWriter();
+        DescHandoffGiveSigEnvelopeCodec.write(signedGive, writer);
+        const pending = {
+          position: String(position),
+          giveHex: hexFromBytes(writer.getBytes()),
+          gifterSession: sessionKey,
+        };
+        outSession.pendingWithdraws.push(pending);
+        noteUndo(() => {
+          const index = outSession.pendingWithdraws.indexOf(pending);
+          if (index >= 0) {
+            outSession.pendingWithdraws.splice(index, 1);
+          }
+        });
+        dirty = true;
+        if (outSession.attached && outSession.identity !== undefined) {
+          // Already connected to this exporter: withdraw right away.
+          // eslint-disable-next-line no-use-before-define
+          queueMicrotaskFlush(outKey);
+        } else {
+          handoffs.connect(exporterLocation, outKey);
+        }
+        return refTokenFor(row.refId);
       },
       /**
        * Sturdyrefs are opaque pointers: they transit the hub as plain
@@ -917,6 +1003,109 @@ export const makeOcapnHub = ({
     } else {
       persist();
     }
+  };
+
+  /**
+   * Send the withdrawals parked on an exporter session, now that its
+   * identity is known: for each pending give, construct and sign the
+   * handoff-receive (with the gifter session's key, which the give
+   * names) and deliver `withdraw-gift` to the exporter's bootstrap at
+   * the answer position the gift row already occupies. A withdrawal
+   * that cannot be constructed kills its gift row loudly.
+   *
+   * @param {string} sessionKey the outbound exporter session
+   */
+  const flushPendingWithdraws = sessionKey => {
+    const session = provideSessionState(sessionKey);
+    if (session.identity === undefined || session.pendingWithdraws.length === 0) {
+      return;
+    }
+    const pendings = session.pendingWithdraws.splice(0);
+    dirty = true;
+    for (const pending of pendings) {
+      try {
+        const gifter = sessions.get(pending.gifterSession);
+        if (gifter?.identity?.selfPrivateKey === undefined) {
+          throw Error('ocapn hub: the gifter session has no signing identity');
+        }
+        if (session.identity.selfPrivateKey === undefined) {
+          throw Error('ocapn hub: the exporter session has no self identity');
+        }
+        const signedGive = DescHandoffGiveSigEnvelopeCodec.read(
+          codec.makeReader(bytesFromHex(pending.giveHex)),
+        );
+        const gifterKeyPair = cryptography.makeOcapnKeyPairFromPrivateKey(
+          bytesFromHex(gifter.identity.selfPrivateKey),
+        );
+        const selfAtExporter = cryptography.makeOcapnKeyPairFromPrivateKey(
+          bytesFromHex(session.identity.selfPrivateKey),
+        );
+        const handoffCount = session.nextHandoffCount;
+        session.nextHandoffCount += 1n;
+        const handoffReceive = makeHandoffReceiveDescriptor(
+          signedGive,
+          handoffCount,
+          /** @type {any} */ (bytesFromHex(session.identity.sessionId).buffer),
+          selfAtExporter.publicKey.id,
+        );
+        const signature = cryptography.signHandoffReceive(
+          handoffReceive,
+          gifterKeyPair,
+        );
+        const signedReceive = makeHandoffReceiveSigEnvelope(
+          handoffReceive,
+          signature,
+        );
+        const bootstrapRow = provideRef(sessionKey, 0n, 'object');
+        sendMessage(sessionKey, {
+          type: 'op:deliver',
+          to: refTokenFor(bootstrapRow.refId),
+          args: [makeSelector('withdraw-gift'), signedReceive],
+          answerPosition: BigInt(pending.position),
+          resolveMeDesc: false,
+        });
+      } catch (error) {
+        logError(
+          `withdraw of a pending gift toward ${sessionKey} failed:`,
+          error,
+        );
+        const answerRefId = `${sessionKey}#${session.epoch}:a${pending.position}`;
+        const row = refs.get(answerRefId);
+        if (row !== undefined && !row.dead) {
+          row.dead = true;
+          const orphans = row.listeners.splice(0);
+          dirty = true;
+          for (const resolverRefId of orphans) {
+            const resolverRow = refs.get(resolverRefId);
+            if (resolverRow === undefined || resolverRow.dead) {
+              // eslint-disable-next-line no-continue
+              continue;
+            }
+            settleToResolver(
+              resolverRow.origin,
+              refTokenFor(resolverRefId),
+              'break',
+              harden(Error('ocapn hub: the gift withdrawal failed')),
+            );
+          }
+        }
+      }
+    }
+    persist();
+  };
+
+  /**
+   * Flush after the current frame finishes: `provideHandoff` runs
+   * inside a decode's rollback scope, where sending would interleave.
+   *
+   * @param {string} sessionKey
+   */
+  const queueMicrotaskFlush = sessionKey => {
+    Promise.resolve()
+      .then(() => flushPendingWithdraws(sessionKey))
+      .catch(error =>
+        logError(`pending withdraw flush for ${sessionKey} failed:`, error),
+      );
   };
 
   // --- the hub's one piece of endpoint behavior: bootstrap fetch ---
@@ -1651,6 +1840,8 @@ export const makeOcapnHub = ({
     session.queue.length = 0;
     session.identity = undefined;
     session.usedGiftHandoffs.length = 0;
+    session.pendingWithdraws.length = 0;
+    session.nextHandoffCount = 1n;
     for (const [swissnum, refId] of [...publications.entries()]) {
       const row = refs.get(refId);
       if (row !== undefined && row.origin === sessionKey) {
@@ -1715,10 +1906,11 @@ export const makeOcapnHub = ({
      *   instead of being dropped (the policy for sessions from beyond
      *   the process boundary)
      * @param {(error: unknown) => void} [powers.onAbort]
-     * @param {{ sessionId: Uint8Array | ArrayBufferLike, peerPublicKeyQ: Uint8Array | ArrayBufferLike }} [powers.identity]
-     *   the session's wire identity from the embedder's handshake;
-     *   omitted on reattach, the persisted identity carries over (a
-     *   resumed session keeps its keys)
+     * @param {{ sessionId: Uint8Array | ArrayBufferLike, peerPublicKeyQ: Uint8Array | ArrayBufferLike, selfPrivateKeyBytes?: Uint8Array | ArrayBufferLike }} [powers.identity]
+     *   the session's wire identity from the embedder's handshake
+     *   (including the hub side's session private key, which signs
+     *   gift handoff receives); omitted on reattach, the persisted
+     *   identity carries over (a resumed session keeps its keys)
      */
     attachSession: (
       sessionKey,
@@ -1740,10 +1932,18 @@ export const makeOcapnHub = ({
         session.identity = {
           sessionId: hexFromBytes(identity.sessionId),
           peerPublicKeyQ: hexFromBytes(identity.peerPublicKeyQ),
+          ...(identity.selfPrivateKeyBytes === undefined
+            ? {}
+            : { selfPrivateKey: hexFromBytes(identity.selfPrivateKeyBytes) }),
         };
       }
       dirty = true;
       persist();
+      // Withdrawals parked on this session can be constructed now
+      // that its wire identity is known. They go out BEFORE the
+      // queued frames: a queued listen on a gift's answer must reach
+      // the exporter after the withdrawal that creates the answer.
+      flushPendingWithdraws(sessionKey);
       while (session.queue.length > 0) {
         // At-least-once: send, then drop from the queue — a crash
         // between the two re-sends on the next attach rather than
