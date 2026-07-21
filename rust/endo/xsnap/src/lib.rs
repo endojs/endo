@@ -1603,12 +1603,13 @@ pub fn run_xs_program(
                 let cursor = std::io::Cursor::new(bytes);
                 let archive = archive::load_archive(cursor)
                     .map_err(|e| XsnapError::Archive(format!("cannot read archive: {e}")))?;
-                if !archive::install_archive(&machine, &archive) {
+                if !archive::install_archive_async(&machine, &archive) {
                     return Err(XsnapError::Archive(
                         "archive installation failed".to_string(),
                     ));
                 }
                 machine.quiesce();
+                archive::entry_import_result(&machine)?;
             }
         }
         eprintln!("{label}: bootstrap eval complete");
@@ -1875,13 +1876,13 @@ pub fn run_xs_archive_loaded(loaded: &archive::LoadedArchive) -> Result<(), Xsna
         };",
     );
 
-    if !archive::install_archive(&machine, loaded) {
+    if !archive::install_archive_async(&machine, loaded) {
         return Err(XsnapError::Archive(
             "archive installation failed".to_string(),
         ));
     }
     machine.quiesce();
-    Ok(())
+    archive::entry_import_result(&machine)
 }
 
 #[cfg(test)]
@@ -1909,6 +1910,71 @@ mod tests {
     #[test]
     fn create_and_destroy_machine() {
         let _machine = new_machine();
+    }
+
+    /// The async `Compartment.prototype.import` path evaluates a
+    /// module using top-level await, where `importNow` would fail
+    /// with `TypeError: async module`. Foundation for the archive
+    /// loader's `loadHook` (top-level-await entry modules).
+    #[test]
+    fn async_import_evaluates_top_level_await_module() {
+        let machine = new_machine();
+        machine.eval("var __r = 'pending';");
+        machine.eval(
+            "var c = new Compartment({ \
+               resolveHook: function (s) { return s; }, \
+               loadHook: function (s) { \
+                 return { source: new ModuleSource('export const x = await Promise.resolve(42);') }; \
+               } \
+             }); \
+             c.import('./main.js').then( \
+               function (ns) { __r = 'ok:' + ns.x; }, \
+               function (e) { __r = 'err:' + e.message; }); \
+             undefined",
+        );
+        machine.quiesce();
+        match machine.eval("__r") {
+            Some(JsValue::String(s)) => assert_eq!(s, "ok:42"),
+            other => panic!("expected result string, got {:?}", other.map(|v| js_value_debug(&v))),
+        }
+    }
+
+    /// A cross-compartment edge expressed as the lazy
+    /// `{ namespace: <specifier>, compartment }` module descriptor
+    /// lets the engine drive the foreign module's async evaluation,
+    /// so top-level await works in dependencies too. (An eager
+    /// `foreignComp.import()` awaited inside `loadHook` deadlocks
+    /// the loader instead — hence the descriptor form.)
+    #[test]
+    fn async_import_links_top_level_await_dependency() {
+        let machine = new_machine();
+        machine.eval("var __r = 'pending';");
+        machine.eval(
+            "var dep = new Compartment({ \
+               resolveHook: function (s) { return s; }, \
+               loadHook: function (s) { \
+                 return { source: new ModuleSource('export const d = await Promise.resolve(7);') }; \
+               } \
+             }); \
+             var c = new Compartment({ \
+               resolveHook: function (s) { return s; }, \
+               loadHook: function (s) { \
+                 if (s === 'dep') { \
+                   return { namespace: './index.js', compartment: dep }; \
+                 } \
+                 return { source: new ModuleSource(\"import { d } from 'dep'; export const y = d + (await Promise.resolve(1));\") }; \
+               } \
+             }); \
+             c.import('./main.js').then( \
+               function (ns) { __r = 'ok:' + ns.y; }, \
+               function (e) { __r = 'err:' + e.message; }); \
+             undefined",
+        );
+        machine.quiesce();
+        match machine.eval("__r") {
+            Some(JsValue::String(s)) => assert_eq!(s, "ok:8"),
+            other => panic!("expected result string, got {:?}", other.map(|v| js_value_debug(&v))),
+        }
     }
 
     #[test]
