@@ -411,7 +411,12 @@ between the two surfaces.
 | `synced-store` (`synced_store_entry`) | Precedent for a passable-payload SQLite table; a later phase may replicate stores across peers the same way. |
 | `packages/cli` (`endo.js`, `message-parse.js`) | Host of the `mk*` constructors, the `endo map`/`endo set` verb groups, and the `@pet-name` key/value reference syntax. |
 | `marshal-justin.js` (`@endo/marshal`) | The total, non-evaluating Justin decoder the CLI/WUI use to accept passable keys/values (`--justin`, `--out justin`). |
-| SHON decoder | Shell-friendly Object Notation for `--shon`; **not yet in this repo** — a new dependency the human-surface vocabulary introduces (see Known Gaps). |
+| SHON decoder | **Deferred.** The authoritative sources are
+  [kriskowal.com/shon](https://kriskowal.com/shon) and [kriskowal.com/yay](https://kriskowal.com/yay); post a scholar to ingest before implementation.
+  See design decision 11. |
+| `@endo/justin` | The total, non-evaluating Justin decoder (companion spec at
+  [kriskowal.com/yay](https://kriskowal.com/yay)) the CLI/WUI use to accept passable keys/values
+  (`--justin`, `--out justin`). |
 | `packages/space-*` (spaces WUI) | Host of the new **Store Space**; the File Explorer Space is the pattern for a capability-backed, direct-manipulation table. |
 
 ## Phased Implementation
@@ -511,6 +516,12 @@ new dependency.
    CLI, so the mental model and documentation transfer between surfaces; the WUI
    is a direct-manipulation skin over the identical vocabulary, not a second one.
 
+11. **Defer `--shon` until scholar ingests kriskowal.com/shon + kriskowal.com/yay.**
+   Kriskowal posted that SHON and YAY (YET Another YAML) live at those URLs; post
+   a scholar to ingest before implementing the `--shon` key/value encoding. This keeps
+   the `--json`/`--justin`/`@pet-name` encodings implementable immediately with no new
+   dependency, while deferring the SHON decoder until its spec is ingested.
+
 ## Known Gaps and TODOs
 
 - [ ] Phase 1 implementation and restart-persistence tests (closes #59).
@@ -522,9 +533,10 @@ new dependency.
 - [ ] Confirm the marshal body+slots encoding used by the `marshal` formula is
       reusable verbatim for entry rows, or whether store entries need their own
       thin codec.
-- [ ] Vendor or depend on a **SHON** (Shell-friendly Object Notation) decoder for
-      the `--shon` key/value encoding; not yet present in this repo. JSON,
-      Justin, and `@pet-name` references need no new dependency.
+- [ ] **Defer SHON.** See design decision 11: wait for a scholar to ingest
+      kriskowal.com/shon and kriskowal.com/yay before vendorizing or depending on a
+      SHON decoder. The `--shon` key/value encoding is not yet present; JSON, Justin,
+      and `@pet-name` references need no new dependency.
 - [ ] Confirm the CLI's first **subcommand groups** (`endo map`/`endo set`) are
       acceptable in the current Commander layout, or whether flat hyphenated
       verbs (e.g. `endo map-set`) are preferred for consistency with `send-value`.
