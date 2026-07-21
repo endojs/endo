@@ -106,7 +106,10 @@ durable collection event.
 
 Keys and values are **passable**, so they are serialized with the daemon's
 existing marshal machinery — the same body+slots encoding used by the `marshal`
-formula (`formula-record.js`) and by `synced-store` entries:
+formula (`formula-record.js`) and by `synced-store` entries. This is the
+**body serialization** (a value *representation*), distinct from the separate
+**rank encoding** (`key_rank`, § SQLite schema) that carries sort order; the two
+roles are independent (see *Two encoding roles*, below):
 
 - A strong-store **remotable key or value**, including a remotable nested inside
   an `M.key()` key, serializes to formula-id slots. The entry creates retention
@@ -129,6 +132,45 @@ constructs the kind-specific exo. Entries are read from
 `collection_store_entry` and unmarshalled on access. The graph also rebuilds
 the strong entry edges and the weak-key collection index before guest traffic
 is served.
+
+#### Two encoding roles (body vs. rank), and the marshal → CBOR option
+
+A store entry carries a key and value under **two independent encodings**, and
+keeping them separate is what makes the eventual serialization choice a
+free variable:
+
+- **Body serialization — a value representation.** `key_body`/`key_slots` and
+  `value_body`/`value_slots` hold the *reconstructable* passable. Today this is
+  the daemon's existing marshal body+slots (smallcaps) encoding. It is optimized
+  for faithful, capability-aware round-trip (slots carry formula-id references),
+  **not** for order: byte order of a marshal body has no relation to passable
+  rank order, and nothing in the design relies on it having one.
+- **Rank encoding — a sort key.** `key_rank` is produced by `@endo/marshal`
+  `makeEncodePassable`, whose defining property is that the **lexicographic byte
+  order of the encoding equals passable rank order**
+  (`packages/marshal/src/encodePassable.js`). This is the *only* column sorted
+  stores scan and order by; it exists precisely because the body encoding is not
+  order-preserving.
+
+Because order lives entirely in `key_rank`, the body serialization is a swap-out:
+today it is marshal; a later revision may switch it to a **CBOR-encoded passable**
+without touching sort behaviour, indexes, or scan queries. Only `key_body` /
+`value_body` change; `key_rank` stays `makeEncodePassable`.
+
+This directly answers the review question *"does CBOR-encoded passable preserve
+passable order?"* — **it does not need to, and general CBOR does not.** CBOR
+(RFC 8949), including its canonical/deterministic profile, is a compact
+self-describing body format; its byte order does not track passable rank order
+(canonical CBOR only sorts *map keys within a map* by encoded bytes — a different,
+narrower guarantee). So a CBOR body would be an alternative **value
+representation**, never a substitute for the `key_rank` sort key. If one instead
+wanted the sort key *itself* to be CBOR bytes, general/canonical CBOR would be
+unsuitable — an order-preserving encoding (`makeEncodePassable`, or a
+purpose-built order-preserving CBOR profile) would still be required. The design
+therefore keeps `key_rank = makeEncodePassable` fixed and treats the marshal↔CBOR
+choice as scoped to the body columns alone. Whether and when to actually adopt
+CBOR bodies is a downstream endo serialization decision left to @kriskowal /
+endo maintainers; this design only guarantees the switch is order-neutral.
 
 ### Interface
 
@@ -536,6 +578,17 @@ new dependency.
    the `--json`/`--justin`/`@pet-name` encodings implementable immediately with no new
    dependency, while deferring the SHON decoder until its spec is ingested.
 
+12. **Body serialization and rank order are separate columns.** Sort order is
+   carried solely by `key_rank` (`makeEncodePassable`, an order-preserving
+   encoding); the `*_body`/`*_slots` columns are a value representation with no
+   ordering role. This makes the value body a swap-out: the marshal body may
+   later become a **CBOR-encoded passable** with no effect on ordering, indexes,
+   or scans. General/canonical CBOR is *not* order-preserving and is therefore
+   never a candidate for `key_rank` itself — answering the review question, order
+   preservation is not a property the body encoding needs to have. See § Two
+   encoding roles. Whether to adopt CBOR bodies is a downstream endo
+   serialization call (deferred to @kriskowal / endo maintainers).
+
 ## Known Gaps and TODOs
 
 - [ ] Phase 1 implementation and restart-persistence tests (closes #59).
@@ -551,7 +604,9 @@ new dependency.
       `makeEncodePassable` for remotable keys and nested remotables.
 - [ ] Confirm the marshal body+slots encoding used by the `marshal` formula is
       reusable verbatim for entry rows, or whether store entries need their own
-      thin codec.
+      thin codec. Either way this is the **body** encoding only; `key_rank`
+      remains `makeEncodePassable` (see § Two encoding roles, Design Decision 12),
+      so a future marshal→CBOR body swap is order-neutral.
 - [ ] **Defer SHON.** See design decision 11: wait for a scholar to ingest
       kriskowal.com/shon and kriskowal.com/yay before vendorizing or depending on a
       SHON decoder. The `--shon` key/value encoding is not yet present; JSON, Justin,
