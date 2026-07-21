@@ -172,6 +172,177 @@ pub fn load_archive_base64(data: &str) -> io::Result<LoadedArchive> {
 // XS machine integration
 // ---------------------------------------------------------------------------
 
+/// Node-semantics `package.json` `"exports"` resolution, evaluated
+/// into the machine as plain declarations (no user code runs here).
+///
+/// Supports subpath keys (`"."`, `"./sub"`), single-`*` wildcard
+/// patterns (longest-prefix, then longest-suffix specificity),
+/// nested condition objects walked in object key order, array
+/// fallback chains, and `null` blocks. When a package has an
+/// `exports` field, unlisted subpaths are encapsulated (a clean
+/// error, not a file fallback); without one, subpaths fall back to
+/// Node-style file lookup (`.js` / `/index.js` completion) and `"."`
+/// falls back to `"main"` / `index.js`.
+///
+/// The package manifest is read back as the raw `./package.json`
+/// source registered by [`crate::execute`] (kept unwrapped for this
+/// reason); source-existence checks go through `__lookupSource`,
+/// defined here since this runtime resolves entries at import time
+/// rather than pre-binding them in Rust.
+///
+/// Condition handling deviates from Node in one deliberate way:
+/// every load in this runtime — ESM import and wrapped-cjs
+/// `require` alike — bottoms out in `importNow`, so resolution runs
+/// an `import`-conditions pass first (named imports from a dual
+/// package must see its ESM build) and retries with `require`
+/// conditions only when the first pass finds nothing, rather than
+/// activating both conditions in one pass and letting object order
+/// pick a build the consumer cannot use.
+const EXPORTS_RESOLVER_JS: &str = r#"
+// Return the canonical registry key for a specifier in a
+// compartment, applying Node's .js / /index.js completion, or
+// undefined when no candidate exists.
+function __lookupSource(compName, spec) {
+    var reg = __archiveRegistry[compName] || {};
+    var candidates = [spec, spec + '.js', spec + '/index.js'];
+    for (var i = 0; i < candidates.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(reg, candidates[i])) {
+            return candidates[i];
+        }
+    }
+    return undefined;
+}
+
+var __archiveManifests = {};
+
+// Parsed package.json for a compartment, memoised; null when absent
+// or unparseable.
+function __packageManifest(compName) {
+    if (Object.prototype.hasOwnProperty.call(__archiveManifests, compName)) {
+        return __archiveManifests[compName];
+    }
+    var sources = __archiveRegistry[compName] || {};
+    var text = sources['./package.json'];
+    var doc = null;
+    if (text !== undefined) {
+        try { doc = JSON.parse(text); } catch (e) { doc = null; }
+    }
+    __archiveManifests[compName] = doc;
+    return doc;
+}
+
+// Split a bare specifier into its package name and subpath rest,
+// honouring @scope/name. Returns undefined when there is no rest
+// (a plain package name is handled by the exact link key).
+function __parsePackageName(spec) {
+    var parts = spec.split('/');
+    var nameLen = spec.charCodeAt(0) === 64 /* '@' */ ? 2 : 1;
+    if (parts.length <= nameLen) return undefined;
+    var name = parts.slice(0, nameLen).join('/');
+    var rest = parts.slice(nameLen).join('/');
+    if (name === '' || rest === '') return undefined;
+    return { name: name, rest: rest };
+}
+
+// Resolve one exports target value: a string (with '*' substituted),
+// an array fallback chain, or a condition object walked in key
+// order. Returns a target string, null (explicitly blocked), or
+// undefined (no match under these conditions).
+function __resolveExportTarget(target, starText, conds) {
+    if (target === null) return null;
+    if (typeof target === 'string') {
+        return target.indexOf('*') === -1
+            ? target
+            : target.split('*').join(starText);
+    }
+    if (Array.isArray(target)) {
+        for (var i = 0; i < target.length; i++) {
+            var r = __resolveExportTarget(target[i], starText, conds);
+            if (r !== undefined && r !== null) return r;
+        }
+        return undefined;
+    }
+    if (typeof target === 'object') {
+        for (var key in target) {
+            if (key === 'default' || conds.indexOf(key) !== -1) {
+                var r2 = __resolveExportTarget(target[key], starText, conds);
+                if (r2 !== undefined) return r2;
+            }
+        }
+    }
+    return undefined;
+}
+
+// Match a subpath ('.', './sub') against an exports value under one
+// condition set. A bare string/array exports, or an object whose
+// first key does not start with '.', is sugar for { '.': exports }.
+function __matchExports(exp, subpath, conds) {
+    var subpathMap = exp;
+    if (typeof exp === 'string' || Array.isArray(exp)) {
+        subpathMap = { '.': exp };
+    } else {
+        for (var first in exp) {
+            if (first.charCodeAt(0) !== 46 /* '.' */) subpathMap = { '.': exp };
+            break;
+        }
+    }
+    if (Object.prototype.hasOwnProperty.call(subpathMap, subpath)) {
+        return __resolveExportTarget(subpathMap[subpath], '', conds);
+    }
+    var best; var bestStar; var bestPrefix = -1; var bestSuffix = -1;
+    for (var key in subpathMap) {
+        var star = key.indexOf('*');
+        if (star === -1 || key.indexOf('*', star + 1) !== -1) continue;
+        var prefix = key.slice(0, star);
+        var suffix = key.slice(star + 1);
+        if (subpath.length < prefix.length + suffix.length) continue;
+        if (subpath.slice(0, prefix.length) !== prefix) continue;
+        if (suffix !== '' && subpath.slice(-suffix.length) !== suffix) continue;
+        if (prefix.length > bestPrefix
+            || (prefix.length === bestPrefix && suffix.length > bestSuffix)) {
+            bestPrefix = prefix.length;
+            bestSuffix = suffix.length;
+            bestStar = subpath.slice(prefix.length, subpath.length - suffix.length);
+            best = subpathMap[key];
+        }
+    }
+    if (best !== undefined) return __resolveExportTarget(best, bestStar, conds);
+    return undefined;
+}
+
+// Resolve a package subpath to a canonical source key in that
+// package's compartment, or throw a clean, named error.
+function __resolveExports(compName, subpath) {
+    var manifest = __packageManifest(compName);
+    var exp = manifest ? manifest.exports : undefined;
+    if (exp === undefined || exp === null) {
+        var base = subpath;
+        if (subpath === '.') {
+            var main = manifest && typeof manifest.main === 'string'
+                ? manifest.main : 'index.js';
+            base = './' + main.replace(/^\.\//, '');
+        }
+        var canon = __lookupSource(compName, base);
+        if (canon === undefined) {
+            throw new Error('Module not found: ' + compName + '/' + base);
+        }
+        return canon;
+    }
+    var target = __matchExports(exp, subpath, ['import']);
+    if (target === undefined) target = __matchExports(exp, subpath, ['require']);
+    if (target === undefined || target === null) {
+        throw new Error(
+            "Package subpath '" + subpath +
+            "' is not defined by exports of " + compName);
+    }
+    var canon2 = __lookupSource(compName, target);
+    if (canon2 === undefined) {
+        throw new Error('Module not found: ' + compName + '/' + target);
+    }
+    return canon2;
+}
+"#;
+
 /// Install a loaded archive into an XS machine.
 ///
 /// Creates one XS Compartment per archive compartment, wires up
@@ -254,18 +425,45 @@ function __makeArchiveCompartment(compName) {{
             return specifier;
         }},
         loadNowHook: function(specifier) {{
-            // Check for cross-compartment link first
+            // Check for cross-compartment link first. A '.' link
+            // module loads the target's literal '.' source when the
+            // archive registers one (the zip-archive convention,
+            // where the mapper already resolved entries); otherwise
+            // it defers to the target package's exports map
+            // ('main' / index.js when it has none).
             var link = links[specifier];
             if (link) {{
                 var foreignComp = __makeArchiveCompartment(link.compartment);
-                return {{ namespace: foreignComp.importNow(link.module) }};
+                var mod = link.module;
+                if (mod === '.') {{
+                    var fsources = __archiveRegistry[link.compartment] || {{}};
+                    mod = fsources['.'] !== undefined
+                        ? '.'
+                        : __resolveExports(link.compartment, '.');
+                }}
+                return {{ namespace: foreignComp.importNow(mod) }};
             }}
-            // Look up source in this compartment's registry
-            var src = sources[specifier];
-            if (src === undefined) {{
+            // A bare specifier with a subpath ('pkg/sub',
+            // '@scope/pkg/sub') follows the package's link, then
+            // resolves the subpath through its exports map.
+            if (specifier.charCodeAt(0) !== 46 /* '.' */) {{
+                var parsed = __parsePackageName(specifier);
+                if (parsed !== undefined) {{
+                    var plink = links[parsed.name];
+                    if (plink) {{
+                        var pcomp = __makeArchiveCompartment(plink.compartment);
+                        var pmod = __resolveExports(plink.compartment, './' + parsed.rest);
+                        return {{ namespace: pcomp.importNow(pmod) }};
+                    }}
+                }}
+            }}
+            // Look up source in this compartment's registry, applying
+            // Node's .js / /index.js completion.
+            var key = __lookupSource(compName, specifier);
+            if (key === undefined) {{
                 throw new Error('Module not found: ' + compName + '/' + specifier);
             }}
-            return {{ source: new ModuleSource(src) }};
+            return {{ source: new ModuleSource(sources[key]) }};
         }}
     }});
     __archiveCompartments[compName] = comp;
@@ -286,7 +484,7 @@ function __makeArchiveCompartment(compName) {{
         escape_js_string(&archive.map.entry.module),
     );
 
-    // Execute in separate evals. The first three are generated
+    // Execute in separate evals. The first four are generated
     // declarations that run no user code and must stay unwrapped: a
     // `function` declaration inside a try block does not hoist to
     // the global scope. The last two run arbitrary module code, so
@@ -301,6 +499,9 @@ function __makeArchiveCompartment(compName) {{
         return false;
     }
     if machine.eval(&compartments_js).is_none() {
+        return false;
+    }
+    if machine.eval(EXPORTS_RESOLVER_JS).is_none() {
         return false;
     }
     if !crate::eval_wrapped(machine, &make_entry_comp_js, "endor[archive]/entry-compartment") {

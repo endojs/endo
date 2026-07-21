@@ -10,10 +10,15 @@
 //! - each compartment's CAS tree is walked and its module files
 //!   (`.js`, `.mjs`, `.cjs`, `.json`) become `File` descriptors with
 //!   sources read back out of the CAS,
-//! - each `"."` dependency edge is bound to the target package's
-//!   concrete main module (its `package.json` `main`, with npm's
-//!   `.js` / `/index.js` completions, defaulting to `index.js`) as a
-//!   `Link` descriptor,
+//! - each `"."` dependency edge is left as a `Link` with module
+//!   `"."`, unresolved: entry-point and subpath resolution — the
+//!   `package.json` `"exports"` map (subpath keys, wildcard patterns,
+//!   nested conditions, subpath encapsulation), the `"main"` /
+//!   `index.js` fallback — happens at run time in the archive
+//!   bootstrap (`xsnap::archive`'s exports resolver), where a bare
+//!   subpath import (`import x from 'pkg/sub'`) needs it anyway. The
+//!   target package's `package.json` is therefore kept as raw JSON in
+//!   the source registry so the resolver can read it back.
 //! - every source is normalized to ESM before it enters the archive,
 //!   because the XS loader hosts modules via `ModuleSource` (an
 //!   ESM-only surface): `.json` becomes `export default <json>;` and
@@ -52,8 +57,6 @@ pub enum ExecuteError {
     },
     /// A dependency edge names a compartment the map does not hold.
     MissingCompartment { requirer: String, target: String },
-    /// A package's main module could not be located in its tree.
-    NoMain { compartment: String },
     /// CAS I/O failed.
     Io(io::Error),
 }
@@ -71,9 +74,6 @@ impl fmt::Display for ExecuteError {
             ),
             ExecuteError::MissingCompartment { requirer, target } => {
                 write!(f, "{requirer}: edge to missing compartment {target}")
-            }
-            ExecuteError::NoMain { compartment } => {
-                write!(f, "cannot locate main module of {compartment}")
             }
             ExecuteError::Io(e) => write!(f, "execute I/O: {e}"),
         }
@@ -179,14 +179,15 @@ fn collect_module_files(
 struct TreeManifest {
     /// `"type": "module"` — `.js` files are ESM.
     esm_by_default: bool,
-    /// `main` field, if present.
-    main: Option<String>,
 }
 
 /// Read a compartment tree's `package.json`, tolerating absence (a
 /// bare entry directory has none) and malformation (the assembler
 /// already validated the manifests it consumed; a package tarball's
-/// own manifest is data, not a gate, here).
+/// own manifest is data, not a gate, here). Entry-point resolution
+/// (`main` / `exports`) is deferred to the runtime resolver, which
+/// reads the raw manifest back out of the source registry; only the
+/// `type` field is consulted here, to classify `.js` parsers.
 fn read_tree_manifest(cas: &ContentStore, tree_hash: &str) -> TreeManifest {
     let parsed = cas
         .fetch_from_tree(tree_hash, "package.json")
@@ -195,41 +196,24 @@ fn read_tree_manifest(cas: &ContentStore, tree_hash: &str) -> TreeManifest {
     match parsed {
         Some(doc) => TreeManifest {
             esm_by_default: doc.get("type").and_then(|t| t.as_str()) == Some("module"),
-            main: doc
-                .get("main")
-                .and_then(|m| m.as_str())
-                .map(|m| m.to_string()),
         },
         None => TreeManifest {
             esm_by_default: false,
-            main: None,
         },
     }
 }
 
-/// Locate a package's main module among its collected files: the
-/// `main` field with npm's `.js` / `/index.js` completions, then
-/// `index.js`. Returns a `./`-prefixed specifier.
-fn resolve_main(manifest: &TreeManifest, files: &BTreeMap<String, Vec<u8>>) -> Option<String> {
-    let declared = manifest.main.as_deref().unwrap_or("index.js");
-    let declared = declared.strip_prefix("./").unwrap_or(declared);
-    let candidates = [
-        declared.to_string(),
-        format!("{declared}.js"),
-        format!("{declared}/index.js"),
-        "index.js".to_string(),
-    ];
-    candidates
-        .into_iter()
-        .find(|c| files.contains_key(c))
-        .map(|c| format!("./{c}"))
-}
-
 /// Normalize a module source to ESM according to its extension and
 /// its package's `type` field (see the module doc for the CommonJS
-/// and JSON treatment).
+/// and JSON treatment). `package.json` is kept as raw JSON — never
+/// wrapped as an ESM module — because the runtime exports resolver
+/// parses it back out of the source registry to bind `"."` edges and
+/// subpaths.
 fn normalize_to_esm(path: &str, bytes: &[u8], esm_by_default: bool) -> String {
     let source = String::from_utf8_lossy(bytes).into_owned();
+    if Path::new(path).file_name().and_then(|n| n.to_str()) == Some("package.json") {
+        return source;
+    }
     let ext = Path::new(path).extension().and_then(|e| e.to_str());
     match ext {
         Some("json") => format!("export default ({source});"),
@@ -251,18 +235,15 @@ pub fn load_assembled_archive(
     let map_bytes = cas.fetch(compartment_map_hash)?;
     let (entry, parsed) = parse_map(&map_bytes)?;
 
-    // First pass: per-compartment files, manifests, and mains, so
-    // edges can bind to concrete main modules in the second pass.
+    // First pass: per-compartment files and manifests. Edges are
+    // bound to the target's `"."` entry at run time by the exports
+    // resolver, so no main pre-resolution happens here.
     let mut files_by_key: BTreeMap<String, BTreeMap<String, Vec<u8>>> = BTreeMap::new();
     let mut manifests: BTreeMap<String, TreeManifest> = BTreeMap::new();
-    let mut mains: BTreeMap<String, String> = BTreeMap::new();
     for (key, compartment) in &parsed {
         let mut files = BTreeMap::new();
         collect_module_files(cas, &compartment.tree_hash, "", &mut files)?;
         let manifest = read_tree_manifest(cas, &compartment.tree_hash);
-        if let Some(main) = resolve_main(&manifest, &files) {
-            mains.insert(key.clone(), main);
-        }
         files_by_key.insert(key.clone(), files);
         manifests.insert(key.clone(), manifest);
     }
@@ -297,14 +278,14 @@ pub fn load_assembled_archive(
                     target: target.clone(),
                 });
             }
-            let target_main = mains.get(target).ok_or_else(|| ExecuteError::NoMain {
-                compartment: target.clone(),
-            })?;
+            // Leave the edge unresolved as `"."`; the runtime exports
+            // resolver binds it to the target's entry (exports map
+            // over `main` over `index.js`) at import time.
             modules.insert(
                 specifier.clone(),
                 ModuleDescriptor::Link {
                     compartment: target.clone(),
-                    module: target_main.clone(),
+                    module: ".".to_string(),
                 },
             );
         }
@@ -490,7 +471,8 @@ mod tests {
         assert_eq!(archive.map.entry.compartment, ENTRY_COMPARTMENT);
         assert_eq!(archive.map.entry.module, "./main.js");
 
-        // Entry links its bare specifier to esm-a's concrete main.
+        // Entry links its bare specifier to esm-a's compartment,
+        // unresolved ("."); the runtime resolver binds it at import.
         let entry_comp = &archive.map.compartments[ENTRY_COMPARTMENT];
         match &entry_comp.modules["esm-a"] {
             ModuleDescriptor::Link {
@@ -498,7 +480,7 @@ mod tests {
                 module,
             } => {
                 assert_eq!(compartment, "esm-a-v1.2.0");
-                assert_eq!(module, "./index.js");
+                assert_eq!(module, ".");
             }
             other => panic!("expected link for esm-a, got {other:?}"),
         }
@@ -510,7 +492,7 @@ mod tests {
                 module,
             } => {
                 assert_eq!(compartment, "esm-b-v2.3.0");
-                assert_eq!(module, "./index.js");
+                assert_eq!(module, ".");
             }
             other => panic!("expected link for esm-b, got {other:?}"),
         }
@@ -678,5 +660,216 @@ mod tests {
             single_module_map(&cas, "noSuchGlobal(1);\nexport const unreachable = 1;\n");
         let archive = load_assembled_archive(&cas, &map_hash).unwrap();
         assert!(xsnap::run_xs_archive_loaded(&archive).is_err());
+    }
+
+    // --- Node-semantics exports resolution (relanded from PR #795) ---
+
+    /// Store a package tree from flat `(path, content)` pairs,
+    /// building nested CAS subtrees for paths with directories.
+    fn store_file_tree(cas: &ContentStore, files: &[(&str, &str)]) -> String {
+        let mut blobs: Vec<(String, String)> = Vec::new();
+        let mut subtrees: Vec<(String, Vec<(String, String)>)> = Vec::new();
+        for (path, content) in files {
+            match path.split_once('/') {
+                None => blobs.push((path.to_string(), store_blob(cas, content))),
+                Some((dir, rest)) => match subtrees.iter_mut().find(|(d, _)| d == dir) {
+                    Some((_, entries)) => entries.push((rest.to_string(), content.to_string())),
+                    None => {
+                        subtrees.push((dir.to_string(), vec![(rest.to_string(), content.to_string())]))
+                    }
+                },
+            }
+        }
+        let mut entries = serde_json::Map::new();
+        for (name, hash) in &blobs {
+            entries.insert(name.clone(), serde_json::json!({ "type": "blob", "hash": hash }));
+        }
+        for (dir, sub) in &subtrees {
+            let sub_refs: Vec<(&str, &str)> =
+                sub.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
+            let subtree = store_file_tree(cas, &sub_refs);
+            entries.insert(dir.clone(), serde_json::json!({ "type": "tree", "hash": subtree }));
+        }
+        let tree = serde_json::json!({ "entries": entries });
+        cas.store_tree(&serde_json::to_vec(&tree).unwrap()).unwrap()
+    }
+
+    /// A map with a type-module entry importing one dependency
+    /// through edge key `dep_key`, whose package tree is `dep_files`
+    /// (manifest included by the caller).
+    fn two_comp_map(
+        cas: &ContentStore,
+        entry_src: &str,
+        dep_key: &str,
+        dep_files: &[(&str, &str)],
+    ) -> String {
+        let dep_tree = store_file_tree(cas, dep_files);
+        let entry_tree = store_file_tree(
+            cas,
+            &[
+                ("main.js", entry_src),
+                ("package.json", r#"{"name": "app", "type": "module"}"#),
+            ],
+        );
+        let map = serde_json::json!({
+            "tags": [],
+            "entry": { "compartment": "<entry>", "module": "./main.js" },
+            "compartments": {
+                "<entry>": {
+                    "name": "app",
+                    "location": format!("cas:sha256:{entry_tree}"),
+                    "modules": {
+                        dep_key: { "compartment": "dep-v1.0.0", "module": "." },
+                    },
+                },
+                "dep-v1.0.0": {
+                    "name": "dep",
+                    "version": "1.0.0",
+                    "location": format!("cas:sha256:{dep_tree}"),
+                    "modules": {},
+                },
+            },
+        });
+        cas.store(&serde_json::to_vec(&map).unwrap(), "compartment-map")
+            .unwrap()
+    }
+
+    fn run_two_comp(
+        entry_src: &str,
+        dep_key: &str,
+        dep_files: &[(&str, &str)],
+    ) -> Result<(), xsnap::XsnapError> {
+        let cas_tmp = tempfile::tempdir().unwrap();
+        let cas = ContentStore::open(cas_tmp.path()).unwrap();
+        let map_hash = two_comp_map(&cas, entry_src, dep_key, dep_files);
+        let archive = load_assembled_archive(&cas, &map_hash).unwrap();
+        xsnap::run_xs_archive_loaded(&archive)
+    }
+
+    /// When a package has both `main` and `exports`, the exports map
+    /// wins (Node semantics): `main` points at a file that throws,
+    /// so loading it would fail the run.
+    #[test]
+    fn dot_edge_prefers_exports_over_main() {
+        run_two_comp(
+            "import v from 'dep'; export const got = v;\n",
+            "dep",
+            &[
+                (
+                    "package.json",
+                    r#"{"name": "dep", "main": "./boom.js", "exports": "./good.js"}"#,
+                ),
+                ("boom.js", "throw new Error('main must not load');\n"),
+                ("good.js", "module.exports = 'good';\n"),
+            ],
+        )
+        .unwrap();
+    }
+
+    /// A package without an exports map keeps Node-style file
+    /// access: an extension-less subpath resolves through the
+    /// `.js` / `/index.js` lookup candidates.
+    #[test]
+    fn subpath_without_exports_falls_back_to_files() {
+        run_two_comp(
+            "import u from 'dep/lib/util'; export const got = u;\n",
+            "dep",
+            &[
+                ("package.json", r#"{"name": "dep"}"#),
+                ("lib/util.js", "module.exports = 7;\n"),
+            ],
+        )
+        .unwrap();
+    }
+
+    /// Subpath exports resolve nested condition objects, skipping
+    /// inapplicable conditions (`types`) and preferring the `import`
+    /// build over an earlier `require` key: the require target
+    /// throws, so order-blind resolution would fail the run.
+    #[test]
+    fn subpath_resolves_conditional_exports_import_first() {
+        run_two_comp(
+            "import { word } from 'dep/sub'; export const got = word;\n",
+            "dep",
+            &[
+                (
+                    "package.json",
+                    r#"{"name": "dep", "type": "module", "exports": {"./sub": {"types": "./sub.d.ts", "require": "./boom.cjs", "import": "./src/sub.js"}}}"#,
+                ),
+                ("boom.cjs", "throw new Error('require build must not load');\n"),
+                ("src/sub.js", "export const word = 'esm';\n"),
+            ],
+        )
+        .unwrap();
+    }
+
+    /// A single-`*` wildcard pattern maps the matched text into the
+    /// target path.
+    #[test]
+    fn wildcard_subpath_pattern_resolves() {
+        run_two_comp(
+            "import a from 'dep/features/alpha'; export const got = a;\n",
+            "dep",
+            &[
+                (
+                    "package.json",
+                    r#"{"name": "dep", "exports": {"./features/*": "./src/features/*.js"}}"#,
+                ),
+                ("src/features/alpha.js", "module.exports = 'alpha';\n"),
+            ],
+        )
+        .unwrap();
+    }
+
+    /// An exports map encapsulates the package: a subpath it does
+    /// not list fails cleanly even though the file exists.
+    #[test]
+    fn unexported_subpath_fails_cleanly() {
+        let result = run_two_comp(
+            "import s from 'dep/secret.js'; export const got = s;\n",
+            "dep",
+            &[
+                (
+                    "package.json",
+                    r#"{"name": "dep", "exports": {".": "./index.js"}}"#,
+                ),
+                ("index.js", "module.exports = 'front door';\n"),
+                ("secret.js", "module.exports = 'back door';\n"),
+            ],
+        );
+        assert!(result.is_err());
+    }
+
+    /// Scoped package names keep their two-segment name when the
+    /// subpath is split off.
+    #[test]
+    fn scoped_package_subpath_resolves() {
+        run_two_comp(
+            "import u from '@acme/kit/util'; export const got = u;\n",
+            "@acme/kit",
+            &[
+                ("package.json", r#"{"name": "@acme/kit"}"#),
+                ("util.js", "module.exports = 'scoped';\n"),
+            ],
+        )
+        .unwrap();
+    }
+
+    /// A require-only exports entry still resolves: the import-pass
+    /// finds nothing and the require-pass supplies the cjs build.
+    #[test]
+    fn require_only_exports_resolve_on_second_pass() {
+        run_two_comp(
+            "import v from 'dep/sub'; export const got = v;\n",
+            "dep",
+            &[
+                (
+                    "package.json",
+                    r#"{"name": "dep", "exports": {"./sub": {"require": "./sub.cjs"}}}"#,
+                ),
+                ("sub.cjs", "module.exports = 42;\n"),
+            ],
+        )
+        .unwrap();
     }
 }

@@ -7,8 +7,8 @@
 //!    holding a `package.json`, or the entry's own directory when
 //!    there is none),
 //! 2. resolves and fetches the package's transitive npm dependencies
-//!    into the CAS via [`resolve_transitive`] (Go-like MVS,
-//!    registry-table fast path, cached replay),
+//!    into the CAS via [`resolve_transitive_with_config`] (Go-like
+//!    MVS, registry-table fast path, cached replay),
 //! 3. ingests the entry package's own files into the CAS as a tree
 //!    (skipping `node_modules` and VCS metadata — the whole point is
 //!    that no `node_modules` tree is consulted), and
@@ -31,7 +31,8 @@ use std::path::{Path, PathBuf};
 
 use crate::cas::ContentStore;
 use crate::fetch::{materialise, DirNode, HttpClient};
-use crate::npm_resolve::{resolve_transitive, ResolveError};
+use crate::npm_resolve::{resolve_transitive_with_config, ResolveError};
+use crate::npmrc::NpmConfig;
 use crate::registry::RegistryTable;
 use crate::semver::{Range, Version};
 
@@ -392,13 +393,28 @@ pub fn build_compartment_map(
 /// package's transitive dependencies into the CAS, ingest the entry
 /// package itself, and store the compartment map binding them.
 /// A fully cached graph assembles without any network traffic (the
-/// registry table is the implicit lock file); Phase 5's `--offline`
-/// flag will make that a hard guarantee.
+/// registry table is the implicit lock file); pair with
+/// [`crate::fetch::OfflineClient`] to make that a hard guarantee
+/// (Phase 5's `--offline` flag).
 pub fn assemble_entry<H: HttpClient>(
     http: &H,
     cas: &ContentStore,
     registry_table: &RegistryTable,
     registry_url: &str,
+    entry_js: &Path,
+) -> Result<AssembledRun, AssembleError> {
+    let config = NpmConfig::with_registry(registry_url);
+    assemble_entry_with_config(http, cas, registry_table, &config, entry_js)
+}
+
+/// [`assemble_entry`] with full registry configuration
+/// ([`crate::npmrc::NpmConfig`]): scoped packages route to their
+/// scope's registry during resolution.
+pub fn assemble_entry_with_config<H: HttpClient>(
+    http: &H,
+    cas: &ContentStore,
+    registry_table: &RegistryTable,
+    config: &NpmConfig,
     entry_js: &Path,
 ) -> Result<AssembledRun, AssembleError> {
     let (package_root, manifest) = find_package_root(entry_js)?;
@@ -411,7 +427,7 @@ pub fn assemble_entry<H: HttpClient>(
         .iter()
         .map(|(name, range)| (name.clone(), range.clone()))
         .collect();
-    let resolved = resolve_transitive(http, cas, registry_table, registry_url, &roots)?;
+    let resolved = resolve_transitive_with_config(http, cas, registry_table, config, &roots)?;
     let mut packages = Vec::with_capacity(resolved.len());
     for package in resolved {
         let dependencies =
