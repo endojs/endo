@@ -130,13 +130,17 @@ export const makeFetchService = async powers => {
   if (persistedConfig === undefined) {
     const inspected = control.inspect();
     persist(
-      // @ts-expect-error: inspected.policyMode is string but PolicySnapshot expects literal
-      /** @type {any} */ harden({
+      harden({
         policy: {
           allowedOrigins: [...inspected.allowedOrigins],
           maxRequestsPerMinute: inspected.maxRequestsPerMinute,
           maxResponseBytes: inspected.maxResponseBytes,
-          policyMode: /** @type {import("@endo/exo-http-client").PolicyMode} */ (inspected.policyMode),
+          // `inspect()` widens `policyMode` to `string`; it is one of the
+          // `PolicyMode` literals by construction, so narrow it back.
+          policyMode:
+            /** @type {import('@endo/exo-http-client').PolicyMode} */ (
+              inspected.policyMode
+            ),
           revoked: inspected.revoked,
         },
         bindings: control.listBindings(),

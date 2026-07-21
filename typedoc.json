@@ -1,5 +1,5 @@
 {
-  "entryPoints": ["packages/*", "!packages/fetch"],
+  "entryPoints": ["packages/*"],
   "projectDocuments": [
     "README.md",
     "docs/get-started.md",

@@ -9,7 +9,7 @@ capability; the capability itself is
 [`@endo/exo-http-client`](../exo-http-client) over
 [`@endo/http-confine`](../http-confine) and is untouched here.
 
-It follows the [`@endo/reminder`](../reminder) unconfined-plugin pattern
+It follows the [`@endo/reminder`](../../designs/endo-reminder.md) unconfined-plugin pattern
 ([design](../../designs/endo-fetch.md)): the plugin is unconfined because
 something must hold the real `fetch` power; the capability it mints is confined.
 

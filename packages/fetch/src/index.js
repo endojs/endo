@@ -156,11 +156,17 @@ export const make = async (powers, _context, { env = {}, fetch, now } = {}) => {
     env.maxResponseBytes,
     'maxResponseBytes',
   );
-  /** @type {import("@endo/exo-http-client").PolicyMode | undefined} */
-  const policyMode = /** @type {unknown} */ (env.policyMode);
+  // `env.policyMode` is an unvalidated formula-env string; narrow it to the
+  // `PolicyMode` union here (the pair validates the value at construction).
+  const policyMode =
+    env.policyMode === undefined
+      ? undefined
+      : /** @type {import('@endo/exo-http-client').PolicyMode} */ (
+          env.policyMode
+        );
 
-  // @ts-expect-error: spread inference widens policyMode from PolicyMode to string
-  const _makeOpts = /** @type {any} */ ({
+  /** @type {import('./types.js').FetchServicePowers} */
+  const makeOpts = {
     store,
     ...(fetch !== undefined ? { fetch } : {}),
     ...(now !== undefined ? { now } : {}),
@@ -169,9 +175,9 @@ export const make = async (powers, _context, { env = {}, fetch, now } = {}) => {
     ...(maxResponseBytes !== undefined ? { maxResponseBytes } : {}),
     ...(policyMode !== undefined ? { policyMode } : {}),
     ...(policyAuthority !== undefined ? { policyAuthority } : {}),
-  });
+  };
 
-  const { service } = await makeFetchService(_makeOpts);
+  const { service } = await makeFetchService(makeOpts);
 
   return service;
 };
