@@ -440,6 +440,20 @@ map's retained value, and that restart reconstructs the weak index before
 serving the store. Include restart-persistence tests while the key remains
 live, plus formula-collection tests for entry removal.
 
+This phase carries the family's **ERTP integration test** (per kriskowal/garden#59,
+motivated by the ERTP mention in kriskowal/garden#58). An ERTP issuer is
+canonically implemented over a `WeakMapStore` — the ledger that maps each purse
+and payment (a remotable) to its `AmountMath` balance — so building an issuer/mint
+on the daemon's `WeakMapStore` exercises the weak substrate end-to-end the way real
+consumers do: keys held weakly by remotable identity, entries surviving a daemon
+restart while the purse/payment remotables remain live, and ledger entries dropping
+when a payment is collected. The integration test drives a minimal ERTP issuer kit
+(mint → purse → deposit/withdraw/transfer) whose ledger is a daemon `WeakMapStore`,
+asserting conservation of `Amount` across a create → mint → transfer → **restart** →
+balances-intact sequence. This makes ERTP a first-class acceptance target for the
+weak variants rather than a synthetic micro-test, and validates that the daemon's
+`WeakMapStore` is a drop-in substrate for the primary real-world consumer of one.
+
 **Phase 4 — sorted variants and range queries.** Add `SortedMapStore` and
 `SortedSetStore`, `makeEncodePassable` key-rank encoding, the composite SQLite
 index, and `keys(pattern, bounds)` / `values` / `entries` scans. Test arbitrary
@@ -525,6 +539,11 @@ new dependency.
 ## Known Gaps and TODOs
 
 - [ ] Phase 1 implementation and restart-persistence tests (closes #59).
+- [ ] **ERTP integration test** on the `WeakMapStore` (Phase 3): a minimal
+      issuer/mint/purse kit whose ledger is a daemon `WeakMapStore`, asserting
+      `Amount` conservation across create → mint → transfer → restart →
+      balances-intact, and weak-key drop when a payment is collected
+      (kriskowal/garden#59, motivated by the ERTP mention in #58).
 - [ ] Confirm the exact formula-graph callback contract for collection of a
       weak key, including transactional ordering of row deletion and value-edge
       release.
