@@ -908,6 +908,56 @@ mod tests {
         .unwrap();
     }
 
+    // --- Referrer-relative resolution ---
+
+    /// A package whose entry lives in a subdirectory resolves its
+    /// relative imports against that directory, not the package
+    /// root: `./utilities.js` from `./source/index.js` is
+    /// `./source/utilities.js`, and `../root-helper.js` climbs back
+    /// out. An identity resolve hook fails both lookups.
+    #[test]
+    fn nested_module_relative_imports_resolve_against_referrer() {
+        run_two_comp(
+            "import v from 'dep'; export const got = v;\n",
+            "dep",
+            &[
+                (
+                    "package.json",
+                    r#"{"name": "dep", "type": "module", "main": "./source/index.js"}"#,
+                ),
+                (
+                    "source/index.js",
+                    "import { u } from './utilities.js';\n\
+                     import { r } from '../root-helper.js';\n\
+                     export default u + r;\n",
+                ),
+                ("source/utilities.js", "export const u = 40;\n"),
+                ("root-helper.js", "export const r = 2;\n"),
+            ],
+        )
+        .unwrap();
+    }
+
+    /// A relative specifier that climbs above the package root is a
+    /// clean error, not a root-relative mislookup: the compartment
+    /// holds one package tree, so there is nothing above `.` to
+    /// name.
+    #[test]
+    fn relative_specifier_escaping_package_root_fails_cleanly() {
+        let result = run_two_comp(
+            "import v from 'dep'; export const got = v;\n",
+            "dep",
+            &[
+                (
+                    "package.json",
+                    r#"{"name": "dep", "type": "module", "main": "./index.js"}"#,
+                ),
+                ("index.js", "import '../outside.js';\nexport default 1;\n"),
+            ],
+        );
+        assert!(result.is_err());
+    }
+
     /// A require-only exports entry still resolves: the import-pass
     /// finds nothing and the require-pass supplies the cjs build.
     #[test]

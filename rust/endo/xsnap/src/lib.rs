@@ -2992,6 +2992,63 @@ mod tests {
         }
     }
 
+    /// The synchronous install path (daemon-side `import_archive`)
+    /// resolves a module's relative imports against the module's own
+    /// directory: `./sibling.js` from `./lib/helper.js` is
+    /// `./lib/sibling.js`, not a package-root lookup.
+    #[test]
+    fn import_archive_nested_relative_imports() {
+        let map = make_archive_map(
+            vec![(
+                "app-v1",
+                "app",
+                vec![
+                    (".", archive::ModuleDescriptor::File {
+                        parser: "mjs".to_string(),
+                        location: Some("index.js".to_string()),
+                        sha512: None,
+                    }),
+                    ("./lib/helper.js", archive::ModuleDescriptor::File {
+                        parser: "mjs".to_string(),
+                        location: Some("lib/helper.js".to_string()),
+                        sha512: None,
+                    }),
+                    ("./lib/sibling.js", archive::ModuleDescriptor::File {
+                        parser: "mjs".to_string(),
+                        location: Some("lib/sibling.js".to_string()),
+                        sha512: None,
+                    }),
+                ],
+            )],
+            "app-v1",
+            ".",
+        );
+
+        let zip = make_test_zip(&map, &[
+            (
+                "app-v1/index.js",
+                "import { total } from './lib/helper.js'; export const result = total;",
+            ),
+            (
+                "app-v1/lib/helper.js",
+                "import { base } from './sibling.js'; export const total = base + 1;",
+            ),
+            (
+                "app-v1/lib/sibling.js",
+                "export const base = 20;",
+            ),
+        ]);
+
+        let loaded = archive::load_archive(std::io::Cursor::new(zip)).unwrap();
+        let machine = new_machine();
+        assert!(machine.import_archive(&loaded));
+
+        match machine.eval("__entryNs.result").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 21),
+            other => panic!("expected 21, got {:?}", js_value_debug(&other)),
+        }
+    }
+
     #[test]
     fn import_archive_make_pattern() {
         // Test the Endo convention: entry module exports make(powers)
