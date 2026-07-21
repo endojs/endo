@@ -536,6 +536,17 @@ pub unsafe extern "C" fn host_trace(the: *mut XsMachine) {
     eprintln!("endor: [trace] {}", msg);
 }
 
+/// `stdoutLine(msg: string) -> undefined`
+///
+/// Writes a line to the process's real stdout. Endowed to the
+/// standalone archive runner as the sink for `console.log` so a
+/// program's own output is separable from the runner's stderr
+/// diagnostics.
+pub unsafe extern "C" fn host_stdout_line(the: *mut XsMachine) {
+    let msg = arg_str(the, 0);
+    println!("{}", msg);
+}
+
 /// `getPendingEnvelope() -> ArrayBuffer | undefined`
 ///
 /// Returns the pending envelope bytes (set by `set_pending_envelope`)
@@ -672,6 +683,7 @@ pub const WORKER_IO_CALLBACKS: &[crate::ffi::XsCallback] = &[
     host_base64_decode,
     host_base64_encode,
     host_debug_poll,
+    host_stdout_line,
 ];
 
 /// Register worker I/O host functions on the machine.
@@ -689,6 +701,7 @@ pub unsafe fn register(machine: &crate::Machine) {
     machine.define_function("hostBase64Decode", host_base64_decode, 1);
     machine.define_function("hostBase64Encode", host_base64_encode, 1);
     machine.define_function("debugPoll", host_debug_poll, 0);
+    machine.define_function("stdoutLine", host_stdout_line, 1);
 }
 
 #[cfg(test)]
