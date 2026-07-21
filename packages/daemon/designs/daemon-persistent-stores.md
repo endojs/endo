@@ -186,6 +186,128 @@ Re-looking-up the pet name after a restart returns a store backed by the same
 We match the *interface* so a `@agoric/store` user is immediately at home, while
 the *implementation* is native to the daemon and adds no `@agoric/*` dependency.
 
+### CLI and WUI command vocabulary
+
+The `makeMapStore` method above is the *programmatic* surface (guest/host code
+over CapTP). This section specifies the two *human* surfaces — the `endo` CLI
+and the chat client's "spaces" web UI (**WUI**) — so a person can create and
+drive a store without writing code, using verbs coherent with the vocabulary
+the daemon already has. Two problems are specific to these surfaces: (a) a set
+of appropriate, non-colliding verbs for each interface, and (b) how a human
+types an *arbitrary passable key* on a command line or in a form.
+
+#### Constructors (`mk*`)
+
+The daemon already has an `mk*` constructor family — `mkdir`, `mkhost`,
+`mkguest`, `mktmp` (`packages/cli/src/endo.js`), each taking `--name <petName>`
+and `--as <agent>`. The store constructors join it, one flat verb per kind:
+
+| Command | Creates | Guest/host method |
+|---|---|---|
+| `endo mkmap --name <n>`     | strong `MapStore`     | `makeMapStore` |
+| `endo mkset --name <n>`     | strong `SetStore`     | `makeSetStore` |
+| `endo mkweakmap --name <n>` | `WeakMapStore`        | `makeWeakMapStore` |
+| `endo mkweakset --name <n>` | `WeakSetStore`        | `makeWeakSetStore` |
+
+The bound pet name is nameable / lookup-able / restart-surviving like any other
+cap, exactly as `mkdir`'s directory is.
+
+#### Per-store verbs
+
+Each interface carries ~10 methods. Hanging all of them off the flat top level
+would collide with existing verbs (`get`, `remove`, `list`, and in particular
+the existing **write-once** `store` command — a distinct feature) and swamp
+`endo --help`. So the mutation/query verbs live under a **command group named
+for the store kind** — `endo map <name> <verb> …` and `endo set <name> <verb> …`
+— which would be the CLI's first subcommand groups, a departure justified by the
+method count. The constructors stay flat as `mk*` to match `mkdir`.
+
+`MapStore` (`endo map <name> …`):
+
+| Interface method | CLI verb |
+|---|---|
+| `init(key, value)` | `endo map <name> init <key> <value>` |
+| `set(key, value)`  | `endo map <name> set <key> <value>` |
+| `get(key)`         | `endo map <name> get <key>` |
+| `has(key)`         | `endo map <name> has <key>` |
+| `delete(key)`      | `endo map <name> delete <key>` (alias `rm`) |
+| `getSize()`        | `endo map <name> size` |
+| `keys()`           | `endo map <name> keys` |
+| `values()`         | `endo map <name> values` |
+| `entries()`        | `endo map <name> entries` |
+| `snapshot()`       | `endo map <name> snapshot --name <copymap-name>` (binds a passable `CopyMap`, symmetric with the write-once `store`) |
+
+`SetStore` (`endo set <name> …`) uses the same verbs with `add` in place of
+`init`/`set`: `add <key>`, `has <key>`, `delete <key>`, `size`, `keys`,
+`snapshot` (→ `CopySet`).
+
+The **weak** variants (`endo weakmap …` / `endo weakset …`) share the mutating
+verbs (`init`/`set`/`get`/`has`/`delete` or `add`/`has`/`delete`) but **omit the
+enumeration verbs** (`keys`/`values`/`entries`/`size`/`snapshot`), because weak
+stores are non-enumerable by design (Phase 3).
+
+#### Expressing keys and values
+
+The crux of the review: keys can be arbitrary passable data, not just strings, so
+a CLI/form field needs a way to *write* a passable **and** a guarantee that the
+decoder **halts** — never runs arbitrary code, never loops — so a hostile key
+expression cannot hang the daemon or escape the sandbox. Every `<key>` and
+`<value>` positional accepts a **typed encoding**, selected by a flag namespace
+mirroring the encodings today's `store` command already offers (`--json`,
+`--text`, `--bigint`, `--path`, `--stdin`):
+
+- `--json <text>` — plain JSON; covers primitive and structured *data* keys via a
+  total parser.
+- `--justin <text>` — **Justin** (endo's `packages/marshal/src/marshal-justin.js`),
+  the JS-expression superset marshal uses for passables. Extends JSON with
+  `bigint`, `undefined`, symbols, and **remotable references via slots**, read by
+  the existing total Justin reader — no `eval`.
+- `--shon <text>` — **SHON** (Shell-friendly Object Notation): a quote-light
+  surface for the same passable space, ergonomic to type in a shell or form. Not
+  yet vendored in this repo; a dependency this vocabulary introduces (see Known
+  Gaps).
+- `--ref <pet-name>`, or a bare `@pet-name:edge` — a **remotable** key or value,
+  resolved through the agent's name graph exactly like `send`'s embedded
+  `@pet-name` references (`packages/cli/src/message-parse.js`). This is how you
+  key a map on a *capability*.
+- `--text` / `--stdin` / `--path` / `--bigint` — the same scalar shorthands
+  `store` already offers, for the common cases. Default when no flag is given is
+  `--text`, keeping the common `endo map m set alice @bob` readable.
+
+**Deterministic halting is a hard requirement, not a nicety.** All three DSLs
+(JSON, Justin, SHON) are *total, non-evaluating* decoders: they parse to passable
+data without invoking user code, so a key expression can neither diverge nor
+execute. This is exactly why the vocabulary must **not** accept raw `eval`-style
+source for a key (unlike `endo eval`, whose purpose *is* to run code): a key is
+*data*, decoded → `harden`ed → `M.scalar()`/`M.key()`-checked before it ever
+touches the store. Output is symmetric: `get`/`keys`/`values`/`entries`/`snapshot`
+render passables back in the same encodings (`--out json|justin|shon`, default a
+human Justin-ish render), so round-tripping a key through the shell is lossless
+for data and yields a `@pet-name` for remotables.
+
+#### WUI (the "spaces" web UI)
+
+The chat client's **spaces** (`packages/space-*`) are the WUI. A new **Store
+Space** presents a live `MapStore`/`SetStore` as a table with the same verbs as
+direct-manipulation actions, mirroring how the File Explorer Space
+(`packages/space-file-explorer`) exposes "creating / renaming / removing
+entries":
+
+- **New Map / New Set / New Weak…** buttons ⇒ the `mk*` constructors.
+- One row per entry, with **＋ Add entry** (`init`/`add`), inline **edit value**
+  (`set`), **✕** (`delete`), a **size** badge, and a live-updating table fed by a
+  `follow`-style subscription.
+- **Snapshot** action ⇒ binds a `CopyMap`/`CopySet` under a new pet name — a value
+  the user can then drag into another space.
+- A shared **key/value editor** widget carrying the same encoding selector as the
+  CLI (JSON / Justin / SHON / pick-a-capability), the capability picker resolving
+  `@pet-name` from the space's inventory. Same total-decoder guarantee: the form
+  **never evals**.
+
+The web verbs and CLI verbs are intentionally the same words
+(`add`/`set`/`get`/`delete`/`snapshot`) so documentation and mental model transfer
+between the two surfaces.
+
 ## Dependencies
 
 | Design / package | Relationship |
@@ -195,6 +317,10 @@ the *implementation* is native to the daemon and adds no `@agoric/*` dependency.
 | daemon `marshal` formula (`src/formula-record.js`) | The body+slots durable serialization we reuse for keys/values. |
 | daemon `store-controller.js` retention graph | The refcount/retention edges a store's remotable entries must join. |
 | `synced-store` (`synced_store_entry`) | Precedent for a passable-payload SQLite table; a later phase may replicate stores across peers the same way. |
+| `packages/cli` (`endo.js`, `message-parse.js`) | Host of the `mk*` constructors, the `endo map`/`endo set` verb groups, and the `@pet-name` key/value reference syntax. |
+| `marshal-justin.js` (`@endo/marshal`) | The total, non-evaluating Justin decoder the CLI/WUI use to accept passable keys/values (`--justin`, `--out justin`). |
+| SHON decoder | Shell-friendly Object Notation for `--shon`; **not yet in this repo** — a new dependency the human-surface vocabulary introduces (see Known Gaps). |
+| `packages/space-*` (spaces WUI) | Host of the new **Store Space**; the File Explorer Space is the pattern for a capability-backed, direct-manipulation table. |
 
 ## Phased Implementation
 
@@ -219,8 +345,19 @@ retention semantics are proven.
 
 **Phase 4 — parity polish.** Structured keys (`M.key()` beyond `M.scalar()`),
 key/value pattern arguments to `keys`/`values`/`entries`/`getSize`,
-`addAll`/`clear`, and lazy iterators. Optional: expose the store on the CLI
-(`endo store …`) and multiplayer replication via the synced-store substrate.
+`addAll`/`clear`, and lazy iterators. Optional: multiplayer replication via the
+synced-store substrate.
+
+**Phase 5 — human surfaces (CLI + WUI).** The command vocabulary specified in
+*Design → CLI and WUI command vocabulary*: the `mk*` constructors, the
+`endo map`/`endo set` (and weak) verb groups, the typed key/value encodings
+(`--json`/`--justin`/`--shon`/`@pet-name`) over a total non-evaluating decoder,
+and the chat client's **Store Space**. Can land incrementally alongside any of
+Phases 1–4 (the CLI `map`/`set` verbs need only the methods a given phase has
+shipped), but is called out as its own phase so the human-facing vocabulary is a
+tracked deliverable rather than an afterthought. SHON support (`--shon`) is
+gated on vendoring a SHON decoder (Known Gaps); JSON/Justin/`@pet-name` need no
+new dependency.
 
 ## Design Decisions
 
@@ -254,6 +391,27 @@ key/value pattern arguments to `keys`/`values`/`entries`/`getSize`,
    `@agoric/store`'s lazy, pattern-filtered iterators are a Phase 4 ergonomic
    upgrade.
 
+7. **`mk*` constructors flat; per-store verbs in a named group.** Constructors
+   join the existing flat `mk*` family (`mkdir`/`mkhost`/`mkguest`/`mktmp`) so
+   `mkmap`/`mkset` read as siblings. The ~10 interface methods per store go under
+   `endo map <name> …` / `endo set <name> …` subcommand groups rather than flat
+   top-level verbs — the flat namespace would collide (`get`, `remove`, the
+   write-once `store`) and swamp `endo --help`. This introduces the CLI's first
+   subcommand groups, a departure the method count justifies.
+
+8. **Keys expressed via total, non-evaluating DSLs — never `eval`.** A key on a
+   CLI or in a form is *data*, so it is accepted only through JSON, Justin, or
+   SHON decoders (plus `@pet-name` for remotables), each of which is total
+   (guaranteed to halt) and does not run user code. Raw source (as in
+   `endo eval`) is deliberately disallowed for keys: it would let an untrusted
+   key expression diverge or execute. This directly answers the review's
+   requirement that keys be "a deterministically halting DSL for passable keys."
+
+9. **Same verbs across CLI and WUI.** The Store Space uses the same words
+   (`add`/`set`/`get`/`delete`/`snapshot`) and the same encoding selector as the
+   CLI, so the mental model and documentation transfer between surfaces; the WUI
+   is a direct-manipulation skin over the identical vocabulary, not a second one.
+
 ## Known Gaps and TODOs
 
 - [ ] Phase 1 implementation and restart-persistence tests (closes #59).
@@ -263,3 +421,12 @@ key/value pattern arguments to `keys`/`values`/`entries`/`getSize`,
       reusable verbatim for entry rows, or whether store entries need their own
       thin codec.
 - [ ] Weak-reference GC semantics (Phase 3) against the retention graph.
+- [ ] Vendor or depend on a **SHON** (Shell-friendly Object Notation) decoder for
+      the `--shon` key/value encoding; not yet present in this repo. JSON,
+      Justin, and `@pet-name` references need no new dependency.
+- [ ] Confirm the CLI's first **subcommand groups** (`endo map`/`endo set`) are
+      acceptable in the current Commander layout, or whether flat hyphenated
+      verbs (e.g. `endo map-set`) are preferred for consistency with `send-value`.
+- [ ] Decide the **default output encoding** for `get`/`keys`/`values`/`entries`
+      (human Justin-ish render vs. strict `--out json`) and whether remotables
+      render as `@pet-name` or as raw locators.
