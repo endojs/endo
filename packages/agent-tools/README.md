@@ -63,6 +63,7 @@ import {
   makeGitHistoryTool,
   makeGitTool,
   makeGitMountTools,
+  makeGitRemoteTool,
   makeMountReadTool,
   makeMountListTool,
   makeMountStatTool,
