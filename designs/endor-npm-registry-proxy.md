@@ -3,13 +3,13 @@
 | | |
 |---|---|
 | **Created** | 2026-04-17 |
-| **Updated** | 2026-04-17 |
+| **Updated** | 2026-07-20 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | In Progress |
 
 ## Status
 
-Phases 1–4 implemented:
+All five phases implemented:
 
 - **Phase 1**: `rust/endo/src/registry.rs` — SQLite-backed
   `RegistryTable` with `lookup`, `insert`, `list_versions`,
@@ -52,13 +52,23 @@ Phases 1–4 implemented:
   (`.json` → default export; CommonJS via a best-effort
   `module.exports` shim with **no `require`**) — and
   `endor run <entry.js>` executes it in an XS machine.
+- **Phase 5**: `rust/endo/src/npmrc.rs` — `NpmConfig` parsing
+  the `.npmrc` subset the fetch layer consumes (`registry`,
+  `@scope:registry`, nerf-dart `//host/path/:_authToken`),
+  layered user `~/.npmrc` → project `.npmrc` →
+  `NPM_CONFIG_REGISTRY` → `--registry`. Scoped packages route
+  to their scope's registry; matching auth tokens accompany
+  requests as `Authorization: Bearer`. `endor run --offline`
+  and `endor npm-resolve --offline` swap in an `OfflineClient`
+  that refuses every network request with a typed error, so
+  only registry-table and CAS hits resolve — the
+  registry-table-as-lock-file behaviour, guaranteed rather
+  than assumed.
 
-Remaining: Phase 5 (`--offline` flag, `.npmrc`, scoped
-registries). Known gaps recorded below; execution adds: full
-CommonJS linkage (`require` is absent by design of the shim),
+Known gaps recorded below; execution adds: full CommonJS
+linkage (`require` is absent by design of the shim) and
 directory-relative resolution for nested package modules (the
-archive loader's resolve hook is identity), and `exports`-map
-consultation.
+archive loader's resolve hook is identity).
 
 ## What is the Problem Being Solved?
 
@@ -425,6 +435,12 @@ The tree's children are the package's files, stored as blobs.
       does not execute arbitrary install scripts).
 - [ ] Binary packages (`.node` native modules) — not
       supported in XS.
+- [ ] Top-level `await` in the entry module (or any module in
+      the graph): the execution path loads the assembled map
+      through XS's synchronous `importNow`, so a module using
+      top-level `await` fails at import with
+      `TypeError: async module`. Needs an asynchronous import
+      path through the archive loader.
 
 ## Prompt
 

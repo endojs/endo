@@ -106,6 +106,10 @@ pub enum FetchError {
     UnsupportedEntry(String),
     /// Tarball extraction or CAS write failed.
     Io(io::Error),
+    /// Network access was required but the fetcher is in offline
+    /// mode (`--offline`): the package is not in the registry
+    /// table, and only already-cached packages resolve offline.
+    Offline { url: String },
 }
 
 impl std::fmt::Display for FetchError {
@@ -127,6 +131,10 @@ impl std::fmt::Display for FetchError {
                 write!(f, "unsupported tarball entry: {s}")
             }
             FetchError::Io(e) => write!(f, "io: {e}"),
+            FetchError::Offline { url } => write!(
+                f,
+                "offline: network access to {url} refused (run without --offline to populate the cache)"
+            ),
         }
     }
 }
@@ -154,9 +162,23 @@ pub trait HttpClient {
     fn get_tarball(&self, url: &str) -> Result<Vec<u8>, FetchError>;
 }
 
+/// References delegate, so a runtime-selected `&dyn HttpClient`
+/// (online vs `--offline`) satisfies the generic fetch entry points.
+impl<T: HttpClient + ?Sized> HttpClient for &T {
+    fn get_metadata(&self, url: &str) -> Result<Vec<u8>, FetchError> {
+        (**self).get_metadata(url)
+    }
+    fn get_tarball(&self, url: &str) -> Result<Vec<u8>, FetchError> {
+        (**self).get_tarball(url)
+    }
+}
+
 /// Default HTTP client backed by [`ureq`].
 pub struct UreqClient {
     agent: ureq::Agent,
+    /// Credential configuration consulted per request URL; `None`
+    /// sends every request anonymously.
+    config: Option<crate::npmrc::NpmConfig>,
 }
 
 impl UreqClient {
@@ -167,7 +189,32 @@ impl UreqClient {
         let agent = ureq::AgentBuilder::new()
             .user_agent(USER_AGENT)
             .build();
-        UreqClient { agent }
+        UreqClient {
+            agent,
+            config: None,
+        }
+    }
+
+    /// A client that attaches `Authorization: Bearer <token>` to any
+    /// request whose URL matches one of the configuration's
+    /// nerf-dart `_authToken` entries
+    /// ([`crate::npmrc::NpmConfig::token_for`]).
+    pub fn with_config(config: crate::npmrc::NpmConfig) -> Self {
+        let mut client = UreqClient::new();
+        client.config = Some(config);
+        client
+    }
+
+    fn request(&self, url: &str) -> ureq::Request {
+        let mut request = self.agent.get(url);
+        if let Some(token) = self
+            .config
+            .as_ref()
+            .and_then(|config| config.token_for(url))
+        {
+            request = request.set("authorization", &format!("Bearer {token}"));
+        }
+        request
     }
 }
 
@@ -180,8 +227,7 @@ impl Default for UreqClient {
 impl HttpClient for UreqClient {
     fn get_metadata(&self, url: &str) -> Result<Vec<u8>, FetchError> {
         let mut body = Vec::new();
-        self.agent
-            .get(url)
+        self.request(url)
             .set("accept", "application/json")
             .call()
             .map_err(|e| FetchError::Http(format!("metadata GET {url}: {e}")))?
@@ -193,14 +239,34 @@ impl HttpClient for UreqClient {
 
     fn get_tarball(&self, url: &str) -> Result<Vec<u8>, FetchError> {
         let mut body = Vec::new();
-        self.agent
-            .get(url)
+        self.request(url)
             .call()
             .map_err(|e| FetchError::Http(format!("tarball GET {url}: {e}")))?
             .into_reader()
             .read_to_end(&mut body)
             .map_err(|e| FetchError::Http(format!("tarball read {url}: {e}")))?;
         Ok(body)
+    }
+}
+
+/// The `--offline` HTTP client: every network request fails with
+/// [`FetchError::Offline`], so only registry-table and
+/// `package_meta` cache hits resolve. Pair with a registry table
+/// populated by an earlier online run — the
+/// registry-table-as-lock-file behaviour the design intends.
+pub struct OfflineClient;
+
+impl HttpClient for OfflineClient {
+    fn get_metadata(&self, url: &str) -> Result<Vec<u8>, FetchError> {
+        Err(FetchError::Offline {
+            url: url.to_string(),
+        })
+    }
+
+    fn get_tarball(&self, url: &str) -> Result<Vec<u8>, FetchError> {
+        Err(FetchError::Offline {
+            url: url.to_string(),
+        })
     }
 }
 
@@ -1277,6 +1343,52 @@ mod tests {
         let s = io_err.to_string();
         assert!(s.starts_with("io: "), "got {s:?}");
         assert!(s.contains("disk gone"));
+
+        let offline = FetchError::Offline {
+            url: "https://registry.npmjs.org/x".into(),
+        };
+        let o = offline.to_string();
+        assert!(o.starts_with("offline: "), "got {o:?}");
+        assert!(o.contains("https://registry.npmjs.org/x"));
+    }
+
+    #[test]
+    fn offline_client_refuses_every_request() {
+        let http = OfflineClient;
+        match http.get_metadata("https://registry.npmjs.org/is-odd") {
+            Err(FetchError::Offline { url }) => {
+                assert_eq!(url, "https://registry.npmjs.org/is-odd");
+            }
+            other => panic!("expected Offline, got {other:?}"),
+        }
+        match http.get_tarball("https://registry.npmjs.org/is-odd/-/is-odd-3.0.1.tgz") {
+            Err(FetchError::Offline { .. }) => {}
+            other => panic!("expected Offline, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn offline_fetch_serves_cached_entry_and_refuses_uncached() {
+        // The registry-table fast path must satisfy an offline fetch
+        // of a cached package; an uncached one must surface
+        // `Offline`, not a confusing HTTP error.
+        let (_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        registry
+            .insert("cached", "1.0.0", "cafe", Some("sha512-x"))
+            .unwrap();
+
+        let http = OfflineClient;
+        let hit = fetch_package(&http, &cas, &registry, DEFAULT_REGISTRY, "cached", "1.0.0")
+            .expect("cached package must resolve offline");
+        assert_eq!(hit.tree_hash, "cafe");
+
+        match fetch_package(&http, &cas, &registry, DEFAULT_REGISTRY, "uncached", "1.0.0") {
+            Err(FetchError::Offline { url }) => {
+                assert_eq!(url, "https://registry.npmjs.org/uncached");
+            }
+            other => panic!("expected Offline, got {other:?}"),
+        }
     }
 
     #[test]
