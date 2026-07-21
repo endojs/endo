@@ -63,11 +63,19 @@ import { makeSturdyRef } from '../client/sturdyrefs.js';
  * worker or an in-process endpoint, where it should never occur) it is
  * dropped loudly.
  *
- * Known limits (loud, not silent): third-party handoffs are rejected
- * (hub-performed redemption is planned); a message routed at the
- * sender's own export cannot carry a resolveMeDesc (the wire format
- * has no way to hand a session its own resolver back), so such listens
- * break to the sender.
+ * Third-party gifts THROUGH the hub work in the exporter role: a peer
+ * that hands a hub-fronted reference to another peer deposits the gift
+ * on the hub bootstrap (`deposit-gift`) and the receiver withdraws it
+ * (`withdraw-gift`), the hub verifying the handoff signature chain
+ * against the identities its embedder recorded at each session's
+ * handshake. Gifts and their waiters are rows like everything else.
+ *
+ * Known limits (loud, not silent): an inbound desc:handoff-give — the
+ * hub as gift RECEIVER, which would require the hub to dial the
+ * exporter — is rejected (hub-performed outbound redemption is
+ * planned); a message routed at the sender's own export cannot carry
+ * a resolveMeDesc (the wire format has no way to hand a session its
+ * own resolver back), so such listens break to the sender.
  *
  * @typedef {object} HubStore
  * @property {() => any} getState previously persisted state, or
@@ -129,11 +137,16 @@ const makeMemoryHubStore = () => {
  * @param {any} options.codec an OCapN codec (syrup or cbor); every
  *   attached session must speak it
  * @param {HubStore} [options.store]
+ * @param {any} [options.cryptography] a `makeCryptography(codec)`
+ *   instance; required for third-party gift handling (deposit-gift /
+ *   withdraw-gift on the hub bootstrap), whose signatures the hub
+ *   verifies against attached sessions' identities
  * @param {(...args: Array<unknown>) => void} [options.logError]
  */
 export const makeOcapnHub = ({
   codec,
   store = makeMemoryHubStore(),
+  cryptography = undefined,
   // eslint-disable-next-line no-console
   logError = (...args) => console.error('ocapn hub:', ...args),
 }) => {
@@ -173,9 +186,22 @@ export const makeOcapnHub = ({
    * session's answer positions. `{ ref }` is a pending answer backed
    * by a reference row (usually answer-backed at the destination);
    * `{ local }` is a locally settled answer — the bootstrap's fetch
-   * result, or `null` for a break with `reason`.
+   * result, or `null` for a break with `reason`; `{ done }` fulfilled
+   * with no reference value (a deposit acknowledgment); `{ gift }` is
+   * a withdrawal awaiting its deposit under that gift key.
    *
-   * @typedef {{ ref: string } | { local: string | null, reason?: string }} AnswerRoute
+   * @typedef {{ ref: string }
+   *   | { local: string | null, reason?: string }
+   *   | { done: true }
+   *   | { gift: string }} AnswerRoute
+   */
+
+  /**
+   * The wire identity of a session, when the embedder's handshake (or
+   * derivation) provides one: the OCapN session id and the peer's
+   * public key bytes, both hex. Gift signatures verify against these.
+   *
+   * @typedef {{ sessionId: string, peerPublicKeyQ: string }} SessionIdentity
    */
 
   /**
@@ -188,6 +214,8 @@ export const makeOcapnHub = ({
    *   processedUpTo: number,
    *   durable: boolean,
    *   queue: Array<string>,
+   *   identity: SessionIdentity | undefined,
+   *   usedGiftHandoffs: Array<string>,
    *   send: (bytes: Uint8Array) => void,
    *   attached: boolean,
    *   remote: boolean,
@@ -200,6 +228,24 @@ export const makeOcapnHub = ({
 
   /** @type {Map<string, string>} swissnum hex -> refId */
   const publications = new Map();
+
+  /**
+   * Deposited third-party gifts:
+   * `${gifterSessionId}:${giftId}` (hex) -> refId. A gift pins its row
+   * like a publication until withdrawn.
+   *
+   * @type {Map<string, string>}
+   */
+  const gifts = new Map();
+
+  /**
+   * Resolver rows awaiting a gift's deposit (withdrawals that arrived
+   * first): gift key -> resolver refIds to fulfill on deposit. The
+   * withdrawers' answer routes carry the same key as `{ gift }`.
+   *
+   * @type {Map<string, Array<string>>}
+   */
+  const giftWaiters = new Map();
 
   let dirty = false;
 
@@ -284,9 +330,15 @@ export const makeOcapnHub = ({
         processedUpTo: session.processedUpTo,
         durable: session.durable,
         queue: [...session.queue],
+        identity: session.identity,
+        usedGiftHandoffs: [...session.usedGiftHandoffs],
       };
     }
     state.publications = Object.fromEntries(publications);
+    state.gifts = Object.fromEntries(gifts);
+    state.giftWaiters = Object.fromEntries(
+      [...giftWaiters.entries()].map(([key, list]) => [key, [...list]]),
+    );
     store.setState(state);
   };
 
@@ -305,6 +357,8 @@ export const makeOcapnHub = ({
         processedUpTo: 0,
         durable: false,
         queue: [],
+        identity: undefined,
+        usedGiftHandoffs: [],
         send: () => {
           throw Error(`ocapn hub: session ${sessionKey} is not attached`);
         },
@@ -358,6 +412,8 @@ export const makeOcapnHub = ({
       session.processedUpTo = Number(sd.processedUpTo ?? 0);
       session.durable = Boolean(sd.durable);
       session.queue = [...(sd.queue ?? [])];
+      session.identity = sd.identity;
+      session.usedGiftHandoffs = [...(sd.usedGiftHandoffs ?? [])];
       for (const [position, refId] of session.ourExports.entries()) {
         const row = refs.get(refId);
         if (row !== undefined) {
@@ -367,6 +423,12 @@ export const makeOcapnHub = ({
     }
     for (const [swissnum, refId] of Object.entries(state.publications ?? {})) {
       publications.set(swissnum, /** @type {string} */ (refId));
+    }
+    for (const [giftKey, refId] of Object.entries(state.gifts ?? {})) {
+      gifts.set(giftKey, /** @type {string} */ (refId));
+    }
+    for (const [giftKey, list] of Object.entries(state.giftWaiters ?? {})) {
+      giftWaiters.set(giftKey, [.../** @type {Array<string>} */ (list)]);
     }
     dirty = false;
   };
@@ -507,9 +569,22 @@ export const makeOcapnHub = ({
         return true;
       }
     }
+    for (const deposited of gifts.values()) {
+      if (deposited === refId) {
+        return true;
+      }
+    }
+    for (const waiters of giftWaiters.values()) {
+      if (waiters.includes(refId)) {
+        return true;
+      }
+    }
     for (const session of sessions.values()) {
       for (const route of session.answersOwed.values()) {
-        if ('ref' in route ? route.ref === refId : route.local === refId) {
+        if ('ref' in route && route.ref === refId) {
+          return true;
+        }
+        if ('local' in route && route.local === refId) {
           return true;
         }
       }
@@ -617,6 +692,12 @@ export const makeOcapnHub = ({
         }
         if ('ref' in route) {
           return refTokenFor(route.ref);
+        }
+        if ('done' in route) {
+          return makeToken({ kind: 'doneAnswer' });
+        }
+        if ('gift' in route) {
+          return makeToken({ kind: 'pendingGift', giftKey: route.gift });
         }
         return makeToken({
           kind: 'localAnswer',
@@ -841,6 +922,140 @@ export const makeOcapnHub = ({
   // --- the hub's one piece of endpoint behavior: bootstrap fetch ---
 
   /**
+   * Whether any session's answer route is waiting on this gift key.
+   *
+   * @param {string} giftKey
+   */
+  const hasGiftRoute = giftKey => {
+    for (const session of sessions.values()) {
+      for (const route of session.answersOwed.values()) {
+        if ('gift' in route && route.gift === giftKey) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  /**
+   * Fulfill everyone waiting on a gift's deposit: withdrawers' answer
+   * routes settle to the gift, and their resolvers hear the
+   * fulfillment.
+   *
+   * @param {string} giftKey
+   * @param {string} refId the deposited gift's row
+   */
+  const settleGiftWaiters = (giftKey, refId) => {
+    for (const waiting of sessions.values()) {
+      for (const [position, route] of waiting.answersOwed.entries()) {
+        if ('gift' in route && route.gift === giftKey) {
+          waiting.answersOwed.set(position, { local: refId });
+          dirty = true;
+        }
+      }
+    }
+    const waiters = giftWaiters.get(giftKey);
+    if (waiters !== undefined) {
+      giftWaiters.delete(giftKey);
+      dirty = true;
+      for (const resolverRefId of waiters) {
+        const resolverRow = refs.get(resolverRefId);
+        if (resolverRow === undefined || resolverRow.dead) {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        settleToResolver(
+          resolverRow.origin,
+          refTokenFor(resolverRefId),
+          'fulfill',
+          refTokenFor(refId),
+        );
+      }
+    }
+  };
+
+  /**
+   * The hub bootstrap's gift half: verify a withdrawal's signature
+   * chain against the attached sessions' identities and return the
+   * gift's row, the key to wait on, or throw the verification error.
+   *
+   * @param {SessionState} session the withdrawing session
+   * @param {any} signedHandoffReceive
+   * @returns {{ giftKey: string }}
+   */
+  const verifyWithdrawal = (session, signedHandoffReceive) => {
+    if (cryptography === undefined) {
+      throw Error('ocapn hub: gift handling requires cryptography');
+    }
+    const { identity } = session;
+    if (identity === undefined) {
+      throw Error('ocapn hub: the withdrawing session has no wire identity');
+    }
+    const { object: handoffReceive, signature: handoffReceiveSig } =
+      signedHandoffReceive;
+    const { signedGive, receivingSession, receivingSide, handoffCount } =
+      handoffReceive;
+    const { object: handoffGive, signature: handoffGiveSig } = signedGive;
+    const {
+      giftId,
+      receiverKey,
+      exporterSessionId: gifterSessionId,
+    } = handoffGive;
+
+    // Our peer must be the authorized receiver, on this same session.
+    // (Bytestrings in this codec are ArrayBuffers, not views.)
+    const peerPublicKey = cryptography.makeOcapnPublicKey(
+      bytesFromHex(identity.peerPublicKeyQ).buffer,
+    );
+    if (hexFromBytes(receivingSide) !== hexFromBytes(peerPublicKey.id)) {
+      throw Error('ocapn hub: withdraw-gift: receiver key mismatch');
+    }
+    if (hexFromBytes(receivingSession) !== identity.sessionId) {
+      throw Error('ocapn hub: withdraw-gift: session id mismatch');
+    }
+
+    // The give must be signed by the gifter's key in ITS session with
+    // the hub.
+    const gifterSessionIdHex = hexFromBytes(gifterSessionId);
+    /** @type {SessionState | undefined} */
+    let gifterSession;
+    for (const candidate of sessions.values()) {
+      if (candidate.identity?.sessionId === gifterSessionIdHex) {
+        gifterSession = candidate;
+        break;
+      }
+    }
+    if (gifterSession === undefined || gifterSession.identity === undefined) {
+      throw Error('ocapn hub: withdraw-gift: unknown gifter session');
+    }
+    const gifterPublicKey = cryptography.makeOcapnPublicKey(
+      bytesFromHex(gifterSession.identity.peerPublicKeyQ).buffer,
+    );
+    cryptography.assertHandoffGiveSignatureValid(
+      handoffGive,
+      handoffGiveSig,
+      gifterPublicKey,
+    );
+
+    // The receive must be signed by the receiver key named in the give.
+    const receiverKeyForGifter =
+      cryptography.publicKeyDescriptorToPublicKey(receiverKey);
+    cryptography.assertHandoffReceiveSignatureValid(
+      handoffReceive,
+      handoffReceiveSig,
+      receiverKeyForGifter,
+    );
+
+    const countKey = String(handoffCount);
+    if (session.usedGiftHandoffs.includes(countKey)) {
+      throw Error('ocapn hub: withdraw-gift: gift handoff already used');
+    }
+    session.usedGiftHandoffs.push(countKey);
+    dirty = true;
+    return { giftKey: `${gifterSessionIdHex}:${hexFromBytes(giftId)}` };
+  };
+
+  /**
    * @param {string} sessionKey
    * @param {any} message the op:deliver targeting this session's hub
    *   bootstrap
@@ -848,21 +1063,29 @@ export const makeOcapnHub = ({
   const handleBootstrapDeliver = (sessionKey, message) => {
     const session = provideSessionState(sessionKey);
     const { args, answerPosition, resolveMeDesc } = message;
-    /** @param {any} outcome ['fulfill', ref] or ['break', error] */
+    /**
+     * @param {any} outcome ['fulfill', ref], ['fulfill'] (no value), or
+     *   ['break', error]
+     */
     const respond = outcome => {
       const [verb, value] = outcome;
+      /** @type {AnswerRoute} */
+      let route;
+      if (verb === 'fulfill') {
+        route =
+          value === undefined
+            ? { done: true }
+            : { local: infoOf(value).refId };
+      } else {
+        route = {
+          local: null,
+          reason:
+            value === undefined
+              ? 'ocapn hub: the answer is broken'
+              : String(/** @type {Error} */ (value).message ?? value),
+        };
+      }
       if (answerPosition !== false && answerPosition !== undefined) {
-        /** @type {AnswerRoute} */
-        const route =
-          verb === 'fulfill' && value !== undefined
-            ? { local: infoOf(value).refId }
-            : {
-                local: null,
-                reason:
-                  value === undefined
-                    ? 'ocapn hub: the answer is broken'
-                    : String(/** @type {Error} */ (value).message ?? value),
-              };
         session.answersOwed.set(String(answerPosition), route);
         dirty = true;
       }
@@ -873,21 +1096,114 @@ export const makeOcapnHub = ({
       }
     };
     const methodName = getSelectorName(args[0]);
-    if (methodName !== 'fetch') {
-      respond([
-        'break',
-        harden(Error(`ocapn hub: bootstrap has no method ${methodName}`)),
-      ]);
-      return;
+    switch (methodName) {
+      case 'fetch': {
+        const swissnum = hexFromBytes(args[1]);
+        const refId = publications.get(swissnum);
+        const row = refId === undefined ? undefined : refs.get(refId);
+        if (row === undefined || row.dead) {
+          respond([
+            'break',
+            harden(Error('ocapn hub: fetch: secret not found')),
+          ]);
+          return;
+        }
+        respond(['fulfill', refTokenFor(row.refId)]);
+        return;
+      }
+      case 'deposit-gift': {
+        // The gifter parks a reference for a receiver to withdraw
+        // (the hub is the "exporter" of everything it fronts).
+        const { identity } = session;
+        if (identity === undefined) {
+          respond([
+            'break',
+            harden(
+              Error('ocapn hub: deposit-gift: session has no wire identity'),
+            ),
+          ]);
+          return;
+        }
+        /** @type {string} */
+        let refId;
+        try {
+          refId = rowOfInfo(infoOf(args[2])).refId;
+        } catch (error) {
+          respond([
+            'break',
+            harden(Error('ocapn hub: deposit-gift: gift must be a reference')),
+          ]);
+          return;
+        }
+        const giftKey = `${identity.sessionId}:${hexFromBytes(args[1])}`;
+        if (giftWaiters.has(giftKey) || hasGiftRoute(giftKey)) {
+          settleGiftWaiters(giftKey, refId);
+          respond(['fulfill']);
+          return;
+        }
+        if (gifts.has(giftKey)) {
+          respond([
+            'break',
+            harden(Error('ocapn hub: deposit-gift: gift already exists')),
+          ]);
+          return;
+        }
+        gifts.set(giftKey, refId);
+        dirty = true;
+        respond(['fulfill']);
+        return;
+      }
+      case 'withdraw-gift': {
+        /** @type {string} */
+        let giftKey;
+        try {
+          ({ giftKey } = verifyWithdrawal(session, args[1]));
+        } catch (error) {
+          respond([
+            'break',
+            harden(Error(String(/** @type {Error} */ (error).message))),
+          ]);
+          return;
+        }
+        const refId = gifts.get(giftKey);
+        if (refId !== undefined) {
+          gifts.delete(giftKey);
+          dirty = true;
+          const row = refs.get(refId);
+          if (row === undefined || row.dead) {
+            respond([
+              'break',
+              harden(Error('ocapn hub: withdraw-gift: the gift has died')),
+            ]);
+            return;
+          }
+          respond(['fulfill', refTokenFor(refId)]);
+          return;
+        }
+        // Withdrawn before deposited: the answer waits on the gift
+        // key, and any resolver hears the eventual deposit.
+        if (answerPosition !== false && answerPosition !== undefined) {
+          session.answersOwed.set(String(answerPosition), { gift: giftKey });
+          dirty = true;
+        }
+        if (resolveMeDesc !== false && resolveMeDesc !== undefined) {
+          const resolverRefId = infoOf(resolveMeDesc).refId;
+          const waiters = giftWaiters.get(giftKey) ?? [];
+          if (!waiters.includes(resolverRefId)) {
+            waiters.push(resolverRefId);
+            giftWaiters.set(giftKey, waiters);
+            dirty = true;
+          }
+        }
+        persist();
+        return;
+      }
+      default:
+        respond([
+          'break',
+          harden(Error(`ocapn hub: bootstrap has no method ${methodName}`)),
+        ]);
     }
-    const swissnum = hexFromBytes(args[1]);
-    const refId = publications.get(swissnum);
-    const row = refId === undefined ? undefined : refs.get(refId);
-    if (row === undefined || row.dead) {
-      respond(['break', harden(Error('ocapn hub: fetch: secret not found'))]);
-      return;
-    }
-    respond(['fulfill', refTokenFor(row.refId)]);
   };
 
   // --- routing ---
@@ -898,12 +1214,20 @@ export const makeOcapnHub = ({
    * @param {any} target
    * @returns {{ kind: 'bootstrap' }
    *   | { kind: 'broken', reason: string }
+   *   | { kind: 'done' }
+   *   | { kind: 'pendingGift', giftKey: string }
    *   | { kind: 'row', row: RefRow, settled: boolean }}
    */
   const resolveTarget = target => {
     const info = infoOf(target);
     if (info.kind === 'bootstrap') {
       return { kind: 'bootstrap' };
+    }
+    if (info.kind === 'doneAnswer') {
+      return { kind: 'done' };
+    }
+    if (info.kind === 'pendingGift') {
+      return { kind: 'pendingGift', giftKey: info.giftKey };
     }
     if (info.kind === 'localAnswer') {
       if (info.refId === null) {
@@ -984,6 +1308,22 @@ export const makeOcapnHub = ({
           breakToSender(sessionKey, message, target.reason);
           return;
         }
+        if (target.kind === 'done') {
+          breakToSender(
+            sessionKey,
+            message,
+            'ocapn hub: the answer settled to a non-reference value',
+          );
+          return;
+        }
+        if (target.kind === 'pendingGift') {
+          breakToSender(
+            sessionKey,
+            message,
+            'ocapn hub: cannot pipeline onto an undeposited gift',
+          );
+          return;
+        }
         const { row } = target;
         const unreachable = unreachableReason(row);
         if (unreachable !== undefined) {
@@ -1035,16 +1375,24 @@ export const makeOcapnHub = ({
       case 'op:index':
       case 'op:untag': {
         const target = resolveTarget(message.receiverDesc);
-        if (target.kind === 'bootstrap') {
+        if (target.kind === 'bootstrap' || target.kind === 'pendingGift') {
           breakToSender(
             sessionKey,
             message,
-            `ocapn hub: ${message.type} is not supported on the hub bootstrap`,
+            `ocapn hub: ${message.type} is not supported on this target`,
           );
           return;
         }
         if (target.kind === 'broken') {
           breakToSender(sessionKey, message, target.reason);
+          return;
+        }
+        if (target.kind === 'done') {
+          breakToSender(
+            sessionKey,
+            message,
+            'ocapn hub: the answer settled to a non-reference value',
+          );
           return;
         }
         const { row } = target;
@@ -1096,6 +1444,23 @@ export const makeOcapnHub = ({
         }
         if (target.kind === 'broken') {
           breakToSender(sessionKey, message, target.reason);
+          return;
+        }
+        if (target.kind === 'done') {
+          // The answer fulfilled with no reference value.
+          settleToResolver(sessionKey, message.resolveMeDesc, 'fulfill');
+          return;
+        }
+        if (target.kind === 'pendingGift') {
+          // Hear the deposit when it lands.
+          const resolverRefId = infoOf(message.resolveMeDesc).refId;
+          const waiters = giftWaiters.get(target.giftKey) ?? [];
+          if (!waiters.includes(resolverRefId)) {
+            waiters.push(resolverRefId);
+            giftWaiters.set(target.giftKey, waiters);
+            dirty = true;
+          }
+          persist();
           return;
         }
         const { row, settled } = target;
@@ -1192,7 +1557,13 @@ export const makeOcapnHub = ({
           }
           session.answersOwed.delete(key);
           dirty = true;
-          const refId = 'ref' in route ? route.ref : route.local;
+          /** @type {string | null | undefined} */
+          let refId;
+          if ('ref' in route) {
+            refId = route.ref;
+          } else if ('local' in route) {
+            refId = route.local;
+          }
           if (refId !== null && refId !== undefined) {
             const row = refs.get(refId);
             if (row !== undefined) {
@@ -1278,6 +1649,8 @@ export const makeOcapnHub = ({
     session.nextAnswer = 1n;
     session.processedUpTo = 0;
     session.queue.length = 0;
+    session.identity = undefined;
+    session.usedGiftHandoffs.length = 0;
     for (const [swissnum, refId] of [...publications.entries()]) {
       const row = refs.get(refId);
       if (row !== undefined && row.origin === sessionKey) {
@@ -1342,10 +1715,20 @@ export const makeOcapnHub = ({
      *   instead of being dropped (the policy for sessions from beyond
      *   the process boundary)
      * @param {(error: unknown) => void} [powers.onAbort]
+     * @param {{ sessionId: Uint8Array | ArrayBufferLike, peerPublicKeyQ: Uint8Array | ArrayBufferLike }} [powers.identity]
+     *   the session's wire identity from the embedder's handshake;
+     *   omitted on reattach, the persisted identity carries over (a
+     *   resumed session keeps its keys)
      */
     attachSession: (
       sessionKey,
-      { send, durable = false, remote = false, onAbort = undefined },
+      {
+        send,
+        durable = false,
+        remote = false,
+        onAbort = undefined,
+        identity = undefined,
+      },
     ) => {
       const session = provideSessionState(sessionKey);
       session.send = send;
@@ -1353,6 +1736,12 @@ export const makeOcapnHub = ({
       session.durable = durable;
       session.remote = remote;
       session.onAbort = onAbort;
+      if (identity !== undefined) {
+        session.identity = {
+          sessionId: hexFromBytes(identity.sessionId),
+          peerPublicKeyQ: hexFromBytes(identity.peerPublicKeyQ),
+        };
+      }
       dirty = true;
       persist();
       while (session.queue.length > 0) {

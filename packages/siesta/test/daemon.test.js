@@ -14,6 +14,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { E } from '@endo/eventual-send';
+import { Far } from '@endo/far';
+import { makeOcapn } from '@endo/ocapn';
 import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
 
@@ -160,4 +162,83 @@ test('an idle worker parks itself and wakes on the next call', async t => {
   }
   t.false(worker.isAwake(), 'the worker parked itself');
   t.is(await E(counter).incr(), 2, 'the next delivery wakes it');
+});
+
+test('a third-party gift routes through the hub bootstrap', async t => {
+  t.timeout(15_000);
+  const statePath = await mkdtemp(join(tmpdir(), 'siesta-daemon-gift-'));
+  t.teardown(() => rm(statePath, { recursive: true, force: true }));
+  const daemon = await makeSiestaDaemon({
+    store: makeFsStore(statePath),
+    engine: makePeerJournalReplayEngine(),
+    codec: syrupCodec,
+    // The tcp-testing netlayer distinguishes peers by designator; each
+    // node in a three-party exchange needs its own.
+    makeNetlayer: ({ handlers, logger }) =>
+      makeTcpNetLayer({ handlers, logger, specifiedDesignator: 'daemon' }),
+  });
+  t.teardown(() => daemon.shutdown());
+  const worker = await daemon.createWorker({ debugLabel: 'giftee' });
+  const counter = await worker.evaluate(COUNTER_SOURCE);
+  const secret = daemon.publish(counter);
+
+  // The receiver: an ordinary TCP peer that exports a taker; when
+  // handed a reference, it calls through it.
+  /** @type {Map<string, any>} */
+  const receiverLocator = new Map();
+  /** @type {any} */
+  let receiverNetlayer;
+  const receiver = await makeOcapn({
+    codec: syrupCodec,
+    debugLabel: 'gift-receiver',
+    locator: receiverLocator,
+    network: async (
+      /** @type {any} */ handlers,
+      /** @type {any} */ logger,
+    ) => {
+      receiverNetlayer = await makeTcpNetLayer({
+        handlers,
+        logger,
+        specifiedDesignator: 'receiver',
+      });
+      return receiverNetlayer;
+    },
+  });
+  t.teardown(() => receiver.shutdown());
+  receiverLocator.set(
+    'taker',
+    Far('Taker', {
+      /** @param {any} thing */
+      take: thing => E(thing).incr(),
+    }),
+  );
+
+  // The gifter: another TCP peer, holding the daemon-fronted counter.
+  const gifter = await makeOcapn({
+    codec: syrupCodec,
+    debugLabel: 'gifter',
+    network: (/** @type {any} */ handlers, /** @type {any} */ logger) =>
+      makeTcpNetLayer({ handlers, logger, specifiedDesignator: 'gifter' }),
+  });
+  t.teardown(() => gifter.shutdown());
+  const counterAtGifter = await gifter.enlivenSturdyRef(
+    gifter.makeSturdyRef(daemon.location, secret),
+  );
+  t.is(await E(counterAtGifter).incr(), 1);
+
+  // Passing the daemon-fronted counter to the receiver is a
+  // third-party handoff with the daemon as exporter: the gifter
+  // deposits the gift on the hub bootstrap, the receiver withdraws it
+  // there (signature chain verified against the sessions' handshake
+  // identities), and the withdrawn reference routes receiver -> hub ->
+  // worker.
+  const taker = await gifter.enlivenSturdyRef(
+    gifter.makeSturdyRef(receiverNetlayer.location, 'taker'),
+  );
+  t.is(
+    await E(taker).take(counterAtGifter),
+    2,
+    'the withdrawn gift reaches the worker through the hub',
+  );
+  t.is(await E(counterAtGifter).incr(), 3, 'same counter, same state');
 });

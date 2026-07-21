@@ -120,12 +120,14 @@ export const makeSiestaDaemon = async ({
       (...args) => console.error('siesta daemon:', ...args)
     : () => {};
 
+  const cryptography = makeCryptography(codec);
   const hub = makeOcapnHub({
     codec,
     store: harden({
       getState: () => store.getHubState(),
       setState: (/** @type {any} */ state) => store.setHubState(state),
     }),
+    cryptography,
   });
 
   /** @type {Map<string, { transport: any, sink: any, shellP?: Promise<any> }>} */
@@ -248,7 +250,6 @@ export const makeSiestaDaemon = async ({
 
   /** @type {Map<object, { deliver: any, detach: any, key: string } | undefined>} */
   const connectionSessions = new Map();
-  const cryptography = makeCryptography(codec);
 
   /** @type {any} */
   const netlayerRef = {};
@@ -256,8 +257,10 @@ export const makeSiestaDaemon = async ({
   /**
    * @param {any} connection
    * @param {string} sessionKey
+   * @param {{ sessionId: any, peerPublicKeyQ: any }} [identity] the
+   *   wire identity from the handshake; omitted on resume
    */
-  const bindConnectionToHub = (connection, sessionKey) => {
+  const bindConnectionToHub = (connection, sessionKey, identity = undefined) => {
     const sink = hub.attachSession(sessionKey, {
       send: (/** @type {Uint8Array} */ bytes) => connection.write(bytes),
       // Only resumable peers are durable: frames toward them queue
@@ -267,6 +270,10 @@ export const makeSiestaDaemon = async ({
       // session and drops the connection.
       remote: true,
       onAbort: () => connection.end(),
+      // The wire identity from the handshake, against which the hub
+      // verifies gift handoff signatures. On resume (no handshake)
+      // the persisted identity carries over.
+      identity,
     });
     connectionSessions.set(connection, {
       deliver: sink.deliver,
@@ -354,9 +361,7 @@ export const makeSiestaDaemon = async ({
           keyPair,
           new ArrayBuffer(0),
         );
-        // Computed for protocol fidelity; the hub itself keys sessions
-        // by resume token or connection, not by session id.
-        makeSessionId(keyPair.publicKey.id, peerPublicKey.id);
+        const sessionId = makeSessionId(keyPair.publicKey.id, peerPublicKey.id);
         connection.write(
           writeOcapnHandshakeMessage(
             {
@@ -369,7 +374,10 @@ export const makeSiestaDaemon = async ({
             codec,
           ),
         );
-        bindConnectionToHub(connection, sessionKeyForConnection(connection));
+        bindConnectionToHub(connection, sessionKeyForConnection(connection), {
+          sessionId,
+          peerPublicKeyQ: message.sessionPublicKey.q,
+        });
       } catch (error) {
         logError('handshake failed:', error);
         connection.write(
