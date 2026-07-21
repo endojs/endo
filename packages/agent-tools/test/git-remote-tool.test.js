@@ -157,6 +157,38 @@ for (const name of ['inspect', 'fetch', 'pull', 'push']) {
   });
 }
 
+// The agreement above holds on the presence/shape axis because both the schema
+// and the guard treat `options` as an open record. On the value-type axis they
+// deliberately diverge: the guard is `M.recordOf(M.string(), M.any())` (any
+// value for any key), while the schema types each documented option
+// (boolean/enum/string). A well-formed options record carrying a wrong-typed
+// documented key is therefore rejected by the schema and accepted by the guard.
+// Pin that asymmetry so a future schema/guard change cannot silently erase the
+// stricter-schema documentation the model relies on.
+const schemaStricterRecords = harden({
+  fetch: [{ options: { prune: 'yes' } }, { options: { tags: 1 } }],
+  pull: [{ options: { strategy: 'squash' } }, { options: { branch: 42 } }],
+  push: [{ options: { force: 'yes' } }, { options: { setUpstream: 'x' } }],
+});
+for (const [name, records] of Object.entries(schemaStricterRecords)) {
+  test(`schema is stricter than the open guard for gitRemote.${name}`, t => {
+    const tool = toolsByName()[name];
+    const shape = guardShapeFor(name);
+    const paramNames = paramNamesOf(tool);
+    const validate = ajv.compile(tool.parameters);
+    for (const record of records) {
+      t.false(
+        validate({ ...record }),
+        `schema should reject ${JSON.stringify(record)}`,
+      );
+      t.true(
+        guardAccepts(shape, paramNames, record),
+        `open guard should accept ${JSON.stringify(record)}`,
+      );
+    }
+  });
+}
+
 // --- dispatch forwarding -----------------------------------------------------
 
 const makeFakeRemote = () => {
@@ -224,6 +256,27 @@ test('an omitted options record dispatches with zero arguments', async t => {
   t.deepEqual(calls, [
     { method: 'fetch', args: [] },
     { method: 'inspect', args: [] },
+  ]);
+});
+
+test('a present-but-empty options record forwards as a single empty record', async t => {
+  const { remote, calls } = makeFakeRemote();
+  /** @type {Record<string, ToolRecord>} */
+  const byName = {};
+  for (const tool of makeGitRemoteTool(/** @type {any} */ (remote))) {
+    byName[tool.name] = tool;
+  }
+
+  // `{ options: {} }` is a distinct boundary from an omitted record: only a
+  // trailing `undefined` is dropped, so a present empty record forwards as
+  // fetch({}) (arity 1), whereas `{ options: undefined }` collapses to fetch()
+  // (arity 0), the same as omitting it.
+  await byName.fetch.invoke({ options: {} });
+  await byName.pull.invoke({ options: undefined });
+
+  t.deepEqual(calls, [
+    { method: 'fetch', args: [{}] },
+    { method: 'pull', args: [] },
   ]);
 });
 

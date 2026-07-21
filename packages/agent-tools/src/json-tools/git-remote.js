@@ -34,8 +34,11 @@ import { makeTool } from '../tool.js';
  * Unlike `makeGitMountTools`, these methods are JSON-transparent: every option
  * in and every result out (structured `updatedRefs` / `integration` / `head`
  * records) is plain data, carrying no live capability across the wire, so the
- * tools map one-to-one onto their `GitRemoteInterface` guards and the
- * divergence gate pins that parity (`test/git-remote-tool.test.js`).
+ * tools' option records map onto their `GitRemoteInterface` guards on the
+ * presence and shape axis, which the divergence gate pins. The hand-authored
+ * schema is intentionally stricter than the open guard on option value types
+ * (it documents types the exo does not re-check); the gate pins that asymmetry
+ * too (`test/git-remote-tool.test.js`).
  */
 
 const NO_ARGS = harden({
