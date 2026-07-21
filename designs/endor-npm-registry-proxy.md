@@ -9,21 +9,39 @@
 
 ## Status
 
-Phases 1 and 3 implemented:
+Phases 1–3 implemented, plus the resolver half of Phase 4:
 
 - **Phase 1**: `rust/endo/src/registry.rs` — SQLite-backed
   `RegistryTable` with `lookup`, `insert`, `list_versions`,
   `get_meta`/`set_meta`, `count`. Schema matches the design:
   `packages(name, version, hash, integrity, fetched_at)` and
   `package_meta(name, versions_json, fetched_at)`.
+- **Phase 2**: `rust/endo/src/fetch.rs` — registry metadata
+  fetch (cached in `package_meta`), tarball download, SHA-512
+  SRI verification, extraction into the CAS as blob/tree
+  manifests, registry-table recording. `HttpClient` trait with
+  a `ureq` production client.
 - **Phase 3**: `rust/endo/src/semver.rs` — `Version` parsing
   with ordering, `Range` parsing with `^`, `~`, `>=`, `<`, `<=`,
-  `*`, exact versions, and space-separated AND composites.
+  `*`, exact versions, space-separated AND composites, and
+  partial/wildcard forms (`2`, `2.1`, `2.x`, `>=2`, `~0`).
   `select_versions` implements Go-like MVS: greatest available
   version per major satisfying all ranges.
+- **Phase 4 (resolver half)**: `rust/endo/src/npm_resolve.rs` —
+  `resolve_transitive` drives fetch + MVS to a fixpoint over the
+  transitive dependency graph: ranges accumulate per package,
+  each range anchors to a major, each anchor group selects the
+  greatest satisfying version of that major (distinct majors
+  coexist), and every selected package's `package.json` is read
+  back out of its CAS tree to fold its `dependencies` into the
+  requirement set. Exposed as `endor npm-resolve
+  [--registry <url>] <name[@range]>...`. A fully cached graph
+  resolves with zero network traffic — the registry table and
+  CAS acting as the npm-registry proxy this design names.
 
-Remaining: Phase 2 (HTTP client for package fetching), Phase 4
-(compartment mapper integration), Phase 5 (offline mode, .npmrc).
+Remaining: Phase 4 (compartment-mapper `moduleMapHook` /
+`importHook` wiring so `endor run entry.js` loads the resolved
+modules from the CAS), Phase 5 (offline flag, .npmrc).
 
 ## What is the Problem Being Solved?
 

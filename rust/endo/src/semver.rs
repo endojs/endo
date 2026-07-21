@@ -96,6 +96,9 @@ enum Comparator {
     Lte(Version),
     /// `=1.2.3` or just `1.2.3`
     Exact(Version),
+    /// A partial version's whole prefix (`2`, `2.x`, `~0`):
+    /// `floor <= v < ceiling`.
+    Prefix { floor: Version, ceiling: Version },
     /// `*` — any version
     Any,
 }
@@ -146,42 +149,151 @@ impl Range {
     }
 }
 
+/// A possibly partial version: the numeric segments that were
+/// explicitly written (`"2"`, `"2.1"`, `"2.x"`, `"2.1.3"`), with
+/// unwritten segments zero-filled and `specified` recording how many
+/// were given. Wildcard segments (`x`, `X`, `*`) end the specified
+/// prefix.
+struct Partial {
+    version: Version,
+    specified: u8,
+}
+
+fn parse_partial(s: &str) -> Option<Partial> {
+    let s = s.trim();
+    let s = s.strip_prefix('v').unwrap_or(s);
+    if s.is_empty() {
+        return None;
+    }
+    let (version_part, pre) = if let Some(idx) = s.find('-') {
+        (&s[..idx], s[idx + 1..].to_string())
+    } else {
+        (s, String::new())
+    };
+    let mut nums = [0u64; 3];
+    let mut specified: u8 = 0;
+    for part in version_part.split('.').take(3) {
+        if matches!(part, "x" | "X" | "*") {
+            break;
+        }
+        nums[specified as usize] = part.parse().ok()?;
+        specified += 1;
+    }
+    if specified == 0 {
+        return None;
+    }
+    // A pre-release tag only makes sense on a full version.
+    if !pre.is_empty() && specified < 3 {
+        return None;
+    }
+    Some(Partial {
+        version: Version {
+            major: nums[0],
+            minor: nums[1],
+            patch: nums[2],
+            pre,
+        },
+        specified,
+    })
+}
+
+impl Partial {
+    /// The smallest version strictly above every version sharing
+    /// this partial's written prefix: increment the last specified
+    /// segment and zero the rest (`2` → `3.0.0`, `2.1` → `2.2.0`,
+    /// `2.1.3` → `2.1.4`).
+    fn bump(&self) -> Version {
+        let mut v = Version {
+            major: self.version.major,
+            minor: self.version.minor,
+            patch: self.version.patch,
+            pre: String::new(),
+        };
+        match self.specified {
+            1 => {
+                v.major += 1;
+                v.minor = 0;
+                v.patch = 0;
+            }
+            2 => {
+                v.minor += 1;
+                v.patch = 0;
+            }
+            _ => v.patch += 1,
+        }
+        v
+    }
+
+    /// The half-open interval covering every version sharing this
+    /// partial's written prefix (`2` / `2.x` → `>=2.0.0 <3.0.0`).
+    /// Correct for major 0, where the Caret comparator's
+    /// leftmost-nonzero rule would collapse `0` to `0.0.0` only.
+    fn prefix_comparator(&self) -> Comparator {
+        Comparator::Prefix {
+            floor: self.version.clone(),
+            ceiling: self.bump(),
+        }
+    }
+}
+
 fn parse_comparator(s: &str) -> Option<Comparator> {
     let s = s.trim();
-    if s == "*" {
+    if matches!(s, "*" | "x" | "X") {
         return Some(Comparator::Any);
     }
     if let Some(rest) = s.strip_prefix("^") {
-        return Version::parse(rest).map(Comparator::Caret);
-    }
-    if let Some(rest) = s.strip_prefix("~") {
-        return Version::parse(rest).map(Comparator::Tilde);
-    }
-    if let Some(rest) = s.strip_prefix(">=") {
-        return Version::parse(rest).map(Comparator::Gte);
-    }
-    if let Some(rest) = s.strip_prefix("<=") {
-        return Version::parse(rest).map(Comparator::Lte);
-    }
-    if let Some(rest) = s.strip_prefix('>') {
-        // `>1.0.0` → gte next patch
-        return Version::parse(rest).map(|v| {
-            Comparator::Gte(Version {
-                major: v.major,
-                minor: v.minor,
-                patch: v.patch + 1,
-                pre: String::new(),
-            })
+        // `^2` / `^0` denote the whole written prefix (npm expands
+        // the wildcard before applying the leftmost-nonzero rule).
+        return parse_partial(rest).map(|p| {
+            if p.specified == 1 {
+                p.prefix_comparator()
+            } else {
+                Comparator::Caret(p.version)
+            }
         });
     }
+    if let Some(rest) = s.strip_prefix("~") {
+        // npm: `~2` accepts all of major 2; `~2.1` and deeper pin
+        // the minor.
+        return parse_partial(rest).map(|p| {
+            if p.specified == 1 {
+                p.prefix_comparator()
+            } else {
+                Comparator::Tilde(p.version)
+            }
+        });
+    }
+    if let Some(rest) = s.strip_prefix(">=") {
+        return parse_partial(rest).map(|p| Comparator::Gte(p.version));
+    }
+    if let Some(rest) = s.strip_prefix("<=") {
+        // A partial upper bound is inclusive of its whole prefix:
+        // `<=2.1` accepts any 2.1.x, i.e. `<2.2.0`.
+        return parse_partial(rest).map(|p| {
+            if p.specified < 3 {
+                Comparator::Lt(p.bump())
+            } else {
+                Comparator::Lte(p.version)
+            }
+        });
+    }
+    if let Some(rest) = s.strip_prefix('>') {
+        // Strictly above the whole written prefix: `>2` → `>=3.0.0`,
+        // `>1.0.0` → `>=1.0.1`.
+        return parse_partial(rest).map(|p| Comparator::Gte(p.bump()));
+    }
     if let Some(rest) = s.strip_prefix('<') {
-        return Version::parse(rest).map(Comparator::Lt);
+        return parse_partial(rest).map(|p| Comparator::Lt(p.version));
     }
-    if let Some(rest) = s.strip_prefix('=') {
-        return Version::parse(rest).map(Comparator::Exact);
-    }
-    // Bare version string.
-    Version::parse(s).map(Comparator::Exact)
+    // Bare or `=`-prefixed version, possibly partial: a full version
+    // is exact; `2.1` accepts any 2.1.x; `2` / `2.x` accepts all of
+    // major 2.
+    let rest = s.strip_prefix('=').unwrap_or(s);
+    parse_partial(rest).map(|p| match p.specified {
+        1 => p.prefix_comparator(),
+        2 => Comparator::Tilde(p.version),
+        _ => Comparator::Exact(p.version),
+    })
 }
 
 fn satisfies_comparator(c: &Comparator, v: &Version) -> bool {
@@ -213,6 +325,7 @@ fn satisfies_comparator(c: &Comparator, v: &Version) -> bool {
             }
             v.major == target.major && v.minor == target.minor
         }
+        Comparator::Prefix { floor, ceiling } => v >= floor && v < ceiling,
     }
 }
 
@@ -391,5 +504,73 @@ mod tests {
         assert_eq!(v.to_string(), "1.2.3");
         let v = Version::parse("1.0.0-beta.1").unwrap();
         assert_eq!(v.to_string(), "1.0.0-beta.1");
+    }
+
+    fn accepts(range: &str, version: &str) -> bool {
+        Range::parse(range)
+            .unwrap()
+            .satisfies(&Version::parse(version).unwrap())
+    }
+
+    #[test]
+    fn bare_major_accepts_whole_major() {
+        assert!(accepts("2", "2.0.0"));
+        assert!(accepts("2", "2.9.1"));
+        assert!(!accepts("2", "3.0.0"));
+        assert!(!accepts("2", "1.9.0"));
+        // Major 0 covers all of 0.x, not just 0.0.0.
+        assert!(accepts("0", "0.4.2"));
+        assert!(!accepts("0", "1.0.0"));
+    }
+
+    #[test]
+    fn wildcard_partials() {
+        assert!(accepts("2.x", "2.5.0"));
+        assert!(!accepts("2.x", "3.0.0"));
+        assert!(accepts("1.2.x", "1.2.7"));
+        assert!(!accepts("1.2.x", "1.3.0"));
+        assert!(accepts("x", "9.9.9"));
+        assert!(accepts("2.X", "2.1.0"));
+        assert!(accepts("2.*", "2.1.0"));
+    }
+
+    #[test]
+    fn bare_major_minor_accepts_patch_level() {
+        assert!(accepts("2.1", "2.1.0"));
+        assert!(accepts("2.1", "2.1.9"));
+        assert!(!accepts("2.1", "2.2.0"));
+    }
+
+    #[test]
+    fn operator_partials() {
+        assert!(accepts(">=2", "2.0.0"));
+        assert!(accepts(">=2", "5.1.0"));
+        assert!(!accepts(">=2", "1.9.9"));
+        assert!(accepts("<3", "2.9.9"));
+        assert!(!accepts("<3", "3.0.0"));
+        // `>2` excludes all of major 2.
+        assert!(!accepts(">2", "2.9.9"));
+        assert!(accepts(">2", "3.0.0"));
+        // `<=2.1` includes every 2.1.x patch.
+        assert!(accepts("<=2.1", "2.1.9"));
+        assert!(!accepts("<=2.1", "2.2.0"));
+        assert!(accepts(">=1 <2", "1.5.0"));
+        assert!(!accepts(">=1 <2", "2.0.0"));
+    }
+
+    #[test]
+    fn tilde_and_caret_partials() {
+        // `~2` and `^2` both cover the whole major.
+        assert!(accepts("~2", "2.9.0"));
+        assert!(!accepts("~2", "3.0.0"));
+        assert!(accepts("^2", "2.9.0"));
+        // `^0` covers all of 0.x (wildcard expansion precedes the
+        // leftmost-nonzero caret rule).
+        assert!(accepts("^0", "0.4.2"));
+        assert!(!accepts("^0", "1.0.0"));
+        assert!(accepts("~2.1", "2.1.5"));
+        assert!(!accepts("~2.1", "2.2.0"));
+        assert!(accepts("^0.2", "0.2.9"));
+        assert!(!accepts("^0.2", "0.3.0"));
     }
 }

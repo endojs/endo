@@ -95,6 +95,7 @@ fn main() -> ExitCode {
         "stop" => result_to_exit("endor", cmd_stop()),
         "ping" => result_to_exit("endor", cmd_ping()),
         "gc" => result_to_exit("endor", cmd_gc()),
+        "npm-resolve" => result_to_exit("endor", cmd_npm_resolve(rest)),
         "-h" | "--help" => {
             print_help();
             ExitCode::SUCCESS
@@ -128,6 +129,11 @@ fn print_help() {
     eprintln!();
     eprintln!("Maintenance:");
     eprintln!("  gc                             Garbage-collect the CAS");
+    eprintln!();
+    eprintln!("NPM registry proxy:");
+    eprintln!("  npm-resolve [--registry <url>] <name[@range]>...");
+    eprintln!("                                 Resolve and fetch an npm dependency");
+    eprintln!("                                 graph into the CAS");
 }
 
 fn print_subcommand_help(sub: &str) {
@@ -207,6 +213,26 @@ fn print_subcommand_help(sub: &str) {
             eprintln!("Removes CAS entries that have zero retained references and");
             eprintln!("are not transitively referenced by any live tree root.");
             eprintln!("Safe to run while the daemon is stopped.");
+        }
+        "npm-resolve" => {
+            eprintln!("Usage: endor npm-resolve [--registry <url>] <name[@range]>...");
+            eprintln!();
+            eprintln!("Resolve an npm dependency graph and fetch it into the CAS.");
+            eprintln!();
+            eprintln!("Each spec is a package name with an optional semver range");
+            eprintln!("(default '*'), e.g. is-odd@^3.0.0 or @scope/pkg@~1.2.0.");
+            eprintln!("Transitive dependencies are resolved with Go-like minimal");
+            eprintln!("version selection, downloaded from the registry, verified,");
+            eprintln!("stored content-addressed in the CAS, and recorded in the");
+            eprintln!("registry table. Already-cached packages are never re-fetched,");
+            eprintln!("so a fully cached graph resolves without network access.");
+            eprintln!();
+            eprintln!("Prints one line per resolved package:");
+            eprintln!("  <name> <version> <tree-hash>");
+            eprintln!();
+            eprintln!("Options:");
+            eprintln!("  --registry <url>  Registry base URL");
+            eprintln!("                    (default: https://registry.npmjs.org/)");
         }
         "help" => {
             eprintln!("Usage: endor help [command]");
@@ -427,4 +453,69 @@ fn cmd_gc() -> Result<(), EndoError> {
         report.freed_count, report.freed_bytes
     );
     Ok(())
+}
+
+fn cmd_npm_resolve(args: &[String]) -> Result<(), EndoError> {
+    let registry_url = parse_flag_value(args, "--registry")
+        .unwrap_or(endo::fetch::DEFAULT_REGISTRY)
+        .to_string();
+
+    // Positional specs: every argument that is not a flag or a flag
+    // value.
+    let mut roots: Vec<(String, String)> = Vec::new();
+    let mut skip_next = false;
+    for a in args {
+        if skip_next {
+            skip_next = false;
+            continue;
+        }
+        if a == "--registry" || a == "-e" || a == "--engine" {
+            skip_next = true;
+            continue;
+        }
+        if a.starts_with("--") {
+            return Err(EndoError::Config(format!("unknown flag: {a}")));
+        }
+        roots.push(parse_package_spec(a));
+    }
+    if roots.is_empty() {
+        return Err(EndoError::Config(
+            "usage: endor npm-resolve [--registry <url>] <name[@range]>...".to_string(),
+        ));
+    }
+
+    let paths = endo::paths::resolve_paths()?;
+    std::fs::create_dir_all(&paths.state_path)
+        .map_err(|e| EndoError::Config(format!("state dir: {e}")))?;
+    let cas = endo::cas::ContentStore::open(&paths.state_path.join("store-sha256"))
+        .map_err(|e| EndoError::Config(format!("CAS open: {e}")))?;
+    let registry_table =
+        endo::registry::RegistryTable::open(&paths.state_path.join("registry.db"))
+            .map_err(|e| EndoError::Config(format!("registry table open: {e}")))?;
+
+    let http = endo::fetch::UreqClient::new();
+    let resolved = endo::npm_resolve::resolve_transitive(
+        &http,
+        &cas,
+        &registry_table,
+        &registry_url,
+        &roots,
+    )
+    .map_err(|e| EndoError::Config(format!("npm-resolve: {e}")))?;
+
+    for p in &resolved {
+        println!("{} {} {}", p.name, p.version, p.tree_hash);
+    }
+    eprintln!("endor npm-resolve: {} packages resolved", resolved.len());
+    Ok(())
+}
+
+/// Split a `name[@range]` spec, keeping the `@` of a scoped name
+/// (`@scope/pkg@^1.0.0` → (`@scope/pkg`, `^1.0.0`)). A bare name
+/// resolves as `*`.
+fn parse_package_spec(spec: &str) -> (String, String) {
+    match spec[1..].rfind('@') {
+        Some(i) => (spec[..i + 1].to_string(), spec[i + 2..].to_string()),
+        None => (spec.to_string(), "*".to_string()),
+    }
 }
