@@ -92,11 +92,12 @@ Durability is snapshot-keyed frame retention:
 
 - daemon→worker frames are journaled before they reach the duct, and
   retained until a snapshot commits (not until acknowledged);
-- wake = restore the snapshot and replay the journal suffix; the
-  worker deterministically regenerates the outbound frames that
-  suffix produced, and the daemon absorbs them with a persisted
-  watermark (written before each frame is processed — at-most-once
-  after a crash, never twice);
+- wake = restore the snapshot and replay the journal suffix; every
+  worker frame — live or replay-regenerated — carries a
+  session-lifetime sequence number (a base persisted with each
+  snapshot plus its index), and the hub's inbound watermark, which
+  commits atomically with the frame's effects, drops the duplicates
+  determinism regenerates: exactly once, never lost, never twice;
 - sleep = drain, snapshot, record `{ ref, cut }`, truncate the
   subsumed journal prefix, terminate. The OCapN session — and every
   live remote reference through it — stays live; the next inbound
@@ -235,9 +236,11 @@ const daemon = await makeSiestaDaemon({
 Wrap both peers.
 
 On the daemon side the sessions are also durable across **daemon
-restarts**: frame watermarks and unacknowledged outbound frames
-persist per resume token, and the session's state proper is its hub
-rows.
+restarts**: unacknowledged outbound frames persist per resume token,
+the session's state proper is its hub rows, and a resumed session
+reports the hub's committed receive watermark — the peer retransmits
+exactly what the hub has not absorbed, and the hub drops the overlap
+(exactly once).
 A successor process pins the same port; the peer's netlayer reconnects
 and resumes; the daemon rebinds the duct to the same hub session — no
 handshake, no re-seating, no worker wakes.
@@ -299,10 +302,10 @@ sleeping worker with no inbound traffic.
 
 Answers the daemon itself owes (host-resource computations) are
 at-most-once: a resolver obligation pending across a restart rejects
-(`pending answer aborted`) rather than hanging or re-executing.
+rather than hanging or re-executing.
 Relayed promises are not daemon obligations at all — their
-subscriptions live as durable forwarders and settle normally across
-restarts.
+subscriptions are hub rows and wire state in the endpoints, and
+settle normally across restarts.
 
 ## API
 

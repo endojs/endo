@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-07-16 |
-| **Updated** | 2026-07-21 |
+| **Updated** | 2026-07-22 |
 | **Author** | Aaron Davis (prompted) |
 | **Status** | In Progress |
 
@@ -74,8 +74,16 @@ with the distinguishing scenarios on real XS heap snapshots:
 - **Sleepy lifecycle** — sleep = drain + snapshot + journal cut +
   terminate under one serialized operation chain; wake = snapshot
   restore + replay of only the post-snapshot journal suffix (empty
-  after a clean sleep), with regenerated outbound frames absorbed by
-  the persisted watermark. Crash-without-sleep recovers from the
+  after a clean sleep). Every worker→hub frame carries a
+  session-lifetime sequence number (an `outboundBase` persisted with
+  each snapshot plus the frame's index); replay determinism gives a
+  regenerated frame its original number and the hub's watermark —
+  committed atomically with the frame's effects — drops duplicates:
+  exactly once, with no per-frame metadata write. Remote durable
+  sessions get the same guarantee by reporting the hub's committed
+  watermark as their resume receive-sequence, so peers retransmit
+  exactly what the hub has not absorbed.
+  Crash-without-sleep recovers from the
   snapshot plus the full suffix; full-journal replay exists only in
   the no-snapshot test engines. Clean shutdown is an optimization,
   not a correctness requirement.
@@ -790,7 +798,9 @@ session treatment:
   messages, and the full ocapn test suite passes unchanged (the
   api-surface snapshot gained only the new seam types).
 
-Layer 2's crash-consistency envelope: the received watermark is
+Layer 2's crash-consistency envelope (as first built — the hub's
+committed watermark now governs resume retransmission, making
+redelivery exactly-once): the received watermark is
 persisted before dispatch (at-most-once — a crash between the two
 loses that frame's effects rather than double-executing them), and
 outbound frames are persisted before the wire so a persisted ack can
@@ -956,7 +966,9 @@ an OCapN relay: one protocol, one marshal format, one session model.
    acked; wake = restore + replay the journal suffix, with the
    worker's deterministically regenerated outbound frames absorbed by
    a persisted watermark (`outboundSinceSnapshot`, written before
-   each dispatch — at-most-once). Every incarnation-touching
+   each dispatch — at-most-once; later replaced by session-lifetime
+   sequence numbers deduplicated in the hub's atomic watermark —
+   exactly once). Every incarnation-touching
    operation (delivery, wake, park, crash, retire) serializes on one
    operation chain, so parking drains exactly the deliveries queued
    ahead of it. In-process peer replay engines
@@ -1120,8 +1132,12 @@ non-reifying core this document's comms-vat analysis pointed at.
     inbound `desc:handoff-give` itself — the gift becomes an
     answer-backed promise row at an outbound exporter session, the
     embedder's `handoffs.connect` power dials, and the hub signs the
-    withdrawal with the gifter session's persisted key. No hub
-    subscription in either role.
+    withdrawal with the gifter session's persisted key. Dial
+    locations persist: queued traffic toward a dropped exporter
+    re-asks for the connection, and a restarted embedder redials
+    every session `pendingDials()` reports, so an interrupted
+    redemption resumes instead of hanging. No hub subscription in
+    either role.
 - Tests: `test/hub.test.js` (forwarding, identity, pipelining,
   settlement, hub restart from tables mid-session, retirement
   epochs and pending-listen breaks, durable queues across restarts,
@@ -1155,10 +1171,13 @@ above. What remains, still loud rather than silent:
 
 - **Full distributed object GC.** The hub's side is done (wire
   refcounts, origin propagation, answer releases, tombstone
-  pruning); worker clients emit finalization-driven `op:gc-answers`
-  today, and gc frames journal and replay like any other. What
-  remains is the worker-side import-collection sweep over sleeping
-  heaps and an end-to-end soak of the full cycle. Vat-level GC
+  pruning), and a deterministic round trip is tested: driving the
+  exact release messages a collecting client would send shrinks the
+  hub tables to precisely the pinned publications and returns both
+  gc hint kinds to the origin worker. Worker clients emit
+  finalization-driven `op:gc-answers` today, and gc frames journal
+  and replay like any other. What remains is the worker-side
+  import-collection sweep over sleeping heaps. Vat-level GC
   (§ *Garbage collection of vats*) deliberately came first.
 - **Snapshot compaction cadence**, metering
   ([daemon-xs-worker-metering](daemon-xs-worker-metering.md)), and
