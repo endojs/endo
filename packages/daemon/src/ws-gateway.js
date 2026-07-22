@@ -112,7 +112,11 @@ export const startWsGateway = ({
       const kind =
         requestUrl.searchParams.get('kind') === 'tree' ? 'tree' : 'blob';
       try {
-        const reader = await E(gatewayP).fetchContent(contentMatch[1], kind);
+        const readerP =
+          kind === 'tree'
+            ? E(gatewayP).provideTree(contentMatch[1])
+            : E(gatewayP).provideBlob(contentMatch[1]);
+        const reader = await readerP;
         response.writeHead(200, {
           'Content-Type': 'application/octet-stream',
           'Cache-Control': 'public, immutable, max-age=31536000',

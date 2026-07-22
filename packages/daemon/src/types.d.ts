@@ -1364,10 +1364,8 @@ export interface EndoPeer {
 
 export interface EndoGateway {
   provide: (id: string) => Promise<unknown>;
-  fetchContent: (
-    hash: string,
-    kind: 'blob' | 'tree',
-  ) => Promise<import('@endo/exo-stream').PassableBytesReader>;
+  provideBlob: (hash: string) => Promise<PassableBytesReader>;
+  provideTree: (hash: string) => Promise<PassableBytesReader>;
   followRetentionSet: (
     peerNodeNumber: string,
   ) => Promise<

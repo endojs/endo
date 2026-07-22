@@ -87,10 +87,13 @@ test('Gateway serves a content-addressed blob from its web-seed route', async t 
   cancelled.catch(() => {});
   const bytes = new TextEncoder().encode('gateway web-seed');
   const gateway = Far('Gateway', {
-    fetchContent: async (hash, kind) => {
+    provideBlob: async hash => {
       t.is(hash, 'd'.repeat(64));
-      t.is(kind, 'blob');
       return bytesReaderFromIterator([bytes]);
+    },
+    provideTree: async () => {
+      t.fail('provideTree must not run for a blob web-seed route');
+      return bytesReaderFromIterator([]);
     },
   });
   const bootstrap = Far('EndoBootstrap', {

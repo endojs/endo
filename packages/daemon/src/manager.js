@@ -36,6 +36,11 @@ import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 import { readerFromIterator } from '@endo/exo-stream/reader-from-iterator.js';
 import { bytesReaderFromIterator } from '@endo/exo-stream/bytes-reader-from-iterator.js';
 import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
+import {
+  tarFileHeader,
+  tarFilePadding,
+  tarEndMarker,
+} from '@endo/tar/writer.js';
 import { checkinTarTree } from './tar-checkin.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeContentDataPlaneRegistry } from './content-data-plane.js';
@@ -110,6 +115,7 @@ import { getUnredactedStackString } from './unredacted-stack.js';
 
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
+/** @import { PassableBytesReader } from '@endo/exo-stream' */
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { ReadableBlobRange, SnapshotTree } from '@endo/platform/fs/lite/types' */
 /** @import { ArchiveTreeMethods } from './tar-checkin.js' */
@@ -1465,53 +1471,30 @@ const makeDaemonCore = async (
       return provide(requestedId);
     },
     /**
-     * Stream a content-addressed blob, or a canonical tar representation of a
-     * readable tree, for the HTTP web-seed route.  The hash is a bearer read
-     * capability, but the HTTP receiver still treats these bytes as untrusted
-     * and verifies them against `xt` before using them.
+     * Stream a content-addressed blob for the HTTP web-seed route. The hash is
+     * a bearer read capability, but the HTTP receiver still treats these bytes
+     * as untrusted and verifies them against `xt` before using them.
      *
      * @param {string} hash
-     * @param {'blob' | 'tree'} kind
+     * @returns {Promise<PassableBytesReader>}
      */
-    async fetchContent(hash, kind) {
+    async provideBlob(hash) {
       assertValidNumber(hash);
-      if (kind === 'blob') {
-        return bytesReaderFromIterator(
-          contentStore.fetch(hash).makeFileReader(),
-        );
-      }
-      if (kind !== 'tree') {
-        throw makeError(`Invalid content kind ${q(kind)}`);
-      }
-
-      /** @param {string} text @param {Uint8Array} bytes @param {number} start */
-      const writeTarText = (text, bytes, start) => {
-        bytes.set(new TextEncoder().encode(text), start);
-      };
-      /** @param {number} value @param {number} width */
-      const tarNumber = (value, width) =>
-        `${value.toString(8).padStart(width - 1, '0')}\0`;
-      /** @param {string} path @param {number} size */
-      const tarHeader = (path, size) => {
-        if (new TextEncoder().encode(path).byteLength > 100) {
-          throw makeError(`Tree path is too long for web-seed tar: ${q(path)}`);
-        }
-        const header = new Uint8Array(512);
-        writeTarText(path, header, 0);
-        writeTarText(tarNumber(0o644, 8), header, 100);
-        writeTarText(tarNumber(0, 8), header, 108);
-        writeTarText(tarNumber(0, 8), header, 116);
-        writeTarText(tarNumber(size, 12), header, 124);
-        writeTarText(tarNumber(0, 12), header, 136);
-        header.fill(0x20, 148, 156);
-        header[156] = '0'.charCodeAt(0);
-        writeTarText('ustar\0', header, 257);
-        writeTarText('00', header, 263);
-        let checksum = 0;
-        for (const byte of header) checksum += byte;
-        writeTarText(tarNumber(checksum, 8), header, 148);
-        return header;
-      };
+      return bytesReaderFromIterator(contentStore.fetch(hash).makeFileReader());
+    },
+    /**
+     * Stream a canonical tar representation of a readable tree for the HTTP
+     * web-seed route. The hash is a bearer read capability, but the HTTP
+     * receiver still treats these bytes as untrusted and reassembles and
+     * verifies them against `xt` before using them. The tar-format encoding
+     * lives in `@endo/tar`'s writer; this method supplies the producer-side
+     * traversal of the content store's tree JSON.
+     *
+     * @param {string} hash
+     * @returns {Promise<PassableBytesReader>}
+     */
+    async provideTree(hash) {
+      assertValidNumber(hash);
 
       async function* archiveTree(treeHash, prefix = '') {
         const entries = await contentStore.fetch(treeHash).json();
@@ -1541,12 +1524,12 @@ const makeDaemonCore = async (
             if (!Number.isSafeInteger(size)) {
               throw makeError(`Web-seed blob is too large for tar: ${q(path)}`);
             }
-            yield tarHeader(path, size);
+            yield tarFileHeader(path, size);
             for await (const chunk of blob.makeFileReader()) {
               yield chunk;
             }
-            const remainder = size % 512;
-            if (remainder !== 0) yield new Uint8Array(512 - remainder);
+            const padding = tarFilePadding(size);
+            if (padding.byteLength !== 0) yield padding;
           } else {
             throw makeError(`Invalid readable tree entry type ${q(type)}`);
           }
@@ -1555,7 +1538,7 @@ const makeDaemonCore = async (
 
       async function* tar() {
         yield* archiveTree(hash);
-        yield new Uint8Array(1024);
+        yield tarEndMarker();
       }
       return bytesReaderFromIterator(tar());
     },
@@ -6058,7 +6041,7 @@ const makeDaemonCore = async (
    * but the returned formula is always a distinct local copy.
    *
    * @param {string} contentLocator
-   * @param {import('@endo/eventual-send').ERef<EndoReadable | EndoReadableTree>} [inBandReadable]
+   * @param {ERef<EndoReadable | EndoReadableTree>} [inBandReadable]
    * @returns {Promise<FarRef<EndoReadable> | FarRef<EndoReadableTree>>}
    */
   const loadContent = async (contentLocator, inBandReadable = undefined) => {
@@ -6133,7 +6116,7 @@ const makeDaemonCore = async (
         /** @type {DeferredTasks<ReadableBlobDeferredTaskParams>} */
         const tasks = makeDeferredTasks();
         const { id, value } = await formulateReadableBlob(
-          /** @type {import('@endo/eventual-send').ERef<import('@endo/exo-stream').PassableBytesReader>} */ (
+          /** @type {ERef<PassableBytesReader>} */ (
             /** @type {unknown} */ (inBandReadable)
           ),
           tasks,

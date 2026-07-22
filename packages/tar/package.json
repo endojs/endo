@@ -1,7 +1,7 @@
 {
   "name": "@endo/tar",
   "version": "1.0.0",
-  "description": "A minimal, portable tar archive reader",
+  "description": "A minimal, portable tar archive reader and writer",
   "keywords": [
     "tar",
     "ses",
@@ -23,6 +23,7 @@
   "exports": {
     ".": "./index.js",
     "./reader.js": "./reader.js",
+    "./writer.js": "./writer.js",
     "./package.json": "./package.json"
   },
   "scripts": {
