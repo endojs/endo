@@ -23,17 +23,20 @@ import { Fail, q } from '@endo/errors';
  *   retained until subsumed by a snapshot, not until acknowledged.
  * - Wake = start an incarnation from the last snapshot and replay the
  *   journal suffix. The worker deterministically regenerates the
- *   outbound frames that suffix produced; the host counts outbound
- *   frames since the snapshot (`outboundSinceSnapshot`, persisted
- *   *before* each frame is processed) and discards regenerated frames
- *   up to that watermark.
+ *   outbound frames that suffix produced. Every outbound frame —
+ *   live or regenerated — carries a session-lifetime sequence number
+ *   (`outboundBase`, persisted with each snapshot, plus the frame's
+ *   index in this incarnation); determinism gives a regenerated frame
+ *   the same number, and the hub's inbound watermark (which commits
+ *   atomically with the frame's effects) drops duplicates. Exactly
+ *   once, with no per-frame metadata write.
  * - A crash without sleep restarts from the snapshot plus the full
- *   journal suffix; a crash between the watermark write and the frame
- *   dispatch loses that frame — at-most-once, never twice.
+ *   journal suffix and re-emits the suffix's frames under their
+ *   original numbers, which the hub skips.
  *
  * Sleep parks the incarnation: snapshot, record `{ ref, cut }` (the
- * journal index the snapshot subsumes), reset the watermark, truncate,
- * terminate. The OCapN session — and every remote reference through
+ * journal index the snapshot subsumes), advance the outbound base,
+ * truncate, terminate. The OCapN session — and every remote reference through
  * it — stays live; the next inbound frame wakes the worker.
  *
  * Every incarnation-touching operation — frame delivery, wake, park,
@@ -45,8 +48,9 @@ import { Fail, q } from '@endo/errors';
  * @param {string} options.workerId
  * @param {WorkerStore} options.store
  * @param {WorkerEngine} options.engine
- * @param {(bytes: Uint8Array) => void} options.onFrame worker→host
- *   frames
+ * @param {(bytes: Uint8Array, sequenceNumber: number) => void} options.onFrame
+ *   worker→host frames, each with its session-lifetime sequence
+ *   number for the hub's inbound watermark
  * @param {number} [options.idleSleepMs] park the worker after this long
  *   with no operations. The XS worker binary drains the engine's
  *   promise-job queue to quiescence after every delivery and workers
@@ -74,6 +78,8 @@ export const makeDurableWorkerTransport = ({
   let incarnation;
   /** Outbound frames seen from the current incarnation, replay included. */
   let seenOutbound = 0;
+  /** Outbound frames subsumed by the current snapshot (from meta). */
+  let outboundBase = 0;
   /** Absolute journal index of the next host→worker frame to deliver. */
   let deliveredUpTo = 0;
   /**
@@ -171,21 +177,13 @@ export const makeDurableWorkerTransport = ({
     }
     envelope.t === 'f' ||
       Fail`worker ${q(debugName)}: unexpected duct envelope ${q(envelope.t)}`;
-    const meta = store.getMeta();
-    const watermark = meta.outboundSinceSnapshot ?? 0;
-    if (seenOutbound < watermark) {
-      // Replay regenerated a frame a previous incarnation already
-      // emitted and the host already processed; determinism makes
-      // count-dedup sound.
-      seenOutbound += 1;
-      return;
-    }
-    // At-most-once: persist the watermark before dispatching, so a
-    // crash between the two loses the frame rather than replaying it
-    // into the (non-replayable) host session state twice.
-    store.setMeta({ ...meta, outboundSinceSnapshot: seenOutbound + 1 });
+    // Every frame — live or replay-regenerated — is delivered with
+    // its session-lifetime sequence number. Determinism gives a
+    // regenerated frame the same number it had, and the hub's
+    // watermark (atomic with the frame's effects) drops duplicates:
+    // exactly once, with no per-frame metadata write here.
     seenOutbound += 1;
-    onFrame(decodeBase64(envelope.b64));
+    onFrame(decodeBase64(envelope.b64), outboundBase + seenOutbound);
   };
 
   /** Chain-context only: start an incarnation if none is running. */
@@ -196,6 +194,7 @@ export const makeDurableWorkerTransport = ({
     }
     seenOutbound = 0;
     const meta = store.getMeta();
+    outboundBase = meta.outboundBase ?? 0;
     const snapshotRef = meta.snapshot?.ref ?? null;
     const cut = meta.snapshot?.cut ?? 0;
     const started = await engine.start({
@@ -294,11 +293,15 @@ export const makeDurableWorkerTransport = ({
         const previous = store.getMeta().snapshot?.ref;
         // Record the snapshot before truncating: a crash between the
         // two leaves subsumed entries in the journal, which the next
-        // wake skips via the recorded cut.
+        // wake skips via the recorded cut. The outbound base advances
+        // to the total frames ever emitted: the snapshot subsumes
+        // them, so the next incarnation numbers from here.
+        outboundBase += seenOutbound;
+        seenOutbound = 0;
         store.setMeta({
           ...store.getMeta(),
           snapshot: { ref, cut },
-          outboundSinceSnapshot: 0,
+          outboundBase,
         });
         store.truncateJournal(cut);
         if (

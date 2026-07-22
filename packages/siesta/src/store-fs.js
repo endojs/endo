@@ -29,10 +29,10 @@ import { Fail, q } from '@endo/errors';
  * @property {{ ref: unknown, cut?: number } | null} [snapshot]
  *   the engine snapshot and the absolute journal index (`cut`) it
  *   subsumes
- * @property {number} [outboundSinceSnapshot] count of worker→host
- *   OCapN frames processed since the last snapshot, persisted before
- *   each dispatch; a wake's replay discards regenerated frames up to
- *   this watermark
+ * @property {number} [outboundBase] count of worker→host OCapN
+ *   frames subsumed by the recorded snapshot; frames number from here
+ *   (session-lifetime sequence), so the hub's inbound watermark can
+ *   drop replay-regenerated duplicates
  */
 
 /**

@@ -64,7 +64,10 @@ const makeHubKit = async (t, { workerId, engine, store, debugLabel }) => {
     store: store.provideWorkerStore(workerId),
     engine,
     debugLabel,
-    onFrame: (/** @type {Uint8Array} */ bytes) => holder.sink.deliver(bytes),
+    onFrame: (
+      /** @type {Uint8Array} */ bytes,
+      /** @type {number} */ sequenceNumber,
+    ) => holder.sink.deliver(bytes, sequenceNumber),
   });
   holder.sink = hub.attachSession(workerId, {
     send: (/** @type {Uint8Array} */ bytes) => transport.write(bytes),
@@ -159,7 +162,10 @@ test('a worker session survives snapshot, sleep, and crash', async t => {
   if (!snapshotRecord) {
     throw t.fail('sleep did not commit a snapshot');
   }
-  t.is(meta.outboundSinceSnapshot, 0, 'the outbound watermark reset');
+  t.true(
+    (meta.outboundBase ?? 0) > 0,
+    'the outbound sequence base advanced with the snapshot',
+  );
   t.is(
     workerStore.journalLength(),
     snapshotRecord.cut ?? -1,

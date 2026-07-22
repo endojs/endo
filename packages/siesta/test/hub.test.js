@@ -96,14 +96,16 @@ const attachWorker = async (hub, workerId, debugLabel) => {
  * @param {any} hub
  * @param {string} clientKey
  * @param {string} debugLabel
- * @param {{ tagSequences?: boolean }} [options] number each inbound
- *   frame so the test can replay duplicates against the watermark
+ * @param {{ tagSequences?: boolean, debugMode?: boolean }} [options]
+ *   `tagSequences` numbers each inbound frame so the test can replay
+ *   duplicates against the watermark; `debugMode` exposes the
+ *   client's raw message sender
  */
 const attachClient = async (
   hub,
   clientKey,
   debugLabel,
-  { tagSequences = false } = {},
+  { tagSequences = false, debugMode = false } = {},
 ) => {
   /** @type {{ sink: any, pending: Array<Uint8Array> }} */
   const outbound = { sink: undefined, pending: [] };
@@ -136,6 +138,7 @@ const attachClient = async (
     codec: syrupCodec,
     network: pipe.network,
     debugLabel,
+    debugMode,
   });
   const session = await client.provideSession(pipe.peerLocation);
   /** @param {any} nextHub */
@@ -151,6 +154,7 @@ const attachClient = async (
   return {
     client,
     session,
+    peerLocation: pipe.peerLocation,
     rebind,
     detach: () => outbound.sink.detach(),
     replay: () => {
@@ -567,4 +571,174 @@ test('retiring a holder releases rows and returns gc hints to the origin', async
       .some(bytes => textDecoder.decode(bytes).includes('op:gc-exports')),
     'the origin got its wire mentions back as op:gc-exports',
   );
+});
+
+test('interrupted gift redemptions surface as pending dials', async t => {
+  // A predecessor process died between receiving a give and completing
+  // the exporter dial: the pending withdrawal (and any queued frames)
+  // persist, and a successor must learn who to redial.
+  const location = harden({
+    type: /** @type {const} */ ('ocapn-peer'),
+    network: 'tcp-test',
+    transport: 'tcp',
+    designator: 'exporter',
+    hints: /** @type {const} */ (false),
+  });
+  const crafted = {
+    version: 2,
+    refs: {},
+    sessions: {
+      'handoff:cafe': {
+        epoch: 0,
+        ourExports: {},
+        nextExport: '1',
+        nextAnswer: '2',
+        answersOwed: {},
+        processedUpTo: 0,
+        durable: true,
+        queue: [],
+        identity: undefined,
+        usedGiftHandoffs: [],
+        pendingWithdraws: [
+          { position: '1', giveHex: '00', gifterSession: 'peer:g' },
+        ],
+        nextHandoffCount: '1',
+        dialLocation: location,
+      },
+      'handoff:f00d': {
+        epoch: 0,
+        ourExports: {},
+        nextExport: '1',
+        nextAnswer: '1',
+        answersOwed: {},
+        processedUpTo: 0,
+        durable: true,
+        queue: ['00'],
+        identity: undefined,
+        usedGiftHandoffs: [],
+        pendingWithdraws: [],
+        nextHandoffCount: '1',
+        dialLocation: location,
+      },
+    },
+    publications: {},
+    gifts: {},
+    giftWaiters: {},
+  };
+  /** @type {any} */
+  let persisted = JSON.parse(JSON.stringify(crafted));
+  const store = {
+    getState: () => persisted,
+    setState: (/** @type {any} */ state) => {
+      persisted = JSON.parse(JSON.stringify(state));
+    },
+  };
+  const hub = makeOcapnHub({ codec: syrupCodec, store });
+  t.deepEqual(
+    hub.pendingDials().map(({ sessionKey }) => sessionKey).sort(),
+    ['handoff:cafe', 'handoff:f00d'],
+    'both a pending withdrawal and queued traffic want a dial',
+  );
+  t.deepEqual(hub.pendingDials()[0].location, location);
+
+  // The dial locations survive a further persistence round trip.
+  hub.publish('poke', { session: 'w'.repeat(32), position: 0n });
+  const hub2 = makeOcapnHub({ codec: syrupCodec, store });
+  t.is(hub2.pendingDials().length, 2, 'pending dials survive restarts');
+});
+
+test('released holdings return gc to the origin and shrink the tables', async t => {
+  /** @type {any} */
+  let persisted;
+  const store = {
+    getState: () => persisted,
+    setState: (/** @type {any} */ state) => {
+      persisted = JSON.parse(JSON.stringify(state));
+    },
+  };
+  const hub = makeOcapnHub({ codec: syrupCodec, store });
+  const idA = 'a'.repeat(32);
+  const clientKey = 'c'.repeat(32);
+  const attachedA = await attachWorker(hub, idA, 'owner');
+  const attachedC = await attachClient(hub, clientKey, 'holder', {
+    debugMode: true,
+  });
+  t.teardown(() => attachedC.client.shutdown());
+  t.teardown(() => attachedA.worker.shutdown());
+
+  hub.publish('worker-a', { session: idA, position: 0n });
+  const bootstrap = attachedC.session.getBootstrap();
+  const shell = await E(E(bootstrap).fetch(bytesOf('worker-a'))).fetch(
+    SHELL_SWISSNUM,
+  );
+  const counter = await E(shell).evaluate(COUNTER_SOURCE);
+  t.is(await E(counter).incr(), 1);
+
+  // The client releases EVERYTHING it holds — every export the hub
+  // faced toward it (with the exact wire counts the tables recorded)
+  // and every answer it asked for — as the wire messages a collecting
+  // client would eventually send, driven deterministically here.
+  const before = persisted;
+  const publishedIds = new Set(Object.values(before.publications));
+  /** @type {Array<bigint>} */
+  const exportPositions = [];
+  /** @type {Array<bigint>} */
+  const wireDeltas = [];
+  for (const [position, refId] of Object.entries(
+    before.sessions[clientKey].ourExports,
+  )) {
+    exportPositions.push(BigInt(position));
+    wireDeltas.push(
+      BigInt(before.refs[/** @type {string} */ (refId)].refcounts[clientKey]),
+    );
+  }
+  const answerPositions = Object.keys(
+    before.sessions[clientKey].answersOwed,
+  ).map(position => BigInt(position));
+  t.true(exportPositions.length > 0, 'the client held rows to release');
+
+  const framesBefore = attachedA.framesToWorker.length;
+  // eslint-disable-next-line no-underscore-dangle
+  const clientDebug = /** @type {any} */ (attachedC.client)._debug;
+  const internalSession = await clientDebug.provideInternalSession(
+    attachedC.peerLocation,
+  );
+  // eslint-disable-next-line no-underscore-dangle
+  const debug = internalSession.ocapn._debug;
+  debug.sendMessage({ type: 'op:gc-answers', answerPositions });
+  debug.sendMessage({ type: 'op:gc-exports', exportPositions, wireDeltas });
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  // Every worker-origin row except the pinned publication is gone —
+  // release cascaded through answer routes and facing positions alike.
+  const after = persisted;
+  const survivors = Object.entries(after.refs)
+    .filter(([, row]) => /** @type {any} */ (row).origin === idA)
+    .map(([refId]) => refId)
+    .sort();
+  t.deepEqual(
+    survivors,
+    [...publishedIds].sort(),
+    'only the published bootstrap row survives the release',
+  );
+
+  // The origin heard: its wire mentions came back as gc hints.
+  const latin1 = new TextDecoder('latin1');
+  const gcFrames = attachedA.framesToWorker
+    .slice(framesBefore)
+    .map(bytes => latin1.decode(bytes));
+  t.true(
+    gcFrames.some(text => text.includes('op:gc-exports')),
+    'the origin got its wire mentions back',
+  );
+  t.true(
+    gcFrames.some(text => text.includes('op:gc-answers')),
+    'the origin got its answer registrations back',
+  );
+
+  // And the machine is alive: a fresh fetch round-trips as ever.
+  const shellAgain = await E(E(bootstrap).fetch(bytesOf('worker-a'))).fetch(
+    SHELL_SWISSNUM,
+  );
+  t.is(await E(shellAgain).evaluate('2 + 3'), 5);
 });

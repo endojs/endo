@@ -65,7 +65,9 @@ import { Fail } from '@endo/errors';
  *
  * @typedef {object} NetlayerHandlers
  * @property {(netlayer: any, isOutgoing: boolean, socket: SocketOperations) => Connection} makeConnection
- * @property {(connection: Connection, data: Uint8Array) => void} handleMessageData
+ * @property {(connection: Connection, data: Uint8Array, sequenceNumber?: number) => void} handleMessageData
+ *   `sequenceNumber` is the durable frame number when the link is
+ *   resumable, for handlers that deduplicate retransmits themselves
  * @property {(connection: Connection, reason?: Error) => void} handleConnectionClose
  * @property {(connection: Connection, resumption: any) => { restoreExport: (position: bigint, value: object) => void, restorePendingResolver: (record: { resolverPosition: bigint, target: { kind: 'promise' | 'answer', position: bigint } }) => void }} [resumeSession]
  *   present on OCapN layers that support durable-session resumption
@@ -535,13 +537,15 @@ export const makeDurableNetLayer = async ({
           }
           bound.recvSeq = n;
           if (bound.durable && resumption) {
-            // Watermark before dispatch: a crash between the two loses
-            // the frame's effects (at-most-once) rather than replaying
-            // a delivery whose side effects already landed.
+            // The netlayer's watermark is advisory bookkeeping; an
+            // embedder whose message handler keeps its own atomic
+            // watermark (the hub) reports THAT from loadForResume, so
+            // a crash between this record and the handler's commit
+            // just means a harmless retransmit next resume.
             resumption.recordInbound(bound.token, n);
           }
           transportWrite(bound, { t: 'ack', n });
-          handlers.handleMessageData(bound.ocapnConnection, payload);
+          handlers.handleMessageData(bound.ocapnConnection, payload, n);
           break;
         }
         case 'ack': {

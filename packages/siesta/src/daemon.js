@@ -152,8 +152,10 @@ export const makeSiestaDaemon = async ({
         engine,
         idleSleepMs,
         debugLabel: workerStore.getMeta().debugLabel,
-        onFrame: (/** @type {Uint8Array} */ bytes) =>
-          holder.sink.deliver(bytes),
+        onFrame: (
+          /** @type {Uint8Array} */ bytes,
+          /** @type {number} */ sequenceNumber,
+        ) => holder.sink.deliver(bytes, sequenceNumber),
       });
       holder.sink = hub.attachSession(workerId, {
         send: (/** @type {Uint8Array} */ bytes) => transport.write(bytes),
@@ -394,10 +396,11 @@ export const makeSiestaDaemon = async ({
     handleMessageData: (
       /** @type {any} */ connection,
       /** @type {Uint8Array} */ data,
+      /** @type {number | undefined} */ sequenceNumber = undefined,
     ) => {
       const bound = connectionSessions.get(connection);
       if (bound !== undefined) {
-        bound.deliver(data);
+        bound.deliver(data, sequenceNumber);
         return;
       }
       const dial = pendingOutbound.get(connection);
@@ -557,8 +560,16 @@ export const makeSiestaDaemon = async ({
         (max, frame) => Math.max(max, Number(frame.n)),
         Number(meta.sendSeq ?? 0),
       );
+      // Report the HUB's committed watermark, not the netlayer's
+      // advisory one: a crash between the netlayer's record and the
+      // hub's commit then just means the peer retransmits a frame the
+      // hub's own watermark drops — exactly once either way.
+      const recvSeq = Math.min(
+        Number(meta.recvSeq ?? 0),
+        hub.inboundWatermark(`peer:${token}`),
+      );
       return {
-        recvSeq: meta.recvSeq ?? 0,
+        recvSeq,
         sendSeq,
         frames,
       };
@@ -750,6 +761,13 @@ export const makeSiestaDaemon = async ({
     resumption,
   });
   const { location } = netlayerRef.netlayer;
+
+  // Gift redemptions interrupted by the previous process's death:
+  // their withdrawals (and any queued traffic) persist in the hub
+  // tables, but the dial in flight died with the process. Redial.
+  for (const dial of hub.pendingDials()) {
+    handoffDialRef.connect(dial.location, dial.sessionKey);
+  }
 
   /** @type {SiestaDaemon} */
   const daemon = {

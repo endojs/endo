@@ -245,6 +245,7 @@ export const makeOcapnHub = ({
    *   usedGiftHandoffs: Array<string>,
    *   pendingWithdraws: Array<PendingWithdraw>,
    *   nextHandoffCount: bigint,
+   *   dialLocation: any,
    *   send: (bytes: Uint8Array) => void,
    *   attached: boolean,
    *   remote: boolean,
@@ -365,6 +366,7 @@ export const makeOcapnHub = ({
           ...pending,
         })),
         nextHandoffCount: String(session.nextHandoffCount),
+        dialLocation: session.dialLocation,
       };
     }
     state.publications = Object.fromEntries(publications);
@@ -394,6 +396,7 @@ export const makeOcapnHub = ({
         usedGiftHandoffs: [],
         pendingWithdraws: [],
         nextHandoffCount: 1n,
+        dialLocation: undefined,
         send: () => {
           throw Error(`ocapn hub: session ${sessionKey} is not attached`);
         },
@@ -453,6 +456,7 @@ export const makeOcapnHub = ({
         (/** @type {any} */ pending) => ({ ...pending }),
       );
       session.nextHandoffCount = BigInt(sd.nextHandoffCount ?? '1');
+      session.dialLocation = sd.dialLocation;
       for (const [position, refId] of session.ourExports.entries()) {
         const row = refs.get(refId);
         if (row !== undefined) {
@@ -781,8 +785,11 @@ export const makeOcapnHub = ({
           JSON.stringify(exporterLocation),
         )}`;
         const outSession = provideSessionState(outKey);
-        // Frames toward the exporter queue until the dial completes.
+        // Frames toward the exporter queue until the dial completes;
+        // the location persists so a successor process (or a later
+        // frame toward a dropped connection) can redial.
         outSession.durable = true;
+        outSession.dialLocation = exporterLocation;
         const position = outSession.nextAnswer;
         outSession.nextAnswer += 1n;
         const row = provideAnswerRef(outKey, position);
@@ -929,6 +936,12 @@ export const makeOcapnHub = ({
       session.queue.push(hexFromBytes(bytes));
       dirty = true;
       persist();
+      if (session.dialLocation !== undefined && handoffs !== undefined) {
+        // An outbound exporter session with traffic waiting: ask the
+        // embedder to (re)dial. Idempotent at the embedder while a
+        // dial or connection is live.
+        handoffs.connect(session.dialLocation, sessionKey);
+      }
       return;
     }
     logError(`dropping message toward detached session ${sessionKey}`);
@@ -1842,6 +1855,7 @@ export const makeOcapnHub = ({
     session.usedGiftHandoffs.length = 0;
     session.pendingWithdraws.length = 0;
     session.nextHandoffCount = 1n;
+    session.dialLocation = undefined;
     for (const [swissnum, refId] of [...publications.entries()]) {
       const row = refs.get(refId);
       if (row !== undefined && row.origin === sessionKey) {
@@ -2067,6 +2081,38 @@ export const makeOcapnHub = ({
       codecKits.delete(sessionKey);
       dirty = true;
       persist();
+    },
+    /**
+     * The highest inbound sequence number whose effects this hub has
+     * committed for a session (0 for none). An embedder that resumes
+     * a durable transport reports THIS as its receive watermark, so
+     * the peer retransmits exactly what the hub has not absorbed and
+     * the hub's own watermark drops any overlap: exactly once.
+     *
+     * @param {string} sessionKey
+     */
+    inboundWatermark: sessionKey =>
+      sessions.get(sessionKey)?.processedUpTo ?? 0,
+    /**
+     * Outbound sessions with work waiting on a connection: pending
+     * gift withdrawals or queued frames toward a dialable, detached
+     * session. A restarted embedder redials each of these at boot
+     * (`handoffs.connect`), since the dial in flight died with the
+     * previous process.
+     */
+    pendingDials: () => {
+      /** @type {Array<{ sessionKey: string, location: any }>} */
+      const dials = [];
+      for (const [sessionKey, session] of sessions.entries()) {
+        if (
+          session.dialLocation !== undefined &&
+          !session.attached &&
+          (session.pendingWithdraws.length > 0 || session.queue.length > 0)
+        ) {
+          dials.push({ sessionKey, location: session.dialLocation });
+        }
+      }
+      return harden(dials);
     },
     /** @param {string | Uint8Array} swissnum */
     unpublish: swissnum => {

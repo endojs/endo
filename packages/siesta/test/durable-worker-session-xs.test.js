@@ -85,7 +85,10 @@ testXs('an XS worker session sleeps, wakes, and survives crashes', async t => {
     store: workerStore,
     engine,
     debugLabel: 'xs-sleeper',
-    onFrame: (/** @type {Uint8Array} */ bytes) => holder.sink.deliver(bytes),
+    onFrame: (
+      /** @type {Uint8Array} */ bytes,
+      /** @type {number} */ sequenceNumber,
+    ) => holder.sink.deliver(bytes, sequenceNumber),
   });
   t.teardown(() => transport.retire());
   holder.sink = hub.attachSession(workerId, {
@@ -140,7 +143,10 @@ testXs('an XS worker session sleeps, wakes, and survives crashes', async t => {
     throw t.fail('sleep did not commit a heap snapshot');
   }
   t.is(typeof snapshotRecord.ref, 'string');
-  t.is(meta.outboundSinceSnapshot, 0, 'the outbound watermark reset');
+  t.true(
+    (meta.outboundBase ?? 0) > 0,
+    'the outbound sequence base advanced with the snapshot',
+  );
   t.true(
     existsSync(join(statePath, 'cas', String(snapshotRecord.ref))),
     'the snapshot is in the content-addressed store',
