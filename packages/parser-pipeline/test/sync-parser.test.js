@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createParsers } from '../src/parsers.js';
 
 /**
- * @import {ParseError} from '@babel/parser'
+ * @import {ParseError} from '../src/types/pipeline.js'
  */
 
 const textEncoder = new TextEncoder();

@@ -436,3 +436,5 @@ export interface ModuleCompleteData<
    */
   visitorResults: TVisitorResults;
 }
+
+export type { ParseError, Visitor };
