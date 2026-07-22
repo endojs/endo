@@ -98,6 +98,9 @@ jobs:
       - name: build API docs
         run: yarn docs
 
+      - name: Build composite TypeScript declarations
+        run: corepack yarn build:types
+
   familiar-bundle:
     name: familiar-bundle
 
