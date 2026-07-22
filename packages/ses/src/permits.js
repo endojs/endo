@@ -102,6 +102,15 @@ export const universalPropertyNames = {
   JSON: 'JSON',
   Reflect: 'Reflect',
 
+  // WHATWG Encoding Standard
+  // https://encoding.spec.whatwg.org/
+  // TextEncoder and TextDecoder are pure transformations between string and
+  // Uint8Array with no static side channels and no exposed iterator
+  // prototype. They are permitted universally; on hosts that do not provide
+  // them (XS), the sampling pass tolerates the absence.
+  TextEncoder: 'TextEncoder',
+  TextDecoder: 'TextDecoder',
+
   // *** Annex B
 
   escape: 'escape',
@@ -2056,6 +2065,38 @@ export const permitted = {
     Instant: '%Temporal.Instant%',
     PlainYearMonth: '%Temporal.PlainYearMonth%',
     PlainMonthDay: '%Temporal.PlainMonthDay%',
+    '@@toStringTag': 'string',
+  },
+
+  // WHATWG Encoding Standard
+  // https://encoding.spec.whatwg.org/
+
+  TextEncoder: {
+    // Properties of the TextEncoder Constructor
+    '[[Proto]]': '%FunctionPrototype%',
+    prototype: '%TextEncoderPrototype%',
+  },
+
+  '%TextEncoderPrototype%': {
+    constructor: 'TextEncoder',
+    encode: fn,
+    encodeInto: fn,
+    encoding: getter,
+    '@@toStringTag': 'string',
+  },
+
+  TextDecoder: {
+    // Properties of the TextDecoder Constructor
+    '[[Proto]]': '%FunctionPrototype%',
+    prototype: '%TextDecoderPrototype%',
+  },
+
+  '%TextDecoderPrototype%': {
+    constructor: 'TextDecoder',
+    decode: fn,
+    encoding: getter,
+    fatal: getter,
+    ignoreBOM: getter,
     '@@toStringTag': 'string',
   },
 
