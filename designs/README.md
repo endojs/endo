@@ -1,6 +1,7 @@
 # Endo Design Documents
 
-*Last updated: 2026-07-19 (revised [ocapn-noise-key-only-session-boundary](ocapn-noise-key-only-session-boundary.md) per review: OCapN, the relay, and the Noise listener are independent components. An application injects a network adapter, such as Noise over WebSocket, into OCapN; the relay depends on neither. The Node controller exo supplies relay configuration and `SIGHUP` replacement while remaining loosely coupled. Summary and estimate rows synced.
+*Last updated: 2026-07-22 (added [endor-native-zip-xs](endor-native-zip-xs.md) to M11: raw-DEFLATE Rust host functions selected by `@endo/zip` with `-C xs`, bounded inflation, and a snapshot callback-table migration. Summary, M11, estimates, totals, and timeline synced.
+Layered on 2026-07-19 (revised [ocapn-noise-key-only-session-boundary](ocapn-noise-key-only-session-boundary.md) per review: OCapN, the relay, and the Noise listener are independent components. An application injects a network adapter, such as Noise over WebSocket, into OCapN; the relay depends on neither. The Node controller exo supplies relay configuration and `SIGHUP` replacement while remaining loosely coupled. Summary and estimate rows synced.
 Layered on 2026-07-17 (revised agentry-git-eval-scenarios for issue #753 item 2: the ReadableBlob fetch, rangeRead, and rangeReadText contract now carries the sed-like filesystem/blob bounded-read affordance, while rendered Git output bounds and remote exo propagation remain follow-ups; summary metadata and M3 notes synced.
 Layered on 2026-07-13 (added [endo-fetch](endo-fetch.md) to M3 (Remote Access and Coding Capabilities): redrafts the confined-outbound-HTTP provisioning as the `@endo/fetch` unconfined plugin over the landed `@endo/exo-http-client` / `@endo/http-confine` capability packages (#566), with durable policy and trust-on-first-bind pins on the virtual file system and restart revival via integration-owned `@pins` retention, per the maintainer's PR #609 unconfined-plugin direction and the [endo-reminder](endo-reminder.md) precedent (design PR #682, implementation PR #721); supersedes [endoclaw-network-fetch](endoclaw-network-fetch.md)'s daemon-provisioning sketch, [cli-http-client](cli-http-client.md)'s formula-pair packaging in part, and the `provideHttpClient` daemon-wiring item of [daemon-agent-tools](daemon-agent-tools.md) Phase 3.6 (the `makeHttpTool` binding survives); summary table, M3 rows, dependency graph, and per-design estimates synced.
 Layered on the 2026-07-12 addition of [cbor-codec](cbor-codec.md) to M4 (Networking): a shared canonical-CBOR primitive codec package, `@endo/cbor`, extracted from the parallel head codecs in `packages/ocapn/src/cbor` and PR #124's `packages/slots/src/cbor.js` per kriskowal's follow-up request on the PR #124 review, with the daemon `envelope.js` codec as an optional later adopter and byte identity with `rust/endo/slots` enforced by shared golden vectors; summary table, M4 bucket and count, and per-design estimate synced.
@@ -340,6 +341,7 @@ LLM-agent stack).*
 | [break-dev-dependency-cycles](break-dev-dependency-cycles.md) | 2026-05-11 | 2026-06-15 | **Complete** (on `llm`) |
 | [cli-http-client](cli-http-client.md) | 2026-05-09 | 2026-07-13 | Proposed (PR #144 design revision; formula packaging superseded in part by [endo-fetch](endo-fetch.md)) |
 | [endor-bus-tui](endor-bus-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
+| [endor-native-zip-xs](endor-native-zip-xs.md) | 2026-07-22 | 2026-07-22 | Proposed |
 | [endor-tui](endor-tui.md) | 2026-04-23 | 2026-04-23 | Not Started |
 | [hex-package](hex-package.md) | 2026-04-23 | 2026-05-18 | **Complete** |
 | [endo-bytes](endo-bytes.md) | 2026-05-08 | 2026-05-10 | Implemented |
@@ -1047,6 +1049,7 @@ user interface move to Rust.
 |--------|--------|-------|
 | endor-tui | Not Started | TUI entry point for `endor`: Chat UI in terminal idiom, and an integrated stepping debugger for XS workers (XS `mxDebug` protocol) |
 | endor-bus-tui | Not Started | Bus-protocol verbs for worker-owned TUI regions, XS handle API, Exo/CapTP wrapper |
+| endor-native-zip-xs | Proposed | Raw-DEFLATE host functions selected by `@endo/zip` under `-C xs`, with bounded inflation and snapshot ABI update |
 
 **Exit criterion:** `endor` runs as a second-seat daemon against the same
 state directory as the Node daemon, exposes a fully functional Chat TUI
@@ -1356,6 +1359,7 @@ have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
 | endoclaw-skill-registry | S-M | 3 days | 10 | Skills directory with capability declarations; PR #105 open |
 | endor-tui | XL | 5-8 weeks | 11 | Rust TUI: ratatui/crossterm, concept-map of every Chat component, XS `mxDebug` debugger integration (XL bumped 1.3x) |
 | endor-bus-tui | XL | 4-7 weeks | 11 | Bus-verb spec, XS handle API, Exo/CapTP wrapper; cross-worker layout composition (XL bumped 1.3x) |
+| endor-native-zip-xs | S-M | 2-3 days | 11 | Pure-Rust raw-DEFLATE host functions, `@endo/zip` `xs` conditional exports, bounded inflation, and XS snapshot callback-table migration |
 | endopi | Reference | — | — | Comparative analysis of the pi agent harness against endo; spins out the endopi-* gap-closing designs below |
 | endopi-edit-tool | S-M | 3 days | 3 | LLM-friendly oldText/newText edit primitive on `File` capability; reuses [cli-edit-verb](cli-edit-verb.md)'s diff helpers |
 | endopi-jsonl-transcript-format | S-M | 3 days | 3 | On-disk JSONL projection of the Lal transcript graph; satisfies endoclaw § *Persistence and Memory*'s "Pi-compatible jsonl files" directive |
@@ -1392,8 +1396,8 @@ date of this pass.
 | M8: Peer App Sharing (was Milestone A) | 3 net-new (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); existing constituents counted under M3/M4/M7 | 2-3 weeks | 3-5 weeks |
 | M9: UX & Tooling (was M4) | 13 (`chat-pending-commands`, `chat-slot-slash-commands`, `daemon-commands-as-messages`, `inventory-cancel-and-liveness`, `inventory-grouping-by-type`, `inventory-drag-and-drop`, `formula-inspector`, `workers-panel`, `daemon-retention-paths`, `chat-edit-message-ui`, `chat-inventory-create-menu`, `lal-transcript-memory-management`, `namehub-interface-unification`) | 9-12 weeks | 11-14 weeks |
 | M10: Confinement & Ecosystem (was M5) | 6 (`endo-posix-sandbox`, `daemon-capability-persona`, `daemon-capability-bank`, `endoclaw-browser`, `endoclaw-channel-bridges`, `endoclaw-skill-registry`) | 14-20 weeks | 16-22 weeks |
-| M11: Rust Daemon (`endor`) (was M6) | 2 (`endor-tui`, `endor-bus-tui`) | 12-17 weeks | 14-19 weeks |
-| **Total remaining** | **58** + 7 M5 rows (4 in-flight + 3 design gaps) + 1 M6 own-work row | **~57-78 weeks** + M5 4-6 weeks + M6 ~2 weeks | **~69-94 weeks** |
+| M11: Rust Daemon (`endor`) (was M6) | 3 (`endor-tui`, `endor-bus-tui`, `endor-native-zip-xs`) | 12-18 weeks | 14-20 weeks |
+| **Total remaining** | **59** + 7 M5 rows (4 in-flight + 3 design gaps) + 1 M6 own-work row | **~57-79 weeks** + M5 4-6 weeks + M6 ~2 weeks | **~69-95 weeks** |
 
 The 2026-05-20 reconciliation corrects a counting gap in the prior
 snapshot's narrative: M1, M3, and M4 had absorbed new rows since the
@@ -1446,7 +1450,7 @@ gantt
     Confinement & Ecosystem       :m10, after m9, 20w
 
     section Milestone 11
-    Rust Daemon (endor)           :m11, after m10, 17w
+    Rust Daemon (endor)           :m11, after m10, 18w
 ```
 
 Durations below are the recalibrated effort-side ranges (multiplying by
@@ -1473,7 +1477,7 @@ dates project from that anchor at the upper-bound effort.
 | M8: Peer App Sharing (was Milestone A) | 2-3 weeks | 26-34 weeks | Late December 2026 to early February 2027 |
 | M9: UX & Tooling (was M4) | 9-12 weeks | 35-46 weeks | Mid February to mid April 2027 |
 | M10: Confinement & Ecosystem (was M5) | 14-20 weeks | 49-66 weeks | Late May to early September 2027 |
-| M11: Rust Daemon (`endor`) (was M6) | 12-17 weeks | 61-83 weeks | Q3 to Q4 2027 (research-heavy; may run in parallel) |
+| M11: Rust Daemon (`endor`) (was M6) | 12-18 weeks | 61-84 weeks | Q3 to Q4 2027 (research-heavy; may run in parallel) |
 
 *M3 and M7 (weblets) are less order-dependent and can be interleaved
 once their respective dependencies have landed; the M5/M6 hosted-Gateway
