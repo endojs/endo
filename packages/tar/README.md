@@ -1,17 +1,21 @@
 # Endo tar
 
-This is a minimal, portable tar archive **reader**.
-It decodes the regular files, directories, and symlinks that native
+This is a minimal, portable tar archive **reader and writer**.
+The reader decodes the regular files, directories, and symlinks that native
 `git archive --format=tar` emits, honoring the pax extended headers
 (`path`, `linkpath`, and `size` overrides) that `git archive` writes whenever
 an entry does not fit the legacy ustar header fields.
+The writer emits the ustar header, padding, and end-of-archive blocks needed
+to stream a regular-file tar archive back out, the exact subset a caller can
+hand straight to this reader.
 
-The reader has no dependency on any built-in module: it operates entirely on
-an `AsyncIterable<Uint8Array>` byte source and `Uint8Array` content, which
-makes it suitable for embedding in an XS binary, bundling for any platform,
-and running inside a locked-down SES realm.
-This package is reader-only by design; producing a tar archive is left to a
-native `git archive` (or another writer).
+Neither side has any dependency on a built-in module: they operate entirely on
+`AsyncIterable<Uint8Array>` / `Uint8Array` bytes, which makes the package
+suitable for embedding in an XS binary, bundling for any platform, and running
+inside a locked-down SES realm.
+The writer is intentionally minimal — it emits only ustar regular-file
+entries (no directories, symlinks, or pax headers), which is enough to
+serialize a content-addressed blob tree for transport.
 
 ## Usage
 
@@ -60,6 +64,37 @@ composes, for callers that need to decode tar headers directly:
   traversal.
 - `makeTarReader(source)` — the block-aligned reader (`readBlock`,
   `streamContent`) underlying `readTarEntries`.
+
+## Writing
+
+The writer exposes the three primitives a streaming producer concatenates to
+build a regular-file tar archive. A producer yields, per file, a header then
+the body then any padding, and finally the end-of-archive marker:
+
+```javascript
+import { tarFileHeader, tarFilePadding, tarEndMarker } from '@endo/tar';
+
+async function* tar(files) {
+  for (const { path, bytes } of files) {
+    yield tarFileHeader(path, bytes.byteLength);
+    yield bytes;
+    const padding = tarFilePadding(bytes.byteLength);
+    if (padding.byteLength !== 0) yield padding;
+  }
+  yield tarEndMarker();
+}
+```
+
+- `tarFileHeader(path, size)` — a 512-byte ustar header for a regular file
+  (mode `0644`; zero uid/gid/mtime, so the header is a deterministic function
+  of its path and size). Throws when `path` exceeds the 100-byte ustar name
+  field.
+- `tarFilePadding(size)` — the zero padding that rounds a file body up to the
+  next 512-byte block; empty when already aligned.
+- `tarEndMarker()` — the two zero blocks that terminate a tar stream.
+
+The `writer.js` subpath (`@endo/tar/writer.js`) exports the same three
+primitives without pulling in the reader.
 
 ## Implementation Notes
 

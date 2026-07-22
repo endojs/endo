@@ -9,3 +9,4 @@ export {
   makeTarReader,
   readTarEntries,
 } from './src/reader.js';
+export { tarFileHeader, tarFilePadding, tarEndMarker } from './src/writer.js';

@@ -13,7 +13,7 @@ import {
 import { makeDeferredTasks } from './deferred-tasks.js';
 import { idFromLocator } from './locator.js';
 
-/** @import { Context, DaemonCore, DeferredTasks, EndoGuest, EvalDeferredTaskParams, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, NamesOrPaths, Provide, ReadableBlobDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { Context, ContentLoadable, DaemonCore, DeferredTasks, EndoGuest, EvalDeferredTaskParams, FormulaIdentifier, MakeDirectoryNode, MakeMailbox, MarshalDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, NamesOrPaths, Provide, ReadableBlobDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 import { GuestInterface } from './interfaces.js';
 import { guestHelp, makeHelp } from './help-text.js';
 
@@ -27,6 +27,7 @@ import { guestHelp, makeHelp } from './help-text.js';
  * @param {DaemonCore['getFormulaForId']} args.getFormulaForId
  * @param {DaemonCore['getAllNetworkAddresses']} args.getAllNetworkAddresses
  * @param {DaemonCore['getAllContentSources']} args.getAllContentSources
+ * @param {ContentLoadable['loadContent']} args.loadContent
  * @param {MakeMailbox} args.makeMailbox
  * @param {MakeDirectoryNode} args.makeDirectoryNode
  * @param {(node: string) => boolean} args.isLocalKey
@@ -42,6 +43,7 @@ export const makeGuestMaker = ({
   getFormulaForId,
   getAllNetworkAddresses,
   getAllContentSources,
+  loadContent,
   makeMailbox,
   makeDirectoryNode,
   isLocalKey,
@@ -350,6 +352,7 @@ export const makeGuestMaker = ({
       storeContent,
       reverseLocateContent,
       internalizeContentLocator,
+      loadContent,
       followLocatorNameChanges,
       followNameChanges,
       lookup,

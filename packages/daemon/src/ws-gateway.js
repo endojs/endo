@@ -8,6 +8,7 @@ import { makeExo } from '@endo/exo';
 import { M } from '@endo/patterns';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe, mapWriter, mapReader } from '@endo/stream';
+import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 
 /** @import { FarRef } from '@endo/eventual-send' */
 /** @import { EndoBootstrap } from './types.js' */
@@ -102,9 +103,41 @@ export const startWsGateway = ({
     }
   })();
 
-  const server = http.createServer((_req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Endo Gateway');
+  const server = http.createServer(async (request, response) => {
+    const requestUrl = new URL(request.url || '/', 'http://gateway.invalid');
+    const contentMatch = /^\/content\/([0-9a-f]{64})$/.exec(
+      requestUrl.pathname,
+    );
+    if (request.method === 'GET' && contentMatch !== null) {
+      const kind =
+        requestUrl.searchParams.get('kind') === 'tree' ? 'tree' : 'blob';
+      try {
+        const readerP =
+          kind === 'tree'
+            ? E(gatewayP).provideTree(contentMatch[1])
+            : E(gatewayP).provideBlob(contentMatch[1]);
+        const reader = await readerP;
+        response.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'Cache-Control': 'public, immutable, max-age=31536000',
+        });
+        for await (const chunk of iterateBytesReader(reader)) {
+          if (!response.write(chunk)) {
+            await new Promise(resolve => response.once('drain', resolve));
+          }
+        }
+        response.end();
+      } catch (_error) {
+        // Do not distinguish an absent content hash from a malformed stored
+        // tree. The plane is advisory and an untrusted caller learns no local
+        // store details from its failure.
+        response.writeHead(404, { 'Content-Type': 'text/plain' });
+        response.end('Content not found');
+      }
+      return;
+    }
+    response.writeHead(200, { 'Content-Type': 'text/plain' });
+    response.end('Endo Gateway');
   });
 
   const wss = new WebSocketServer({ server });
