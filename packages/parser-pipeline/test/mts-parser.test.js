@@ -109,7 +109,7 @@ test('user visitor passes see post-strip AST', t => {
       visitorFactories: [
         () => ({
           visitor: {
-            Identifier(/** @type {any} */ path) {
+            Identifier(path) {
               seenIdentifiers.push(path.node.name);
             },
           },
@@ -204,7 +204,7 @@ test('mts throws a clear error on TS features outside the strip-only subset', t 
 });
 
 test('mts surfaces source maps to sourceMapHook (transitive through strip)', t => {
-  /** @type {any} */
+  /** @type {object|undefined} */
   let capturedMap;
 
   const { sync } = createParsers({
@@ -213,7 +213,7 @@ test('mts surfaces source maps to sourceMapHook (transitive through strip)', t =
         () => ({
           // A minimal mutating pass so the generator produces a meaningful map.
           visitor: {
-            Identifier(/** @type {any} */ path) {
+            Identifier(path) {
               if (path.node.name === 'rename_me') {
                 path.node.name = 'renamed';
               }

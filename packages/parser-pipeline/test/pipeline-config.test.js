@@ -2,8 +2,15 @@ import test from '@endo/ses-ava/prepare-endo.js';
 import { definePipelineConfig } from '../src/pipeline-config.js';
 
 /**
- * @import {VisitorPassFactory, RecordFinalizer} from '../src/types/pipeline.js'
+ * @import {BabelParserOptions,
+ *   BabelGeneratorOptions,
+ *   VisitorPassFactory,
+ *   RecordFinalizer,
+ * } from '../src/types/pipeline.js'
  */
+
+/** @type {RecordFinalizer<'cjs'>} */
+const mockFinalizeRecord = record => ({ ...record, execute: () => {} });
 
 test('returns configs with empty visitorFactories by default', t => {
   const configs = definePipelineConfig();
@@ -20,17 +27,15 @@ test('merges shared visitorFactories into both languages when cjs is supplied', 
     visitor: {},
     done: () => 42,
   });
-  /** @type {RecordFinalizer<'cjs'>} */
-  const finalize = record => /** @type {any} */ (record);
   const configs = definePipelineConfig({
     visitorFactories: [sharedFactory],
-    cjs: { finalizeRecord: finalize },
+    cjs: { finalizeRecord: mockFinalizeRecord },
   });
   t.is(configs.mjs.visitorFactories.length, 1);
   t.is(configs.cjs.visitorFactories.length, 1);
   t.is(configs.mjs.visitorFactories[0], sharedFactory);
   t.is(configs.cjs.visitorFactories[0], sharedFactory);
-  t.is(configs.cjs.finalizeRecord, finalize);
+  t.is(configs.cjs.finalizeRecord, mockFinalizeRecord);
 });
 
 test('per-language visitorFactories are concatenated with shared', t => {
@@ -38,35 +43,36 @@ test('per-language visitorFactories are concatenated with shared', t => {
   const shared = (_loc, _spec) => ({ visitor: {}, done: () => 'shared' });
   /** @type {VisitorPassFactory} */
   const mjsOnly = (_loc, _spec) => ({ visitor: {}, done: () => 'mjs' });
-  /** @type {RecordFinalizer<'cjs'>} */
-  const finalize = record => /** @type {any} */ (record);
   const configs = definePipelineConfig({
     visitorFactories: [shared],
     mjs: { visitorFactories: [mjsOnly] },
-    cjs: { finalizeRecord: finalize },
+    cjs: { finalizeRecord: mockFinalizeRecord },
   });
   t.is(configs.mjs.visitorFactories.length, 2);
   t.is(configs.cjs.visitorFactories.length, 1);
 });
 
 test('cjs finalizeRecord is passed through', t => {
-  /** @type {RecordFinalizer<'cjs'>} */
-  const finalize = record => /** @type {any} */ (record);
-  const configs = definePipelineConfig({ cjs: { finalizeRecord: finalize } });
-  t.is(configs.cjs.finalizeRecord, finalize);
+  const configs = definePipelineConfig({
+    cjs: { finalizeRecord: mockFinalizeRecord },
+  });
+  t.is(configs.cjs.finalizeRecord, mockFinalizeRecord);
   t.is(configs.mjs.finalizeRecord, undefined);
 });
 
 test('shared babelParserOptions appears in both mjs and cjs', t => {
-  const opts = { plugins: /** @type {any} */ (['decorators']) };
+  /** @type {BabelParserOptions} */
+  const opts = { plugins: ['decorators'] };
   const configs = definePipelineConfig({ babelParserOptions: opts });
   t.is(configs.mjs.babelParserOptions, opts);
   t.is(configs.cjs.babelParserOptions, opts);
 });
 
 test('per-language babelParserOptions wins over shared', t => {
-  const shared = { plugins: /** @type {any} */ (['decorators']) };
-  const mjsOpts = { plugins: /** @type {any} */ (['typescript']) };
+  /** @type {BabelParserOptions} */
+  const shared = { plugins: ['decorators'] };
+  /** @type {BabelParserOptions} */
+  const mjsOpts = { plugins: ['typescript'] };
   const configs = definePipelineConfig({
     babelParserOptions: shared,
     mjs: { babelParserOptions: mjsOpts },
@@ -83,7 +89,9 @@ test('shared babelGeneratorOptions appears in both mjs and cjs', t => {
 });
 
 test('per-language babelGeneratorOptions wins over shared', t => {
+  /** @type {BabelGeneratorOptions} */
   const shared = { compact: true };
+  /** @type {BabelGeneratorOptions} */
   const cjsOpts = { compact: false };
   const configs = definePipelineConfig({
     babelGeneratorOptions: shared,

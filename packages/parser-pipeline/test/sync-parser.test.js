@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createParsers } from '../src/parsers.js';
 
+/**
+ * @import {ParseError} from '@babel/parser'
+ */
+
 const textEncoder = new TextEncoder();
 
 test('onModuleComplete is called with user visitorResults only', async t => {
@@ -130,7 +134,7 @@ test('onParseError is called for modules with recoverable syntax errors', t => {
   const fixtureBytes = readFileSync(fixturePath);
   const fixtureFileUrl = fixtureUrl.href;
 
-  /** @type {any[]} */
+  /** @type {ParseError[]} */
   let capturedErrors = [];
   let parseErrorCallCount = 0;
 
@@ -229,7 +233,7 @@ test('done() fires immediately after each pass so later passes see earlier mutat
     visitorFactories: [
       () => ({
         visitor: {
-          Identifier(/** @type {any} */ path) {
+          Identifier(path) {
             if (path.node.name === 'original') {
               path.node.name = 'renamed';
             }
@@ -241,7 +245,7 @@ test('done() fires immediately after each pass so later passes see earlier mutat
         const names = [];
         return {
           visitor: {
-            Identifier(/** @type {any} */ path) {
+            Identifier(path) {
               names.push(path.node.name);
             },
           },
