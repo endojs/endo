@@ -9,6 +9,9 @@
       "path": "../base64/tsconfig.composite.json"
     },
     {
+      "path": "../bytes/tsconfig.composite.json"
+    },
+    {
       "path": "../errors/tsconfig.composite.json"
     },
     {
