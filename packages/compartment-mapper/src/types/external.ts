@@ -191,12 +191,26 @@ export interface LogOptions {
 }
 
 /**
+ * Options having an optional profiling span hook.
+ */
+export interface ProfilingOptions {
+  /**
+   * Starts a profiling span and returns an end function.
+   */
+  profileStartSpan?: (
+    name: string,
+    args?: Record<string, unknown>,
+  ) => (endArgs?: Record<string, unknown>) => void;
+}
+
+/**
  * Options for `mapNodeModules()`
  */
 export type MapNodeModulesOptions = MapNodeModulesOptionsOmitPolicy &
   PolicyOption &
   MapNodeModulesHookOptions &
-  LogOptions;
+  LogOptions &
+  ProfilingOptions;
 
 type MapNodeModulesOptionsOmitPolicy = Partial<{
   /** @deprecated renamed `conditions` to be consistent with Node.js */
@@ -348,7 +362,8 @@ export type ArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   ImportingOptions &
   ExitModuleImportHookOption &
   LinkingOptions &
-  LogOptions;
+  LogOptions &
+  ProfilingOptions;
 
 export type SyncArchiveLiteOptions = SyncOrAsyncArchiveOptions &
   SyncModuleTransformsOption &
@@ -799,7 +814,8 @@ export type ParseOptions<
   readPowers: ReadFn | ReadPowers | undefined;
   compartmentDescriptor: TCompartmentDescriptor | undefined;
 }> &
-  ArchiveOnlyOption;
+  ArchiveOnlyOption &
+  ProfilingOptions;
 
 /**
  * Arguments for a {@link ParseFn} or {@link AsyncParseFn}.

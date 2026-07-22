@@ -138,6 +138,7 @@ export interface BundleScriptOptions {
   elideComments?: boolean | undefined;
   conditions?: string[] | undefined;
   commonDependencies?: Record<string, string> | undefined;
+  profile?: BundleProfilingOptions | undefined;
 }
 
 export interface BundleZipBase64Options extends BundleScriptOptions {
@@ -172,13 +173,21 @@ export interface BundlingKitOptions {
   noTransforms: boolean;
   commonDependencies?: Record<string, string> | undefined;
   dev?: boolean | undefined;
+  profiler?:
+    | {
+        enabled: boolean;
+        startSpan: (
+          name: string,
+          args?: Record<string, unknown> | undefined,
+        ) => (endArgs?: Record<string, unknown> | undefined) => void;
+      }
+    | undefined;
 }
 
 export interface BundlingKit {
-  sourceMapHook: (
-    sourceMap: string,
-    sourceDescriptor: SourceMapDescriptor,
-  ) => void;
+  sourceMapHook?:
+    | ((sourceMap: string, sourceDescriptor: SourceMapDescriptor) => void)
+    | undefined;
   sourceMapJobs: Set<Promise<void>>;
   moduleTransforms: ModuleTransformsLike;
   parserForLanguage: ParserForLanguageLike;
@@ -275,6 +284,11 @@ export type BundleOptions<T extends ModuleFormat> = {
    * common dependencies for the entry package.
    */
   commonDependencies?: Record<string, string> | undefined;
+  /**
+   * - enables instrumentation spans and trace emission suitable for Chrome
+   * tracing or speedscope conversion.
+   */
+  profile?: BundleProfilingOptions | undefined;
 } & (T extends 'endoZipBase64'
   ? {
       /**
@@ -286,6 +300,12 @@ export type BundleOptions<T extends ModuleFormat> = {
         | undefined;
     }
   : {});
+
+export interface BundleProfilingOptions {
+  enabled?: boolean | undefined;
+  traceFile?: string | undefined;
+  traceDir?: string | undefined;
+}
 
 export type ReadFn = (location: string) => Promise<Uint8Array>;
 

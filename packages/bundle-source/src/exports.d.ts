@@ -1,4 +1,5 @@
 export type {
+  BundleProfilingOptions,
   BundleOptions,
   BundleSource,
   BundleSourceResult,

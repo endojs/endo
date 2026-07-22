@@ -108,11 +108,11 @@ const nodejsConventionSearchSuffixes = [
   // LOAD_AS_FILE(X)
   '.js',
   '.json',
-  '.node',
+  // Native Node.js addons are intentionally omitted; compartments cannot load
+  // native modules from archived or virtual module sources.
   // LOAD_INDEX(X)
   '/index.js',
   '/index.json',
-  '/index.node',
 ];
 
 /**
@@ -259,9 +259,17 @@ export const exitModuleImportHookMaker = ({
  * `moduleSpecifier` itself)
  */
 const nominateCandidates = (moduleSpecifier, searchSuffixes) => {
-  // Collate candidate locations for the moduleSpecifier,
-  // to support Node.js conventions and similar.
+  // Collate candidate locations for the moduleSpecifier.
+  // Apply suffix expansion only when the specifier does not already
+  // include one of the file suffixes we would otherwise search.
   const candidates = [moduleSpecifier];
+  const endsWithSlash = moduleSpecifier.endsWith('/');
+  const hasExplicitExtension = searchSuffixes
+    .filter(suffix => !suffix.startsWith('/'))
+    .some(suffix => moduleSpecifier.endsWith(suffix));
+  if (!endsWithSlash && hasExplicitExtension) {
+    return candidates;
+  }
   for (const candidateSuffix of searchSuffixes) {
     candidates.push(`${moduleSpecifier}${candidateSuffix}`);
   }
@@ -361,6 +369,7 @@ function* chooseModuleDescriptor(
     archiveOnly,
     sourceMapHook,
     moduleSourceHook,
+    profileStartSpan = undefined,
     strictlyRequiredForCompartment,
     log = noop,
   },
@@ -420,32 +429,64 @@ function* chooseModuleDescriptor(
 
     // "next" values must have type assertions for narrowing because we have
     // multiple yielded types
-    const moduleBytes = /** @type {Uint8Array|undefined} */ (
-      yield maybeRead(moduleLocation)
+    const endReadModuleBytes = profileStartSpan?.(
+      'compartmentMapper.importHook.readModuleBytes',
+      { moduleLocation },
     );
+    /** @type {{ value?: Uint8Array }} */
+    const moduleBytesCell = {};
+    try {
+      moduleBytesCell.value = /** @type {Uint8Array|undefined} */ (
+        yield maybeRead(moduleLocation)
+      );
+    } finally {
+      endReadModuleBytes?.({ bytes: moduleBytesCell.value?.length });
+    }
+    const { value: moduleBytes } = moduleBytesCell;
 
     if (moduleBytes !== undefined) {
       /** @type {string | undefined} */
       let sourceMap;
       // must be narrowed
-      const envelope = /** @type {ParseResult} */ (
-        yield parse(
-          moduleBytes,
+      const endParseModule = profileStartSpan?.(
+        'compartmentMapper.importHook.parseModule',
+        {
           candidateSpecifier,
           moduleLocation,
-          packageLocation,
-          {
-            readPowers,
-            archiveOnly,
-            sourceMapHook:
-              sourceMapHook &&
-              (nextSourceMapObject => {
-                sourceMap = JSON.stringify(nextSourceMapObject);
-              }),
-            compartmentDescriptor,
-          },
-        )
+        },
       );
+      let envelope;
+      try {
+        envelope = /** @type {ParseResult} */ (
+          yield parse(
+            moduleBytes,
+            candidateSpecifier,
+            moduleLocation,
+            packageLocation,
+            {
+              readPowers,
+              archiveOnly,
+              sourceMapHook:
+                sourceMapHook &&
+                (nextSourceMapObject => {
+                  sourceMap = JSON.stringify(nextSourceMapObject);
+                }),
+              compartmentDescriptor,
+              profileStartSpan,
+            },
+          )
+        );
+      } finally {
+        endParseModule?.(
+          envelope
+            ? {
+                parser: envelope.parser,
+                inputBytes: moduleBytes.length,
+                outputBytes: envelope.bytes.length,
+              }
+            : { inputBytes: moduleBytes.length },
+        );
+      }
       const {
         parser,
         bytes: transformedBytes,
@@ -454,6 +495,15 @@ function* chooseModuleDescriptor(
 
       // Facilitate a redirect if the returned record has a different
       // module specifier than the requested one.
+      const endAssembleRecord = profileStartSpan?.(
+        'compartmentMapper.parseModule.assembleRecord',
+        {
+          moduleSpecifier,
+          candidateSpecifier,
+          moduleLocation,
+          parser,
+        },
+      );
       if (candidateSpecifier !== moduleSpecifier) {
         moduleDescriptors[moduleSpecifier] = {
           retained: true,
@@ -468,8 +518,13 @@ function* chooseModuleDescriptor(
         specifier: candidateSpecifier,
         importMeta: { url: moduleLocation },
       };
+      endAssembleRecord?.();
 
       let sha512;
+      const endHash = profileStartSpan?.('compartmentMapper.parseModule.hash', {
+        candidateSpecifier,
+        moduleLocation,
+      });
       if (computeSha512 !== undefined) {
         sha512 = computeSha512(transformedBytes);
 
@@ -482,6 +537,7 @@ function* chooseModuleDescriptor(
           });
         }
       }
+      endHash?.({ hashed: sha512 !== undefined });
 
       const packageRelativeLocation = moduleLocation.slice(
         packageLocation.length,
@@ -508,11 +564,20 @@ function* chooseModuleDescriptor(
       );
 
       if (!shouldDeferError(parser)) {
+        const endStrictlyRequired = profileStartSpan?.(
+          'compartmentMapper.parseModule.collectImports',
+          {
+            candidateSpecifier,
+            moduleSpecifier,
+            moduleLocation,
+          },
+        );
         for (const importSpecifier of getImportsFromRecord(record)) {
           strictlyRequiredForCompartment(packageLocation).add(
             resolve(importSpecifier, moduleSpecifier),
           );
         }
+        endStrictlyRequired?.();
       }
 
       return record;
@@ -589,9 +654,34 @@ export const makeImportHookMaker = (
     entryModuleSpecifier,
     importHook: exitModuleImportHook = undefined,
     moduleSourceHook,
+    profileStartSpan = undefined,
     log = noop,
   },
 ) => {
+  const { maybeRead } = unpackReadPowers(readPowers);
+  /** @type {Map<string, Promise<Uint8Array|undefined>>} */
+  const maybeReadCache = new Map();
+  /**
+   * Cache successful module-read promises during a mapping run, including
+   * promises that resolve to `undefined` for missing paths. Rejected reads are
+   * removed so transient filesystem errors can be retried by later candidates.
+   *
+   * @param {string} location
+   * @returns {Promise<Uint8Array|undefined>}
+   */
+  const cachedMaybeRead = location => {
+    const cached = maybeReadCache.get(location);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const pending = Promise.resolve(maybeRead(location));
+    maybeReadCache.set(location, pending);
+    pending.catch(() => {
+      maybeReadCache.delete(location);
+    });
+    return pending;
+  };
+
   // Set of specifiers for modules (scoped to compartment) whose parser is not
   // using heuristics to determine imports.
   /** @type {Map<string, Set<string>>} compartment name ->* module specifier */
@@ -702,8 +792,6 @@ export const makeImportHookMaker = (
           );
         }
 
-        const { maybeRead } = unpackReadPowers(readPowers);
-
         const candidates = nominateCandidates(moduleSpecifier, searchSuffixes);
 
         const record = await asyncTrampoline(
@@ -722,10 +810,11 @@ export const makeImportHookMaker = (
             archiveOnly,
             sourceMapHook,
             moduleSourceHook,
+            profileStartSpan,
             strictlyRequiredForCompartment,
             log,
           },
-          { maybeRead, parse, shouldDeferError },
+          { maybeRead: cachedMaybeRead, parse, shouldDeferError },
         );
 
         if (record) {
