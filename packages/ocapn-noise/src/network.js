@@ -947,12 +947,12 @@ export const makeOcapnNoiseNetwork = ({
       // proceed.
       const existingActive = active.get(initiatorKeyHex);
       if (existingActive) {
-        const pendingIdx = pendingInbound.indexOf(existingActive.session);
-        if (pendingIdx === -1) {
+        const pendingIndex = pendingInbound.indexOf(existingActive.session);
+        if (pendingIndex === -1) {
           await stream.writer.return(undefined);
           return;
         }
-        pendingInbound.splice(pendingIdx, 1);
+        pendingInbound.splice(pendingIndex, 1);
         // `close` fires the session's onClose, which forgets the
         // active entry; the copy already queued on `inboundSessions`
         // surfaces as a dead session, exactly as the
