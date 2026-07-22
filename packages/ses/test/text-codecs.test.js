@@ -146,3 +146,70 @@ test('TextEncoder.prototype.encodeInto writes into a Uint8Array', t => {
   t.is(out[1], 0x62);
   t.is(out[2], 0x63);
 });
+
+test('TextDecoder.prototype.ignoreBOM getter reflects the constructor option', t => {
+  if (!hasTextDecoder) {
+    t.pass('host does not provide TextDecoder');
+    return;
+  }
+  // Exercises the `ignoreBOM` getter on the prototype: an instance constructed
+  // with `{ ignoreBOM: true }` reports the option through the getter, and the
+  // default is `false`. A permits-table regression that cut `ignoreBOM` from
+  // the prototype permits surfaces as the getter returning `undefined` after
+  // lockdown.
+  const skip = new TextDecoder('utf-8', { ignoreBOM: true });
+  t.is(skip.ignoreBOM, true);
+  const strip = new TextDecoder();
+  t.is(strip.ignoreBOM, false);
+  // The observable behavior the getter selects: with `ignoreBOM: true` the
+  // U+FEFF byte-order mark is preserved in the decoded string; with the
+  // default it is stripped.
+  const bom = new Uint8Array([0xef, 0xbb, 0xbf, 0x61]);
+  t.is(strip.decode(bom), 'a');
+  t.is(skip.decode(bom), '﻿a');
+});
+
+test('@@toStringTag is preserved on TextEncoder and TextDecoder prototypes', t => {
+  if (!hasTextEncoder || !hasTextDecoder) {
+    t.pass('host does not provide TextEncoder/TextDecoder');
+    return;
+  }
+  // The permits table names `@@toStringTag` on both prototypes. A regression
+  // that cuts the tag would make `Object.prototype.toString.call(instance)`
+  // return `'[object Object]'` instead of the standard-mandated tags.
+  t.is(new TextEncoder()[Symbol.toStringTag], 'TextEncoder');
+  t.is(new TextDecoder()[Symbol.toStringTag], 'TextDecoder');
+  t.is(
+    Object.prototype.toString.call(new TextEncoder()),
+    '[object TextEncoder]',
+  );
+  t.is(
+    Object.prototype.toString.call(new TextDecoder()),
+    '[object TextDecoder]',
+  );
+});
+
+test('constructor reverse-link is preserved on both prototypes', t => {
+  if (!hasTextEncoder || !hasTextDecoder) {
+    t.pass('host does not provide TextEncoder/TextDecoder');
+    return;
+  }
+  // The permits table names `constructor: 'TextEncoder'` and
+  // `constructor: 'TextDecoder'` on the respective prototypes. Without those
+  // entries the property would be pruned by lockdown and the reverse-link
+  // would fall through to `Object.prototype.constructor`.
+  t.is(TextEncoder.prototype.constructor, TextEncoder);
+  t.is(TextDecoder.prototype.constructor, TextDecoder);
+});
+
+test('TextEncoder and TextDecoder inherit from Function.prototype', t => {
+  if (!hasTextEncoder || !hasTextDecoder) {
+    t.pass('host does not provide TextEncoder/TextDecoder');
+    return;
+  }
+  // The permits table sets `[[Proto]]: '%FunctionPrototype%'` on both
+  // constructors. A regression on that line would either fail lockdown
+  // outright or relink the prototype to something else.
+  t.is(Object.getPrototypeOf(TextEncoder), Function.prototype);
+  t.is(Object.getPrototypeOf(TextDecoder), Function.prototype);
+});
