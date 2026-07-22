@@ -1567,6 +1567,11 @@ export interface EndoHost extends EndoAgent {
     petName: string | string[],
     options: GitProvisionOptions & { allowHistoryRewrite: boolean },
   ): Promise<ReadWriteEndoGit | HistoryRewriteEndoGit>;
+  provideGit(
+    mountCap: EndoMount,
+    petName: string | string[],
+    options?: GitProvisionOptions,
+  ): Promise<ReadWriteEndoGit | HistoryRewriteEndoGit>;
   /**
    * Derive an allowlisted, argv-only command-execution `Shell` from a
    * **writable** mount.  The child working directory is resolved host-side

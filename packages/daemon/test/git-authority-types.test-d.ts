@@ -1,11 +1,12 @@
 import { expectTypeOf } from 'expect-type';
 import type { HistoryRewriteEndoGit, ReadWriteEndoGit } from '@endo/exo-git';
 
-import type { EndoHost, EndoMount } from '../src/types.js';
+import type { EndoHost, EndoMount, GitProvisionOptions } from '../src/types.js';
 
 declare const host: EndoHost;
 declare const mount: EndoMount;
 declare const allowHistoryRewrite: boolean;
+declare const optionsSelectedAtRuntime: GitProvisionOptions;
 
 const ordinary = host.provideGit(mount, 'ordinary');
 const explicitOrdinary = host.provideGit(mount, 'explicit-ordinary', {
@@ -17,6 +18,11 @@ const historyRewrite = host.provideGit(mount, 'history-rewrite', {
 const selectedAtRuntime = host.provideGit(mount, 'selected-at-runtime', {
   allowHistoryRewrite,
 });
+const optionsSelectedAtRuntimeResult = host.provideGit(
+  mount,
+  'options-selected-at-runtime',
+  optionsSelectedAtRuntime,
+);
 
 // `provideGit`'s overloads pin the caller's `allowHistoryRewrite` argument to
 // its provisioned posture: omitting the option, or passing it as `false`, is
@@ -42,6 +48,13 @@ expectTypeOf(historyRewrite).resolves.toEqualTypeOf<HistoryRewriteEndoGit>();
 // union to either arm alone would either over-promise history-rewrite
 // methods on an ordinary grant or hide them on an elevated one.
 expectTypeOf(selectedAtRuntime).resolves.toEqualTypeOf<
+  ReadWriteEndoGit | HistoryRewriteEndoGit
+>();
+// The same dynamic-selection contract holds when the whole options bag
+// (not just the boolean field) is decided at runtime: passing a
+// `GitProvisionOptions` value carries no compile-time-visible literal, so the
+// overload resolution must still fall back to the same two-arm union.
+expectTypeOf(optionsSelectedAtRuntimeResult).resolves.toEqualTypeOf<
   ReadWriteEndoGit | HistoryRewriteEndoGit
 >();
 
