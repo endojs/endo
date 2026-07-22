@@ -51,6 +51,7 @@
     "@endo/pass-style": "workspace:^"
   },
   "devDependencies": {
+    "@endo/compartment-mapper": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",
