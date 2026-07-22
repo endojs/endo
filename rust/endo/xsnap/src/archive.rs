@@ -839,9 +839,20 @@ pub fn entry_import_result(machine: &crate::Machine) -> Result<(), crate::XsnapE
             for line in s.lines() {
                 eprintln!("  {line}");
             }
-            Err(crate::XsnapError::Archive(
-                "entry module evaluation failed".to_string(),
-            ))
+            // Carry the rejection's message in the error value, not only
+            // on stderr, so callers (and tests) can identify the failure
+            // — e.g. a CJS require's "Cannot find module" — from the
+            // returned error alone.
+            let message = s
+                .lines()
+                .next()
+                .and_then(|line| line.strip_prefix("ERROR: "))
+                .unwrap_or("");
+            Err(crate::XsnapError::Archive(if message.is_empty() {
+                "entry module evaluation failed".to_string()
+            } else {
+                format!("entry module evaluation failed: {message}")
+            }))
         }
         _ => Err(crate::XsnapError::Archive(
             "entry import settlement check failed".to_string(),
