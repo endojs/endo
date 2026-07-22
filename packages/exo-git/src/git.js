@@ -182,7 +182,7 @@ harden(getGitBackend);
  *   validated the URL and the refspecs against `GitRemote`'s policy;
  *   this method runs the underlying `git fetch` invocation through the
  *   sanitized environment.
- * @property {(input: { url?: unknown, refspecs?: unknown, setUpstream?: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }) => Promise<object>} remotePush
+ * @property {(input: { url?: unknown, refspecs?: unknown, forceWithLease?: { ref: string, expectedOid: string }, setUpstream?: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }) => Promise<object>} remotePush
  *   Push to a policy-bound remote URL with the same policy
  *   pre-validation contract as `remoteFetch`.
  * @property {(ref: string) => Promise<{ treeOid: string, commitOid?: string }>} resolveTree

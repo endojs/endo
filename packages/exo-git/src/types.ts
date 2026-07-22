@@ -229,6 +229,11 @@ export type GitRemote = {
     source?: string;
     destination?: string;
     force?: boolean;
+    /**
+     * Force-update only if the destination still names this commit. This is
+     * the capability form of git's `--force-with-lease=<destination>:<oid>`.
+     */
+    forceWithLease?: string;
     setUpstream?: boolean;
   }) => Promise<any>;
 };

@@ -896,17 +896,23 @@ export const makeGitRemote = ({
    */
   const pushRefspecsFromOptions = options => {
     const opts =
-      /** @type {{ source?: unknown, destination?: unknown, force?: boolean, setUpstream?: boolean }} */ (
+      /** @type {{ source?: unknown, destination?: unknown, force?: boolean, forceWithLease?: unknown, setUpstream?: boolean }} */ (
         options || {}
       );
+    if (opts.force && opts.forceWithLease !== undefined) {
+      throw new Error(
+        'GitRemote.push force and forceWithLease are mutually exclusive',
+      );
+    }
     if (opts.source === undefined && opts.destination === undefined) {
-      if (opts.setUpstream) {
+      if (opts.setUpstream || opts.forceWithLease !== undefined) {
         throw new Error(
-          'GitRemote.push setUpstream requires an explicit source and destination',
+          'GitRemote.push setUpstream and forceWithLease require an explicit source',
         );
       }
       return harden({
         refspecs: harden([...currentPolicy.pushRefspecs]),
+        forceWithLease: undefined,
         setUpstream: false,
       });
     }
@@ -915,10 +921,35 @@ export const makeGitRemote = ({
       opts.destination ?? source,
       'GitRemote.push destination',
     );
+    const forceWithLease = opts.forceWithLease;
+    if (
+      forceWithLease !== undefined &&
+      (typeof forceWithLease !== 'string' ||
+        !/^[0-9a-f]{40}$/iu.test(forceWithLease))
+    ) {
+      throw new Error(
+        'GitRemote.push forceWithLease must be a 40-character hexadecimal object ID',
+      );
+    }
+    if (forceWithLease !== undefined && !currentPolicy.allowForcePush) {
+      throw new Error(
+        'GitRemote push force-with-lease requires allowForcePush',
+      );
+    }
+    // `--force-with-lease` supplies the force. Do not also prefix the refspec
+    // with `+`, because that would override the lease check in git push.
     const refspec = `${opts.force ? '+' : ''}${source}:${destination}`;
     assertPushRefspecAllowed(refspec);
     return harden({
       refspecs: harden([refspec]),
+      ...(forceWithLease === undefined
+        ? {}
+        : {
+            forceWithLease: harden({
+              ref: destination,
+              expectedOid: forceWithLease,
+            }),
+          }),
       setUpstream: !!opts.setUpstream,
     });
   };
@@ -1106,13 +1137,15 @@ export const makeGitRemote = ({
         ensureDirection('push');
         fence = captureOperationFence();
         const transportCredential = ensureCredentialUsable();
-        const { refspecs, setUpstream } = pushRefspecsFromOptions(options);
+        const { refspecs, forceWithLease, setUpstream } =
+          pushRefspecsFromOptions(options);
         const activeOperation = beginOperation();
         let result;
         try {
           result = await backend.remotePush({
             url: currentPolicy.url,
             refspecs,
+            forceWithLease,
             setUpstream,
             credential: transportCredential,
             signal: activeOperation.signal,

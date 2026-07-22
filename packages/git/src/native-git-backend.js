@@ -2845,7 +2845,7 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
 
     remotePush: async input => {
       const opts =
-        /** @type {{ url?: unknown, refspecs?: unknown, setUpstream?: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }} */ (
+        /** @type {{ url?: unknown, refspecs?: unknown, forceWithLease?: { ref?: unknown, expectedOid?: unknown }, setUpstream?: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }} */ (
           input
         );
       const url = requireRevision(opts.url, 'remotePush.url');
@@ -2860,6 +2860,20 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
       await assertNoExecutableRepoConfig();
       await assertNoRemoteTransportRepoConfig();
       const args = [...remoteProtocolArgs(url), 'push', '--porcelain'];
+      if (opts.forceWithLease !== undefined) {
+        const { ref, expectedOid } = opts.forceWithLease;
+        const leaseRef = requireRevision(ref, 'remotePush.forceWithLease.ref');
+        const leaseOid = requireNonEmptyString(
+          expectedOid,
+          'remotePush.forceWithLease.expectedOid',
+        );
+        if (!/^[0-9a-f]{40}$/iu.test(leaseOid)) {
+          throw new Error(
+            'remotePush.forceWithLease.expectedOid must be a 40-character hexadecimal object ID',
+          );
+        }
+        args.push(`--force-with-lease=${leaseRef}:${leaseOid}`);
+      }
       if (opts.setUpstream) {
         args.push('--set-upstream');
       }

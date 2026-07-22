@@ -168,7 +168,11 @@ for (const name of ['inspect', 'fetch', 'pull', 'push']) {
 const schemaStricterRecords = harden({
   fetch: [{ options: { prune: 'yes' } }, { options: { tags: 1 } }],
   pull: [{ options: { strategy: 'squash' } }, { options: { branch: 42 } }],
-  push: [{ options: { force: 'yes' } }, { options: { setUpstream: 'x' } }],
+  push: [
+    { options: { force: 'yes' } },
+    { options: { forceWithLease: 'not-an-oid' } },
+    { options: { setUpstream: 'x' } },
+  ],
 });
 for (const [name, records] of Object.entries(schemaStricterRecords)) {
   test(`schema is stricter than the open guard for gitRemote.${name}`, t => {
@@ -230,13 +234,26 @@ test('verbs forward their options record verbatim to the capability', async t =>
     options: { branch: 'main', strategy: 'rebase' },
   });
   await byName.push.invoke({
-    options: { source: 'refs/heads/x', setUpstream: true },
+    options: {
+      source: 'refs/heads/x',
+      setUpstream: true,
+      forceWithLease: '0123456789abcdef0123456789abcdef01234567',
+    },
   });
 
   t.deepEqual(calls, [
     { method: 'fetch', args: [{ prune: true }] },
     { method: 'pull', args: [{ branch: 'main', strategy: 'rebase' }] },
-    { method: 'push', args: [{ source: 'refs/heads/x', setUpstream: true }] },
+    {
+      method: 'push',
+      args: [
+        {
+          source: 'refs/heads/x',
+          setUpstream: true,
+          forceWithLease: '0123456789abcdef0123456789abcdef01234567',
+        },
+      ],
+    },
   ]);
 });
 
@@ -332,6 +349,7 @@ test('fetch / pull / push tools drive the bounded native data plane', async t =>
       fetchRefspecs: ['+refs/heads/main:refs/remotes/origin/main'],
       pushRefspecs: ['refs/heads/agent/*:refs/heads/agent/*'],
       allowDelete: true,
+      allowForcePush: true,
     },
   });
 
@@ -381,4 +399,36 @@ test('fetch / pull / push tools drive the bounded native data plane', async t =>
   t.is(pushed.length, 1);
   t.is(pushed[0].remote, 'refs/heads/agent/topic');
   t.regex(pushed[0].local.oid, /^[0-9a-f]{40}$/u);
+
+  // A ledger writer pins the remote branch it observed before replacing it.
+  // The matching lease succeeds, while replaying that stale observation fails
+  // instead of overwriting the newer remote state.
+  const expectedOid = pushed[0].local.oid;
+  const secondNote = await E(mount).entry(['agent-second.txt']);
+  await E(mount).writeText(secondNote, 'agent second\n');
+  await E(git).add([secondNote]);
+  await E(git).commit('test: second agent branch commit');
+  await byName.push.invoke({
+    options: {
+      source: 'refs/heads/agent/topic',
+      destination: 'refs/heads/agent/topic',
+      forceWithLease: expectedOid,
+    },
+  });
+
+  const staleNote = await E(mount).entry(['agent-stale.txt']);
+  await E(mount).writeText(staleNote, 'agent stale\n');
+  await E(git).add([staleNote]);
+  await E(git).commit('test: stale agent branch commit');
+  await t.throwsAsync(
+    () =>
+      byName.push.invoke({
+        options: {
+          source: 'refs/heads/agent/topic',
+          destination: 'refs/heads/agent/topic',
+          forceWithLease: expectedOid,
+        },
+      }),
+    { message: /failed to push some refs/u },
+  );
 });

@@ -1140,6 +1140,63 @@ test('GitRemote wildcard push policy binds source and destination names', async 
   });
 });
 
+test('GitRemote.push forwards a destination-scoped force-with-lease', async t => {
+  const { mount } = await provisionGitContext(t);
+  /** @type {unknown[]} */
+  const pushCalls = [];
+  const backend = harden({
+    ...makeNotYetImplementedBackend(),
+    remotePush: async input => {
+      pushCalls.push(input);
+      return harden({ updatedRefs: [] });
+    },
+  });
+  const git = makeGit({ mount, backend, lineageOf });
+  const { remote } = makeGitRemote({
+    git,
+    name: 'origin',
+    credential: exampleCredential(),
+    policy: {
+      url: 'https://github.com/example/repo.git',
+      allowedDirections: ['push'],
+      fetchRefspecs: [],
+      pushRefspecs: ['refs/heads/safe/*:refs/heads/safe/*'],
+      allowForcePush: true,
+    },
+  });
+
+  const expectedOid = '0123456789abcdef0123456789abcdef01234567';
+  await E(remote).push({
+    source: 'refs/heads/safe/topic',
+    forceWithLease: expectedOid,
+  });
+
+  t.like(
+    /** @type {{ refspecs?: string[], forceWithLease?: unknown }} */ (
+      pushCalls[0]
+    ),
+    {
+      refspecs: ['refs/heads/safe/topic:refs/heads/safe/topic'],
+      forceWithLease: {
+        ref: 'refs/heads/safe/topic',
+        expectedOid,
+      },
+    },
+  );
+
+  await t.throwsAsync(E(remote).push({ forceWithLease: expectedOid }), {
+    message: /forceWithLease require an explicit source/,
+  });
+  await t.throwsAsync(
+    E(remote).push({
+      source: 'refs/heads/safe/topic',
+      force: true,
+      forceWithLease: expectedOid,
+    }),
+    { message: /mutually exclusive/ },
+  );
+});
+
 test('GitRemote.push revalidates concrete tag overrides against allowTags', async t => {
   // P2-3: a broad tag-disabled policy refspec (refs/heads/*:refs/*)
   // wildcard-matches a concrete override pushing a branch to a tag

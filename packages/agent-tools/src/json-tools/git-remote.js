@@ -157,6 +157,13 @@ const gitRemoteToolSchemas = harden({
         description:
           'Force-update the destination (requires the allowForcePush policy).',
       },
+      forceWithLease: {
+        type: 'string',
+        pattern: '^[0-9a-fA-F]{40}$',
+        description:
+          'Force-update only when the destination still names this expected ' +
+          '40-character commit ID (requires the allowForcePush policy).',
+      },
       setUpstream: {
         type: 'boolean',
         description:
