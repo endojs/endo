@@ -109,9 +109,10 @@ blob. An end after the last line clamps at the end.
 Line boundaries are LF (`0x0a`). A CR before LF remains content, so CRLF is
 preserved rather than normalized. A final LF creates the same terminal empty
 line used by `rangeReadText`; selecting through that line preserves the final
-LF. This makes the proposed migration observable as
-`await E(blob).textRange(a, b).text()` with the same line-origin, endpoint,
-clamping, and trailing-newline behavior as the current convenience method.
+LF. This keeps `await E(blob).textRange(a, b).text()` consistent with
+`rangeReadText`: the same line-origin, endpoint, clamping, and trailing-newline
+behavior, so the two spellings never disagree about which bytes a line range
+selects.
 UTF-8 decoding is only performed by `text()` or `json()` and follows their
 existing decoder behavior; finding LF byte boundaries neither normalizes nor
 materializes unrelated bytes.
@@ -148,7 +149,7 @@ The implementation owner must inventory these range-specific definitions and
 callers before editing. The list is intentionally separated from unrelated
 HTTP, Git-transport, and content-store methods also named `fetch`:
 
-| Area | Definitions or callers to migrate |
+| Area | Definitions or callers to update |
 |---|---|
 | Shared lite contract | `packages/platform/src/fs/interfaces.js`, `types.d.ts`, `index.js`, and `packages/exo-git/src/types.ts` |
 | Implementations | `packages/platform/src/fs-node/local-blob.js`; `packages/platform/src/fs/extended/shared/blobref.js`; `packages/daemon/src/manager.js` (`makeReadableBlob`, `makeBytesBlob`); `packages/daemon/src/mount.js` (`makeMountFileExo`, `makeReadableBlobView`); `packages/git/src/native-git-backend.js` |
@@ -162,39 +163,32 @@ HTTP, Git-transport, and content-store methods also named `fetch`:
    and text-line selections. Adopt it in every rich blob implementation above.
    Keep the source's identity and lifetime private: derived ranges receive no
    formula, name, or persistence entry.
-2. Add `range` and `textRange` to all producers while retaining `fetch`,
-   `rangeRead`, and `rangeReadText` as deprecated compatibility methods for
-   one release. Update internal consumers (`cas.js`, `cached-fs.js`, and daemon
-   consumers) to use the new cap shape and explicitly decode/stream through the
-   normal blob surface where they formerly consumed a bytes reader.
-3. At each CapTP boundary, feature-detect with `__getMethodNames__`. A new
-   client may use a local legacy adapter only when talking to an old peer; a
-   new producer must retain the old methods until the supported peer window has
-   closed. Do not implement a general old-peer `range` shim by eagerly calling
-   `fetch`: it would materialize the selected bytes, lose the attenuation and
-   streaming property, and silently change authority/lifetime behavior.
-4. In the next breaking release, remove the deprecated methods and the
-   `ReadableBlobRange*` names, rename the shared guard to the single
-   `ReadableBlob` surface, update generated declarations and help text, and
+2. Replace `fetch`, `rangeRead`, and `rangeReadText` with `range` and
+   `textRange` on every producer in one clean break — migration is not a
+   concern, so no deprecated aliases, compatibility window, or legacy-adapter
+   package. Update internal consumers (`cas.js`, `cached-fs.js`, and daemon
+   consumers) to the new cap shape, decoding/streaming through the normal blob
+   surface where they formerly consumed a bytes reader.
+3. Rename the shared guard to the single `ReadableBlob` surface, drop the
+   `ReadableBlobRange*` names, update generated declarations and help text, and
    make method-set conformance tests assert that every derived cap exposes the
    same methods as its parent.
 
 The test matrix must include nested byte ranges, byte-after-text and
 text-after-byte ranges, terminal-LF behavior, CRLF preservation, invalid
 arguments, `start === end`, EOF clamping, immutable snapshot stability, live
-mount changes, revocation, and old/new CapTP peer combinations.
+mount changes, and revocation.
 
-## Open questions for maintainer resolution
+## Resolved decisions
 
-1. Should the proposed zero-based, end-exclusive, LF-with-terminal-empty-line
-   `textRange` model remain exactly compatible with `rangeReadText`, or should
-   line ranges instead include each selected line's terminating LF and treat a
-   terminal LF as no extra line? The former is recommended for migration
-   continuity.
-2. Is the one-release compatibility window sufficient for CapTP clients, or is
-   a versioned legacy adapter package required for independently released
-   clients?
-3. Does every current rich blob (`BlobRef`, LocalBlob, daemon stored and
-   transient blobs, mount views, and Git blobs) belong in the first breaking
-   release, as recommended, or should the daemon-only surface ship first with
-   an explicitly temporary interface split?
+1. `textRange` keeps the zero-based, end-exclusive, LF-with-terminal-empty-line
+   model, staying consistent with `rangeReadText` rather than adopting a
+   divergent line/terminal-LF convention. The two spellings address lines
+   identically.
+2. No compatibility window and no versioned legacy-adapter package. Migration
+   is not a concern, so the old methods are replaced outright rather than kept
+   as deprecated aliases for a release.
+3. Every current rich blob (`BlobRef`, LocalBlob, daemon stored and transient
+   blobs, mount views, and Git blobs) adopts the new surface in the one clean
+   release. There is no daemon-only-first phase and no temporary interface
+   split.
