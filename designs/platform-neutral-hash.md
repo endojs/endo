@@ -118,9 +118,9 @@ export const sha256Into = (out, bytes, offset = 0) => { /* ... */ };
   "exports": {
     ".": {
       "xs": "./src/sha256-xs.js",
-      "browser": "./src/sha256-js.js",
+      "browser": "./src/sha256-browser.js",
       "node": "./src/sha256-node.js",
-      "default": "./src/sha256-js.js"
+      "default": "./src/sha256-browser.js"
     },
     "./package.json": "./package.json"
   }
@@ -132,7 +132,7 @@ flowchart TD
   C["import { sha256 } from '@endo/sha256'"] --> R{condition}
   R -->|node| N["sha256-node.js<br/>node:crypto createHash('sha256')"]
   R -->|xs| X["sha256-xs.js<br/>globalThis.hostSha256* (Rust native)"]
-  R -->|browser / default| J["sha256-js.js<br/>pure-JS SHA-256 (sync)"]
+  R -->|browser / default| J["sha256-browser.js<br/>pure-JS SHA-256 (sync)"]
 ```
 
 - **node** → `node:crypto`: `createHash('sha256').update(bytes).digest()`,
@@ -177,20 +177,14 @@ binary blob content. The binary-safe path is the streaming triple with
 
 ```js
 /* global globalThis */
-const { hostSha256Init, hostSha256UpdateBytes, hostSha256Finish } = globalThis;
+import { decodeHex } from '@endo/hex';
 
-const fromHex = hex => {
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    out[i / 2] = parseInt(hex.slice(i, i + 2), 16);
-  }
-  return out;
-};
+const { hostSha256Init, hostSha256UpdateBytes, hostSha256Finish } = globalThis;
 
 export const sha256 = bytes => {
   const handle = hostSha256Init();
   hostSha256UpdateBytes(handle, bytes);
-  return fromHex(hostSha256Finish(handle)); // 32 bytes
+  return decodeHex(hostSha256Finish(handle)); // 32 bytes
 };
 
 export const sha256Into = (out, bytes, offset = 0) => {
@@ -264,7 +258,7 @@ filed against `endojs/endo-but-for-bots`), **not** a prerequisite for generating
 ## Phased build plan
 
 1. **`@endo/sha256` package, JS + node + xs conditions, no new Rust.** Author
-   `sha256-js.js` (lift `node-crypto-shim.js`'s pure-JS core), `sha256-node.js`,
+   `sha256-browser.js` (lift `node-crypto-shim.js`'s pure-JS core), `sha256-node.js`,
    `sha256-xs.js` (streaming-triple composition). Unit tests cross-check all
    three against `node:crypto` vectors. **This alone unblocks the bundle** once
    step 2 lands. *First buildable increment.*
