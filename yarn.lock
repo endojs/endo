@@ -1071,7 +1071,7 @@ __metadata:
     "@endo/ses-ava": "workspace:^"
     "@types/babel__generator": "npm:~7.27.0"
     "@types/babel__traverse": "npm:~7.28.0"
-    "@types/node": "npm:^20.19.41"
+    "@types/node": "catalog:dev"
     ava: "catalog:dev"
     benchmark: "npm:^2.1.4"
     c8: "catalog:dev"
@@ -2404,12 +2404,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^20.19.41":
-  version: 20.19.41
-  resolution: "@types/node@npm:20.19.41"
+"@types/node@npm:^22.19.41":
+  version: 22.20.1
+  resolution: "@types/node@npm:22.20.1"
   dependencies:
     undici-types: "npm:~6.21.0"
-  checksum: 10c0/aa2a07317bbd700bea68d5784b403a738dbcebadbe2d8ef05649f7953065120d5d37f7edfdd7881df3a3bd15328c8a4dc46fdd69732ab540d552c505378c585b
+  checksum: 10c0/f2ba54d3d1fb92e1c57c78d32c3a17655b1e87363b707136f55c422b4838d4054901ce5d27f75bb0e5ecb7ebfee3804e0987822d22b473473008091857a09353
   languageName: node
   linkType: hard
 
@@ -7678,7 +7678,7 @@ __metadata:
     "@jessie.js/eslint-plugin": "npm:^0.4.3"
     "@lavamoat/allow-scripts": "npm:^3.4.3"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.1"
-    "@types/node": "npm:^20.19.41"
+    "@types/node": "catalog:dev"
     "@typescript-eslint/eslint-plugin": "npm:^8.60.0"
     "@typescript-eslint/parser": "npm:^8.60.0"
     ava: "catalog:dev"
