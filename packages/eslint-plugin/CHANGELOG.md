@@ -1,5 +1,45 @@
 # @endo/eslint-plugin
 
+## 3.0.0
+
+### Major Changes
+
+- [#3319](https://github.com/endojs/endo/pull/3319) [`e352f0f`](https://github.com/endojs/endo/commit/e352f0f497ae900fd876e0833d383eca0fbe43c4) Thanks [@boneskull](https://github.com/boneskull)! - **Breaking:** Backwards compatibility with legacy ESLint config files is provided on a best-effort basis, given ESLint's deprecation of rules and third-party replacements. Recommended rules from ESLint 9+ have also been configured.
+
+  **Breaking:**Minimum supported Node.js version is now v22.12.0.
+
+  **Breaking:** `@jessie.js/eslint-plugin` is no longer a dependency of `@endo/eslint-plugin`. This removes a cyclic dependency (`@jessie.js/eslint-plugin` depends on `@endo/eslint-plugin`, and vice versa).
+  - `eslint-plugin-unicorn` is no longer a peer dependency of `@endo/eslint-plugin` and can be safely removed from your `devDependencies` (unless you consume it directly, of course).
+  - The `flat/recommended` config no longer registers the `@jessie.js` plugin, applies `@jessie.js/safe-await-separator`, or installs the `use-jessie` processor. The legacy `recommended` and `internal` configs likewise no longer extend `plugin:@jessie.js/recommended` or set the `@jessie.js/use-jessie` processor. See "Migration" below for more details.
+  - New rules have been added from `@eslint/js`' `recommended` configuration, including `no-assign-to-exported-let-var-or-function` and `no-harden-pattern-maker`, which may or may not already be handled by your existing configuration.
+
+  **Migration:** Consumers that rely on the rules and processor provided by `@jessie.js/eslint-plugin` must install `@jessie.js/eslint-plugin` manually and wire it up alongside `@endo/eslint-plugin`:
+
+  ```js
+  import jessie from '@jessie.js/eslint-plugin';
+  import endo from '@endo/eslint-plugin';
+
+  export default [
+    ...endo.configs['flat/recommended'],
+    ...jessie.configs['flat/recommended'],
+    { processor: jessie.processors['use-jessie'] },
+  ];
+  ```
+
+  Furthermore, the new rules will need to be addressed as appropriate for your project.
+
+- [#3325](https://github.com/endojs/endo/pull/3325) [`ac72fca`](https://github.com/endojs/endo/commit/ac72fca6ccf0450a199c663e331bce19ed1d84af) Thanks [@boneskull](https://github.com/boneskull)! - Certain tags are no longer allowed by our `jsdoc/check-tag-names` rule configuration, including `@code`.
+
+  The new rules `jsdoc/reject-any-type` and `jsdoc/ts-no-empty-object-type` have been disabled.
+
+### Patch Changes
+
+- [#3305](https://github.com/endojs/endo/pull/3305) [`6d6160d`](https://github.com/endojs/endo/commit/6d6160d6a0e18d89a8638f0f43a48b9712cf3877) Thanks [@turadg](https://github.com/turadg)! - Republish with resolved dependency versions. The 2.6.0 manifest on npm
+  shipped `catalog:` protocol specifiers for `eslint-plugin-import` and
+  `typescript`, which npm cannot resolve; the publish toolchain now resolves
+  the `catalog:` protocol to concrete version ranges at pack time. Fixes
+  https://github.com/endojs/endo/issues/3304.
+
 ## 2.6.0
 
 ### Minor Changes
