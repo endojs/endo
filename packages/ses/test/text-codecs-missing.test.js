@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global globalThis */
 
 // Exercises the degradation path: when the host does not provide
 // `TextEncoder` and `TextDecoder`, `lockdown()` must proceed without them
