@@ -3049,6 +3049,72 @@ mod tests {
         }
     }
 
+    /// The synchronous install path (daemon-side `import_archive`)
+    /// evaluates CommonJS facades through the shared CJS loader: an
+    /// ESM entry imports a CJS module whose `require` pulls in a
+    /// sibling with `.js` completion.
+    #[test]
+    fn import_archive_cjs_require_linkage() {
+        let map = make_archive_map(
+            vec![(
+                "app-v1",
+                "app",
+                vec![
+                    (".", archive::ModuleDescriptor::File {
+                        parser: "mjs".to_string(),
+                        location: Some("index.js".to_string()),
+                        sha512: None,
+                    }),
+                    ("./calc.js", archive::ModuleDescriptor::File {
+                        parser: "mjs".to_string(),
+                        location: Some("calc.js".to_string()),
+                        sha512: None,
+                    }),
+                    ("./lib/add.js", archive::ModuleDescriptor::File {
+                        parser: "mjs".to_string(),
+                        location: Some("lib/add.js".to_string()),
+                        sha512: None,
+                    }),
+                ],
+            )],
+            "app-v1",
+            ".",
+        );
+
+        let zip = make_test_zip(&map, &[
+            (
+                "app-v1/index.js",
+                "import calc from './calc.js'; export const result = calc;",
+            ),
+            // Placeholder registry entries; the runtime loads these
+            // modules through the raw CJS sources injected below.
+            ("app-v1/calc.js", "export default 0;"),
+            ("app-v1/lib/add.js", "export default 0;"),
+        ]);
+
+        let mut loaded = archive::load_archive(std::io::Cursor::new(zip)).unwrap();
+        loaded.sources.insert(
+            ("app-v1".to_string(), "./calc.js".to_string()),
+            "export default __loadCjs(\"app-v1\", \"./calc.js\");\n".to_string(),
+        );
+        loaded.cjs_sources.insert(
+            ("app-v1".to_string(), "./calc.js".to_string()),
+            "var add = require('./lib/add');\nmodule.exports = add(1, 20);\n".to_string(),
+        );
+        loaded.cjs_sources.insert(
+            ("app-v1".to_string(), "./lib/add.js".to_string()),
+            "module.exports = function (a, b) { return a + b; };\n".to_string(),
+        );
+
+        let machine = new_machine();
+        assert!(machine.import_archive(&loaded));
+
+        match machine.eval("__entryNs.result").unwrap() {
+            JsValue::Integer(n) => assert_eq!(n, 21),
+            other => panic!("expected 21, got {:?}", js_value_debug(&other)),
+        }
+    }
+
     #[test]
     fn import_archive_make_pattern() {
         // Test the Endo convention: entry module exports make(powers)

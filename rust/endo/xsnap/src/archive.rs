@@ -89,6 +89,13 @@ pub struct LoadedArchive {
     pub map: CompartmentMap,
     /// Module sources: (compartment_name, specifier) → source text.
     pub sources: HashMap<(String, String), String>,
+    /// Raw CommonJS sources: (compartment_name, specifier) → the
+    /// unwrapped CJS text. A module present here has an ESM facade in
+    /// `sources` (`export default __loadCjs(...)`) and is evaluated
+    /// by the runtime's CommonJS loader, which supplies a working
+    /// `require`. Empty for zip archives, whose CJS modules were
+    /// already linked by the compartment mapper.
+    pub cjs_sources: HashMap<(String, String), String>,
 }
 
 /// Load an archive from a zip reader.
@@ -155,7 +162,11 @@ pub fn load_archive<R: Read + Seek>(reader: R) -> io::Result<LoadedArchive> {
         }
     }
 
-    Ok(LoadedArchive { map, sources })
+    Ok(LoadedArchive {
+        map,
+        sources,
+        cjs_sources: HashMap::new(),
+    })
 }
 
 /// Load an archive from base64-encoded zip data (endoZipBase64 format).
@@ -343,8 +354,12 @@ function __matchExports(exp, subpath, conds) {
 }
 
 // Resolve a package subpath to a canonical source key in that
-// package's compartment, or throw a clean, named error.
-function __resolveExports(compName, subpath) {
+// package's compartment, or throw a clean, named error. The
+// optional condsOrder names the condition passes to try in turn;
+// ESM imports default to import-then-require, the CommonJS
+// loader's `require` passes require-then-import so a dual package
+// hands its CJS build to a CJS consumer.
+function __resolveExports(compName, subpath, condsOrder) {
     var manifest = __packageManifest(compName);
     var exp = manifest ? manifest.exports : undefined;
     if (exp === undefined || exp === null) {
@@ -360,8 +375,11 @@ function __resolveExports(compName, subpath) {
         }
         return canon;
     }
-    var target = __matchExports(exp, subpath, ['import']);
-    if (target === undefined) target = __matchExports(exp, subpath, ['require']);
+    var order = condsOrder || ['import', 'require'];
+    var target;
+    for (var oi = 0; oi < order.length && target === undefined; oi++) {
+        target = __matchExports(exp, subpath, [order[oi]]);
+    }
     if (target === undefined || target === null) {
         throw new Error(
             "Package subpath '" + subpath +
@@ -372,6 +390,156 @@ function __resolveExports(compName, subpath) {
         throw new Error('Module not found: ' + compName + '/' + target);
     }
     return canon2;
+}
+"#;
+
+/// The runtime CommonJS loader: Node-style module cache with
+/// cycle-safe partial exports, per-module `require` (relative
+/// specifiers against the requiring module's directory, bare and
+/// subpath specifiers through the link map and the exports resolver
+/// with `require`-conditions-first), `require.resolve`, `__filename`
+/// / `__dirname`, and function-wrapper evaluation through
+/// `Compartment.prototype.evaluate` — which also restores sloppy-mode
+/// semantics the old strict ESM shim silently denied CJS sources.
+///
+/// A module with a raw source in `__archiveCjsSources` is registered
+/// in the ESM registry as a one-line facade
+/// (`export default __loadCjs(...)`), so ESM importers see Node's
+/// require(esm)-era interop shape: the CJS `module.exports` as the
+/// default export. Requiring an ESM module returns its namespace
+/// (`.json` its default), matching modern Node `require(esm)`; a
+/// required ESM graph using top-level await fails at `importNow`
+/// with the engine's async-module error, as it does in Node.
+const CJS_RUNTIME_JS: &str = r#"
+var __cjsModuleCache = Object.create(null);
+
+function __cjsDirname(key) {
+    var i = key.lastIndexOf('/');
+    return i <= 0 ? '.' : key.slice(0, i);
+}
+
+// Node's require completion set: exact, then .js/.json, then
+// directory index completions.
+function __lookupRequire(compName, spec) {
+    var reg = __archiveRegistry[compName] || {};
+    var candidates = [
+        spec, spec + '.js', spec + '.json',
+        spec + '/index.js', spec + '/index.json'
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(reg, candidates[i])) {
+            return candidates[i];
+        }
+    }
+    return undefined;
+}
+
+// Resolve a require specifier from a CJS module to its target
+// { compartment, key }, or throw the clean Node-shaped error.
+function __resolveRequire(compName, referrer, spec) {
+    if (typeof spec !== 'string' || spec === '') {
+        throw new Error(
+            'require: specifier must be a non-empty string, required from '
+            + compName + '/' + referrer);
+    }
+    if (spec.charCodeAt(0) === 46 /* '.' */) {
+        var full = __resolveRelative(spec, referrer);
+        var canon = __lookupRequire(compName, full);
+        if (canon === undefined) {
+            throw new Error(
+                "Cannot find module '" + spec + "' required from "
+                + compName + '/' + referrer);
+        }
+        return { compartment: compName, key: canon };
+    }
+    var links = __archiveLinks[compName] || {};
+    var link = Object.prototype.hasOwnProperty.call(links, spec)
+        ? links[spec] : undefined;
+    if (link) {
+        var mod = link.module;
+        if (mod === '.') {
+            var fsources = __archiveRegistry[link.compartment] || {};
+            mod = fsources['.'] !== undefined
+                ? '.'
+                : __resolveExports(link.compartment, '.', ['require', 'import']);
+        }
+        return { compartment: link.compartment, key: mod };
+    }
+    var parsed = __parsePackageName(spec);
+    if (parsed !== undefined) {
+        var plink = Object.prototype.hasOwnProperty.call(links, parsed.name)
+            ? links[parsed.name] : undefined;
+        if (plink) {
+            return {
+                compartment: plink.compartment,
+                key: __resolveExports(
+                    plink.compartment, './' + parsed.rest, ['require', 'import'])
+            };
+        }
+    }
+    throw new Error(
+        "Cannot find module '" + spec + "' required from "
+        + compName + '/' + referrer);
+}
+
+// Load a resolved module for require: CJS through the CJS loader,
+// JSON as its parsed value, ESM as its namespace object.
+function __loadModule(compName, key) {
+    var cjs = __archiveCjsSources[compName];
+    if (cjs && Object.prototype.hasOwnProperty.call(cjs, key)) {
+        return __loadCjs(compName, key);
+    }
+    var comp = __makeArchiveCompartment(compName);
+    var ns = comp.importNow(key);
+    if (key.slice(-5) === '.json') return ns.default;
+    return ns;
+}
+
+function __makeRequire(compName, referrerKey) {
+    var require = function require(spec) {
+        var t = __resolveRequire(compName, referrerKey, spec);
+        return __loadModule(t.compartment, t.key);
+    };
+    require.resolve = function resolve(spec) {
+        return __resolveRequire(compName, referrerKey, spec).key;
+    };
+    return require;
+}
+
+function __loadCjs(compName, key) {
+    var cache = __cjsModuleCache[compName]
+        || (__cjsModuleCache[compName] = Object.create(null));
+    if (Object.prototype.hasOwnProperty.call(cache, key)) {
+        return cache[key].exports;
+    }
+    var sources = __archiveCjsSources[compName] || {};
+    if (!Object.prototype.hasOwnProperty.call(sources, key)) {
+        throw new Error(
+            "Cannot find module '" + key + "' required from " + compName);
+    }
+    var module = { exports: {} };
+    // Pre-register before evaluation so a require cycle observes the
+    // partial exports, as in Node.
+    cache[key] = module;
+    var src = sources[key];
+    var comp = __makeArchiveCompartment(compName);
+    try {
+        var fn = comp.evaluate(
+            '(function (module, exports, require, __filename, __dirname) {'
+            + src + '\n})');
+        // Node invokes the CJS wrapper with `this === module.exports`;
+        // a plain call would leave `this` bound to the (sloppy-mode)
+        // compartment global, so a module doing `this.foo = ...` would
+        // silently mis-export and pollute the shared global.
+        fn.call(module.exports, module, module.exports,
+           __makeRequire(compName, key), key, __cjsDirname(key));
+    } catch (e) {
+        // Node deletes the cache entry when evaluation throws, so a
+        // later require retries rather than seeing half a module.
+        delete cache[key];
+        throw e;
+    }
+    return module.exports;
 }
 "#;
 
@@ -407,11 +575,18 @@ fn install_archive_prelude(machine: &crate::Machine, archive: &LoadedArchive) ->
     // Step 1: Build the JS source registry and compartment link map
     let mut registry_js = String::from("var __archiveRegistry = {};\n");
     let mut links_js = String::from("var __archiveLinks = {};\n");
+    let mut cjs_js = String::from("var __archiveCjsSources = {};\n");
 
     for (compartment_name, compartment) in &archive.map.compartments {
         // Initialize per-compartment registry
         registry_js.push_str(&format!(
             "__archiveRegistry['{}'] = {{}};\n",
+            escape_js_string(compartment_name)
+        ));
+
+        // Initialize per-compartment raw CJS sources
+        cjs_js.push_str(&format!(
+            "__archiveCjsSources['{}'] = {{}};\n",
             escape_js_string(compartment_name)
         ));
 
@@ -453,6 +628,15 @@ fn install_archive_prelude(machine: &crate::Machine, archive: &LoadedArchive) ->
                 _ => {}
             }
         }
+    }
+
+    for ((compartment_name, specifier), raw) in &archive.cjs_sources {
+        cjs_js.push_str(&format!(
+            "__archiveCjsSources['{}']['{}'] = {};\n",
+            escape_js_string(compartment_name),
+            escape_js_string(specifier),
+            json_encode_string(raw),
+        ));
     }
 
     // Step 2: Create compartments and wire them together
@@ -551,6 +735,17 @@ function __makeArchiveCompartment(compName) {{
             return {{ source: new ModuleSource(sources[key]) }};
         }}
     }});
+    // The CJS facade modules (`export default __loadCjs(...)`) call
+    // back into the shared CommonJS loader through their
+    // compartment's global. The exposed callback IGNORES the
+    // caller-supplied compartment name and always resolves in THIS
+    // compartment, so guest module code cannot pass an arbitrary
+    // compartment name and force-load a module outside its link map.
+    // (The facade already passes its own compartment; the argument is
+    // accepted only for call-shape compatibility.)
+    comp.globalThis.__loadCjs = function (_callerComp, key) {{
+        return __loadCjs(compName, key);
+    }};
     __archiveCompartments[compName] = comp;
     return comp;
 }}
@@ -580,10 +775,16 @@ function __makeArchiveCompartment(compName) {{
     if machine.eval(&links_js).is_none() {
         return false;
     }
+    if machine.eval(&cjs_js).is_none() {
+        return false;
+    }
     if machine.eval(&compartments_js).is_none() {
         return false;
     }
     if machine.eval(EXPORTS_RESOLVER_JS).is_none() {
+        return false;
+    }
+    if machine.eval(CJS_RUNTIME_JS).is_none() {
         return false;
     }
     crate::eval_wrapped(machine, &make_entry_comp_js, "endor[archive]/entry-compartment")

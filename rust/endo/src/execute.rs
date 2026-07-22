@@ -22,17 +22,17 @@
 //! - every source is normalized to ESM before it enters the archive,
 //!   because the XS loader hosts modules via `ModuleSource` (an
 //!   ESM-only surface): `.json` becomes `export default <json>;` and
-//!   CommonJS gets a best-effort shim exporting `module.exports` as
-//!   the default binding. The shim provides no `require`; a CommonJS
-//!   module that calls `require` fails at import time with a
-//!   `ReferenceError` naming it — a truthful report of the gap
-//!   rather than a silent wrong answer. Full CommonJS linkage is a
-//!   known gap tracked in the design.
-//!
-//! A second known limitation inherited from the archive loader:
-//! relative imports resolve against the compartment root, not the
-//! importing module's directory (the resolve hook is identity), so a
-//! package whose nested modules import `../sibling.js` will not link.
+//!   a CommonJS module becomes a one-line ESM facade
+//!   (`export default __loadCjs(...)`) over its raw source, carried
+//!   separately in [`LoadedArchive::cjs_sources`]. The archive
+//!   runtime's CommonJS loader (`xsnap::archive`'s `CJS_RUNTIME_JS`)
+//!   evaluates the raw source under a function wrapper with a real
+//!   `require` — relative specifiers against the requiring module's
+//!   directory, bare and subpath specifiers through the link map and
+//!   the exports resolver with `require`-conditions-first, a
+//!   Node-style cycle-safe module cache — so ESM importers see the
+//!   CJS `module.exports` as the default export and CJS consumers
+//!   require one another natively.
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
@@ -203,25 +203,65 @@ fn read_tree_manifest(cas: &ContentStore, tree_hash: &str) -> TreeManifest {
     }
 }
 
+/// A module source normalized for the archive registry: the ESM text
+/// the loader hosts, plus — for a CommonJS module — the raw source
+/// the runtime CJS loader evaluates with a working `require`.
+struct NormalizedSource {
+    /// The source registered for the ESM loader (a facade, for CJS).
+    esm: String,
+    /// The unwrapped CommonJS text, when the module is CJS.
+    cjs_raw: Option<String>,
+}
+
 /// Normalize a module source to ESM according to its extension and
 /// its package's `type` field (see the module doc for the CommonJS
 /// and JSON treatment). `package.json` is kept as raw JSON — never
 /// wrapped as an ESM module — because the runtime exports resolver
 /// parses it back out of the source registry to bind `"."` edges and
-/// subpaths.
-fn normalize_to_esm(path: &str, bytes: &[u8], esm_by_default: bool) -> String {
+/// subpaths. A CommonJS module yields an ESM facade delegating to
+/// the runtime CJS loader, keyed by its compartment and `./`-rooted
+/// specifier, with the raw source (shebang stripped, as Node does)
+/// carried alongside.
+fn normalize_to_esm(
+    path: &str,
+    bytes: &[u8],
+    esm_by_default: bool,
+    compartment: &str,
+) -> NormalizedSource {
     let source = String::from_utf8_lossy(bytes).into_owned();
+    let esm_only = |esm: String| NormalizedSource {
+        esm,
+        cjs_raw: None,
+    };
     if Path::new(path).file_name().and_then(|n| n.to_str()) == Some("package.json") {
-        return source;
+        return esm_only(source);
     }
     let ext = Path::new(path).extension().and_then(|e| e.to_str());
     match ext {
-        Some("json") => format!("export default ({source});"),
-        Some("mjs") => source,
-        Some("js") if esm_by_default => source,
-        _ => format!(
-            "const module = {{ exports: {{}} }};\nconst exports = module.exports;\n{source}\nexport default module.exports;\n"
-        ),
+        Some("json") => esm_only(format!("export default ({source});")),
+        Some("mjs") => esm_only(source),
+        Some("js") if esm_by_default => esm_only(source),
+        _ => {
+            // Strip the shebang line but keep the newline in its place,
+            // as Node does, so line numbers (and stack traces) stay
+            // aligned to the original source.
+            let raw = match source.strip_prefix("#!") {
+                Some(rest) => match rest.split_once('\n') {
+                    Some((_, body)) => format!("\n{body}"),
+                    None => String::new(),
+                },
+                None => source,
+            };
+            NormalizedSource {
+                esm: format!(
+                    "export default __loadCjs({}, {});\n",
+                    serde_json::to_string(compartment).unwrap_or_else(|_| "\"\"".to_string()),
+                    serde_json::to_string(&format!("./{path}"))
+                        .unwrap_or_else(|_| "\"\"".to_string()),
+                ),
+                cjs_raw: Some(raw),
+            }
+        }
     }
 }
 
@@ -250,6 +290,7 @@ pub fn load_assembled_archive(
 
     let mut compartments: HashMap<String, CompartmentDescriptor> = HashMap::new();
     let mut sources: HashMap<(String, String), String> = HashMap::new();
+    let mut cjs_sources: HashMap<(String, String), String> = HashMap::new();
     for (key, compartment) in &parsed {
         let files = &files_by_key[key];
         let manifest = &manifests[key];
@@ -265,10 +306,11 @@ pub fn load_assembled_archive(
                     sha512: None,
                 },
             );
-            sources.insert(
-                (key.clone(), specifier),
-                normalize_to_esm(path, bytes, manifest.esm_by_default),
-            );
+            let normalized = normalize_to_esm(path, bytes, manifest.esm_by_default, key);
+            sources.insert((key.clone(), specifier.clone()), normalized.esm);
+            if let Some(raw) = normalized.cjs_raw {
+                cjs_sources.insert((key.clone(), specifier), raw);
+            }
         }
 
         for (specifier, target) in &compartment.edges {
@@ -315,6 +357,7 @@ pub fn load_assembled_archive(
             compartments,
         },
         sources,
+        cjs_sources,
     })
 }
 
@@ -579,18 +622,35 @@ mod tests {
 
     #[test]
     fn normalizes_cjs_and_json_sources() {
-        let cjs = normalize_to_esm("index.js", b"module.exports = 5;", false);
-        assert!(cjs.starts_with("const module = { exports: {} };"));
-        assert!(cjs.ends_with("export default module.exports;\n"));
+        let cjs = normalize_to_esm("index.js", b"module.exports = 5;", false, "dep-v1.0.0");
+        assert_eq!(
+            cjs.esm,
+            "export default __loadCjs(\"dep-v1.0.0\", \"./index.js\");\n"
+        );
+        assert_eq!(cjs.cjs_raw.as_deref(), Some("module.exports = 5;"));
 
-        let json = normalize_to_esm("data.json", b"{\"a\":1}", false);
-        assert_eq!(json, "export default ({\"a\":1});");
+        // A CJS bin-style shebang line is stripped, as Node strips it,
+        // but the newline is kept in its place so line numbers stay
+        // aligned to the original source.
+        let shebang = normalize_to_esm(
+            "cli.js",
+            b"#!/usr/bin/env node\nmodule.exports = 9;",
+            false,
+            "dep-v1.0.0",
+        );
+        assert_eq!(shebang.cjs_raw.as_deref(), Some("\nmodule.exports = 9;"));
 
-        let esm_js = normalize_to_esm("index.js", b"export default 1;", true);
-        assert_eq!(esm_js, "export default 1;");
+        let json = normalize_to_esm("data.json", b"{\"a\":1}", false, "dep-v1.0.0");
+        assert_eq!(json.esm, "export default ({\"a\":1});");
+        assert!(json.cjs_raw.is_none());
 
-        let mjs = normalize_to_esm("index.mjs", b"export default 2;", false);
-        assert_eq!(mjs, "export default 2;");
+        let esm_js = normalize_to_esm("index.js", b"export default 1;", true, "dep-v1.0.0");
+        assert_eq!(esm_js.esm, "export default 1;");
+        assert!(esm_js.cjs_raw.is_none());
+
+        let mjs = normalize_to_esm("index.mjs", b"export default 2;", false, "dep-v1.0.0");
+        assert_eq!(mjs.esm, "export default 2;");
+        assert!(mjs.cjs_raw.is_none());
     }
 
     #[test]
@@ -974,5 +1034,214 @@ mod tests {
             ],
         )
         .unwrap();
+    }
+
+    // --- CommonJS require linkage ---
+
+    /// A CommonJS graph assembled from a mock registry: cjs-a's main
+    /// lives in `lib/` and requires a relative sibling through `.js`
+    /// completion, a JSON file above its own directory, and its bare
+    /// dependency cjs-b. A wrong value anywhere throws, failing the
+    /// run.
+    fn cjs_graph_http() -> MockHttp {
+        let b_tar = make_tarball(&[
+            (
+                "package/package.json",
+                br#"{"name":"cjs-b","version":"1.0.0","main":"index.js"}"#,
+            ),
+            ("package/index.js", b"module.exports = { b: 10 };\n"),
+        ]);
+        let a_tar = make_tarball(&[
+            (
+                "package/package.json",
+                br#"{"name":"cjs-a","version":"1.0.0","main":"lib/index.js","dependencies":{"cjs-b":"^1.0.0"}}"#,
+            ),
+            (
+                "package/lib/index.js",
+                b"var util = require('./util');\n\
+                  var data = require('../data.json');\n\
+                  var b = require('cjs-b');\n\
+                  module.exports = { total: util.helper() + data.n + b.b };\n",
+            ),
+            (
+                "package/lib/util.js",
+                b"exports.helper = function () { return 1; };\n",
+            ),
+            ("package/data.json", b"{\"n\":100}\n"),
+        ]);
+        MockHttp::new()
+            .respond(
+                "https://registry.npmjs.org/cjs-a",
+                registry_meta("cjs-a", &["1.0.0"]),
+            )
+            .respond(
+                "https://registry.npmjs.org/cjs-b",
+                registry_meta("cjs-b", &["1.0.0"]),
+            )
+            .respond(&tarball_url("cjs-a", "1.0.0"), a_tar)
+            .respond(&tarball_url("cjs-b", "1.0.0"), b_tar)
+    }
+
+    #[test]
+    fn executes_cjs_require_graph_in_xs() {
+        let cas_tmp = tempfile::tempdir().unwrap();
+        let cas = ContentStore::open(cas_tmp.path()).unwrap();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let app = tempfile::tempdir().unwrap();
+        fs::write(
+            app.path().join("package.json"),
+            r#"{"name":"app","type":"module","dependencies":{"cjs-a":"^1.0.0"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            app.path().join("main.js"),
+            "import a from 'cjs-a';\n\
+             if (a.total !== 111) throw new Error(`bad total: ${a.total}`);\n\
+             print(`total=${a.total}`);\n",
+        )
+        .unwrap();
+        let run = assemble_entry(
+            &cjs_graph_http(),
+            &cas,
+            &registry,
+            DEFAULT_REGISTRY,
+            &app.path().join("main.js"),
+        )
+        .unwrap();
+
+        let archive = load_assembled_archive(&cas, &run.compartment_map_hash).unwrap();
+        xsnap::run_xs_archive_loaded(&archive)
+            .expect("XS execution of the CommonJS require graph");
+    }
+
+    /// A CommonJS entry point: the app package has no `"type"`, so
+    /// its main module runs under the CJS loader and requires its
+    /// dependency — which must resolve through `require` conditions
+    /// first (the `import` build throws).
+    #[test]
+    fn cjs_entry_requires_with_require_conditions_first() {
+        let dual_tar = make_tarball(&[
+            (
+                "package/package.json",
+                br#"{"name":"dual","version":"1.0.0","exports":{".":{"import":"./main.mjs","require":"./main.cjs"}}}"#,
+            ),
+            (
+                "package/main.mjs",
+                b"throw new Error('import build must not load for a require');\n",
+            ),
+            ("package/main.cjs", b"module.exports = 'cjs-build';\n"),
+        ]);
+        let http = MockHttp::new()
+            .respond(
+                "https://registry.npmjs.org/dual",
+                registry_meta("dual", &["1.0.0"]),
+            )
+            .respond(&tarball_url("dual", "1.0.0"), dual_tar);
+
+        let cas_tmp = tempfile::tempdir().unwrap();
+        let cas = ContentStore::open(cas_tmp.path()).unwrap();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let app = tempfile::tempdir().unwrap();
+        fs::write(
+            app.path().join("package.json"),
+            r#"{"name":"app","dependencies":{"dual":"^1.0.0"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            app.path().join("main.js"),
+            "var v = require('dual');\n\
+             if (v !== 'cjs-build') throw new Error('wrong build: ' + v);\n\
+             module.exports = v;\n",
+        )
+        .unwrap();
+        let run = assemble_entry(
+            &http,
+            &cas,
+            &registry,
+            DEFAULT_REGISTRY,
+            &app.path().join("main.js"),
+        )
+        .unwrap();
+
+        let archive = load_assembled_archive(&cas, &run.compartment_map_hash).unwrap();
+        xsnap::run_xs_archive_loaded(&archive)
+            .expect("XS execution of the CommonJS entry point");
+    }
+
+    /// A require cycle observes the partially-populated exports of
+    /// the module that is still evaluating, as in Node: b sees a's
+    /// pre-cycle binding as a string and its post-cycle binding as
+    /// undefined.
+    #[test]
+    fn cjs_require_cycle_observes_partial_exports() {
+        run_two_comp(
+            "import v from 'dep';\n\
+             if (v !== 'string/undefined:a-late') throw new Error('cycle saw: ' + v);\n\
+             export const got = v;\n",
+            "dep",
+            &[
+                ("package.json", r#"{"name": "dep", "main": "index.js"}"#),
+                (
+                    "index.js",
+                    "var a = require('./a');\nmodule.exports = a.sawFromB + ':' + a.late;\n",
+                ),
+                (
+                    "a.js",
+                    "exports.early = 'a-early';\n\
+                     var b = require('./b');\n\
+                     exports.late = 'a-late';\n\
+                     exports.sawFromB = b.saw;\n",
+                ),
+                (
+                    "b.js",
+                    "var a = require('./a');\nexports.saw = typeof a.early + '/' + typeof a.late;\n",
+                ),
+            ],
+        )
+        .unwrap();
+    }
+
+    /// Requiring an ESM module returns its namespace object (modern
+    /// Node `require(esm)` semantics).
+    #[test]
+    fn cjs_require_of_esm_returns_namespace() {
+        run_two_comp(
+            "import v from 'dep';\n\
+             if (v !== 11) throw new Error('got: ' + v);\n\
+             export const got = v;\n",
+            "dep",
+            &[
+                ("package.json", r#"{"name": "dep", "main": "index.js"}"#),
+                (
+                    "index.js",
+                    "var ns = require('./esm.mjs');\nmodule.exports = ns.value + 1;\n",
+                ),
+                ("esm.mjs", "export const value = 10;\n"),
+            ],
+        )
+        .unwrap();
+    }
+
+    /// A require of a module that does not exist is a clean run
+    /// failure, not a crash.
+    #[test]
+    fn cjs_require_missing_module_is_clean_error() {
+        let result = run_two_comp(
+            "import v from 'dep'; export const got = v;\n",
+            "dep",
+            &[
+                ("package.json", r#"{"name": "dep", "main": "index.js"}"#),
+                ("index.js", "module.exports = require('./nope');\n"),
+            ],
+        );
+        // A missing require must be a clean, identifiable failure, not a
+        // crash: assert the thrown error is the Node-shaped "Cannot find
+        // module" message rather than merely that the run errored (an XS
+        // panic would also satisfy is_err()).
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("Cannot find module"),
+            "expected a clean 'Cannot find module' failure, got: {err}"
+        );
     }
 }

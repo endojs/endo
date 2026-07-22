@@ -181,7 +181,11 @@ pub fn load_archive_from_cas(
         }
     }
 
-    Ok(xsnap::archive::LoadedArchive { map, sources })
+    Ok(xsnap::archive::LoadedArchive {
+        map,
+        sources,
+        cjs_sources: HashMap::new(),
+    })
 }
 
 // ---------------------------------------------------------------------------

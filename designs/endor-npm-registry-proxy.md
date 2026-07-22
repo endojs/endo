@@ -49,8 +49,9 @@ All five phases implemented:
   into a runnable archive — module files from the CAS trees,
   `"."` edges bound to each target's concrete main module
   (npm's `main` completions), sources normalized to ESM
-  (`.json` → default export; CommonJS via a best-effort
-  `module.exports` shim with **no `require`**) — and
+  (`.json` → default export; CommonJS as a one-line ESM facade
+  over the raw source, evaluated by the archive runtime's
+  CommonJS loader with a **working `require`**) — and
   `endor run <entry.js>` executes it in an XS machine.
 - **Phase 5**: `rust/endo/src/npmrc.rs` — `NpmConfig` parsing
   the `.npmrc` subset the fetch layer consumes (`registry`,
@@ -65,14 +66,25 @@ All five phases implemented:
   registry-table-as-lock-file behaviour, guaranteed rather
   than assumed.
 
-Known gaps recorded below; execution adds: full CommonJS
-linkage (`require` is absent by design of the shim).
-Directory-relative resolution for nested package modules is
-resolved: the archive loader's resolve hook resolves `./` and
-`../` specifiers against the referrer module's directory
+Known gaps recorded below. The two execution gaps this section
+used to record are both resolved. Directory-relative
+resolution: the archive loader's resolve hook resolves `./`
+and `../` specifiers against the referrer module's directory
 (escaping the package root is a clean error), so multi-file
 packages whose modules import one another relatively — and
 packages whose entry lives in a subdirectory — execute.
+CommonJS linkage: the archive runtime evaluates CJS sources
+under a Node-style function wrapper with a real per-module
+`require` (relative specifiers against the requiring module's
+directory with `.js`/`.json`/`index` completion, bare and
+subpath specifiers through the link map and the exports
+resolver with `require`-conditions-first, a cycle-safe module
+cache, `require.resolve`, `__filename`/`__dirname`), so real
+CJS packages — `semver@7.5.4` requiring `lru-cache` requiring
+`yallist` — fetch, cache, and execute. Node **core builtins**
+(`require('fs')`, `require('tty')`, …) remain unavailable by
+design of the confined runtime; packages touching them fail at
+require with a clean cannot-find error.
 
 ## What is the Problem Being Solved?
 
@@ -448,6 +460,29 @@ The tree's children are the package's files, stored as blobs.
       `TypeError: async module`. The daemon-side archive
       install (worker host power) still uses the synchronous
       path.
+- [x] Full CommonJS `require` linkage: CJS modules evaluate
+      under a function wrapper via the runtime CommonJS loader
+      (`__loadCjs`), with a per-module `require`, a Node-style
+      cycle-safe module cache, `require`-conditions-first
+      exports resolution, `require.resolve`, and
+      `__filename`/`__dirname`; ESM importers of a CJS module
+      see `module.exports` as the default export, and a CJS
+      `require` of an ESM module returns its namespace
+      (modern-Node `require(esm)` shape). Remaining CJS
+      sub-gaps, all deliberate: Node core builtins are
+      not provided (confined runtime — a clean cannot-find
+      error); ESM `import` of a CJS module binds only
+      `default` (no cjs-module-lexer named-export synthesis) —
+      deliberate but significant, since `import { named } from
+      'cjsPkg'` is the dominant ESM-consumes-CJS pattern;
+      `require('./dir')` completes through `dir/index.js(on)`
+      but does not consult a nested `dir/package.json` `main`;
+      `require.resolve`, `__filename`, and `__dirname` return
+      archive-relative (`./`-prefixed) keys, not Node's absolute
+      filesystem paths (no filesystem in the confined runtime);
+      and `require` resolution activates the `import` exports
+      condition as a lenient fallback after `require`, where
+      Node's `require` never selects `import`.
 
 ## Prompt
 
