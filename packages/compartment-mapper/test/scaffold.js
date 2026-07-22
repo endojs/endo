@@ -52,12 +52,13 @@ const getLogger = t => {
 };
 
 /**
+ * @param {typeof Compartment} [CompartmentCtor]
  * @returns {{getCompartments: () => Array<Compartment>, Compartment: typeof Compartment}}
  */
-const compartmentInstrumentationFactory = () => {
+const compartmentInstrumentationFactory = (CompartmentCtor = Compartment) => {
   const compartments = [];
 
-  const InstrumentedCompartment = /** @type {typeof Compartment} */ (
+  const InstrumentedCompartment = /** @type {typeof CompartmentCtor} */ (
     /** @type {unknown} */ (
       function InstrumentedCompartment(...args) {
         const compartment = Reflect.construct(Compartment, args);
@@ -140,7 +141,16 @@ export function scaffold(
     workspaceCommonjsLanguageForExtension = undefined,
     workspaceModuleLanguageForExtension = undefined,
     log,
-    additionalOptions = {},
+    // Extract the optional Compartment subclass so it can be wrapped for
+    // instrumentation below. The rest reuses the name `additionalOptions`, so
+    // the `...additionalOptions` spreads further down no longer carry the raw
+    // (un-instrumented) Compartment. Otherwise those spreads would overwrite
+    // the instrumented Compartment passed explicitly to each loader call, and
+    // getCompartments() would capture nothing.
+    additionalOptions: {
+      Compartment: additionalCompartment,
+      ...additionalOptions
+    } = {},
   } = {},
 ) {
   /**
@@ -162,7 +172,9 @@ export function scaffold(
     }
     return wrappedTest(title, async t => {
       await null;
-      const compartmentInstrumentation = compartmentInstrumentationFactory();
+      const compartmentInstrumentation = compartmentInstrumentationFactory(
+        additionalCompartment,
+      );
       /** @type {object} */
       let namespace;
       try {

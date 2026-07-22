@@ -53,6 +53,7 @@ import { GenericGraph, makeShortestPath } from './generic-graph.js';
  *   SomePackagePolicy,
  *   PackageCompartmentDescriptorName,
  *   PackageData,
+ *   PackageDataCanonicalName,
  * } from './types.js'
  * @import {
  *   Graph,
@@ -67,7 +68,7 @@ import { GenericGraph, makeShortestPath } from './generic-graph.js';
  *   FinalGraph,
  *   CanonicalNameMap,
  *   FinalNode,
- TranslateGraphOptions,
+ *   TranslateGraphOptions,
  * } from './types/node-modules.js'
  */
 
@@ -1495,7 +1496,7 @@ export const compartmentMapForNodeModules_ = async (
   // Fire packageData hook with all package data before translateGraph
   if (packageDataHook) {
     const packageData =
-      /** @type {Map<PackageCompartmentDescriptorName, PackageData>} */ (
+      /** @type {Map<PackageDataCanonicalName, PackageData>} */ (
         new Map(
           values(finalGraph).map(node => [
             node.label,

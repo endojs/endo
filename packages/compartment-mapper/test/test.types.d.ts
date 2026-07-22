@@ -6,11 +6,13 @@
  */
 
 import type { ExecutionContext } from 'ava';
-import type { inspect as nodeInspect, InspectOptionsStylized } from 'util';
+import type { InspectOptionsStylized, inspect as nodeInspect } from 'util';
 import type { makeReadPowers } from '../src/node-powers.js';
 import type {
+  ArchiveOptions,
   FileUrlString,
   LoadLocationOptions,
+  MapNodeModulesOptions,
   Simplify,
   SomePolicy,
 } from '../src/types.js';
@@ -189,7 +191,9 @@ export interface ScaffoldOptions extends LoadLocationOptions {
   knownArchiveFailure?: boolean;
   onError?: ScaffoldOnErrorFn;
   addGlobals?: object;
-  additionalOptions?: object;
+  additionalOptions?: LoadLocationOptions &
+    MapNodeModulesOptions &
+    ArchiveOptions;
 }
 
 export type WrappedTestFn = (

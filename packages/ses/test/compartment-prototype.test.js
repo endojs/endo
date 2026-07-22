@@ -21,6 +21,7 @@ test('Compartment prototype', t => {
     'load',
     'module',
     'name',
+    '__noNamespaceBox__',
     Symbol.toStringTag,
   ]);
   const actualProps = Reflect.ownKeys(Compartment.prototype);

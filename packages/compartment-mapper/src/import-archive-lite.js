@@ -398,8 +398,15 @@ export const parseArchive = async (
 
     await pendingJobsPromise;
 
+    // The compartment-mapper Application contract always resolves to a boxed
+    // `{ namespace }`, independent of the entry compartment's own
+    // `__noNamespaceBox__` behavior. A compartment constructed with
+    // `__noNamespaceBox__: true` returns the bare namespace from `import`, so
+    // re-box it here to preserve the public contract.
     // eslint-disable-next-line dot-notation
-    return compartment['import'](entryModuleSpecifier);
+    const result = await compartment['import'](entryModuleSpecifier);
+    // eslint-disable-next-line no-underscore-dangle
+    return compartment.__noNamespaceBox__ ? { namespace: result } : result;
   };
 
   return { import: execute, sha512 };
