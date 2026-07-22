@@ -7,8 +7,8 @@
  * Regenerate with: yarn workspace @endo/agent-tools gen:code-mode-types
  *
  * Source of truth:
- *   - git / gitReadOnly: packages/exo-git/src/types.ts (the `WritableEndoGit` and
- *     `ReadOnlyEndoGit`
+ *   - git / gitHistory / gitReadOnly: packages/exo-git/src/types.ts (the
+ *     `ReadWriteEndoGit`, `HistoryRewriteEndoGit`, and `ReadOnlyEndoGit`
  *     type alias), printed by the typescript compiler API
  *     (TypeScript-canonical).
  *

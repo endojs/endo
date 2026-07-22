@@ -6,9 +6,11 @@
  * declarations, built with the generic TypeScript renderer from
  * `@endo/exo-git`'s checked TypeScript typedef source.
  *
- * `git` reads `packages/exo-git/src/types.ts` (the `WritableEndoGit` alias), which is
- * full-fidelity: named parameters, no lossy positional guards. The divergence
- * gate keeps it from drifting from the runtime `GitInterface` guard.
+ * `git` and `gitHistory` read `packages/exo-git/src/types.ts` (the
+ * `ReadWriteEndoGit` and `HistoryRewriteEndoGit` aliases), which are
+ * full-fidelity: named parameters, no lossy positional guards.
+ * The divergence gate keeps them from drifting from the runtime `GitInterface`
+ * guard.
  *
  * The read-only declaration is sourced from the separately published
  * `ReadOnlyEndoGit` alias, with the member list retained as a prompt-surface
@@ -29,7 +31,8 @@ import {
 } from './code-mode-type-extract.js';
 
 const GIT_TYPES_TS_URL = new URL('../../exo-git/src/types.ts', import.meta.url);
-const GIT_ROOT_TYPE = 'WritableEndoGit';
+const GIT_ROOT_TYPE = 'ReadWriteEndoGit';
+const GIT_HISTORY_ROOT_TYPE = 'HistoryRewriteEndoGit';
 const GIT_READONLY_ROOT_TYPE = 'ReadOnlyEndoGit';
 
 export const GIT_HISTORY_MEMBERS = harden([
@@ -112,12 +115,12 @@ export const buildGitIRs = () =>
       const gitHistory = extractTsFileTextIR({
         fileName,
         text,
-        rootType: GIT_ROOT_TYPE,
+        rootType: GIT_HISTORY_ROOT_TYPE,
         memberFilter: GIT_HISTORY_MEMBERS,
       });
       const commit = git.members.find(member => member.name === 'commit');
       if (commit === undefined) {
-        throw new Error('WritableEndoGit must define commit');
+        throw new Error('ReadWriteEndoGit must define commit');
       }
       return {
         git: harden({
@@ -137,7 +140,9 @@ export const buildGitIRs = () =>
                 : member,
             ),
           auxTypes: git.auxTypes.filter(
-            type => type.name !== 'GitCommitOptions',
+            type =>
+              type.name !== 'GitReadWriteCommitOptions' &&
+              type.name !== 'GitCommitOptions',
           ),
         }),
         gitHistory: harden({ ...gitHistory, rootName: 'EndoGitHistory' }),

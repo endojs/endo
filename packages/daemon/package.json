@@ -51,7 +51,8 @@
     "test:rust": "ENDO_BIN=../../target/release/endor ENDO_WORKER_BIN='../../target/release/endor worker' ava",
     "test:rust-node-workers": "ENDO_BIN=../../target/release/endor ENDO_WORKER_BIN='../../target/release/endor worker' ENDO_NODE_WORKER_BIN='node src/bus-worker-node-raw.js' ava",
     "test:rust-node-manager": "ENDO_MANAGER_NODE=1 ENDO_BIN=../../target/release/endor ENDO_WORKER_BIN='../../target/release/endor worker' ENDO_NODE_WORKER_BIN='node src/bus-worker-node-raw.js' ava",
-    "test:supervisors": "yarn test:go && yarn test:rust"
+    "test:supervisors": "yarn test:go && yarn test:rust",
+    "test:types": "tsc --project tsconfig.test-types.json"
   },
   "dependencies": {
     "@endo/base64": "workspace:^",
@@ -100,6 +101,7 @@
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
+    "expect-type": "^1.4.0",
     "typescript": "catalog:dev"
   },
   "files": [

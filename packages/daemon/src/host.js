@@ -1,11 +1,11 @@
 // @ts-check
-/** @import { EndoGit } from '@endo/exo-git' */
+/** @import { HistoryRewriteEndoGit, ReadWriteEndoGit } from '@endo/exo-git' */
 /// <reference types="ses"/>
 /* global process */
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { PassableBytesReader } from '@endo/exo-stream' */
-/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, ContentLoadable, DaemonCore, DeferredTasks, EndoDiagnostics, EndoGuest, EndoHost, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, FormulaRecord, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitRemoteDeferredTaskParams, HttpClientDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, ShellDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
+/** @import { AgentDeferredTaskParams, ChannelDeferredTaskParams, Context, ContentLoadable, DaemonCore, DeferredTasks, EndoDiagnostics, EndoGuest, EndoHost, EndoMount, EnvRecord, EvalDeferredTaskParams, FormulaIdentifier, FormulaNumber, FormulaRecord, GitCredentialDeferredTaskParams, GitDeferredTaskParams, GitProvisionOptions, GitRemoteDeferredTaskParams, HttpClientDeferredTaskParams, InvitationDeferredTaskParams, MakeCapletDeferredTaskParams, MakeCapletOptions, MakeDirectoryNode, MakeHostOrGuestOptions, MakeMailbox, MountDeferredTaskParams, Name, NameOrPath, NamePath, NodeNumber, PeerInfo, PetName, ReadableBlobDeferredTaskParams, ReadableTreeDeferredTaskParams, MarshalDeferredTaskParams, ScratchMountDeferredTaskParams, ShellDeferredTaskParams, WorkerDeferredTaskParams } from './types.js' */
 /** @import { makeTraceAggregator } from './trace-aggregator.js' */
 
 import { E } from '@endo/eventual-send';
@@ -757,7 +757,33 @@ export const makeHostMaker = ({
       return harden(normalized);
     };
 
-    /** @type {EndoHost['provideGit']} */
+    /**
+     * @overload
+     * @param {EndoMount} mountCap
+     * @param {string | string[]} petName
+     * @param {GitProvisionOptions & {allowHistoryRewrite: true}} options
+     * @returns {Promise<HistoryRewriteEndoGit>}
+     */
+    /**
+     * @overload
+     * @param {EndoMount} mountCap
+     * @param {string | string[]} petName
+     * @param {GitProvisionOptions & {allowHistoryRewrite?: false}} [options]
+     * @returns {Promise<ReadWriteEndoGit>}
+     */
+    /**
+     * @overload
+     * @param {EndoMount} mountCap
+     * @param {string | string[]} petName
+     * @param {GitProvisionOptions & {allowHistoryRewrite: boolean}} options
+     * @returns {Promise<ReadWriteEndoGit | HistoryRewriteEndoGit>}
+     */
+    /**
+     * @param {EndoMount} mountCap
+     * @param {string | string[]} petName
+     * @param {GitProvisionOptions} [options]
+     * @returns {Promise<ReadWriteEndoGit | HistoryRewriteEndoGit>}
+     */
     const provideGit = async (mountCap, petName, options = {}) => {
       const { namePath } = petNamePathFrom(petName);
       const mountId = getIdForRef(mountCap);
@@ -781,7 +807,7 @@ export const makeHostMaker = ({
         identity,
         tasks,
       );
-      return /** @type {EndoGit} */ (value);
+      return /** @type {ReadWriteEndoGit | HistoryRewriteEndoGit} */ (value);
     };
 
     /** @type {EndoHost['provideShell']} */
@@ -1123,7 +1149,7 @@ export const makeHostMaker = ({
         destMount,
         destPath,
       });
-      const gitCap = /** @type {EndoGit} */ (git);
+      const gitCap = /** @type {ReadWriteEndoGit} */ (git);
       return harden({
         git: gitCap,
         remote,

@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/** @import { GitRemoteCredential, PathEntry, WritableEndoGit } from '@endo/exo-git' */
+/** @import { GitRemoteCredential, HistoryRewriteEndoGit, PathEntry } from '@endo/exo-git' */
 /** @import { EndoMountFile } from '../src/types.js' */
 
 import test from '@endo/ses-ava/prepare-endo.js';
@@ -187,7 +187,7 @@ test('Git.readOnly() attenuates mutating operations but preserves reads', async 
   // The runtime Git guard retains mutator method names so it can reject them
   // with its capability error; the public read-only type intentionally omits
   // those methods.
-  const runtimeReadOnlyGit = /** @type {WritableEndoGit} */ (readOnlyGit);
+  const runtimeReadOnlyGit = /** @type {HistoryRewriteEndoGit} */ (readOnlyGit);
 
   const entries = await E(readOnlyGit).status();
   t.is(entries.length, 1);
@@ -287,7 +287,7 @@ test('makeGit can be constructed directly as read-only', async t => {
   const mount = makeMount({ rootPath: repoRoot, readOnly: true, filePowers });
   const backend = makeNativeGitBackend({ repoRoot });
   const git = makeGit({ mount, backend, lineageOf }, { readOnly: true });
-  const runtimeReadOnlyGit = /** @type {WritableEndoGit} */ (git);
+  const runtimeReadOnlyGit = /** @type {HistoryRewriteEndoGit} */ (git);
 
   t.is((await E(git).status()).length, 1);
   const entry = await E(mount).entry(['blocked.txt']);
@@ -878,23 +878,33 @@ test('Git history rewrite authority defaults off and can be elevated', async t =
     { mount, backend, lineageOf },
     { allowHistoryRewrite: true },
   );
+  const runtimeOrdinaryGit = /** @type {HistoryRewriteEndoGit} */ (git);
 
   await fs.promises.writeFile(path.join(repoRoot, 'history.txt'), 'one\n');
   const entry = await E(mount).entry(['history.txt']);
   await E(git).add([entry]);
   const first = await E(git).commit('first subject');
-  await t.throwsAsync(E(git).commit('blocked amend', { amend: true }), {
+  await t.throwsAsync(
+    E(runtimeOrdinaryGit).commit('blocked amend', { amend: true }),
+    {
+      message: /without history-rewrite authority/,
+    },
+  );
+  await t.throwsAsync(
+    E(runtimeOrdinaryGit).reword(first.oid, 'blocked reword'),
+    {
+      message: /without history-rewrite authority/,
+    },
+  );
+  await t.throwsAsync(E(runtimeOrdinaryGit).cherryPick(first.oid), {
     message: /without history-rewrite authority/,
   });
-  await t.throwsAsync(E(git).reword(first.oid, 'blocked reword'), {
-    message: /without history-rewrite authority/,
-  });
-  await t.throwsAsync(E(git).cherryPick(first.oid), {
-    message: /without history-rewrite authority/,
-  });
-  await t.throwsAsync(E(git).rebase({ mode: 'start', upstream: 'main' }), {
-    message: /without history-rewrite authority/,
-  });
+  await t.throwsAsync(
+    E(runtimeOrdinaryGit).rebase({ mode: 'start', upstream: 'main' }),
+    {
+      message: /without history-rewrite authority/,
+    },
+  );
 
   await fs.promises.writeFile(path.join(repoRoot, 'history.txt'), 'two\n');
   await E(git).add([entry]);

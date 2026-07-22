@@ -62,7 +62,8 @@
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
     "lint:eslint": "eslint '**/*.js'",
-    "lint:types": "tsc"
+    "lint:types": "tsc",
+    "test:types": "tsc --project tsconfig.test-types.json"
   },
   "dependencies": {
     "@endo/errors": "workspace:^",
@@ -79,6 +80,7 @@
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev",
+    "expect-type": "^1.4.0",
     "typescript": "catalog:dev"
   },
   "ava": {

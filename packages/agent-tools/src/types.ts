@@ -4,7 +4,8 @@ import type {
   EndoGit,
   GitRef,
   GitRemote,
-  WritableEndoGit,
+  HistoryRewriteEndoGit,
+  ReadWriteEndoGit,
   WritableGitWorktree,
 } from '@endo/exo-git';
 import type { EndoShell } from '@endo/exo-shell';
@@ -12,11 +13,11 @@ import type { HttpClient, HttpResponse } from '@endo/exo-http-client';
 import type { Pattern } from '@endo/patterns';
 
 /**
- * The read, branch-navigation, and additive-commit slice of `WritableEndoGit` that
+ * The read, branch-navigation, and additive-commit slice of `ReadWriteEndoGit` that
  * the default git tool catalog exposes to an LLM.
  *
  * Deliberately omits the destructive and history-rewriting methods of
- * `WritableEndoGit`
+ * `ReadWriteEndoGit`
  * — `merge`, `restore`, `deleteBranch`, `renameBranch`, the `stash*`
  * family, the working-tree/detach mutators (`switch`, `detach`), and history
  * rewrites (`commit` with `amend`, `reword`, `cherryPick`, `rebase`).
@@ -37,7 +38,7 @@ import type { Pattern } from '@endo/patterns';
  * strings to entries through the worktree mount.
  */
 export type GitToolCapability = Pick<
-  WritableEndoGit,
+  ReadWriteEndoGit,
   | 'log'
   | 'diff'
   | 'show'
@@ -54,12 +55,12 @@ export type GitToolCapability = Pick<
  * inventory does not advertise these operations.
  */
 export type GitHistoryToolCapability = Pick<
-  WritableEndoGit,
+  HistoryRewriteEndoGit,
   'commit' | 'reword' | 'cherryPick' | 'rebase'
 >;
 
 /**
- * The mount-bridged slice of `WritableEndoGit` behind `makeGitMountTools`: `status` and
+ * The mount-bridged slice of `ReadWriteEndoGit` behind `makeGitMountTools`: `status` and
  * `add`, plus `worktree` (the mount the bridge mints `PathEntry` values
  * from). These two methods cannot live in {@link GitToolCapability} because
  * their native signatures carry live capabilities — `status()` returns rows
@@ -68,7 +69,10 @@ export type GitHistoryToolCapability = Pick<
  * strings in) diverges from the raw `GitInterface` guard by design. `add` is the
  * additive staging half of the commit loop; it stages but never discards.
  */
-export type GitMountToolCapability = Pick<WritableEndoGit, 'status' | 'add'> & {
+export type GitMountToolCapability = Pick<
+  ReadWriteEndoGit,
+  'status' | 'add'
+> & {
   /** The bridge mints lineage-bearing entries from the writable worktree. */
   worktree: () => Promise<WritableGitWorktree>;
 };

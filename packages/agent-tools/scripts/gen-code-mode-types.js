@@ -118,8 +118,8 @@ writeArtifact({
   outPath: '../generated/code-mode-globals/git-declarations.js',
   exportName: 'gitDeclarations',
   descriptorFile: 'git.js',
-  sourceDoc: ` *   - git / gitReadOnly: packages/exo-git/src/types.ts (the \`WritableEndoGit\` and
- *     \`ReadOnlyEndoGit\`
+  sourceDoc: ` *   - git / gitHistory / gitReadOnly: packages/exo-git/src/types.ts (the
+ *     \`ReadWriteEndoGit\`, \`HistoryRewriteEndoGit\`, and \`ReadOnlyEndoGit\`
  *     type alias), printed by the typescript compiler API
  *     (TypeScript-canonical).`,
   declarations: buildGitTypeDeclarations(),

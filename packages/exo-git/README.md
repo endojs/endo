@@ -1,9 +1,9 @@
 # `@endo/exo-git`
 
-Remotable exo glue and interface guards for writable and read-only Git capabilities.
+Remotable exo glue and interface guards for attenuated Git capabilities.
 The package is intentionally Node-free and portable across SES realms — it knows nothing about subprocesses, the file system, or the host's `git` binary.
 
-- `makeGit({ mount, backend, lineageOf }, { readOnly, allowHistoryRewrite })` — the Git exo factory; the default construction returns `WritableEndoGit`; `{ readOnly: true }` returns `ReadOnlyEndoGit`; `backend` is any object satisfying the `GitBackend` protocol (`@endo/git` provides the Node-side implementation).
+- `makeGit({ mount, backend, lineageOf }, { readOnly, allowHistoryRewrite })` — the Git exo factory; the default construction returns `ReadWriteEndoGit`, `{ allowHistoryRewrite: true }` returns `HistoryRewriteEndoGit`, and `{ readOnly: true }` returns `ReadOnlyEndoGit`; `backend` is any object satisfying the `GitBackend` protocol (`@endo/git` provides the Node-side implementation).
 - `makeGitRemote({ git, credential, name, policy })` — remote-git companion (fetch / pull / push) bound to a credential cap.
 - `makeBasicCredential`, `makeBearerCredential`, `makeUnavailableGitCredential` — credential capabilities.  Each carries a host-private `GitCredentialController` accessible via `getGitCredentialController(cred)`.
 - `makeGitFsBackend({ backend, treeOid })` — `FsBackend` adapter for an immutable git tree.  Composes with `@endo/endo-fs` `wrapBackend(...)`.

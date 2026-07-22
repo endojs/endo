@@ -93,6 +93,11 @@ export type GitCommitOptions = {
   amend?: boolean;
 };
 
+/** Commit options available without history-rewrite authority. */
+export type GitReadWriteCommitOptions = Omit<GitCommitOptions, 'amend'> & {
+  amend?: false;
+};
+
 export type GitCherryPickOptions = {
   noCommit?: boolean;
 };
@@ -285,17 +290,15 @@ export type ReadOnlyEndoGit = {
   readOnly: () => ReadOnlyEndoGit;
 };
 
-/** The full capability surface returned by the normal writable construction. */
-export type WritableEndoGit = ReadOnlyEndoGit & {
+/** The ordinary read-write capability surface. */
+export type ReadWriteEndoGit = ReadOnlyEndoGit & {
   worktree: () => Promise<WritableGitWorktree>;
   add: (entries: PathEntry[]) => Promise<void>;
   restore: (entries: PathEntry[], options?: GitRestoreOptions) => Promise<void>;
-  commit: (message: string, options?: GitCommitOptions) => Promise<GitCommit>;
-  reword: (ref: GitRef | string, message: string) => Promise<GitCommit>;
-  cherryPick: (
-    ref: GitRef | string,
-    options?: GitCherryPickOptions,
-  ) => Promise<string>;
+  commit: (
+    message: string,
+    options?: GitReadWriteCommitOptions,
+  ) => Promise<GitCommit>;
   createBranch: (
     name: string,
     options?: GitCreateBranchOptions,
@@ -309,7 +312,6 @@ export type WritableEndoGit = ReadOnlyEndoGit & {
   detach: (ref: GitRef | string) => Promise<void>;
   switch: (ref: GitRef | string) => Promise<void>;
   merge: (ref: GitRef | string, options?: GitMergeOptions) => Promise<string>;
-  rebase: (input: GitRebaseInput) => Promise<string>;
   stashPush: (options?: GitStashPushOptions) => Promise<string>;
   stashApply: (index?: number) => Promise<void>;
   stashPop: (index?: number) => Promise<void>;
@@ -317,11 +319,22 @@ export type WritableEndoGit = ReadOnlyEndoGit & {
   readOnly: () => ReadOnlyEndoGit;
 };
 
+/** The elevated read-write surface that may rewrite existing history. */
+export type HistoryRewriteEndoGit = ReadWriteEndoGit & {
+  commit: (message: string, options?: GitCommitOptions) => Promise<GitCommit>;
+  reword: (ref: GitRef | string, message: string) => Promise<GitCommit>;
+  cherryPick: (
+    ref: GitRef | string,
+    options?: GitCherryPickOptions,
+  ) => Promise<string>;
+  rebase: (input: GitRebaseInput) => Promise<string>;
+};
+
 /**
- * Compatibility name for callers that have not selected a mutability
- * posture yet.
- *
- * Construction, `readOnly()`, and worktree call sites use the split types
- * above so this alias does not erase the authority distinction there.
+ * Compatibility name for a Git capability whose authority posture is not
+ * known statically.
  */
-export type EndoGit = WritableEndoGit;
+export type EndoGit =
+  | ReadOnlyEndoGit
+  | ReadWriteEndoGit
+  | HistoryRewriteEndoGit;

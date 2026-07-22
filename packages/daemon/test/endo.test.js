@@ -4871,8 +4871,12 @@ testNeedsNodeWorker(
       allowHistoryRewrite: true,
     });
 
+    const runtimeOrdinaryGit =
+      /** @type {import('@endo/exo-git').HistoryRewriteEndoGit} */ (
+        ordinaryGit
+      );
     await t.throwsAsync(
-      E(ordinaryGit).reword('HEAD', 'blocked ordinary rewrite'),
+      E(runtimeOrdinaryGit).reword('HEAD', 'blocked ordinary rewrite'),
       {
         message: /without history-rewrite authority/,
       },

@@ -1734,6 +1734,7 @@ __metadata:
     better-sqlite3: "npm:^11.0.0"
     c8: "catalog:dev"
     eslint: "catalog:dev"
+    expect-type: "npm:^1.4.0"
     ses: "workspace:^"
     typescript: "catalog:dev"
     ws: "npm:^8.13.0"
@@ -1897,6 +1898,7 @@ __metadata:
     "@endo/stream": "workspace:^"
     ava: "catalog:dev"
     eslint: "catalog:dev"
+    expect-type: "npm:^1.4.0"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft

@@ -4,7 +4,12 @@ import type { FarRef } from '@endo/eventual-send';
 import type { CapTPOptions } from '@endo/captp';
 import type { Reader, Writer, Stream } from '@endo/stream';
 import type { PassableBytesReader, StreamNode } from '@endo/exo-stream';
-import type { EndoGit, GitRemote } from '@endo/exo-git';
+import type {
+  EndoGit,
+  GitRemote,
+  HistoryRewriteEndoGit,
+  ReadWriteEndoGit,
+} from '@endo/exo-git';
 import type { HttpClient, HttpClientControl } from '@endo/exo-http-client';
 import type {
   DirectoryWriteSource,
@@ -328,6 +333,15 @@ export type GitCommitIdentity = {
   authorEmail: string;
   committerName?: string;
   committerEmail?: string;
+};
+
+export type GitProvisionOptions = {
+  allowHistoryRewrite?: boolean;
+  /**
+   * Formula-owned, guest-immutable commit author/committer identity.
+   * Omitted, commits default to `Endo <endo@invalid.local>`.
+   */
+  identity?: GitCommitIdentity;
 };
 
 /**
@@ -1541,15 +1555,18 @@ export interface EndoHost extends EndoAgent {
   provideGit(
     mountCap: EndoMount,
     petName: string | string[],
-    options?: {
-      allowHistoryRewrite?: boolean;
-      /**
-       * Formula-owned, guest-immutable commit author/committer identity.
-       * Omitted, commits default to `Endo <endo@invalid.local>`.
-       */
-      identity?: GitCommitIdentity;
-    },
-  ): Promise<EndoGit>;
+    options: GitProvisionOptions & { allowHistoryRewrite: true },
+  ): Promise<HistoryRewriteEndoGit>;
+  provideGit(
+    mountCap: EndoMount,
+    petName: string | string[],
+    options?: GitProvisionOptions & { allowHistoryRewrite?: false },
+  ): Promise<ReadWriteEndoGit>;
+  provideGit(
+    mountCap: EndoMount,
+    petName: string | string[],
+    options: GitProvisionOptions & { allowHistoryRewrite: boolean },
+  ): Promise<ReadWriteEndoGit | HistoryRewriteEndoGit>;
   /**
    * Derive an allowlisted, argv-only command-execution `Shell` from a
    * **writable** mount.  The child working directory is resolved host-side
@@ -1626,7 +1643,7 @@ export interface EndoHost extends EndoAgent {
      * `Endo <endo@invalid.local>`.
      */
     identity?: GitCommitIdentity;
-  }): Promise<{ git: EndoGit; remote: GitRemote }>;
+  }): Promise<{ git: ReadWriteEndoGit; remote: GitRemote }>;
   /**
    * Mint a bearer-token `GitCredential` capability scoped to
    * `audience` (a URL origin) and bind it to `petName`.  Material

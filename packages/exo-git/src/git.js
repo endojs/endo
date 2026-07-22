@@ -33,9 +33,10 @@ import { GitInterface } from './interfaces.js';
  *   GitStatusEntry,
  *   GitStatusNode,
  *   GitWorktreeStatus,
+ *   HistoryRewriteEndoGit,
  *   ReadOnlyEndoGit,
  *   ReadOnlyGitWorktree,
- *   WritableEndoGit,
+ *   ReadWriteEndoGit,
  *   WritableGitWorktree,
  * } from './types.js'
  */
@@ -233,11 +234,11 @@ harden(getGitBackend);
 
 /**
  * The implementation object has one runtime method table for both
- * mutability postures.
+ * authority postures.
  *
- * @typedef {Omit<WritableEndoGit, 'worktree' | 'readOnly'> & {
+ * @typedef {Omit<HistoryRewriteEndoGit, 'worktree' | 'readOnly'> & {
  *   worktree: () => Promise<WritableGitWorktree | ReadOnlyGitWorktree>;
- *   readOnly: () => WritableEndoGit | ReadOnlyEndoGit;
+ *   readOnly: () => ReadOnlyEndoGit;
  * }} GitImplementation
  */
 
@@ -251,20 +252,32 @@ harden(getGitBackend);
  *
  * @overload
  * @param {GitPowers} powers
- * @param {{readOnly: true, allowHistoryRewrite?: false}} opts
+ * @param {{readOnly: true, allowHistoryRewrite?: boolean}} opts
  * @returns {ReadOnlyEndoGit}
  */
 /**
  * @overload
  * @param {GitPowers} powers
- * @param {{readOnly?: false, allowHistoryRewrite?: boolean}} [opts]
- * @returns {WritableEndoGit}
+ * @param {{readOnly?: false, allowHistoryRewrite: true}} opts
+ * @returns {HistoryRewriteEndoGit}
  */
 /**
  * @overload
  * @param {GitPowers} powers
- * @param {{readOnly: boolean, allowHistoryRewrite?: boolean}} opts
- * @returns {WritableEndoGit | ReadOnlyEndoGit}
+ * @param {{readOnly?: false, allowHistoryRewrite?: false}} [opts]
+ * @returns {ReadWriteEndoGit}
+ */
+/**
+ * @overload
+ * @param {GitPowers} powers
+ * @param {{readOnly?: false, allowHistoryRewrite: boolean}} opts
+ * @returns {ReadWriteEndoGit | HistoryRewriteEndoGit}
+ */
+/**
+ * @overload
+ * @param {GitPowers} powers
+ * @param {{readOnly?: boolean, allowHistoryRewrite?: boolean}} [opts]
+ * @returns {ReadOnlyEndoGit | ReadWriteEndoGit | HistoryRewriteEndoGit}
  */
 /**
  * @param {GitPowers} powers
@@ -274,9 +287,9 @@ harden(getGitBackend);
  *   Mutation methods throw before
  *   the backend can touch the worktree.
  * @param {boolean} [opts.allowHistoryRewrite]  True when this Git cap may
- *   amend or reword existing commits.
+ *   amend, reword, cherry-pick, or rebase existing commits.
  *   Defaults to false.
- * @returns {WritableEndoGit | ReadOnlyEndoGit}
+ * @returns {ReadOnlyEndoGit | ReadWriteEndoGit | HistoryRewriteEndoGit}
  */
 export const makeGit = (
   { mount, backend, lineageOf },
@@ -375,7 +388,7 @@ export const makeGit = (
   const refName = ref =>
     typeof ref === 'string' ? ref : /** @type {{ name: string }} */ (ref).name;
 
-  /** @type {WritableEndoGit | ReadOnlyEndoGit} */
+  /** @type {ReadOnlyEndoGit | ReadWriteEndoGit | HistoryRewriteEndoGit} */
   let selfExo;
 
   /** @type {GitImplementation} */
@@ -661,7 +674,10 @@ export const makeGit = (
   // eslint-disable-next-line jsdoc/reject-any-type
   const exo = makeExo('Git', /** @type {any} */ (GitInterface), gitMethods);
 
-  const typed = /** @type {WritableEndoGit | ReadOnlyEndoGit} */ (exo);
+  const typed =
+    /** @type {ReadOnlyEndoGit | ReadWriteEndoGit | HistoryRewriteEndoGit} */ (
+      exo
+    );
   gitReadOnly.set(typed, readOnly);
   gitHistoryRewrite.set(typed, allowHistoryRewrite);
   gitBackends.set(typed, backend);
