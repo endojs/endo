@@ -6,7 +6,16 @@
   },
   "references": [
     {
+      "path": "../exo-stream/tsconfig.composite.json"
+    },
+    {
+      "path": "../far/tsconfig.composite.json"
+    },
+    {
       "path": "../harden/tsconfig.composite.json"
+    },
+    {
+      "path": "../zip/tsconfig.composite.json"
     }
   ]
 }

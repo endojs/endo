@@ -6,8 +6,8 @@ import '../src/types.js';
 import { ZipWriter, writeZip } from '../src/writer.js';
 import { ZipReader, readZip } from '../src/reader.js';
 import { BufferReader } from '../src/buffer-reader.js';
-import inflate from '../src/inflate.js';
-import deflate from '../src/deflate.js';
+import { inflate } from '../src/inflate.js';
+import { deflate } from '../src/deflate.js';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();

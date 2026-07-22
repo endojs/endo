@@ -1,19 +1,22 @@
 {
-  "name": "@endo/zip",
-  "version": "1.1.0",
-  "description": "A minimal ZIP archive reader and writer",
+  "name": "@endo/exo-zip",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Walk a readable-tree exo over CapTP and serialize it into in-memory ZIP bytes",
   "keywords": [
+    "endo",
     "zip",
-    "ses",
-    "endo"
+    "exo",
+    "captp",
+    "readable-tree"
   ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/blob/master/packages/zip/README.md",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/exo-zip#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/zip"
+    "directory": "packages/exo-zip"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
@@ -22,11 +25,7 @@
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
-    "./reader.js": "./reader.js",
-    "./writer.js": "./writer.js",
-    "./inflate.js": "./inflate.js",
-    "./deflate.js": "./deflate.js",
-    "./path.js": "./path.js",
+    "./zip.js": "./zip.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -35,16 +34,21 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test": "yarn run -T ses-ava",
-    "test:c8": "c8 ${C8_OPTIONS:-} yarn run -T ses-ava"
+    "test": "ava"
   },
   "dependencies": {
-    "@endo/harden": "workspace:^"
+    "@endo/exo-stream": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/zip": "workspace:^"
   },
   "devDependencies": {
+    "@endo/exo-unzip": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
-    "c8": "catalog:dev",
     "eslint": "catalog:dev",
+    "ses": "workspace:^",
     "typescript": "catalog:dev"
   },
   "files": [
@@ -53,10 +57,7 @@
     "./*.map",
     "LICENSE*",
     "SECURITY*",
-    "dist",
-    "lib",
-    "src",
-    "tools"
+    "src"
   ],
   "publishConfig": {
     "access": "public"
@@ -66,13 +67,10 @@
       "plugin:@endo/internal"
     ]
   },
-  "sesAvaConfigs": {
-    "lockdown": "../../ava-endo-lockdown.config.mjs",
-    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
-    "base": "../../ava-base.config.mjs",
-    "noop-harden": "../../ava-noop-harden.config.mjs"
-  },
-  "typeCoverage": {
-    "atLeast": 98.61
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
   }
 }

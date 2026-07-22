@@ -24,4 +24,4 @@ const decompress = async (compressedBytes, compressionMethodName) => {
  */
 const inflate = compressedBytes => decompress(compressedBytes, 'deflate-raw');
 
-export default inflate;
+export { inflate };

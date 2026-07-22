@@ -15,34 +15,22 @@
       "path": "../errors/tsconfig.composite.json"
     },
     {
-      "path": "../eventual-send/tsconfig.composite.json"
-    },
-    {
       "path": "../exo/tsconfig.composite.json"
     },
     {
       "path": "../exo-stream/tsconfig.composite.json"
     },
     {
-      "path": "../far/tsconfig.composite.json"
-    },
-    {
       "path": "../harden/tsconfig.composite.json"
-    },
-    {
-      "path": "../hex/tsconfig.composite.json"
-    },
-    {
-      "path": "../init/tsconfig.composite.json"
     },
     {
       "path": "../patterns/tsconfig.composite.json"
     },
     {
-      "path": "../stream/tsconfig.composite.json"
+      "path": "../platform/tsconfig.composite.json"
     },
     {
-      "path": "../stream-node/tsconfig.composite.json"
+      "path": "../zip/tsconfig.composite.json"
     }
   ]
 }

@@ -4,15 +4,67 @@
 |---|---|
 | **Created** | 2026-05-08 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | Proposed (split into two packages on PR #160) |
 | **Source** | PR #128 inline review comment ([discussion_r3205653903](https://github.com/endojs/endo-but-for-bots/pull/128#discussion_r3205653903)) |
+
+## Amendment 2026-05-10: package split
+
+On PR #160 I split the design's single `@endo/exo-zip` package with
+one factory `makeExoZip(bytes)` into two packages, one per
+direction:
+
+- `@endo/exo-unzip` exports `unzip(bytes)` and returns a
+  `ReadableTree`.
+  This is the read-side originally specified below.
+- `@endo/exo-zip` exports `zip(tree)` and returns `Uint8Array`
+  archive bytes.
+  This is the symmetric write-side that was originally deferred to
+  inline use in `checkout.js`.
+
+Function names are plain English verbs (`zip`, `unzip`), not
+`make…` factories.
+The rest of this document refers to the original single-package
+shape and `makeExoZip` for historic context; the implementations
+under `packages/exo-unzip/` and `packages/exo-zip/` carry the
+final names.
+
+## Amendment 2026-05-12: shared path validator and chunked base64
+
+Two further refinements landed during PR #160 review:
+
+- **Shared path validator hoisted to `@endo/zip/path.js`.**
+  The original split duplicated `assertSafePathSegment` /
+  `assertSafePathSegments` / `splitAndValidatePath` between the
+  read-side (`@endo/exo-unzip`) and the write-side
+  (`@endo/exo-zip`).
+  The shared validator now lives at `@endo/zip/path.js` (one file
+  in `@endo/zip`'s flat-root + `src/`-impl layout), so both
+  adapters import from the same definition.
+  This keeps the per-segment safety contract (reject empty, `.`,
+  `..`, control characters `\x00`-`\x1f`) authoritative in one
+  place and lets future zip-adjacent packages share it.
+- **Chunked base64 contract: join encoded chunks then decode once.**
+  Both the read-side (`unzip` over `streamBase64`) and the
+  write-side (`zip` over `drainBase64`) use chunked transfer to
+  bound peak memory.
+  The original implementation decoded each chunk in isolation and
+  concatenated the resulting bytes, which silently corrupts
+  payloads when chunk boundaries fall on non-3-byte multiples
+  (mid-stream padding `=` characters from per-chunk encode
+  invalidate the join).
+  Both sides now agree on a single contract: the producer slices
+  on raw 3-byte multiples (so non-final chunks have no padding),
+  the consumer accumulates encoded strings and decodes the join in
+  one pass.
+  Misaligned producers fail loudly at `atob` rather than silently
+  corrupting bytes; a regression test pins the failure mode.
 
 ## What is the Problem Being Solved?
 
 PR #128 (`endo checkin` / `endo checkout`) implements the `-z` flag by
 extracting the zip into a temporary directory and then walking that
 directory with `makeLocalTree`.
-The maintainer flagged this on `packages/cli/src/commands/checkin.js:36`:
+I flagged this on `packages/cli/src/commands/checkin.js:36`:
 
 > An intermediate representation on the filesystem is superfluous.
 > We can open a Zip in memory with `@endo/zip` (with deflate/inflate
@@ -242,7 +294,7 @@ The walker is not specific to zip output: the same shape would work
 for tar or any other archive format, so its eventual home is a lite
 helper module under `@endo/platform` (or a sibling pure-JavaScript
 helper package), reused across archive backends.
-Per the maintainer's guidance on Open Question 3 (review
+Per my guidance on Open Question 3 (review
 [4255618212](https://github.com/endojs/endo-but-for-bots/pull/154#pullrequestreview-4255618212)),
 inline is fine until we find multiple uses.
 
@@ -396,8 +448,8 @@ substance against the new package.
 
 ## Resolved Questions
 
-The original design carried three Open Questions that were resolved
-inline by the maintainer in review
+The original design carried three Open Questions that I resolved
+inline in review
 [4255618212](https://github.com/endojs/endo-but-for-bots/pull/154#pullrequestreview-4255618212).
 Their resolutions are folded into the design body above:
 
@@ -415,7 +467,7 @@ Their resolutions are folded into the design body above:
    for now (Decision 4 and the *Symmetric write path* section).
    Future home is a lite helper module under `@endo/platform` (or a
    sibling pure-JavaScript helper package).
-   Per the maintainer: "inline is fine until we find multiple uses".
+   As I put it: "inline is fine until we find multiple uses".
 
 ## Prompt
 

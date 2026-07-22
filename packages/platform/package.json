@@ -21,6 +21,7 @@
   },
   "type": "module",
   "exports": {
+    "./blob": "./src/blob.js",
     "./fs": {
       "node": "./src/fs-node/index.js"
     },
@@ -63,6 +64,7 @@
   },
   "dependencies": {
     "@endo/base64": "workspace:^",
+    "@endo/bytes": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo": "workspace:^",
@@ -78,6 +80,7 @@
   "devDependencies": {
     "@endo/captp": "workspace:^",
     "@endo/pass-style": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "eslint": "catalog:dev",
     "typescript": "catalog:dev"
