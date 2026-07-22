@@ -4,19 +4,14 @@
 
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';
-import { encodeBase64 } from '@endo/base64';
-import { makeReaderPump } from '@endo/exo-stream/reader-pump.js';
 import { ZipReader } from '@endo/zip/reader.js';
 import { inflate } from '@endo/zip/inflate.js';
 import {
   assertSafePathSegments,
   splitAndValidatePath,
 } from '@endo/zip/path.js';
-import {
-  ReadableBlobInterface,
-  ReadableTreeInterface,
-} from '@endo/platform/fs/lite';
-import { bytesToText } from '@endo/bytes/to-string.js';
+import { blobFromBytes } from '@endo/platform/blob';
+import { ReadableTreeInterface } from '@endo/platform/fs/lite';
 import { Fail } from '@endo/errors';
 
 // `@endo/zip/inflate.js` is implemented atop `DecompressionStream`,
@@ -119,88 +114,6 @@ const buildTree = (entryPaths, archiveName) => {
   return root;
 };
 harden(buildTree);
-
-/**
- * Maximum raw byte count per yielded base64 chunk. A multiple of 3 so
- * each yielded chunk encodes a whole number of base64 4-character
- * groups and carries no interior `=` padding — each chunk is a
- * self-contained, independently decodable base64 string.
- *
- * 48 KiB raw -> 64 KiB base64 keeps a single chunk well within typical
- * CapTP frame budgets while amortising the per-yield overhead.
- */
-const BASE64_CHUNK_RAW_BYTES = 48 * 1024;
-
-/**
- * Yield base64-encoded chunks for the given bytes via an async iterator.
- *
- * Each yielded chunk is the independent base64 encoding of a
- * `BASE64_CHUNK_RAW_BYTES`-sized raw-byte slice, so it stands alone:
- * the syn/ack reader-pump protocol (`@endo/exo-stream`) carries each
- * ack chunk across CapTP and the consumer (`iterateBytesReader`)
- * decodes each one to a `Uint8Array` independently — no concatenation
- * of encoded strings and no interior-padding concern.
- *
- * Chunking at `BASE64_CHUNK_RAW_BYTES` (48 KiB raw, ~64 KiB encoded)
- * keeps individual frames small enough for CapTP without amplifying
- * per-yield overhead.
- *
- * Accepts either a `Uint8Array` or a `Promise<Uint8Array>` so the
- * caller can defer (potentially async) decompression to the moment
- * the consumer asks for the first chunk; the reader pump awaits the
- * promise inside the async iterator body when the consumer pulls.
- *
- * @param {Uint8Array | Promise<Uint8Array>} bytesOrPromise
- */
-async function* base64Chunks(bytesOrPromise) {
-  const bytes = await bytesOrPromise;
-  const total = bytes.length;
-  for (let offset = 0; offset < total; offset += BASE64_CHUNK_RAW_BYTES) {
-    const end = Math.min(offset + BASE64_CHUNK_RAW_BYTES, total);
-    yield encodeBase64(bytes.subarray(offset, end));
-  }
-}
-
-/**
- * Construct a ReadableBlob exo backed by a single zip entry.
- *
- * @param {ZipReader} zipReader
- * @param {string} fullPath
- */
-const makeUnzipBlob = (zipReader, fullPath) => {
-  // Decompress lazily on first method call. `@endo/zip`'s reader
-  // already holds the compressed bytes in memory; the async `get`
-  // path runs the configured `inflate` (DEFLATE) once per call.
-  // STORE entries skip inflate entirely.
-  return makeExo('UnzipBlob', ReadableBlobInterface, {
-    /** @param {unknown} synHead The initiator's syn-chain head. */
-    streamBase64: synHead => {
-      // Conform to the platform's syn/ack reader-pump protocol
-      // (`ReadableBlobInterface.streamBase64: M.call(M.any()).returns
-      // (M.promise())`), mirroring `@endo/platform`'s `local-blob`.
-      // A fresh pump per call keeps the blob re-streamable; `get`
-      // returns a Promise the async iterator awaits lazily on the
-      // first pull. `base64Chunks` yields base64 strings, which are
-      // exactly the ack values `iterateBytesReader` decodes to bytes.
-      const pump = makeReaderPump(base64Chunks(zipReader.get(fullPath)));
-      return pump(/** @type {any} */ (synHead));
-    },
-    text: async () => {
-      const bytes = await zipReader.get(fullPath);
-      return bytesToText(bytes);
-    },
-    json: async () => {
-      const bytes = await zipReader.get(fullPath);
-      return JSON.parse(bytesToText(bytes));
-    },
-    /** @param {string} [method] */
-    help: method =>
-      method === undefined
-        ? 'UnzipBlob: read-only view of a single ZIP entry (streamBase64, text, json).'
-        : `No documentation for method ${method}.`,
-  });
-};
-harden(makeUnzipBlob);
 
 /**
  * Construct a ReadableTree exo backed by a node in the synthesized
@@ -356,7 +269,9 @@ const makeUnzipTree = (zipReader, node, archiveName) => {
       if (child.children) {
         return makeUnzipTree(zipReader, child, archiveName);
       }
-      return makeUnzipBlob(zipReader, /** @type {string} */ (child.fullPath));
+      return blobFromBytes(
+        zipReader.get(/** @type {string} */ (child.fullPath)),
+      );
     },
     /** @param {string} [method] */
     help: method =>
