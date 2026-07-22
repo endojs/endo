@@ -667,6 +667,87 @@ test('importNow handles a cycle in CommonJS modules', t => {
   t.is(namespace.B.A.a, 42);
 });
 
+// In-process SES regression for the ESM-in-CommonJS-cycle shape of issue
+// endojs/endo#59, exercised directly through the Compartment API with
+// inline ModuleSources. The fixture places a CommonJS module in the cycle
+// as the "star reexporter": it captures the renamer's exports by property
+// assignment (`exports.x = r.x; exports.y = r.y`) at the moment its own
+// `require('./export-renamer.mjs')` returns. The ESM renamer re-exports
+// from the CJS reexporter with `export { y as x } from './star-reexporter.cjs'`.
+// Because the renamer's `x` resolves to its own `y` via live ESM binding,
+// the namespace projection at the renamer is { x: 45, y: 45 }; on the CJS
+// side, the property capture happened before `r.x` had any value, so the
+// reexporter's namespace is { x: undefined, y: 45 }. Both shapes are pinned.
+//
+// Node.js rejects this ESM-in-CJS-cycle topology with ERR_REQUIRE_CYCLE_MODULE;
+// the divergence is verified programmatically in
+// packages/compartment-mapper/test/cycle-esm-in-cjs.test.js (SES side)
+// together with packages/compartment-mapper/test/cycle-esm-in-cjs-node-parity.test.js
+// (Node side). For the parity case where Node and SES agree on a
+// pure-CommonJS cyclic reexporter, see
+// packages/compartment-mapper/test/cycle-cjs-reexporter.test.js together with
+// packages/compartment-mapper/test/cycle-cjs-reexporter-node-parity.test.js.
+test('cyclic star-export with CommonJS reexporter', async t => {
+  t.plan(3);
+
+  const resolveHook = resolveNode;
+  const importHook = async specifier => {
+    if (specifier === './star-reexporter.cjs') {
+      // CommonJS analog of `export * from './export-renamer.mjs'`: capture
+      // the renamer's properties by assignment. Because both are required
+      // from each other in a cycle, the values read here are whatever the
+      // renamer had set on its `exports` by the re-entry instant.
+      return CjsModuleSource(
+        `
+        const r = require('./export-renamer.mjs');
+        exports.x = r.x;
+        exports.y = r.y;
+        `,
+        'https://example.com/star-reexporter.cjs',
+      );
+    }
+    if (specifier === './export-renamer.mjs') {
+      return new ModuleSource(
+        `
+        export { y as x } from './star-reexporter.cjs';
+        export var y = 45;
+      `,
+        'https://example.com/export-renamer.mjs',
+      );
+    }
+    if (specifier === './main.mjs') {
+      return new ModuleSource(
+        `
+        import { x } from './star-reexporter.cjs';
+        import * as ns1 from './star-reexporter.cjs';
+        import * as ns2 from './export-renamer.mjs';
+        export const captured = x;
+        export const namespace1 = { x: ns1.x, y: ns1.y };
+        export const namespace2 = { x: ns2.x, y: ns2.y };
+      `,
+        'https://example.com/main.mjs',
+      );
+    }
+    throw Error(`Cannot load module ${specifier}`);
+  };
+
+  const compartment = new Compartment({
+    resolveHook,
+    importHook,
+    __noNamespaceBox__: true,
+    __options__: true,
+  });
+
+  const namespace = await compartment.import('./main.mjs');
+
+  // The CJS reexporter captured `r.x` when the renamer had not yet set its
+  // own `x`, so the property holds `undefined`. The renamer's `x` resolves
+  // (live, via the re-export wiring) to its own `y`, which is 45.
+  t.is(namespace.captured, undefined);
+  t.deepEqual(namespace.namespace1, { x: undefined, y: 45 });
+  t.deepEqual(namespace.namespace2, { x: 45, y: 45 });
+});
+
 test('importNowHook only called if specifier was not imported before', async t => {
   t.plan(1);
 
