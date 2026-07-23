@@ -36,8 +36,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
-    "@earendil-works/pi-agent-core": "^0.80.3",
-    "@earendil-works/pi-ai": "^0.80.3",
+    "@earendil-works/pi-agent-core": "^0.81.1",
+    "@earendil-works/pi-ai": "^0.81.1",
     "@endo/agent-tools": "workspace:^",
     "@endo/agentry": "workspace:^",
     "@endo/daemon": "workspace:^",
