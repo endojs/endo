@@ -4,7 +4,7 @@
 
 **Breaking:** Backwards compatibility with legacy ESLint config files is provided on a best-effort basis, given ESLint's deprecation of rules and third-party replacements. Recommended rules from ESLint 9+ have also been configured.
 
-**Breaking:**Minimum supported Node.js version is now v22.12.0.
+**Breaking:** Minimum supported Node.js version is now v22.13.0.
 
 **Breaking:** `@jessie.js/eslint-plugin` is no longer a dependency of `@endo/eslint-plugin`. This removes a cyclic dependency (`@jessie.js/eslint-plugin` depends on `@endo/eslint-plugin`, and vice versa).
 
@@ -12,7 +12,7 @@
 
 - The `flat/recommended` config no longer registers the `@jessie.js` plugin, applies `@jessie.js/safe-await-separator`, or installs the `use-jessie` processor. The legacy `recommended` and `internal` configs likewise no longer extend `plugin:@jessie.js/recommended` or set the `@jessie.js/use-jessie` processor. See "Migration" below for more details.
 
-- New rules have been added from `@eslint/js`' `recommended` configuration, including `no-assign-to-exported-let-var-or-function` and `no-harden-pattern-maker`, which may or may not already be handled by your existing configuration.
+- New `@endo` rules include `no-assign-to-exported-let-var-or-function` and `no-harden-pattern-maker`, which may or may not already be handled by your existing configuration.
 
 **Migration:** Consumers that rely on the rules and processor provided by `@jessie.js/eslint-plugin` must install `@jessie.js/eslint-plugin` manually and wire it up alongside `@endo/eslint-plugin`:
 

@@ -11,6 +11,7 @@ import { hardenedGlobals, recommendedRules } from './shared.js';
  * @see {@link https://github.com/endojs/endo/blob/master/packages/eslint-plugin/README.md}
  */
 export default {
+  extends: ['eslint:recommended'],
   plugins: ['@endo'],
   env: {
     es6: true,

@@ -7,7 +7,11 @@ import { styleRules, styleTsOverrideRules, styleSettings } from './shared.js';
  * @see {@link https://github.com/endojs/endo/blob/master/packages/eslint-plugin/README.md}
  */
 export default {
-  extends: ['plugin:jsdoc/recommended-typescript-flavor', 'prettier'],
+  extends: [
+    'eslint:recommended',
+    'plugin:jsdoc/recommended-typescript-flavor',
+    'prettier',
+  ],
   rules: styleRules,
   overrides: [
     {

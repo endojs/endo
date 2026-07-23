@@ -353,8 +353,6 @@ export const recommendedRules = {
 
   // this is useful for establishing the type of a variable
   'no-useless-assignment': 'off',
-  // we don't always want to do this, but it's a good reminder
-  'preserve-caught-error': 'warn',
   // empty try/catch blocks are fine
   'no-empty': ['error', { allowEmptyCatch: true }],
 };

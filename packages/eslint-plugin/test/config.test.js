@@ -15,7 +15,10 @@ import { describe, it, before } from 'node:test';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
+import { builtinRules } from 'eslint/use-at-your-own-risk';
 import { configs } from '../src/index.js';
+import recommended from '../src/configs/recommended.js';
+import style from '../src/configs/style.js';
 
 const pluginDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -59,6 +62,20 @@ describe('flat/recommended', () => {
 
   it('has no-undef from eslint:recommended', () => {
     assert.strictEqual(severityOf(rules['no-undef']), 2);
+  });
+
+  it('only includes rules supported by the consumer ESLint', () => {
+    for (const ruleName of ['no-unassigned-vars', 'preserve-caught-error']) {
+      assert.strictEqual(
+        Object.hasOwn(rules, ruleName),
+        builtinRules.has(ruleName),
+        `${ruleName} must match the consumer ESLint rule set`,
+      );
+    }
+    assert.strictEqual(
+      severityOf(rules['preserve-caught-error']),
+      builtinRules.has('preserve-caught-error') ? 1 : 0,
+    );
   });
 
   it('has guard-for-in from endo recommendedRules', () => {
@@ -186,5 +203,12 @@ describe('flat/internal', () => {
       severityOf(rules['@typescript-eslint/restrict-plus-operands']),
       2,
     );
+  });
+});
+
+describe('legacy configs', () => {
+  it('retain the eslint:recommended baseline', () => {
+    assert.deepEqual(recommended.extends, ['eslint:recommended']);
+    assert.ok(style.extends.includes('eslint:recommended'));
   });
 });

@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import stylisticPlugin from '@stylistic/eslint-plugin';
 import tsEslintPlugin from '@typescript-eslint/eslint-plugin';
 import tsEslintParser from '@typescript-eslint/parser';
+import { builtinRules } from 'eslint/use-at-your-own-risk';
 import prettierConfig from 'eslint-config-prettier';
 import importPlugin from 'eslint-plugin-import';
 import jsdocPlugin from 'eslint-plugin-jsdoc';
@@ -76,9 +77,33 @@ const plugin = { meta, rules };
 /** @type {Record<string, ConfigWithExtends[]>} */
 const flatConfigs = {};
 
+// @eslint/js follows its own release line, which can be newer than the
+// consumer's ESLint peer.
+// Keep only rules known by that peer so ESLint 9 can consume the ESLint 10
+// preset without rejecting newer rule names during configuration.
+const eslintRecommended = {
+  ...js.configs.recommended,
+  rules: Object.fromEntries(
+    Object.entries(js.configs.recommended.rules).filter(([ruleName]) =>
+      builtinRules.has(ruleName),
+    ),
+  ),
+};
+
+const flatRecommendedRules = {
+  ...recommendedRules,
+  ...(builtinRules.has('preserve-caught-error')
+    ? {
+        // Keep this ESLint 10 rule useful without making it an ESLint 8 legacy
+        // config dependency, and avoid making existing diagnostics hard errors.
+        'preserve-caught-error': /** @type {'warn'} */ ('warn'),
+      }
+    : {}),
+};
+
 /** @returns {ConfigWithExtends[]} */
 const makeFlatRecommended = () => [
-  js.configs.recommended,
+  eslintRecommended,
   {
     plugins: { '@endo': plugin, unicorn: unicornPlugin },
     languageOptions: {
@@ -86,7 +111,7 @@ const makeFlatRecommended = () => [
       ecmaVersion: 2022,
       sourceType: 'module',
     },
-    rules: recommendedRules,
+    rules: flatRecommendedRules,
   },
 ];
 
