@@ -260,7 +260,7 @@ export { NativeErrors };
  * <li>A string value equal to a primitive ("number", "string", etc),
  *     in which case the property is permitted if its value property
  *     is typeof the given type. For example, `Infinity` leads to
- *     "number" and property values that fail `typeof "number`.
+ *     "number" and property values that fail `typeof "number"`.
  *     are removed.
  * <li>A string value equal to an intinsic name ("ObjectPrototype",
  *     "Array", etc), in which case the property permitted if its
