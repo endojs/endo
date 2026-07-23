@@ -30,7 +30,8 @@
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
     "test": "ses-ava",
-    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava"
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "test:types": "tsd --typings index.d.ts --files 'src/*.test-d.ts'"
   },
   "dependencies": {
     "@endo/common": "workspace:^",
@@ -54,7 +55,7 @@
     "eslint-plugin-import": "catalog:dev",
     "prettier": "^3.5.3",
     "ses": "workspace:^",
-    "tsd": "^0.33.0",
+    "tsd": "catalog:dev",
     "typescript": "catalog:dev"
   },
   "files": [

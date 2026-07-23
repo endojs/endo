@@ -68,6 +68,7 @@
     "smoketest:publish": "scripts/smoketest-publishing.sh",
     "test": "yarn workspaces foreach --all --exclude @endo/skel run test",
     "test:c8": "yarn workspaces foreach --all run test:c8",
+    "test:types": "yarn turbo run test:types --continue=always",
     "test:xs": "yarn workspaces foreach --all run test:xs",
     "test262": "yarn workspaces foreach --all run test262",
     "build": "yarn workspaces foreach --all run build",

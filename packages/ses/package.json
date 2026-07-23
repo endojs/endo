@@ -91,8 +91,9 @@
     "lint:types": "tsc",
     "prepare": "npm run clean && npm run build",
     "qt": "ava",
-    "test": "tsd && ava",
+    "test": "ava",
     "test:hermes": "./scripts/hermes-test.sh",
+    "test:types": "tsd --typings types.d.ts --files '*.test-d.ts'",
     "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js",
     "postpack": "git clean -fX -e node_modules/"
   },

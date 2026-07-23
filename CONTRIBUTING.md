@@ -171,6 +171,39 @@ If the composite build complains about `TS5055` "would overwrite input file"
 errors, you have stale `.d.ts` outputs from a previous per-package build.
 Run `yarn build:types --clean` once to reset, then build normally.
 
+## TypeScript contract tests
+
+Packages opt into public type-contract tests by owning `.test-d.ts` fixtures and
+providing a `test:types` package script.
+The repository task runs only those opted-in package scripts through Turbo.
+
+Generate declarations before running the contract tests:
+
+```sh
+yarn build:types
+yarn test:types
+```
+
+Package scripts invoke their native `tsd` binary with an explicit declaration
+entry and fixture glob.
+The `tsd` CLI supplies diagnostic formatting and a failing exit status for
+contract errors.
+It tests the emitted or hand-written public declarations rather than treating
+ordinary source type-checking as a substitute.
+
+Use `tsd` assertions according to the property being tested:
+
+- `expectType<T>` requires exact type identity.
+- `expectAssignable<T>` permits a narrower expression assignable to `T`.
+- `expectNotAssignable<T>` records a negative public contract that ordinary
+  `tsc` checking may not express.
+- `expectError` records an expression that must produce a diagnostic.
+
+When adding the first fixture to a package, add `tsd` from the `dev` catalog and
+the package's `test:types` script in the same change.
+Do not add a package merely to increase coverage counts; type-contract testing
+remains opt-in.
+
 
 ## Rebuilding `ses`
 

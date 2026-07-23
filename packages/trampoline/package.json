@@ -42,9 +42,9 @@
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
     "lint:types": "tsc",
-    "test:types": "yarn build:types && tsd -f \"test/*.test-d.ts\"; yarn clean:types",
+    "test:types": "tsd --typings types.d.ts --files 'test/*.test-d.ts'",
     "test:ava": "ava",
-    "test": "yarn test:types && yarn test:ava"
+    "test": "yarn test:ava"
   },
   "devDependencies": {
     "ava": "catalog:dev",

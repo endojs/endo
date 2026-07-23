@@ -35,6 +35,7 @@
     "lint:types": "tsc",
     "test": "ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ava",
+    "test:types": "tsd --typings shim.types.d.ts --files 'test/*.test-d.ts'",
     "test:xs": "exit 0"
   },
   "devDependencies": {

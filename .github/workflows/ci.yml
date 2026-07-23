@@ -104,6 +104,9 @@ jobs:
       - name: Build composite TypeScript declarations
         run: corepack yarn build:types
 
+      - name: Test opt-in TypeScript contracts
+        run: corepack yarn test:types
+
   familiar-bundle:
     name: familiar-bundle
 

@@ -16,6 +16,10 @@
     "test:c8": {
       "dependsOn": ["build", "^build"],
       "outputs": []
+    },
+    "test:types": {
+      "cache": false,
+      "outputs": []
     }
   }
 }

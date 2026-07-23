@@ -205,6 +205,10 @@ for interfaces.
 - Run typechecking with `yarn lint:types` in the changed package, or
   `yarn build:types` at the root when exported declarations or cross-package
   types may have changed.
+- Run `yarn test:types` after `yarn build:types` when public type contracts or
+  `.test-d.ts` fixtures may have changed.
+  The root task uses Turbo to run only packages that opt in with a `test:types`
+  script.
 - Run `yarn docs` at the root when API docs or exported type surfaces may have
   changed.
   This is a CI gate, including for documentation-only PRs, and catches broken
