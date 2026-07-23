@@ -20,7 +20,11 @@
 import harden from '@endo/harden';
 
 import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
-import { getModel, getProviders, streamSimple } from '@earendil-works/pi-ai/compat';
+import {
+  getModel,
+  getProviders,
+  streamSimple,
+} from '@earendil-works/pi-ai/compat';
 
 import buildSystemPrompt from '../system/index.js';
 import { estimateTokens } from '../utils/tokens.js';
