@@ -4,7 +4,7 @@
 
 **Breaking:** Backwards compatibility with legacy ESLint config files is provided on a best-effort basis, given ESLint's deprecation of rules and third-party replacements. Recommended rules from ESLint 9+ have also been configured. 
 
-**Breaking:**Minimum supported Node.js version is now v22.12.0.
+**Breaking:** Minimum supported Node.js version is now v22.12.0.
 
 **Breaking:** `@jessie.js/eslint-plugin` is no longer a dependency of `@endo/eslint-plugin`. This removes a cyclic dependency (`@jessie.js/eslint-plugin` depends on `@endo/eslint-plugin`, and vice versa).
 
