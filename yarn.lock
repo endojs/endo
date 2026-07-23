@@ -1340,6 +1340,7 @@ __metadata:
     c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
+    tsd: "catalog:dev"
     typescript: "catalog:dev"
   bin:
     bundle-source: ./src/tool.js
@@ -2638,7 +2639,7 @@ __metadata:
     eslint-plugin-import: "catalog:dev"
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
-    tsd: "npm:^0.33.0"
+    tsd: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
