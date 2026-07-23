@@ -1,5 +1,5 @@
+// @ts-check
 /* eslint-disable no-underscore-dangle */
-// @ts-nocheck
 
 import { createRequire } from 'node:module';
 import { createRule } from '../create-rule.js';
@@ -97,13 +97,14 @@ const isAssertFail = node =>
  * Installed on `CodePathAnalyzer.prototype` while the rule is active and
  * restored on `Program:exit` so it doesn't bleed into other files.
  * @param node
+ * @this {{ codePath: unknown, currentNode: unknown }}
  */
 function overrideLeaveNode(node) {
   if (isAssertFail(node)) {
     this.currentNode = node;
     forwardCurrentToHead(this, node);
     CodePath.getState(this.codePath).makeThrow();
-    this.original.leaveNode(node);
+    originalLeaveNode.call(this, node);
     this.currentNode = null;
   } else {
     originalLeaveNode.call(this, node);

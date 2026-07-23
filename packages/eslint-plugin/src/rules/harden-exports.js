@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 import { createRule } from '../create-rule.js';
 
 /**
@@ -154,8 +154,10 @@ export default createRule({
               return (
                 statement.type === 'ExpressionStatement' &&
                 statement.expression.type === 'CallExpression' &&
+                statement.expression.callee.type === 'Identifier' &&
                 statement.expression.callee.name === 'harden' &&
                 statement.expression.arguments.length === 1 &&
+                statement.expression.arguments[0].type === 'Identifier' &&
                 statement.expression.arguments[0].name === exportName
               );
             });

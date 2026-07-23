@@ -1,6 +1,10 @@
+// @ts-check
 /* eslint-disable no-bitwise */
-// @ts-nocheck
 import ts from 'typescript';
+
+/**
+ * @import {TSESTree} from '@typescript-eslint/types';
+ */
 import { createRule } from '../create-rule.js';
 
 const COMPARABLE_TYPES = ['number', 'bigint', 'string', 'any'];
@@ -38,14 +42,12 @@ export default createRule({
   },
   defaultOptions: [{ allowUnknown: false }],
   create(context, [{ allowUnknown }]) {
-    const { parserServices } = context.sourceCode;
-    const typeChecker = parserServices?.program?.getTypeChecker();
+    const services = context.sourceCode.parserServices;
+    const typeChecker = services?.program?.getTypeChecker();
 
-    if (!typeChecker) {
+    if (!typeChecker || !services?.esTreeNodeToTSNodeMap) {
       return {};
     }
-
-    const services = parserServices;
 
     const comparableTypeOf = type => {
       if (type.flags & ts.TypeFlags.EnumLike) {
@@ -103,33 +105,37 @@ export default createRule({
       .map(op => `[operator='${op}']`)
       .join(', ')})`;
 
+    /**
+     * @param {TSESTree.BinaryExpression} binNode
+     */
+    const checkComparison = binNode => {
+      const leftType = comparableTypeOfASTNode(binNode.left);
+      const rightType = comparableTypeOfASTNode(binNode.right);
+
+      if (leftType === NO_NODE_MAP || rightType === NO_NODE_MAP) return;
+
+      if (leftType === NONCOMPARABLE || rightType === NONCOMPARABLE) {
+        context.report({ node: binNode, messageId: 'invalidType' });
+        return;
+      }
+      if (leftType === 'any' || rightType === 'any') {
+        if (!allowUnknown) {
+          context.report({ node: binNode, messageId: 'unknownType' });
+        }
+        return;
+      }
+      if (leftType === rightType) return;
+
+      const mixedNumerics =
+        (leftType === 'number' && rightType === 'bigint') ||
+        (leftType === 'bigint' && rightType === 'number');
+      if (mixedNumerics) return;
+
+      context.report({ node: binNode, messageId: 'mismatch' });
+    };
+
     return {
-      [astSelector](node) {
-        const binNode = node;
-        const leftType = comparableTypeOfASTNode(binNode.left);
-        const rightType = comparableTypeOfASTNode(binNode.right);
-
-        if (leftType === NO_NODE_MAP || rightType === NO_NODE_MAP) return;
-
-        if (leftType === NONCOMPARABLE || rightType === NONCOMPARABLE) {
-          context.report({ node, messageId: 'invalidType' });
-          return;
-        }
-        if (leftType === 'any' || rightType === 'any') {
-          if (!allowUnknown) {
-            context.report({ node, messageId: 'unknownType' });
-          }
-          return;
-        }
-        if (leftType === rightType) return;
-
-        const mixedNumerics =
-          (leftType === 'number' && rightType === 'bigint') ||
-          (leftType === 'bigint' && rightType === 'number');
-        if (mixedNumerics) return;
-
-        context.report({ node, messageId: 'mismatch' });
-      },
+      [astSelector]: checkComparison,
     };
   },
 });

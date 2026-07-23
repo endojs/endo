@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-check
 import { createRule } from '../create-rule.js';
 
 /**
@@ -63,6 +63,9 @@ export default createRule({
             }
           }
           return false;
+        }
+        if (!current.upper) {
+          break;
         }
         current = current.upper;
       }
