@@ -2846,31 +2846,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/siesta@workspace:packages/siesta":
-  version: 0.0.0-use.local
-  resolution: "@endo/siesta@workspace:packages/siesta"
-  dependencies:
-    "@endo/base64": "workspace:^"
-    "@endo/bytes": "workspace:^"
-    "@endo/compartment-mapper": "workspace:^"
-    "@endo/errors": "workspace:^"
-    "@endo/eventual-send": "workspace:^"
-    "@endo/far": "workspace:^"
-    "@endo/harden": "workspace:^"
-    "@endo/init": "workspace:^"
-    "@endo/lockdown": "workspace:^"
-    "@endo/ocapn": "workspace:^"
-    "@endo/ses-ava": "workspace:^"
-    "@endo/stream": "workspace:^"
-    "@noble/hashes": "npm:^2.0.1"
-    ava: "catalog:dev"
-    c8: "catalog:dev"
-    eslint: "catalog:dev"
-    ses: "workspace:^"
-    typescript: "catalog:dev"
-  languageName: unknown
-  linkType: soft
-
 "@endo/skel@workspace:packages/skel":
   version: 0.0.0-use.local
   resolution: "@endo/skel@workspace:packages/skel"
@@ -3094,6 +3069,31 @@ __metadata:
     eslint: "catalog:dev"
     ses: "workspace:^"
     test262-harness: "npm:^10.0.0"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/thixotrope@workspace:packages/thixotrope":
+  version: 0.0.0-use.local
+  resolution: "@endo/thixotrope@workspace:packages/thixotrope"
+  dependencies:
+    "@endo/base64": "workspace:^"
+    "@endo/bytes": "workspace:^"
+    "@endo/compartment-mapper": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/ocapn": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@endo/stream": "workspace:^"
+    "@noble/hashes": "npm:^2.0.1"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
