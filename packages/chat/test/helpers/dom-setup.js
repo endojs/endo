@@ -1,6 +1,5 @@
 // @ts-nocheck - happy-dom types incompatible with standard DOM
 /* eslint-disable import/no-unresolved */
-/* global globalThis */
 
 import { Window } from 'happy-dom';
 

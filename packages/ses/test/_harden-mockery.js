@@ -11,5 +11,4 @@ export const mockHarden = x => {
 mockHarden.isFake = true;
 Object.freeze(mockHarden);
 
-// eslint-disable-next-line no-undef
 globalThis.harden = mockHarden;

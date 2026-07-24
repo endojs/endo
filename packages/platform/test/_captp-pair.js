@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global queueMicrotask, setTimeout */
 
 /**
  * Two-vat CapTP harness shared across `pipelined-rtt.test.js`

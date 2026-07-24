@@ -1,4 +1,3 @@
-// eslint-disable-next-line no-undef
 const { sha256 } = require('@noble/hashes/sha2');
 
 // Example data to hash

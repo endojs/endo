@@ -1,5 +1,4 @@
 // @ts-check
-/* global globalThis */
 
 /**
  * @typedef {import('../types.js').ByteStream} ByteStream

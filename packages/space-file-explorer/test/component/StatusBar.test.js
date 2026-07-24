@@ -1,5 +1,4 @@
 // @ts-nocheck - Component test with happy-dom
-/* global globalThis */
 import '@endo/init/debug.js';
 import test from 'ava';
 import { renderConfined, unmount } from '@endo/preact-container/renderer';

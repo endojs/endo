@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global setTimeout */
 
 /**
  * Unit tests for the mount caplet's mounter logic, exercised through

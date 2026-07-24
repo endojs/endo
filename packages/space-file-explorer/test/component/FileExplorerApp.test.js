@@ -1,5 +1,4 @@
 // @ts-nocheck - App composition test with happy-dom + the confined renderer.
-/* global globalThis */
 
 // Mounts the whole `FileExplorerApp` shell through `@endo/preact-container`'s
 // confined renderer and asserts the composition wires up: the toolbar, the body

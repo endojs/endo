@@ -1,5 +1,3 @@
-/* global globalThis */
-
 /**
  * @import { IsCancelled } from '../src/types.js'
  */

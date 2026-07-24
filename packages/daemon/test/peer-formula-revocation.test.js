@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global setTimeout */
 // Tests for Option A: peer formula context cancellation on connection loss.
 //
 // Option A changes the dispose callback in `makePeer` from:

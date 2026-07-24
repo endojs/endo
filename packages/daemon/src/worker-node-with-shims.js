@@ -1,5 +1,5 @@
 // @ts-check
-/* global globalThis, process, repairIntrinsics, hardenIntrinsics */
+/* global process, repairIntrinsics, hardenIntrinsics */
 
 // Phase 1: Import SES to get the split lockdown API on globalThis.
 // `import 'ses'` makes repairIntrinsics/hardenIntrinsics available

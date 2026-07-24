@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global Buffer */
 /* eslint-disable import/order */
 
 import '@endo/init';

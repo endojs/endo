@@ -1,5 +1,4 @@
 // @ts-check
-/* global globalThis */
 
 // Select the lockdown taming level before `@endo/init` runs `lockdown()`.
 //

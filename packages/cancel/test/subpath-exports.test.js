@@ -1,5 +1,3 @@
-/* global globalThis */
-
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeCancelKit } from '../index.js';

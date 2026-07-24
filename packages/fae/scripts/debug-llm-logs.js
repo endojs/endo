@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // @ts-check
-/* global process, Buffer */
 /* eslint-disable no-await-in-loop, no-console, no-continue */
 
 import fs from 'node:fs/promises';

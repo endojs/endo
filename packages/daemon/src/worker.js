@@ -1,5 +1,5 @@
 // @ts-check
-/* global globalThis, process */
+/* global process */
 
 import harden from '@endo/harden';
 import { E } from '@endo/eventual-send';

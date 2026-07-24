@@ -1,5 +1,4 @@
 // @ts-nocheck - Store hook test with happy-dom + the confined renderer.
-/* global globalThis */
 
 // Drives the `useFileExplorer` store hook through `@endo/preact-container`'s
 // confined renderer (the hook depends on `preact/hooks`, so it has to run inside

@@ -1,6 +1,5 @@
 // @ts-nocheck
 /* eslint-disable import/order, no-await-in-loop */
-/* global setTimeout */
 
 /**
  * Watch tests (F7: Node.watch).

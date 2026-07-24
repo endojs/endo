@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global globalThis */
 import fs from 'fs';
 import path from 'path';
 

@@ -21,8 +21,6 @@
 // depositing an authorization and a coordinator releasing both only when
 // both are held — see the README.
 
-/* global globalThis */
-
 import harden from '@endo/harden';
 
 const defaultNow = () => {

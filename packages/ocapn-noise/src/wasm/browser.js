@@ -1,5 +1,5 @@
 // @ts-check
-/* global globalThis, fetch */
+/* global fetch */
 
 /**
  * Browser (and generic `default`) loader for the Noise WASM module.

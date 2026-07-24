@@ -1,5 +1,4 @@
 // @ts-check
-/* global AbortSignal */
 
 import test from '@endo/ses-ava/prepare-endo.js';
 

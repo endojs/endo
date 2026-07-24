@@ -1,5 +1,4 @@
 // @ts-check
-/* global process */
 
 // Establish a SES perimeter (provides the `harden` global).
 // eslint-disable-next-line import/order

@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global setTimeout, Buffer */
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import fs from 'fs';

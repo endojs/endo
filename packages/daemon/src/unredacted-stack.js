@@ -1,5 +1,4 @@
 // @ts-check
-/* global globalThis */
 
 /**
  * Feature-test for the SES start-compartment hooks that expose unredacted

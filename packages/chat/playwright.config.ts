@@ -1,4 +1,3 @@
-/* eslint-env node */
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { defineConfig, devices } from '@playwright/test';
 

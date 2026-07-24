@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global process */
 // Integration test for the iroh transport's byte path: two real iroh
 // endpoints exchange a CapTP message through the same stream adapter and
 // netstring/CapTP layering the transport uses. Guarded so CI stays green

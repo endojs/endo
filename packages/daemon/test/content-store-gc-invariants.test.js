@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global process, setTimeout */
 
 // Adversarial tests against the invariants claimed by the
 // content-store and scratch-mount cleanup pass in `daemon.js`.

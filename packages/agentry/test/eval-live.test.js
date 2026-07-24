@@ -21,8 +21,6 @@
 // the credential-gating logic lives in one place and adding an eval adds one
 // row rather than one more gated file.
 
-/* global globalThis */
-
 import fs from 'node:fs';
 import path from 'node:path';
 

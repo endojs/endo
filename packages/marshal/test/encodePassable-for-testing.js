@@ -1,3 +1,4 @@
+/* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
 import { Fail, q } from '@endo/errors';
 
 import {

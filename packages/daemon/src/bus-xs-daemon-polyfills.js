@@ -3,7 +3,7 @@
    query strings with a counted-down loop and skips empty tokens
    without nesting. */
 /// <reference path="./bus-xs-host-globals.d.ts" />
-/* global globalThis, trace */
+/* global trace */
 
 /**
  * Polyfills that the daemon needs inside XS but the worker does not.

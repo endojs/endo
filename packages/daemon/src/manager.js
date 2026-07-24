@@ -1,7 +1,7 @@
 // @ts-check
 /** @import { EndoGit, WritableGitWorktree } from '@endo/exo-git' */
 /* eslint-disable no-await-in-loop */
-/* global clearTimeout, globalThis, process, setTimeout */
+/* global clearTimeout, process, setTimeout */
 
 import harden from '@endo/harden';
 import { makeExo } from '@endo/exo';

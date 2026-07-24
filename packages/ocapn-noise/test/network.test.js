@@ -1,5 +1,4 @@
 // @ts-check
-/* global setTimeout */
 
 import test from '@endo/ses-ava/test.js';
 import { makeQueue } from '@endo/stream';

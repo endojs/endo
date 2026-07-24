@@ -1,5 +1,4 @@
 // @ts-check
-/* global process, setTimeout */
 /* eslint-disable no-await-in-loop */
 
 /**

@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global setTimeout, setInterval, clearInterval */
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeIrohHeartbeat } from '../src/networks/iroh-heartbeat.js';

@@ -1,15 +1,22 @@
 // @ts-check
+/* eslint-disable @endo/no-polymorphic-call */
 
+// eslint-disable-next-line no-restricted-globals
 const { Error, TypeError, WeakMap } = globalThis;
 
+// eslint-disable-next-line no-restricted-globals
 const { parse, stringify } = JSON;
 
+// eslint-disable-next-line no-restricted-globals
 const { isSafeInteger } = Number;
 
+// eslint-disable-next-line no-restricted-globals
 const { freeze } = Object;
 
+// eslint-disable-next-line no-restricted-globals
 const { toStringTag: toStringTagSymbol } = Symbol;
 
+// eslint-disable-next-line no-restricted-globals
 const UNKNOWN_KEY = Symbol('UNKNOWN_KEY');
 
 /**

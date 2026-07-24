@@ -1,8 +1,6 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/* global globalThis */
-
 // TODO(secure): the credentials provider built below reads whatever record it
 // is handed. The default record is the ambient process environment, which is
 // not a capability-scoped secret store. Swap the env-backed provider for one

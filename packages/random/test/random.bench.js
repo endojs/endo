@@ -1,4 +1,4 @@
-/* eslint-disable no-bitwise */
+/* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
 
 // Benchmark: comparison of three seedable PRNGs across three
 // workloads, all driven through `@endo/random`'s sampler functions:

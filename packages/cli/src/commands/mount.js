@@ -1,4 +1,3 @@
-/* global process */
 import path from 'path';
 import os from 'os';
 

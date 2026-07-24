@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global process */
 
 import path from 'path';
 import test from 'ava';

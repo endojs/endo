@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global globalThis */
 
 import '@endo/init/debug.js';
 

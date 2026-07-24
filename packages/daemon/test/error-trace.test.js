@@ -1,5 +1,4 @@
 // @ts-check
-/* global process */
 
 // Use the ses-ava test wrapper so that a failing assertion surfaces the
 // unredacted error info (stack, cause chain, hidden notes) through the

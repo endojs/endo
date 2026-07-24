@@ -1,4 +1,3 @@
-/* global process */
 /* eslint-disable @endo/restrict-comparison-operands */
 import os from 'os';
 

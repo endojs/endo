@@ -1,5 +1,4 @@
 // @ts-check
-/* global globalThis */
 
 // Environment shims that let `@endo/platform/fs/extended` (and its
 // `@endo/exo-stream` dependency) run inside the chat browser bundle.

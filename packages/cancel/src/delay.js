@@ -1,8 +1,6 @@
 // @ts-check
 /// <reference types="ses"/>
 
-/* global globalThis */
-
 import { makeDelay } from './delay-lite.js';
 
 /**

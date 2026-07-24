@@ -3,7 +3,7 @@
    byte length is a plain number; the rule's inference flags it because
    we access it through an `unknown`-typed input parameter. */
 /// <reference path="./bus-xs-host-globals.d.ts" />
-/* global globalThis, sendRawFrame, trace */
+/* global sendRawFrame, trace */
 
 /**
  * XS "node" primitive: the plumbing shared by both the worker and

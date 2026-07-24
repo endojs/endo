@@ -12,7 +12,7 @@
 // The client never sees a private key and cannot settle on its own; the
 // signer's policy is the last word on what it will authorize.
 
-/* global globalThis, Headers */
+/* global Headers */
 
 import harden from '@endo/harden';
 

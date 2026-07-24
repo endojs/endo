@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // @ts-check
-/* global process, setTimeout */
 /**
  * Standalone runner for the Lal agent simulator.
  * Uses mock guest powers and real LLM providers (Anthropic, etc.) via env.

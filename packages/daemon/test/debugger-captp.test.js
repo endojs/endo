@@ -1,5 +1,4 @@
 // @ts-check
-/* global setTimeout */
 
 /**
  * @file CapTP debugger integration tests.

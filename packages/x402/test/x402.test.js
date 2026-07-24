@@ -1,8 +1,6 @@
 // End-to-end and unit coverage for the x402 connector. Run under SES via
 // ses-ava's prepare-endo, so `harden` is the genuine one.
 
-/* global Headers */
-
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import {

@@ -1,6 +1,5 @@
 // @ts-nocheck - Component test with happy-dom
 
-/* global globalThis */
 /* eslint-disable no-underscore-dangle */
 
 import '@endo/init/debug.js';

@@ -1,5 +1,4 @@
 // @ts-check
-/* global setImmediate */
 
 /**
  * Behavioural coverage for `packages/ocapn-noise/src/transports/ws-node.js`.

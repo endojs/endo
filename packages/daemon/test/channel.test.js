@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global process */
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '../src/types.js' */

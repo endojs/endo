@@ -1,5 +1,4 @@
 // @ts-nocheck - happy-dom types incompatible with standard DOM
-/* global globalThis */
 
 /**
  * @typedef {object} KeyboardEventOptions

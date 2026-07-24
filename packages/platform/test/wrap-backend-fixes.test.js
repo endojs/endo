@@ -1,6 +1,5 @@
 // @ts-check
 /* eslint-disable no-await-in-loop */
-/* global setTimeout */
 /**
  * Regression tests for the post-migration audit fixes.
  *

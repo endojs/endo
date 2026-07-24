@@ -1,4 +1,3 @@
-/* global process */
 import os from 'os';
 import { E } from '@endo/eventual-send';
 import { withEndoHost } from '../context.js';

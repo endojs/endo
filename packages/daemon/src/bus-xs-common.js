@@ -2,7 +2,6 @@
 /* eslint-disable no-underscore-dangle -- __shouldTerminate is
    deliberately scoped to globalThis with a dunder name to avoid
    collision with app-level exports. */
-/* global globalThis */
 
 /**
  * Shared primitives used by both XS bus bootstraps

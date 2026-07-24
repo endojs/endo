@@ -16,7 +16,7 @@
    loop, timer id allocation, and URL polyfill constructor-only
    side-effect probe. */
 /// <reference path="./bus-xs-host-globals.d.ts" />
-/* global globalThis, hostSendRawFrame, hostTrace, hostGetPid, hostGetEnv, hostDecodeUtf8 */
+/* global hostSendRawFrame, hostTrace, hostGetPid, hostGetEnv, hostDecodeUtf8 */
 
 /**
  * XS daemon bootstrap — entry point for the Endo daemon running in the

@@ -1,5 +1,3 @@
-/* global process */
-
 import assert from 'node:assert';
 import os from 'os';
 import path from 'path';

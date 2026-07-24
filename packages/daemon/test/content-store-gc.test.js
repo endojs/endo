@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global process, setTimeout */
 
 // Establish a perimeter:
 // eslint-disable-next-line import/order

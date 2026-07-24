@@ -1,6 +1,4 @@
 // @ts-nocheck
-/* global require Buffer module */
-/* eslint-disable import/no-unresolved */
 require('@endo/compartment-mapper-demo-polyfill1');
 const Poet = require('entropoetry');
 const fs = require('fs');

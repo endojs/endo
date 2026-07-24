@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global globalThis */
 /* eslint-disable no-underscore-dangle */
 
 // Test stub for ./monaco-wrapper.js. A real Monaco editor needs DOM layout that

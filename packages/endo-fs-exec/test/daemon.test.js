@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global process */
 
 // End-to-end: spin a real Endo daemon, mount a project directory as
 // an endo-fs Filesystem cap, wrap it in this package's tree-view,

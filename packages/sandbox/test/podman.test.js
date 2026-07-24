@@ -1,7 +1,5 @@
 // @ts-check
 
-/* global Buffer */
-
 import test from '@endo/ses-ava/prepare-endo.js';
 import { E } from '@endo/eventual-send';
 import { makeExo } from '@endo/exo';

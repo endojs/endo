@@ -1,5 +1,4 @@
 // @ts-check
-/* global globalThis */
 
 import { bytesFromText } from '@endo/bytes/from-string.js';
 import { E } from '@endo/eventual-send';

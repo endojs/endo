@@ -1,6 +1,5 @@
 // @ts-check
 /* eslint-disable no-bitwise, import/no-unresolved */
-/* global globalThis */
 
 import harden from '@endo/harden';
 

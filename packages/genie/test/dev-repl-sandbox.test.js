@@ -1,5 +1,4 @@
 // @ts-check
-/* global process, setTimeout, clearTimeout, Buffer */
 
 /**
  * Integration test: dev-repl `bash` runs inside the slice.

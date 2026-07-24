@@ -1,5 +1,4 @@
 // @ts-check
-/* global globalThis */
 
 import { E } from '@endo/eventual-send';
 import { makeError, q } from '@endo/errors';

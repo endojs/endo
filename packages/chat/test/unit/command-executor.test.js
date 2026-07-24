@@ -1,5 +1,4 @@
 // @ts-check
-/* global globalThis */
 
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { EndoHost } from '@endo/daemon' */

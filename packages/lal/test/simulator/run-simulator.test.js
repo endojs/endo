@@ -1,5 +1,4 @@
 // @ts-check
-/* global process, setTimeout */
 /**
  * Ava test that runs the Lal agent simulator with mock powers and real env.
  * Use to debug LLM providers (Anthropic, OpenAI, llama.cpp) without a daemon.

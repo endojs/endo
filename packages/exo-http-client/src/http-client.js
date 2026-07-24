@@ -1,5 +1,5 @@
 // @ts-check
-/* global clearTimeout, globalThis, setTimeout */
+/* global clearTimeout, setTimeout */
 
 /**
  * HttpClient capability with structural origin confinement.

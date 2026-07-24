@@ -1,5 +1,4 @@
 // @ts-nocheck - Component test with happy-dom
-/* global globalThis */
 
 import '@endo/init/debug.js';
 

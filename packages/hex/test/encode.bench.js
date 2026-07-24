@@ -1,4 +1,4 @@
-/* eslint-disable no-bitwise */
+/* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
 
 // Benchmark: hex encoding strategies across digest-sized (32 B),
 // bulk-medium (256 B), and large (1 MiB) inputs.  Engine-portable —
