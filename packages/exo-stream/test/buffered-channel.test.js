@@ -15,74 +15,6 @@ const events = harden([
   { type: 'final', text: 'hello' },
 ]);
 
-// Semantic 1: fire-and-forget push — the producer runs ahead of any consumer.
-// Semantic 2: a terminal event is delivered in-band, then the stream is done.
-test('legacy surface: producer runs ahead; terminal event auto-finalizes', async t => {
-  await null;
-  const { push, reader, isClosed } = makeBufferedReader();
-
-  for (const event of events) {
-    push(event);
-  }
-  push({ type: 'end' });
-  t.true(isClosed());
-  // Pushes after the terminal are ignored.
-  push({ type: 'delta', text: 'late' });
-
-  for (const event of events) {
-    t.deepEqual(await reader.next(), { value: event, done: false });
-  }
-  t.deepEqual(await reader.next(), { value: { type: 'end' }, done: false });
-  t.deepEqual(await reader.next(), { value: undefined, done: true });
-});
-
-// Semantics 3 + 4 on the legacy surface: return() reports done promptly,
-// discards buffered events, and fires onClose.
-test('legacy surface: return() discards buffer and fires onClose', async t => {
-  await null;
-  let closed = 0;
-  const { push, reader, isClosed } = makeBufferedReader({
-    onClose: () => {
-      closed += 1;
-    },
-  });
-
-  push(events[0]);
-  push(events[1]);
-  t.deepEqual(await reader.next(), { value: events[0], done: false });
-
-  t.deepEqual(await reader.return(), { value: undefined, done: true });
-  t.is(closed, 1);
-  t.true(isClosed());
-  // The undelivered event was discarded, not drained.
-  t.deepEqual(await reader.next(), { value: undefined, done: true });
-});
-
-test('legacy surface: onClose does not fire after a natural finish', async t => {
-  await null;
-  let closed = 0;
-  const { push, reader } = makeBufferedReader({
-    onClose: () => {
-      closed += 1;
-    },
-  });
-  push({ type: 'end' });
-  t.deepEqual(await reader.return(), { value: undefined, done: true });
-  t.is(closed, 0);
-});
-
-test('legacy surface: throw() finalizes, fires a late-set onClose, and rejects', async t => {
-  let closed = 0;
-  const { reader, setOnClose } = makeBufferedReader();
-  setOnClose(() => {
-    closed += 1;
-  });
-  await t.throwsAsync(() => reader.throw(Error('consumer failed')), {
-    message: /consumer failed/,
-  });
-  t.is(closed, 1);
-});
-
 test('iterateReader round-trip delivers events and the in-band terminal', async t => {
   await null;
   for (const buffer of [0, 4]) {
@@ -230,38 +162,6 @@ test('draining to completion releases the close watcher', async t => {
   t.is(lateClose, 0, 'a naturally finished stream reports no consumer close');
 });
 
-test('legacy next() is refused once a protocol consumer has attached', async t => {
-  await null;
-  const { push, reader } = makeBufferedReader();
-  push(events[0]);
-  const iterator = iterateReader(reader);
-  t.deepEqual(await iterator.next(), { done: false, value: events[0] });
-
-  await t.throwsAsync(() => reader.next(), {
-    message: /next\(\) is unavailable after stream\(\)/,
-  });
-  // return() stays available: interrupt()/terminate() close readers that way.
-  t.true((await reader.return()).done);
-});
-
-test('legacy throw() accepts a non-Error reason and still fires onClose', async t => {
-  let closed = 0;
-  const { reader } = makeBufferedReader({
-    onClose: () => {
-      closed += 1;
-    },
-  });
-  // AVA's throwsAsync insists on an Error; this reason deliberately is not one
-  // (the point is that the guard no longer rejects non-Error reasons).
-  /** @type {unknown} */
-  let rejection;
-  await reader.throw('user cancelled').catch(reason => {
-    rejection = reason;
-  });
-  t.is(rejection, 'user cancelled');
-  t.is(closed, 1, 'the close intent is not dropped by the interface guard');
-});
-
 test('a self-referential synchronize node finalizes instead of spinning', async t => {
   t.timeout(10_000);
   let closed = 0;
@@ -282,6 +182,52 @@ test('a self-referential synchronize node finalizes instead of spinning', async 
     });
   }
   t.is(closed, 1, 'a chain that cannot advance is treated as a close');
+});
+
+// The producer-side half of a close: how a producer aborts its own stream
+// (claude-sandbox's interrupt()/terminate()) now that readers carry no
+// remote-iterator surface.
+test('close() finalizes, fires onClose, and ends the consumer', async t => {
+  await null;
+  let closed = 0;
+  const { push, reader, close, isClosed } = makeBufferedReader({
+    onClose: () => {
+      closed += 1;
+    },
+  });
+
+  const iterator = iterateReader(reader);
+  push(events[0]);
+  push(events[1]);
+  t.deepEqual(await iterator.next(), { done: false, value: events[0] });
+
+  close();
+  t.is(closed, 1);
+  t.true(isClosed());
+
+  // A producer-side close cannot un-send what the pump already acknowledged:
+  // acks are eager, so events[1] is already on the initiator's chain and is
+  // still delivered. What close() guarantees is that nothing *further* is
+  // produced and the consumer reaches done promptly. (A consumer-side close
+  // differs: iterateReader short-circuits its own next() immediately.)
+  t.deepEqual(await iterator.next(), { done: false, value: events[1] });
+  t.true((await iterator.next()).done);
+
+  // Idempotent, and a no-op once finished.
+  close();
+  t.is(closed, 1);
+});
+
+test('close() after a natural finish does not fire onClose', async t => {
+  let closed = 0;
+  const { push, close } = makeBufferedReader({
+    onClose: () => {
+      closed += 1;
+    },
+  });
+  push({ type: 'end' });
+  close();
+  t.is(closed, 0);
 });
 
 test('the kit is hardened', async t => {

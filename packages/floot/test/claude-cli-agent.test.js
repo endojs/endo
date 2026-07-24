@@ -3,6 +3,7 @@
 // against a ClaudeClient capability instead of a streaming API provider.
 import test from '@endo/ses-ava/prepare-endo.js';
 import { makeBufferedReader } from '@endo/exo-stream/buffered-channel.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { makeStreamingAgent } from '../agent.js';
 import { makeReplyChannel } from '../src/stream.js';
@@ -63,12 +64,10 @@ const makeFakeClient = () => {
 // Drain a reply reader into a list of events (the shape the UI consumes).
 const collectReply = async reader => {
   const events = [];
-  for (;;) {
-    // eslint-disable-next-line no-await-in-loop
-    const { value, done } = await reader.next();
-    if (done) return events;
+  for await (const value of iterateReader(reader)) {
     events.push(value);
   }
+  return events;
 };
 
 test('a claude-cli turn persists history and folds usage', async t => {
@@ -186,6 +185,7 @@ test('stopping the reply kills the in-flight CLI turn', async t => {
 
   const controller = new AbortController();
   const { writer, reader } = makeReplyChannel(() => controller.abort());
+  const replies = iterateReader(reader);
   const turnP = agent.converse(
     'long task',
     writer,
@@ -200,14 +200,14 @@ test('stopping the reply kills the in-flight CLI turn', async t => {
     type: 'assistant',
     message: { content: [{ type: 'text', text: 'working' }] },
   });
-  t.deepEqual(await reader.next(), {
+  t.deepEqual(await replies.next(), {
     value: { type: 'phase', phase: 'thinking' },
     done: false,
   });
 
   // The UI stops pulling: the reply channel's onClose aborts the signal, which
   // closes the CLI reader and kills the sandboxed turn.
-  await reader.return();
+  await replies.return();
   await turnP;
   t.true(turns[0].killed(), 'the in-flight claude -p was killed');
 

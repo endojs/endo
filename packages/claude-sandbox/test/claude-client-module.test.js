@@ -4,6 +4,7 @@
 
 import '@endo/init';
 import test from 'ava';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { make, makeCancellationKit } from '../src/claude-client-module.js';
 
@@ -274,10 +275,7 @@ const waitFor = async (pred, deadlineMs = 2000) => {
 // thing under test) has already happened. Returns the collected events.
 const drain = async reader => {
   const events = [];
-  for (;;) {
-    // eslint-disable-next-line no-await-in-loop
-    const { done, value } = await reader.next();
-    if (done) break;
+  for await (const value of iterateReader(reader)) {
     events.push(value);
   }
   return events;

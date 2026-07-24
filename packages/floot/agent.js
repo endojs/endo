@@ -628,9 +628,8 @@ export const makeStreamingAgent = async (
   const resolveUserText = async input => {
     if (typeof input === 'string') return input;
     let text = '';
-    for (;;) {
-      const { value, done } = await E(input).next();
-      if (done || value?.type === 'end') break;
+    for await (const value of iterateReader(input, { buffer: 4 })) {
+      if (value?.type === 'end') break;
       if (value?.type === 'partial' || value?.type === 'final') {
         text = `${value.text}`;
       } else if (value?.type === 'abort') {

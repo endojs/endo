@@ -4,6 +4,7 @@
 
 import '@endo/init';
 import test from 'ava';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { spawn as nodeSpawn } from 'node:child_process';
 import * as nodeFs from 'node:fs';
@@ -273,9 +274,7 @@ test.serial(
     // We assert only that real stream-json reached the parser.
     const reader = await client.send('Say the single word: hi');
     const events = [];
-    for (;;) {
-      const { done, value } = await reader.next();
-      if (done) break;
+    for await (const value of iterateReader(reader)) {
       events.push(value);
     }
     t.true(events.length > 0, 'received at least one stream-json event');

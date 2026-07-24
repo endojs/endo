@@ -286,27 +286,14 @@ export interface MakeBufferedReaderOptions<TRead extends Passable = Passable> {
 }
 
 /**
- * A buffered reader reference: the PassableReader protocol surface plus the
- * deprecated legacy remote-iterator methods kept during the buffered-channel
- * migration.
+ * A buffered reader reference. Structurally a `PassableReader` whose return
+ * value is always `undefined`; the alias names the push-fed responder for
+ * readability at call sites.
  */
-export interface BufferedReader<
-  TRead extends Passable = Passable,
-> extends PassableReader<TRead, undefined> {
-  /** @deprecated migrate to `iterateReader(reader, { buffer })` */
-  next(): Promise<IteratorResult<TRead, undefined>>;
-  /** @deprecated migrate to `iterateReader(reader, { buffer })` */
-  return(): Promise<IteratorResult<TRead, undefined>>;
-  /**
-   * Always rejects with `reason`, after finalizing the channel and firing
-   * `onClose`. Any reason is accepted, not just an Error: the `Far` readers
-   * this replaces accepted any value, and rejecting at the guard would drop
-   * the consumer's close intent.
-   *
-   * @deprecated migrate to `iterateReader(reader, { buffer })`
-   */
-  throw(reason?: unknown): Promise<never>;
-}
+export type BufferedReader<TRead extends Passable = Passable> = PassableReader<
+  TRead,
+  undefined
+>;
 
 /**
  * The kit returned by makeBufferedReader.
@@ -315,6 +302,14 @@ export interface BufferedReaderKit<TRead extends Passable = Passable> {
   /** Fire-and-forget: buffer the event; ignored after the stream finishes */
   push: (event: TRead) => void;
   reader: BufferedReader<TRead>;
+  /**
+   * Close the channel from the producer side: discards undelivered events,
+   * releases any parked consumer, and fires `onClose` exactly as an early
+   * consumer close would. Idempotent, and a no-op once the stream finished.
+   * This is how a producer aborts its own work (e.g. an `interrupt()` that
+   * must kill the process feeding this channel).
+   */
+  close: () => void;
   /** True once a terminal event was pushed or the consumer closed early */
   isClosed: () => boolean;
   /** Replace the onClose hook (e.g. wired after construction) */

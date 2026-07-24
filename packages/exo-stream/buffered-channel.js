@@ -31,11 +31,11 @@
 // unconsumed events accumulate initiator-side as the resolved acknowledge-chain
 // tail.
 //
-// During migration the reader also carries the legacy remote-iterator methods
-// (`next`/`return`/`throw`) that existing `E(reader).next()` consumers call.
-// They are deprecated at birth; new consumers use
-// `iterateReader(reader, { buffer })`. A reader has one consumer: use either
-// the protocol surface or the legacy surface, not both.
+// Consumers use `iterateReader(reader, { buffer })`. The reader has no
+// remote-iterator surface: the migration's transitional `next`/`return`/
+// `throw` methods were retired once every consumer moved onto the protocol.
+// A producer that needs to abort its own stream calls the kit's `close()`,
+// which fires `onClose` exactly as a consumer close would.
 
 import { makeExo } from '@endo/exo';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -255,29 +255,6 @@ export const makeBufferedReader = (options = {}) => {
           readReturnPattern() {
             return undefined;
           },
-
-          // Legacy remote-iterator surface (deprecated, migration only).
-          // A reader has one consumer: `next()` and the protocol pump both
-          // advance the same cursor, so mixing them would split the event
-          // sequence silently between two consumers. `return()`/`throw()` stay
-          // available to a protocol consumer — finalize is idempotent, and
-          // claude-sandbox's interrupt()/terminate() close readers that way.
-          next: async () => {
-            if (streaming) {
-              throw TypeError(
-                'BufferedReader: next() is unavailable after stream(); use iterateReader',
-              );
-            }
-            return takeNext();
-          },
-          return: async () => {
-            finalize();
-            return harden({ value: undefined, done: true });
-          },
-          throw: async error => {
-            finalize();
-            throw error;
-          },
         }),
       )
     )
@@ -286,6 +263,7 @@ export const makeBufferedReader = (options = {}) => {
   return harden({
     push,
     reader,
+    close: finalize,
     isClosed: () => finished,
     setOnClose: fn => {
       closeHook = fn;

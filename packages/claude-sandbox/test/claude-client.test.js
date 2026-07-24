@@ -3,6 +3,7 @@
 
 import '@endo/init';
 import test from 'ava';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import {
   makeClaudeClient,
@@ -101,10 +102,7 @@ const baseArgs = (fake, mount, extra = {}) => ({
 
 const drain = async reader => {
   const events = [];
-  for (;;) {
-    // eslint-disable-next-line no-await-in-loop
-    const { done, value } = await reader.next();
-    if (done) break;
+  for await (const value of iterateReader(reader)) {
     events.push(value);
   }
   return events;
@@ -254,7 +252,8 @@ test('interrupt() throws when idle and closes-and-kills the in-flight turn', asy
 
   const reader = await client.send('work');
   // Pulling the first event proves the turn spawned and is producing.
-  const first = await reader.next();
+  const replies = iterateReader(reader);
+  const first = await replies.next();
   t.is(first.value.type, 'system');
 
   await client.interrupt();
@@ -283,7 +282,7 @@ test('interrupt() with a queued turn kills the in-flight turn, not the queued on
 
   const rA = await client.send('A'); // becomes in-flight
   await client.send('B'); // queues behind A (does not spawn yet)
-  const first = await rA.next();
+  const first = await iterateReader(rA).next();
   t.is(first.value.type, 'system'); // A is producing
   t.is(fake.spawned.length, 1, 'only the in-flight turn has spawned');
 

@@ -37,6 +37,7 @@ import { M } from '@endo/patterns';
 import { makeError, q, X } from '@endo/errors';
 import { mapReader } from '@endo/stream';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { makeBufferedReader } from '@endo/exo-stream/buffered-channel.js';
 
@@ -252,15 +253,18 @@ export const makeClaudeClient = ({
   let conversationStarted = false;
   /** @type {ProcessHandle | null} */
   let inFlight = null;
-  // The reply reader of the most recent turn (queued or running).
-  /** @type {{ return: () => Promise<any> } | null} */
-  let currentReader = null;
-  // The reply reader of the turn that is *actually executing* (spawned,
-  // streaming). `interrupt()` prefers this over `currentReader` so that,
+  // Closes the reply channel of the most recent turn (queued or running).
+  // Closing is the producer-side half of a consumer close: it discards
+  // undelivered events and fires the channel's onClose, which kills the turn.
+  /** @type {(() => void) | null} */
+  let currentClose = null;
+  // Closes the reply channel of the turn that is *actually executing*
+  // (spawned, streaming). `interrupt()` prefers this over `currentClose` so
+  // that,
   // with a turn already in flight and another queued behind it, interrupt
   // kills the running `claude` process rather than bailing the queued turn.
-  /** @type {{ return: () => Promise<any> } | null} */
-  let inFlightReader = null;
+  /** @type {(() => void) | null} */
+  let inFlightClose = null;
   // Serialize turns so two `claude -p` processes never race the same
   // workspace conversation: each `send()` queues behind the previous turn.
   /** @type {Promise<void>} */
@@ -368,7 +372,7 @@ export const makeClaudeClient = ({
     /** @type {ProcessHandle | null} */
     let proc = null;
     let closed = false;
-    const { push, reader, setOnClose } = makeBufferedReader();
+    const { push, reader, close, setOnClose } = makeBufferedReader();
     setOnClose(() => {
       closed = true;
       if (proc) {
@@ -377,7 +381,7 @@ export const makeClaudeClient = ({
           .catch(() => {});
       }
     });
-    currentReader = reader;
+    currentClose = close;
 
     const turn = turnChain.then(async () => {
       if (closed || terminated) {
@@ -407,7 +411,7 @@ export const makeClaudeClient = ({
         return;
       }
       inFlight = proc;
-      inFlightReader = reader;
+      inFlightClose = close;
       try {
         for await (const event of parseStreamJsonLines(
           makeStdoutIterable(proc),
@@ -455,14 +459,13 @@ export const makeClaudeClient = ({
       } finally {
         if (inFlight === proc) {
           inFlight = null;
-          inFlightReader = null;
+          inFlightClose = null;
         }
-        // Drop the finished turn's reader so a later `interrupt()` reports
+        // Drop the finished turn's closer so a later `interrupt()` reports
         // "nothing in flight" instead of silently no-op'ing against a closed
-        // reader (and so the turn's events are not retained until the next
-        // `send()`).
-        if (currentReader === reader) {
-          currentReader = null;
+        // channel.
+        if (currentClose === close) {
+          currentClose = null;
         }
       }
     });
@@ -478,9 +481,14 @@ export const makeClaudeClient = ({
   if (initialPrompt) {
     const initReader = runTurn(initialPrompt);
     (async () => {
-      for (;;) {
-        const { done } = await initReader.next();
-        if (done) break;
+      // Drain without closing: closing would fire onClose and kill the very
+      // turn we are running.
+      for await (const event of iterateReader(
+        /** @type {any} */ (initReader),
+        { buffer: 8 },
+      )) {
+        // discarded — nobody is watching this turn's transcript
+        void event;
       }
     })().catch(() => {});
   }
@@ -510,13 +518,13 @@ export const makeClaudeClient = ({
       guardLive();
       // Prefer the executing turn (kills its `claude` process); fall back
       // to the most-recent queued turn (which bails before it spawns).
-      const target = inFlightReader || currentReader;
+      const target = inFlightClose || currentClose;
       if (!target) {
         throw makeError(
           X`ClaudeClient(${q(sessionId)}): no in-flight prompt to interrupt.`,
         );
       }
-      await target.return();
+      target();
     },
 
     /**
@@ -532,12 +540,11 @@ export const makeClaudeClient = ({
       // and closing only the newest would leave the running turn's consumer to
       // observe a clean `end` when its process is killed below — a truncated
       // reply that reads as a complete one.
-      for (const reader of new Set(
-        [inFlightReader, currentReader].filter(Boolean),
+      for (const close of new Set(
+        [inFlightClose, currentClose].filter(Boolean),
       )) {
         try {
-          // eslint-disable-next-line no-await-in-loop
-          await /** @type {{ return: () => Promise<any> }} */ (reader).return();
+          /** @type {() => void} */ (close)();
         } catch {
           // best-effort
         }

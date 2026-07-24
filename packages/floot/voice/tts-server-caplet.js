@@ -35,6 +35,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 import { makeBufferedReader } from '@endo/exo-stream/buffered-channel.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 // `synthesize` is synchronous (returns the audio reader immediately, then
 // streams), so it is guarded with `M.call`. Guards are permissive — the daemon
@@ -232,10 +233,7 @@ const pump = async (piper, textReader, writer) => {
   };
 
   try {
-    for (;;) {
-      // eslint-disable-next-line no-await-in-loop
-      const { value, done } = await E(textReader).next();
-      if (done) break;
+    for await (const value of iterateReader(textReader, { buffer: 4 })) {
       if (value.type === 'delta') {
         for (const s of chunker.push(value.text)) queue.push(s);
         // eslint-disable-next-line no-await-in-loop

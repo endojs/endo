@@ -38,11 +38,11 @@ export const PassableReaderInterface = M.interface('PassableReader', {
 /**
  * Interface for buffered reader references (push-fed Reader responders).
  *
- * Extends the PassableReader surface — `stream(synHead)` plus the pattern
- * accessors, so initiators consume it with `iterateReader` — with the legacy
- * remote-iterator methods (`next`/`return`/`throw`) that pre-consolidation
- * consumers call via `E(reader).next()`. The legacy methods are deprecated
- * and will be removed once the last consumer migrates to `iterateReader`.
+ * The same surface as PassableReader — `stream(synHead)` plus the pattern
+ * accessors — under its own name, so a buffered channel is recognisable in
+ * CapTP introspection. Consumers use `iterateReader`; there is no
+ * remote-iterator surface (the pre-consolidation `next`/`return`/`throw`
+ * methods were retired once every consumer migrated).
  *
  * The responder acknowledges eagerly (no synchronize credit), so the syn chain
  * carries only the close signal; see buffered-channel.js for the buffer
@@ -58,14 +58,6 @@ export const BufferedReaderInterface = M.interface('BufferedReader', {
   readPattern: M.call().returns(M.opt(M.pattern())),
   // readReturnPattern(): Pattern | undefined - always undefined for buffered channels
   readReturnPattern: M.call().returns(M.opt(M.pattern())),
-  // Deprecated legacy surface, kept during the buffered-channel migration.
-  // `throw` accepts any reason, not just M.error(): the `Far` readers this
-  // replaces accepted any value, and a guard rejection here would drop the
-  // consumer's close intent — the stream would stay live and its producer
-  // (an in-flight `claude -p`, a piper synthesis) would never be signalled.
-  next: M.call().returns(M.promise()),
-  return: M.call().returns(M.promise()),
-  throw: M.call(M.any()).returns(M.promise()),
 });
 
 /**

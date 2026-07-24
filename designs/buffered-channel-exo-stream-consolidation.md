@@ -3,8 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-07-06 |
+| **Updated** | 2026-07-24 |
 | **Author** | endolinbot (prompted by kumavis review on PR #486) |
-| **Status** | In Progress |
+| **Status** | **Complete** |
 | **Source** | Review 4633245769 on endojs/endo-but-for-bots PR #486, inline threads on `packages/claude-sandbox/src/buffered-channel.js` |
 
 ## What is the Problem Being Solved?
@@ -86,26 +87,30 @@ changing only the import specifier).
 ```js
 import { makeBufferedReader } from '@endo/exo-stream/buffered-channel.js';
 
-const { push, reader, isClosed, setOnClose } = makeBufferedReader({
+const { push, reader, close, isClosed, setOnClose } = makeBufferedReader({
   onClose,        // optional, may also be set later via setOnClose
   isTerminal,     // optional predicate, default: e => e.type === 'end' || e.type === 'abort'
   readPattern,    // optional M pattern for pushed events (per-wire vocabulary)
 });
 ```
 
-`reader` is an exo carrying, during migration, a **dual surface** under one
+`reader` is an exo carrying the exo-stream responder protocol under one
 interface guard (`BufferedReaderInterface`, defined once in exo-stream's
-`type-guards.js`):
+`type-guards.js`): `stream(synHead)` plus `readPattern()` /
+`readReturnPattern()`, so initiators consume it with
+`iterateReader(reader, { buffer })`.
 
-- the exo-stream responder protocol: `stream(synHead)` plus
-  `readPattern()` / `readReturnPattern()`, so initiators consume it with
-  `iterateReader(reader, { buffer })`;
-- the legacy iterator methods `next()` / `return()` / `throw()`, exactly the
-  shape today's consumers call via `E(reader).next()`, so the primitive can
-  land and both copies can be deleted before any consumer changes.
+During migration it also carried the legacy iterator methods `next()` /
+`return()` / `throw()` — the shape pre-consolidation consumers called via
+`E(reader).next()` — so the primitive could land and both copies could be
+deleted before any consumer changed. Those methods were deprecated at birth
+and removed in Phase 3, once every consumer had flipped.
 
-The legacy methods are marked deprecated at birth and removed once the last
-consumer flips (Phase 3 below).
+`close()` is the producer-side half of a consumer close: it discards
+undelivered events and fires `onClose` exactly as an early consumer close
+would. It exists because, with the legacy surface gone, a producer that must
+abort its own stream (claude-sandbox's `interrupt()` / `terminate()`) can no
+longer do so by calling `return()` on the reader it handed out.
 
 ### The push pump (responder side)
 
@@ -253,14 +258,25 @@ merge) rebased onto the shared primitive. The invariant holds: no state of
 
 ## Status
 
+Phase 3 landed on `build/exo-stream-legacy-retirement` (2026-07-24): every
+consumer moved onto `iterateReader` (chat's reply, transcript, and audio wires,
+the TTS caplet's text pump, floot's transcript resolver, claude-sandbox's
+initial-prompt drain, and the package test suites), chat's `makeTextFeed` — the
+third informal copy — now builds on `makeBufferedReader`, and the transitional
+`next`/`return`/`throw` methods are gone from the interface guard, the
+implementation, and the types. A producer that needs to abort its own stream
+(claude-sandbox's `interrupt()`/`terminate()`) calls the kit's new `close()`,
+which fires `onClose` exactly as a consumer close would. Chat's
+`makeAudioChannel` is deliberately left alone: it coalesces buffered PCM chunks
+into one event per read, which the buffered channel does not do, so it is a
+different primitive rather than a fourth copy.
+
 Phases 1 and 2 landed together on `build/floot-claude-sandbox` (2026-07-24):
 `packages/exo-stream/buffered-channel.js` + `BufferedReaderInterface` with
 tests covering the four semantics (including close-while-producer-idle and
 discard-on-return), floot's copy deleted (reply, transcript, and audio wires
 re-pointed), and claude-sandbox's copy deleted (`runTurn` re-pointed,
-`setOnClose(() => E(proc).kill())` unchanged). Phase 3 (consumer flips to
-`iterateReader`, then dropping the legacy `next`/`return`/`throw` surface)
-remains open, as does folding in chat's `makeTextFeed`.
+`setOnClose(() => E(proc).kill())` unchanged). (Phase 3 has since landed; see above.)
 
 ## Design Decisions
 

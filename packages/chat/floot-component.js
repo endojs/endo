@@ -3,6 +3,8 @@
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/pass-style';
 import harden from '@endo/harden';
+import { makeBufferedReader } from '@endo/exo-stream/buffered-channel.js';
+import { iterateReader } from '@endo/exo-stream/iterate-reader.js';
 
 import { FlootApp } from '@endo/space-floot';
 import { h, renderConfined, unmount } from './setup-preact-container.js';
@@ -45,10 +47,15 @@ const inFlightTurns = new Map();
  *
  * @param {string} key registry key (factory path + session id)
  * @param {string} sessionId
- * @param {any} reader the Far reply reader returned by session.converse()
+ * @param {any} reader the reply reader returned by session.converse()
  * @returns {FlootTurn}
  */
 const startFlootTurn = (key, sessionId, reader) => {
+  // Stream the reply over the exo-stream protocol rather than one CapTP round
+  // trip per event. `buffer` primes the synchronize chain; the responder is a
+  // buffered channel, so it acknowledges eagerly regardless — the pre-resolved
+  // nodes only save the first round trip.
+  const replies = iterateReader(reader, { buffer: 8 });
   /** @type {Set<(ev: { type: string }) => void>} */
   const listeners = new Set();
   /** @type {TurnMessage[]} */
@@ -93,21 +100,18 @@ const startFlootTurn = (key, sessionId, reader) => {
     stop() {
       if (stopped) return;
       stopped = true;
-      // Returning the reader fires the producer's onClose, which aborts the
+      // Closing the stream fires the producer's onClose, which aborts the
       // in-flight agent turn (stops token generation and tool rounds).
-      E(reader)
-        .return()
-        .catch(() => {});
+      replies.return().catch(() => {});
     },
   };
   inFlightTurns.set(key, turn);
 
   (async () => {
     try {
-      for (;;) {
-        // eslint-disable-next-line no-await-in-loop
-        const { value, done } = await E(reader).next();
-        if (done || stopped) break;
+      for await (const raw of replies) {
+        const value = /** @type {any} */ (raw);
+        if (stopped) break;
         if (value.type === 'delta') {
           turn.streamingText += value.text;
           emit({ type: 'delta' });
@@ -310,71 +314,18 @@ const makeAudioChannel = () => {
 };
 harden(makeAudioChannel);
 
-// A buffered Far text reader the chat feeds reply text into: streaming reply
+// A text feed the chat pushes reply text into: streaming reply
 // deltas while a turn runs, or a finished message's full text for replay. The
-// remote TTS object pulls deltas with next() and returns an audio stream.
+// remote TTS object consumes the deltas and returns an audio stream.
 // Wire (APPEND deltas): { type:'delta', text } | { type:'end' } | { type:'abort' }
 const makeTextFeed = () => {
-  /** @type {any[]} */
-  let events = [];
-  let cursor = 0;
-  let finished = false;
-  /** @type {((value?: unknown) => void) | null} */
-  let wake = null;
-  const wakeUp = () => {
-    if (wake) {
-      const w = wake;
-      wake = null;
-      w();
-    }
-  };
-  const reader = Far('TextReader', {
-    next: async () => {
-      for (;;) {
-        if (cursor < events.length) {
-          const event = events[cursor];
-          cursor += 1;
-          return harden({ value: event, done: false });
-        }
-        if (finished) return harden({ value: undefined, done: true });
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise(resolve => {
-          wake = resolve;
-        });
-      }
-    },
-    return: async () => {
-      finished = true;
-      events = [];
-      wakeUp();
-      return harden({ value: undefined, done: true });
-    },
-    throw: async (/** @type {any} */ error) => {
-      finished = true;
-      events = [];
-      wakeUp();
-      throw error;
-    },
-  });
+  const { push, reader, isClosed } = makeBufferedReader();
   return harden({
     reader,
-    delta: (/** @type {string} */ text) => {
-      if (finished) return;
-      events.push(harden({ type: 'delta', text }));
-      wakeUp();
-    },
-    end: () => {
-      if (finished) return;
-      events.push(harden({ type: 'end' }));
-      finished = true;
-      wakeUp();
-    },
-    abort: () => {
-      if (finished) return;
-      events.push(harden({ type: 'abort', reason: 'cancelled' }));
-      finished = true;
-      wakeUp();
-    },
+    delta: (/** @type {string} */ text) => push({ type: 'delta', text }),
+    end: () => push({ type: 'end' }),
+    abort: () => push({ type: 'abort', reason: 'cancelled' }),
+    isClosed,
   });
 };
 harden(makeTextFeed);
@@ -1078,10 +1029,9 @@ export const flootComponent = (
   ) => {
     let last = '';
     try {
-      for (;;) {
-        // eslint-disable-next-line no-await-in-loop
-        const { value, done } = await E(textReader).next();
-        if (done || cancelled) break;
+      for await (const raw of iterateReader(textReader, { buffer: 4 })) {
+        const value = /** @type {any} */ (raw);
+        if (cancelled) break;
         if (value.type === 'partial' || value.type === 'final') {
           last = value.text;
           // Show buffered continuation text ahead of the live partial.
@@ -1364,8 +1314,10 @@ export const flootComponent = (
   let ttsPlaybackId = 0;
   /** @type {AudioBufferSourceNode[]} */
   let ttsSources = [];
+  // The live audio iteration, held so barge-in can close it (which fires the
+  // caplet's onClose and aborts piper mid-utterance).
   /** @type {any} */
-  let ttsActiveReader = null;
+  let ttsActiveStream = null;
   let ttsNextStart = 0;
   let ttsSpeaking = false;
 
@@ -1381,13 +1333,11 @@ export const flootComponent = (
     }
     ttsSources = [];
     ttsNextStart = 0;
-    if (ttsActiveReader) {
-      // return() is an eventual-send; swallow its async rejection (the reader
-      // may already be closed remotely).
-      E(ttsActiveReader)
-        .return()
-        .catch(() => {});
-      ttsActiveReader = null;
+    if (ttsActiveStream) {
+      // Closing the stream signals the responder over the synchronize chain;
+      // swallow the async rejection (it may already be closed remotely).
+      ttsActiveStream.return().catch(() => {});
+      ttsActiveStream = null;
     }
     if (ttsSpeaking) {
       ttsSpeaking = false;
@@ -1449,13 +1399,13 @@ export const flootComponent = (
     // Begin a fresh session: bump the token and adopt this reader.
     stopTts();
     const myId = ttsPlaybackId;
-    ttsActiveReader = audioReader;
+    const audio = iterateReader(audioReader, { buffer: 4 });
+    ttsActiveStream = audio;
     ttsNextStart = ttsCtx.currentTime;
     try {
-      for (;;) {
-        // eslint-disable-next-line no-await-in-loop
-        const { value, done } = await E(audioReader).next();
-        if (done || cancelled || myId !== ttsPlaybackId) break;
+      for await (const raw of audio) {
+        const value = /** @type {any} */ (raw);
+        if (cancelled || myId !== ttsPlaybackId) break;
         if (value.type === 'bytes') {
           enqueuePcm(base64ToBytes(value.b64), value.sampleRate || 22_050);
         } else if (value.type === 'end' || value.type === 'abort') {
@@ -1463,10 +1413,10 @@ export const flootComponent = (
         }
       }
     } catch {
-      // stream torn down (return()/throw()) — playback already scheduled stays
+      // stream torn down (close) — playback already scheduled stays
     } finally {
-      if (myId === ttsPlaybackId && ttsActiveReader === audioReader) {
-        ttsActiveReader = null;
+      if (myId === ttsPlaybackId && ttsActiveStream === audio) {
+        ttsActiveStream = null;
       }
     }
   };
