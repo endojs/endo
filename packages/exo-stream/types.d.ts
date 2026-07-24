@@ -260,6 +260,61 @@ export interface MakeWriterOptions<
 }
 
 /**
+ * Options for makeBufferedReader (push-fed Reader responder).
+ *
+ * There is deliberately no producer-side `buffer` bound: `push` is
+ * fire-and-forget and the buffer is unbounded — a bound would require either
+ * blocking the producer or dropping events. On the initiator, `iterateReader`'s
+ * `buffer` option does not throttle this channel (the responder acknowledges
+ * eagerly, never spending synchronize credit); it only pre-resolves
+ * synchronize nodes, so `buffer: 0` is fine.
+ */
+export interface MakeBufferedReaderOptions<TRead extends Passable = Passable> {
+  /**
+   * Fires when the consumer stops pulling (return/throw) before the stream
+   * finished, so the producer can be aborted. May also be set later via
+   * `setOnClose`.
+   */
+  onClose?: (() => void) | null;
+  /**
+   * Predicate for terminal events, which are delivered in-band as values and
+   * then auto-finalize the stream. Default: `type` of 'end' or 'abort'.
+   */
+  isTerminal?: (event: TRead) => boolean;
+  /** Pattern each pushed event must match (validated at push time) */
+  readPattern?: Pattern;
+}
+
+/**
+ * A buffered reader reference: the PassableReader protocol surface plus the
+ * deprecated legacy remote-iterator methods kept during the buffered-channel
+ * migration.
+ */
+export interface BufferedReader<
+  TRead extends Passable = Passable,
+> extends PassableReader<TRead, undefined> {
+  /** @deprecated migrate to `iterateReader(reader, { buffer })` */
+  next(): Promise<IteratorResult<TRead, undefined>>;
+  /** @deprecated migrate to `iterateReader(reader, { buffer })` */
+  return(): Promise<IteratorResult<TRead, undefined>>;
+  /** @deprecated migrate to `iterateReader(reader, { buffer })` */
+  throw(error: Error): Promise<IteratorResult<TRead, undefined>>;
+}
+
+/**
+ * The kit returned by makeBufferedReader.
+ */
+export interface BufferedReaderKit<TRead extends Passable = Passable> {
+  /** Fire-and-forget: buffer the event; ignored after the stream finishes */
+  push: (event: TRead) => void;
+  reader: BufferedReader<TRead>;
+  /** True once a terminal event was pushed or the consumer closed early */
+  isClosed: () => boolean;
+  /** Replace the onClose hook (e.g. wired after construction) */
+  setOnClose: (fn: () => void) => void;
+}
+
+/**
  * Options for iterateReader (Reader stream initiator).
  *
  * For Reader streams, synchronization values are undefined for flow control,

@@ -36,6 +36,35 @@ export const PassableReaderInterface = M.interface('PassableReader', {
 });
 
 /**
+ * Interface for buffered reader references (push-fed Reader responders).
+ *
+ * Extends the PassableReader surface — `stream(synHead)` plus the pattern
+ * accessors, so initiators consume it with `iterateReader` — with the legacy
+ * remote-iterator methods (`next`/`return`/`throw`) that pre-consolidation
+ * consumers call via `E(reader).next()`. The legacy methods are deprecated
+ * and will be removed once the last consumer migrates to `iterateReader`.
+ *
+ * The responder acknowledges eagerly (no synchronize credit), so the syn chain
+ * carries only the close signal; see buffered-channel.js for the buffer
+ * semantics.
+ *
+ * @see makeBufferedReader - the push-fed responder kit
+ * @see iterateReader - initiator side for passable readers
+ */
+export const BufferedReaderInterface = M.interface('BufferedReader', {
+  // stream(synPromise: ERef<StreamNode<undefined, undefined>>): Promise<StreamNode<TRead, undefined>>
+  stream: M.call(M.any()).returns(M.promise()),
+  // readPattern(): Pattern | undefined - pattern for TRead
+  readPattern: M.call().returns(M.opt(M.pattern())),
+  // readReturnPattern(): Pattern | undefined - always undefined for buffered channels
+  readReturnPattern: M.call().returns(M.opt(M.pattern())),
+  // Deprecated legacy surface, kept during the buffered-channel migration:
+  next: M.call().returns(M.promise()),
+  return: M.call().returns(M.promise()),
+  throw: M.call(M.error()).returns(M.promise()),
+});
+
+/**
  * Interface for passable Writer references.
  *
  * For Writer streams:

@@ -67,6 +67,10 @@
       "types": "./iterate-writer.d.ts",
       "default": "./iterate-writer.js"
     },
+    "./buffered-channel.js": {
+      "types": "./buffered-channel.d.ts",
+      "default": "./buffered-channel.js"
+    },
     "./type-guards.js": {
       "types": "./type-guards.d.ts",
       "default": "./type-guards.js"
