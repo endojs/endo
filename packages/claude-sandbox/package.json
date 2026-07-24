@@ -1,0 +1,71 @@
+{
+  "name": "@endo/claude-sandbox",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Run Claude Code inside an @endo/sandbox podman slice, with the workspace projected via a host-side 9P mount and exposed as a ClaudeClient Endo capability.",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/claude-sandbox"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./factory.js",
+    "./setup-host.js": "./setup-host.js",
+    "./setup-peer.js": "./setup-peer.js",
+    "./factory.js": "./factory.js",
+    "./credentials.js": "./credentials.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "test:integration": "ava test/integration.test.js --timeout=180s",
+    "test:live": "ava test/live-daemon.test.js --timeout=180s",
+    "test:ninep": "ava test/ninep-flow.test.js --timeout=180s",
+    "setup:host": "endo run --UNCONFINED setup-host.js --powers @agent",
+    "setup:peer": "endo run --UNCONFINED setup-peer.js --powers @agent",
+    "factory": "endo run --UNCONFINED factory.js --powers @agent",
+    "credentials": "endo run --UNCONFINED credentials.js --powers @agent",
+    "lint": "yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@endo/9p-server": "workspace:^",
+    "@endo/daemon": "workspace:^",
+    "@endo/errors": "workspace:^",
+    "@endo/eventual-send": "workspace:^",
+    "@endo/exo": "workspace:^",
+    "@endo/exo-stream": "workspace:^",
+    "@endo/far": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/patterns": "workspace:^",
+    "@endo/sandbox": "workspace:^",
+    "@endo/stream": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/cli": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js",
+      "!test/live-daemon.test.js",
+      "!test/ninep-flow.test.js"
+    ],
+    "timeout": "60s"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  }
+}

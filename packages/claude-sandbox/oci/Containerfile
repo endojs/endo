@@ -1,0 +1,49 @@
+# Containerfile — a "just works" image for @endo/claude-sandbox.
+#
+# It carries node + the Claude Code CLI plus a general programming toolchain,
+# so Claude can run typical coding tasks and install new dependencies
+# (npm / pip / node-gyp native modules) inside the sandbox as work requires.
+#
+# The session runs this with `network: 'private'` by default: NAT'd outbound
+# internet — so package installs and the Anthropic API work — with no route to
+# the host or its LAN (RFC 1918 + loopback are blocklisted). There is no host
+# networking.
+#
+# Build, tag, and point the factory at it:
+#
+#   podman build -t localhost/claude-code:latest \
+#     -f packages/claude-sandbox/oci/Containerfile packages/claude-sandbox/oci
+#
+#   # Then either set the daemon default:
+#   #   CLAUDE_SANDBOX_IMAGE=oci:localhost/claude-code:latest
+#   # or pass per session:
+#   #   rootfs: "oci:localhost/claude-code:latest"
+
+FROM docker.io/library/node:22-bookworm-slim
+
+# General programming toolchain + what native npm modules and pip need:
+#   - ca-certificates + curl : HTTPS to package registries and the API
+#   - git                    : the backbone of most coding workflows
+#   - ripgrep                : the fast search Claude Code shells out to
+#   - build-essential python3: node-gyp / native addons, pip packages
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    ripgrep \
+    build-essential \
+    python3 \
+    python3-pip \
+    python3-venv \
+  && rm -rf /var/lib/apt/lists/*
+
+# The Claude Code CLI on PATH. `npm install -g` inside a running session also
+# lands here (/usr/local/bin is already on PATH), so Claude can add global
+# tools as needed.
+RUN npm install -g @anthropic-ai/claude-code
+
+# Claude reads its credential from the environment; the session injects
+# ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN depending on the credential's
+# kind (see DEMO.md step 4). The workspace Filesystem is bind-mounted here.
+WORKDIR /workspace
