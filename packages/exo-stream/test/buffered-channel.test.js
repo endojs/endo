@@ -179,6 +179,116 @@ test('readPattern validates events at push time', async t => {
   });
 });
 
+test('a terminal abort event finalizes without firing onClose', async t => {
+  await null;
+  let closed = 0;
+  const { push, reader, isClosed } = makeBufferedReader({
+    onClose: () => {
+      closed += 1;
+    },
+  });
+  push({ type: 'abort', reason: 'producer failed' });
+  push({ type: 'delta', text: 'ignored after terminal' });
+  t.true(isClosed());
+
+  const results = [];
+  for await (const event of iterateReader(reader)) {
+    results.push(event);
+  }
+  t.deepEqual(results, [{ type: 'abort', reason: 'producer failed' }]);
+  t.is(closed, 0, 'a producer-side terminal is not a consumer close');
+});
+
+// Regression: a consumer that drains to natural completion never calls
+// return(), so nothing terminates the synchronize chain. The close watcher
+// must still retire, or it parks forever holding this channel's state.
+test('draining to completion releases the close watcher', async t => {
+  t.timeout(10_000);
+  const { push, reader } = makeBufferedReader();
+  push(events[0]);
+  push({ type: 'end' });
+
+  const results = [];
+  for await (const event of iterateReader(reader)) {
+    results.push(event);
+  }
+  t.is(results.length, 2);
+
+  // The watcher retired with the pump: a syn chain extended afterwards is
+  // never walked, so no close is observed and onClose cannot fire late.
+  let lateClose = 0;
+  const { push: push2, reader: reader2 } = makeBufferedReader({
+    onClose: () => {
+      lateClose += 1;
+    },
+  });
+  push2({ type: 'end' });
+  const iterator = iterateReader(reader2);
+  t.true((await iterator.next()).done === false);
+  t.true((await iterator.next()).done);
+  await iterator.return();
+  t.is(lateClose, 0, 'a naturally finished stream reports no consumer close');
+});
+
+test('legacy next() is refused once a protocol consumer has attached', async t => {
+  await null;
+  const { push, reader } = makeBufferedReader();
+  push(events[0]);
+  const iterator = iterateReader(reader);
+  t.deepEqual(await iterator.next(), { done: false, value: events[0] });
+
+  await t.throwsAsync(() => reader.next(), {
+    message: /next\(\) is unavailable after stream\(\)/,
+  });
+  // return() stays available: interrupt()/terminate() close readers that way.
+  t.true((await reader.return()).done);
+});
+
+test('legacy throw() accepts a non-Error reason and still fires onClose', async t => {
+  let closed = 0;
+  const { reader } = makeBufferedReader({
+    onClose: () => {
+      closed += 1;
+    },
+  });
+  // AVA's throwsAsync insists on an Error; this reason deliberately is not one
+  // (the point is that the guard no longer rejects non-Error reasons).
+  /** @type {unknown} */
+  let rejection;
+  await reader.throw('user cancelled').catch(reason => {
+    rejection = reason;
+  });
+  t.is(rejection, 'user cancelled');
+  t.is(closed, 1, 'the close intent is not dropped by the interface guard');
+});
+
+test('a self-referential synchronize node finalizes instead of spinning', async t => {
+  t.timeout(10_000);
+  let closed = 0;
+  const { reader } = makeBufferedReader({
+    onClose: () => {
+      closed += 1;
+    },
+  });
+  /** @type {any} */
+  let cyclic;
+  const selfPromise = Promise.resolve().then(() => cyclic);
+  cyclic = harden({ value: undefined, promise: selfPromise });
+  reader.stream(selfPromise);
+
+  for (let i = 0; i < 10 && closed === 0; i += 1) {
+    await new Promise(resolve => {
+      resolve(undefined);
+    });
+  }
+  t.is(closed, 1, 'a chain that cannot advance is treated as a close');
+});
+
+test('the kit is hardened', async t => {
+  const kit = makeBufferedReader();
+  t.true(Object.isFrozen(kit));
+});
+
 test('stream() may be called at most once', async t => {
   const { reader } = makeBufferedReader();
   const { promise: synHead } = makePromiseKit();

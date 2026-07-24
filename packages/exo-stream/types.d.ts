@@ -297,8 +297,15 @@ export interface BufferedReader<
   next(): Promise<IteratorResult<TRead, undefined>>;
   /** @deprecated migrate to `iterateReader(reader, { buffer })` */
   return(): Promise<IteratorResult<TRead, undefined>>;
-  /** @deprecated migrate to `iterateReader(reader, { buffer })` */
-  throw(error: Error): Promise<IteratorResult<TRead, undefined>>;
+  /**
+   * Always rejects with `reason`, after finalizing the channel and firing
+   * `onClose`. Any reason is accepted, not just an Error: the `Far` readers
+   * this replaces accepted any value, and rejecting at the guard would drop
+   * the consumer's close intent.
+   *
+   * @deprecated migrate to `iterateReader(reader, { buffer })`
+   */
+  throw(reason?: unknown): Promise<never>;
 }
 
 /**

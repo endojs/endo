@@ -34,13 +34,16 @@ const makeFakeClient = () => {
   });
   /** @type {string[]} */
   const prompts = [];
+  /** @type {object[]} */
+  const options = [];
   const client = harden({
-    async send(prompt) {
+    async send(prompt, opts) {
       prompts.push(prompt);
+      options.push(opts);
       return reader;
     },
   });
-  return { client, push, prompts, killed: () => killed };
+  return { client, push, prompts, options, killed: () => killed };
 };
 
 test('translator maps stream-json events onto the reply wire', async t => {
@@ -97,6 +100,7 @@ test('translator maps stream-json events onto the reply wire', async t => {
   t.deepEqual(translator.finish(), {
     finalText: 'Checked the file: done.',
     usage: { inputTokens: 11, outputTokens: 7 },
+    errorReason: undefined,
   });
 });
 
@@ -114,6 +118,7 @@ test('translator falls back to streamed text without a result summary', async t 
   t.deepEqual(translator.finish(), {
     finalText: 'Hello world',
     usage: undefined,
+    errorReason: undefined,
   });
 });
 
@@ -147,6 +152,45 @@ test('an in-band abort event rejects the turn', async t => {
   const turn = runClaudeTurn({ client, text: 'hi', writer });
   push({ type: 'abort', reason: 'claude exploded' });
   await t.throwsAsync(() => turn, { message: /claude exploded/ });
+});
+
+test('a failed result raises instead of completing as success', async t => {
+  const { writer } = makeRecordingWriter();
+  const { client, push } = makeFakeClient();
+  const turn = runClaudeTurn({ client, text: 'hi', writer });
+  // error_max_turns carries no `result` text — the failure is signalled only
+  // by is_error, which must not read as a successful (empty) answer.
+  push({ type: 'result', subtype: 'error_max_turns', is_error: true });
+  push({ type: 'end' });
+  await t.throwsAsync(() => turn, { message: /error_max_turns/ });
+});
+
+test('a failed result with text reports that text as the reason', async t => {
+  const { writer } = makeRecordingWriter();
+  const { client, push } = makeFakeClient();
+  const turn = runClaudeTurn({ client, text: 'hi', writer });
+  push({
+    type: 'result',
+    subtype: 'error_during_execution',
+    result: 'credential expired',
+    is_error: true,
+  });
+  push({ type: 'end' });
+  await t.throwsAsync(() => turn, { message: /credential expired/ });
+});
+
+test('the model option reaches the client', async t => {
+  const { writer } = makeRecordingWriter();
+  const { client, push, options } = makeFakeClient();
+  const turn = runClaudeTurn({
+    client,
+    text: 'hi',
+    writer,
+    model: 'claude-opus-4-8',
+  });
+  push({ type: 'end' });
+  await turn;
+  t.deepEqual(options, [{ model: 'claude-opus-4-8' }]);
 });
 
 test('aborting the signal closes the reader and kills the turn', async t => {

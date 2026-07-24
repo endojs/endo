@@ -46,9 +46,12 @@ import { BufferedReaderInterface } from './type-guards.js';
 /** @import { Passable } from '@endo/pass-style' */
 /** @import { ERef } from '@endo/eventual-send' */
 /** @import { Pattern } from '@endo/patterns' */
-/** @import { StreamNode, MakeBufferedReaderOptions, BufferedReaderKit } from './types.js' */
+/** @import { StreamNode, StreamYieldNode, MakeBufferedReaderOptions, BufferedReaderKit } from './types.js' */
 
 const { freeze } = Object;
+
+/** Sentinel distinguishing "the pump finished" from a synchronize node. */
+const DONE = harden({});
 
 /**
  * Terminal events close the stream; this default matches every migrated wire.
@@ -87,6 +90,12 @@ export const makeBufferedReader = (options = {}) => {
   const waiters = [];
   let closeHook = onClose;
   let streaming = false;
+  // Resolves when the acknowledge pump has delivered its terminal node, so the
+  // close watcher can stop walking a synchronize chain nobody will extend
+  // again. Without it, a consumer that drains to natural completion (a plain
+  // `for await` never calls `return()`) leaves the watcher parked forever,
+  // pinning this channel's state for the life of the connection.
+  const { promise: pumpDone, resolve: resolvePumpDone } = makePromiseKit();
 
   const drainWake = () => {
     while (waiters.length) {
@@ -108,11 +117,14 @@ export const makeBufferedReader = (options = {}) => {
 
   // Consumer stopped pulling: finish, discard undelivered events, unblock any
   // parked take, and signal the producer so in-flight work is aborted rather
-  // than left running.
+  // than left running. Discarding drops the buffer's contents, not just the
+  // cursor: nothing can read them again, and a closed channel should not pin
+  // a turn's worth of events for the producer's lifetime.
   const finalize = () => {
     const wasFinished = finished;
     finished = true;
-    cursor = buffer.length;
+    buffer.length = 0;
+    cursor = 0;
     drainWake();
     if (!wasFinished && closeHook) closeHook();
   };
@@ -160,6 +172,7 @@ export const makeBufferedReader = (options = {}) => {
         const result = await takeNext();
         if (result.done) {
           ackResolve(freeze({ value: undefined, promise: null }));
+          resolvePumpDone(undefined);
           return;
         }
         const { promise, resolve } = makePromiseKit();
@@ -169,17 +182,36 @@ export const makeBufferedReader = (options = {}) => {
     })();
 
     // Close watcher: live even while the ack pump is parked on an idle
-    // producer, so the consumer's early close fires onClose promptly.
+    // producer, so the consumer's early close fires onClose promptly. It races
+    // the walk against `pumpDone` so a stream that ends naturally releases the
+    // watcher instead of parking on a chain the initiator will never extend.
     (async () => {
       await null;
       let syn = synPromise;
+      // A synchronize chain is walked one node at a time and must always
+      // advance. A node that points back at itself can never carry a close
+      // signal, so it is rejected outright below. NOTE: a longer cycle (node A
+      // resolving to an earlier node B) still spins this loop through the
+      // microtask queue, as it does in `makeReaderPump`'s equivalent walk;
+      // defending against that needs a protocol-level bound, not a per-walk
+      // one, and is deliberately left to the shared pump rather than solved
+      // differently here.
       for (;;) {
+        /** @type {StreamNode<undefined, undefined> | typeof DONE | undefined} */
         let synNode;
         try {
-          synNode = await syn;
+          // eslint-disable-next-line @jessie.js/no-nested-await
+          synNode = await Promise.race([
+            syn,
+            pumpDone.then(() => /** @type {typeof DONE} */ (DONE)),
+          ]);
         } catch {
           // The initiator abandoned the synchronize chain; treat as close.
           finalize();
+          return;
+        }
+        if (synNode === DONE) {
+          // The stream finished on its own; nothing left to watch for.
           return;
         }
         if (
@@ -191,7 +223,15 @@ export const makeBufferedReader = (options = {}) => {
           finalize();
           return;
         }
-        syn = synNode.promise;
+        const { promise: nextSyn } =
+          /** @type {StreamYieldNode<undefined, undefined>} */ (synNode);
+        if (nextSyn === syn) {
+          // Self-referential node: the chain cannot advance, so no close signal
+          // can ever arrive. Treat it as a close so the producer is released.
+          finalize();
+          return;
+        }
+        syn = nextSyn;
       }
     })();
 
@@ -217,7 +257,19 @@ export const makeBufferedReader = (options = {}) => {
           },
 
           // Legacy remote-iterator surface (deprecated, migration only).
-          next: async () => takeNext(),
+          // A reader has one consumer: `next()` and the protocol pump both
+          // advance the same cursor, so mixing them would split the event
+          // sequence silently between two consumers. `return()`/`throw()` stay
+          // available to a protocol consumer — finalize is idempotent, and
+          // claude-sandbox's interrupt()/terminate() close readers that way.
+          next: async () => {
+            if (streaming) {
+              throw TypeError(
+                'BufferedReader: next() is unavailable after stream(); use iterateReader',
+              );
+            }
+            return takeNext();
+          },
           return: async () => {
             finalize();
             return harden({ value: undefined, done: true });
@@ -231,13 +283,13 @@ export const makeBufferedReader = (options = {}) => {
     )
   );
 
-  return {
+  return harden({
     push,
     reader,
     isClosed: () => finished,
     setOnClose: fn => {
       closeHook = fn;
     },
-  };
+  });
 };
 harden(makeBufferedReader);

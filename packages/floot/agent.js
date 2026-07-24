@@ -454,7 +454,17 @@ const provisionPresetObjects = async (
  * @param {Promise<object> | object | undefined} _context
  * @param {ProviderConstructorConfig | InjectedProviderConfig | ClaudeClientConfig} providerConfig
  * @param {string} [systemPrompt]
- * @returns {Promise<{ converse: (input: string | object, writer: object) => Promise<void>, getHistory: () => Promise<Array<Record<string, any>>>, startInbox: () => void }>}
+ * @returns {Promise<{
+ *   converse: (
+ *     input: string | object,
+ *     writer: object,
+ *     meta?: object,
+ *     signal?: AbortSignal,
+ *   ) => Promise<void>,
+ *   getHistory: () => Promise<Array<Record<string, any>>>,
+ *   getUsage: () => Promise<{ inputTokens: number, outputTokens: number, turns: number }>,
+ *   startInbox: () => void,
+ * }>}
  */
 export const makeStreamingAgent = async (
   powers,
@@ -1055,26 +1065,68 @@ export const make = (hostPowers, _context, { env } = {}) => {
   // from the factory host's petstore (FLOOT_CLAUDE_CLIENT names it; default
   // "claude-client"). Provisioned separately by @endo/claude-sandbox's setup —
   // sessions pinned to claude-cli fail with a clear error until it exists.
-  /** @type {Promise<any> | undefined} */
-  let claudeClientP;
-  const getClaudeClient = () => {
-    if (!claudeClientP) {
-      const name = env?.FLOOT_CLAUDE_CLIENT || 'claude-client';
-      claudeClientP = E(powers)
-        .lookup(name)
-        .catch(error => {
-          claudeClientP = undefined;
+  // A ClaudeClient is a *session-scoped* capability, not a shared service: it
+  // carries one CLI conversation (every turn after the first runs
+  // `claude -p --continue`), one projected workspace, and one turn queue. Two
+  // floot sessions sharing one client would therefore read and overwrite each
+  // other's conversation and files, and serialize behind each other — breaking
+  // the one-session-one-guest isolation the rest of this factory maintains.
+  //
+  // So each session binds its own client, looked up as `<base>-<sessionId>`.
+  // The bare `<base>` name is accepted as a fallback for a single-session
+  // setup, but is claimed exclusively: a second session asking for it fails
+  // loudly rather than silently sharing a conversation.
+  /** @type {Map<string, Promise<any>>} */
+  const claudeClients = new Map();
+  /** @type {string | undefined} */
+  let sharedClientClaimedBy;
+  const getClaudeClient = id => {
+    let clientP = claudeClients.get(id);
+    if (!clientP) {
+      const base = env?.FLOOT_CLAUDE_CLIENT || 'claude-client';
+      const perSession = `${base}-${id}`;
+      clientP = (async () => {
+        if (await E(powers).has(perSession)) {
+          return E(powers).lookup(perSession);
+        }
+        if (
+          sharedClientClaimedBy !== undefined &&
+          sharedClientClaimedBy !== id
+        ) {
           throw new Error(
-            `floot: could not resolve the ClaudeClient capability "${name}" ` +
-              `(provision one with @endo/claude-sandbox, or set ` +
-              `FLOOT_CLAUDE_CLIENT): ${
-                error instanceof Error ? error.message : String(error)
-              }`,
+            `floot: session ${id} cannot use the shared ClaudeClient "${base}" —` +
+              ` session ${sharedClientClaimedBy} already holds it, and a client` +
+              ` carries one CLI conversation and workspace. Provision` +
+              ` "${perSession}" with @endo/claude-sandbox for this session.`,
           );
-        });
+        }
+        if (!(await E(powers).has(base))) {
+          throw new Error(
+            `floot: no ClaudeClient capability for session ${id} — provision` +
+              ` "${perSession}" (or "${base}" for a single-session setup) with` +
+              ` @endo/claude-sandbox, or set FLOOT_CLAUDE_CLIENT.`,
+          );
+        }
+        const shared = await E(powers).lookup(base);
+        sharedClientClaimedBy = id;
+        return shared;
+      })().catch(error => {
+        claudeClients.delete(id);
+        throw error;
+      });
+      claudeClients.set(id, clientP);
     }
-    return claudeClientP;
+    return clientP;
   };
+
+  // Hand a session only the authority its turns need. A session runs prompts;
+  // it has no business interrupting or terminating the sandbox session out
+  // from under the factory that provisioned it, so the client is attenuated to
+  // its `send` method before it reaches the agent.
+  const makeSendOnlyClient = client =>
+    harden({
+      send: (prompt, opts) => E(client).send(prompt, opts),
+    });
 
   // One streaming provider per model. Sessions that don't pin a model share the
   // entry under the empty-string key (the factory's configured default model).
@@ -1198,7 +1250,7 @@ export const make = (hostPowers, _context, { env } = {}) => {
         // instead of a streaming API provider.
         const agentConfig =
           entry?.model === CLAUDE_CLI_MODEL_ID
-            ? { claudeClient: await getClaudeClient() }
+            ? { claudeClient: makeSendOnlyClient(await getClaudeClient(id)) }
             : { provider: await getProvider(entry?.model) };
         const agent = await makeStreamingAgent(
           sessionGuest,

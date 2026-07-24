@@ -414,7 +414,30 @@ export const makeClaudeClient = ({
         )) {
           push(event);
         }
-        push({ type: 'end' });
+        // Stdout EOF alone does not mean the turn succeeded: `claude` exits
+        // non-zero on auth failure, an internal error, or an external kill,
+        // having already streamed a partial transcript. Consult the exit
+        // status so a failed turn terminates as `abort` (with whatever it
+        // wrote to stderr) instead of a clean `end` the consumer would
+        // persist as a successful answer.
+        const status = await E(proc)
+          .wait()
+          .catch(() => null);
+        if (status && (status.code === null ? status.signal : status.code)) {
+          const how =
+            status.code === null
+              ? `killed by ${status.signal}`
+              : `exited with code ${status.code}`;
+          const stderrText = await readStderrBrief(proc);
+          push({
+            type: 'abort',
+            reason: stderrText
+              ? `claude ${how}\n--- stderr ---\n${stderrText}`
+              : `claude ${how}`,
+          });
+        } else {
+          push({ type: 'end' });
+        }
       } catch (error) {
         const base = error instanceof Error ? error.message : String(error);
         // Kill first so the captured stderr stream EOFs, then fold any
@@ -433,6 +456,13 @@ export const makeClaudeClient = ({
         if (inFlight === proc) {
           inFlight = null;
           inFlightReader = null;
+        }
+        // Drop the finished turn's reader so a later `interrupt()` reports
+        // "nothing in flight" instead of silently no-op'ing against a closed
+        // reader (and so the turn's events are not retained until the next
+        // `send()`).
+        if (currentReader === reader) {
+          currentReader = null;
         }
       }
     });
@@ -497,10 +527,17 @@ export const makeClaudeClient = ({
     async terminate() {
       if (terminated) return;
       terminated = true;
-      // Abort the in-flight turn's reader (kills the process if running).
-      if (currentReader) {
+      // Abort the executing turn's reader AND the most recent queued one:
+      // with a turn in flight and another queued, they are different readers,
+      // and closing only the newest would leave the running turn's consumer to
+      // observe a clean `end` when its process is killed below — a truncated
+      // reply that reads as a complete one.
+      for (const reader of new Set(
+        [inFlightReader, currentReader].filter(Boolean),
+      )) {
         try {
-          await currentReader.return();
+          // eslint-disable-next-line no-await-in-loop
+          await /** @type {{ return: () => Promise<any> }} */ (reader).return();
         } catch {
           // best-effort
         }

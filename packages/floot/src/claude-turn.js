@@ -53,6 +53,7 @@ const renderToolResultText = content => {
  *   finish: () => {
  *     finalText: string,
  *     usage: { inputTokens: number, outputTokens: number } | undefined,
+ *     errorReason: string | undefined,
  *   },
  * }}
  */
@@ -68,6 +69,8 @@ export const makeClaudeEventTranslator = writer => {
   let streamed = '';
   /** @type {string | undefined} */
   let resultText;
+  /** @type {string | undefined} */
+  let errorReason;
   /** @type {{ inputTokens: number, outputTokens: number } | undefined} */
   let usage;
 
@@ -123,7 +126,15 @@ export const makeClaudeEventTranslator = writer => {
           };
         }
         if (event.is_error) {
-          w.setPhase('claude reported an error');
+          // A failed turn (subtype error_max_turns / error_during_execution,
+          // or a claude-side error) must not read as success: `result` is
+          // often absent on these, so the turn would otherwise finish with
+          // whatever text happened to stream and be persisted as a normal
+          // assistant reply. Record it; runClaudeTurn raises it.
+          errorReason =
+            resultText ||
+            (typeof event.subtype === 'string' && event.subtype) ||
+            'claude reported an error';
         }
         break;
       }
@@ -136,6 +147,7 @@ export const makeClaudeEventTranslator = writer => {
     harden({
       finalText: resultText !== undefined ? resultText : streamed,
       usage,
+      errorReason,
     });
 
   return harden({ handle, finish });
@@ -184,7 +196,10 @@ export const runClaudeTurn = async ({
     else signal.addEventListener('abort', onAbort, { once: true });
   }
   try {
-    for await (const event of iterator) {
+    for await (const rawEvent of iterator) {
+      // stream-json events are opaque records on the wire; the translator is
+      // the only place that knows their shape.
+      const event = /** @type {any} */ (rawEvent);
       if (event?.type === 'end') break;
       if (event?.type === 'abort') {
         throw Error(`${event.reason || 'claude turn aborted'}`);
@@ -194,7 +209,13 @@ export const runClaudeTurn = async ({
   } finally {
     if (signal) signal.removeEventListener('abort', onAbort);
   }
-  const { finalText, usage } = translator.finish();
+  const { finalText, usage, errorReason } = translator.finish();
+  if (errorReason !== undefined && !signal?.aborted) {
+    // The CLI reported a failed turn. Raise it so the caller aborts the reply
+    // wire rather than persisting a partial turn as a successful answer — the
+    // same outcome the API path produces when a provider call throws.
+    throw Error(`claude turn failed: ${errorReason}`);
+  }
   return harden({ finalContent: finalText, usage });
 };
 harden(runClaudeTurn);

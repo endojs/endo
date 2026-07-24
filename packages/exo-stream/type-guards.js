@@ -58,10 +58,14 @@ export const BufferedReaderInterface = M.interface('BufferedReader', {
   readPattern: M.call().returns(M.opt(M.pattern())),
   // readReturnPattern(): Pattern | undefined - always undefined for buffered channels
   readReturnPattern: M.call().returns(M.opt(M.pattern())),
-  // Deprecated legacy surface, kept during the buffered-channel migration:
+  // Deprecated legacy surface, kept during the buffered-channel migration.
+  // `throw` accepts any reason, not just M.error(): the `Far` readers this
+  // replaces accepted any value, and a guard rejection here would drop the
+  // consumer's close intent — the stream would stay live and its producer
+  // (an in-flight `claude -p`, a piper synthesis) would never be signalled.
   next: M.call().returns(M.promise()),
   return: M.call().returns(M.promise()),
-  throw: M.call(M.error()).returns(M.promise()),
+  throw: M.call(M.any()).returns(M.promise()),
 });
 
 /**
