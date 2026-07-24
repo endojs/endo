@@ -1012,7 +1012,12 @@ export const makeOcapnHub = ({
       dirty = true;
     }
     if (resolveMeDesc !== undefined && resolveMeDesc !== false) {
-      settleToResolver(sessionKey, resolveMeDesc, 'break', harden(Error(reason)));
+      settleToResolver(
+        sessionKey,
+        resolveMeDesc,
+        'break',
+        harden(Error(reason)),
+      );
     } else {
       persist();
     }
@@ -1030,7 +1035,10 @@ export const makeOcapnHub = ({
    */
   const flushPendingWithdraws = sessionKey => {
     const session = provideSessionState(sessionKey);
-    if (session.identity === undefined || session.pendingWithdraws.length === 0) {
+    if (
+      session.identity === undefined ||
+      session.pendingWithdraws.length === 0
+    ) {
       return;
     }
     const pendings = session.pendingWithdraws.splice(0);
@@ -1275,9 +1283,7 @@ export const makeOcapnHub = ({
       let route;
       if (verb === 'fulfill') {
         route =
-          value === undefined
-            ? { done: true }
-            : { local: infoOf(value).refId };
+          value === undefined ? { done: true } : { local: infoOf(value).refId };
       } else {
         route = {
           local: null,
@@ -1330,7 +1336,7 @@ export const makeOcapnHub = ({
         let refId;
         try {
           refId = rowOfInfo(infoOf(args[2])).refId;
-        } catch (error) {
+        } catch {
           respond([
             'break',
             harden(Error('ocapn hub: deposit-gift: gift must be a reference')),

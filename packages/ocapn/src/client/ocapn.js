@@ -1180,6 +1180,16 @@ export const makeOcapn = (
     }
 
     if (type === 'o' || type === 'p') {
+      // An object or promise slot can be collected with no committed
+      // refcount — e.g. its pending refcount was cleared by an aborted
+      // delivery, or the session's tables were reset before the
+      // FinalizationRegistry ran. The peer has nothing to decrement,
+      // and a zero wire delta is not encodable (`wireDeltas` is a
+      // positive-integer list). Answers below are unaffected: they are
+      // not refcounted and their gc message carries positions only.
+      if (refcount === 0) {
+        return;
+      }
       // Remote object or promise: tell peer to decrement export
       // refcount. Wrap in a one-element list because OCapN batches
       // these into `op:gc-exports` (plural, list payload) per the
