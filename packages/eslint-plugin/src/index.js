@@ -173,7 +173,11 @@ const makeFlatSes = () => [
     rules: sesRules,
   },
   {
-    files: ['**/test/**/*.js', '**/demos/**/*.js', '**/scripts/**/*.js'],
+    files: [
+      '**/test/**/*.{js,mjs,cjs}',
+      '**/demos/**/*.{js,mjs,cjs}',
+      '**/scripts/**/*.{js,mjs,cjs}',
+    ],
     rules: sesTestOverrideRules,
   },
 ];

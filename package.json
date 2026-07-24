@@ -27,6 +27,7 @@
     "eslint": "catalog:dev",
     "eslint-config-jessie": "^0.0.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-exports": "^1.0.0-beta.5",
     "eslint-plugin-eslint-plugin": "^7.4.1",
     "eslint-plugin-import": "catalog:dev",
     "eslint-plugin-jsdoc": "^62.5.5",

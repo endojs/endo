@@ -2,7 +2,7 @@
 '@endo/eslint-plugin': major
 ---
 
-**Breaking:** Backwards compatibility with legacy ESLint config files is provided on a best-effort basis, given ESLint's deprecation of rules and third-party replacements. Recommended rules from ESLint 9+ have also been configured. 
+**Breaking:** Backwards compatibility with legacy ESLint config files is provided on a best-effort basis, given ESLint's deprecation of rules and third-party replacements. Recommended rules from ESLint 9+ have also been configured.
 
 **Breaking:**Minimum supported Node.js version is now v22.12.0.
 
@@ -28,4 +28,3 @@ export default [
 ```
 
 Furthermore, the new rules will need to be addressed as appropriate for your project.
-

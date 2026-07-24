@@ -2,6 +2,7 @@
 /// <reference types="ses"/>
 /* eslint no-underscore-dangle: ["off"] */
 
+// eslint-disable-next-line import/order
 import { ModuleSource } from '../src/module-source.js';
 import url from 'url';
 import fs from 'fs';

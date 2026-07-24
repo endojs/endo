@@ -6,6 +6,17 @@ import globals from 'globals';
 import jessie from '@jessie.js/eslint-plugin';
 import eslintPluginPlugin from 'eslint-plugin-eslint-plugin';
 
+const importResolverSettingsFor = condition => ({
+  'import/resolver': {
+    exports: { conditions: [condition] },
+    node: {},
+  },
+  'import-x/resolver': {
+    exports: { conditions: [condition] },
+    node: {},
+  },
+});
+
 export default defineConfig(
   // jessie config comes first since it imports the "strict" config from @endo/eslint-plugin;
   // subsequent configs are applied in order
@@ -22,6 +33,7 @@ export default defineConfig(
       'packages/ses/**',
       'packages/env-options/**',
       'packages/immutable-arraybuffer/**',
+      'packages/cache-map/**',
     ],
     extends: [endoConfigs['flat/ses']],
   },
@@ -56,6 +68,24 @@ export default defineConfig(
     extends: [eslintPluginPlugin.configs['tests-recommended']],
   },
 
+  // package-specific export conditions used by resolver fixtures
+  {
+    files: ['packages/eventual-send-test/**'],
+    settings: importResolverSettingsFor('test-endo-eventual-send'),
+  },
+  {
+    files: ['packages/harden-test/**'],
+    settings: importResolverSettingsFor('test-endo-harden'),
+  },
+  {
+    files: ['packages/hex-test/**'],
+    settings: importResolverSettingsFor('test-endo-hex'),
+  },
+  {
+    files: ['packages/ses-test/**'],
+    settings: importResolverSettingsFor('test-endo-ses'),
+  },
+
   // packages/dirs where Node.js globals are used
   {
     files: [
@@ -63,7 +93,9 @@ export default defineConfig(
       'packages/*/test/**',
       'packages/cli/**',
       'packages/eslint-plugin/**',
+      'packages/chat/playwright.config.ts',
       'browser-test/**/*',
+      'packages/compartment-mapper/demo/**',
       '**/scripts/**/*',
     ],
     languageOptions: {
@@ -71,9 +103,147 @@ export default defineConfig(
     },
   },
 
+  // packages whose sources run in a browser realm
+  {
+    files: [
+      'packages/chat/**',
+      'packages/monaco-wrapper/**',
+      'packages/preact-container/**',
+      'packages/space-channel/**',
+      'packages/space-chat/**',
+      'packages/space-file-explorer/**',
+      'packages/space-floot/**',
+      'packages/space-inventory-graph/**',
+      'packages/space-peers/**',
+      'packages/space-whylip/**',
+      'packages/spaces-util/**',
+    ],
+    languageOptions: {
+      globals: { ...hardenedGlobals, ...globals.browser },
+    },
+  },
+
+  // fork-package policy formerly carried in package.json eslintConfig fields
+  {
+    files: ['packages/familiar/**'],
+    rules: {
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
+    files: ['packages/familiar/scripts/*.mjs'],
+    rules: {
+      '@endo/harden-exports': 'off',
+    },
+  },
+  {
+    files: ['packages/goblin-chat/**'],
+    rules: {
+      'import/no-unresolved': [
+        'error',
+        { ignore: ['ava', '^@endo/ocapn(?:/.*)?$'] },
+      ],
+    },
+  },
+  {
+    files: ['packages/module-source/**'],
+    rules: {
+      'import/no-unresolved': [
+        'error',
+        { ignore: ['^@endo/module-source(?:/.*)?$'] },
+      ],
+      'jsdoc/check-tag-names': ['error', { definedTags: ['privateRemarks'] }],
+    },
+  },
+  {
+    files: ['packages/module-source/**/*.ts'],
+    rules: {
+      'vars-on-top': 'off',
+      'no-var': 'off',
+    },
+  },
+  {
+    files: ['packages/ocapn-noise/**'],
+    rules: {
+      'import/no-unresolved': [
+        'error',
+        {
+          ignore: ['^@endo/ocapn/', '^@endo/ocapn-noise/', '^@endo/ses-ava/'],
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/preact-container/**'],
+    rules: {
+      'no-underscore-dangle': 'off',
+      'no-bitwise': 'off',
+      'no-continue': 'off',
+      'no-plusplus': 'off',
+      'no-control-regex': 'off',
+      '@endo/restrict-comparison-operands': 'off',
+    },
+  },
+  {
+    files: ['packages/daemon/src/bus-xs-host-globals.d.ts'],
+    rules: {
+      // Ambient declarations intentionally use `declare var` for host globals.
+      'no-var': 'off',
+    },
+  },
+  {
+    files: ['packages/compartment-mapper/demo/**'],
+    rules: {
+      // The demo resolves its policy fixtures and self-package imports at
+      // runtime, rather than through the demo directory's package boundary.
+      'import/no-extraneous-dependencies': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
+    files: ['packages/*/test/*fixture*/**/*.cjs'],
+    rules: {
+      // These fixtures deliberately exercise CommonJS and transpiler output.
+      camelcase: 'off',
+      'global-require': 'off',
+      'no-useless-return': 'off',
+      'no-var': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/preact-container/test/**/*.js',
+      'packages/preact-container/vitest.config.mjs',
+    ],
+    languageOptions: {
+      globals: {
+        ...hardenedGlobals,
+        ...globals.browser,
+        ...globals.node,
+        describe: 'readonly',
+        it: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        expect: 'readonly',
+      },
+    },
+    rules: {
+      'no-undef': 'off',
+      'no-unused-vars': 'off',
+      'no-plusplus': 'off',
+      'no-script-url': 'off',
+      'no-extend-native': 'off',
+      'no-restricted-globals': 'off',
+      'max-classes-per-file': 'off',
+      'class-methods-use-this': 'off',
+      'import/no-extraneous-dependencies': 'off',
+      'no-shadow': 'off',
+    },
+  },
+
   // scripts are a little loosey-goosey
   {
-    files: ['**/scripts/**/*'],
+    files: ['scripts/**/*'],
     rules: {
       '@jessie.js/safe-await-separator': 'off',
       'no-await-in-loop': 'off',
@@ -120,22 +290,30 @@ export default defineConfig(
     },
   },
 
-  // .eslintignore
+  // Repository-wide ignores formerly provided by .eslintignore.
   {
     ignores: [
       'api-docs/',
-      'browser-test/',
       'rust/',
       '**/*.json',
-      '!packages/daemon/src/bus-xs-host-globals.d.ts',
+      'packages/test262-runner/prelude/',
+      'packages/chat/test/**/probe.mjs',
+      'packages/chat/test/**/run.mjs',
+      'packages/daemon/scripts/*.mjs',
+      'packages/familiar/preload.mjs',
+      'packages/git/src/git-askpass-helper.cjs',
+      'packages/x402/demo/verify.mjs',
+      'packages/base64/types/',
+      'packages/bundle-source/scripts/',
+      'packages/familiar/out/',
+      'packages/module-source/test/fixtures/',
+      'packages/module-source/src/external.types.js',
+      'packages/pass-style/src/types.js',
       'packages/nat/integration-test/',
       'packages/captp/scripts/',
       'packages/marshal/src/bundles/',
-      'packages/ses/test/_**',
       'packages/bundle-source/demo/',
-      'packages/*/test/*fixture*/',
       'packages/init/**/bundle-*.js',
-      'packages/compartment-mapper/demo/**',
     ],
   },
 );

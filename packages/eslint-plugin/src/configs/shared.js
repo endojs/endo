@@ -39,7 +39,12 @@ export const tsconfigRootDir = path.join(__dirname, '..', '..', '..', '..');
 export const projectServiceOptions = {
   useProjectService: true,
   projectService: {
-    allowDefaultProject: ['*.js', '*.mjs', '*.cjs'],
+    allowDefaultProject: [
+      '*.js',
+      '*.mjs',
+      '*.cjs',
+      'packages/ses/test/_package/*.{mjs,cjs}',
+    ],
     defaultProject: 'tsconfig.json',
   },
 };
@@ -57,7 +62,7 @@ export const projectServiceOptions = {
  */
 export const ignorePatterns = [
   '**/tmp/**',
-  '**/test262*/**',
+  '**/test262/**',
   '**/output/**',
   '**/dist/**',
   '**/coverage/**',
@@ -67,6 +72,7 @@ export const ignorePatterns = [
   '**/*.types.js',
   '**/*.d.{ts,cts,mts}',
   '!**/*.types.d.{ts,cts,mts}',
+  '!packages/daemon/src/bus-xs-host-globals.d.ts',
 ];
 
 // ---------------------------------------------------------------------------
@@ -520,6 +526,7 @@ export const importsRules = {
   'import/no-useless-path-segments': ['error', { commonjs: true }],
   'import/no-import-module-exports': ['error', { exceptions: [] }],
   'import/no-relative-packages': 'error',
+  'import/order': ['error', { groups: [['builtin', 'external', 'internal']] }],
   'import/extensions': ['error', 'always', { ignorePackages: true }],
   'import/no-extraneous-dependencies': [
     'error',
@@ -590,6 +597,7 @@ export const internalTsOverrideRules = {
  * @satisfies {Linter.RulesRecord}
  */
 export const typeCheckingRules = {
+  '@endo/restrict-comparison-operands': 'error',
   '@typescript-eslint/restrict-plus-operands': 'error',
 };
 

@@ -1,5 +1,6 @@
 import test from '../prepare-endo.js';
 
+// eslint-disable-next-line import/order
 import { makeEnvironmentCaptor } from '@endo/env-options';
 
 test('test env options empty env', async t => {

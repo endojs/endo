@@ -5,6 +5,7 @@
 // Please co-maintain these two files.
 import test from '../prepare-endo.js';
 
+// eslint-disable-next-line import/order
 import { PanicEndowmentSymbol, panic, lastResortError } from '@endo/panic';
 
 // The case where it does correctly exit immediately is hard to test with
