@@ -94,14 +94,15 @@ const DescHandoffGiveCodec = makeOcapnRecordCodecFromDefinition(
 
 // Exported standalone: the OCapN hub persists in-transit gift give
 // envelopes as bytes between receipt and redemption.
-export const DescHandoffGiveSigEnvelopeCodec = makeOcapnRecordCodecFromDefinition(
-  'DescHandoffGiveSigEnvelope',
-  'desc:sig-envelope',
-  {
-    object: DescHandoffGiveCodec,
-    signature: OcapnSignatureCodec,
-  },
-);
+export const DescHandoffGiveSigEnvelopeCodec =
+  makeOcapnRecordCodecFromDefinition(
+    'DescHandoffGiveSigEnvelope',
+    'desc:sig-envelope',
+    {
+      object: DescHandoffGiveCodec,
+      signature: OcapnSignatureCodec,
+    },
+  );
 
 const DescHandoffReceiveCodec = makeOcapnRecordCodecFromDefinition(
   'DescHandoffReceive',

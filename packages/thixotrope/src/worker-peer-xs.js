@@ -1,5 +1,4 @@
 // @ts-check
-/* global globalThis */
 
 /**
  * XS bootstrap entry for an OCapN-native thixotrope worker (protocol
@@ -30,7 +29,9 @@ const send = /** @type {(json: string) => void} */ (
   /** @type {any} */ (globalThis).thixotropeSend
 );
 if (typeof send !== 'function') {
-  throw Error('thixotrope-xs-worker must register thixotropeSend before bootstrap');
+  throw Error(
+    'thixotrope-xs-worker must register thixotropeSend before bootstrap',
+  );
 }
 
 const trace = /** @type {(text: string) => void} */ (

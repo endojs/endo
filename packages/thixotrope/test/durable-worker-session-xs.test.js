@@ -1,5 +1,4 @@
 // @ts-check
-/* global process */
 
 /**
  * The durable worker transport on the real XS engine: the hub's
@@ -126,9 +125,9 @@ testXs('an XS worker session sleeps, wakes, and survives crashes', async t => {
     outbound.sink.deliver(frame);
   }
 
-  const shell = await E(E(session.getBootstrap()).fetch(bytesOf('worker'))).fetch(
-    SHELL_SWISSNUM,
-  );
+  const shell = await E(
+    E(session.getBootstrap()).fetch(bytesOf('worker')),
+  ).fetch(SHELL_SWISSNUM);
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
   t.is(await E(counter).incr(), 2);

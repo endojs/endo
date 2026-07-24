@@ -320,6 +320,8 @@ export default defineConfig(
       'packages/chat/test/**/probe.mjs',
       'packages/chat/test/**/run.mjs',
       'packages/daemon/scripts/*.mjs',
+      'packages/thixotrope/dist-xs/',
+      'packages/thixotrope/scripts/*.mjs',
       'packages/familiar/preload.mjs',
       'packages/git/src/git-askpass-helper.cjs',
       'packages/x402/demo/verify.mjs',

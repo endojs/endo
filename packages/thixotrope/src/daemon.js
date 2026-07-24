@@ -268,7 +268,11 @@ export const makeThixotropeDaemon = async ({
    * @param {{ sessionId: any, peerPublicKeyQ: any, selfPrivateKeyBytes?: any }} [identity]
    *   the wire identity from the handshake; omitted on resume
    */
-  const bindConnectionToHub = (connection, sessionKey, identity = undefined) => {
+  const bindConnectionToHub = (
+    connection,
+    sessionKey,
+    identity = undefined,
+  ) => {
     const sink = hub.attachSession(sessionKey, {
       send: (/** @type {Uint8Array} */ bytes) => connection.write(bytes),
       // Resumable peers and outbound exporter sessions are durable:

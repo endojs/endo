@@ -1,5 +1,4 @@
 // @ts-check
-/* global setTimeout */
 
 /**
  * The unified thixotrope daemon (protocol unification phase 5): worker
@@ -192,10 +191,7 @@ test('a third-party gift routes through the hub bootstrap', async t => {
     codec: syrupCodec,
     debugLabel: 'gift-receiver',
     locator: receiverLocator,
-    network: async (
-      /** @type {any} */ handlers,
-      /** @type {any} */ logger,
-    ) => {
+    network: async (/** @type {any} */ handlers, /** @type {any} */ logger) => {
       receiverNetlayer = await makeTcpNetLayer({
         handlers,
         logger,
@@ -270,10 +266,7 @@ test('the hub redeems an inbound gift on behalf of a worker', async t => {
     codec: syrupCodec,
     debugLabel: 'exporter',
     locator: exporterLocator,
-    network: async (
-      /** @type {any} */ handlers,
-      /** @type {any} */ logger,
-    ) => {
+    network: async (/** @type {any} */ handlers, /** @type {any} */ logger) => {
       exporterNetlayer = await makeTcpNetLayer({
         handlers,
         logger,

@@ -1,5 +1,4 @@
 // @ts-check
-/* global process, atob, btoa */
 
 /**
  * Protocol unification phase 2 exit criterion: the OCapN worker peer

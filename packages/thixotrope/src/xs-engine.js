@@ -95,7 +95,9 @@ export const makeXsEngine = ({
       child.on('exit', (code, signal) => {
         exited = true;
         failAll(
-          Error(`thixotrope-xs-worker for ${debugName} exited (${code ?? signal})`),
+          Error(
+            `thixotrope-xs-worker for ${debugName} exited (${code ?? signal})`,
+          ),
         );
       });
       child.on('error', error => {

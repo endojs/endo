@@ -117,9 +117,9 @@ test('a worker session sleeps and wakes by journal replay', async t => {
   });
   t.false(transport.isAwake(), 'attachment alone does not wake the worker');
 
-  const shell = await E(E(session.getBootstrap()).fetch(bytesOf('worker'))).fetch(
-    SHELL_SWISSNUM,
-  );
+  const shell = await E(
+    E(session.getBootstrap()).fetch(bytesOf('worker')),
+  ).fetch(SHELL_SWISSNUM);
   t.true(transport.isAwake(), 'the first delivery woke the worker');
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
@@ -148,9 +148,9 @@ test('a worker session survives snapshot, sleep, and crash', async t => {
     debugLabel: 'napper',
   });
 
-  const shell = await E(E(session.getBootstrap()).fetch(bytesOf('worker'))).fetch(
-    SHELL_SWISSNUM,
-  );
+  const shell = await E(
+    E(session.getBootstrap()).fetch(bytesOf('worker')),
+  ).fetch(SHELL_SWISSNUM);
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
   t.is(await E(counter).incr(), 2);
@@ -217,9 +217,9 @@ test('a retired worker session breaks its imports', async t => {
     debugLabel: 'retiree',
   });
 
-  const shell = await E(E(session.getBootstrap()).fetch(bytesOf('worker'))).fetch(
-    SHELL_SWISSNUM,
-  );
+  const shell = await E(
+    E(session.getBootstrap()).fetch(bytesOf('worker')),
+  ).fetch(SHELL_SWISSNUM);
   const counter = await E(shell).evaluate(COUNTER_SOURCE);
   t.is(await E(counter).incr(), 1);
 

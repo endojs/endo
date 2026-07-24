@@ -166,7 +166,10 @@ export const makeWorkerSessionRecords = ({
       try {
         const workerStore = store.provideWorkerStore(workerId);
         const record = /** @type {any} */ (workerStore.getTablesRecord()) ?? {};
-        if (record.pendingResolvers && resolverSlot in record.pendingResolvers) {
+        if (
+          record.pendingResolvers &&
+          resolverSlot in record.pendingResolvers
+        ) {
           const pendingResolvers = { ...record.pendingResolvers };
           delete pendingResolvers[resolverSlot];
           workerStore.setTablesRecord({ ...record, pendingResolvers });

@@ -1,5 +1,4 @@
 // @ts-check
-/* global setTimeout */
 
 /**
  * The OCapN hub (`@endo/ocapn/hub`): the non-reifying core of the
@@ -635,7 +634,10 @@ test('interrupted gift redemptions surface as pending dials', async t => {
   };
   const hub = makeOcapnHub({ codec: syrupCodec, store });
   t.deepEqual(
-    hub.pendingDials().map(({ sessionKey }) => sessionKey).sort(),
+    hub
+      .pendingDials()
+      .map(({ sessionKey }) => sessionKey)
+      .sort(),
     ['handoff:cafe', 'handoff:f00d'],
     'both a pending withdrawal and queued traffic want a dial',
   );

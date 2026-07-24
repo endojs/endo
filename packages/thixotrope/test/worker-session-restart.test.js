@@ -1,5 +1,4 @@
 // @ts-check
-/* global setTimeout */
 
 /**
  * Worker sessions survive a daemon restart on the hub daemon: the hub

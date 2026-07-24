@@ -1,5 +1,4 @@
 // @ts-check
-/* global process, setTimeout */
 
 /**
  * The unified daemon's restart story on the real XS engine: two XS
