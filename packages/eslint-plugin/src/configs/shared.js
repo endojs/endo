@@ -66,7 +66,7 @@ export const ignorePatterns = [
   '**/ava*.config.{js,mjs,cjs}',
   '**/*.types.js',
   '**/*.d.{ts,cts,mts}',
-  '!**/*.types.{ts,cts,mts}',
+  '!**/*.types.d.{ts,cts,mts}',
 ];
 
 // ---------------------------------------------------------------------------

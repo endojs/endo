@@ -171,3 +171,16 @@ describe('flat/strict', () => {
     assert.strictEqual(severityOf(rules['no-inner-declarations']), 0);
   });
 });
+
+describe('flat/internal', () => {
+  it('includes all hand-authored declaration files', async () => {
+    const rules = await getRules(
+      configs['flat/internal'],
+      'src/example.types.d.ts',
+    );
+    assert.strictEqual(
+      severityOf(rules['@typescript-eslint/restrict-plus-operands']),
+      2,
+    );
+  });
+});
