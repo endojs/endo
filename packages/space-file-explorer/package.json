@@ -52,14 +52,6 @@
     "eslint": "catalog:dev",
     "happy-dom": "^15.0.0"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "env": {
-      "browser": true
-    }
-  },
   "ava": {
     "files": [
       "test/**/*.test.*"

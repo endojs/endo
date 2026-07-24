@@ -44,10 +44,5 @@
   "devDependencies": {
     "@endo/cli": "workspace:^",
     "eslint": "catalog:dev"
-  },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ]
   }
 }

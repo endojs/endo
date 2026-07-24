@@ -38,13 +38,5 @@
   },
   "devDependencies": {
     "eslint": "catalog:dev"
-  },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "env": {
-      "browser": true
-    }
   }
 }

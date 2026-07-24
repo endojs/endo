@@ -105,14 +105,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "env": {
-      "browser": true
-    }
-  },
   "ava": {
     "files": [
       "test/**/*.test.*"

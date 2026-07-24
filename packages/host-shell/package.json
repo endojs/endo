@@ -57,10 +57,5 @@
       "test/**/*.test.js"
     ],
     "timeout": "120s"
-  },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ]
   }
 }

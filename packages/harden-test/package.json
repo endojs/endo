@@ -38,21 +38,6 @@
   "publishConfig": {
     "access": "restricted"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "settings": {
-      "import/resolver": {
-        "exports": {
-          "conditions": [
-            "test-endo-harden"
-          ]
-        },
-        "node": {}
-      }
-    }
-  },
   "ava": {
     "files": [
       "test/**/*.test.*"

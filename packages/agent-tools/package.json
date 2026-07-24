@@ -150,10 +150,5 @@
     "@earendil-works/pi-ai": {
       "optional": true
     }
-  },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ]
   }
 }

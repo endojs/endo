@@ -35,10 +35,5 @@
   },
   "files": [
     "src"
-  ],
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ]
-  }
+  ]
 }

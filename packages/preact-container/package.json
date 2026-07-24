@@ -61,58 +61,5 @@
     "LICENSE*",
     "NOTICE*",
     "SECURITY*"
-  ],
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "env": {
-      "browser": true
-    },
-    "globals": {
-      "globalThis": "readonly"
-    },
-    "rules": {
-      "no-underscore-dangle": "off",
-      "no-bitwise": "off",
-      "no-continue": "off",
-      "no-plusplus": "off",
-      "no-control-regex": "off",
-      "@endo/restrict-comparison-operands": "off"
-    },
-    "overrides": [
-      {
-        "files": [
-          "test/**/*.js",
-          "vitest.config.mjs"
-        ],
-        "env": {
-          "browser": true,
-          "node": true
-        },
-        "globals": {
-          "describe": "readonly",
-          "it": "readonly",
-          "beforeEach": "readonly",
-          "afterEach": "readonly",
-          "expect": "readonly",
-          "window": "readonly",
-          "document": "readonly",
-          "location": "readonly"
-        },
-        "rules": {
-          "no-undef": "off",
-          "no-unused-vars": "off",
-          "no-plusplus": "off",
-          "no-script-url": "off",
-          "no-extend-native": "off",
-          "no-restricted-globals": "off",
-          "max-classes-per-file": "off",
-          "class-methods-use-this": "off",
-          "import/no-extraneous-dependencies": "off",
-          "no-shadow": "off"
-        }
-      }
-    ]
-  }
+  ]
 }

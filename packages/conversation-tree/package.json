@@ -42,11 +42,6 @@
     "ava": "catalog:dev",
     "eslint": "catalog:dev"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ]
-  },
   "ava": {
     "files": [
       "test/**/*.test.*"

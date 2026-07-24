@@ -62,27 +62,6 @@
     ],
     "timeout": "120s"
   },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "ignorePatterns": [
-      "out/*"
-    ],
-    "rules": {
-      "no-restricted-globals": "off"
-    },
-    "overrides": [
-      {
-        "files": [
-          "scripts/*.mjs"
-        ],
-        "rules": {
-          "@endo/harden-exports": "off"
-        }
-      }
-    ]
-  },
   "lavamoat": {
     "allowScripts": {
       "electron": true,

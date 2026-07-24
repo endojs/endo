@@ -46,20 +46,5 @@
   },
   "publishConfig": {
     "access": "restricted"
-  },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ],
-    "settings": {
-      "import/resolver": {
-        "exports": {
-          "conditions": [
-            "test-endo-hex"
-          ]
-        },
-        "node": {}
-      }
-    }
   }
 }
