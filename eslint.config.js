@@ -3,8 +3,28 @@ import { OptionDefaults } from 'typedoc';
 import { configs as endoConfigs, hardenedGlobals } from '@endo/eslint-plugin';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
-import jessie from '@jessie.js/eslint-plugin';
+import jessieNoNestedAwait from '@jessie.js/eslint-plugin/lib/rules/no-nested-await.js';
+import jessieSafeAwaitSeparator from '@jessie.js/eslint-plugin/lib/rules/safe-await-separator.js';
+import jessieUseJessieProcessor from '@jessie.js/eslint-plugin/lib/processors/use-jessie.js';
 import eslintPluginPlugin from 'eslint-plugin-eslint-plugin';
+
+// The published Jessie config eagerly constructs a legacy FlatCompat instance.
+// That instance cannot resolve Endo's restored `eslint:recommended` baseline
+// under ESLint 10, so wire the small Jessie flat surface directly instead.
+const jessiePlugin = {
+  meta: { name: '@jessie.js/eslint-plugin', version: '0.4.3' },
+  rules: {
+    'no-nested-await': jessieNoNestedAwait,
+    'safe-await-separator': jessieSafeAwaitSeparator,
+  },
+};
+
+// The Jessie processor predates ESLint's required processor metadata.
+// Keep its behavior while supplying the metadata used by `--print-config`.
+const jessieProcessor = {
+  ...jessieUseJessieProcessor,
+  meta: { name: '@jessie.js/use-jessie' },
+};
 
 const importResolverSettingsFor = condition => ({
   'import/resolver': {
@@ -21,9 +41,9 @@ export default defineConfig(
   // jessie config comes first since it imports the "strict" config from @endo/eslint-plugin;
   // subsequent configs are applied in order
   {
-    // @ts-expect-error - untyped
-    extends: [jessie.configs['flat/recommended']],
-    processor: jessie.processors['use-jessie'],
+    plugins: { '@jessie.js': jessiePlugin },
+    rules: { '@jessie.js/safe-await-separator': 'warn' },
+    processor: jessieProcessor,
   },
   endoConfigs['flat/internal'],
 
