@@ -14,7 +14,7 @@
 //   { type: 'end' }                       stream complete
 //   { type: 'abort', reason }             stream failed
 
-import { makeBufferedReader } from './buffered-channel.js';
+import { makeBufferedReader } from '@endo/exo-stream/buffered-channel.js';
 
 /**
  * @typedef {(
@@ -38,7 +38,7 @@ import { makeBufferedReader } from './buffered-channel.js';
  * @returns {{ writer: object, reader: object }}
  */
 export const makeReplyChannel = (onClose = null) => {
-  const { push, reader } = makeBufferedReader('ReplyReader', { onClose });
+  const { push, reader } = makeBufferedReader({ onClose });
 
   const writer = harden({
     /** @param {string} phase */

@@ -30,7 +30,7 @@ import { M } from '@endo/patterns';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 
-import { makeBufferedReader } from '../src/buffered-channel.js';
+import { makeBufferedReader } from '@endo/exo-stream/buffered-channel.js';
 
 // `transcribe` is synchronous (returns the transcript reader immediately, then
 // streams), so it is guarded with `M.call`. Guards are permissive — the daemon
@@ -184,7 +184,7 @@ const makeMoonshine = ({ scriptPath, cwd, uv = 'uv', lang = 'en' }) => {
 // (e.g. inserting punctuation), so an append-only wire can't represent them.
 // `setOnClose` aborts moonshine's in-flight utterance when the consumer stops.
 const makeTextChannel = () => {
-  const { push, reader, setOnClose } = makeBufferedReader('StreamReader');
+  const { push, reader, setOnClose } = makeBufferedReader();
   const writer = {
     partial: text => push({ type: 'partial', text: `${text}` }),
     final: text => push({ type: 'final', text: `${text}` }),

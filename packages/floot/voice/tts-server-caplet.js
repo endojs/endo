@@ -34,7 +34,7 @@ import { M } from '@endo/patterns';
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
-import { makeBufferedReader } from '../src/buffered-channel.js';
+import { makeBufferedReader } from '@endo/exo-stream/buffered-channel.js';
 
 // `synthesize` is synchronous (returns the audio reader immediately, then
 // streams), so it is guarded with `M.call`. Guards are permissive — the daemon
@@ -129,9 +129,7 @@ const makeChunker = () => {
 // (piper) can be aborted — otherwise an interrupted replay keeps synthesizing
 // every remaining sentence with no one to receive the audio.
 const makeAudioChannel = onClose => {
-  const { push, reader, isClosed } = makeBufferedReader('AudioReader', {
-    onClose,
-  });
+  const { push, reader, isClosed } = makeBufferedReader({ onClose });
   const writer = {
     bytes: (b64, sampleRate) => push({ type: 'bytes', b64, sampleRate }),
     setPhase: phase => push({ type: 'phase', phase: `${phase}` }),
