@@ -9,6 +9,10 @@
  * Also the settlement acid test: a promise minted in worker A, held in
  * worker B, settles across the restart — the subscription is nothing
  * but rows and a wire subscription in A's heap.
+ *
+ * And the answer-position variant: a question worker B asked of
+ * worker A (an `answersOwed` row in the hub, not a promise export)
+ * stays pending across the restart and settles after it.
  */
 import test from '@endo/ses-ava/test.js';
 
@@ -197,5 +201,94 @@ test('worker sessions survive a daemon restart', async t => {
       return got !== null;
     });
     t.is(got, 'gifted', 'the settlement crossed the restart and both workers');
+  }
+});
+
+test('a pending answer survives a daemon restart and settles after it', async t => {
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-wsr-answer-'));
+  t.teardown(() => rm(statePath, { recursive: true, force: true }));
+
+  {
+    // Daemon incarnation 1.
+    const d1 = await makeDaemon(statePath);
+    const workerA = await d1.createWorker({ debugLabel: 'gatekeeper' });
+    const workerB = await d1.createWorker({ debugLabel: 'asker' });
+
+    const gate = await workerA.evaluate(`
+      (() => {
+        let release;
+        const gated = new Promise(resolve => {
+          release = resolve;
+        });
+        return Far('Gate', {
+          wait: () => gated,
+          open: value => {
+            release(value);
+            return 'opened';
+          },
+        });
+      })()
+    `);
+
+    // Worker B asks the question. Unlike the gift in the acid test —
+    // a promise EXPORT of A relayed to B — the pending result here is
+    // an ANSWER position on B's session: an answersOwed row in the
+    // hub, routed to the still-unsettled delivery in A.
+    const asker = await workerB.evaluate(
+      `
+      (() => {
+        let got = null;
+        E(gate)
+          .wait()
+          .then(
+            value => {
+              got = ['settled', value];
+            },
+            error => {
+              got = ['broken', String((error && error.message) || error)];
+            },
+          );
+        return Far('Asker', { getGot: () => got });
+      })()
+      `,
+      ['gate'],
+      [gate],
+    );
+    t.is(await E(asker).getGot(), null, 'the answer is pending');
+
+    d1.publish(gate, 'gate-cap');
+    d1.publish(asker, 'asker-cap');
+
+    await workerA.sleep();
+    await workerB.sleep();
+    await d1.crash();
+  }
+
+  {
+    // Daemon incarnation 2, from the store alone.
+    const d2 = await makeDaemon(statePath);
+    t.teardown(() => d2.shutdown());
+
+    const asker = await d2.lookup('asker-cap');
+    t.is(
+      await E(asker).getGot(),
+      null,
+      'the answer is still pending after the restart',
+    );
+
+    const gate = await d2.lookup('gate-cap');
+    t.is(await E(gate).open('through'), 'opened');
+
+    /** @type {any} */
+    let got = null;
+    await tickUntil(async () => {
+      got = await E(asker).getGot();
+      return got !== null;
+    });
+    t.deepEqual(
+      got,
+      ['settled', 'through'],
+      'the answer row routed the settlement across the restart',
+    );
   }
 });
