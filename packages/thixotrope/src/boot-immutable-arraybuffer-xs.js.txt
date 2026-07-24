@@ -1,0 +1,90 @@
+/* Minimal Immutable ArrayBuffer emulation for the thixotrope XS boot
+ * script. Injected verbatim (not bundled) by
+ * scripts/bundle-xs-worker.mjs between xsnap's polyfills and
+ * `lockdown()`.
+ *
+ * XS has no native Immutable ArrayBuffer support, and the worker
+ * bundle evaluates after lockdown — too late to install
+ * `@endo/immutable-arraybuffer/shim.js` onto the then-frozen
+ * `ArrayBuffer.prototype` — while evaluating that shim's full
+ * compartment-mapper bundle pre-lockdown crashes the engine. So this
+ * hand-written fragment installs just the surface the worker bundle
+ * consumes, mirroring the upstream shim's semantics:
+ *
+ *  - `sliceToImmutable` (used by `@endo/bytes` `bytesToImmutable`)
+ *  - the `immutable` accessor (the `@endo/pass-style` byteArray brand)
+ *  - `byteLength` and `slice` patched to route emulated immutables to
+ *    their backing buffer (used by the syrup encoder's `value.slice()`)
+ *
+ * Emulated immutables match the upstream shim's shape exactly —
+ * `__proto__: ArrayBuffer.prototype` plus an own non-enumerable
+ * `Symbol.toStringTag: 'ImmutableArrayBuffer'` data property — so
+ * pass-style's byteArray `assertRestValid` accepts them. The upstream
+ * shim import inside the worker bundle then detect-then-skips on the
+ * `sliceToImmutable` it finds already installed.
+ */
+(() => {
+  const arrayBufferPrototype = ArrayBuffer.prototype;
+  if ('sliceToImmutable' in arrayBufferPrototype) {
+    // Native implementation or a prior install wins.
+    return;
+  }
+  const { defineProperty, defineProperties, getOwnPropertyDescriptor } =
+    Object;
+  const { apply } = Reflect;
+  const realByteLengthGetter = getOwnPropertyDescriptor(
+    arrayBufferPrototype,
+    'byteLength',
+  ).get;
+  const realSlice = arrayBufferPrototype.slice;
+  // Maps all and only emulated immutable ArrayBuffers to the genuine
+  // (exclusively held) ArrayBuffer that backs them.
+  const backingBuffers = new WeakMap();
+  const backingOf = candidate => {
+    const backing = backingBuffers.get(candidate);
+    return backing === undefined ? candidate : backing;
+  };
+  const makeImmutable = backing => {
+    const emulated = { __proto__: arrayBufferPrototype };
+    defineProperty(emulated, Symbol.toStringTag, {
+      value: 'ImmutableArrayBuffer',
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    });
+    backingBuffers.set(emulated, backing);
+    return emulated;
+  };
+  defineProperties(arrayBufferPrototype, {
+    immutable: {
+      get() {
+        return backingBuffers.has(this);
+      },
+      enumerable: false,
+      configurable: true,
+    },
+    byteLength: {
+      get() {
+        return apply(realByteLengthGetter, backingOf(this), []);
+      },
+      enumerable: false,
+      configurable: true,
+    },
+    slice: {
+      value: function slice(start, end) {
+        return apply(realSlice, backingOf(this), [start, end]);
+      },
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    },
+    sliceToImmutable: {
+      value: function sliceToImmutable(start, end) {
+        return makeImmutable(apply(realSlice, backingOf(this), [start, end]));
+      },
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    },
+  });
+})();

@@ -55,8 +55,21 @@ const packageDependenciesHook = ({ canonicalName, dependencies }) => {
 // aside (`if (!globalThis.harden)`) and the boot script ends by
 // freezing the shared intrinsics. The ses shim is neither needed nor
 // usable here (its repairIntrinsics fails on XS).
+//
+// XS has no native Immutable ArrayBuffer support, and the worker
+// bundle evaluates after lockdown — too late to install the
+// `@endo/immutable-arraybuffer` shim onto the then-frozen
+// `ArrayBuffer.prototype`. A minimal hand-written emulation (see the
+// fragment's header comment) is spliced in verbatim between the
+// polyfills and `lockdown()`; the worker bundle's own shim import
+// detect-then-skips on the installed `sliceToImmutable`.
 const polyfillsPath = path.join(xsnapSrcDir, 'polyfills.js');
+const immutableShimPath = path.resolve(
+  dirname,
+  '../src/boot-immutable-arraybuffer-xs.js.txt',
+);
 const bootScript = `${fs.readFileSync(polyfillsPath, 'utf8')}
+${fs.readFileSync(immutableShimPath, 'utf8')}
 // XS native Hardened JavaScript: freeze the shared intrinsics so
 // guest compartments cannot communicate or interfere through them.
 lockdown();
