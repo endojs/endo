@@ -45,6 +45,9 @@
       "path": "packages/cjs-module-analyzer/tsconfig.composite.json"
     },
     {
+      "path": "packages/claude-sandbox/tsconfig.composite.json"
+    },
+    {
       "path": "packages/cli/tsconfig.composite.json"
     },
     {

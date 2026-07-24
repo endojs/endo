@@ -79,8 +79,8 @@ Each `send()` is one `claude -p` process; turns **queue** (a `turnChain`
 serializes them, so two processes never race the same workspace conversation).
 Continuity is preserved by passing `--continue` on every turn after the first,
 which resumes the conversation persisted in the workspace. The reply reader is
-the ported `makeBufferedReader`; closing it (or `interrupt()`) kills the
-in-flight process. See [DESIGN.md § Turn model](./DESIGN.md#turn-model--the-floot-session-shape).
+`@endo/exo-stream`'s `makeBufferedReader`; closing it (or `interrupt()`) kills
+the in-flight process. See [DESIGN.md § Turn model](./DESIGN.md#turn-model--the-floot-session-shape).
 
 ### `ClaudeCredentials`
 

@@ -38,7 +38,7 @@ import { makeError, q, X } from '@endo/errors';
 import { mapReader } from '@endo/stream';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
 
-import { makeBufferedReader } from './buffered-channel.js';
+import { makeBufferedReader } from '@endo/exo-stream/buffered-channel.js';
 
 /** @import { SandboxHandle, ProcessHandle } from '@endo/sandbox/types.js' */
 
@@ -368,8 +368,7 @@ export const makeClaudeClient = ({
     /** @type {ProcessHandle | null} */
     let proc = null;
     let closed = false;
-    const { push, reader, setOnClose } =
-      makeBufferedReader('ClaudeReplyReader');
+    const { push, reader, setOnClose } = makeBufferedReader();
     setOnClose(() => {
       closed = true;
       if (proc) {

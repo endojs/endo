@@ -178,9 +178,10 @@ Caveats worth knowing:
 A _session_ is one `ClaudeClient`; a _turn_ is one `claude -p … --output-format
 stream-json` process spawned in the slice, whose parsed stdout is streamed to
 the caller through a buffered reply reader. The turn model mirrors the **floot
-session** (`packages/floot` on the `llm-kumavis-floot` branch) so the two can
-later share one interface guard — `src/buffered-channel.js` is ported
-byte-identical from floot.
+session** (`packages/floot` on the `llm-kumavis-floot` branch) so the two share
+one interface guard: both consume `makeBufferedReader` from
+`@endo/exo-stream/buffered-channel.js` (the buffered-channel consolidation,
+`designs/buffered-channel-exo-stream-consolidation.md`).
 
 ### How floot does it (three layers)
 
@@ -219,9 +220,9 @@ stream; here we **kill the `claude -p` OS process** in the slice):
 and the reader yields the parsed stream-json events then a terminal
 `{ type: 'end' }` (clean) or `{ type: 'abort', reason }` (error). Closing the
 reader — or `interrupt()`, which closes the current reader — kills the in-flight
-process (a still-queued turn bails before it spawns). The remaining choice is
-whether to keep the ported `makeBufferedReader` local or factor it into a small
-shared package once floot lands (see the §"LLM backend layer" open questions).
+process (a still-queued turn bails before it spawns). The shared-primitive question is
+resolved: `makeBufferedReader` now lives in `@endo/exo-stream` and both floot
+and this package import it (see the §"LLM backend layer" open questions).
 
 ## LLM backend layer — one Session interface over container _or_ API
 
@@ -332,8 +333,8 @@ Stream-json → `ReplyEvent` normalisation:
         (claude -p in slice)
 ```
 
-- A shared module owns `makeBufferedReader` + the `ReplyEvent` writer + the
-  `Session` contract (port from floot, or a small shared package both depend on).
+- `@endo/exo-stream` owns `makeBufferedReader` (landed); a shared module for
+  the `ReplyEvent` writer + the `Session` contract remains open.
 - The API backend keeps its sub-seam (`StreamingProvider`, swappable across
   hosts); the container backend has none (claude-code is monolithic) — note the
   asymmetry rather than forcing a fake provider around the CLI.
@@ -545,8 +546,8 @@ provision, previously listed here as not-runnable, is now covered by
 
 These were symptoms of the missing floot layers; the
 [Turn model](#turn-model--the-floot-session-shape) refactor fixed
-them. `send()` now returns a buffered reply reader (the ported
-`src/buffered-channel.js`) and queues the turn on a `turnChain`.
+them. `send()` now returns a buffered reply reader
+(`@endo/exo-stream/buffered-channel.js`) and queues the turn on a `turnChain`.
 
 1. **Closing a reader did not kill the turn** — FIXED. The reply reader's
    `onClose` (fired on `return`/`throw`, and by `interrupt()`/`terminate()`)
