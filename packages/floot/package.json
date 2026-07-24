@@ -26,7 +26,8 @@
     "setup-factory": "./setup-factory.sh",
     "lint": "yarn lint:eslint",
     "lint-fix": "yarn lint:eslint --fix",
-    "lint:eslint": "eslint '**/*.js'"
+    "lint:eslint": "eslint '**/*.js'",
+    "test": "ava"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
@@ -42,8 +43,15 @@
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.*"
+    ],
+    "timeout": "2m"
   }
 }

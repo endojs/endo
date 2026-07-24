@@ -39,6 +39,7 @@ import {
 } from '@endo/fae/src/tool-makers.js';
 
 import { createStreamingProvider } from './providers/index.js';
+import { runClaudeTurn } from './src/claude-turn.js';
 import { makeReplyChannel } from './src/stream.js';
 
 // Cap the tool-call loop so a misbehaving model can't spin forever before it
@@ -308,7 +309,17 @@ const MODELS = [
     title: 'Claude Haiku 4.5',
     description: 'Fastest and cheapest — best for quick, simple turns.',
   },
+  {
+    id: 'claude-cli',
+    title: 'Claude Code CLI (sandbox)',
+    description:
+      'A sandboxed Claude Code session (@endo/claude-sandbox) — the CLI runs ' +
+      'its own tools inside the container over a 9P-projected workspace.',
+  },
 ];
+// Not an LLM id: sessions pinned to this entry route through a ClaudeClient
+// capability (@endo/claude-sandbox) instead of the streaming API provider.
+const CLAUDE_CLI_MODEL_ID = 'claude-cli';
 // Mirrors createStreamingProvider's fallback so the UI's notion of "default"
 // agrees with what an unpinned session actually runs.
 const DEFAULT_MODEL_ID = 'claude-sonnet-4-6';
@@ -413,6 +424,14 @@ const provisionPresetObjects = async (
  */
 
 /**
+ * @typedef {object} ClaudeClientConfig
+ * @property {any} claudeClient - A ClaudeClient capability
+ *   (@endo/claude-sandbox): `send(prompt) -> reply reader` of raw stream-json
+ *   events. Turns bypass the provider tool loop — the CLI runs its own tools
+ *   in the sandbox and keeps its own conversation continuity.
+ */
+
+/**
  * Build a streaming agent over a guest's powers. The returned object exposes
  * `converse(input, writer)`, which appends to the conversation tree, streams the
  * model's reply through `writer` (src/stream.js), and persists the assistant
@@ -433,7 +452,7 @@ const provisionPresetObjects = async (
  *
  * @param {any} powers - Guest powers (petstore for conversation history)
  * @param {Promise<object> | object | undefined} _context
- * @param {ProviderConstructorConfig | InjectedProviderConfig} providerConfig
+ * @param {ProviderConstructorConfig | InjectedProviderConfig | ClaudeClientConfig} providerConfig
  * @param {string} [systemPrompt]
  * @returns {Promise<{ converse: (input: string | object, writer: object) => Promise<void>, getHistory: () => Promise<Array<Record<string, any>>>, startInbox: () => void }>}
  */
@@ -443,13 +462,16 @@ export const makeStreamingAgent = async (
   providerConfig,
   systemPrompt,
 ) => {
-  const provider =
-    providerConfig.provider ||
-    createStreamingProvider({
-      LAL_HOST: providerConfig.host,
-      LAL_MODEL: providerConfig.model,
-      LAL_AUTH_TOKEN: providerConfig.authToken,
-    });
+  const claudeClient = /** @type {any} */ (providerConfig).claudeClient;
+  /** @type {any} */
+  const provider = claudeClient
+    ? null
+    : /** @type {any} */ (providerConfig).provider ||
+      createStreamingProvider({
+        LAL_HOST: /** @type {any} */ (providerConfig).host,
+        LAL_MODEL: /** @type {any} */ (providerConfig).model,
+        LAL_AUTH_TOKEN: /** @type {any} */ (providerConfig).authToken,
+      });
 
   const effectivePrompt = systemPrompt || defaultSystemPrompt;
   const tree = makeConversationTree(makeEndoPetstoreBackend(powers));
@@ -617,6 +639,31 @@ export const makeStreamingAgent = async (
     const userNode = await tree.addNode(baseLeafId, [
       { role: 'user', content: `${text}`, ...(meta ? { meta } : {}) },
     ]);
+
+    if (claudeClient) {
+      // Claude-CLI turn: one send to the ClaudeClient capability. The CLI runs
+      // its own agentic loop in the sandbox (tools, continuity via the
+      // workspace), so the provider tool loop below is bypassed; the persisted
+      // history keeps only the user turn and the final assistant text.
+      writer.setPhase('thinking');
+      const { finalContent: replyText, usage: turnUsage } = await runClaudeTurn(
+        { client: claudeClient, text, writer, signal },
+      );
+      if (signal?.aborted) return;
+      const finalNode = await tree.addNode(userNode.id, [
+        { role: 'assistant', content: replyText },
+      ]);
+      cachedLeaf = finalNode.id;
+      const totals = await loadUsage();
+      totals.inputTokens += turnUsage?.inputTokens || 0;
+      totals.outputTokens += turnUsage?.outputTokens || 0;
+      totals.turns += 1;
+      saveUsage();
+      writer.usage(totals);
+      writer.final(replyText);
+      writer.end();
+      return;
+    }
 
     // Agentic loop: stream a reply; if it calls tools, run them, persist the
     // assistant turn plus tool results, and loop again until the model returns a
@@ -1004,6 +1051,31 @@ export const make = (hostPowers, _context, { env } = {}) => {
     return providerConfigP;
   };
 
+  // The ClaudeClient capability backing `claude-cli` sessions, resolved lazily
+  // from the factory host's petstore (FLOOT_CLAUDE_CLIENT names it; default
+  // "claude-client"). Provisioned separately by @endo/claude-sandbox's setup —
+  // sessions pinned to claude-cli fail with a clear error until it exists.
+  /** @type {Promise<any> | undefined} */
+  let claudeClientP;
+  const getClaudeClient = () => {
+    if (!claudeClientP) {
+      const name = env?.FLOOT_CLAUDE_CLIENT || 'claude-client';
+      claudeClientP = E(powers)
+        .lookup(name)
+        .catch(error => {
+          claudeClientP = undefined;
+          throw new Error(
+            `floot: could not resolve the ClaudeClient capability "${name}" ` +
+              `(provision one with @endo/claude-sandbox, or set ` +
+              `FLOOT_CLAUDE_CLIENT): ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+          );
+        });
+    }
+    return claudeClientP;
+  };
+
   // One streaming provider per model. Sessions that don't pin a model share the
   // entry under the empty-string key (the factory's configured default model).
   /** @type {Map<string, Promise<any>>} */
@@ -1120,13 +1192,18 @@ export const make = (hostPowers, _context, { env } = {}) => {
             err instanceof Error ? err.message : String(err),
           );
         }
-        // Build (or reuse) the provider for this session's pinned model; an
-        // unpinned session follows the factory's configured default.
-        const provider = await getProvider(entry?.model);
+        // Build (or reuse) the backend for this session's pinned model; an
+        // unpinned session follows the factory's configured default. The
+        // claude-cli pseudo-model routes through a ClaudeClient capability
+        // instead of a streaming API provider.
+        const agentConfig =
+          entry?.model === CLAUDE_CLI_MODEL_ID
+            ? { claudeClient: await getClaudeClient() }
+            : { provider: await getProvider(entry?.model) };
         const agent = await makeStreamingAgent(
           sessionGuest,
           undefined,
-          { provider },
+          agentConfig,
           sessionPrompt,
         );
         // Each session is addressable by mail: start following its inbox.
