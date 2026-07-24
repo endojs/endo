@@ -2,7 +2,7 @@
 
 > Ensure each named export is immediately followed by a call to `harden`.
 
-**Category:** Possible Errors  
+**Category:** Possible Errors
 **Fixable:** Yes (code)
 
 ## Why this exists

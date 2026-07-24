@@ -32,15 +32,12 @@
 #
 # Coverage matches `eslint .`: the union of the directory arguments across all
 # buckets is exactly `packages/*/` plus every top-level non-package directory,
-# the same paths the per-package script passed and the same set `eslint .`
-# walks -- only the grouping into processes differs. The lint configuration
-# only enables linting under packages/ (the root package.json is
-# `{ "root": true }` with no rules and no extra extensions), so the
-# non-package directories carry no lintable files today; they are still linted
-# so that any future root-level source is covered exactly as `eslint .` would
-# have. The root `.eslintignore` applies to every batch. Extra arguments are
-# forwarded to each invocation, so `scripts/eslint-repo.sh --fix` fixes the
-# whole repository.
+# the same paths the repository lint command walks -- only the grouping into
+# processes differs. The flat root config owns ignore patterns and per-file
+# rules; there is no `.eslintignore` or legacy `eslintConfig.root` setting to
+# apply. Top-level non-package paths such as `browser-test/` and `scripts/`
+# therefore remain part of lint coverage. Extra arguments are forwarded to
+# each invocation, so `scripts/eslint-repo.sh --fix` fixes the whole repository.
 #
 # ESLINT_BUCKET_SIZE (default 10) tunes how many packages share one process.
 # Lower it if a future large pull request ever pressures a bucket into the

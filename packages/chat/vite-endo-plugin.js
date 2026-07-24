@@ -324,7 +324,7 @@ export const makeEndoPlugin = () => {
           });
           res.writeHead(302, { Location: `/#${fragment}` });
           res.end();
-        } catch (error) {
+        } catch (_error) {
           res.statusCode = 503;
           res.end('Daemon not available');
         }

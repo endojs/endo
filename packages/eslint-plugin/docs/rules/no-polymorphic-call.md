@@ -2,7 +2,7 @@
 
 > Disallow polymorphic method calls that may be corrupted or trapped.
 
-**Category:** Possible Errors  
+**Category:** Possible Errors
 **Fixable:** No
 
 ## Why this exists

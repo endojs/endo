@@ -6,13 +6,11 @@
  *   2. Bundle Electron main-process code (esbuild)
  *   3. Download Node binary for embedding
  *   4. Prepare package (copy node binary + chat dist)
- *   5. Package with @electron/packager (produces .app)
+ *   5. Package with \@electron/packager (produces .app)
  *   6. Create distributables (DMG + zip) — skipped with --app-only
  *
  * Cross-platform: works on macOS, Linux, and Windows.
  */
-
-/* global process */
 
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';

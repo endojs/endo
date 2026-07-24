@@ -19,7 +19,7 @@ export default createRule({
   create(context) {
     const sourceCode = context.sourceCode ?? context.getSourceCode();
 
-    /** Tracks each local name → set of exported names seen so far. */
+    /** @type {Map<string, Set<string>>} Tracks local to exported names. */
     const seen = new Map();
 
     const add = (localName, exportedName, node) => {

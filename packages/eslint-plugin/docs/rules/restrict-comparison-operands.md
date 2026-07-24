@@ -2,7 +2,7 @@
 
 > Require both operands of a comparison operator to be compatible types.
 
-**Category:** Possible Errors  
+**Category:** Possible Errors
 **Requires TypeScript type information:** Yes
 
 ## Why this exists

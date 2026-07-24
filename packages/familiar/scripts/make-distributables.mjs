@@ -6,8 +6,6 @@
  * - Windows: zip
  */
 
-/* global process */
-
 import { execSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';

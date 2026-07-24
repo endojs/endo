@@ -1,5 +1,4 @@
 // @ts-check
-/* global globalThis */
 
 /**
  * `localhttp://` custom protocol handler for Electron.

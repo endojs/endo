@@ -184,8 +184,11 @@ if (methods.includes('followNameChanges')) {
 
 ## ESLint
 
-The project uses `plugin:@endo/internal` which extends `prettier`,
-`plugin:@jessie.js/recommended`, and `plugin:@endo/strict`.
+The project uses `plugin:@endo/internal` for Endo's internal rules and
+`plugin:@endo/strict` for the shared legacy style, import, and recommended
+rules.
+Jessie is configured separately in the root flat config, where its processor
+and `safe-await-separator` rule are applied explicitly.
 This enforces harden-exports, restricts plus operands, and requires PascalCase
 for interfaces.
 
@@ -239,11 +242,12 @@ Running the following before pushing avoids the churn:
 
 ### Lint-rule gotchas
 
-- Do **not** rename "intentionally unused" identifiers with a leading
-  underscore.
-  This conflicts with `no-underscore-dangle`.
-  Use `// eslint-disable-next-line no-unused-vars` instead, or delete the unused
-  declaration.
+- Do **not** rename an intentionally unused identifier solely to silence
+  `no-unused-vars`.
+  Caught errors matching `^_` are explicitly ignored by
+  `caughtErrorsIgnorePattern`, so a form such as `catch (_err)` is allowed.
+  For other declarations, use `// eslint-disable-next-line no-unused-vars` or
+  delete the unused declaration rather than adding a leading underscore.
 - `/** @type {T} */` binds to the next declaration, not the enclosing block.
   When refactoring, keep the tag adjacent to the thing it annotates; hoisting a
   local above its type comment silently retypes the local.

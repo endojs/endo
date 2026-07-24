@@ -2,7 +2,7 @@
 
 > Make `assert.fail()` count as a `throw` in ESLint's control-flow analysis.
 
-**Category:** Possible Errors  
+**Category:** Possible Errors
 **Fixable:** No
 
 ## Why this exists

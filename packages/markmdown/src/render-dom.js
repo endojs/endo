@@ -1,5 +1,4 @@
 // @ts-check
-/* global globalThis */
 
 /** @import { Token, Block, RenderOptions } from './types.js' */
 

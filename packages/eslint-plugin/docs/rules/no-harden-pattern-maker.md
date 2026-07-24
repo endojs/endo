@@ -2,7 +2,7 @@
 
 > Disallow `harden()` on values returned by Pattern makers (`M.*`), which are already hardened.
 
-**Category:** Suggestions  
+**Category:** Suggestions
 **Fixable:** Yes (code)
 
 ## Why this exists

@@ -1,11 +1,9 @@
 /**
- * Packages the Familiar Electron app using @electron/packager.
+ * Packages the Familiar Electron app using \@electron/packager.
  *
  * Replaces `electron-forge package`. Produces a platform-native app bundle
  * (e.g. Familiar.app on macOS) in out/Familiar-<platform>-<arch>/.
  */
-
-/* global process */
 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

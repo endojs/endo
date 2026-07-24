@@ -2,7 +2,7 @@
 
 > Disallow exporting the same local binding under multiple names.
 
-**Category:** Possible Errors  
+**Category:** Possible Errors
 **Fixable:** No
 
 ## Why this exists

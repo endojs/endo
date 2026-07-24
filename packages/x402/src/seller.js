@@ -105,7 +105,7 @@ export const makePaywall = ({
     let paymentPayload;
     try {
       paymentPayload = decodeHeaderObject(xPaymentHeader, 'X-PAYMENT');
-    } catch (cause) {
+    } catch (_cause) {
       const reason = 'malformed-payment';
       return { ok: false, reason, challenge: challenge(reason) };
     }

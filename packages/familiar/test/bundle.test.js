@@ -1,5 +1,4 @@
 // @ts-check
-/* global process */
 
 /**
  * Familiar build smoke test.

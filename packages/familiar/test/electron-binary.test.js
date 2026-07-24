@@ -1,5 +1,4 @@
 // @ts-check
-/* global process */
 
 /**
  * Verify that the `electron` package resolves to a runnable binary path.

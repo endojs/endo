@@ -74,7 +74,9 @@ test('chat bundle builds and loads', async ({ page }) => {
       `consoleMessages (${consoleMessages.length}):`,
       ...consoleMessages.map(m => `  [${m.type}] ${m.text}`),
     ].join('\n');
-    throw new Error(`${/** @type {Error} */ (err).message}\n\n${diagnostic}`);
+    throw new Error(`${/** @type {Error} */ (err).message}\n\n${diagnostic}`, {
+      cause: err,
+    });
   }
 
   // The "Gateway not configured" branch in main.js intentionally

@@ -2,7 +2,7 @@
 
 > Disallow assignment to exported `let`, `var`, or `function` bindings.
 
-**Category:** Possible Errors  
+**Category:** Possible Errors
 **Fixable:** No
 
 ## Why this exists

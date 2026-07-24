@@ -78,7 +78,7 @@ Extends `recommended` and adds the [`restrict-comparison-operands`](docs/rules/r
 
 ### `style` / `flat/style`
 
-Opinionated JS coding-style rules: [@stylistic/eslint-plugin](https://eslint.style/), [jsdoc](https://github.com/gajus/eslint-plugin-jsdoc), and [prettier](https://github.com/prettier/eslint-config-prettier). 
+Opinionated JS coding-style rules: [@stylistic/eslint-plugin](https://eslint.style/), [jsdoc](https://github.com/gajus/eslint-plugin-jsdoc), and [prettier](https://github.com/prettier/eslint-config-prettier).
 
 ```js
 ...endoPlugin.configs['flat/style']

@@ -39,7 +39,7 @@ const buildTar = files => {
 const readAll = async chunks => {
   /** @type {Array<{ path: string, type: string, text: string }>} */
   const entries = [];
-  const source = (async function* source() {
+  const source = (async function* chunkSource() {
     yield* chunks;
   })();
   for await (const entry of readTarEntries(source)) {

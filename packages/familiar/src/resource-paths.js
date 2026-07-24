@@ -1,5 +1,5 @@
 // @ts-check
-/* global process, globalThis */
+/* global process */
 
 /**
  * Centralizes all resource path resolution with a dev/packaged switch.
