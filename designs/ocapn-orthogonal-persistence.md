@@ -1,4 +1,4 @@
-# OCapN Orthogonal Persistence Machine (`@endo/siesta`)
+# OCapN Orthogonal Persistence Machine (`@endo/thixotrope`)
 
 | | |
 |---|---|
@@ -12,7 +12,7 @@
 The machine is **protocol-unified and non-reifying**: OCapN end to
 end, with the daemon standing on the OCapN hub (`@endo/ocapn/hub`) —
 a forwarding and slot-rewriting node holding only persisted c-list
-tables, per maintainer direction ("the siesta host should not even be
+tables, per maintainer direction ("the thixotrope host should not even be
 much of a client implementation, mostly just a forwarding and slot
 rewriting hub"). This is § *A non-reifying host* realized: every
 message between workers and peers is structurally transcoded through
@@ -45,7 +45,7 @@ with the distinguishing scenarios on real XS heap snapshots:
   roles (deposit/withdraw on the hub bootstrap as exporter;
   hub-performed redemption via the embedder's `handoffs.connect`
   dial power as receiver), and JSON write-through persistence.
-- **`packages/siesta`** — the hub daemon (`makeSiestaDaemon`: hub +
+- **`packages/thixotrope`** — the hub daemon (`makeThixotropeDaemon`: hub +
   worker transports + netlayer handshake/resumption + the endpoint),
   the OCapN worker peer and its XS bundle, the deterministic pipe
   identity kit, the durable worker transport (snapshot-keyed frame
@@ -53,8 +53,8 @@ with the distinguishing scenarios on real XS heap snapshots:
   the endpoint-scoped session records (resource descriptions,
   at-most-once answer obligations), the durable netlayer for remote
   peers, filesystem/memory stores, and the real XS engine
-  (`makeXsEngine` over `rust/siesta-xs-worker` evaluating
-  `dist-xs/worker-peer.js`). Public surface: `makeSiestaDaemon`,
+  (`makeXsEngine` over `rust/thixotrope-xs-worker` evaluating
+  `dist-xs/worker-peer.js`). Public surface: `makeThixotropeDaemon`,
   `makeXsEngine`, `makeFsStore`, `makeTimerResource`,
   `makeDurableNetLayer`; the peer replay engines, memory store,
   transport, records, pipe network, and hub-facing plumbing are
@@ -153,7 +153,7 @@ flowchart LR
     end
     subgraph host daemon
         N[OCapN node<br/>locator: swissnum → presence]
-        H[siesta host<br/>one CapTP session per worker]
+        H[thixotrope host<br/>one CapTP session per worker]
         S[(store<br/>tables, journal, meta,<br/>publications)]
     end
     subgraph workers
@@ -175,7 +175,7 @@ own.
 ### The worker
 
 A worker is one guest heap behind a CapTP endpoint
-(`packages/siesta/src/worker-shell.js`):
+(`packages/thixotrope/src/worker-shell.js`):
 
 - one persistent `Compartment` endowed with pure capabilities
   (`E`, `Far`, `harden`);
@@ -194,7 +194,7 @@ work, § *Host-provided system resources*).
 ### The engine seam
 
 The host takes a `WorkerEngine` power
-(`packages/siesta/src/host.js`):
+(`packages/thixotrope/src/host.js`):
 
 ```js
 engine.start({ debugName, snapshot, onOutbound })
@@ -265,7 +265,7 @@ The host therefore persists its half of each session and resumes it:
 - **Slot counters** — the host's export and promise counters live in a
   plain-JSON *tables record* plugged into `makeCapTP` via the existing
   `makeCapTPImportExportTables` option
-  (`packages/siesta/src/persistent-tables.js`).
+  (`packages/thixotrope/src/persistent-tables.js`).
   A restarted host never re-mints a slot the worker's snapshot still
   binds to another object.
 - **Import descriptors** — `(slot, interface)` pairs for every object
@@ -317,7 +317,7 @@ sturdy refs exist to provide until Layer 2 lands.
 ### Sleepy workers
 
 Per-worker lifecycle, serialized on one turn queue so wakes never race
-sleeps (`packages/siesta/src/host.js`):
+sleeps (`packages/thixotrope/src/host.js`):
 
 - **Awake → asleep.** After `idleTimeoutMs` with no traffic and no
   questions in flight — or on explicit `worker.sleep()` — the host waits
@@ -368,36 +368,36 @@ Rescoped per maintainer direction: **take the `xsnap` crate, skip the
 `endor` daemon.**
 The endor supervisor is the Rust re-hosting of the endo daemon —
 manager bundles, formula SQLite, worker registries — all of which the
-siesta host already is; routing siesta workers through it would mean
+thixotrope host already is; routing thixotrope workers through it would mean
 two overlapping supervisors, and its generated-bundle toolchain is
 what was broken.
-What siesta needs from the Rust side is only the crate: the XS build
+What thixotrope needs from the Rust side is only the crate: the XS build
 system, the snapshot FFI (`suspend_to_cas`/`resume_from_cas`), and the
 promise-job pump.
 
 The landed shape:
 
-- **`rust/siesta-xs-worker`** — a ~250-line binary on the `xsnap`
-  crate: one XS machine, one host function (`siestaSend`, plus a
-  `siestaTrace` diagnostic channel), newline-delimited ASCII JSON over
+- **`rust/thixotrope-xs-worker`** — a ~250-line binary on the `xsnap`
+  crate: one XS machine, one host function (`thixotropeSend`, plus a
+  `thixotropeTrace` diagnostic channel), newline-delimited ASCII JSON over
   fd 3/4 (`deliver`/`ack` with promise-quiescence per delivery,
   `snapshot` → CAS sha256, restore via `--restore <hash>`).
   Boot scripts and the worker bundle are read from files at runtime —
   no `include_str!` coupling, so the crate's generated-bundle problem
   is reduced to satisfying stubs.
-- **`packages/siesta/scripts/bundle-xs-worker.mjs`** — generates
+- **`packages/thixotrope/scripts/bundle-xs-worker.mjs`** — generates
   `dist-xs/boot.js` (xsnap's committed polyfills) and
   `dist-xs/worker-xs.js` (the worker shell + CapTP bundled via
   compartment-mapper), and stubs xsnap's `include_str!` inputs.
-- **`makeXsEngine`** (`packages/siesta/src/xs-engine.js`) — the
+- **`makeXsEngine`** (`packages/thixotrope/src/xs-engine.js`) — the
   `WorkerEngine` adapter: spawn, restore, deliver, snapshot,
   `releaseSnapshot` unlinks the superseded CAS entry.
-- **Exit criterion met**: the siesta scenarios pass on real XS heap
-  snapshots (`packages/siesta/test/xs-engine.test.js`), skipped
+- **Exit criterion met**: the thixotrope scenarios pass on real XS heap
+  snapshots (`packages/thixotrope/test/xs-engine.test.js`), skipped
   automatically when the binary or bundles are absent.
 
-Build: `yarn workspace @endo/siesta build:xs-bundles`, then
-`cargo build --release -p siesta-xs-worker` (needs the `c/moddable`
+Build: `yarn workspace @endo/thixotrope build:xs-bundles`, then
+`cargo build --release -p thixotrope-xs-worker` (needs the `c/moddable`
 submodule).
 
 Findings that shaped the implementation, for future engine authors:
@@ -409,7 +409,7 @@ Findings that shaped the implementation, for future engine authors:
   `compartment.globalThis`, which is portable to both.
 - The ses shim's `repairIntrinsics` fails on XS — and is the wrong
   tool there anyway: XS implements Hardened JavaScript natively
-  (`mxLockdown`). `siesta-xs-worker` registers the engine's own
+  (`mxLockdown`). `thixotrope-xs-worker` registers the engine's own
   `fx_harden`/`fx_lockdown` as the `harden`/`lockdown` globals
   (exactly as `xst` does; both join the snapshot callback table), the
   polyfills' freeze-based harden shim steps aside, and the boot
@@ -454,7 +454,7 @@ worker's session — **without waking either worker**. Controller and
 facade objects are themselves described resources. Export seating is
 two-phase at host startup so cross-worker descriptions can name
 runtimes constructed later (including cycles). The test
-(`packages/siesta/test/worker-controller.test.js`) restarts the host
+(`packages/thixotrope/test/worker-controller.test.js`) restarts the host
 with both workers asleep and shows one pull on the child's sturdy
 name waking the child, crossing to the parent, and waking it too.
 
@@ -474,7 +474,7 @@ and the tables kit's `restoreExports` rebuilds each described export
 at resume, seated through `captp.provideExport`. One serialized
 artifact — the session tables — carries everything needed to resume
 the host's half. Never visible to guests.
-`makeSiestaHost({ resources })` supplies the maker registry;
+`makeThixotropeHost({ resources })` supplies the maker registry;
 `host.makeResource(type, description)` mints instances; endowments
 reach guests via `worker.evaluate(source, names, values)`.
 A host that resumes a worker without the maker its exports need fails
@@ -611,7 +611,7 @@ the canister or vat itself, so new code must inhabit the old identity,
 so state must survive a code swap, so the persistence layer must learn
 about versions.
 
-Per maintainer direction, siesta refuses that coupling with one more
+Per maintainer direction, thixotrope refuses that coupling with one more
 level of indirection, in the spirit of the endo daemon's pet store:
 make the durable unit of identity a **name binding**, and keep vats
 pure, immortal-code, and disposable.
@@ -676,7 +676,7 @@ via session abort, restarted holders reject via the tombstone
 descriptors); `host.unpublish(secret)` removes locator roots; and both
 sweep and superseded-ref release go through a shared-ref guard so a
 content-addressed snapshot shared by identical sibling heaps is only
-released with its last user (`packages/siesta/test/vat-gc.test.js`,
+released with its last user (`packages/thixotrope/test/vat-gc.test.js`,
 including cycle collection of a mutually-linked parent and child).
 When the name hub lands, `named` edges join the same graph.
 
@@ -735,7 +735,7 @@ handshake/resume machinery lives at the **netlayer level**, beneath
 the OCapN codec, in two layers:
 
 **Layer 1 (landed): transport resumption.**
-`packages/siesta/src/durable-netlayer.js` (`makeDurableNetLayer`)
+`packages/thixotrope/src/durable-netlayer.js` (`makeDurableNetLayer`)
 wraps a base transport netlayer with resumable logical connections:
 
 - each logical connection is identified by an unguessable resume
@@ -758,7 +758,7 @@ an acceptor parks a dropped logical connection indefinitely.
 **Layer 2 (landed): daemon-restart survival.** A daemon restart
 loses the daemon's in-memory `Ocapn` instance, so resumption rebuilds
 it from durable state
-(`packages/siesta/src/durable-sessions.js` plus the `resumption`
+(`packages/thixotrope/src/durable-sessions.js` plus the `resumption`
 power in the durable netlayer; `test/durable-sessions.test.js` shows
 a live counter presence surviving single and repeated daemon
 restarts, and a call issued while the daemon is down completing
@@ -857,18 +857,18 @@ unifies on the OCapN wire protocol end-to-end, chosen by end result
   location by resolving undefined (fall through to the handshake
   path, enabling hybrid routing networks), and a `shouldHandoff`
   relay policy (see below).
-- `packages/siesta/src/pipe-network.js` — the host↔worker OCapN
+- `packages/thixotrope/src/pipe-network.js` — the host↔worker OCapN
   network over a trusted byte duct: no wire handshake at all; both
   ends derive BOTH (authority-free) identities deterministically from
   the worker id and fabricate the same fully-authenticated session
   independently via `provideSession`. Deterministic identity makes
   worker sessions restart-stable by construction.
-- `packages/siesta/src/worker-peer.js` — the OCapN-native worker
+- `packages/thixotrope/src/worker-peer.js` — the OCapN-native worker
   shell: the persistent Compartment behind a full OCapN peer; the
   evaluate facet is fetched from the worker's own locator (swissnum
   `shell`) through the session bootstrap.
-- `packages/siesta/src/routing-network.js` — one daemon client fronts
-  both transports: `siesta-pipe` locations resolve to worker ducts
+- `packages/thixotrope/src/routing-network.js` — one daemon client fronts
+  both transports: `thixotrope-pipe` locations resolve to worker ducts
   (handshake-free), everything else falls back to the durable TCP
   netlayer, in a single session manager.
 - **Relay, not handoff**: passing a worker import onward to a TCP
@@ -945,7 +945,7 @@ an OCapN relay: one protocol, one marshal format, one session model.
    bundled graph (verified: zero `require` in the bundle output;
    the deterministic pipe identities avoid `getRandomValues` in the
    guest). The end-to-end test
-   (`test/worker-peer-xs.test.js`) drives `siesta-xs-worker` through
+   (`test/worker-peer-xs.test.js`) drives `thixotrope-xs-worker` through
    `makeXsEngine`: the host's live OCapN session continues across a
    heap snapshot → process kill → restore, with counter state,
    presence identity, and a pre-snapshot promise all carrying over —
@@ -1021,7 +1021,7 @@ an OCapN relay: one protocol, one marshal format, one session model.
    after a daemon restart — passes on real XS heaps through a
    restored forwarder, with the tests asserting the forwarder record
    exists and no reified obligation was recorded.
-5. ~~Retire the captp worker layer~~ (landed): `makeSiestaDaemon` is
+5. ~~Retire the captp worker layer~~ (landed): `makeThixotropeDaemon` is
    now the unified daemon — one OCapN client whose worker sessions
    ride durable worker transports and whose remote sessions ride the
    injected (durable) netlayer, with one composed sessionHooks
@@ -1071,7 +1071,7 @@ non-reifying core this document's comms-vat analysis pointed at.
 - The hub's one endpoint behavior is its bootstrap: `fetch(swissnum)`
   answers from the publications table, recording the answer route so
   pipelined delivers through it forward.
-- The daemon (`makeSiestaDaemon`) composes: worker sessions over the
+- The daemon (`makeThixotropeDaemon`) composes: worker sessions over the
   durable worker transports (hub mode: pure frame callbacks, no
   client seams), remote sessions over the injected netlayer (daemon-
   side `op:start-session` handshake per connection; the durable
@@ -1200,7 +1200,7 @@ above. What remains, still loud rather than silent:
 1. **Phase 1 (landed): captp resume seam.** `provideImport` on
    `makeCapTP`, with identity-preservation tests. (`provideExport`,
    its mirror, landed with Phase 4.)
-2. **Phase 2 (landed): host prototype.** `@endo/siesta`: persistent
+2. **Phase 2 (landed): host prototype.** `@endo/thixotrope`: persistent
    tables, journal, sleepy lifecycle, publications, OCapN daemon
    wrapper, journal-replay engine; end-to-end restart tests over the
    TCP-testing netlayer.
@@ -1209,7 +1209,7 @@ above. What remains, still loud rather than silent:
    restore from ref plus suffix including crash recovery,
    superseded-ref release) proven first on
    `makeSnapshottingReplayEngine`, then the exit criterion met on real
-   XS snapshots via `rust/siesta-xs-worker` + `makeXsEngine`
+   XS snapshots via `rust/thixotrope-xs-worker` + `makeXsEngine`
    (§ *The XS engine*). The lockdown follow-up landed via XS's
    native Hardened JavaScript (see § *The XS engine*).
 4. **Phase 4 (landed): system resources.** Durable host exports at the
@@ -1256,7 +1256,7 @@ above. What remains, still loud rather than silent:
    forfeit true snapshot restoration and force a registry protocol on
    every guest.
 2. **`provideImport` lands in `@endo/captp` rather than being simulated
-   in siesta.** Re-minting outside `convertSlotToVal` would break value
+   in thixotrope.** Re-minting outside `convertSlotToVal` would break value
    identity when a restored presence is passed back to its worker; the
    seam is five lines in the right place versus a standing correctness
    bug in the wrong one.
@@ -1272,7 +1272,7 @@ above. What remains, still loud rather than silent:
    persistence orthogonal.
 6. **No upgrade.** Snapshots pin code; a "new version" of a guest is a
    new worker.
-   This is the simplification that separates siesta from the daemon.
+   This is the simplification that separates thixotrope from the daemon.
 7. **No worker names.** Workers are identified by host-generated
    unguessable ids; a user-chosen name space would be ambient authority
    (any holder of the host could reach any worker by guessing a
@@ -1284,7 +1284,7 @@ above. What remains, still loud rather than silent:
 
 ## Known Gaps and TODOs
 
-- [x] ~~XS engine adapter.~~ Landed as `rust/siesta-xs-worker` +
+- [x] ~~XS engine adapter.~~ Landed as `rust/thixotrope-xs-worker` +
       `makeXsEngine` after the rescope onto the `xsnap` crate.
 - [x] ~~No SES lockdown inside XS workers.~~ Landed via XS's native
       Hardened JavaScript: the runner installs `fx_harden` /

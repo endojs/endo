@@ -195,9 +195,6 @@
       "path": "packages/ses-ava/tsconfig.composite.json"
     },
     {
-      "path": "packages/siesta/tsconfig.composite.json"
-    },
-    {
       "path": "packages/skel/tsconfig.composite.json"
     },
     {
@@ -214,6 +211,9 @@
     },
     {
       "path": "packages/test262-runner/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/thixotrope/tsconfig.composite.json"
     },
     {
       "path": "packages/trampoline/tsconfig.composite.json"

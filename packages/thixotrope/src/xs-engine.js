@@ -26,17 +26,17 @@ const asciiJson = value =>
 
 /**
  * A {@link WorkerEngine} backed by real XS heap snapshots: each
- * incarnation is a `siesta-xs-worker` process (rust/siesta-xs-worker)
+ * incarnation is a `thixotrope-xs-worker` process (rust/thixotrope-xs-worker)
  * running the worker peer inside an XS machine, speaking
  * newline-delimited JSON over fd 3/4. `snapshot()` streams the heap into
  * the content-addressed `casPath` and returns its sha256; `start` with a
  * snapshot ref restores the heap without re-evaluating anything.
  *
- * Build inputs: `cargo build --release -p siesta-xs-worker` (after
+ * Build inputs: `cargo build --release -p thixotrope-xs-worker` (after
  * `yarn build:xs-bundles` in this package generates `dist-xs/`).
  *
  * @param {object} options
- * @param {string} options.workerBinary path to the siesta-xs-worker binary
+ * @param {string} options.workerBinary path to the thixotrope-xs-worker binary
  * @param {string} options.bootPath pre-bundle boot script (dist-xs/boot.js)
  * @param {string} options.bundlePath worker peer bundle (dist-xs/worker-peer.js)
  * @param {string} options.casPath directory for content-addressed snapshots
@@ -95,14 +95,14 @@ export const makeXsEngine = ({
       child.on('exit', (code, signal) => {
         exited = true;
         failAll(
-          Error(`siesta-xs-worker for ${debugName} exited (${code ?? signal})`),
+          Error(`thixotrope-xs-worker for ${debugName} exited (${code ?? signal})`),
         );
       });
       child.on('error', error => {
         exited = true;
         failAll(
           Error(
-            `siesta-xs-worker for ${debugName} failed to spawn: ${
+            `thixotrope-xs-worker for ${debugName} failed to spawn: ${
               /** @type {Error} */ (error).message
             }`,
           ),
@@ -161,7 +161,7 @@ export const makeXsEngine = ({
       const request = (payload, expect) =>
         new Promise((resolve, reject) => {
           if (exited) {
-            reject(Error(`siesta-xs-worker for ${debugName} has exited`));
+            reject(Error(`thixotrope-xs-worker for ${debugName} has exited`));
             return;
           }
           pending.push({ expect, resolve, reject });

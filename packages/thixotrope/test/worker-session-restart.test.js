@@ -22,7 +22,7 @@ import { Far } from '@endo/far';
 import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
 
-import { makeSiestaDaemon } from '../src/daemon.js';
+import { makeThixotropeDaemon } from '../src/daemon.js';
 import { makePeerSnapshottingReplayEngine } from '../src/peer-replay-engine.js';
 import { makeFsStore } from '../src/store-fs.js';
 
@@ -63,7 +63,7 @@ const resources = {
 
 /** @param {string} statePath */
 const makeDaemon = statePath =>
-  makeSiestaDaemon({
+  makeThixotropeDaemon({
     store: makeFsStore(statePath),
     engine: makePeerSnapshottingReplayEngine(),
     codec: syrupCodec,
@@ -73,7 +73,7 @@ const makeDaemon = statePath =>
   });
 
 test('worker sessions survive a daemon restart', async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-wsr-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-wsr-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
   const store = makeFsStore(statePath);
 

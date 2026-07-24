@@ -11,7 +11,7 @@ import { makeOcapn } from '@endo/ocapn';
 import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
 
-import { makeSiestaDaemon } from '../src/daemon.js';
+import { makeThixotropeDaemon } from '../src/daemon.js';
 import { makeDurableNetLayer } from '../src/durable-netlayer.js';
 import { makePeerJournalReplayEngine } from '../src/peer-replay-engine.js';
 import { makeFsStore } from '../src/store-fs.js';
@@ -64,9 +64,9 @@ const makeDroppableTcp = () => {
  * @param {import('ava').ExecutionContext} t
  */
 const makeDurableDaemon = async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-net-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-durable-net-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
-  const daemon = await makeSiestaDaemon({
+  const daemon = await makeThixotropeDaemon({
     store: makeFsStore(statePath),
     engine: makePeerJournalReplayEngine(),
     codec: syrupCodec,

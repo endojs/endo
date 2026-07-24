@@ -2,7 +2,7 @@
 /* global setTimeout */
 
 /**
- * The unified siesta daemon (protocol unification phase 5): worker
+ * The unified thixotrope daemon (protocol unification phase 5): worker
  * lifecycle, built-in worker-controller and worker-facade resources,
  * host resources as endowments, durable publications, and vat-level
  * mark-and-sweep — all over one OCapN client.
@@ -19,7 +19,7 @@ import { makeOcapn } from '@endo/ocapn';
 import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
 
-import { makeSiestaDaemon } from '../src/daemon.js';
+import { makeThixotropeDaemon } from '../src/daemon.js';
 import { makePeerJournalReplayEngine } from '../src/peer-replay-engine.js';
 import { makeTimerResource } from '../src/resources.js';
 import { makeFsStore } from '../src/store-fs.js';
@@ -39,9 +39,9 @@ const COUNTER_SOURCE = `
 
 /** @param {import('ava').ExecutionContext} t */
 const makeDaemon = async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-daemon-test-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-daemon-test-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
-  const daemon = await makeSiestaDaemon({
+  const daemon = await makeThixotropeDaemon({
     store: makeFsStore(statePath),
     engine: makePeerJournalReplayEngine(),
     codec: syrupCodec,
@@ -135,9 +135,9 @@ test('a host resource reaches a guest as an endowment', async t => {
 
 test('an idle worker parks itself and wakes on the next call', async t => {
   t.timeout(10_000);
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-daemon-test-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-daemon-test-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
-  const daemon = await makeSiestaDaemon({
+  const daemon = await makeThixotropeDaemon({
     store: makeFsStore(statePath),
     engine: makePeerJournalReplayEngine(),
     codec: syrupCodec,
@@ -166,9 +166,9 @@ test('an idle worker parks itself and wakes on the next call', async t => {
 
 test('a third-party gift routes through the hub bootstrap', async t => {
   t.timeout(15_000);
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-daemon-gift-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-daemon-gift-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
-  const daemon = await makeSiestaDaemon({
+  const daemon = await makeThixotropeDaemon({
     store: makeFsStore(statePath),
     engine: makePeerJournalReplayEngine(),
     codec: syrupCodec,
@@ -245,9 +245,9 @@ test('a third-party gift routes through the hub bootstrap', async t => {
 
 test('the hub redeems an inbound gift on behalf of a worker', async t => {
   t.timeout(15_000);
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-daemon-redeem-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-daemon-redeem-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
-  const daemon = await makeSiestaDaemon({
+  const daemon = await makeThixotropeDaemon({
     store: makeFsStore(statePath),
     engine: makePeerJournalReplayEngine(),
     codec: syrupCodec,

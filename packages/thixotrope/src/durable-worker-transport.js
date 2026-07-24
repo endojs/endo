@@ -124,7 +124,7 @@ export const makeDurableWorkerTransport = ({
       // eslint-disable-next-line no-use-before-define
       sleepInternal().catch(error =>
         console.error(
-          `siesta worker transport ${debugName}: idle sleep failed`,
+          `thixotrope worker transport ${debugName}: idle sleep failed`,
           error,
         ),
       );
@@ -259,7 +259,7 @@ export const makeDurableWorkerTransport = ({
         deliveredUpTo = index + 1;
       }).catch(error => {
         console.error(
-          `siesta worker transport ${debugName}: delivery failed`,
+          `thixotrope worker transport ${debugName}: delivery failed`,
           error,
         );
       });

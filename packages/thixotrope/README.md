@@ -1,8 +1,8 @@
-# `@endo/siesta`
+# `@endo/thixotrope`
 
 A prototype distributed ocap machine with purely orthogonal persistence.
 
-A siesta daemon is a simpler cousin of the Endo daemon: it spins up
+A thixotrope daemon is a simpler cousin of the Endo daemon: it spins up
 workers whose guest state is preserved by XS heap snapshots rather
 than by explicit formula-based persistence.
 Guests never observe their own suspension, restoration, or the
@@ -42,15 +42,15 @@ import '@endo/init';
 import { E } from '@endo/eventual-send';
 import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
-import { makeFsStore, makeSiestaDaemon, makeXsEngine } from '@endo/siesta';
+import { makeFsStore, makeThixotropeDaemon, makeXsEngine } from '@endo/thixotrope';
 
-const daemon = await makeSiestaDaemon({
-  store: makeFsStore('/var/lib/siesta'),
+const daemon = await makeThixotropeDaemon({
+  store: makeFsStore('/var/lib/thixotrope'),
   engine: makeXsEngine({
-    workerBinary: 'target/release/siesta-xs-worker',
+    workerBinary: 'target/release/thixotrope-xs-worker',
     bootPath: 'dist-xs/boot.js',
     bundlePath: 'dist-xs/worker-peer.js',
-    casPath: '/var/lib/siesta/cas',
+    casPath: '/var/lib/thixotrope/cas',
   }),
   codec: syrupCodec,
   makeNetlayer: ({ handlers, logger }) => makeTcpNetLayer({ handlers, logger }),
@@ -142,8 +142,8 @@ holders' calls break loudly instead of jamming.
 
 ## Engines
 
-`makeXsEngine` is the engine: each incarnation is a `siesta-xs-worker`
-process (rust/siesta-xs-worker, a minimal runner on the `xsnap` crate)
+`makeXsEngine` is the engine: each incarnation is a `thixotrope-xs-worker`
+process (rust/thixotrope-xs-worker, a minimal runner on the `xsnap` crate)
 evaluating the worker peer bundle inside an XS machine, with real heap
 snapshots streamed into a content-addressed store.
 Binary OCapN frames ride the binary's ASCII NDJSON duct base64-encoded
@@ -153,8 +153,8 @@ Build it with:
 
 ```sh
 git submodule update --init c/moddable
-yarn workspace @endo/siesta build:xs-bundles
-cargo build --release -p siesta-xs-worker
+yarn workspace @endo/thixotrope build:xs-bundles
+cargo build --release -p thixotrope-xs-worker
 ```
 
 The XS tests (`test/worker-peer-xs.test.js`,
@@ -208,7 +208,7 @@ either worker.
 
 ## Durable sessions with remote peers
 
-OCapN has no session-resumption message, so siesta prototypes it
+OCapN has no session-resumption message, so thixotrope prototypes it
 beneath the protocol, at the netlayer: `makeDurableNetLayer` wraps a
 transport netlayer (e.g. TCP) with resumable logical connections.
 Each logical connection carries an unguessable resume token; every
@@ -221,7 +221,7 @@ session — and every live remote reference in it — survives
 transparently:
 
 ```js
-const daemon = await makeSiestaDaemon({
+const daemon = await makeThixotropeDaemon({
   // ...
   makeNetlayer: ({ handlers, logger, resumption }) =>
     makeDurableNetLayer({
@@ -276,9 +276,9 @@ Register makers on the daemon and pass instances as evaluate
 endowments:
 
 ```js
-import { makeTimerResource } from '@endo/siesta';
+import { makeTimerResource } from '@endo/thixotrope';
 
-const daemon = await makeSiestaDaemon({
+const daemon = await makeThixotropeDaemon({
   // ...
   resources: { timer: makeTimerResource },
 });
@@ -309,7 +309,7 @@ settle normally across restarts.
 
 ## API
 
-`makeSiestaDaemon({ store, engine, codec, makeNetlayer, resources?, idleSleepMs?, verbose? })`
+`makeThixotropeDaemon({ store, engine, codec, makeNetlayer, resources?, idleSleepMs?, verbose? })`
 resolves to a daemon (`idleSleepMs` parks any worker that has seen no
 deliveries for that long; workers run to quiescence per delivery and
 have no timer queue, so frame silence is exact dormancy):

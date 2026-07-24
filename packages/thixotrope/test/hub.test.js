@@ -3,7 +3,7 @@
 
 /**
  * The OCapN hub (`@endo/ocapn/hub`): the non-reifying core of the
- * next-generation siesta daemon. The hub is not a client — it holds
+ * next-generation thixotrope daemon. The hub is not a client — it holds
  * only c-list tables and forwards every message by structural
  * transcoding (slot rewriting), with bootstrap `fetch` as its only
  * endpoint behavior. These tests drive real OCapN endpoints — worker
@@ -72,7 +72,7 @@ const attachWorker = async (hub, workerId, debugLabel) => {
         framesToWorker.push(bytes);
         worker.deliver(bytes);
       },
-      // Workers are durable, as in the siesta daemon: hub frames
+      // Workers are durable, as in the thixotrope daemon: hub frames
       // toward a detached worker session queue instead of breaking.
       durable: true,
     });
@@ -302,7 +302,7 @@ test('the hub restarts from its tables mid-session', async t => {
 
   // The hub dies. Its entire being was tables; the successor loads
   // them and the endpoints re-bind their ducts. (The endpoints stand
-  // in for what siesta makes durable by other means: worker heaps by
+  // in for what thixotrope makes durable by other means: worker heaps by
   // snapshot, remote clients by being other people's processes.)
   const hub2 = makeOcapnHub({ codec: syrupCodec, store });
   attachedA.rebind(hub2);

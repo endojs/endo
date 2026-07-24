@@ -238,7 +238,7 @@
 /**
  * The durable identity of a session, sufficient to resume it in a new
  * process — supplied by the embedder (persisted, or derived
- * deterministically as siesta's pipe sessions do) and replayed via
+ * deterministically as thixotrope's pipe sessions do) and replayed via
  * `NetlayerHandlers.resumeSession`.
  *
  * @typedef {object} SessionResumption

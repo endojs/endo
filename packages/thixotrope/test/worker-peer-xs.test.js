@@ -3,14 +3,14 @@
 
 /**
  * Protocol unification phase 2 exit criterion: the OCapN worker peer
- * runs inside a real XS machine (`siesta-xs-worker` evaluating
+ * runs inside a real XS machine (`thixotrope-xs-worker` evaluating
  * `dist-xs/worker-peer.js`), speaks the OCapN p2p wire protocol to the
  * host over the process duct, and survives a heap-snapshot restore
  * while the host's OCapN session stays live. Requires the built
  * artifacts (see the package README):
  *
- *   `yarn workspace @endo/siesta build:xs-bundles`
- *   `cargo build --release -p siesta-xs-worker`
+ *   `yarn workspace @endo/thixotrope build:xs-bundles`
+ *   `cargo build --release -p thixotrope-xs-worker`
  *
  * When either is missing these tests are skipped.
  */
@@ -32,8 +32,8 @@ import { makeXsEngine } from '../src/xs-engine.js';
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
 const workerBinary =
-  process.env.SIESTA_XS_WORKER ??
-  join(repoRoot, 'target/release/siesta-xs-worker');
+  process.env.THIXOTROPE_XS_WORKER ??
+  join(repoRoot, 'target/release/thixotrope-xs-worker');
 const bootPath = fileURLToPath(new URL('../dist-xs/boot.js', import.meta.url));
 const bundlePath = fileURLToPath(
   new URL('../dist-xs/worker-peer.js', import.meta.url),
@@ -44,7 +44,7 @@ const available =
 const testXs = available ? test.serial : test.serial.skip;
 if (!available) {
   console.error(
-    'worker-peer-xs tests skipped: build siesta-xs-worker and dist-xs first',
+    'worker-peer-xs tests skipped: build thixotrope-xs-worker and dist-xs first',
   );
 }
 
@@ -84,7 +84,7 @@ const decodeBase64 = text => {
 };
 
 testXs('an XS worker peer survives snapshot restore mid-session', async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-peer-xs-test-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-peer-xs-test-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
   const engine = makeXsEngine({
     workerBinary,

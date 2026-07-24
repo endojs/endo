@@ -1,5 +1,5 @@
 {
-  "name": "@endo/siesta",
+  "name": "@endo/thixotrope",
   "version": "0.1.0",
   "private": true,
   "description": "Prototype distributed ocap machine: a host daemon that bridges orthogonally persistent, sleepy CapTP workers to OCapN sturdy refs",
@@ -12,11 +12,11 @@
   ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/siesta#readme",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/thixotrope#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git",
-    "directory": "packages/siesta"
+    "directory": "packages/thixotrope"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

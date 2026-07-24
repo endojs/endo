@@ -6,7 +6,7 @@
 // tests reach via relative imports. The `WorkerEngine` type in
 // src/worker-engine.js remains the extension seam for future
 // snapshotting JS engines.
-export { makeSiestaDaemon } from './src/daemon.js';
+export { makeThixotropeDaemon } from './src/daemon.js';
 export { makeXsEngine } from './src/xs-engine.js';
 export { makeFsStore } from './src/store-fs.js';
 export { makeTimerResource } from './src/resources.js';

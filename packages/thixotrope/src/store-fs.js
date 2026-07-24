@@ -72,7 +72,7 @@ import { Fail, q } from '@endo/errors';
  */
 
 /**
- * @typedef {object} SiestaStore
+ * @typedef {object} ThixotropeStore
  * @property {() => any} getHubState the OCapN hub's persisted tables
  * @property {(state: any) => void} setHubState
  * @property {() => Array<string>} listWorkerIds
@@ -139,7 +139,7 @@ const writeFileAtomic = (path, text) => {
 };
 
 /**
- * Filesystem-backed {@link SiestaStore}. All writes are synchronous
+ * Filesystem-backed {@link ThixotropeStore}. All writes are synchronous
  * write-through so durable state always precedes any message reaching a
  * worker ("disk before graph").
  *
@@ -151,7 +151,7 @@ const writeFileAtomic = (path, text) => {
  * - `sessions/<token>/frames.jsonl`
  *
  * @param {string} statePath
- * @returns {SiestaStore}
+ * @returns {ThixotropeStore}
  */
 export const makeFsStore = statePath => {
   const workersPath = join(statePath, 'workers');
@@ -337,7 +337,7 @@ export const makeFsStore = statePath => {
     return harden(workerStore);
   };
 
-  /** @type {SiestaStore} */
+  /** @type {ThixotropeStore} */
   const store = {
     listWorkerIds: () =>
       existsSync(workersPath) ? readdirSync(workersPath).sort() : [],
@@ -365,10 +365,10 @@ export const makeFsStore = statePath => {
 harden(makeFsStore);
 
 /**
- * In-memory {@link SiestaStore} for tests. Simulates restart survival as
+ * In-memory {@link ThixotropeStore} for tests. Simulates restart survival as
  * long as the same store object is handed to each host incarnation.
  *
- * @returns {SiestaStore}
+ * @returns {ThixotropeStore}
  */
 export const makeMemoryStore = () => {
   /** @type {Map<string, { tables?: TablesRecord, meta: WorkerMeta, base: number, journal: Array<any> }>} */
@@ -440,7 +440,7 @@ export const makeMemoryStore = () => {
     return harden(sessionStore);
   };
 
-  /** @type {SiestaStore} */
+  /** @type {ThixotropeStore} */
   const store = {
     listWorkerIds: () => [...workers.keys()].sort(),
     provideWorkerStore,

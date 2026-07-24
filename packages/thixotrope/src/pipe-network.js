@@ -25,7 +25,7 @@ import { makeQueue } from '@endo/stream';
  * @typedef {'host' | 'worker'} PipeRole
  */
 
-const NETWORK_ID = 'siesta-pipe';
+const NETWORK_ID = 'thixotrope-pipe';
 
 const textEncoder = new TextEncoder();
 
@@ -194,7 +194,7 @@ export const makePipeNetwork = ({ codec, workerId, role, send }) => {
         return undefined;
       }
       remoteLocation.designator === peer.location.designator ||
-        Fail`siesta-pipe: this duct reaches ${q(
+        Fail`thixotrope-pipe: this duct reaches ${q(
           peer.location.designator,
         )}, not ${q(remoteLocation.designator)}`;
       if (networkSession === undefined) {

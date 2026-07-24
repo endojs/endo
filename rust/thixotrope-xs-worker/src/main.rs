@@ -1,8 +1,8 @@
-//! siesta-xs-worker: a minimal snapshottable XS runner for `@endo/siesta`
+//! thixotrope-xs-worker: a minimal snapshottable XS runner for `@endo/thixotrope`
 //! workers.
 //!
 //! Deliberately NOT the endor supervisor: no powers, no daemon bundles,
-//! no bus protocol. One XS machine runs the siesta worker shell (SES +
+//! no bus protocol. One XS machine runs the thixotrope worker shell (SES +
 //! CapTP + guest compartment); the host talks newline-delimited JSON over
 //! fd 3 (host -> worker) and fd 4 (worker -> host). All JSON crossing the
 //! boundary is ASCII (the JS sides escape non-ASCII), so CESU-8/UTF-8/C
@@ -35,31 +35,31 @@ use xsnap::worker_io::arg_str;
 use xsnap::{ensure_shared_cluster, Machine, MANAGER_CREATION};
 
 /// Tag validating that a snapshot was produced by a compatible
-/// siesta-xs-worker (host-callback table layout:
-/// [siestaSend, siestaTrace, harden, lockdown]).
-const SNAPSHOT_SIGNATURE: &[u8] = b"siesta-xs 3";
+/// thixotrope-xs-worker (host-callback table layout:
+/// [thixotropeSend, thixotropeTrace, harden, lockdown]).
+const SNAPSHOT_SIGNATURE: &[u8] = b"thixotrope-xs 3";
 
 thread_local! {
     static OUTBOUND: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
 }
 
-/// Host function `siestaSend(json)`: the worker shell emits one outbound
+/// Host function `thixotropeSend(json)`: the worker shell emits one outbound
 /// CapTP message (an ASCII JSON string).
-unsafe extern "C" fn host_siesta_send(the: *mut XsMachine) {
+unsafe extern "C" fn host_thixotrope_send(the: *mut XsMachine) {
     let message = arg_str(the, 0);
     OUTBOUND.with(|queue| queue.borrow_mut().push(message));
 }
 
-/// Host function `siestaTrace(text)`: worker diagnostics to stderr.
-unsafe extern "C" fn host_siesta_trace(the: *mut XsMachine) {
+/// Host function `thixotropeTrace(text)`: worker diagnostics to stderr.
+unsafe extern "C" fn host_thixotrope_trace(the: *mut XsMachine) {
     let text = arg_str(the, 0);
-    eprintln!("siesta-xs-worker: [trace] {text}");
+    eprintln!("thixotrope-xs-worker: [trace] {text}");
 }
 
 fn snapshot_callbacks() -> Vec<xsnap::ffi::XsCallback> {
     vec![
-        host_siesta_send,
-        host_siesta_trace,
+        host_thixotrope_send,
+        host_thixotrope_trace,
         xsnap::ffi::fx_harden,
         xsnap::ffi::fx_lockdown,
     ]
@@ -107,7 +107,7 @@ fn parse_args() -> Args {
 }
 
 fn fatal(message: &str) -> ! {
-    eprintln!("siesta-xs-worker: {message}");
+    eprintln!("thixotrope-xs-worker: {message}");
     exit(2)
 }
 
@@ -124,19 +124,19 @@ fn read_file(path: &PathBuf) -> String {
 /// into a global for diagnosis (Machine::eval alone reports None).
 fn eval_script(machine: &Machine, source: &str, label: &str) {
     let mut wrapped = String::with_capacity(source.len() + 256);
-    wrapped.push_str("globalThis.__siesta_boot_err = ''; try {\n");
+    wrapped.push_str("globalThis.__thixotrope_boot_err = ''; try {\n");
     wrapped.push_str(source);
     // The trailing statement pins the script's completion value to a
     // primitive: Machine::eval cannot represent object completions.
     wrapped.push_str(
-        "\n} catch (e) { globalThis.__siesta_boot_err = \
+        "\n} catch (e) { globalThis.__thixotrope_boot_err = \
          'ERROR: ' + (e && e.message) + '\\n' + ((e && e.stack) || ''); }\n0;",
     );
     machine
         .eval(&wrapped)
         .unwrap_or_else(|| fatal(&format!("{label}: evaluation failed outright")));
     let err = machine
-        .eval_to_string("globalThis.__siesta_boot_err")
+        .eval_to_string("globalThis.__thixotrope_boot_err")
         .unwrap_or_default();
     if !err.is_empty() {
         fatal(&format!("{label}: {err}"));
@@ -147,10 +147,10 @@ fn make_fresh_machine(args: &Args) -> Machine {
     // MANAGER_CREATION rather than WORKER_CREATION: the worker-shell
     // bundle (captp + marshal + eventual-send shim) needs the larger
     // parser buffer and stack.
-    let machine = Machine::new(&MANAGER_CREATION, "siesta-worker")
+    let machine = Machine::new(&MANAGER_CREATION, "thixotrope-worker")
         .unwrap_or_else(|| fatal("could not allocate XS machine"));
-    machine.define_function("siestaSend", host_siesta_send, 1);
-    machine.define_function("siestaTrace", host_siesta_trace, 1);
+    machine.define_function("thixotropeSend", host_thixotrope_send, 1);
+    machine.define_function("thixotropeTrace", host_thixotrope_trace, 1);
     // XS implements Hardened JavaScript natively (mxLockdown): expose
     // the engine's own harden and lockdown to the boot script, exactly
     // as xst does. The boot script calls lockdown() after polyfills.
@@ -170,7 +170,7 @@ fn restore_machine(args: &Args, hash: &str) -> Machine {
     Machine::resume_from_cas(
         &args.cas,
         hash,
-        "siesta-worker",
+        "thixotrope-worker",
         SNAPSHOT_SIGNATURE,
         &mut callbacks,
     )
@@ -225,7 +225,7 @@ fn main() {
                 // string literal via JSON encoding of the text itself.
                 let literal = serde_json::to_string(message.get())
                     .unwrap_or_else(|e| fatal(&format!("encode failed: {e}")));
-                let call = format!("globalThis.siestaDispatch({literal});");
+                let call = format!("globalThis.thixotropeDispatch({literal});");
                 eval_script(&machine, &call, "dispatch");
                 machine.quiesce();
                 drain_outbound(&mut writer);

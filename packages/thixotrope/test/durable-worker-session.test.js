@@ -52,7 +52,7 @@ const COUNTER_SOURCE = `
  * @param {object} options
  * @param {string} options.workerId
  * @param {any} options.engine
- * @param {any} options.store a SiestaStore
+ * @param {any} options.store a ThixotropeStore
  * @param {string} [options.debugLabel]
  */
 const makeHubKit = async (t, { workerId, engine, store, debugLabel }) => {

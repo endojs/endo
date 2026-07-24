@@ -11,7 +11,7 @@ import { makePipeNetwork } from './pipe-network.js';
 const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 /**
- * The OCapN-native siesta worker shell (protocol unification, worker
+ * The OCapN-native thixotrope worker shell (protocol unification, worker
  * side): one persistent Compartment behind a full OCapN peer speaking
  * the p2p wire protocol over the host pipe, in place of the endo-captp
  * shell. The evaluate facet is published in the worker's own locator
@@ -31,7 +31,7 @@ const IDENTIFIER_PATTERN = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 export const makeWorkerPeer = async ({
   workerId,
   send,
-  debugLabel = 'siesta-worker-peer',
+  debugLabel = 'thixotrope-worker-peer',
 }) => {
   const compartment = new Compartment();
   Object.assign(compartment.globalThis, {
@@ -40,9 +40,9 @@ export const makeWorkerPeer = async ({
     harden,
   });
 
-  const facet = Far('SiestaWorker', {
+  const facet = Far('ThixotropeWorker', {
     help: () =>
-      'SiestaWorker: evaluate(source, names, values) evaluates a hardened JavaScript expression in this worker persistent compartment, with the optional endowments bound as named values, and returns its value.',
+      'ThixotropeWorker: evaluate(source, names, values) evaluates a hardened JavaScript expression in this worker persistent compartment, with the optional endowments bound as named values, and returns its value.',
     /**
      * @param {string} source
      * @param {Array<string>} [names]

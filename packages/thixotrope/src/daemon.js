@@ -20,11 +20,11 @@ import { makeWorkerSessionRecords } from './worker-session-records.js';
 
 /**
  * @import {WorkerEngine} from './worker-engine.js'
- * @import {SiestaStore} from './store-fs.js'
+ * @import {ThixotropeStore} from './store-fs.js'
  */
 
 /**
- * The siesta daemon, hub edition: mostly a forwarding and
+ * The thixotrope daemon, hub edition: mostly a forwarding and
  * slot-rewriting hub, per design. The daemon is NOT an OCapN client —
  * the OCapN hub (`@endo/ocapn/hub`) routes every message between
  * sessions by structural transcoding over persisted c-list tables, so
@@ -52,7 +52,7 @@ import { makeWorkerSessionRecords } from './worker-session-records.js';
  * resume. Positions are rows; nothing is re-seated because nothing
  * was reified.
  *
- * @typedef {object} SiestaWorkerFacade
+ * @typedef {object} ThixotropeWorkerFacade
  * @property {string} workerId
  * @property {string | undefined} debugLabel
  * @property {(source: string, names?: Array<string>, values?: Array<unknown>) => Promise<any>} evaluate
@@ -61,12 +61,12 @@ import { makeWorkerSessionRecords } from './worker-session-records.js';
  * @property {() => Promise<void>} sleep
  * @property {() => Promise<void>} retire
  *
- * @typedef {object} SiestaDaemon
+ * @typedef {object} ThixotropeDaemon
  * @property {any} location this daemon's OCapN location; combine with a
  *   publication's swissnum to mint a sturdy ref on any peer
  * @property {(secret: string) => { location: any, secret: string }} makeSturdyRefDetails
- * @property {(options?: { debugLabel?: string }) => Promise<SiestaWorkerFacade>} createWorker
- * @property {(workerId: string) => SiestaWorkerFacade} getWorker
+ * @property {(options?: { debugLabel?: string }) => Promise<ThixotropeWorkerFacade>} createWorker
+ * @property {(workerId: string) => ThixotropeWorkerFacade} getWorker
  * @property {() => Array<string>} listWorkerIds
  * @property {(name: string, description?: unknown) => object} makeResource
  * @property {(value: object, secret?: string) => string} publish
@@ -95,7 +95,7 @@ const ENDPOINT_SESSION = 'endpoint';
 
 /**
  * @param {object} options
- * @param {SiestaStore} options.store
+ * @param {ThixotropeStore} options.store
  * @param {WorkerEngine} options.engine
  * @param {any} options.codec an OCapN codec, e.g. `syrupCodec`
  * @param {(powers: { handlers: any, logger: any, resumption: any }) => Promise<any> | any} options.makeNetlayer
@@ -104,9 +104,9 @@ const ENDPOINT_SESSION = 'endpoint';
  *   with no deliveries (see the durable worker transport's idle-sleep
  *   policy); omitted means workers sleep only on request
  * @param {boolean} [options.verbose]
- * @returns {Promise<SiestaDaemon>}
+ * @returns {Promise<ThixotropeDaemon>}
  */
-export const makeSiestaDaemon = async ({
+export const makeThixotropeDaemon = async ({
   store,
   engine,
   codec,
@@ -117,7 +117,7 @@ export const makeSiestaDaemon = async ({
 }) => {
   const logError = verbose
     ? // eslint-disable-next-line no-console
-      (...args) => console.error('siesta daemon:', ...args)
+      (...args) => console.error('thixotrope daemon:', ...args)
     : () => {};
 
   const cryptography = makeCryptography(codec);
@@ -201,7 +201,7 @@ export const makeSiestaDaemon = async ({
   });
   const endpointClient = await makeOcapn({
     codec,
-    debugLabel: 'siesta-endpoint',
+    debugLabel: 'thixotrope-endpoint',
     sessionHooks: {
       ...records.sessionHooks,
       onImport: (
@@ -217,12 +217,12 @@ export const makeSiestaDaemon = async ({
     network: (/** @type {any} */ h) => {
       endpointHandlers = h;
       return harden({
-        networkId: 'siesta-endpoint',
+        networkId: 'thixotrope-endpoint',
         codec,
         location: harden({
           type: /** @type {const} */ ('ocapn-peer'),
-          network: 'siesta-endpoint',
-          transport: 'siesta-endpoint',
+          network: 'thixotrope-endpoint',
+          transport: 'thixotrope-endpoint',
           designator: 'endpoint',
           hints: /** @type {const} */ (false),
         }),
@@ -523,7 +523,7 @@ export const makeSiestaDaemon = async ({
       }
     },
     resumeSession: () => {
-      throw Error('siesta hub daemon: client resumeSession seam unused');
+      throw Error('thixotrope hub daemon: client resumeSession seam unused');
     },
   });
 
@@ -673,7 +673,7 @@ export const makeSiestaDaemon = async ({
 
   /**
    * @param {string} workerId
-   * @returns {SiestaWorkerFacade}
+   * @returns {ThixotropeWorkerFacade}
    */
   const makeAdminFacade = workerId => {
     const entryOf = () => {
@@ -700,9 +700,9 @@ export const makeSiestaDaemon = async ({
   // Built-in resources: live in the endpoint like any resource.
   const makeWorkerFacadeResource = (/** @type {any} */ description) => {
     const { workerId } = /** @type {{ workerId: string }} */ (description);
-    return Far('SiestaWorkerFacade', {
+    return Far('ThixotropeWorkerFacade', {
       help: () =>
-        'SiestaWorkerFacade: evaluate(source, names, values) evaluates in this worker with the given endowments; getId() returns the worker id; retire() permanently deletes the worker.',
+        'ThixotropeWorkerFacade: evaluate(source, names, values) evaluates in this worker with the given endowments; getId() returns the worker id; retire() permanently deletes the worker.',
       getId: () => workerId,
       /**
        * @param {string} source
@@ -717,9 +717,9 @@ export const makeSiestaDaemon = async ({
     });
   };
   const makeWorkerControllerResource = () =>
-    Far('SiestaWorkerController', {
+    Far('ThixotropeWorkerController', {
       help: () =>
-        'SiestaWorkerController: createWorker(debugLabel?) creates a new worker and returns its facade.',
+        'ThixotropeWorkerController: createWorker(debugLabel?) creates a new worker and returns its facade.',
       /** @param {string} [debugLabel] */
       createWorker: async debugLabel => {
         debugLabel === undefined ||
@@ -769,7 +769,7 @@ export const makeSiestaDaemon = async ({
     handoffDialRef.connect(dial.location, dial.sessionKey);
   }
 
-  /** @type {SiestaDaemon} */
+  /** @type {ThixotropeDaemon} */
   const daemon = {
     location,
     makeSturdyRefDetails: secret => harden({ location, secret }),
@@ -872,4 +872,4 @@ export const makeSiestaDaemon = async ({
   };
   return harden(daemon);
 };
-harden(makeSiestaDaemon);
+harden(makeThixotropeDaemon);

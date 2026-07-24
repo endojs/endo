@@ -12,7 +12,7 @@ import { makeOcapn } from '@endo/ocapn';
 import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
 
-import { makeSiestaDaemon } from '../src/daemon.js';
+import { makeThixotropeDaemon } from '../src/daemon.js';
 import { makeDurableNetLayer } from '../src/durable-netlayer.js';
 import { makePeerJournalReplayEngine } from '../src/peer-replay-engine.js';
 import { makeFsStore } from '../src/store-fs.js';
@@ -36,7 +36,7 @@ const COUNTER_SOURCE = `
  *   its predecessor's port so the peer's reconnect finds it
  */
 const makeDaemon = (statePath, port, resources = {}) =>
-  makeSiestaDaemon({
+  makeThixotropeDaemon({
     store: makeFsStore(statePath),
     engine: makePeerJournalReplayEngine(),
     codec: syrupCodec,
@@ -66,7 +66,7 @@ const makeDurableClient = label =>
   });
 
 test('live remote references survive a daemon restart', async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-sess-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-durable-sess-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
 
   const daemon1 = await makeDaemon(statePath, 0);
@@ -100,7 +100,7 @@ test('live remote references survive a daemon restart', async t => {
 });
 
 test('a resumed session continues without a handshake', async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-keys-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-durable-keys-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
 
   const daemon1 = await makeDaemon(statePath, 0);
@@ -140,7 +140,7 @@ test('a resumed session continues without a handshake', async t => {
 });
 
 test('a promise resolution crosses a daemon restart', async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-prom-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-durable-prom-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
 
   const GIFT_SOURCE = `
@@ -202,7 +202,7 @@ test('a promise resolution crosses a daemon restart', async t => {
 });
 
 test('an answer a resource owes rejects after a restart', async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-ans-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-durable-ans-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
 
   // A host-resource answer is the one kind of pending obligation that
@@ -270,7 +270,7 @@ test('an answer a resource owes rejects after a restart', async t => {
 });
 
 test('a call issued while the daemon is down completes after restart', async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-sess2-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-durable-sess2-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
 
   const daemon1 = await makeDaemon(statePath, 0);
@@ -300,7 +300,7 @@ test('a call issued while the daemon is down completes after restart', async t =
 });
 
 test('sessions survive repeated daemon restarts', async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-durable-sess3-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-durable-sess3-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
 
   let daemon = await makeDaemon(statePath, 0);

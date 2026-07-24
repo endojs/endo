@@ -24,14 +24,14 @@ import { Far } from '@endo/far';
 import { makeTcpNetLayer } from '@endo/ocapn/netlayer/tcp-testing';
 import { syrupCodec } from '@endo/ocapn/syrup';
 
-import { makeSiestaDaemon } from '../src/daemon.js';
+import { makeThixotropeDaemon } from '../src/daemon.js';
 import { makeFsStore } from '../src/store-fs.js';
 import { makeXsEngine } from '../src/xs-engine.js';
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
 const workerBinary =
-  process.env.SIESTA_XS_WORKER ??
-  join(repoRoot, 'target/release/siesta-xs-worker');
+  process.env.THIXOTROPE_XS_WORKER ??
+  join(repoRoot, 'target/release/thixotrope-xs-worker');
 const bootPath = fileURLToPath(new URL('../dist-xs/boot.js', import.meta.url));
 const bundlePath = fileURLToPath(
   new URL('../dist-xs/worker-peer.js', import.meta.url),
@@ -42,7 +42,7 @@ const available =
 const testXs = available ? test.serial : test.serial.skip;
 if (!available) {
   console.error(
-    'worker-session-restart-xs tests skipped: build siesta-xs-worker and dist-xs first',
+    'worker-session-restart-xs tests skipped: build thixotrope-xs-worker and dist-xs first',
   );
 }
 
@@ -73,7 +73,7 @@ const resources = {
  * @param {any} engine
  */
 const makeDaemon = (statePath, engine) =>
-  makeSiestaDaemon({
+  makeThixotropeDaemon({
     store: makeFsStore(statePath),
     engine,
     codec: syrupCodec,
@@ -83,7 +83,7 @@ const makeDaemon = (statePath, engine) =>
   });
 
 testXs('XS worker sessions survive a daemon restart', async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-wsr-xs-test-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-wsr-xs-test-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
   const engine = makeXsEngine({
     workerBinary,

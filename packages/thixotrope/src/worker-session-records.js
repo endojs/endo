@@ -4,7 +4,7 @@ import { Fail, q } from '@endo/errors';
 import { Far } from '@endo/far';
 
 /**
- * @import {SiestaStore} from './store-fs.js'
+ * @import {ThixotropeStore} from './store-fs.js'
  */
 
 /**
@@ -34,7 +34,7 @@ import { Far } from '@endo/far';
  * processes.
  *
  * @param {object} options
- * @param {SiestaStore} options.store
+ * @param {ThixotropeStore} options.store
  * @param {Record<string, (description?: unknown) => object>} [options.resources]
  *   named resource factories; instances are per-process singletons per
  *   (name, description) pair
@@ -44,7 +44,7 @@ export const makeWorkerSessionRecords = ({
   store,
   resources = {},
   // eslint-disable-next-line no-console
-  reportError = error => console.error('siesta worker sessions:', error),
+  reportError = error => console.error('thixotrope worker sessions:', error),
 }) => {
   /** @type {WeakMap<object, string>} connection -> workerId */
   const workerIdForConnection = new WeakMap();
@@ -67,7 +67,7 @@ export const makeWorkerSessionRecords = ({
     if (instance === undefined) {
       const makeResource = resources[name];
       typeof makeResource === 'function' ||
-        Fail`siesta worker sessions: unknown resource ${q(name)}`;
+        Fail`thixotrope worker sessions: unknown resource ${q(name)}`;
       instance = makeResource(description);
       resourceInstances.set(key, instance);
       resourceOrigins.set(instance, harden({ name, description }));
@@ -90,7 +90,7 @@ export const makeWorkerSessionRecords = ({
       // aligned.
       return Far('SessionInternalTombstone', {});
     }
-    throw Fail`siesta worker sessions: unknown description kind ${q(
+    throw Fail`thixotrope worker sessions: unknown description kind ${q(
       description.kind,
     )}`;
   };
@@ -209,7 +209,7 @@ export const makeWorkerSessionRecords = ({
     restoreWorker: workerId => {
       const resumed = resumedByWorkerId.get(workerId);
       resumed !== undefined ||
-        Fail`siesta worker sessions: worker ${q(workerId)} is not established`;
+        Fail`thixotrope worker sessions: worker ${q(workerId)} is not established`;
       const workerStore = store.provideWorkerStore(workerId);
       const record = /** @type {any} */ (workerStore.getTablesRecord()) ?? {};
       // The hub's tables still hold answer registrations from every

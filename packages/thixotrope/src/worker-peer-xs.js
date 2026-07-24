@@ -2,10 +2,10 @@
 /* global globalThis */
 
 /**
- * XS bootstrap entry for an OCapN-native siesta worker (protocol
+ * XS bootstrap entry for an OCapN-native thixotrope worker (protocol
  * unification phase 2): the module bundled by
  * `scripts/bundle-xs-worker.mjs` into `dist-xs/worker-peer.js` and
- * evaluated inside the XS machine by the `siesta-xs-worker` binary,
+ * evaluated inside the XS machine by the `thixotrope-xs-worker` binary,
  * after the lockdown boot script.
  *
  * The duct to the host carries ASCII JSON envelopes over the binary's
@@ -17,7 +17,7 @@
  *   duct is ASCII-only so CESU-8/UTF-8/C strings coincide).
  *
  * Outbound frames use the same `{ t: 'f', b64 }` envelope through
- * `siestaSend`. Everything reachable from here lives in the XS heap
+ * `thixotropeSend`. Everything reachable from here lives in the XS heap
  * and is captured by the engine snapshot; this module runs only on
  * first boot, never on restore.
  */
@@ -27,14 +27,14 @@ import { decodeBase64, encodeBase64 } from '@endo/base64';
 import { makeWorkerPeer } from './worker-peer.js';
 
 const send = /** @type {(json: string) => void} */ (
-  /** @type {any} */ (globalThis).siestaSend
+  /** @type {any} */ (globalThis).thixotropeSend
 );
 if (typeof send !== 'function') {
-  throw Error('siesta-xs-worker must register siestaSend before bootstrap');
+  throw Error('thixotrope-xs-worker must register thixotropeSend before bootstrap');
 }
 
 const trace = /** @type {(text: string) => void} */ (
-  /** @type {any} */ (globalThis).siestaTrace
+  /** @type {any} */ (globalThis).thixotropeTrace
 );
 if (typeof trace === 'function' && typeof globalThis.console === 'undefined') {
   const traceAll =
@@ -60,7 +60,7 @@ const dispatch = json => {
   const message = JSON.parse(json);
   if (message.t === 'init') {
     if (peer !== undefined) {
-      throw Error('siesta worker peer: duplicate init');
+      throw Error('thixotrope worker peer: duplicate init');
     }
     makeWorkerPeer({
       workerId: message.workerId,
@@ -86,7 +86,7 @@ const dispatch = json => {
     }
     return;
   }
-  throw Error(`siesta worker peer: unknown duct message ${message.t}`);
+  throw Error(`thixotrope worker peer: unknown duct message ${message.t}`);
 };
 
-/** @type {any} */ (globalThis).siestaDispatch = dispatch;
+/** @type {any} */ (globalThis).thixotropeDispatch = dispatch;

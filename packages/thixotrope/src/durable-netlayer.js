@@ -44,7 +44,7 @@ import { Fail } from '@endo/errors';
  * via `handlers.resumeSession` (identity and exports re-seated by the
  * embedder), and frame replay proceeds as if the socket had merely
  * dropped. Originator-side durability is not implemented: the peer
- * that restarts must be the acceptor (the siesta daemon).
+ * that restarts must be the acceptor (the thixotrope daemon).
  *
  * The types below are structural mirrors of the OCapN netlayer
  * interface (`packages/ocapn/src/client/types.js`), which the ocapn

@@ -4,7 +4,7 @@
 /**
  * The durable worker transport on the real XS engine: the hub's
  * durability envelope running `dist-xs/worker-peer.js` in
- * `siesta-xs-worker` — sleepy OCapN workers with real heap snapshots,
+ * `thixotrope-xs-worker` — sleepy OCapN workers with real heap snapshots,
  * journal-suffix wakes, and crash recovery, all under one live hub
  * session. Requires the built artifacts (see the package README);
  * skips itself when they are absent.
@@ -30,8 +30,8 @@ import { makeXsEngine } from '../src/xs-engine.js';
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url));
 const workerBinary =
-  process.env.SIESTA_XS_WORKER ??
-  join(repoRoot, 'target/release/siesta-xs-worker');
+  process.env.THIXOTROPE_XS_WORKER ??
+  join(repoRoot, 'target/release/thixotrope-xs-worker');
 const bootPath = fileURLToPath(new URL('../dist-xs/boot.js', import.meta.url));
 const bundlePath = fileURLToPath(
   new URL('../dist-xs/worker-peer.js', import.meta.url),
@@ -42,7 +42,7 @@ const available =
 const testXs = available ? test.serial : test.serial.skip;
 if (!available) {
   console.error(
-    'durable-worker-session-xs tests skipped: build siesta-xs-worker and dist-xs first',
+    'durable-worker-session-xs tests skipped: build thixotrope-xs-worker and dist-xs first',
   );
 }
 
@@ -65,7 +65,7 @@ const COUNTER_SOURCE = `
 `;
 
 testXs('an XS worker session sleeps, wakes, and survives crashes', async t => {
-  const statePath = await mkdtemp(join(tmpdir(), 'siesta-dws-xs-test-'));
+  const statePath = await mkdtemp(join(tmpdir(), 'thixotrope-dws-xs-test-'));
   t.teardown(() => rm(statePath, { recursive: true, force: true }));
   const engine = makeXsEngine({
     workerBinary,

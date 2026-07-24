@@ -61,7 +61,7 @@ import { makeSturdyRef } from '../client/sturdyrefs.js';
  * sender.
  *
  * Sessions attach pre-authenticated: the embedder owns transports,
- * identity, and lifecycle (siesta's durable worker transports and
+ * identity, and lifecycle (thixotrope's durable worker transports and
  * netlayer sessions), and hands the hub ordered plaintext frames. An
  * undecodable or unroutable frame from a `remote` session aborts that
  * session (op:abort, detach, `onAbort`); from a local session (a

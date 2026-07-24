@@ -32,9 +32,9 @@ const MAX_DELAY_MS = 2 ** 31 - 1;
  * @returns {object}
  */
 export const makeTimerResource = (_description = null) =>
-  Far('SiestaTimer', {
+  Far('ThixotropeTimer', {
     help: () =>
-      'SiestaTimer: now() returns milliseconds since epoch; delay(ms) resolves with now() no sooner than ms from the call (0 <= ms <= 2**31 - 1).',
+      'ThixotropeTimer: now() returns milliseconds since epoch; delay(ms) resolves with now() no sooner than ms from the call (0 <= ms <= 2**31 - 1).',
     now: () => Date.now(),
     /** @param {number} ms */
     delay: async ms => {
