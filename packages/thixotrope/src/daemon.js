@@ -630,7 +630,7 @@ export const makeThixotropeDaemon = async ({
       typeof secret === 'string'
         ? bytesToImmutable(textEncoder.encode(secret))
         : bytesToImmutable(secret);
-    return E(session.getBootstrap()).fetch(bytes);
+    return E(/** @type {any} */ (session.getBootstrap())).fetch(bytes);
   };
 
   /**

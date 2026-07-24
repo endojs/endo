@@ -63,6 +63,15 @@ const makeSideIdentity = (cryptography, workerId, role) => {
  * @param {string} options.workerId
  * @param {PipeRole} [options.role] which end this resumption is for
  *   (default `'host'`)
+ * @returns {{
+ *   sessionId: any,
+ *   peerLocation: any,
+ *   peerLocationSignature: any,
+ *   peerPublicKeyBytes: any,
+ *   selfPrivateKeyBytes: Uint8Array,
+ * }} the explicit annotation keeps declaration emit from trying to
+ *   name `@endo/ocapn`-internal branded types it cannot reference
+ *   portably
  */
 export const derivePipeResumption = ({ codec, workerId, role = 'host' }) => {
   const cryptography = makeCryptography(codec);
