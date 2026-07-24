@@ -1209,7 +1209,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@endo/9p-server@workspace:packages/9p-server":
+"@endo/9p-server@workspace:^, @endo/9p-server@workspace:packages/9p-server":
   version: 0.0.0-use.local
   resolution: "@endo/9p-server@workspace:packages/9p-server"
   dependencies:
@@ -1537,6 +1537,27 @@ __metadata:
     c8: "catalog:dev"
     eslint: "catalog:dev"
     typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
+"@endo/claude-sandbox@workspace:packages/claude-sandbox":
+  version: 0.0.0-use.local
+  resolution: "@endo/claude-sandbox@workspace:packages/claude-sandbox"
+  dependencies:
+    "@endo/9p-server": "workspace:^"
+    "@endo/cli": "workspace:^"
+    "@endo/daemon": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo": "workspace:^"
+    "@endo/exo-stream": "workspace:^"
+    "@endo/far": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/patterns": "workspace:^"
+    "@endo/sandbox": "workspace:^"
+    "@endo/stream": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
   languageName: unknown
   linkType: soft
 
