@@ -147,6 +147,10 @@ describe('flat/strict', () => {
     assert.strictEqual(severityOf(rules['import/no-cycle']), 2);
   });
 
+  it('import/order is present from flat/imports', () => {
+    assert.strictEqual(severityOf(rules['import/order']), 2);
+  });
+
   it('camelcase is active from inlined airbnb style rules', () => {
     assert.strictEqual(severityOf(rules.camelcase), 2);
   });
