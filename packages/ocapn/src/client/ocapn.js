@@ -1418,7 +1418,7 @@ export const makeOcapn = (
       } else {
         // The computation that owed this answer died with the
         // previous process: reject rather than hang or re-execute.
-        E.sendOnly(resolver).break(
+        E.sendOnly(/** @type {any} */ (resolver)).break(
           harden(
             Error('session resumed after restart; pending answer aborted'),
           ),
