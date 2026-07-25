@@ -262,7 +262,6 @@ Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs
 **unavailable** including:
 
 * `queueMicrotask`
-* `URL` and `URLSearchParams`
 * `WebAssembly`
 * `TextEncoder` and `TextDecoder`
 * `global`
@@ -287,7 +286,16 @@ Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs
 
 None of the huge list of [other Browser environment features](https://developer.mozilla.org/en-US/docs/Web/API)
 presented as names in the global scope (some also added to Node.js) are available in a
-hardened environment. The most surprising removals include `atob`, `TextEncoder`, and `URL`.
+hardened environment. The most surprising removals include `atob` and `TextEncoder`.
+
+`URL` and `URLSearchParams` are exceptions when the host provides them.
+`URLSearchParams` is shared as a frozen, powerless intrinsic.
+The start compartment keeps `URL`'s blob-registry methods by default, while
+compartments created after lockdown receive a tamed `URL` without
+`createObjectURL` or `revokeObjectURL`.
+Use `lockdown({ urlBlobMethods: 'remove' })` to remove those methods from the
+start compartment too. See [`lockdown()`](../../../docs/lockdown.md#urlblobmethods-options)
+for the full option description.
 
 `debugger` is a first-class JavaScript statement, and behaves as expected.
 

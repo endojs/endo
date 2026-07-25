@@ -44,6 +44,7 @@ Each option is explained in its own section below.
 | `overrideDebug`                  | `[]`             | array of property names                | detect override mistake    ([details](#overridedebug-options)) |
 | `domainTaming`                   | `'safe'`         | `'unsafe'`                             | Node.js `domain` module    ([details](#domaintaming-options)) |
 | `legacyRegeneratorRuntimeTaming` | `'safe'`         | `'unsafe-ignore'`                      | regenerator-runtime ([details](#legacyregeneratorruntimetaming-options)) |
+| `urlBlobMethods`                 | `'keepOnInitialGlobal'` | `'remove'`                        | `URL.createObjectURL` and `URL.revokeObjectURL` ([details](#urlblobmethods-options)) |
 | `__hardenTaming__`               | `'safe'`         | `'unsafe'`                             | Making `harden` no-op for performance in trusted environments ([details](#__hardentaming__-options)) |
 
 In the absence of any of these options in lockdown arguments, lockdown will
@@ -65,6 +66,7 @@ for threading environment variables into a JavaScript program.
 | `overrideDebug`                  | `LOCKDOWN_OVERRIDE_DEBUG`                    | comma separated names |
 | `domainTaming`                   | `LOCKDOWN_DOMAIN_TAMING`                     |                       |
 | `legacyRegeneratorRuntimeTaming` | `LOCKDOWN_LEGACY_REGENERATOR_RUNTIME_TAMING` |                       |
+| `urlBlobMethods`                 | `LOCKDOWN_URL_BLOB_METHODS`                  |                       |
 | `__hardenTaming__`               | `LOCKDOWN_HARDEN_TAMING`                     |                       |
 
 The options `mathTaming` and `dateTaming` are deprecated.
@@ -80,6 +82,49 @@ new Compartment({
     random: harden(makeRandom(seed)),
   }),
 })
+```
+
+## `urlBlobMethods` Options
+
+`URL` and `URLSearchParams` are available as lockdown intrinsics when the host
+provides them.
+`URLSearchParams` is a powerless data structure, so the same frozen constructor
+and prototype are shared by the start compartment and every compartment created
+after lockdown.
+
+`URL` can carry ambient authority through its `createObjectURL` and
+`revokeObjectURL` blob-registry methods.
+By default, `urlBlobMethods: 'keepOnInitialGlobal'` retains that authority only
+on the start compartment's host `URL`.
+Compartments created after lockdown receive a tamed `URL` without those methods.
+The two constructors share a frozen `URL.prototype`, so URL instances remain
+compatible across the boundary.
+In particular, `URL.prototype.constructor` is the tamed constructor, so a
+shared compartment cannot recover the start compartment's blob methods through
+an instance.
+
+```js
+lockdown(); // urlBlobMethods defaults to 'keepOnInitialGlobal'
+// or
+lockdown({ urlBlobMethods: 'keepOnInitialGlobal' });
+// Keep blob-registry authority only on the start compartment's URL.
+// vs
+lockdown({ urlBlobMethods: 'remove' });
+// Remove the blob-registry methods everywhere.
+```
+
+With `urlBlobMethods: 'remove'`, the start compartment and every shared
+compartment receive the same tamed `URL` binding without either blob method.
+Use this setting when the embedding does not need blob URLs.
+Code that needs a blob-registry method in a compartment should obtain it from
+the host before lockdown and endow it explicitly.
+
+If `lockdown` does not receive a `urlBlobMethods` option, it will respect
+`process.env.LOCKDOWN_URL_BLOB_METHODS`.
+
+```console
+LOCKDOWN_URL_BLOB_METHODS=keepOnInitialGlobal
+LOCKDOWN_URL_BLOB_METHODS=remove
 ```
 
 ## `regExpTaming` Options
