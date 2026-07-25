@@ -252,13 +252,32 @@ fn normalize_to_esm(
                 },
                 None => source,
             };
+            let comp_json =
+                serde_json::to_string(compartment).unwrap_or_else(|_| "\"\"".to_string());
+            let key_json = serde_json::to_string(&format!("./{path}"))
+                .unwrap_or_else(|_| "\"\"".to_string());
+            // Synthesize named exports for the statically detected
+            // `module.exports` names (cjs-module-lexer shape), so
+            // `import { named } from 'cjsPkg'` links; a name the
+            // evaluated exports never receives binds `undefined`,
+            // as in Node's interop. With no detected names the
+            // facade keeps the one-line default-only form.
+            let names = crate::cjs_lexer::detect_named_exports(&raw);
+            let esm = if names.is_empty() {
+                format!("export default __loadCjs({comp_json}, {key_json});\n")
+            } else {
+                let mut facade = format!(
+                    "const __cjs = __loadCjs({comp_json}, {key_json});\n\
+                     export default __cjs;\n\
+                     const __cjsO = __cjs == null ? {{}} : __cjs;\n"
+                );
+                for name in &names {
+                    facade.push_str(&format!("export const {name} = __cjsO.{name};\n"));
+                }
+                facade
+            };
             NormalizedSource {
-                esm: format!(
-                    "export default __loadCjs({}, {});\n",
-                    serde_json::to_string(compartment).unwrap_or_else(|_| "\"\"".to_string()),
-                    serde_json::to_string(&format!("./{path}"))
-                        .unwrap_or_else(|_| "\"\"".to_string()),
-                ),
+                esm,
                 cjs_raw: Some(raw),
             }
         }
@@ -651,6 +670,37 @@ mod tests {
         let mjs = normalize_to_esm("index.mjs", b"export default 2;", false, "dep-v1.0.0");
         assert_eq!(mjs.esm, "export default 2;");
         assert!(mjs.cjs_raw.is_none());
+    }
+
+    /// A CJS module with statically detectable export names gets a
+    /// facade that also synthesizes each name, so ESM importers can
+    /// bind `import { named }` (cjs-module-lexer shape).
+    #[test]
+    fn cjs_facade_synthesizes_named_exports() {
+        let cjs = normalize_to_esm(
+            "index.js",
+            b"exports.alpha = 1;\nmodule.exports.beta = 2;\n",
+            false,
+            "dep-v1.0.0",
+        );
+        assert_eq!(
+            cjs.esm,
+            "const __cjs = __loadCjs(\"dep-v1.0.0\", \"./index.js\");\n\
+             export default __cjs;\n\
+             const __cjsO = __cjs == null ? {} : __cjs;\n\
+             export const alpha = __cjsO.alpha;\n\
+             export const beta = __cjsO.beta;\n"
+        );
+
+        // Object-literal replacement exports its top-level keys.
+        let literal = normalize_to_esm(
+            "index.js",
+            b"module.exports = { parse, valid: 1 };\n",
+            false,
+            "dep-v1.0.0",
+        );
+        assert!(literal.esm.contains("export const parse = __cjsO.parse;\n"));
+        assert!(literal.esm.contains("export const valid = __cjsO.valid;\n"));
     }
 
     #[test]
@@ -1112,6 +1162,71 @@ mod tests {
         let archive = load_assembled_archive(&cas, &run.compartment_map_hash).unwrap();
         xsnap::run_xs_archive_loaded(&archive)
             .expect("XS execution of the CommonJS require graph");
+    }
+
+    /// ESM named imports of a CJS package link through the facade's
+    /// synthesized exports: `exports.name` assignments and a
+    /// `module.exports = { … }` literal both surface as named
+    /// bindings, and a name never actually assigned binds
+    /// `undefined` rather than failing to link, as in Node's
+    /// cjs-module-lexer interop.
+    #[test]
+    fn executes_esm_named_imports_of_cjs_in_xs() {
+        let dep_tar = make_tarball(&[
+            (
+                "package/package.json",
+                br#"{"name":"cjs-named","version":"1.0.0","main":"index.js"}"#,
+            ),
+            (
+                "package/index.js",
+                b"exports.alpha = 7;\n\
+                  var helpers = require('./helpers');\n\
+                  if (false) { exports.phantom = 1; }\n\
+                  module.exports = { alpha: exports.alpha, sum: helpers.sum };\n",
+            ),
+            (
+                "package/helpers.js",
+                b"exports.sum = function (a, b) { return a + b; };\n",
+            ),
+        ]);
+        let http = MockHttp::new()
+            .respond(
+                "https://registry.npmjs.org/cjs-named",
+                registry_meta("cjs-named", &["1.0.0"]),
+            )
+            .respond(&tarball_url("cjs-named", "1.0.0"), dep_tar);
+
+        let cas_tmp = tempfile::tempdir().unwrap();
+        let cas = ContentStore::open(cas_tmp.path()).unwrap();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let app = tempfile::tempdir().unwrap();
+        fs::write(
+            app.path().join("package.json"),
+            r#"{"name":"app","type":"module","dependencies":{"cjs-named":"^1.0.0"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            app.path().join("main.js"),
+            "import whole, { alpha, sum, phantom } from 'cjs-named';\n\
+             if (alpha !== 7) throw new Error(`bad alpha: ${alpha}`);\n\
+             if (sum(3, 4) !== 7) throw new Error('bad sum');\n\
+             if (phantom !== undefined) throw new Error('phantom must be undefined');\n\
+             if (whole.alpha !== alpha) throw new Error('default disagrees with named');\n\
+             print(`alpha=${alpha} sum=${sum(3, 4)}`);\n",
+        )
+        .unwrap();
+        let run = assemble_entry(
+            &http,
+            &cas,
+            &registry,
+            DEFAULT_REGISTRY,
+            &app.path().join("main.js"),
+        )
+        .unwrap();
+
+        let archive = load_assembled_archive(&cas, &run.compartment_map_hash).unwrap();
+        xsnap::run_xs_archive_loaded(&archive)
+            .expect("XS execution of ESM named imports of a CJS package");
     }
 
     /// A CommonJS entry point: the app package has no `"type"`, so

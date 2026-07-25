@@ -1,6 +1,7 @@
 pub mod assemble;
 pub mod cas;
 pub mod cas_archive;
+pub mod cjs_lexer;
 pub mod codec;
 pub mod fetch;
 pub mod npm_resolve;

@@ -468,13 +468,25 @@ The tree's children are the package's files, stored as blobs.
       `__filename`/`__dirname`; ESM importers of a CJS module
       see `module.exports` as the default export, and a CJS
       `require` of an ESM module returns its namespace
-      (modern-Node `require(esm)` shape). Remaining CJS
-      sub-gaps, all deliberate: Node core builtins are
+      (modern-Node `require(esm)` shape). ESM `import` of a
+      CJS module also binds **named exports**: the archive
+      builder statically scans the raw CJS source
+      (`rust/endo/src/cjs_lexer.rs`, cjs-module-lexer shape —
+      `exports.name =`, `exports["name"] =`,
+      `Object.defineProperty(exports, "name", …)`, and
+      top-level `module.exports = { … }` literal keys, with
+      comments/strings/templates/regexes skipped) and the ESM
+      facade synthesizes an `export const` per detected name;
+      as in Node's interop the detection over-approximates —
+      a lexed name never actually assigned binds `undefined` —
+      and re-export shapes (`module.exports = require(…)`,
+      `__exportStar`) are not chased across modules, so those
+      names reach importers only through `default`. Remaining
+      CJS sub-gaps, all deliberate: Node core builtins are
       not provided (confined runtime — a clean cannot-find
-      error); ESM `import` of a CJS module binds only
-      `default` (no cjs-module-lexer named-export synthesis) —
-      deliberate but significant, since `import { named } from
-      'cjsPkg'` is the dominant ESM-consumes-CJS pattern;
+      error); re-exported names of
+      `module.exports = require(…)` modules are not
+      synthesized (above);
       `require('./dir')` completes through `dir/index.js(on)`
       but does not consult a nested `dir/package.json` `main`;
       `require.resolve`, `__filename`, and `__dirname` return
