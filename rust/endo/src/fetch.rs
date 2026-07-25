@@ -195,10 +195,12 @@ impl UreqClient {
         }
     }
 
-    /// A client that attaches `Authorization: Bearer <token>` to any
+    /// A client that attaches an `Authorization` header to any
     /// request whose URL matches one of the configuration's
-    /// nerf-dart `_authToken` entries
-    /// ([`crate::npmrc::NpmConfig::token_for`]).
+    /// credential entries — nerf-dart `_authToken` (bearer),
+    /// `username`+`_password` / `_auth` (basic), or the top-level
+    /// basic-auth keys for the default registry
+    /// ([`crate::npmrc::NpmConfig::auth_for`]).
     pub fn with_config(config: crate::npmrc::NpmConfig) -> Self {
         let mut client = UreqClient::new();
         client.config = Some(config);
@@ -207,12 +209,12 @@ impl UreqClient {
 
     fn request(&self, url: &str) -> ureq::Request {
         let mut request = self.agent.get(url);
-        if let Some(token) = self
+        if let Some(header) = self
             .config
             .as_ref()
-            .and_then(|config| config.token_for(url))
+            .and_then(|config| config.auth_for(url))
         {
-            request = request.set("authorization", &format!("Bearer {token}"));
+            request = request.set("authorization", &header);
         }
         request
     }

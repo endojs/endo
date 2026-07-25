@@ -217,7 +217,10 @@ fn print_subcommand_help(sub: &str) {
             eprintln!("The registry is configured npm-style: ~/.npmrc, then the");
             eprintln!("entry package's .npmrc, then NPM_CONFIG_REGISTRY, then");
             eprintln!("--registry. Supported .npmrc keys: registry,");
-            eprintln!("@scope:registry, //host/path/:_authToken.");
+            eprintln!("@scope:registry, //host/path/:_authToken,");
+            eprintln!("//host/path/:username + :_password (base64), legacy");
+            eprintln!("//host/path/:_auth, their top-level forms (default");
+            eprintln!("registry only), with ${{VAR}} expansion in values.");
             eprintln!();
             eprintln!("Options:");
             eprintln!("  -e, --engine <engine>  Engine to use (default: xs)");

@@ -55,11 +55,17 @@ All five phases implemented:
   `endor run <entry.js>` executes it in an XS machine.
 - **Phase 5**: `rust/endo/src/npmrc.rs` — `NpmConfig` parsing
   the `.npmrc` subset the fetch layer consumes (`registry`,
-  `@scope:registry`, nerf-dart `//host/path/:_authToken`),
+  `@scope:registry`, and the nerf-dart credential keys
+  `:_authToken`, `:username`+`:_password`, legacy `:_auth`,
+  plus their top-level forms bound to the default registry),
   layered user `~/.npmrc` → project `.npmrc` →
-  `NPM_CONFIG_REGISTRY` → `--registry`. Scoped packages route
-  to their scope's registry; matching auth tokens accompany
-  requests as `Authorization: Bearer`. `endor run --offline`
+  `NPM_CONFIG_REGISTRY` → `--registry`, with npm-style `${VAR}`
+  environment expansion in values (an unset variable skips the
+  line rather than aborting, so CI-only lines degrade
+  cleanly). Scoped packages route to their scope's registry;
+  the matching credential accompanies requests as
+  `Authorization: Bearer <token>` or
+  `Basic base64(username:password)`. `endor run --offline`
   and `endor npm-resolve --offline` swap in an `OfflineClient`
   that refuses every network request with a typed error, so
   only registry-table and CAS hits resolve — the
@@ -443,7 +449,17 @@ The tree's children are the package's files, stored as blobs.
 
 ## Known gaps
 
-- [ ] Private registry authentication beyond `.npmrc` tokens.
+- [x] Private registry authentication beyond `.npmrc` tokens:
+      basic auth via nerf-darted `:username`+`:_password`
+      (base64-encoded password, npm's storage shape) and legacy
+      `:_auth`, the top-level `_auth`/`username`/`_password`
+      keys bound to the default registry only, and `${VAR}`
+      environment expansion in `.npmrc` values. Within one
+      nerf-dart, `_authToken` outranks the basic pair, which
+      outranks `_auth` (npm's field order). Still out of scope:
+      auth challenges beyond a static header (OTP/webauthn
+      login flows, keyring integration) — `endor` consumes
+      credentials, it does not mint them.
 - [ ] Workspace-protocol resolution for monorepos not yet
       published to a registry.
 - [ ] `peerDependencies` and `optionalDependencies` handling.
