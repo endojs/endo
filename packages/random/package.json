@@ -33,8 +33,6 @@
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
-    "postpack": "git clean -fX -e node_modules/",
     "bench": "node test/random.bench.js",
     "cover": "c8 ses-ava",
     "lint": "yarn lint:types && yarn lint:eslint",
