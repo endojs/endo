@@ -1,5 +1,3 @@
-/* global globalThis */
-
 // Exercises the `urlBlobTaming: 'remove'` lockdown opt-in, which collapses
 // the %URL% / %SharedURL% split: the start compartment also receives the
 // tamed constructor, the blob-registry statics are removed everywhere, and a

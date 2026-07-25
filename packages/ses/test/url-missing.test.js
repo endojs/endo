@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global globalThis */
 
 // Exercises the degradation path: when the host does not provide `URL` and
 // `URLSearchParams`, `lockdown()` must proceed without them and post-lockdown
