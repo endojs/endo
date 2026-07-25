@@ -25,9 +25,15 @@ import { makeMockIroh } from './_mock-iroh.js';
  *   iroh: ReturnType<typeof makeMockIroh>,
  *   name: string,
  *   locator?: Map<string, any>,
+ *   netlayerOptions?: object,
  * }} options
  */
-const makeIrohPeer = async ({ iroh, name, locator = new Map() }) => {
+const makeIrohPeer = async ({
+  iroh,
+  name,
+  locator = new Map(),
+  netlayerOptions = {},
+}) => {
   /** @type {{ netlayer?: IrohNetLayer }} */
   const netlayerRef = {};
   const client = await makeOcapn({
@@ -38,6 +44,7 @@ const makeIrohPeer = async ({ iroh, name, locator = new Map() }) => {
         logger,
         iroh,
         publishPrivateAddresses: true,
+        ...netlayerOptions,
       }).then(netlayer => {
         netlayerRef.netlayer = netlayer;
         return netlayer;
@@ -52,6 +59,26 @@ const makeIrohPeer = async ({ iroh, name, locator = new Map() }) => {
   }
   return harden({ client, netlayer, location: netlayer.location });
 };
+
+const ALPN_BYTES = Array.from(new TextEncoder().encode('ocapn/netstring/0'));
+
+/** @type {import('@endo/ocapn/client/types').Logger} */
+const quietLogger = harden({ log() {}, error() {}, info() {} });
+
+/**
+ * @param {number} fill
+ * @returns {number[]}
+ */
+const secret32 = fill => Array.from({ length: 32 }, () => fill);
+
+/**
+ * Build the mock EndpointAddr for a netlayer's own designator.
+ *
+ * @param {ReturnType<typeof makeMockIroh>} iroh
+ * @param {string} designator
+ */
+const addrFor = (iroh, designator) =>
+  new iroh.EndpointAddr(iroh.EndpointId.fromString(designator));
 
 test('two iroh-backed OCapN peers exchange method calls via bootstrap fetch', async t => {
   const iroh = makeMockIroh();
@@ -266,4 +293,248 @@ test('shutdown closes the endpoint so peers can no longer dial it', async t => {
   await t.throwsAsync(() => peerD.client.provideSession(peerA.location), {
     message: /no addressing information/,
   });
+});
+
+test('concurrent sessions to the same peer dedupe to one working session', async t => {
+  t.timeout(10_000);
+  const iroh = makeMockIroh();
+
+  const locatorA = new Map();
+  locatorA.set(
+    'Greeter',
+    Far('Greeter', {
+      hello: (who = 'world') => `hello, ${who}`,
+    }),
+  );
+
+  const peerA = await makeIrohPeer({ iroh, name: 'iroh-A', locator: locatorA });
+  t.teardown(() => peerA.client.shutdown());
+  const peerB = await makeIrohPeer({ iroh, name: 'iroh-B' });
+  t.teardown(() => peerB.client.shutdown());
+
+  // Two same-turn establishments to one location. Without in-flight
+  // dedup, both dial, both send a hello over the one reused connection,
+  // and the peer aborts the session on the second unexpected hello. Both
+  // must resolve to a usable session.
+  const ref = peerB.client.makeSturdyRef(peerA.location, 'Greeter');
+  const [g1, g2] = await Promise.all([
+    peerB.client.enlivenSturdyRef(ref),
+    peerB.client.enlivenSturdyRef(ref),
+  ]);
+  t.is(await E(g1).hello('one'), 'hello, one');
+  t.is(await E(g2).hello('two'), 'hello, two');
+});
+
+test('an inbound session completing during our dial is adopted, not rejected', async t => {
+  t.timeout(10_000);
+  const iroh = makeMockIroh();
+
+  const locatorA = new Map();
+  locatorA.set(
+    'EchoA',
+    Far('EchoA', {
+      echo: value => `A:${value}`,
+    }),
+  );
+  const locatorB = new Map();
+  locatorB.set(
+    'EchoB',
+    Far('EchoB', {
+      echo: value => `B:${value}`,
+    }),
+  );
+
+  const peerA = await makeIrohPeer({ iroh, name: 'iroh-A', locator: locatorA });
+  t.teardown(() => peerA.client.shutdown());
+  const peerB = await makeIrohPeer({ iroh, name: 'iroh-B', locator: locatorB });
+  t.teardown(() => peerB.client.shutdown());
+
+  // Slow B's outbound dials so A's dial to B (and the inbound handshake
+  // it drives on B) completes while B's own dial to A is still in flight.
+  // B's dial must then adopt the active session rather than send a second
+  // hello and reject.
+  iroh.setConnectDelay(peerB.location.designator, 40);
+
+  const [echoB, echoA] = await Promise.all([
+    peerA.client.enlivenSturdyRef(
+      peerA.client.makeSturdyRef(peerB.location, 'EchoB'),
+    ),
+    peerB.client.enlivenSturdyRef(
+      peerB.client.makeSturdyRef(peerA.location, 'EchoA'),
+    ),
+  ]);
+  t.is(await E(echoB).echo('x'), 'B:x');
+  t.is(await E(echoA).echo('y'), 'A:y');
+});
+
+test('rejects a peer whose designator does not match its authenticated EndpointId', async t => {
+  t.timeout(10_000);
+  const iroh = makeMockIroh();
+
+  /** @type {(connection: any) => void} */
+  let resolveWired = () => {};
+  /** @type {Promise<any>} */
+  const wiredConnection = new Promise(resolve => {
+    resolveWired = resolve;
+  });
+  const handlers = /** @type {any} */ (
+    harden({
+      /**
+       * @param {any} netlayer
+       * @param {boolean} isOutgoing
+       */
+      makeConnection: (netlayer, isOutgoing) => {
+        const connection = harden({
+          netlayer,
+          isOutgoing,
+          get isDestroyed() {
+            return false;
+          },
+          write() {},
+          end() {},
+        });
+        resolveWired(connection);
+        return connection;
+      },
+      handleMessageData: () => {},
+      handleConnectionClose: () => {},
+    })
+  );
+
+  const victim = await makeIrohNetLayer({
+    handlers,
+    logger: quietLogger,
+    iroh,
+    publishPrivateAddresses: true,
+  });
+  t.teardown(() => victim.shutdown());
+
+  // A raw endpoint dials the victim and opens a stream so the victim
+  // wires an inbound connection whose QUIC-authenticated identity is the
+  // attacker's real EndpointId.
+  const attacker = await iroh.Endpoint.bind({
+    secretKey: secret32(0xa1),
+    alpns: [ALPN_BYTES],
+  });
+  const attackerId = attacker.id().toString();
+  const attackerConn = await attacker.connect(
+    addrFor(iroh, victim.location.designator),
+    ALPN_BYTES,
+  );
+  await attackerConn.openBi();
+  const connection = await wiredConnection;
+
+  // Claiming a third party's designator is rejected; claiming its own
+  // authenticated identity is accepted.
+  const victimNetlayer = /** @type {any} */ (victim);
+  t.throws(
+    () =>
+      victimNetlayer.verifyPeerLocation(
+        connection,
+        buildIrohLocation({ nodeId: 'ff'.repeat(32) }),
+      ),
+    { message: /does not match QUIC-authenticated EndpointId/ },
+  );
+  t.notThrows(() =>
+    victimNetlayer.verifyPeerLocation(
+      connection,
+      buildIrohLocation({ nodeId: attackerId }),
+    ),
+  );
+});
+
+test('a peer that never completes the handshake is reaped by the deadline', async t => {
+  t.timeout(10_000);
+  const iroh = makeMockIroh();
+
+  const peerV = await makeIrohPeer({
+    iroh,
+    name: 'iroh-V',
+    netlayerOptions: { handshakeTimeoutMs: 50 },
+  });
+  t.teardown(() => peerV.client.shutdown());
+
+  const attacker = await iroh.Endpoint.bind({
+    secretKey: secret32(0xb2),
+    alpns: [ALPN_BYTES],
+  });
+  const conn = await attacker.connect(
+    addrFor(iroh, peerV.location.designator),
+    ALPN_BYTES,
+  );
+  await conn.openBi();
+  // The attacker sends nothing; the handshake deadline must close the
+  // connection (otherwise this await — and the test — hangs to timeout).
+  await conn.closed();
+  t.pass();
+});
+
+test('inbound in-progress cap refuses excess un-authenticated connections', async t => {
+  t.timeout(10_000);
+  const iroh = makeMockIroh();
+
+  /** @type {(value?: unknown) => void} */
+  let resolveFirstWired = () => {};
+  const firstWired = new Promise(resolve => {
+    resolveFirstWired = resolve;
+  });
+  const handlers = /** @type {any} */ (
+    harden({
+      /**
+       * @param {any} netlayer
+       * @param {boolean} isOutgoing
+       */
+      makeConnection: (netlayer, isOutgoing) => {
+        const connection = harden({
+          netlayer,
+          isOutgoing,
+          get isDestroyed() {
+            return false;
+          },
+          write() {},
+          end() {},
+        });
+        resolveFirstWired();
+        return connection;
+      },
+      handleMessageData: () => {},
+      handleConnectionClose: () => {},
+    })
+  );
+
+  const victim = await makeIrohNetLayer({
+    handlers,
+    logger: quietLogger,
+    iroh,
+    publishPrivateAddresses: true,
+    maxInboundInProgress: 1,
+    handshakeTimeoutMs: 100_000,
+  });
+  t.teardown(() => victim.shutdown());
+
+  const a1 = await iroh.Endpoint.bind({
+    secretKey: secret32(0xc1),
+    alpns: [ALPN_BYTES],
+  });
+  const c1 = await a1.connect(
+    addrFor(iroh, victim.location.designator),
+    ALPN_BYTES,
+  );
+  await c1.openBi();
+  // Wait until the first connection is wired (in-progress count is 1).
+  await firstWired;
+
+  const a2 = await iroh.Endpoint.bind({
+    secretKey: secret32(0xc2),
+    alpns: [ALPN_BYTES],
+  });
+  const c2 = await a2.connect(
+    addrFor(iroh, victim.location.designator),
+    ALPN_BYTES,
+  );
+  await c2.openBi();
+  // The cap is reached, so the second connection is refused and closed
+  // (this await hangs to timeout if the cap does not fire).
+  await c2.closed();
+  t.pass();
 });

@@ -1,4 +1,5 @@
 // @ts-check
+/* global setTimeout, clearTimeout */
 
 import { randomBytes } from 'node:crypto';
 import harden from '@endo/harden';
@@ -8,7 +9,11 @@ import { locationToLocationId } from '@endo/ocapn/client/util';
 
 import { adaptIrohStream } from './stream-adapter.js';
 import { HEARTBEAT_INTERVAL_MS, makeIrohHeartbeat } from './heartbeat.js';
-import { buildIrohLocation, dialParamsFromLocation } from './location.js';
+import {
+  buildIrohLocation,
+  dialParamsFromLocation,
+  isPublishableDirectAddress,
+} from './location.js';
 
 /**
  * @import { Connection, LocationId, Logger, NetLayer, NetlayerHandlers, SocketOperations } from '@endo/ocapn/client/types'
@@ -52,6 +57,21 @@ const ALPN_ARRAY = harden(Array.from(new TextEncoder().encode(ALPN_STRING)));
 const DEFAULT_MAX_FRAME_LENGTH = 16 * 1024 * 1024;
 
 /**
+ * How long a connection may sit between "wired" and "OCapN session
+ * authenticated" before it is presumed dead and closed. Bounds the state
+ * a peer that completes the QUIC/ALPN handshake but never sends a valid
+ * `op:start-session` (or sends nothing) can pin.
+ */
+const DEFAULT_HANDSHAKE_TIMEOUT_MS = 30_000;
+
+/**
+ * Cap on concurrent inbound connections that are wired but not yet
+ * authenticated. Combined with the handshake timeout, this bounds the
+ * un-authenticated inbound state a flood of junk connections can hold.
+ */
+const DEFAULT_MAX_INBOUND_IN_PROGRESS = 256;
+
+/**
  * Encode a string as the `Array<number>` byte form the native binding's
  * `Vec<u8>` parameters expect (used for connection-close reasons).
  *
@@ -72,6 +92,7 @@ const toByteArray = text => Array.from(new TextEncoder().encode(text));
  * @typedef {Omit<NetLayer, 'connect'> & {
  *   networkId: string,
  *   connect: (location: OcapnLocation) => Promise<Connection>,
+ *   verifyPeerLocation: (connection: Connection, peerLocation: OcapnLocation) => void,
  *   _debug: IrohNetLayerDebug,
  * }} IrohNetLayer
  */
@@ -103,11 +124,20 @@ const toByteArray = text => Array.from(new TextEncoder().encode(text));
  *   caller owns persistence: supply the same secret to keep a stable
  *   designator across restarts.
  * @param {boolean} [options.publishPrivateAddresses] - Publish
- *   loopback/private direct addresses as dialing hints. Off by default
- *   (they are useless to remote dialers); enable for same-host tests
- *   where discovery has no public path to advertise.
+ *   loopback/private direct addresses as dialing hints, and accept such
+ *   addresses as dialing hints on inbound locations. Off by default:
+ *   private/loopback hints are useless to a remote dialer, and honoring
+ *   them on a location a third party hands us would let that party steer
+ *   our QUIC dials at internal hosts (an SSRF-style vector). Enable for
+ *   same-host tests where discovery has no public path to advertise.
  * @param {number} [options.heartbeatIntervalMs] - Datagram keep-alive
  *   send period. See `./heartbeat.js`.
+ * @param {number} [options.handshakeTimeoutMs] - How long a wired
+ *   connection may go without completing the OCapN session handshake
+ *   before it is closed. See `DEFAULT_HANDSHAKE_TIMEOUT_MS`.
+ * @param {number} [options.maxInboundInProgress] - Cap on concurrent
+ *   un-authenticated inbound connections. See
+ *   `DEFAULT_MAX_INBOUND_IN_PROGRESS`.
  * @param {number} [options.maxFrameLength] - Inbound netstring frame cap.
  * @returns {Promise<IrohNetLayer>}
  */
@@ -118,6 +148,8 @@ export const makeIrohNetLayer = async ({
   secretKey = undefined,
   publishPrivateAddresses = false,
   heartbeatIntervalMs = HEARTBEAT_INTERVAL_MS,
+  handshakeTimeoutMs = DEFAULT_HANDSHAKE_TIMEOUT_MS,
+  maxInboundInProgress = DEFAULT_MAX_INBOUND_IN_PROGRESS,
   maxFrameLength = DEFAULT_MAX_FRAME_LENGTH,
 }) => {
   await null;
@@ -189,6 +221,27 @@ export const makeIrohNetLayer = async ({
   const activeConnections = new Set();
   /** @type {Map<LocationId, Promise<Connection>>} */
   const outgoingConnections = new Map();
+
+  /**
+   * Per-connection handshake state: the QUIC-authenticated remote
+   * EndpointId, the handshake-deadline canceller, a lazily-started
+   * heartbeat, and the un-authenticated-inbound accounting.
+   *
+   * @typedef {object} ConnState
+   * @property {string | undefined} remoteId - Authenticated peer
+   *   EndpointId, or undefined if the binding did not expose one.
+   * @property {boolean} isOutgoing
+   * @property {boolean} authenticated
+   * @property {() => void} cancelHandshakeTimeout
+   * @property {() => void} startHeartbeat
+   * @property {() => void} releaseInProgress - Idempotent; decrements the
+   *   inbound in-progress counter at most once.
+   */
+  /** @type {Map<Connection, ConnState>} */
+  const connectionState = new Map();
+  // Count of inbound connections that are wired but not yet authenticated.
+  let inboundInProgress = 0;
+
   /** @type {IrohNetLayer} */
   let netlayer;
 
@@ -277,15 +330,83 @@ export const makeIrohNetLayer = async ({
     );
     activeConnections.add(connection);
 
-    const heartbeat = makeIrohHeartbeat(quicConn, {
-      intervalMs: heartbeatIntervalMs,
-      onTimeout: () => {
-        logger.error(
-          `ocapn-iroh: connection missed keep-alive; presuming peer dead`,
-        );
-        closeQuicConnection('keep-alive timeout');
-      },
-      log: message => logger.info(`ocapn-iroh: ${message}`),
+    // The QUIC-authenticated remote EndpointId. `verifyPeerLocation`
+    // binds the peer's *claimed* OCapN designator to this. Read
+    // defensively: the mock and the real binding both expose
+    // `remoteId()`, but if a binding does not, `remoteId` stays undefined
+    // and `verifyPeerLocation` fails closed rather than trusting the
+    // claim.
+    let remoteId;
+    try {
+      const rid = quicConn.remoteId?.();
+      remoteId = rid == null ? undefined : rid.toString();
+    } catch {
+      remoteId = undefined;
+    }
+
+    // The heartbeat is created but NOT started until the session is
+    // authenticated (see `verifyPeerLocation`). Starting it at wire time
+    // would send keep-alive datagrams that keep resetting QUIC's idle
+    // timer, so a peer that authenticates-then-goes-silent — or never
+    // authenticates at all — would never be reaped by the idle timeout
+    // the heartbeat's own watchdog defers to.
+    let heartbeat;
+    const startHeartbeat = () => {
+      if (heartbeat) {
+        return;
+      }
+      heartbeat = makeIrohHeartbeat(quicConn, {
+        intervalMs: heartbeatIntervalMs,
+        onTimeout: () => {
+          logger.error(
+            `ocapn-iroh: connection missed keep-alive; presuming peer dead`,
+          );
+          closeQuicConnection('keep-alive timeout');
+        },
+        log: message => logger.info(`ocapn-iroh: ${message}`),
+      });
+    };
+
+    // Reap a connection that completes QUIC/ALPN but never finishes the
+    // OCapN session handshake. Cancelled once `verifyPeerLocation` marks
+    // the session authenticated.
+    /** @type {ReturnType<typeof setTimeout> | undefined} */
+    let handshakeTimer = setTimeout(() => {
+      handshakeTimer = undefined;
+      const state = connectionState.get(connection);
+      if (state && !state.authenticated) {
+        logger.info('ocapn-iroh: handshake deadline exceeded; closing');
+        closeQuicConnection('handshake timeout');
+      }
+    }, handshakeTimeoutMs);
+    if (typeof handshakeTimer.unref === 'function') {
+      handshakeTimer.unref();
+    }
+    const cancelHandshakeTimeout = () => {
+      if (handshakeTimer !== undefined) {
+        clearTimeout(handshakeTimer);
+        handshakeTimer = undefined;
+      }
+    };
+
+    if (!isOutgoing) {
+      inboundInProgress += 1;
+    }
+    let inProgressReleased = isOutgoing;
+    const releaseInProgress = () => {
+      if (!inProgressReleased) {
+        inProgressReleased = true;
+        inboundInProgress -= 1;
+      }
+    };
+
+    connectionState.set(connection, {
+      remoteId,
+      isOutgoing,
+      authenticated: false,
+      cancelHandshakeTimeout,
+      startHeartbeat,
+      releaseInProgress,
     });
 
     // Pump whole netstring frames into the OCapN client. Reader EOF (or
@@ -308,7 +429,12 @@ export const makeIrohNetLayer = async ({
           logger.error('ocapn-iroh: connection read failed', error);
         }
       } finally {
-        heartbeat.stop();
+        cancelHandshakeTimeout();
+        releaseInProgress();
+        if (heartbeat) {
+          heartbeat.stop();
+        }
+        connectionState.delete(connection);
         activeConnections.delete(connection);
         // Mark the connection destroyed before notifying the client, so
         // waiters observe `isDestroyed` even when the close raced data
@@ -324,6 +450,44 @@ export const makeIrohNetLayer = async ({
   };
 
   /**
+   * Bind the peer's claimed OCapN designator to the QUIC-authenticated
+   * remote EndpointId. Called by the OCapN client during the
+   * `op:start-session` handshake (after the location signature validates)
+   * for both inbound and outbound connections. Throws to reject a peer
+   * presenting a designator that is not the identity iroh's mutually
+   * authenticated QUIC handshake proved they hold — which is what stops
+   * an inbound peer from impersonating a third party's location and
+   * poisoning the client's session cache. On success it also promotes the
+   * connection out of the un-authenticated state: the handshake deadline
+   * is cancelled and the keep-alive heartbeat starts.
+   *
+   * @param {Connection} connection
+   * @param {OcapnLocation} peerLocation
+   */
+  const verifyPeerLocation = (connection, peerLocation) => {
+    const state = connectionState.get(connection);
+    if (!state) {
+      throw makeError(X`ocapn-iroh: unknown connection in verifyPeerLocation`);
+    }
+    if (state.remoteId === undefined) {
+      throw makeError(
+        X`ocapn-iroh: no QUIC-authenticated identity for connection; refusing to bind designator`,
+      );
+    }
+    if (peerLocation.designator !== state.remoteId) {
+      throw makeError(
+        X`ocapn-iroh: peer designator ${q(peerLocation.designator)} does not match QUIC-authenticated EndpointId ${q(state.remoteId)}`,
+      );
+    }
+    if (!state.authenticated) {
+      state.authenticated = true;
+      state.cancelHandshakeTimeout();
+      state.releaseInProgress();
+      state.startHeartbeat();
+    }
+  };
+
+  /**
    * @param {OcapnLocation} location
    * @param {() => void} onClose
    * @returns {Promise<Connection>}
@@ -334,6 +498,15 @@ export const makeIrohNetLayer = async ({
       relayUrl: peerRelay,
       addresses: peerAddrs,
     } = dialParamsFromLocation(location);
+    // A location is attacker-influenced data (it can arrive in a gift, a
+    // sturdyref, or a third-party handoff). Unless this netlayer is
+    // explicitly in same-host mode, drop private/loopback direct-address
+    // hints before dialing so a hostile location cannot steer our QUIC
+    // dials at internal hosts. The EndpointId still authenticates the
+    // peer, and discovery can always resolve it without hints.
+    const dialAddrs = publishPrivateAddresses
+      ? peerAddrs
+      : peerAddrs?.filter(isPublishableDirectAddress);
     // 1.0 dials an `EndpointAddr` instance (built from an `EndpointId`
     // plus optional relay/direct-address hints). Passing no hints lets
     // discovery resolve the EndpointId. Dialing the EndpointId is what
@@ -342,7 +515,7 @@ export const makeIrohNetLayer = async ({
     const endpointAddr = new EndpointAddr(
       EndpointId.fromString(nodeId),
       peerRelay,
-      peerAddrs,
+      dialAddrs,
     );
     /** @type {any} */
     let quicConn;
@@ -425,6 +598,18 @@ export const makeIrohNetLayer = async ({
     const quicConn = await accepting.connect();
     let handedOff = false;
     try {
+      // Shed load before wiring: if too many inbound connections are
+      // already wired-but-unauthenticated, refuse this one rather than
+      // let a flood pin unbounded per-connection state. (The QUIC
+      // connection was accepted to learn it exists; close it now without
+      // minting any OCapN session state for it.)
+      if (inboundInProgress >= maxInboundInProgress) {
+        logger.info(
+          'ocapn-iroh: inbound in-progress cap reached; refusing connection',
+        );
+        quicConn.close(0n, toByteArray('busy'));
+        return;
+      }
       const bi = await quicConn.acceptBi();
       wireConnection(quicConn, bi, false);
       handedOff = true;
@@ -445,12 +630,36 @@ export const makeIrohNetLayer = async ({
 
   const acceptLoop = async () => {
     await null;
+    // A transient rejection from `acceptNext` should not permanently kill
+    // the loop (that would leave a live netlayer silently accepting
+    // nothing); only a `null` result — the endpoint closing — or a run of
+    // consecutive failures ends it.
+    let consecutiveErrors = 0;
+    const MAX_CONSECUTIVE_ACCEPT_ERRORS = 16;
     for (;;) {
-      // Accept connections one at a time; the work for each is
-      // dispatched concurrently below, so the serial await here is
-      // intentional.
-      // eslint-disable-next-line no-await-in-loop
-      const incoming = await endpoint.acceptNext();
+      /** @type {any} */
+      let incoming;
+      try {
+        // Accept connections one at a time; the work for each is
+        // dispatched concurrently below, so the serial await here is
+        // intentional.
+        // eslint-disable-next-line no-await-in-loop
+        incoming = await endpoint.acceptNext();
+      } catch (error) {
+        if (isShutdown) {
+          return;
+        }
+        consecutiveErrors += 1;
+        logger.error(
+          `ocapn-iroh: acceptNext failed (${consecutiveErrors}/${MAX_CONSECUTIVE_ACCEPT_ERRORS}): ${/** @type {Error} */ (error).message}`,
+        );
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ACCEPT_ERRORS) {
+          throw error;
+        }
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      consecutiveErrors = 0;
       if (!incoming) {
         // `acceptNext` resolves to null once the endpoint is closed.
         return;
@@ -471,6 +680,11 @@ export const makeIrohNetLayer = async ({
       return;
     }
     isShutdown = true;
+    // Cancel any armed handshake deadlines so a shutdown does not leave
+    // timers pending against connections we are about to end.
+    for (const state of connectionState.values()) {
+      state.cancelHandshakeTimeout();
+    }
     for (const connection of activeConnections) {
       try {
         connection.end();
@@ -490,6 +704,7 @@ export const makeIrohNetLayer = async ({
     location: localLocation,
     locationId: locationToLocationId(localLocation),
     connect,
+    verifyPeerLocation,
     shutdown,
     // eslint-disable-next-line no-underscore-dangle
     _debug: {

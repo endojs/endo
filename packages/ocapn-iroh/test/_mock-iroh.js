@@ -180,9 +180,15 @@ const makeBiPair = chunkSize => {
  * EOFs every stream in both directions and settles both `closed()`
  * promises, mirroring a QUIC connection close.
  *
+ * Each end's `remoteId()` returns the *other* end's EndpointId string,
+ * modelling QUIC's mutual authentication: the id a connection reports is
+ * the peer's cryptographically-authenticated identity, not a claim.
+ *
  * @param {number} chunkSize
+ * @param {string} aRemoteId - EndpointId that end A's peer (end B) holds.
+ * @param {string} bRemoteId - EndpointId that end B's peer (end A) holds.
  */
-const makeLinkedConnections = chunkSize => {
+const makeLinkedConnections = (chunkSize, aRemoteId, bRemoteId) => {
   const shared = {
     closed: false,
     /** @type {ReturnType<typeof makeAsyncQueue<Uint8Array>>[]} */
@@ -198,7 +204,8 @@ const makeLinkedConnections = chunkSize => {
     shared.closeWaiters.length = 0;
   };
 
-  const makeEnd = () => {
+  /** @param {string} remoteIdString */
+  const makeEnd = remoteIdString => {
     /** @type {any[]} */
     const biBacklog = [];
     /** @type {((bi: any) => void)[]} */
@@ -215,6 +222,9 @@ const makeLinkedConnections = chunkSize => {
         const waiter = biWaiters.shift();
         if (waiter) waiter(bi);
         else biBacklog.push(bi);
+      },
+      remoteId() {
+        return { toString: () => remoteIdString };
       },
       async openBi() {
         await null;
@@ -247,8 +257,8 @@ const makeLinkedConnections = chunkSize => {
     return end;
   };
 
-  const a = makeEnd();
-  const b = makeEnd();
+  const a = makeEnd(aRemoteId);
+  const b = makeEnd(bRemoteId);
   a.link(b);
   b.link(a);
   return [a, b];
@@ -262,6 +272,13 @@ const makeLinkedConnections = chunkSize => {
  * @param {number} [options.chunkSize] - Wire chunk size for writes.
  */
 export const makeMockIroh = ({ chunkSize = 7 } = {}) => {
+  /**
+   * Per-connector artificial dial latency, keyed by the dialing
+   * endpoint's id. Lets a test force the interleaving where an inbound
+   * handshake completes while an outbound dial is still in flight.
+   * @type {Map<string, number>}
+   */
+  const connectDelays = new Map();
   /**
    * @type {Map<string, {
    *   alpns: number[][],
@@ -336,6 +353,10 @@ export const makeMockIroh = ({ chunkSize = 7 } = {}) => {
          */
         async connect(endpointAddr, alpn) {
           await null;
+          const delayMs = connectDelays.get(id) ?? 0;
+          if (delayMs > 0) {
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          }
           if (record.closed) {
             throw Error('mock-iroh: endpoint is closed');
           }
@@ -347,7 +368,14 @@ export const makeMockIroh = ({ chunkSize = 7 } = {}) => {
           if (!target.alpns.some(a => arraysEqual(a, Array.from(alpn)))) {
             throw Error('mock-iroh: peer does not speak the requested ALPN');
           }
-          const [local, remote] = makeLinkedConnections(chunkSize);
+          // The dialer's connection reports the target's id as its
+          // authenticated peer; the target's inbound connection reports
+          // the dialer's id.
+          const [local, remote] = makeLinkedConnections(
+            chunkSize,
+            targetId,
+            id,
+          );
           record.connections.push(local);
           target.connections.push(remote);
           target.incoming.put({
@@ -372,5 +400,17 @@ export const makeMockIroh = ({ chunkSize = 7 } = {}) => {
     },
   };
 
-  return { Endpoint, EndpointAddr, EndpointId };
+  /**
+   * Force the given endpoint's outbound dials to resolve only after
+   * `ms` milliseconds, so a test can drive the "inbound handshake
+   * completes while our outbound dial is still pending" interleaving.
+   *
+   * @param {string} endpointId
+   * @param {number} ms
+   */
+  const setConnectDelay = (endpointId, ms) => {
+    connectDelays.set(endpointId, ms);
+  };
+
+  return { Endpoint, EndpointAddr, EndpointId, setConnectDelay };
 };
