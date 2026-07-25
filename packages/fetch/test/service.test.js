@@ -1,13 +1,14 @@
 // @ts-check
 import test from '@endo/ses-ava/prepare-endo.js';
 
+import { setTimeout } from 'node:timers';
+
 import { E } from '@endo/eventual-send';
 import { makeInMemoryFilesystem } from '@endo/platform/fs/extended';
 
 import { makeFetchStore } from '../src/store.js';
 import { makeFetchService } from '../src/service.js';
 
-/* global setTimeout */
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 /** Let the fire-and-forget persistence write-chain settle. */
 const flush = () => delay(10);
