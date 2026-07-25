@@ -21,6 +21,8 @@
     ".": "./index.js",
     "./netlayer/tcp-testing": "./src/netlayers/tcp-test-only.js",
     "./netlayer/ws": "./src/netlayers/websocket.js",
+    "./client/types": "./src/client/types.js",
+    "./client/util": "./src/client/util.js",
     "./syrup": "./src/syrup/index.js",
     "./cbor": "./src/cbor/index.js",
     "./cryptography": "./src/cryptography.js",
