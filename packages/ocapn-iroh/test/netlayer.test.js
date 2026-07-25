@@ -247,6 +247,9 @@ test('shutdown closes the endpoint so peers can no longer dial it', async t => {
   );
 
   const peerA = await makeIrohPeer({ iroh, name: 'iroh-A', locator: locatorA });
+  // Safety net if an assertion throws before the explicit shutdown below;
+  // client.shutdown() is idempotent.
+  t.teardown(() => peerA.client.shutdown());
   const peerB = await makeIrohPeer({ iroh, name: 'iroh-B' });
   t.teardown(() => peerB.client.shutdown());
 

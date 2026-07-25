@@ -52,6 +52,7 @@
     "packages/netstring",
     "packages/ocapn",
     "packages/ocapn-noise",
+    "packages/ocapn-iroh",
     "packages/platform",
     "packages/preact-container",
     "packages/relay-server",
