@@ -282,6 +282,18 @@ export const makeOcapn = async ({
   const sessionManager = makeSessionManager();
 
   /**
+   * In-flight session establishments, keyed by destination locationId.
+   * A network whose `connect`/`provideSession` is asynchronous registers
+   * its pending session only after an `await`, so two synchronous callers
+   * in the same turn would both miss `getActiveSession`/`getPendingSession`
+   * and each start a redundant establishment. This map collapses
+   * concurrent callers onto one establishment promise for the window
+   * before a pending session is registered.
+   * @type {Map<LocationId, Promise<InternalSession>>}
+   */
+  const establishingSessions = new Map();
+
+  /**
    * The resolved network. Assigned exactly once, after any factory is
    * called with `netlayerHandlers` and the logger. All closures below
    * reference this `let` binding; no method on the returned `Client`
@@ -290,19 +302,41 @@ export const makeOcapn = async ({
    */
   let network;
 
+  /**
+   * The location each connection presents as its own, recorded eagerly so
+   * the session keypair can be minted lazily (see
+   * `getSelfIdentityForConnection`).
+   * @type {WeakMap<Connection, OcapnLocation>}
+   */
+  const connectionLocationMap = new WeakMap();
   /** @type {WeakMap<Connection, SelfIdentity>} */
   const connectionSelfIdentityMap = new WeakMap();
 
   /**
-   * Get the self identity for a connection.
+   * Get the self identity for a connection, minting it on first use.
+   *
+   * Deferring the keypair until the identity is actually needed (our
+   * first outbound hello, or our reply to a *validated* inbound hello)
+   * means an unauthenticated inbound connection that never sends a valid
+   * `op:start-session` never costs us an Ed25519 keypair — bounding the
+   * work a flood of junk inbound connections can pin.
+   *
    * @param {Connection} connection
    * @returns {SelfIdentity}
    */
   const getSelfIdentityForConnection = connection => {
-    const selfIdentity = connectionSelfIdentityMap.get(connection);
-    if (!selfIdentity) {
+    const existing = connectionSelfIdentityMap.get(connection);
+    if (existing) {
+      return existing;
+    }
+    const location = connectionLocationMap.get(connection);
+    if (!location) {
       throw Error('Connection not found in self identity map');
     }
+    // `makeSelfIdentity` also returns the raw private key bytes (for the
+    // durable-session resume path); we only need the identity here.
+    const { selfIdentity } = makeSelfIdentity(location);
+    connectionSelfIdentityMap.set(connection, selfIdentity);
     return selfIdentity;
   };
 
@@ -446,6 +480,17 @@ export const makeOcapn = async ({
     const connectResult = asNetlayer.connect(location);
     const connection =
       connectResult instanceof Promise ? await connectResult : connectResult;
+    // If `connect` was asynchronous, an inbound handshake (a crossed
+    // hello) may have established an active session for this location
+    // while we were dialing. Adopt it and discard the redundant outbound
+    // connection rather than sending a second hello, which the peer would
+    // reject as an unexpected `op:start-session` on an active session and
+    // which would abort the session it just established.
+    const racedSession = sessionManager.getActiveSession(destinationLocationId);
+    if (racedSession) {
+      connection.end();
+      return racedSession;
+    }
     const selfIdentity = getSelfIdentityForConnection(connection);
     // Networks that customize their handshake (e.g. a Noise-based
     // network) own the send path; otherwise fall back to
@@ -502,11 +547,28 @@ export const makeOcapn = async ({
       logger.info(`provideInternalSession returning existing pending session`);
       return pendingSession;
     }
+    // Dedupe an establishment already in flight but not yet far enough to
+    // have registered a pending session (the window across an async
+    // `connect`). Without this, concurrent callers each dial and each send
+    // a hello; the peer aborts the session on the second, unexpected
+    // `op:start-session`.
+    const inFlight = establishingSessions.get(locationId);
+    if (inFlight) {
+      logger.info(`provideInternalSession returning in-flight establishment`);
+      return inFlight;
+    }
     // Connect and establish a new session.
     logger.info(
       `provideInternalSession connecting and establishing new session`,
     );
     const newSessionPromise = establishSession(location);
+    establishingSessions.set(locationId, newSessionPromise);
+    const forget = () => {
+      if (establishingSessions.get(locationId) === newSessionPromise) {
+        establishingSessions.delete(locationId);
+      }
+    };
+    newSessionPromise.then(forget, forget);
     return newSessionPromise;
   };
 
@@ -653,7 +715,6 @@ export const makeOcapn = async ({
    */
   const makeConnection = (netlayer, isOutgoing, socket) => {
     let isDestroyed = false;
-    const { selfIdentity } = makeSelfIdentity(netlayer.location);
 
     /** @type {Connection} */
     const connection = harden({
@@ -672,8 +733,9 @@ export const makeOcapn = async ({
       },
     });
 
-    // Store self identity for this connection
-    connectionSelfIdentityMap.set(connection, selfIdentity);
+    // Record the location this connection will present as its own; the
+    // keypair is minted lazily on first `getSelfIdentityForConnection`.
+    connectionLocationMap.set(connection, netlayer.location);
 
     return connection;
   };

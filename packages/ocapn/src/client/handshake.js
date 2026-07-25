@@ -189,6 +189,28 @@ const handleSessionHandshakeMessage = (
       }
       logger.info('>> Server received VALID location signature');
 
+      // Networks that authenticate the transport (e.g. an iroh
+      // EndpointId, a Noise static key) can bind the peer's *claimed*
+      // location to the transport-authenticated identity here, rejecting
+      // a peer that presents someone else's designator. The location
+      // signature above only proves the peer holds the fresh session key
+      // it just minted — nothing ties that to who the transport says they
+      // are. Connect-style netlayers expose this binding as an optional
+      // `verifyPeerLocation` hook; networks without transport
+      // authentication (e.g. tcp-testing-only) omit it and are trusted at
+      // face value, exactly as before.
+      const { netlayer } = connection;
+      if (netlayer && typeof netlayer.verifyPeerLocation === 'function') {
+        try {
+          netlayer.verifyPeerLocation(connection, peerLocation);
+        } catch (err) {
+          logger.info('>> Peer location rejected by netlayer', err);
+          sendAbortAndClose(connection, 'peer location not authorized');
+          sessionManager.deleteConnection(connection);
+          return;
+        }
+      }
+
       // Check for crossed hellos
       const outgoingConnection =
         sessionManager.getOutgoingConnection(locationId);

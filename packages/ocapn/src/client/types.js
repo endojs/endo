@@ -23,8 +23,16 @@
  * @typedef {object} NetLayer
  * @property {OcapnLocation} location
  * @property {LocationId} locationId
- * @property {(location: OcapnLocation) => Connection} connect
+ * @property {(location: OcapnLocation) => Connection | Promise<Connection>} connect
  * @property {() => void} shutdown
+ * @property {((connection: Connection, peerLocation: OcapnLocation) => void)} [verifyPeerLocation]
+ * Optional. Called during the `op:start-session` handshake, after the
+ * peer's location signature validates, with the peer's claimed location.
+ * A netlayer that authenticates the transport (e.g. iroh's QUIC-verified
+ * EndpointId) should throw here unless the claimed `designator` matches
+ * the transport-authenticated identity, binding the session's advertised
+ * location to who the peer cryptographically is. Netlayers without
+ * transport authentication omit it.
  */
 
 /**
