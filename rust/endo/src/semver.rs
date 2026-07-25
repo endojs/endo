@@ -36,7 +36,12 @@ impl Version {
         } else {
             0
         };
-        Some(Version { major, minor, patch, pre })
+        Some(Version {
+            major,
+            minor,
+            patch,
+            pre,
+        })
     }
 }
 
@@ -69,17 +74,26 @@ impl fmt::Display for Version {
         if self.pre.is_empty() {
             write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
         } else {
-            write!(f, "{}.{}.{}-{}", self.major, self.minor, self.patch, self.pre)
+            write!(
+                f,
+                "{}.{}.{}-{}",
+                self.major, self.minor, self.patch, self.pre
+            )
         }
     }
 }
 
-/// A semver range (e.g., `^1.2.3`, `~1.2.0`, `>=1.0.0 <2.0.0`).
+/// A semver range (e.g., `^1.2.3`, `~1.2.0`, `>=1.0.0 <2.0.0`,
+/// `^17.0.0 || ^18.0.0`).
 ///
 /// Simplified: we support the common npm range operators.
 #[derive(Clone, Debug)]
 pub struct Range {
-    comparators: Vec<Comparator>,
+    /// `||`-separated alternatives; each alternative is a
+    /// space-separated AND set of comparators. A version satisfies
+    /// the range when it satisfies every comparator of at least one
+    /// alternative.
+    alternatives: Vec<Vec<Comparator>>,
 }
 
 #[derive(Clone, Debug)]
@@ -112,40 +126,44 @@ impl Range {
         let s = s.trim();
         if s.is_empty() || s == "*" || s == "latest" {
             return Some(Range {
-                comparators: vec![Comparator::Any],
+                alternatives: vec![vec![Comparator::Any]],
             });
         }
 
-        // Handle `||`-separated OR sets — for MVS we use the first
-        // set that matches. Simplification: treat as union of all
-        // comparators.
-        let mut comparators = Vec::new();
+        // `||`-separated alternatives, each a space-separated AND set
+        // of comparators. `^17 || ^18` therefore matches either
+        // major, where flattening the alternatives into one AND set
+        // would match neither.
+        let mut alternatives = Vec::new();
         for part in s.split("||") {
             let part = part.trim();
             if part.is_empty() {
                 continue;
             }
-            // Handle space-separated comparators within a single set.
+            let mut comparators = Vec::new();
             for token in part.split_whitespace() {
                 if let Some(c) = parse_comparator(token) {
                     comparators.push(c);
                 }
             }
+            if !comparators.is_empty() {
+                alternatives.push(comparators);
+            }
         }
 
-        if comparators.is_empty() {
+        if alternatives.is_empty() {
             None
         } else {
-            Some(Range { comparators })
+            Some(Range { alternatives })
         }
     }
 
-    /// Check if a version satisfies this range.
+    /// Check if a version satisfies this range: every comparator of
+    /// at least one `||` alternative.
     pub fn satisfies(&self, version: &Version) -> bool {
-        // All comparators must be satisfied (AND within a set).
-        // For OR sets, we'd need more structure, but this simplified
-        // approach works for the common npm patterns.
-        self.comparators.iter().all(|c| satisfies_comparator(c, version))
+        self.alternatives
+            .iter()
+            .any(|set| set.iter().all(|c| satisfies_comparator(c, version)))
     }
 }
 
@@ -343,10 +361,7 @@ fn satisfies_comparator(c: &Comparator, v: &Version) -> bool {
 /// This is Go-like MVS: we select the greatest version that was
 /// explicitly mentioned (directly or transitively) and satisfies
 /// all declared ranges.
-pub fn select_versions(
-    available: &[Version],
-    ranges: &[Range],
-) -> Vec<Version> {
+pub fn select_versions(available: &[Version], ranges: &[Range]) -> Vec<Version> {
     // For each major version, find the greatest available version
     // that satisfies ALL ranges.
     let mut by_major: std::collections::HashMap<u64, Vec<&Version>> =
@@ -466,15 +481,35 @@ mod tests {
     }
 
     #[test]
+    fn or_range_matches_either_alternative() {
+        // The peer-dependency staple: `^17 || ^18` must match both
+        // majors, not the (empty) intersection of the two carets.
+        let r = Range::parse("^17.0.0 || ^18.0.0").unwrap();
+        assert!(r.satisfies(&Version::parse("17.0.2").unwrap()));
+        assert!(r.satisfies(&Version::parse("18.3.1").unwrap()));
+        assert!(!r.satisfies(&Version::parse("16.14.0").unwrap()));
+        assert!(!r.satisfies(&Version::parse("19.0.0").unwrap()));
+    }
+
+    #[test]
+    fn or_range_alternatives_keep_and_sets() {
+        // Each alternative is still an AND set of its own.
+        let r = Range::parse(">=1.0.0 <1.5.0 || >=2.0.0 <2.5.0").unwrap();
+        assert!(r.satisfies(&Version::parse("1.2.0").unwrap()));
+        assert!(r.satisfies(&Version::parse("2.4.9").unwrap()));
+        assert!(!r.satisfies(&Version::parse("1.7.0").unwrap()));
+        assert!(!r.satisfies(&Version::parse("2.5.0").unwrap()));
+        assert!(!r.satisfies(&Version::parse("3.0.0").unwrap()));
+    }
+
+    #[test]
     fn mvs_selects_greatest_mentioned() {
         let available: Vec<Version> = ["1.0.0", "1.1.0", "1.2.0", "2.0.0", "2.1.0"]
             .iter()
             .filter_map(|s| Version::parse(s))
             .collect();
 
-        let ranges = vec![
-            Range::parse("^1.0.0").unwrap(),
-        ];
+        let ranges = vec![Range::parse("^1.0.0").unwrap()];
 
         let selected = select_versions(&available, &ranges);
         // Should select greatest in major 1 satisfying ^1.0.0.
