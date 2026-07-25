@@ -31,7 +31,10 @@ use std::path::{Path, PathBuf};
 
 use crate::cas::ContentStore;
 use crate::fetch::{materialise, DirNode, HttpClient};
-use crate::npm_resolve::{resolve_transitive_with_config, ResolveError};
+use crate::npm_resolve::{
+    dep_edges_from_manifest, read_dep_edges, resolve_transitive_outcome, DepEdges, ResolveError,
+    SkippedOptional,
+};
 use crate::npmrc::NpmConfig;
 use crate::registry::RegistryTable;
 use crate::semver::{Range, Version};
@@ -88,8 +91,14 @@ pub struct ResolvedCompartment {
     pub version: String,
     /// Hex SHA-256 of the package's extracted tree in the CAS.
     pub tree_hash: String,
-    /// The package's declared runtime `dependencies`.
+    /// Required edges: `dependencies` plus non-optional
+    /// `peerDependencies`. A hole here is an assembly error.
     pub dependencies: BTreeMap<String, String>,
+    /// Optional edges: `optionalDependencies` and optional peers.
+    /// Bound when resolution selected a target, omitted otherwise
+    /// (the runtime `require` then fails with a clean cannot-find,
+    /// which guarded optional requires expect).
+    pub optional_edges: BTreeMap<String, String>,
 }
 
 /// The transitive resolution as consumed by map building: the
@@ -116,9 +125,9 @@ impl Resolution {
     /// The resolved package of `name` with the given major version,
     /// if any (distinct majors of one package coexist).
     pub fn get(&self, name: &str, major: u64) -> Option<&ResolvedCompartment> {
-        self.packages.iter().find(|p| {
-            p.name == name && Version::parse(&p.version).map(|v| v.major) == Some(major)
-        })
+        self.packages
+            .iter()
+            .find(|p| p.name == name && Version::parse(&p.version).map(|v| v.major) == Some(major))
     }
 
     /// Bind a declared `(name, range)` edge to the resolved package
@@ -154,6 +163,8 @@ pub struct AssembledRun {
     pub compartment_map_hash: String,
     /// The transitive resolution the map was built from.
     pub resolution: Resolution,
+    /// Optional packages the resolution attempted and dropped.
+    pub skipped_optional: Vec<SkippedOptional>,
 }
 
 /// Locate the entry package root: walk up from the entry module's
@@ -189,35 +200,10 @@ pub fn find_package_root(entry_js: &Path) -> Result<(PathBuf, Option<String>), A
     }
 }
 
-/// Parse a `"dependencies"` object out of a parsed `package.json`
-/// document. Absence defaults to no dependencies; a non-object
-/// field or non-string range is an error rather than a silently
-/// empty graph.
-fn parse_dependencies(
-    doc: &serde_json::Value,
-    who: &str,
-) -> Result<BTreeMap<String, String>, AssembleError> {
-    let mut dependencies = BTreeMap::new();
-    if let Some(deps) = doc.get("dependencies") {
-        let obj = deps.as_object().ok_or_else(|| {
-            AssembleError::BadPackageJson(format!("{who}: \"dependencies\" is not an object"))
-        })?;
-        for (dep, range) in obj {
-            let range = range.as_str().ok_or_else(|| {
-                AssembleError::BadPackageJson(format!(
-                    "{who}: dependency {dep} has a non-string range"
-                ))
-            })?;
-            dependencies.insert(dep.clone(), range.to_string());
-        }
-    }
-    Ok(dependencies)
-}
-
-/// Parse the entry package's name and runtime `dependencies` out of
-/// its `package.json`. Absent fields default (name `"entry"`, no
-/// dependencies).
-fn parse_manifest(text: &str) -> Result<(String, BTreeMap<String, String>), AssembleError> {
+/// Parse the entry package's name and classified dependency edges
+/// out of its `package.json`. Absent fields default (name `"entry"`,
+/// no dependencies).
+fn parse_manifest(text: &str) -> Result<(String, DepEdges), AssembleError> {
     let doc: serde_json::Value = serde_json::from_str(text)
         .map_err(|e| AssembleError::BadPackageJson(format!("parse: {e}")))?;
     let name = doc
@@ -225,26 +211,24 @@ fn parse_manifest(text: &str) -> Result<(String, BTreeMap<String, String>), Asse
         .and_then(|v| v.as_str())
         .unwrap_or("entry")
         .to_string();
-    let dependencies = parse_dependencies(&doc, &name)?;
-    Ok((name, dependencies))
+    let edges = dep_edges_from_manifest(&doc)
+        .map_err(|detail| AssembleError::BadPackageJson(format!("{name}: {detail}")))?;
+    Ok((name, edges))
 }
 
-/// Read a resolved package's declared `dependencies` back out of its
-/// CAS tree, mirroring the resolver's own walk so the map's edges
-/// bind exactly the ranges resolution satisfied.
-fn read_tree_dependencies(
-    cas: &ContentStore,
-    name: &str,
-    version: &str,
-    tree_hash: &str,
-) -> Result<BTreeMap<String, String>, AssembleError> {
-    let who = format!("{name}@{version}");
-    let bytes = cas.fetch_from_tree(tree_hash, "package.json").map_err(|e| {
-        AssembleError::BadPackageJson(format!("{who}: read package.json: {e}"))
-    })?;
-    let doc: serde_json::Value = serde_json::from_slice(&bytes)
-        .map_err(|e| AssembleError::BadPackageJson(format!("{who}: parse: {e}")))?;
-    parse_dependencies(&doc, &who)
+/// Split classified edges into the map shape edge binding consumes:
+/// required `(name → range)` and optional `(name → range)`, with a
+/// name that is both (a peer beside a concrete dependency edge)
+/// staying required only.
+fn edge_maps(edges: &DepEdges) -> (BTreeMap<String, String>, BTreeMap<String, String>) {
+    let required: BTreeMap<String, String> = edges.required.iter().cloned().collect();
+    let mut optional = BTreeMap::new();
+    for (dep, range) in edges.optional.iter().chain(edges.optional_peers.iter()) {
+        if !required.contains_key(dep) {
+            optional.insert(dep.clone(), range.clone());
+        }
+    }
+    (required, optional)
 }
 
 /// Ingest a local directory into the CAS as a tree, mirroring the
@@ -310,10 +294,15 @@ fn cas_location(tree_hash: &str) -> String {
 }
 
 /// Bind one package's declared dependency edges to the compartments
-/// the resolution selected for them.
+/// the resolution selected for them. A required edge with no
+/// resolved target is an error (the resolver and the map disagree);
+/// an optional edge with no target is omitted, so the runtime
+/// `require` fails with a clean cannot-find, as guarded optional
+/// requires expect.
 fn bind_edges(
     resolution: &Resolution,
     dependencies: &BTreeMap<String, String>,
+    optional_edges: &BTreeMap<String, String>,
     requirer: &str,
 ) -> Result<serde_json::Map<String, serde_json::Value>, AssembleError> {
     let mut modules = serde_json::Map::new();
@@ -333,6 +322,17 @@ fn bind_edges(
             }),
         );
     }
+    for (dep, range) in optional_edges {
+        if let Some(target) = resolution.resolve_dependency(dep, range) {
+            modules.insert(
+                dep.clone(),
+                serde_json::json!({
+                    "compartment": compartment_key(target),
+                    "module": ".",
+                }),
+            );
+        }
+    }
     Ok(modules)
 }
 
@@ -347,16 +347,17 @@ pub fn build_compartment_map(
     package_name: &str,
     entry_module: &str,
     entry_tree_hash: &str,
-    root_dependencies: &BTreeMap<String, String>,
+    root_edges: &DepEdges,
     resolution: &Resolution,
 ) -> Result<Vec<u8>, AssembleError> {
+    let (root_required, root_optional) = edge_maps(root_edges);
     let mut compartments = serde_json::Map::new();
     compartments.insert(
         ENTRY_COMPARTMENT.to_string(),
         serde_json::json!({
             "name": package_name,
             "location": cas_location(entry_tree_hash),
-            "modules": bind_edges(resolution, root_dependencies, package_name)?,
+            "modules": bind_edges(resolution, &root_required, &root_optional, package_name)?,
         }),
     );
     for package in resolution.packages() {
@@ -367,7 +368,12 @@ pub fn build_compartment_map(
                 "name": package.name,
                 "version": package.version,
                 "location": cas_location(&package.tree_hash),
-                "modules": bind_edges(resolution, &package.dependencies, &requirer)?,
+                "modules": bind_edges(
+                    resolution,
+                    &package.dependencies,
+                    &package.optional_edges,
+                    &requirer,
+                )?,
             }),
         );
     }
@@ -418,25 +424,22 @@ pub fn assemble_entry_with_config<H: HttpClient>(
     entry_js: &Path,
 ) -> Result<AssembledRun, AssembleError> {
     let (package_root, manifest) = find_package_root(entry_js)?;
-    let (package_name, root_dependencies) = match &manifest {
+    let (package_name, root_edges) = match &manifest {
         Some(text) => parse_manifest(text)?,
-        None => ("entry".to_string(), BTreeMap::new()),
+        None => ("entry".to_string(), DepEdges::default()),
     };
 
-    let roots: Vec<(String, String)> = root_dependencies
-        .iter()
-        .map(|(name, range)| (name.clone(), range.clone()))
-        .collect();
-    let resolved = resolve_transitive_with_config(http, cas, registry_table, config, &roots)?;
-    let mut packages = Vec::with_capacity(resolved.len());
-    for package in resolved {
-        let dependencies =
-            read_tree_dependencies(cas, &package.name, &package.version, &package.tree_hash)?;
+    let outcome = resolve_transitive_outcome(http, cas, registry_table, config, &root_edges)?;
+    let mut packages = Vec::with_capacity(outcome.packages.len());
+    for package in outcome.packages {
+        let edges = read_dep_edges(cas, &package.name, &package.version, &package.tree_hash)?;
+        let (dependencies, optional_edges) = edge_maps(&edges);
         packages.push(ResolvedCompartment {
             name: package.name,
             version: package.version,
             tree_hash: package.tree_hash,
             dependencies,
+            optional_edges,
         });
     }
     let resolution = Resolution { packages };
@@ -446,22 +449,20 @@ pub fn assemble_entry_with_config<H: HttpClient>(
     let entry_canonical = entry_js
         .canonicalize()
         .map_err(|e| AssembleError::BadEntry(format!("{}: {e}", entry_js.display())))?;
-    let relative = entry_canonical
-        .strip_prefix(&package_root)
-        .map_err(|_| {
-            AssembleError::BadEntry(format!(
-                "{} is outside its package root {}",
-                entry_canonical.display(),
-                package_root.display()
-            ))
-        })?;
+    let relative = entry_canonical.strip_prefix(&package_root).map_err(|_| {
+        AssembleError::BadEntry(format!(
+            "{} is outside its package root {}",
+            entry_canonical.display(),
+            package_root.display()
+        ))
+    })?;
     let entry_module = format!("./{}", relative.display());
 
     let map_bytes = build_compartment_map(
         &package_name,
         &entry_module,
         &entry_tree_hash,
-        &root_dependencies,
+        &root_edges,
         &resolution,
     )?;
     let compartment_map_hash = cas.store(&map_bytes, "compartment-map")?;
@@ -473,6 +474,7 @@ pub fn assemble_entry_with_config<H: HttpClient>(
         entry_tree_hash,
         compartment_map_hash,
         resolution,
+        skipped_optional: outcome.skipped_optional,
     })
 }
 
@@ -697,6 +699,61 @@ mod tests {
             compartments[ENTRY_COMPARTMENT]["location"],
             format!("cas:sha256:{}", run.entry_tree_hash)
         );
+    }
+
+    #[test]
+    fn map_binds_peer_edges_and_omits_skipped_optionals() {
+        let (_cas_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+
+        // p peers q (non-optional) and optionally depends on
+        // missing-opt, which the registry does not serve: the map
+        // must bind p→q and omit p→missing-opt.
+        let p_manifest = concat!(
+            r#"{"name":"p","version":"1.0.0","#,
+            r#""peerDependencies":{"q":"^2.0.0"},"#,
+            r#""optionalDependencies":{"missing-opt":"^1.0.0"}}"#,
+        );
+        let p_tar = make_tarball(&[
+            ("package/package.json", p_manifest.as_bytes()),
+            ("package/index.js", b"export default 42;\n"),
+        ]);
+        let http = MockHttp::new()
+            .respond(
+                "https://registry.npmjs.org/p",
+                registry_meta("p", &["1.0.0"]),
+            )
+            .respond(
+                "https://registry.npmjs.org/q",
+                registry_meta("q", &["2.1.0"]),
+            )
+            .respond(&tarball_url("p", "1.0.0"), p_tar)
+            .respond(&tarball_url("q", "2.1.0"), pkg_tarball("q", "2.1.0", &[]));
+        let app = tempfile::tempdir().unwrap();
+        fs::write(
+            app.path().join("package.json"),
+            r#"{"name":"app","dependencies":{"p":"^1.0.0"}}"#,
+        )
+        .unwrap();
+        fs::write(app.path().join("main.js"), "import p from 'p';\n").unwrap();
+
+        let run = assemble_entry(
+            &http,
+            &cas,
+            &registry,
+            REGISTRY,
+            &app.path().join("main.js"),
+        )
+        .unwrap();
+
+        assert_eq!(run.resolution.len(), 2);
+        assert_eq!(run.skipped_optional.len(), 1);
+        assert_eq!(run.skipped_optional[0].name, "missing-opt");
+        let map = assembled_map(&cas, &run);
+        let compartments = map["compartments"].as_object().unwrap();
+        let p_modules = compartments["p-v1.0.0"]["modules"].as_object().unwrap();
+        assert_eq!(p_modules["q"]["compartment"], "q-v2.1.0");
+        assert!(!p_modules.contains_key("missing-opt"));
     }
 
     #[test]
