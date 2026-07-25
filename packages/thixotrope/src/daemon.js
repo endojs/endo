@@ -55,7 +55,7 @@ import { makeWorkerSessionRecords } from './worker-session-records.js';
  * @typedef {object} ThixotropeWorkerFacade
  * @property {string} workerId
  * @property {string | undefined} debugLabel
- * @property {(source: string, names?: Array<string>, values?: Array<unknown>) => Promise<any>} evaluate
+ * @property {(source: string, endowments?: Record<string, unknown>) => Promise<any>} evaluate
  * @property {() => boolean} isAwake
  * @property {() => Promise<void>} wake
  * @property {() => Promise<void>} sleep
@@ -65,6 +65,10 @@ import { makeWorkerSessionRecords } from './worker-session-records.js';
  * @property {any} location this daemon's OCapN location; combine with a
  *   publication's swissnum to mint a sturdy ref on any peer
  * @property {(secret: string) => { location: any, secret: string }} makeSturdyRefDetails
+ * @property {(source: string, endowments?: Record<string, unknown>) => Promise<any>} eval
+ *   evaluate in a fresh implicitly-created worker and return the
+ *   result; the worker persists like any other (find it via
+ *   `listWorkerIds`, retire it via `getWorker(id).retire()`)
  * @property {(options?: { debugLabel?: string }) => Promise<ThixotropeWorkerFacade>} createWorker
  * @property {(workerId: string) => ThixotropeWorkerFacade} getWorker
  * @property {() => Array<string>} listWorkerIds
@@ -690,9 +694,11 @@ export const makeThixotropeDaemon = async ({
     return harden({
       workerId,
       debugLabel: store.provideWorkerStore(workerId).getMeta().debugLabel,
-      evaluate: async (source, names = [], values = []) => {
+      evaluate: async (source, endowments = {}) => {
         const shell = await provideShell(workerId);
-        return E(shell).evaluate(source, names, values);
+        // Implicit harden: callers pass plain records; the copy makes
+        // the wire's frozen-argument requirement invisible to them.
+        return E(shell).evaluate(source, harden({ ...endowments }));
       },
       isAwake: () => entryOf().transport.isAwake(),
       wake: async () => entryOf().transport.wake(),
@@ -706,16 +712,15 @@ export const makeThixotropeDaemon = async ({
     const { workerId } = /** @type {{ workerId: string }} */ (description);
     return Far('ThixotropeWorkerFacade', {
       help: () =>
-        'ThixotropeWorkerFacade: evaluate(source, names, values) evaluates in this worker with the given endowments; getId() returns the worker id; retire() permanently deletes the worker.',
+        'ThixotropeWorkerFacade: evaluate(source, endowments) evaluates in this worker with the properties of the endowments record bound as named values; getId() returns the worker id; retire() permanently deletes the worker.',
       getId: () => workerId,
       /**
        * @param {string} source
-       * @param {Array<string>} [names]
-       * @param {Array<unknown>} [values]
+       * @param {Record<string, unknown>} [endowments]
        */
-      evaluate: async (source, names = [], values = []) => {
+      evaluate: async (source, endowments = {}) => {
         const shell = await provideShell(workerId);
-        return E(shell).evaluate(source, names, values);
+        return E(shell).evaluate(source, harden({ ...endowments }));
       },
       retire: async () => retireWorkerNow(workerId),
     });
@@ -777,6 +782,12 @@ export const makeThixotropeDaemon = async ({
   const daemon = {
     location,
     makeSturdyRefDetails: secret => harden({ location, secret }),
+    eval: async (source, endowments = {}) => {
+      // The lambda-shaped entry point: evaluation implies a worker.
+      const workerId = randomHex128();
+      provideWorkerSession(workerId);
+      return makeAdminFacade(workerId).evaluate(source, endowments);
+    },
     createWorker: async ({ debugLabel } = {}) => {
       debugLabel === undefined ||
         typeof debugLabel === 'string' ||

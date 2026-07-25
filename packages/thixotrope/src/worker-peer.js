@@ -42,23 +42,20 @@ export const makeWorkerPeer = async ({
 
   const facet = Far('ThixotropeWorker', {
     help: () =>
-      'ThixotropeWorker: evaluate(source, names, values) evaluates a hardened JavaScript expression in this worker persistent compartment, with the optional endowments bound as named values, and returns its value.',
+      'ThixotropeWorker: evaluate(source, endowments) evaluates a hardened JavaScript expression in this worker persistent compartment, with the properties of the optional endowments record bound as named values, and returns its hardened value.',
     /**
      * @param {string} source
-     * @param {Array<string>} [names]
-     * @param {Array<unknown>} [values]
+     * @param {Record<string, unknown>} [endowments]
      */
-    evaluate: async (source, names = [], values = []) => {
-      (Array.isArray(names) &&
-        Array.isArray(values) &&
-        names.length === values.length) ||
-        Fail`evaluate names and values must be equal-length arrays`;
+    evaluate: async (source, endowments = {}) => {
+      (typeof endowments === 'object' && endowments !== null) ||
+        Fail`evaluate endowments must be a record`;
+      const names = Object.keys(endowments);
       if (names.length === 0) {
-        return compartment.evaluate(source);
+        return harden(compartment.evaluate(source));
       }
       for (const endowmentName of names) {
-        (typeof endowmentName === 'string' &&
-          IDENTIFIER_PATTERN.test(endowmentName)) ||
+        IDENTIFIER_PATTERN.test(endowmentName) ||
           Fail`evaluate endowment name must be an identifier, got ${q(
             endowmentName,
           )}`;
@@ -66,7 +63,7 @@ export const makeWorkerPeer = async ({
       const makeResult = compartment.evaluate(
         `(${names.join(', ')}) => (\n${source}\n)`,
       );
-      return makeResult(...values);
+      return harden(makeResult(...names.map(name => endowments[name])));
     },
   });
 

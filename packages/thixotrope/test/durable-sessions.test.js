@@ -236,8 +236,7 @@ test('an answer a resource owes rejects after a restart', async t => {
       });
     })()
     `,
-    ['gate'],
-    [gate],
+    { gate },
   );
   const secret = daemon1.publish(waiter);
 

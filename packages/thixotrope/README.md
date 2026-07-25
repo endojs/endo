@@ -32,6 +32,10 @@ through the hub, or a facade — never a well-known string.
 `createWorker({ debugLabel })` accepts an optional label that appears
 only in logs and error messages; `daemon.getWorker(workerId)` is the
 embedder's admin route to an existing worker.
+`daemon.eval(source, endowments?)` is the lambda-shaped shortcut:
+evaluation implies a fresh worker, and the result is the only handle
+returned (the worker persists like any other and shows up in
+`listWorkerIds()`).
 
 ## Example
 
@@ -192,12 +196,11 @@ await parent.evaluate(
     setup: async () => {
       const child = await E(controller).createWorker('child');
       const shared = Far('Shared', { secret: () => 'from-parent' });
-      return E(child).evaluate(childSource, ['shared'], [shared]);
+      return E(child).evaluate(childSource, harden({ shared }));
     },
   })
   `,
-  ['controller'],
-  [controller],
+  { controller },
 );
 ```
 
@@ -337,9 +340,10 @@ have no timer queue, so frame silence is exact dormancy):
 Each worker object has:
 
 - `workerId` and `debugLabel` (data properties).
-- `evaluate(source, names?, values?)` — evaluates a hardened
-  JavaScript expression in the worker's persistent compartment, with
-  endowments bound as named values.
+- `evaluate(source, endowments?)` — evaluates a hardened JavaScript
+  expression in the worker's persistent compartment, with the
+  properties of the endowments record bound as named values.
+  The record is hardened implicitly.
 - `sleep()`, `wake()`, `isAwake()` — embedder policy hooks; see above.
 - `retire()` — permanently deletes the worker; see _Retirement and
   vat GC_.

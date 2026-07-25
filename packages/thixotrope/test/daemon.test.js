@@ -73,8 +73,7 @@ test('workers create workers; vat GC sweeps the unreachable', async t => {
       });
     })()
     `,
-    ['controller'],
-    [controller],
+    { controller },
   );
   const childCounter = await E(parentRoot).setup();
   t.is(await E(parentRoot).pull(), 1, 'the parent drives its child');
@@ -114,14 +113,33 @@ test('workers create workers; vat GC sweeps the unreachable', async t => {
   });
 });
 
+test('daemon.eval implies a worker', async t => {
+  const daemon = await makeDaemon(t);
+  const before = daemon.listWorkerIds().length;
+
+  // Evaluation implies a fresh worker; the result is the only handle.
+  const counter = await daemon.eval(COUNTER_SOURCE);
+  t.is(await E(counter).incr(), 1);
+  t.is(daemon.listWorkerIds().length, before + 1, 'a worker came to be');
+
+  // Endowment records are hardened implicitly, and each eval gets its
+  // own worker: the second worker reaches the first only through the
+  // endowed reference.
+  const puller = await daemon.eval(
+    `Far('Puller', { pull: () => E(c).incr() })`,
+    { c: counter },
+  );
+  t.is(await E(puller).pull(), 2, 'cross-eval reference works');
+  t.is(daemon.listWorkerIds().length, before + 2, 'two workers came to be');
+});
+
 test('a host resource reaches a guest as an endowment', async t => {
   const daemon = await makeDaemon(t);
   const worker = await daemon.createWorker({ debugLabel: 'clock' });
   const timer = daemon.makeResource('timer');
   const clock = await worker.evaluate(
     `Far('Clock', { read: () => E(timer).now() })`,
-    ['timer'],
-    [timer],
+    { timer },
   );
   t.is(typeof (await E(clock).read()), 'number');
 

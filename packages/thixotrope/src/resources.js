@@ -16,7 +16,7 @@ const MAX_DELAY_MS = 2 ** 31 - 1;
  *
  * ```js
  * const timer = host.makeResource('timer');
- * await worker.evaluate(source, ['timer'], [timer]);
+ * await worker.evaluate(source, { timer });
  * ```
  *
  * Timers are nondeterministic, but the worker stays deterministic: every

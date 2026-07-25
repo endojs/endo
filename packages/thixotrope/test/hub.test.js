@@ -196,8 +196,7 @@ test('the hub forwards everything by slot rewriting alone', async t => {
   // route B → hub → A with no value ever materializing in the hub.
   const puller = await E(shellB).evaluate(
     `Far('Puller', { pull: () => E(c).incr() })`,
-    ['c'],
-    [counter],
+    harden({ c: counter }),
   );
   t.is(await E(puller).pull(), 3, 'cross-worker call relayed by rewriting');
 

@@ -434,12 +434,13 @@ makers):
 - `worker-controller` — `createWorker(debugLabel?)` makes a fresh
   worker under a generated id and returns its facade.
 - `worker-facade` — scoped to one worker:
-  `evaluate(source, names, values)` evaluates in it with endowments.
+  `evaluate(source, endowments)` evaluates in it with the record's
+  properties bound as named values.
 
 ```js
 // In the controlling worker's guest code:
 const child = await E(controller).createWorker('child');
-const childRoot = await E(child).evaluate(source, ['shared'], [shared]);
+const childRoot = await E(child).evaluate(source, harden({ shared }));
 ```
 
 `shared` here is an object in the controlling worker's heap; the host
@@ -476,7 +477,7 @@ artifact — the session tables — carries everything needed to resume
 the host's half. Never visible to guests.
 `makeThixotropeHost({ resources })` supplies the maker registry;
 `host.makeResource(type, description)` mints instances; endowments
-reach guests via `worker.evaluate(source, names, values)`.
+reach guests via `worker.evaluate(source, endowments)`.
 A host that resumes a worker without the maker its exports need fails
 loudly at construction rather than dangling the worker's presences.
 

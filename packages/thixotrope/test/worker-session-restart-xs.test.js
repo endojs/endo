@@ -103,8 +103,7 @@ testXs('XS worker sessions survive a daemon restart', async t => {
     const echo = d1.makeResource('echo');
     const greeter = await workerA.evaluate(
       `Far('Greeter', { greet: name => E(echo).shout('hello ' + name) })`,
-      ['echo'],
-      [echo],
+      { echo },
     );
     t.is(await E(greeter).greet('world'), 'HELLO WORLD');
 
@@ -157,8 +156,7 @@ testXs('XS worker sessions survive a daemon restart', async t => {
         });
       })()
       `,
-      ['gift', 'counter'],
-      [gift, counter],
+      { gift, counter },
     );
     t.is(await E(watcher).pull(), 1);
     t.is(await E(watcher).getGot(), null);

@@ -96,8 +96,7 @@ test('worker sessions survive a daemon restart', async t => {
     const echo = d1.makeResource('echo');
     const greeter = await workerA.evaluate(
       `Far('Greeter', { greet: name => E(echo).shout('hello ' + name) })`,
-      ['echo'],
-      [echo],
+      { echo },
     );
     t.is(await E(greeter).greet('world'), 'HELLO WORLD');
 
@@ -140,8 +139,7 @@ test('worker sessions survive a daemon restart', async t => {
         });
       })()
       `,
-      ['gift', 'counter'],
-      [gift, counter],
+      { gift, counter },
     );
     t.is(await E(watcher).pull(), 1, 'the cross-worker link works live');
     t.is(await E(watcher).getGot(), null, 'the gift is still pending');
@@ -251,8 +249,7 @@ test('a pending answer survives a daemon restart and settles after it', async t 
         return Far('Asker', { getGot: () => got });
       })()
       `,
-      ['gate'],
-      [gate],
+      { gate },
     );
     t.is(await E(asker).getGot(), null, 'the answer is pending');
 
