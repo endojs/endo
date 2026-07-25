@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global setTimeout */
 /* eslint-disable import/order, no-empty-function */
 
 import '@endo/init';

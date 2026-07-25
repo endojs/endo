@@ -483,10 +483,9 @@ export const makeClaudeClient = ({
     (async () => {
       // Drain without closing: closing would fire onClose and kill the very
       // turn we are running.
-      for await (const event of iterateReader(
-        /** @type {any} */ (initReader),
-        { buffer: 8 },
-      )) {
+      for await (const event of iterateReader(/** @type {any} */ (initReader), {
+        buffer: 8,
+      })) {
         // discarded — nobody is watching this turn's transcript
         void event;
       }

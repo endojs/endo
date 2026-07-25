@@ -62,10 +62,5 @@
       "!test/ninep-flow.test.js"
     ],
     "timeout": "60s"
-  },
-  "eslintConfig": {
-    "extends": [
-      "plugin:@endo/internal"
-    ]
   }
 }

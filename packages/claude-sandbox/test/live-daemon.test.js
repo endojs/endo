@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global setTimeout */
 /* eslint-disable import/order */
 
 import '@endo/init/debug.js';

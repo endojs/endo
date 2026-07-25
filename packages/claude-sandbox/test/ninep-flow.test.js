@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global process */
 /* eslint-disable import/order, no-await-in-loop */
 
 import '@endo/init';
