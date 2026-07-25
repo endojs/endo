@@ -26,7 +26,10 @@ and pins, and a revoked service revives revoked.
 `@endo/exo-http-client`'s `makeHttpClientAndControl` and
 `makeTrustOnFirstBindPolicyAdapter` gain two backward-compatible persistence
 seams so a request-time pin can survive a restart: an `initialBindings` argument
-that reconstitutes the trust-on-first-bind table, and an `onPolicyChange(snapshot)`
-callback invoked synchronously after any durable policy or binding mutation with
-the persistable snapshot. The package stays platform-pure — the callback is an
-ordinary function and the virtual file system never enters it.
+that reconstitutes the trust-on-first-bind table, and a change-notification
+callback invoked synchronously after any durable policy or binding mutation. On
+`makeHttpClientAndControl` the callback is `onPolicyChange(snapshot)`, receiving
+the persistable snapshot; the underlying `makeTrustOnFirstBindPolicyAdapter`
+exposes the lower-level `onChange()` (no argument), which `makeHttpClientAndControl`
+adapts into the snapshot-bearing form. The package stays platform-pure — the
+callback is an ordinary function and the virtual file system never enters it.

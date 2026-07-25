@@ -31,6 +31,8 @@
 
 import { E } from '@endo/eventual-send';
 
+/** @import { FetchStoreDirectory, FetchStore } from './types.js' */
+
 const CONFIG_NAME = 'config.json';
 const BINDINGS_NAME = 'bindings.json';
 
@@ -44,10 +46,10 @@ const isEnoent = error => {
 };
 
 /**
- * @param {import('./types.js').FetchStoreDirectory} root - the store-root
+ * @param {FetchStoreDirectory} root - the store-root
  *   Directory cap (or an eventual reference to one).
  * @param {() => Promise<string>} makeId - unique-suffix generator for temporary files.
- * @returns {Promise<import('./types.js').FetchStore>}
+ * @returns {Promise<FetchStore>}
  */
 export const makeFetchStore = async (root, makeId) => {
   await null;
@@ -86,9 +88,23 @@ export const makeFetchStore = async (root, makeId) => {
   };
 
   return harden({
-    /** @returns {Promise<any>} */
+    /**
+     * Read the persisted policy document. As with `readBindings`, a corrupt or
+     * partially written file must not brick recovery, so an unparseable document
+     * is treated as absent with a warning rather than thrown (crash-safe
+     * persistence); the service then re-seeds from the env initials, whose
+     * empty allowlist fails closed.
+     *
+     * @returns {Promise<any>}
+     */
     async readConfig() {
-      return readJSON(CONFIG_NAME);
+      await null;
+      try {
+        return await readJSON(CONFIG_NAME);
+      } catch (error) {
+        console.warn('[fetch] skipping unparseable config.json:', error);
+        return undefined;
+      }
     },
 
     /** @param {unknown} config */

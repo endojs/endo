@@ -27,9 +27,16 @@
     ".": "./src/index.js",
     "./src/service.js": "./src/service.js",
     "./src/store.js": "./src/store.js",
-    "./src/types.js": "./src/types.d.ts",
     "./package.json": "./package.json"
   },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "src"
+  ],
   "scripts": {
     "build": "exit 0",
     "test": "ava --serial",
@@ -38,10 +45,8 @@
     "lint:eslint": "eslint '**/*.js'"
   },
   "dependencies": {
-    "@endo/errors": "workspace:^",
     "@endo/eventual-send": "workspace:^",
     "@endo/exo-http-client": "workspace:^",
-    "@endo/far": "workspace:^",
     "@endo/pass-style": "workspace:^"
   },
   "devDependencies": {

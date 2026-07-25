@@ -45,6 +45,9 @@ import { E } from '@endo/eventual-send';
 import { makeFetchStore } from './store.js';
 import { makeFetchService } from './service.js';
 
+/** @import { FetchLike, PolicyMode } from '@endo/exo-http-client' */
+/** @import { FetchServiceExo, FetchServicePowers } from './types.js' */
+
 export { makeFetchService } from './service.js';
 export { makeFetchStore } from './store.js';
 
@@ -132,12 +135,12 @@ const lookupOptional = async (powers, name) => {
  *   collapse alone tears it down (see `./service.js`).
  * @param {{
  *   env?: Record<string, string>,
- *   fetch?: import('@endo/exo-http-client').FetchLike,
+ *   fetch?: FetchLike,
  *   now?: () => number,
  * }} [options] - `env` carries first-run policy initials; `fetch` / `now` are
  *   test seams the production `makeUnconfined` pathway never passes (it supplies
  *   only `env`), so the plugin defaults to the worker's ambient `fetch` / clock.
- * @returns {Promise<import('./types.js').FetchServiceExo>}
+ * @returns {Promise<FetchServiceExo>}
  */
 export const make = async (powers, _context, { env = {}, fetch, now } = {}) => {
   const storeDirectory = await E(powers).lookup('fetch-store');
@@ -161,12 +164,10 @@ export const make = async (powers, _context, { env = {}, fetch, now } = {}) => {
   const policyMode =
     env.policyMode === undefined
       ? undefined
-      : /** @type {import('@endo/exo-http-client').PolicyMode} */ (
-          env.policyMode
-        );
+      : /** @type {PolicyMode} */ (env.policyMode);
 
-  /** @type {import('./types.js').FetchServicePowers} */
-  const makeOpts = {
+  /** @type {FetchServicePowers} */
+  const makeOptions = {
     store,
     ...(fetch !== undefined ? { fetch } : {}),
     ...(now !== undefined ? { now } : {}),
@@ -177,7 +178,7 @@ export const make = async (powers, _context, { env = {}, fetch, now } = {}) => {
     ...(policyAuthority !== undefined ? { policyAuthority } : {}),
   };
 
-  const { service } = await makeFetchService(makeOpts);
+  const { service } = await makeFetchService(makeOptions);
 
   return service;
 };

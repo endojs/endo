@@ -63,11 +63,13 @@ const makeFakeFetch = (body = 'ok') => {
 const makeStoreFixture = async () => {
   const fs = makeInMemoryFilesystem();
   const root = await E(fs).root();
-  const dir = await E(root).makeDirectory('fetch-store', {});
+  const directory = await E(root).makeDirectory('fetch-store', {});
   let counter = 0;
   const makeId = async () => `${(counter += 1)}`;
-  const open = () => makeFetchStore(dir, makeId);
-  return { open };
+  const open = () => makeFetchStore(directory, makeId);
+  // `directory` is exposed so a test can seed a corrupt document directly,
+  // modelling a torn write the crash-safe read guards must survive.
+  return { open, directory };
 };
 
 test('client fetches an allowed origin, denies others, seeds the store', async t => {
@@ -192,5 +194,105 @@ test('a trust-on-first-bind pin survives a restart and stays revocable', async t
   t.is(thirdBindings[0].state, 'Revoked');
   await t.throwsAsync(() => third.client.fetch(OTHER_URL), {
     message: /Policy refuses|not in the allowed-origin/,
+  });
+});
+
+test('the persisted store outranks a conflicting env on restart', async t => {
+  const { open } = await makeStoreFixture();
+  const { fetch } = makeFakeFetch();
+
+  // First provisioning: env seeds allowedOrigins=[ALLOWED], maxResponseBytes=1000.
+  await makeFetchService({
+    store: await open(),
+    fetch,
+    now: () => 1000,
+    allowedOrigins: [ALLOWED],
+    maxResponseBytes: 1000,
+  });
+  await flush();
+
+  // Restart with a CONFLICTING env: a different allowlist and a different byte
+  // cap. The store - not env - is authoritative across restarts, so the
+  // persisted values must win. This pins the ordering, not mere durability:
+  // flipping the service's `pick` to env-first reddens exactly this assertion,
+  // whereas the sibling reconstitution test (which restarts with no env) would
+  // stay green.
+  const second = await makeFetchService({
+    store: await open(),
+    fetch,
+    now: () => 2000,
+    allowedOrigins: [OTHER],
+    maxResponseBytes: 4096,
+  });
+  const inspected = second.control.inspect();
+  t.deepEqual([...inspected.allowedOrigins], [ALLOWED]);
+  t.is(inspected.maxResponseBytes, 1000);
+
+  // The revived client honours the persisted allowlist, not the env one.
+  const response = await second.client.fetch(ALLOWED_URL);
+  t.is(response.status(), 200);
+  await t.throwsAsync(() => second.client.fetch(OTHER_URL), {
+    message: /not in the allowed-origin list|Policy refuses/,
+  });
+});
+
+test('a corrupt bindings.json degrades to no pins without bricking revival', async t => {
+  const { open, directory } = await makeStoreFixture();
+  const { fetch } = makeFakeFetch();
+
+  // First provisioning pins a first-seen origin under tofu-auto.
+  const first = await makeFetchService({
+    store: await open(),
+    fetch,
+    now: () => 1000,
+    policyMode: 'tofu-auto',
+  });
+  await first.client.fetch(OTHER_URL);
+  t.is(first.control.listBindings().length, 1);
+  await flush();
+
+  // A torn write leaves bindings.json unparseable.
+  await E(directory).write('bindings.json', '{ not valid json');
+
+  // Revival must not brick: the read guard treats the corrupt document as absent
+  // and the service comes up with no reconstituted pins (only its static
+  // allowlist, which fails closed) rather than throwing out of makeFetchService.
+  const second = await makeFetchService({ store: await open(), fetch });
+  t.deepEqual(second.control.listBindings(), []);
+});
+
+test('a corrupt config.json degrades to the env policy without bricking revival', async t => {
+  const { open, directory } = await makeStoreFixture();
+  const { fetch } = makeFakeFetch();
+
+  // First provisioning persists a tofu-auto policy with no static allowlist.
+  await makeFetchService({
+    store: await open(),
+    fetch,
+    now: () => 1000,
+    policyMode: 'tofu-auto',
+  });
+  await flush();
+
+  // A torn write leaves config.json unparseable.
+  await E(directory).write('config.json', 'not-json');
+
+  // Revival adopts the env initials (the corrupt store is treated as absent)
+  // rather than throwing: a strict policy with a static allowlist, fail-closed
+  // for every other origin.
+  const second = await makeFetchService({
+    store: await open(),
+    fetch,
+    allowedOrigins: [ALLOWED],
+    policyMode: 'strict',
+  });
+  const inspected = second.control.inspect();
+  t.deepEqual([...inspected.allowedOrigins], [ALLOWED]);
+  t.is(inspected.policyMode, 'strict');
+
+  const response = await second.client.fetch(ALLOWED_URL);
+  t.is(response.status(), 200);
+  await t.throwsAsync(() => second.client.fetch(OTHER_URL), {
+    message: /not in the allowed-origin list|Policy refuses/,
   });
 });

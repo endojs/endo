@@ -26,6 +26,7 @@ import { Far } from '@endo/pass-style';
 import { makeHttpClientAndControl } from '@endo/exo-http-client';
 
 /** @import { FetchServicePowers, FetchService } from './types.js' */
+/** @import { PolicyMode, PolicySnapshot } from '@endo/exo-http-client' */
 
 const fetchServiceHelp = [
   'FetchService - a confined outbound-HTTP provider.',
@@ -90,7 +91,7 @@ export const makeFetchService = async powers => {
   // mutation cannot race the write that reads it. Best-effort: a failed write is
   // logged, never thrown into the request or control path.
   let writeChain = Promise.resolve();
-  /** @param {import('@endo/exo-http-client').PolicySnapshot} snapshot */
+  /** @param {PolicySnapshot} snapshot */
   const persist = snapshot => {
     writeChain = writeChain
       .then(async () => {
@@ -137,10 +138,7 @@ export const makeFetchService = async powers => {
           maxResponseBytes: inspected.maxResponseBytes,
           // `inspect()` widens `policyMode` to `string`; it is one of the
           // `PolicyMode` literals by construction, so narrow it back.
-          policyMode:
-            /** @type {import('@endo/exo-http-client').PolicyMode} */ (
-              inspected.policyMode
-            ),
+          policyMode: /** @type {PolicyMode} */ (inspected.policyMode),
           revoked: inspected.revoked,
         },
         bindings: control.listBindings(),
