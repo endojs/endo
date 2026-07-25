@@ -2568,6 +2568,33 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/ocapn-iroh@workspace:packages/ocapn-iroh":
+  version: 0.0.0-use.local
+  resolution: "@endo/ocapn-iroh@workspace:packages/ocapn-iroh"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/marshal": "workspace:^"
+    "@endo/netstring": "workspace:^"
+    "@endo/ocapn": "workspace:^"
+    "@endo/promise-kit": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    "@endo/stream": "workspace:^"
+    "@number0/iroh": "npm:^1.0.0"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  dependenciesMeta:
+    "@number0/iroh":
+      optional: true
+  languageName: unknown
+  linkType: soft
+
 "@endo/ocapn-noise@workspace:packages/ocapn-noise":
   version: 0.0.0-use.local
   resolution: "@endo/ocapn-noise@workspace:packages/ocapn-noise"
