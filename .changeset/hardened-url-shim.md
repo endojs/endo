@@ -24,10 +24,10 @@ A new lockdown option collapses the split for embeddings that have no use for
 blob URLs even on the start compartment:
 
 ```js
-lockdown({ urlBlobMethods: 'remove' }); // default: 'keepOnInitialGlobal'
+lockdown({ urlBlobTaming: 'remove' }); // default: 'retain'
 ```
 
-With `urlBlobMethods: 'remove'`, `createObjectURL` and `revokeObjectURL` are
+With `urlBlobTaming: 'remove'`, `createObjectURL` and `revokeObjectURL` are
 removed everywhere and the start compartment and every shared compartment
 share a single tamed `URL` binding.
 

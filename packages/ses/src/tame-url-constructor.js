@@ -21,18 +21,16 @@ import {
  *
  * The start-compartment binding keeps the host's full `URL` (including the
  * blob methods) by default, as an ambient authority a host application may
- * legitimately need. The `urlBlobMethods: 'remove'` lockdown option
+ * legitimately need. The `urlBlobTaming: 'remove'` lockdown option
  * collapses the split so the start compartment also receives the tamed
  * constructor and the blob methods are removed everywhere.
  *
  * On hosts that do not provide `URL` (notably XS), this returns no
  * intrinsics and lockdown proceeds without them, exactly as before.
  *
- * @param {'keepOnInitialGlobal' | 'remove'} [urlBlobMethods]
+ * @param {'retain' | 'remove'} [urlBlobTaming]
  */
-export default function tameUrlConstructor(
-  urlBlobMethods = 'keepOnInitialGlobal',
-) {
+export default function tameUrlConstructor(urlBlobTaming = 'retain') {
   const OriginalURL = globalThis.URL;
   if (typeof OriginalURL !== 'function') {
     // Host without `URL` (e.g. XS). Nothing to tame; compartments observe
@@ -100,10 +98,10 @@ export default function tameUrlConstructor(
   });
 
   // Default: the start compartment keeps the host's full `URL`. With
-  // `urlBlobMethods: 'remove'`, the split collapses: the start compartment
+  // `urlBlobTaming: 'remove'`, the split collapses: the start compartment
   // also receives the tamed constructor, so the blob methods are gone
   // everywhere and `URL` is a single binding shared by every compartment.
-  const InitialURL = urlBlobMethods === 'remove' ? SharedURL : OriginalURL;
+  const InitialURL = urlBlobTaming === 'remove' ? SharedURL : OriginalURL;
 
   return {
     '%URL%': InitialURL,

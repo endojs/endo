@@ -158,7 +158,7 @@ export const initialGlobalPropertyNames = {
   // The start compartment keeps the host's full `URL`, including the ambient
   // `createObjectURL` / `revokeObjectURL` blob-registry methods, which a host
   // application may legitimately need. Shared compartments receive the tamed
-  // `%SharedURL%` instead. `lockdown({ urlBlobMethods: 'remove' })` collapses
+  // `%SharedURL%` instead. `lockdown({ urlBlobTaming: 'remove' })` collapses
   // the split by binding `%URL%` to `%SharedURL%` as well.
   URL: '%URL%',
 
@@ -913,7 +913,7 @@ export const permitted = {
 
   // `%URL%` is the powered start-compartment binding. It keeps the ambient
   // blob-registry statics; on hosts that lack them (or under
-  // `urlBlobMethods: 'remove'`, where `%URL%` is bound to `%SharedURL%`) they
+  // `urlBlobTaming: 'remove'`, where `%URL%` is bound to `%SharedURL%`) they
   // are simply absent, which the whitelist pass tolerates.
   '%URL%': {
     // Properties of the URL Constructor

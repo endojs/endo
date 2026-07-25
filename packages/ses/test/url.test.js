@@ -15,7 +15,7 @@ test('URL is present on the start compartment when the host provides it', t => {
   t.is(typeof globalThis.URL, 'function');
   t.is(typeof globalThis.URL.prototype.toString, 'function');
   // The start compartment keeps the ambient blob-registry authority by
-  // default (`urlBlobMethods: 'keepOnInitialGlobal'`).
+  // default (`urlBlobTaming: 'retain'`).
   t.true('createObjectURL' in globalThis.URL);
   t.true('revokeObjectURL' in globalThis.URL);
 });

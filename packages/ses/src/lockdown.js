@@ -244,8 +244,8 @@ export const repairIntrinsics = (options = {}) => {
     __hardenTaming__ = /** @type {'safe' | 'unsafe'} */ (
       getenv('LOCKDOWN_HARDEN_TAMING', 'safe', ['unsafe'])
     ),
-    urlBlobMethods = /** @type {'keepOnInitialGlobal' | 'remove'} */ (
-      getenv('LOCKDOWN_URL_BLOB_METHODS', 'keepOnInitialGlobal', ['remove'])
+    urlBlobTaming = /** @type {'retain' | 'remove'} */ (
+      getenv('LOCKDOWN_URL_BLOB_TAMING', 'retain', ['remove'])
     ),
     dateTaming, // deprecated
     mathTaming, // deprecated
@@ -363,7 +363,7 @@ export const repairIntrinsics = (options = {}) => {
   tameNaNSideChannel();
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
-  addIntrinsics(tameUrlConstructor(urlBlobMethods));
+  addIntrinsics(tameUrlConstructor(urlBlobTaming));
   addIntrinsics(shimArrayBufferTransfer());
   addIntrinsics(tameModuleSource());
 

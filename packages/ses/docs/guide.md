@@ -293,8 +293,8 @@ hardened environment. The most surprising removals include `atob` and `TextEncod
 The start compartment keeps `URL`'s blob-registry methods by default, while
 compartments created after lockdown receive a tamed `URL` without
 `createObjectURL` or `revokeObjectURL`.
-Use `lockdown({ urlBlobMethods: 'remove' })` to remove those methods from the
-start compartment too. See [`lockdown()`](../../../docs/lockdown.md#urlblobmethods-options)
+Use `lockdown({ urlBlobTaming: 'remove' })` to remove those methods from the
+start compartment too. See [`lockdown()`](../../../docs/lockdown.md#urlblobtaming-options)
 for the full option description.
 
 `debugger` is a first-class JavaScript statement, and behaves as expected.
