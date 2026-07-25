@@ -118,12 +118,10 @@ Packages without one (e.g. `ses`, which ships hand-rolled `types.d.ts`) are
 silently excluded; their types resolve through normal `package.json`
 `"types"`/`"exports"` fields as usual.
 
-**Coexistence with `prepack`:** the composite build and per-package
-`prepack` both emit `.d.ts` files alongside their `.js` sources. They share
-output locations but track build state independently. If you've run `prepack`
-for any package and then switch to the composite build (or vice versa), you
-may see TS5055 "would overwrite input file" errors caused by stale outputs.
-Run `yarn clean` to reset.
+**Stale outputs:** if you have previously run a per-package `tsc --build`
+(e.g. via a local `yarn pack`) and then run the composite build, `tsc` may
+reject the stale `.d.ts` files with TS5055 "would overwrite input file".
+Run `yarn clean` to reset before running `yarn build:types`.
 
 ## Commit conventions
 

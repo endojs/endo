@@ -1,22 +1,32 @@
 #!/usr/bin/env node
+
 /**
  * @file Publish all public workspace tarballs to npm.
  *
  * Replaces the previous `lerna publish from-package` flow. Lerna's from-package
  * mode invokes `npm publish` per workspace dir, which would ship raw `.ts`
- * sources unless we re-introduce a prepack hook. Instead we pre-build tarballs
- * with `ts-node-pack` (via pack-all.mjs) and `npm publish` each one, which is
- * the same model npm itself recommends.
+ * sources and miss generated declarations. Instead we pre-build tarballs with
+ * `yarn pack` (after a composite `tsc --build` for declarations) via
+ * `pack-all.mjs`, then `npm publish` each one.
+ *
+ * `pack-all.mjs` temporarily mutates the working tree (emits `.d.ts`, builds
+ * `ses/dist/`) and then restores it via `git clean` after packing. The
+ * `dist/` directory at the repo root is the only artifact that survives.
  *
  * Tagging and version bumps are handled by Changesets. The script honors the
  * standard `NPM_CONFIG_TAG` / `npm_config_tag` env var; pass `--tag <dist-tag>`
  * to override on the command line.
+ *
+ * Pass `--dry-run` to forward `--dry-run` to every `npm publish`, exercising
+ * the whole flow (install, pack, count check, registry lookups) without
+ * uploading anything. Already-published versions are still skipped, so a dry
+ * run reports exactly the set of tarballs a real run would upload.
  */
 import { execFile, spawn } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
+import { parseArgs, promisify } from 'node:util';
 
 /**
  * @import {SpawnOptions} from 'node:child_process';
@@ -28,9 +38,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
 const distDir = path.join(repoRoot, 'dist');
 
-const tagFlag = process.argv.indexOf('--tag');
-const tag =
-  tagFlag >= 0 ? process.argv[tagFlag + 1] : process.env.npm_config_tag;
+const { values } = parseArgs({
+  options: {
+    tag: { type: 'string' },
+    'dry-run': { type: 'boolean', default: false },
+  },
+});
+
+const tag = values.tag ?? process.env.npm_config_tag;
+const dryRun = values['dry-run'];
 
 /**
  * Read `name` and `version` from the package.json inside a published tarball.
@@ -91,13 +107,11 @@ const run = (cmd, argv, options) =>
     );
   });
 
-// Always re-pack so the tarballs match HEAD. pack-all.mjs wipes dist/ at
-// the start of every run, so there is no way for a previous run's stale
-// or partial output to reach `npm publish`. This is structurally
-// equivalent to the old `prepack`/`postpack` lifecycle's invariant that
-// every publish recompiled from source, except that here the source tree
-// is never mutated and failures leave no residue.
-console.error('release:npm: building tarballs via ts-node-pack');
+// Ensure the workspace is up to date before packing.
+console.error('release-npm: yarn install --immutable');
+await run('yarn', ['install', '--immutable'], { cwd: repoRoot });
+
+console.error('release-npm: building tarballs');
 await run(process.execPath, [path.join(__dirname, 'pack-all.mjs')], {
   cwd: repoRoot,
 });
@@ -111,7 +125,7 @@ const tarballs = readdirSync(distDir)
   .sort();
 
 if (tarballs.length === 0) {
-  throw new Error('release:npm: no tarballs to publish');
+  throw new Error('release-npm: no tarballs to publish');
 }
 
 // Sanity check: one tarball per public workspace, no more and no less.
@@ -130,36 +144,45 @@ const expectedPackages = wsStdout
   .filter(ws => ws.location !== '.');
 if (tarballs.length !== expectedPackages.length) {
   throw new Error(
-    `release:npm: tarball count mismatch — expected ${expectedPackages.length} ` +
+    `release-npm: tarball count mismatch — expected ${expectedPackages.length} ` +
       `public workspace(s), found ${tarballs.length} tarball(s) in ${path.relative(repoRoot, distDir)}/. ` +
       `Refusing to publish a partial release.`,
   );
 }
 
 console.error(
-  `release:npm: publishing ${tarballs.length} tarball(s)${tag ? ` with --tag ${tag}` : ''}`,
+  `release-npm: publishing ${tarballs.length} tarball(s)${tag ? ` with --tag ${tag}` : ''}${dryRun ? ' (dry run)' : ''}`,
 );
 let publishedCount = 0;
 let skippedCount = 0;
-for (const tgz of tarballs) {
+
+const publishableTarballs = /** @type {[string, boolean][]} */ (
+  await Promise.all(
+    tarballs.map(async tgz => {
+      const { name, version } = await readTarballManifest(tgz);
+      if (await isPublished(name, version)) {
+        console.error(`  skip ${name}@${version} (already published)`);
+        skippedCount += 1;
+        return [tgz, false];
+      }
+      return [tgz, true];
+    }),
+  )
+)
+  .filter(([_, isPublished]) => !!isPublished)
+  .map(([tgz]) => tgz);
+
+for (const tgz of publishableTarballs) {
   const rel = path.relative(repoRoot, tgz);
-  const { name, version } = await readTarballManifest(tgz);
-  // Idempotency: never attempt to publish a version that is already on the
-  // registry. This lets `release:npm` be re-run safely after a partial
-  // failure — already-published packages are skipped, the rest go out.
-  if (await isPublished(name, version)) {
-    console.error(`  skip ${name}@${version} (already published)`);
-    skippedCount += 1;
-    continue;
-  }
-  console.error(`  npm publish ${rel}`);
+  console.error(`  npm publish ${rel}${dryRun ? ' --dry-run' : ''}`);
   const argv = ['publish'];
   if (tag) argv.push('--tag', tag);
+  if (dryRun) argv.push('--dry-run');
   argv.push(tgz);
   await run('npm', argv, { cwd: repoRoot });
   publishedCount += 1;
 }
 
 console.error(
-  `release:npm: done (${publishedCount} published, ${skippedCount} skipped)`,
+  `release-npm: done (${publishedCount} ${dryRun ? 'would be published' : 'published'}, ${skippedCount} skipped)`,
 );
