@@ -61,6 +61,15 @@ export interface RepairOptions {
    */
   legacyRegeneratorRuntimeTaming?: 'safe' | 'unsafe-ignore';
   __hardenTaming__?: 'safe' | 'unsafe';
+  /**
+   * keepOnInitialGlobal (default): the start compartment keeps the host
+   * `URL`'s `createObjectURL` and `revokeObjectURL` blob-registry methods;
+   * shared compartments receive a tamed `URL` without them.
+   *
+   * remove: the blob methods are removed everywhere, so the start
+   * compartment and every shared compartment share one tamed `URL`.
+   */
+  urlBlobMethods?: 'keepOnInitialGlobal' | 'remove';
 }
 
 // Deprecated in favor of the more specific RepairOptions

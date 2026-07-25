@@ -39,6 +39,7 @@ import tameMathObject from './tame-math-object.js';
 import tameTemporalObject from './tame-temporal-object.js';
 import { tameNaNSideChannel } from './tame-nan-sidechannel.js';
 import tameRegExpConstructor from './tame-regexp-constructor.js';
+import tameUrlConstructor from './tame-url-constructor.js';
 import enablePropertyOverrides from './enable-property-overrides.js';
 import tameLocaleMethods from './tame-locale-methods.js';
 import {
@@ -243,6 +244,9 @@ export const repairIntrinsics = (options = {}) => {
     __hardenTaming__ = /** @type {'safe' | 'unsafe'} */ (
       getenv('LOCKDOWN_HARDEN_TAMING', 'safe', ['unsafe'])
     ),
+    urlBlobMethods = /** @type {'keepOnInitialGlobal' | 'remove'} */ (
+      getenv('LOCKDOWN_URL_BLOB_METHODS', 'keepOnInitialGlobal', ['remove'])
+    ),
     dateTaming, // deprecated
     mathTaming, // deprecated
     ...extraOptions
@@ -359,6 +363,7 @@ export const repairIntrinsics = (options = {}) => {
   tameNaNSideChannel();
   addIntrinsics(tameRegExpConstructor(regExpTaming));
   addIntrinsics(tameSymbolConstructor());
+  addIntrinsics(tameUrlConstructor(urlBlobMethods));
   addIntrinsics(shimArrayBufferTransfer());
   addIntrinsics(tameModuleSource());
 
