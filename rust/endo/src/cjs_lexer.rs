@@ -38,8 +38,17 @@ const EXCLUDED_NAMES: &[&str] = &[
     // Illegal or hazardous as module-level `const` binding names.
     "let", "static", "yield", "await", "implements", "interface", "package", "private",
     "protected", "public", "arguments", "eval",
-    // Interop names the facade already owns.
-    "__esModule",
+    // Interop and synthetic names the ESM facade itself declares or
+    // references (`rust/endo/src/execute.rs`): synthesizing an
+    // `export const` for any of these would shadow or duplicate a
+    // facade binding — `__cjs`/`__cjsO` are the facade's own
+    // module-scope consts (a duplicate `const` is a SyntaxError) and
+    // `__loadCjs` is the compartment global the facade calls before
+    // the export line (a module-scope `export const __loadCjs` would
+    // put that call in the temporal dead zone). Excluding them keeps
+    // the over-approximation bargain: an unexportable name falls back
+    // to the `default` namespace rather than breaking the whole module.
+    "__esModule", "__cjs", "__cjsO", "__loadCjs",
 ];
 
 /// True when `name` may be emitted as `export const <name>` — an
@@ -161,6 +170,7 @@ fn tokenize(source: &str) -> Vec<Token> {
                 Some(Token::Ident(name)) if name != "return" && name != "typeof" && name != "case"
                     && name != "in" && name != "of" && name != "instanceof" && name != "new"
                     && name != "delete" && name != "void" && name != "do" && name != "else"
+                    && name != "throw" && name != "yield"
             ) || matches!(tokens.last(), Some(Token::Str(_)) | Some(Token::Punct(')')) | Some(Token::Punct(']')));
             if divides {
                 tokens.push(Token::Punct('/'));
@@ -213,6 +223,12 @@ fn tokenize(source: &str) -> Vec<Token> {
 /// True when `tokens[i..]` begins `module . exports`; returns the
 /// index just past `exports`.
 fn after_module_exports(tokens: &[Token], i: usize) -> Option<usize> {
+    // Reject `foo.module.exports` — `module` must be the free CJS
+    // binding, not a member access on some other object (mirrors the
+    // preceding-`.` guard in `after_exports_ref` for bare `exports`).
+    if i > 0 && matches!(tokens.get(i - 1), Some(Token::Punct('.'))) {
+        return None;
+    }
     if matches!(tokens.get(i), Some(Token::Ident(w)) if w == "module")
         && matches!(tokens.get(i + 1), Some(Token::Punct('.')))
         && matches!(tokens.get(i + 2), Some(Token::Ident(w)) if w == "exports")
@@ -297,8 +313,12 @@ fn collect_object_literal_keys(tokens: &[Token], i: usize, names: &mut BTreeSet<
                 j = skip_value(tokens, j + 1);
             }
             // Spread, computed key, or anything else: balance past it.
+            // `skip_value` returns its own index when it starts on an
+            // unbalanced depth-0 `)`/`]` (which the arms above do not
+            // consume), so force forward progress or the scan would
+            // spin forever on malformed input like `{ a: b) }`.
             _ => {
-                j = skip_value(tokens, j);
+                j = skip_value(tokens, j).max(j + 1);
             }
         }
     }
@@ -507,5 +527,65 @@ mod tests {
     fn module_exports_replacement_by_non_literal_yields_nothing() {
         assert!(detect("module.exports = require('./other');\n").is_empty());
         assert!(detect("module.exports = someFactory();\n").is_empty());
+    }
+
+    /// The facade's own bindings (`__cjs`/`__cjsO` consts, the
+    /// `__loadCjs` global) must never be synthesized as named exports:
+    /// a duplicate `const` is a SyntaxError and a shadowing
+    /// `export const __loadCjs` puts the facade's own call in the TDZ,
+    /// either of which would break linking of the whole module.
+    #[test]
+    fn excludes_facade_internal_names() {
+        let src = "exports.__cjs = 1;\nexports.__cjsO = 2;\n\
+                   exports['__loadCjs'] = 3;\nmodule.exports.__cjs = 4;\nexports.ok = 5;\n";
+        assert_eq!(detect(src), vec!["ok"]);
+    }
+
+    /// An object literal with an unbalanced closer must not hang the
+    /// scanner (regression: `skip_value` returned its own index on a
+    /// depth-0 `)`/`]`, so the fallback arm spun forever). The scan
+    /// terminates and still surfaces the well-formed keys.
+    #[test]
+    fn unbalanced_object_literal_terminates() {
+        // The well-formed key before the stray closer still surfaces.
+        assert_eq!(detect("module.exports = { a: b) };\n"), vec!["a"]);
+        assert_eq!(detect("module.exports = { a: b] };\n"), vec!["a"]);
+        // A leading unbalanced closer with no keys still terminates.
+        assert!(detect("module.exports = { ) };\n").is_empty());
+    }
+
+    /// `foo.module.exports.bar` is a member access on another object,
+    /// not the CJS `module` free binding — no name is synthesized.
+    #[test]
+    fn rejects_member_access_module_exports() {
+        assert!(detect("foo.module.exports.bar = 1;\n").is_empty());
+    }
+
+    /// The `module.exports["name"] = …` bracket form (not just the
+    /// bare `exports["name"]`) is detected.
+    #[test]
+    fn detects_module_exports_bracket_form() {
+        assert_eq!(detect("module.exports[\"baz\"] = 1;\n"), vec!["baz"]);
+    }
+
+    /// An empty object-literal replacement contributes nothing.
+    #[test]
+    fn empty_object_literal_yields_nothing() {
+        assert!(detect("module.exports = {};\n").is_empty());
+    }
+
+    /// A non-ASCII export name is not exportable and falls back to the
+    /// default namespace (the doc-comment's stated ASCII-subset bound).
+    #[test]
+    fn non_ascii_names_fall_back_to_default() {
+        assert!(detect("exports['café'] = 1;\nexports[\"naïve\"] = 2;\n").is_empty());
+    }
+
+    /// A regex literal following `throw`/`yield` is not misread as
+    /// division, so an assignment shape inside it yields no name.
+    #[test]
+    fn regex_after_throw_or_yield_is_not_division() {
+        assert!(detect("function f() { throw /exports.x = 1/; }\n").is_empty());
+        assert!(detect("function* g() { yield /exports.y = 1/; }\n").is_empty());
     }
 }
