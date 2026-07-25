@@ -32,6 +32,35 @@ test('the start and shared compartments share one URL binding', t => {
   t.false('createObjectURL' in c.globalThis.URL);
 });
 
+test('url instanceof URL holds in the start and child compartments under remove', t => {
+  if (!hasURL) {
+    t.pass('host does not provide URL');
+    return;
+  }
+  // Under `remove` the split collapses onto the single tamed `%SharedURL%`,
+  // whose prototype is the host `URL.prototype` with its `constructor` re-
+  // pointed at the tamed binding (never the feral host constructor). An
+  // instance minted on either side must therefore satisfy `instanceof URL`
+  // on both sides, and its `constructor` must resolve to that one shared
+  // binding.
+  const c = new Compartment();
+
+  const startInstance = new URL('http://example.com/');
+  t.true(startInstance instanceof URL);
+  t.true(c.evaluate('u => u instanceof URL')(startInstance));
+
+  const childInstance = c.evaluate('new URL("http://example.com/")');
+  t.true(childInstance instanceof URL);
+  t.true(c.evaluate('u => u instanceof URL')(childInstance));
+
+  // The prototype's constructor is the shared tamed binding, identical across
+  // the boundary, so reaching it from an instance never recovers the feral
+  // host constructor.
+  t.is(globalThis.URL.prototype.constructor, globalThis.URL);
+  t.is(startInstance.constructor, globalThis.URL);
+  t.is(childInstance.constructor, globalThis.URL);
+});
+
 test('round-trip URL parsing still works under remove', t => {
   if (!hasURL) {
     t.pass('host does not provide URL');
