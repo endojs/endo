@@ -76,6 +76,35 @@ test('URL.prototype is shared between the start and shared compartments', t => {
   t.true(sharedInstance instanceof URL);
 });
 
+test('URL.prototype.constructor points at the tamed URL, not the powered one', t => {
+  if (!hasURL) {
+    t.pass('host does not provide URL');
+    return;
+  }
+  // The escape-closing invariant: `URL.prototype.constructor` must resolve to
+  // the tamed `%SharedURL%` (no blob statics), never the powered `%URL%` the
+  // start compartment may keep. Without the constructor re-point in
+  // tame-url-constructor.js, a shared compartment would regain the ambient
+  // blob-registry authority through `URL.prototype.constructor.createObjectURL`
+  // even though its own `URL` binding omits it. This test reddens if that
+  // re-point is dropped, mirroring how `%DatePrototype%.constructor` is pinned
+  // to `%SharedDate%`.
+  const c = new Compartment();
+  const sharedURL = c.globalThis.URL;
+  // The shared prototype's constructor is the shared (powerless) binding.
+  t.is(c.globalThis.URL.prototype.constructor, sharedURL);
+  t.is(globalThis.URL.prototype.constructor, sharedURL);
+  // ...and is distinct from the powered start-compartment binding by default.
+  t.not(sharedURL, globalThis.URL);
+  // Reaching the constructor from an instance yields the blob-less binding.
+  const ctorFromInstance = c.evaluate(
+    'new URL("http://example.com/").constructor',
+  );
+  t.is(ctorFromInstance, sharedURL);
+  t.false('createObjectURL' in ctorFromInstance);
+  t.false('revokeObjectURL' in ctorFromInstance);
+});
+
 test('URL constructor and prototype are frozen', t => {
   if (!hasURL) {
     t.pass('host does not provide URL');
@@ -106,6 +135,26 @@ test('the URLSearchParams iterator prototype is frozen', t => {
     new URLSearchParams().entries(),
   );
   t.true(Object.isFrozen(iteratorPrototype));
+});
+
+test('all URLSearchParams iteration methods share one frozen iterator prototype', t => {
+  if (!hasURLSearchParams) {
+    t.pass('host does not provide URLSearchParams');
+    return;
+  }
+  // The sampler in get-anonymous-intrinsics.js seeds the hidden iterator
+  // prototype from `entries()` alone. The taming is only complete if
+  // `keys()`, `values()`, and `[Symbol.iterator]()` share that same
+  // prototype: were a host to hand any of them a distinct prototype, the
+  // sampler would miss it and harden would leave it reachable-but-unfrozen (or
+  // the whitelist would prune it), silently. Pin the shared identity so the
+  // one-sample design stays sound.
+  const usp = new URLSearchParams('a=1&b=2');
+  const entriesProto = Object.getPrototypeOf(usp.entries());
+  t.is(Object.getPrototypeOf(usp.keys()), entriesProto);
+  t.is(Object.getPrototypeOf(usp.values()), entriesProto);
+  t.is(Object.getPrototypeOf(usp[Symbol.iterator]()), entriesProto);
+  t.true(Object.isFrozen(entriesProto));
 });
 
 test('the URLSearchParams iterator prototype rejects tampering', t => {
