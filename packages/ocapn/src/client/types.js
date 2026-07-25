@@ -124,7 +124,9 @@
  * Minimal public session interface.
  * For full session access (testing/debugging), use debug.provideInternalSession().
  * @typedef {object} Session
- * @property {() => object} getBootstrap - Get the remote bootstrap object
+ * @property {() => any} getBootstrap - Get the remote bootstrap object
+ *   (`any`: a remote presence whose methods are known only to the
+ *   caller, which invokes them through `E()`)
  * @property {(reason?: Error) => void} abort - Abort the session
  */
 
