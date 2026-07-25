@@ -1,0 +1,96 @@
+{
+  "name": "@endo/ocapn-iroh",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An iroh QUIC netlayer for @endo/ocapn.",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/ocapn-iroh#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/ocapn-iroh"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./location": "./src/location.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
+    "postpack": "git clean -fX -e node_modules/",
+    "prepack": "git clean -fX -e node_modules/ && tsc --build tsconfig.build.json",
+    "test": "ses-ava",
+    "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
+    "test:xs": "exit 0"
+  },
+  "dependencies": {
+    "@endo/errors": "workspace:^",
+    "@endo/harden": "workspace:^",
+    "@endo/netstring": "workspace:^",
+    "@endo/ocapn": "workspace:^",
+    "@endo/promise-kit": "workspace:^",
+    "@endo/stream": "workspace:^"
+  },
+  "optionalDependencies": {
+    "@number0/iroh": "^1.0.0"
+  },
+  "devDependencies": {
+    "@endo/eventual-send": "workspace:^",
+    "@endo/init": "workspace:^",
+    "@endo/lockdown": "workspace:^",
+    "@endo/marshal": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "c8": "catalog:dev",
+    "eslint": "catalog:dev",
+    "ses": "workspace:^",
+    "typescript": "catalog:dev"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "dist",
+    "lib",
+    "src",
+    "tools"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ],
+    "rules": {
+      "import/no-unresolved": [
+        "error",
+        {
+          "ignore": [
+            "^@endo/ocapn/",
+            "^@endo/ses-ava/"
+          ]
+        }
+      ]
+    }
+  },
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "endo": "../../ava-endo-shims-only.config.mjs"
+  }
+}
