@@ -487,8 +487,28 @@ The tree's children are the package's files, stored as blobs.
       auth challenges beyond a static header (OTP/webauthn
       login flows, keyring integration) — `endor` consumes
       credentials, it does not mint them.
-- [ ] Workspace-protocol resolution for monorepos not yet
-      published to a registry.
+- [x] Workspace-protocol resolution for monorepos not yet
+      published to a registry: `rust/endo/src/workspace.rs`
+      discovers the enclosing workspace (nearest ancestor
+      `package.json` declaring `workspaces`, array or
+      `{"packages": [...]}` form; glob subset: literal
+      segments, `*` within a segment, whole-segment `**`), and
+      assembly resolves dependency edges naming sibling members
+      to their local working trees, ingested into the CAS —
+      `workspace:` protocol ranges always (`workspace:*`/`^`/`~`
+      accept the local version; concrete ranges are checked
+      against it, since no registry can serve them), and plain
+      semver ranges when the sibling's local version satisfies
+      them, with registry fallback otherwise. Member-to-member
+      edges recurse, so a monorepo slice assembles with only
+      its external dependencies touching the registry, and a
+      member satisfying a range shadows any registry version
+      of the same name (npm links workspace siblings in
+      preference to installing them). Remaining sub-gaps,
+      deliberate: negation patterns (`!pkg`) and `?`/`[`/`{`
+      globs are rejected rather than misread, and lockstep
+      co-versioning across members is implicit (each member
+      has exactly one local version) rather than enforced.
 - [x] `peerDependencies` and `optionalDependencies` handling
       (npm ≥7-alike, adapted to MVS): non-optional peers fold
       into the shared requirement set as required edges — MVS

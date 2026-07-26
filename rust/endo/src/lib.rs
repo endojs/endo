@@ -8,6 +8,7 @@ pub mod npm_resolve;
 pub mod npmrc;
 pub mod registry;
 pub mod semver;
+pub mod workspace;
 pub mod endo;
 pub mod engine;
 pub mod execute;

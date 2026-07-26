@@ -6,13 +6,20 @@
 //! 1. locates the entry package root (the nearest ancestor directory
 //!    holding a `package.json`, or the entry's own directory when
 //!    there is none),
-//! 2. resolves and fetches the package's transitive npm dependencies
+//! 2. discovers the enclosing **workspace**, if any
+//!    ([`crate::workspace`]), and resolves dependency edges naming
+//!    sibling workspace members to their local working trees —
+//!    `workspace:` protocol ranges always, plain semver ranges when
+//!    the sibling's local version satisfies them — ingesting each
+//!    reachable member into the CAS instead of fetching it from any
+//!    registry,
+//! 3. resolves and fetches the remaining transitive npm dependencies
 //!    into the CAS via [`resolve_transitive_with_config`] (Go-like
 //!    MVS, registry-table fast path, cached replay),
-//! 3. ingests the entry package's own files into the CAS as a tree
+//! 4. ingests the entry package's own files into the CAS as a tree
 //!    (skipping `node_modules` and VCS metadata — the whole point is
 //!    that no `node_modules` tree is consulted), and
-//! 4. synthesises a **compartment map** whose module locations are
+//! 5. synthesises a **compartment map** whose module locations are
 //!    CAS tree hashes, stored in the CAS itself.
 //!
 //! The compartment map is the artifact the execution half of Phase 4
@@ -38,6 +45,7 @@ use crate::npm_resolve::{
 use crate::npmrc::NpmConfig;
 use crate::registry::RegistryTable;
 use crate::semver::{Range, Version};
+use crate::workspace::{find_workspace, WorkspaceError, WorkspaceMember};
 
 /// Compartment-map key for the entry package's own compartment.
 /// Angle brackets keep it disjoint from every npm package name.
@@ -55,6 +63,10 @@ pub enum AssembleError {
     BadPackageJson(String),
     /// Transitive resolution failed.
     Resolve(ResolveError),
+    /// Workspace discovery failed, or a workspace edge could not be
+    /// satisfied (a `workspace:` range naming no member, or a member
+    /// whose local version misses the declared range).
+    Workspace(String),
     /// Filesystem or CAS I/O failed.
     Io(io::Error),
 }
@@ -65,6 +77,7 @@ impl fmt::Display for AssembleError {
             AssembleError::BadEntry(msg) => write!(f, "bad entry module: {msg}"),
             AssembleError::BadPackageJson(msg) => write!(f, "bad package.json: {msg}"),
             AssembleError::Resolve(e) => write!(f, "resolution failed: {e}"),
+            AssembleError::Workspace(msg) => write!(f, "workspace: {msg}"),
             AssembleError::Io(e) => write!(f, "assembly I/O: {e}"),
         }
     }
@@ -73,6 +86,12 @@ impl fmt::Display for AssembleError {
 impl From<ResolveError> for AssembleError {
     fn from(e: ResolveError) -> Self {
         AssembleError::Resolve(e)
+    }
+}
+
+impl From<WorkspaceError> for AssembleError {
+    fn from(e: WorkspaceError) -> Self {
+        AssembleError::Workspace(e.to_string())
     }
 }
 
@@ -98,8 +117,12 @@ pub struct ResolvedCompartment {
     /// Bound when resolution selected a target, omitted otherwise
     /// (the runtime `require` then fails with a clean cannot-find,
     /// which guarded optional requires expect).
+
     pub optional_edges: BTreeMap<String, String>,
-}
+    /// Whether this package is a local workspace member (ingested
+    /// from its working tree) rather than a registry fetch.
+
+    pub workspace: bool,}
 
 /// The transitive resolution as consumed by map building: the
 /// resolved packages with their dependency edges, plus range→package
@@ -134,14 +157,22 @@ impl Resolution {
     /// serving it: the greatest resolved version of `name` that
     /// satisfies `range` (per-major MVS selects one version per
     /// anchor major, so in practice exactly one candidate matches).
+    /// A `workspace:` protocol range binds to the workspace-local
+    /// package of that name (validated at classification time), and
+    /// a workspace member satisfying a plain range shadows any
+    /// registry version of the same name — npm links workspace
+    /// siblings in preference to installing them.
     pub fn resolve_dependency(&self, name: &str, range_str: &str) -> Option<&ResolvedCompartment> {
+        if range_str.starts_with("workspace:") {
+            return self.packages.iter().find(|p| p.workspace && p.name == name);
+        }
         let range = Range::parse(range_str)?;
         self.packages
             .iter()
             .filter(|p| p.name == name)
             .filter_map(|p| Version::parse(&p.version).map(|v| (v, p)))
             .filter(|(v, _)| range.satisfies(v))
-            .max_by(|(a, _), (b, _)| a.cmp(b))
+            .max_by(|(av, a), (bv, b)| (a.workspace, av).cmp(&(b.workspace, bv)))
             .map(|(_, p)| p)
     }
 }
@@ -199,6 +230,29 @@ pub fn find_package_root(entry_js: &Path) -> Result<(PathBuf, Option<String>), A
         }
     }
 }
+/// Parse the `dependencies` field only — the simple map read_tree_dependencies
+/// returns (workspace members need only concrete dependencies; peer/optional
+/// classification happens through the full resolver for registry packages).
+fn parse_dependencies(
+    doc: &serde_json::Value,
+    who: &str,
+) -> Result<BTreeMap<String, String>, AssembleError> {
+    let mut dependencies = BTreeMap::new();
+    if let Some(deps) = doc.get("dependencies") {
+        let obj = deps.as_object().ok_or_else(|| {
+            AssembleError::BadPackageJson(format!("{who}: "dependencies" is not an object"))
+        })?;
+        for (dep, range) in obj {
+            let range = range.as_str().ok_or_else(|| {
+                AssembleError::BadPackageJson(format!(
+                    "{who}: dependency {dep} has a non-string range"
+                ))
+            })?;
+            dependencies.insert(dep.clone(), range.to_string());
+        }
+    }
+    Ok(dependencies)
+}
 
 /// Parse the entry package's name and classified dependency edges
 /// out of its `package.json`. Absent fields default (name `"entry"`,
@@ -214,6 +268,24 @@ fn parse_manifest(text: &str) -> Result<(String, DepEdges), AssembleError> {
     let edges = dep_edges_from_manifest(&doc)
         .map_err(|detail| AssembleError::BadPackageJson(format!("{name}: {detail}")))?;
     Ok((name, edges))
+}
+
+/// Read a resolved package's declared `dependencies` back out of its
+/// CAS tree, mirroring the resolver's own walk so the map's edges
+/// bind exactly the ranges resolution satisfied.
+fn read_tree_dependencies(
+    cas: &ContentStore,
+    name: &str,
+    version: &str,
+    tree_hash: &str,
+) -> Result<BTreeMap<String, String>, AssembleError> {
+    let who = format!("{name}@{version}");
+    let bytes = cas
+        .fetch_from_tree(tree_hash, "package.json")
+        .map_err(|e| AssembleError::BadPackageJson(format!("{who}: read package.json: {e}")))?;
+    let doc: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|e| AssembleError::BadPackageJson(format!("{who}: parse: {e}")))?;
+    parse_dependencies(&doc, &who)
 }
 
 /// Split classified edges into the map shape edge binding consumes:
@@ -281,6 +353,118 @@ fn ingest_dir(
         }
     }
     Ok(())
+}
+
+/// Check a `workspace:` protocol range against the member's local
+/// version. The bare forms `workspace:*`, `workspace:^`, and
+/// `workspace:~` accept whatever version the member has; a concrete
+/// range (`workspace:^1.2.0`, `workspace:1.2.3`) must be satisfied
+/// by it — there is no registry to fall back to.
+fn check_workspace_edge(
+    requirer: &str,
+    dep: &str,
+    range_rest: &str,
+    member: &WorkspaceMember,
+) -> Result<(), AssembleError> {
+    let rest = range_rest.trim();
+    if matches!(rest, "" | "*" | "^" | "~") {
+        return Ok(());
+    }
+    let range = Range::parse(rest).ok_or_else(|| {
+        AssembleError::Workspace(format!(
+            "{requirer}: unsupported workspace range for {dep}: workspace:{rest}"
+        ))
+    })?;
+    let version = Version::parse(&member.version).ok_or_else(|| {
+        AssembleError::Workspace(format!(
+            "{requirer}: workspace member {dep} has unparseable version {:?}",
+            member.version
+        ))
+    })?;
+    if range.satisfies(&version) {
+        Ok(())
+    } else {
+        Err(AssembleError::Workspace(format!(
+            "{requirer}: workspace member {dep}@{} does not satisfy workspace:{rest}",
+            member.version
+        )))
+    }
+}
+
+/// The workspace half of dependency partitioning: the locally
+/// resolved member compartments, and the residual `(name, range)`
+/// roots for the registry resolver.
+type WorkspacePartition = (Vec<ResolvedCompartment>, Vec<(String, String)>);
+
+/// Partition the entry package's dependency graph between the
+/// workspace and the registry: walk dependency edges from the entry,
+/// resolving edges that name workspace members locally — ingesting
+/// each reachable member's working tree into the CAS as a
+/// [`ResolvedCompartment`] — and accumulating every other edge as a
+/// root for the registry resolver. Member-to-member edges recurse,
+/// so a whole local monorepo slice assembles with only its external
+/// dependencies touching the registry.
+fn resolve_workspace_members(
+    cas: &ContentStore,
+    package_root: &Path,
+    package_name: &str,
+    root_dependencies: &[(String, String)],
+) -> Result<WorkspacePartition, AssembleError> {
+    let workspace = find_workspace(package_root)?;
+
+    let mut local: BTreeMap<String, ResolvedCompartment> = BTreeMap::new();
+    let mut registry_roots: Vec<(String, String)> = Vec::new();
+    // (requirer name, its declared dependencies) still to classify.
+    let mut pending: Vec<(String, Vec<(String, String)>)> =
+        vec![(package_name.to_string(), root_dependencies.to_vec())];
+
+    while let Some((requirer, dependencies)) = pending.pop() {
+        for (dep, range) in &dependencies {
+            let member = workspace.as_ref().and_then(|ws| ws.member(dep));
+            let local_edge = if let Some(rest) = range.strip_prefix("workspace:") {
+                let member = member.ok_or_else(|| {
+                    AssembleError::Workspace(format!(
+                        "{requirer}: {dep}@{range} names no workspace member \
+                         (workspace ranges cannot be served by a registry)"
+                    ))
+                })?;
+                check_workspace_edge(&requirer, dep, rest, member)?;
+                Some(member)
+            } else {
+                // A plain range naming a sibling resolves locally
+                // when the sibling's version satisfies it; otherwise
+                // it falls through to the registry, as npm does.
+                member.filter(
+                    |m| match (Range::parse(range), Version::parse(&m.version)) {
+                        (Some(range), Some(version)) => range.satisfies(&version),
+                        _ => false,
+                    },
+                )
+            };
+            match local_edge {
+                Some(member) if !local.contains_key(&member.name) => {
+                    let manifest = fs::read_to_string(member.dir.join("package.json"))?;
+                    let (_, member_edges) = parse_manifest(&manifest)?;
+                    let tree_hash = store_dir_tree(cas, &member.dir)?;
+                    local.insert(
+                        member.name.clone(),
+                        ResolvedCompartment {
+                            name: member.name.clone(),
+                            version: member.version.clone(),
+                            tree_hash,
+                            dependencies: member_edges.required.iter().cloned().collect(),
+                            optional_edges: BTreeMap::new(),
+                            workspace: true,
+                        },
+                    );
+                    pending.push((member.name.clone(), member_edges.required));
+                }
+                Some(_) => {}
+                None => registry_roots.push((dep.clone(), range.clone())),
+            }
+        }
+    }
+    Ok((local.into_values().collect(), registry_roots))
 }
 
 /// Compartment-map key for a resolved package: `<name>-v<version>`,
@@ -429,8 +613,13 @@ pub fn assemble_entry_with_config<H: HttpClient>(
         None => ("entry".to_string(), DepEdges::default()),
     };
 
-    let outcome = resolve_transitive_outcome(http, cas, registry_table, config, &root_edges)?;
-    let mut packages = Vec::with_capacity(outcome.packages.len());
+    // Workspace edges resolve to local working trees first; whatever
+    // remains — the entry\'s registry dependencies plus every
+    // reachable member\'s — feeds the registry resolver.
+    let (workspace_packages, roots) =
+        resolve_workspace_members(cas, &package_root, &package_name, &root_edges.required)?;
+    let outcome = resolve_transitive_outcome(http, cas, registry_table, config, &DepEdges::required_only(&roots))?;
+    let mut packages = Vec::with_capacity(outcome.packages.len() + workspace_packages.len());
     for package in outcome.packages {
         let edges = read_dep_edges(cas, &package.name, &package.version, &package.tree_hash)?;
         let (dependencies, optional_edges) = edge_maps(&edges);
@@ -440,8 +629,14 @@ pub fn assemble_entry_with_config<H: HttpClient>(
             tree_hash: package.tree_hash,
             dependencies,
             optional_edges,
+            workspace: false,
         });
     }
+    // Workspace members come after registry packages so that, should
+    // a member share a registry package's `(name, version)`
+    // compartment key, the member's map entry wins — consistent with
+    // edge binding, where a satisfying member shadows the registry.
+    packages.extend(workspace_packages);
     let resolution = Resolution { packages };
 
     let entry_tree_hash = store_dir_tree(cas, &package_root)?;
@@ -845,6 +1040,251 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, AssembleError::BadPackageJson(_)));
+    }
+
+    /// A monorepo on disk: a workspace root with `packages/*`
+    /// members `app` (the entry package) and `greeter`, where app
+    /// depends on greeter by the given range.
+    fn monorepo(root: &Path, greeter_range: &str, greeter_deps: &str) {
+        fs::write(
+            root.join("package.json"),
+            r#"{"name":"mono","workspaces":["packages/*"]}"#,
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("packages/app")).unwrap();
+        fs::write(
+            root.join("packages/app/package.json"),
+            format!(r#"{{"name":"app","version":"1.0.0","dependencies":{{"greeter":"{greeter_range}"}}}}"#),
+        )
+        .unwrap();
+        fs::write(
+            root.join("packages/app/main.js"),
+            "import greet from 'greeter';\n",
+        )
+        .unwrap();
+        fs::create_dir_all(root.join("packages/greeter")).unwrap();
+        fs::write(
+            root.join("packages/greeter/package.json"),
+            format!(r#"{{"name":"greeter","version":"1.2.0","dependencies":{greeter_deps}}}"#),
+        )
+        .unwrap();
+        fs::write(
+            root.join("packages/greeter/index.js"),
+            "export default 'hello';\n",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn workspace_protocol_sibling_resolves_locally_with_zero_network() {
+        let (_cas_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let mono = tempfile::tempdir().unwrap();
+        monorepo(mono.path(), "workspace:*", "{}");
+
+        let http = MockHttp::new();
+        let run = assemble_entry(
+            &http,
+            &cas,
+            &registry,
+            REGISTRY,
+            &mono.path().join("packages/app/main.js"),
+        )
+        .unwrap();
+
+        assert_eq!(*http.calls.borrow(), 0);
+        assert_eq!(run.resolution.len(), 1);
+        let greeter = run.resolution.get("greeter", 1).unwrap();
+        assert!(greeter.workspace);
+        assert_eq!(greeter.version, "1.2.0");
+
+        // The member's working tree, not a registry tarball, is the
+        // compartment's content.
+        let index = cas.fetch_from_tree(&greeter.tree_hash, "index.js").unwrap();
+        assert_eq!(index, b"export default 'hello';\n");
+
+        let map = assembled_map(&cas, &run);
+        assert_eq!(
+            map["compartments"][ENTRY_COMPARTMENT]["modules"]["greeter"]["compartment"],
+            "greeter-v1.2.0"
+        );
+    }
+
+    #[test]
+    fn plain_range_naming_sibling_resolves_locally() {
+        let (_cas_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let mono = tempfile::tempdir().unwrap();
+        monorepo(mono.path(), "^1.0.0", "{}");
+
+        let http = MockHttp::new();
+        let run = assemble_entry(
+            &http,
+            &cas,
+            &registry,
+            REGISTRY,
+            &mono.path().join("packages/app/main.js"),
+        )
+        .unwrap();
+
+        assert_eq!(*http.calls.borrow(), 0);
+        let greeter = run.resolution.get("greeter", 1).unwrap();
+        assert!(greeter.workspace);
+    }
+
+    #[test]
+    fn plain_range_missing_sibling_version_falls_back_to_registry() {
+        let (_cas_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let mono = tempfile::tempdir().unwrap();
+        // The sibling is greeter@1.2.0; a ^2 range cannot be served
+        // locally, so it must go to the registry.
+        monorepo(mono.path(), "^2.0.0", "{}");
+
+        let greeter_tar = pkg_tarball("greeter", "2.5.0", &[]);
+        let http = MockHttp::new()
+            .respond(
+                "https://registry.npmjs.org/greeter",
+                registry_meta("greeter", &["2.5.0"]),
+            )
+            .respond(&tarball_url("greeter", "2.5.0"), greeter_tar);
+
+        let run = assemble_entry(
+            &http,
+            &cas,
+            &registry,
+            REGISTRY,
+            &mono.path().join("packages/app/main.js"),
+        )
+        .unwrap();
+
+        let greeter = run.resolution.get("greeter", 2).unwrap();
+        assert!(!greeter.workspace);
+        assert_eq!(greeter.version, "2.5.0");
+    }
+
+    #[test]
+    fn workspace_member_registry_deps_are_fetched() {
+        let (_cas_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let mono = tempfile::tempdir().unwrap();
+        // greeter itself depends on registry package a@^1.0.0 (which
+        // depends on b@^2.0.0 per graph_http).
+        monorepo(mono.path(), "workspace:^", r#"{"a":"^1.0.0"}"#);
+
+        let run = assemble_entry(
+            &graph_http(),
+            &cas,
+            &registry,
+            REGISTRY,
+            &mono.path().join("packages/app/main.js"),
+        )
+        .unwrap();
+
+        assert_eq!(run.resolution.len(), 3);
+        assert!(run.resolution.get("greeter", 1).unwrap().workspace);
+        assert!(!run.resolution.get("a", 1).unwrap().workspace);
+        let map = assembled_map(&cas, &run);
+        assert_eq!(
+            map["compartments"]["greeter-v1.2.0"]["modules"]["a"]["compartment"],
+            "a-v1.2.0"
+        );
+        assert_eq!(
+            map["compartments"]["a-v1.2.0"]["modules"]["b"]["compartment"],
+            "b-v2.3.0"
+        );
+    }
+
+    #[test]
+    fn member_to_member_edges_recurse() {
+        let (_cas_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let mono = tempfile::tempdir().unwrap();
+        monorepo(mono.path(), "workspace:*", r#"{"core":"workspace:~"}"#);
+        fs::create_dir_all(mono.path().join("packages/core")).unwrap();
+        fs::write(
+            mono.path().join("packages/core/package.json"),
+            r#"{"name":"core","version":"0.9.0"}"#,
+        )
+        .unwrap();
+        fs::write(
+            mono.path().join("packages/core/index.js"),
+            "export default 0;\n",
+        )
+        .unwrap();
+
+        let http = MockHttp::new();
+        let run = assemble_entry(
+            &http,
+            &cas,
+            &registry,
+            REGISTRY,
+            &mono.path().join("packages/app/main.js"),
+        )
+        .unwrap();
+
+        assert_eq!(*http.calls.borrow(), 0);
+        assert_eq!(run.resolution.len(), 2);
+        assert!(run.resolution.get("core", 0).unwrap().workspace);
+        let map = assembled_map(&cas, &run);
+        assert_eq!(
+            map["compartments"]["greeter-v1.2.0"]["modules"]["core"]["compartment"],
+            "core-v0.9.0"
+        );
+    }
+
+    #[test]
+    fn workspace_range_with_no_member_is_an_error() {
+        let (_cas_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let mono = tempfile::tempdir().unwrap();
+        monorepo(mono.path(), "workspace:*", r#"{"phantom":"workspace:*"}"#);
+
+        let err = assemble_entry(
+            &MockHttp::new(),
+            &cas,
+            &registry,
+            REGISTRY,
+            &mono.path().join("packages/app/main.js"),
+        )
+        .unwrap_err();
+        match err {
+            AssembleError::Workspace(msg) => assert!(msg.contains("phantom"), "{msg}"),
+            other => panic!("expected Workspace error, got {other}"),
+        }
+    }
+
+    #[test]
+    fn workspace_concrete_range_must_match_local_version() {
+        let (_cas_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let mono = tempfile::tempdir().unwrap();
+        // greeter is 1.2.0 locally; workspace:^2.0.0 cannot be
+        // satisfied and there is no registry to fall back to.
+        monorepo(mono.path(), "workspace:^2.0.0", "{}");
+
+        let err = assemble_entry(
+            &MockHttp::new(),
+            &cas,
+            &registry,
+            REGISTRY,
+            &mono.path().join("packages/app/main.js"),
+        )
+        .unwrap_err();
+        assert!(matches!(err, AssembleError::Workspace(_)));
+    }
+
+    #[test]
+    fn workspace_assembly_is_deterministic() {
+        let (_cas_tmp, cas) = fresh_cas();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let mono = tempfile::tempdir().unwrap();
+        monorepo(mono.path(), "workspace:*", "{}");
+        let entry = mono.path().join("packages/app/main.js");
+
+        let first = assemble_entry(&MockHttp::new(), &cas, &registry, REGISTRY, &entry).unwrap();
+        let second = assemble_entry(&MockHttp::new(), &cas, &registry, REGISTRY, &entry).unwrap();
+        assert_eq!(first.compartment_map_hash, second.compartment_map_hash);
     }
 
     /// Live-network assembly against registry.npmjs.org, gated
