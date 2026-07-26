@@ -1427,10 +1427,14 @@ fn cbor_skip(data: &[u8], pos: usize) -> Option<usize> {
 /// frozen `{ NODE_ENV: 'production' }` — deterministic, never the
 /// host's environment — `nextTick` rides the promise queue, and
 /// `versions` has no `node` key so Node-detection takes its non-Node
-/// branch. Everything else Node puts on `process` (`stdout`, `exit`,
-/// signals, `hrtime`) stays absent by design of the confined runtime;
-/// packages touching those fail with the same clean undefined read as
-/// before.
+/// branch. The event-emitter surface (`on`, `once`, `emit`, …) is
+/// present as chainable no-ops: packages register `exit`/signal
+/// handlers as a side effect of loading, and a no-op listener grants
+/// no authority — there is no process lifecycle to observe in the
+/// confined machine. Everything else Node puts on `process`
+/// (`stdout`, `exit`, signals, `hrtime`) stays absent by design of
+/// the confined runtime; packages touching those fail with the same
+/// clean undefined read as before.
 const ARCHIVE_ENDOWMENTS_JS: &str = r#"
 globalThis.__archiveEndowments = {
     print: trace, trace,
@@ -1450,20 +1454,29 @@ globalThis.__archiveEndowments = {
         var err = function () { trace(format(arguments)); };
         return { log: out, info: out, debug: out, trace: out, warn: err, error: err };
     })(),
-    process: Object.freeze({
-        env: Object.freeze({ NODE_ENV: 'production' }),
-        argv: Object.freeze(['endor']),
-        platform: 'xs',
-        arch: 'xs',
-        version: 'v0.0.0',
-        versions: Object.freeze({ xs: '0' }),
-        browser: false,
-        cwd: function cwd() { return '/'; },
-        nextTick: function nextTick(cb) {
-            var args = Array.prototype.slice.call(arguments, 1);
-            Promise.resolve().then(function () { cb.apply(null, args); });
-        },
-    }),
+    process: (function () {
+        var noopChain = function () { return this; };
+        return Object.freeze({
+            env: Object.freeze({ NODE_ENV: 'production' }),
+            argv: Object.freeze(['endor']),
+            platform: 'xs',
+            arch: 'xs',
+            version: 'v0.0.0',
+            versions: Object.freeze({ xs: '0' }),
+            browser: false,
+            cwd: function cwd() { return '/'; },
+            nextTick: function nextTick(cb) {
+                var args = Array.prototype.slice.call(arguments, 1);
+                Promise.resolve().then(function () { cb.apply(null, args); });
+            },
+            on: noopChain, addListener: noopChain, once: noopChain,
+            off: noopChain, removeListener: noopChain,
+            removeAllListeners: noopChain,
+            prependListener: noopChain, prependOnceListener: noopChain,
+            listeners: function listeners() { return []; },
+            emit: function emit() { return false; },
+        });
+    })(),
     readFileText, writeFileText, readDir, mkdir,
     remove, rename, exists, isDir, readLink,
     openReader, read, closeReader,

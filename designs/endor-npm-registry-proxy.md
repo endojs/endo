@@ -92,9 +92,13 @@ modules) — is endowed as a minimal frozen shim: a deterministic
 `Object.freeze({ NODE_ENV: 'production' })` environment (never
 the host's), `nextTick` riding the promise queue, and a
 `versions` without a `node` key so Node-detection takes its
-non-Node branch. The rest of Node's `process` surface
-(`stdout`, `exit`, signals, `hrtime`) stays absent; packages
-touching it fail with the same clean undefined read as before.
+non-Node branch, and the event-emitter surface (`on`, `once`,
+`emit`, …) as chainable no-ops — packages register
+`exit`/signal handlers as a load-time side effect, and a no-op
+listener grants no authority. The rest of Node's `process`
+surface (`stdout`, `exit`, signals, `hrtime`) stays absent;
+packages touching it fail with the same clean undefined read
+as before.
 
 ## What is the Problem Being Solved?
 

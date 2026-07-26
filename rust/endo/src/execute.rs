@@ -1232,8 +1232,10 @@ mod tests {
     /// The `process` endowment: a CJS package gating on
     /// `process.env.NODE_ENV` (react's and graphql's entry shape)
     /// takes its production branch, `process.nextTick` runs on the
-    /// promise queue, and `process.versions.node` is absent so
-    /// Node-detection takes its non-Node branch.
+    /// promise queue, `process.versions.node` is absent so
+    /// Node-detection takes its non-Node branch, and the emitter
+    /// no-ops (`process.on(…)` at load time is common in real
+    /// packages) chain without effect.
     #[test]
     fn executes_process_env_gated_cjs_in_xs() {
         let dep_tar = make_tarball(&[
@@ -1253,6 +1255,12 @@ mod tests {
                 "package/prod.js",
                 b"if (typeof process.versions.node !== 'undefined') {\n\
                     throw new Error('must not look like Node');\n\
+                  }\n\
+                  if (process.on('exit', function () {}) !== process) {\n\
+                    throw new Error('process.on must chain');\n\
+                  }\n\
+                  if (process.emit('exit') !== false) {\n\
+                    throw new Error('process.emit must be a no-op');\n\
                   }\n\
                   var ticked = false;\n\
                   process.nextTick(function (v) { ticked = v; }, true);\n\
