@@ -30,6 +30,17 @@ the daemon-xs-worker-snapshot suspend/resume substrate, durable host
 exports for system resources, and durable OCapN sessions layered on
 ocapn-noise-session-reconnect; prototype and tests landed with the
 design),
+[endor-git-bindings](endor-git-bindings.md) (added 2026-07-15,
+revised 2026-07-25 per review for the cross-compilation requirement;
+a daemon-private, local-only `GitCas` boundary in M11 (Rust Daemon
+`endor`) for in-process Git object and compare-and-swap ref
+operations over the pure-Rust `gix` implementation — chosen so every
+release target cross-compiles without a per-target C toolchain —
+deliberately distinct from Endor's SHA-256 `ContentStore`; the
+local-only artifact excludes transport features, and vendored
+libgit2 (per-target toolchain or hash-pinned prebuilt artifacts) is
+the documented contingency; summary table, M11 row, dependency
+graph, estimate, totals, and timeline synced),
 [cbor-codec](cbor-codec.md) (added 2026-07-12; shared canonical-CBOR
 primitive codec `@endo/cbor` at `packages/cbor/`: hardened functional
 write/read primitives for the RFC 8949 subset that slot-machine
@@ -285,6 +296,7 @@ LLM-agent stack).*
 | [daemon-xs-worker-metering](daemon-xs-worker-metering.md) | 2026-04-17 | 2026-04-17 | **Complete** |
 | [daemon-debug-worker-restart](daemon-debug-worker-restart.md) | 2026-04-17 | 2026-04-17 | Not Started |
 | [daemon-cas-management](daemon-cas-management.md) | 2026-04-17 | 2026-04-17 | In Progress |
+| [endor-git-bindings](endor-git-bindings.md) | 2026-07-15 | — | Proposed |
 | [endor-run-expanded](endor-run-expanded.md) | 2026-04-17 | 2026-04-17 | In Progress |
 | [endor-npm-registry-proxy](endor-npm-registry-proxy.md) | 2026-04-17 | 2026-04-17 | In Progress |
 | [daemon-make-archive](daemon-make-archive.md) | 2026-04-23 | 2026-04-24 | In Progress |
@@ -378,6 +390,8 @@ LLM-agent stack).*
 | [familiar-app-ui-hosting](familiar-app-ui-hosting.md) | 2026-06-01 | 2026-06-01 | Proposed |
 
 **Totals:** 44 Complete/Implemented, 27 In Progress, 40 Not Started, 26 Proposed, 2 Active, 7 Reference, 2 Deprecated, 2 Superseded (150 designs). 2026-07-13 adds `ocapn-iroh-netlayer` (**Complete**), the iroh 1.0 QUIC netlayer for `@endo/ocapn` shipped as `@endo/ocapn-iroh`. 2026-07-24 adds `buffered-channel-exo-stream-consolidation` (**Complete**), the PR #486 review follow-up that consolidates the floot and claude-sandbox buffered reply channels onto a new push-fed `@endo/exo-stream` export; phases 1–2 (the `makeBufferedReader` primitive plus both package migrations) landed together on the floot–claude-sandbox integration branch, with the buffer-option semantics specified in the doc (no producer-side bound; the initiator's `iterateReader` `buffer` is prefetch-only for this channel); phase 3 (consumer flips to `iterateReader`, chat's `makeTextFeed` folded in, and the legacy surface dropped) has since landed too, so the design is Complete. 2026-07-16 adds `ocapn-orthogonal-persistence` (In Progress: the `@endo/thixotrope` prototype and the `@endo/captp` `provideImport` seam landed with the design; the XS engine adapter and durable host exports remain), In Progress +1, total 147 → 148. 2026-07-10 accepts the four-layer daemon-worker `importLocation` stack (`registry-capability`, `mvs-resolver`, `snapshot-mapper`, `daemon-worker-import-from-mount`): all four flip Proposed to Not Started together, with the canonical dependency-ordered build plan in `daemon-worker-import-from-mount` § *Phased Implementation*; the same pass recounts the table by tallying the status column of the summary table (the prose totals had drifted two designs low, 145 → 147). The recount, independent of the flips, corrects the prior prose by In Progress +2, Not Started −1, and Proposed +1 (two designs previously uncounted); the four Proposed to Not Started flips then add Not Started +4 / Proposed −4, so the buckets net to In Progress 24 → 26, Not Started 37 → 40, and Proposed 29 → 26, each reproducible by the same tally. 2026-07-09 revises `agentry-git-eval-scenarios` (Not Started) into a three-scenario git code-mode eval set: `stage-and-commit`, buildable `conflict-rebase`, and `stack-surgery` with fixture/scorer work landing behind a pending row while live activation depends on agentry-git-verb-gaps. 2026-07-08 adds `agentry-git-verb-gaps` (Proposed), the narrow local-git history-editing surface for the agentry `stack-surgery` eval lane. 2026-07-06 flips `daemon-agent-tools` from Not Started to In Progress: the reconciliation pass replaced its pre-trio `Dir`/`Shell`/`Git` sketch with the landed vocabulary (the filesystem and local-git tool groups shipped via the mount/git trio and `@endo/agent-tools` #523/#524), and the doc now carries the phased remaining work — the mount-derived `Shell` capability, the remaining file tools, the push tier, and provisioning — as buildable spec. 2026-06-25 adds the #416 pair: `endo-agent-tools` (In Progress, since #523 and #524 landed its first tools and the code-mode declaration renderer) and `agentry-agent-builder` (In Progress, its `defineAgent` builder core landed in #517; the extended surface is aspirational), and flips `agent-tools-mount-fs-tools` to Superseded (its raw-mount read tool is replaced by the canonical `ToolRecord` filesystem read tool). 2026-06-19 recounts the summary table (the prose totals had drifted four designs low — `137/18/29` → the recounted `141/21/28` across designs/In Progress/Proposed — and folds in the `fs-interface-consolidation` progress below). 2026-06-18 adds `fs-interface-consolidation` (In Progress), the sequenced follow-up that reduces overlap across the fs/name-hub guards once `fs-interface-reconciliation` aligned their names; all five phases have now landed — C2 shared records, C3/C4 daemon read-surface convergence (including the cross-surface mount unification and the blob range-I/O alignment), C1 EndoNameHub+EndoDirectory unification, and C5 dead-guard removal. The early "retire `BlobRef`" framing was reversed: `BlobRef` is the richest blob shape, so the daemon/lite blobs aligned **up** to its `getInfo`/`fetch` range-I/O surface (the shared `rangeReadMethodGuards` / `ReadableBlobRangeInterface`) and every public hash accessor moved to base64. The 2026-06-15 pass flips `break-dev-dependency-cycles` from In Progress to Complete (on `llm`) on the strength of cycle-graph verification (combined dep+devDep SCC count is 0; self-loop count is 0). 2026-05-27 adds `daemon-git-next-steps` (Proposed) as the forward-looking roadmap over the canonical git trio. Refreshed 2026-06-02 by the daemon-worker-import-from-mount decomposition: three new Proposed designs (`registry-capability`, `mvs-resolver`, `snapshot-mapper`) land as siblings of the repurposed integration-layer doc. The 2026-06-01 pass adds the **Peer App Sharing** milestone (formerly "Milestone A"; now Milestone 8 after the 2026-06-03 renumbering pass) including `app-sharing-milestone` and its three new Proposed designs (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); see "Milestone 8: Peer App Sharing" below. Refreshed 2026-05-19 by a status-only sweep (consolidating the 2026-05-18 sweep with the 2026-05-19 batch update for 11 additional designs from closed PR #302) plus the patterns-diagnostic-feedback and ocapn-noise-session-reconnect Proposed entries; the 12-design jump in Complete/Implemented over the 2026-05-08 snapshot reflects shipped work whose Status field had not previously been updated, not new completions in that pass; see the corresponding "## Status" sections in each design file for evidence pointers (commit SHA or PR number). Totals reflect the 17 design files added on `llm` since the sweep's branch point (the endopi raft of `endopi` + 8 `endopi-*` gap-closing designs, `hardened-text-codecs-shim`, `hardened-url-shim`, namehub-interface-unification (Proposed) added by PR #117 on rebase, forge-gap-analysis (Reference) added 2026-05-20, the daemon mount and git capability trio: `daemon-mount-capabilities` + `daemon-git-capability` + `daemon-git-remotes`, `daemon-git-next-steps` (added 2026-05-27), and `gateway-package`, with the prior endo-gateway design folded into gateway-package and removed), plus the endo-gateway-mcp (Not Started) entry added 2026-05-29, the `daemon-worker-import-from-mount` (Proposed) entry added 2026-05-22, and the three layer-split designs from the 2026-06-02 refresh.
+
+**Current totals (2026-07-25, post-`endor-git-bindings` rebase):** 42 Complete/Implemented, 23 In Progress, 39 Not Started, 31 Proposed, 2 Active, 7 Reference, 2 Deprecated, 3 Superseded (149 designs). This supersedes the counts in the historical summaries above.
 
 ## Roadmap
 
@@ -543,6 +557,7 @@ flowchart TD
         dwisnap[snapshot-mapper]
         ernpm[endor-npm-registry-proxy<br/><i>IN PROGRESS</i>]
         ercas[daemon-cas-management<br/><i>IN PROGRESS</i>]
+        egitcas[endor-git-bindings<br/><i>PROPOSED</i>]
         errun[endor-run-expanded<br/><i>IN PROGRESS</i>]
         pfs --> dfs
         pfs --> dmount
@@ -575,6 +590,8 @@ flowchart TD
         ernpm -.-> dwicap
         errun -.-> dwimp
         ercas --> dwicap
+        ercas --> egitcas
+        egitcas -.-> dgit
     end
 
     subgraph App Sharing Cut
@@ -1069,6 +1086,7 @@ user interface move to Rust.
 
 | Design | Status | Notes |
 |--------|--------|-------|
+| endor-git-bindings | Proposed | Daemon-private local Git object/ref storage over pure-Rust `gix` (cross-compiles with no per-target C toolchain; vendored libgit2 is the documented contingency); the local-only baseline excludes network transports and keeps Git object IDs distinct from `ContentStore` SHA-256 roots. |
 | endor-tui | Not Started | TUI entry point for `endor`: Chat UI in terminal idiom, and an integrated stepping debugger for XS workers (XS `mxDebug` protocol) |
 | endor-bus-tui | Not Started | Bus-protocol verbs for worker-owned TUI regions, XS handle API, Exo/CapTP wrapper |
 | endor-native-zip-xs | Proposed | Raw-DEFLATE host functions selected by `@endo/zip` under `-C xs`, with bounded inflation and snapshot ABI update |
@@ -1078,7 +1096,7 @@ state directory as the Node daemon, exposes a fully functional Chat TUI
 over its bus, and can attach to an XS worker's debugger.
 Worker-authored TUI regions compose into the same layout.
 
-**Estimated duration (1 dev):** 10-14 weeks (research-heavy; Rust port
+**Estimated duration (1 dev):** 11-15 weeks (research-heavy; Rust port
 includes codec, mailbox, supervisor, and terminal rendering substrates)
 
 ---
@@ -1381,6 +1399,7 @@ have been remapped: 0 → 1, ½ → 2, 1 → 3, 2 → 4, 3 → 7, 4 → 9,
 | endoclaw-browser | M-L | 1.5 weeks | 10 | Playwright-backed, origin-confined; smallest cut in PR #106 |
 | endoclaw-channel-bridges | M | 4-5 days | 10 | Vercel `chat` SDK adapters |
 | endoclaw-skill-registry | S-M | 3 days | 10 | Skills directory with capability declarations; PR #105 open |
+| endor-git-bindings | M | 4-5 days | 11 | `GitCas` trait and pure-Rust `gix` local backend, Endor-tree adapter, corruption/quarantine coverage, and a cross-compilation release check; vendored libgit2 is the documented contingency. HTTPS and SSH are separately designed follow-ups. |
 | endor-tui | XL | 5-8 weeks | 11 | Rust TUI: ratatui/crossterm, concept-map of every Chat component, XS `mxDebug` debugger integration (XL bumped 1.3x) |
 | endor-bus-tui | XL | 4-7 weeks | 11 | Bus-verb spec, XS handle API, Exo/CapTP wrapper; cross-worker layout composition (XL bumped 1.3x) |
 | endor-native-zip-xs | S-M | 2-3 days | 11 | Pure-Rust raw-DEFLATE host functions, `@endo/zip` `xs` conditional exports, bounded inflation, and XS snapshot callback-table migration |
@@ -1420,8 +1439,8 @@ date of this pass.
 | M8: Peer App Sharing (was Milestone A) | 3 net-new (`familiar-deep-link-invitations`, `endo-app-sharing`, `familiar-app-ui-hosting`); existing constituents counted under M3/M4/M7 | 2-3 weeks | 3-5 weeks |
 | M9: UX & Tooling (was M4) | 13 (`chat-pending-commands`, `chat-slot-slash-commands`, `daemon-commands-as-messages`, `inventory-cancel-and-liveness`, `inventory-grouping-by-type`, `inventory-drag-and-drop`, `formula-inspector`, `workers-panel`, `daemon-retention-paths`, `chat-edit-message-ui`, `chat-inventory-create-menu`, `lal-transcript-memory-management`, `namehub-interface-unification`) | 9-12 weeks | 11-14 weeks |
 | M10: Confinement & Ecosystem (was M5) | 6 (`endo-posix-sandbox`, `daemon-capability-persona`, `daemon-capability-bank`, `endoclaw-browser`, `endoclaw-channel-bridges`, `endoclaw-skill-registry`) | 14-20 weeks | 16-22 weeks |
-| M11: Rust Daemon (`endor`) (was M6) | 3 (`endor-tui`, `endor-bus-tui`, `endor-native-zip-xs`) | 12-18 weeks | 14-20 weeks |
-| **Total remaining** | **59** + 7 M5 rows (4 in-flight + 3 design gaps) + 1 M6 own-work row | **~57-79 weeks** + M5 4-6 weeks + M6 ~2 weeks | **~69-95 weeks** |
+| M11: Rust Daemon (`endor`) (was M6) | 4 (`endor-git-bindings`, `endor-tui`, `endor-bus-tui`, `endor-native-zip-xs`) | 13-19 weeks | 15-21 weeks |
+| **Total remaining** | **60** + 7 M5 rows (4 in-flight + 3 design gaps) + 1 M6 own-work row | **~58-80 weeks** + M5 4-6 weeks + M6 ~2 weeks | **~70-96 weeks** |
 
 The 2026-05-20 reconciliation corrects a counting gap in the prior
 snapshot's narrative: M1, M3, and M4 had absorbed new rows since the
@@ -1501,7 +1520,7 @@ dates project from that anchor at the upper-bound effort.
 | M8: Peer App Sharing (was Milestone A) | 2-3 weeks | 27-35 weeks | Late December 2026 to early February 2027 |
 | M9: UX & Tooling (was M4) | 9-12 weeks | 36-47 weeks | Mid February to mid April 2027 |
 | M10: Confinement & Ecosystem (was M5) | 14-20 weeks | 50-67 weeks | Late May to early September 2027 |
-| M11: Rust Daemon (`endor`) (was M6) | 12-17 weeks | 62-84 weeks | Q3 to Q4 2027 (research-heavy; may run in parallel) |
+| M11: Rust Daemon (`endor`) (was M6) | 13-19 weeks | 63-86 weeks | Q3 to Q4 2027 (research-heavy; may run in parallel) |
 
 *M3 and M7 (weblets) are less order-dependent and can be interleaved
 once their respective dependencies have landed; the M5/M6 hosted-Gateway
