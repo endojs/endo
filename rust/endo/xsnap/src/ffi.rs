@@ -244,7 +244,7 @@ extern "C" {
 
     // Promise jobs
     pub fn fxRunPromiseJobs(the: *mut XsMachine);
-    pub fn fxHasPendingJobs() -> std::os::raw::c_int;
+    pub fn fxMachineHasPendingJobs(the: *mut XsMachine) -> std::os::raw::c_int;
 
     // Run loop (drains promises + timers until idle)
     pub fn fxRunLoop(the: *mut XsMachine);

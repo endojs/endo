@@ -23,10 +23,6 @@ struct sxJob {
 
 /* ---- Promise job flag ---- */
 
-/* Global flag for Rust-driven quiesce loop (fxHasPendingJobs).
-   fxRunLoop uses the per-machine the->promiseJobs instead. */
-static int gHasPendingJobs = 0;
-
 void fxCreateMachinePlatform(txMachine* the)
 {
 	the->promiseJobs = 0;
@@ -48,23 +44,24 @@ void fxDeleteMachinePlatform(txMachine* the)
 /*
  * Custom fxQueuePromiseJobs.
  *
- * Sets both the per-machine flag (for fxRunLoop) and the global
- * flag (for Rust's quiesce loop via fxHasPendingJobs).
+ * Sets the per-machine flag consumed by fxRunLoop and by Rust's
+ * quiesce loop via fxMachineHasPendingJobs.
  */
 void fxQueuePromiseJobs(txMachine* the)
 {
 	the->promiseJobs = 1;
-	gHasPendingJobs = 1;
 }
 
 /*
- * Check and reset the pending-jobs flag.
- * Used by Rust's quiesce() loop.
+ * Check and reset this machine's pending-jobs flag.
+ * Used by Rust's quiesce() loop. Per-machine on purpose: a
+ * process-wide flag lets one machine's drain steal another's
+ * pending signal when machines run on concurrent threads.
  */
-int fxHasPendingJobs(void)
+int fxMachineHasPendingJobs(txMachine* the)
 {
-	int result = gHasPendingJobs;
-	gHasPendingJobs = 0;
+	int result = the->promiseJobs;
+	the->promiseJobs = 0;
 	return result;
 }
 
