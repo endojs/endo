@@ -51,7 +51,7 @@
     "@endo/platform": "workspace:^",
     "@endo/promise-kit": "workspace:^",
     "ollama": "^0.6.3",
-    "openai": "^4.77.0"
+    "openai": "^6.48.0"
   },
   "devDependencies": {
     "@endo/cli": "workspace:^",
