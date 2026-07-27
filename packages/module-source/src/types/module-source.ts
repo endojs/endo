@@ -97,4 +97,8 @@ export interface ModuleSourceOptions {
   sourceMap?: string;
   sourceMapUrl?: string;
   sourceMapHook?: SourceMapHook;
+  profileStartSpan?: (
+    name: string,
+    args?: Record<string, unknown>,
+  ) => (endArgs?: Record<string, unknown>) => void;
 }

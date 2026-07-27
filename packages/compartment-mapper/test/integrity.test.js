@@ -85,6 +85,10 @@ test('extracting an archive with an inconsistent hash', async t => {
 
   // Add a null byte to one file.
   const node = writer.files.get('app-v1.0.0/main.js');
+  if (!node) {
+    t.fail('Expected archive entry app-v1.0.0/main.js');
+    return;
+  }
   const content = new Uint8Array(node.content.byteLength + 1);
   content.set(node.content, 0);
   node.content = content;
@@ -134,6 +138,10 @@ test('extracting an archive with an inconsistent compartment map hash', async t 
 
   // Add a null byte to one file.
   const node = writer.files.get('compartment-map.json');
+  if (!node) {
+    t.fail('Expected archive entry compartment-map.json');
+    return;
+  }
   const content = new Uint8Array(node.content.byteLength + 1);
   content.fill(' '.charCodeAt(0));
   content.set(node.content, 0);
@@ -174,6 +182,10 @@ test('extracting an archive with an inconsistent compartment map hash with expec
 
   // Add a null byte to one file.
   const node = writer.files.get('compartment-map.json');
+  if (!node) {
+    t.fail('Expected archive entry compartment-map.json');
+    return;
+  }
   const content = new Uint8Array(node.content.byteLength + 1);
   content.fill(' '.charCodeAt(0));
   content.set(node.content, 0);

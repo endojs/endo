@@ -28,6 +28,7 @@
   },
   "scripts": {
     "build": "exit 0",
+    "bench:writer": "node tools/benchmark-writer.mjs",
     "lint": "yarn lint:types && yarn lint:eslint",
     "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",

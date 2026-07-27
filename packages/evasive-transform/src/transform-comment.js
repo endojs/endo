@@ -21,6 +21,14 @@ const HTML_COMMENT_START_RE = new RegExp(`${'<'}!--`, 'g');
 const HTML_COMMENT_END_RE = new RegExp(`--${'>'}`, 'g');
 
 /**
+ * Matches comment substrings that `evadeComment` would rewrite.
+ */
+export const evadeRegexp = new RegExp(
+  `${IMPORT_RE.source}|${HTML_COMMENT_START_RE.source}|${HTML_COMMENT_END_RE.source}`,
+  's',
+);
+
+/**
  * Rewrites a Comment Node to avoid triggering SES restrictions.
  *
  * Apparently coerces all comments to block comments.

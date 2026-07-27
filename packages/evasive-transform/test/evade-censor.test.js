@@ -359,3 +359,38 @@ test('evadeCensor() - x-->y transform preserves meaning', async t => {
   t.is(originalResult, transformedResult);
   t.is(transformedResult, 'ok');
 });
+
+test('evadeCensor() - fast path for source without comment markers', async t => {
+  const source = `const answer = 42;\nexport { answer };`;
+  const { code, map } = evadeCensorSync(source, { sourceType: 'module' });
+  t.is(code, source);
+  t.is(map, undefined);
+});
+
+test('evadeCensor() - fast path returns source map when sourceUrl is provided', async t => {
+  const source = `const answer = 42;\nexport { answer };`;
+  const sourceUrl = 'fast-path.js';
+  const { code, map } = evadeCensorSync(source, {
+    sourceType: 'module',
+    sourceUrl,
+  });
+  t.is(code, source);
+  t.truthy(map);
+  t.deepEqual(map.sources, [sourceUrl]);
+});
+
+test('evadeCensor() - fast path can skip despite ordinary comments', async t => {
+  const source = `// hello\nconst answer = 42; /* ordinary */\nexport { answer };`;
+  const { code, map } = evadeCensorSync(source, { sourceType: 'module' });
+  t.is(code, source);
+  t.is(map, undefined);
+});
+
+test('evadeCensor() - elideComments still forces transform on fast-path source', async t => {
+  const source = `// hello\nconst answer = 42;\nexport { answer };`;
+  const { code } = evadeCensorSync(source, {
+    sourceType: 'module',
+    elideComments: true,
+  });
+  t.not(code, source);
+});

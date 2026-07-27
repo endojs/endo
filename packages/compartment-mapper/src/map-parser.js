@@ -115,17 +115,32 @@ function* getParserGenerator(
     transforms,
   } = config;
 
-  let language = resolveLanguage(
-    specifier,
-    location,
-    languageForExtension,
-    languageForModuleSpecifier,
+  const { profileStartSpan = undefined } = options || {};
+  let language = '';
+  const extension = parseExtension(location);
+  const endLanguageSelect = profileStartSpan?.(
+    'compartmentMapper.parseModule.selectLanguage',
+    { specifier, location, extension },
   );
+  try {
+    language = resolveLanguage(
+      specifier,
+      location,
+      languageForExtension,
+      languageForModuleSpecifier,
+    );
+  } finally {
+    endLanguageSelect?.({ selectedLanguage: language });
+  }
 
   /** @type {string | undefined} */
   let sourceMap;
 
   if (has(transforms, language)) {
+    const endTransform = profileStartSpan?.(
+      'compartmentMapper.parseModule.transform',
+      { specifier, location, language },
+    );
     try {
       ({
         bytes,
@@ -140,23 +155,49 @@ function* getParserGenerator(
           sourceMap,
         },
       ));
+      endTransform?.({
+        parser: language,
+        outputBytes: bytes.length,
+        hasSourceMap: sourceMap !== undefined,
+      });
     } catch (err) {
+      endTransform?.();
       throw Error(
         `Error transforming ${q(language)} source in ${q(location)}: ${/** @type {Error} */ (err).message}`,
         { cause: err },
       );
     }
   }
+  const endParserLookup = profileStartSpan?.(
+    'compartmentMapper.parseModule.lookupParser',
+    { specifier, location, language },
+  );
   if (!has(parserForLanguage, language)) {
+    endParserLookup?.();
     throw Error(
       `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
     );
   }
   const { parse } = parserForLanguage[language];
-  return parse(bytes, specifier, location, packageLocation, {
-    sourceMap,
-    ...options,
-  });
+  endParserLookup?.();
+
+  const endParserExecute = profileStartSpan?.(
+    'compartmentMapper.parseModule.executeParser',
+    {
+      specifier,
+      location,
+      language,
+      inputBytes: bytes.length,
+    },
+  );
+  try {
+    return parse(bytes, specifier, location, packageLocation, {
+      sourceMap,
+      ...options,
+    });
+  } finally {
+    endParserExecute?.({ parser: language });
+  }
 }
 
 /**
