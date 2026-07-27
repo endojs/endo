@@ -25,6 +25,14 @@ pub struct PackageEntry {
     pub fetched_at: i64,
 }
 
+/// A cached package-metadata row (the registry's version-listing
+/// document for one package).
+#[derive(Debug, Clone)]
+pub struct MetaEntry {
+    pub name: String,
+    pub fetched_at: i64,
+}
+
 impl RegistryTable {
     /// Open (or create) the registry database at the given path.
     pub fn open(db_path: &Path) -> io::Result<Self> {
@@ -168,6 +176,76 @@ impl RegistryTable {
             .query_row("SELECT COUNT(*) FROM packages", [], |row| row.get(0))
             .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("count: {e}")))
     }
+
+    /// List every package entry in the table, ordered by name then
+    /// version (lexicographic display order, not semver order).
+    pub fn list_packages(&self) -> io::Result<Vec<PackageEntry>> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT name, version, hash, integrity, fetched_at
+                 FROM packages ORDER BY name, version",
+            )
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("prepare: {e}")))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(PackageEntry {
+                    name: row.get(0)?,
+                    version: row.get(1)?,
+                    hash: row.get(2)?,
+                    integrity: row.get(3)?,
+                    fetched_at: row.get(4)?,
+                })
+            })
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("query: {e}")))?;
+
+        let mut entries = Vec::new();
+        for row in rows {
+            entries.push(
+                row.map_err(|e| io::Error::new(io::ErrorKind::Other, format!("row: {e}")))?,
+            );
+        }
+        Ok(entries)
+    }
+
+    /// List the names and fetch times of every cached metadata row,
+    /// ordered by name.
+    pub fn list_meta(&self) -> io::Result<Vec<MetaEntry>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT name, fetched_at FROM package_meta ORDER BY name")
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("prepare: {e}")))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(MetaEntry {
+                    name: row.get(0)?,
+                    fetched_at: row.get(1)?,
+                })
+            })
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("query: {e}")))?;
+
+        let mut entries = Vec::new();
+        for row in rows {
+            entries.push(
+                row.map_err(|e| io::Error::new(io::ErrorKind::Other, format!("row: {e}")))?,
+            );
+        }
+        Ok(entries)
+    }
+
+    /// Delete a cached metadata row so the next resolution re-fetches
+    /// the registry's version listing for `name`. Returns whether a
+    /// row existed. Package rows and their CAS trees are untouched:
+    /// fetched package contents are immutable and stay valid.
+    pub fn delete_meta(&self, name: &str) -> io::Result<bool> {
+        let changed = self
+            .conn
+            .execute("DELETE FROM package_meta WHERE name = ?1", params![name])
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("delete_meta: {e}")))?;
+        Ok(changed > 0)
+    }
 }
 
 fn unix_timestamp() -> i64 {
@@ -258,6 +336,51 @@ mod tests {
         reg.insert("a", "1.0.0", "h1", None).unwrap();
         reg.insert("b", "2.0.0", "h2", None).unwrap();
         assert_eq!(reg.count().unwrap(), 2);
+    }
+
+    #[test]
+    fn list_packages_all_ordered() {
+        let reg = RegistryTable::open_in_memory().unwrap();
+        assert!(reg.list_packages().unwrap().is_empty());
+
+        reg.insert("zeta", "1.0.0", "hz", None).unwrap();
+        reg.insert("alpha", "2.0.0", "ha2", None).unwrap();
+        reg.insert("alpha", "1.0.0", "ha1", None).unwrap();
+
+        let all = reg.list_packages().unwrap();
+        assert_eq!(all.len(), 3);
+        assert_eq!((all[0].name.as_str(), all[0].version.as_str()), ("alpha", "1.0.0"));
+        assert_eq!((all[1].name.as_str(), all[1].version.as_str()), ("alpha", "2.0.0"));
+        assert_eq!((all[2].name.as_str(), all[2].version.as_str()), ("zeta", "1.0.0"));
+    }
+
+    #[test]
+    fn list_meta_names_ordered() {
+        let reg = RegistryTable::open_in_memory().unwrap();
+        assert!(reg.list_meta().unwrap().is_empty());
+
+        reg.set_meta("zeta", "{}").unwrap();
+        reg.set_meta("alpha", "{}").unwrap();
+
+        let metas = reg.list_meta().unwrap();
+        assert_eq!(metas.len(), 2);
+        assert_eq!(metas[0].name, "alpha");
+        assert_eq!(metas[1].name, "zeta");
+        assert!(metas[0].fetched_at > 0);
+    }
+
+    #[test]
+    fn delete_meta_invalidates_only_meta() {
+        let reg = RegistryTable::open_in_memory().unwrap();
+        reg.set_meta("pkg", r#"{"1.0.0":{}}"#).unwrap();
+        reg.insert("pkg", "1.0.0", "sha256:aaa", None).unwrap();
+
+        assert!(reg.delete_meta("pkg").unwrap());
+        assert!(reg.get_meta("pkg").unwrap().is_none());
+        // A second delete finds nothing.
+        assert!(!reg.delete_meta("pkg").unwrap());
+        // The package row (and thus its CAS tree) survives.
+        assert!(reg.lookup("pkg", "1.0.0").unwrap().is_some());
     }
 
     #[test]

@@ -278,9 +278,10 @@ impl HttpClient for OfflineClient {
 ///
 /// The cache is write-once: a cached row is never re-fetched, so
 /// versions published after the first fetch are not observed.
-/// Callers needing freshness must invalidate the `package_meta` row
-/// directly. This is the registry-table-as-lock-file behaviour the
-/// design intends.
+/// Callers needing freshness invalidate the `package_meta` row
+/// (`endor registry refresh <name>`, backed by
+/// `RegistryTable::delete_meta`). This is the
+/// registry-table-as-lock-file behaviour the design intends.
 ///
 /// The returned bytes are the raw JSON body of the registry's
 /// per-package document.

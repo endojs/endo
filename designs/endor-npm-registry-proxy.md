@@ -65,6 +65,16 @@ All five phases implemented:
   only registry-table and CAS hits resolve — the
   registry-table-as-lock-file behaviour, guaranteed rather
   than assumed.
+- **Maintenance surface**: `endor registry` — `list` (cached
+  package versions with tree hashes), `meta` (cached
+  version-listing rows, or one package's raw registry JSON),
+  `refresh <name>...` (invalidate `package_meta` rows so the
+  next resolution observes newly published versions — the
+  deliberate freshness path through the otherwise write-once
+  metadata cache; package contents in the CAS are immutable
+  and never invalidated), and `verify` (walk every cached
+  package's CAS tree and report entries whose blobs are
+  missing, exiting non-zero on incompleteness).
 
 Known gaps recorded below. The two execution gaps this section
 used to record are both resolved. Directory-relative

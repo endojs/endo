@@ -100,6 +100,7 @@ fn main() -> ExitCode {
         "ping" => result_to_exit("endor", cmd_ping()),
         "gc" => result_to_exit("endor", cmd_gc()),
         "npm-resolve" => result_to_exit("endor", cmd_npm_resolve(rest)),
+        "registry" => result_to_exit("endor", cmd_registry(rest)),
         "-h" | "--help" => {
             print_help();
             ExitCode::SUCCESS
@@ -139,6 +140,9 @@ fn print_help() {
     eprintln!("  npm-resolve [--registry <url>] [--offline] <name[@range]>...");
     eprintln!("                                 Resolve and fetch an npm dependency");
     eprintln!("                                 graph into the CAS");
+    eprintln!("  registry <list|meta|refresh|verify>");
+    eprintln!("                                 Inspect and maintain the registry");
+    eprintln!("                                 table (the proxy's cache index)");
 }
 
 fn print_subcommand_help(sub: &str) {
@@ -261,6 +265,34 @@ fn print_subcommand_help(sub: &str) {
             eprintln!("                    (default: https://registry.npmjs.org/)");
             eprintln!("  --offline         Refuse network access: only cached");
             eprintln!("                    packages resolve");
+        }
+        "registry" => {
+            eprintln!("Usage: endor registry <list [name] | meta [name] | refresh <name>... | verify>");
+            eprintln!();
+            eprintln!("Inspect and maintain the registry table, the SQLite index that");
+            eprintln!("makes the CAS a cache of the npm registry.");
+            eprintln!();
+            eprintln!("Subcommands:");
+            eprintln!("  list [name]       Print cached package versions, one");
+            eprintln!("                    '<name> <version> <tree-hash>' per line");
+            eprintln!("                    (all packages, or one package's versions)");
+            eprintln!("  meta              Print cached version-listing rows, one");
+            eprintln!("                    '<name> <fetched-at-unix>' per line");
+            eprintln!("  meta <name>       Print the raw cached registry JSON for");
+            eprintln!("                    one package");
+            eprintln!("  refresh <name>... Invalidate the cached version listing so");
+            eprintln!("                    the next resolution re-fetches it and can");
+            eprintln!("                    observe newly published versions. Package");
+            eprintln!("                    contents in the CAS are immutable and are");
+            eprintln!("                    never invalidated.");
+            eprintln!("  verify            Walk every cached package's CAS tree and");
+            eprintln!("                    report entries whose blobs are missing;");
+            eprintln!("                    exits non-zero if any package is");
+            eprintln!("                    incomplete");
+            eprintln!();
+            eprintln!("The version-listing cache is write-once by design (the");
+            eprintln!("registry-table-as-lock-file behaviour); 'refresh' is the");
+            eprintln!("deliberate way to opt a package into seeing newer versions.");
         }
         "help" => {
             eprintln!("Usage: endor help [command]");
@@ -630,6 +662,124 @@ fn cmd_npm_resolve(args: &[String]) -> Result<(), EndoError> {
         println!("{} {} {}", p.name, p.version, p.tree_hash);
     }
     eprintln!("endor npm-resolve: {} packages resolved", resolved.len());
+    Ok(())
+}
+
+fn open_registry_table(
+    paths: &endo::paths::EndoPaths,
+) -> Result<endo::registry::RegistryTable, EndoError> {
+    std::fs::create_dir_all(&paths.state_path)
+        .map_err(|e| EndoError::Config(format!("state dir: {e}")))?;
+    endo::registry::RegistryTable::open(&paths.state_path.join("registry.db"))
+        .map_err(|e| EndoError::Config(format!("registry table open: {e}")))
+}
+
+fn cmd_registry(args: &[String]) -> Result<(), EndoError> {
+    let usage = "usage: endor registry <list [name] | meta [name] | refresh <name>... | verify>";
+    let paths = endo::paths::resolve_paths()?;
+    match args.first().map(|s| s.as_str()) {
+        Some("list") => {
+            let table = open_registry_table(&paths)?;
+            let entries = match args.get(1) {
+                Some(name) => table.list_versions(name),
+                None => table.list_packages(),
+            }
+            .map_err(|e| EndoError::Config(format!("registry list: {e}")))?;
+            for p in &entries {
+                println!("{} {} {}", p.name, p.version, p.hash);
+            }
+            eprintln!("endor registry: {} package(s) cached", entries.len());
+            Ok(())
+        }
+        Some("meta") => {
+            let table = open_registry_table(&paths)?;
+            match args.get(1) {
+                Some(name) => {
+                    let json = table
+                        .get_meta(name)
+                        .map_err(|e| EndoError::Config(format!("registry meta: {e}")))?
+                        .ok_or_else(|| {
+                            EndoError::Config(format!("no cached metadata for {name}"))
+                        })?;
+                    println!("{json}");
+                    Ok(())
+                }
+                None => {
+                    let metas = table
+                        .list_meta()
+                        .map_err(|e| EndoError::Config(format!("registry meta: {e}")))?;
+                    for m in &metas {
+                        println!("{} {}", m.name, m.fetched_at);
+                    }
+                    eprintln!("endor registry: {} metadata row(s) cached", metas.len());
+                    Ok(())
+                }
+            }
+        }
+        Some("refresh") => {
+            let names = &args[1..];
+            if names.is_empty() {
+                return Err(EndoError::Config(
+                    "usage: endor registry refresh <name>...".to_string(),
+                ));
+            }
+            let table = open_registry_table(&paths)?;
+            for name in names {
+                let existed = table
+                    .delete_meta(name)
+                    .map_err(|e| EndoError::Config(format!("registry refresh: {e}")))?;
+                if existed {
+                    eprintln!("endor registry: invalidated version listing for {name}");
+                } else {
+                    eprintln!("endor registry: no cached metadata for {name}");
+                }
+            }
+            Ok(())
+        }
+        Some("verify") => {
+            let table = open_registry_table(&paths)?;
+            let cas = endo::cas::ContentStore::open(&paths.state_path.join("store-sha256"))
+                .map_err(|e| EndoError::Config(format!("CAS open: {e}")))?;
+            let entries = table
+                .list_packages()
+                .map_err(|e| EndoError::Config(format!("registry verify: {e}")))?;
+            let mut incomplete = 0u64;
+            for p in &entries {
+                if let Err(detail) = verify_cas_tree(&cas, &p.hash) {
+                    incomplete += 1;
+                    println!("MISSING {} {} {} {}", p.name, p.version, p.hash, detail);
+                }
+            }
+            eprintln!(
+                "endor registry: {} package(s) verified, {} incomplete",
+                entries.len(),
+                incomplete
+            );
+            if incomplete > 0 {
+                return Err(EndoError::Config(format!(
+                    "{incomplete} package tree(s) incomplete in the CAS"
+                )));
+            }
+            Ok(())
+        }
+        _ => Err(EndoError::Config(usage.to_string())),
+    }
+}
+
+/// Walk a CAS tree recursively; report the first unreadable tree or
+/// missing blob as a short human-readable detail.
+fn verify_cas_tree(cas: &endo::cas::ContentStore, hash: &str) -> Result<(), String> {
+    let tree = cas
+        .read_tree(hash)
+        .map_err(|e| format!("tree {hash}: {e}"))?;
+    for (name, entry) in &tree.entries {
+        if entry.entry_type == "tree" {
+            verify_cas_tree(cas, &entry.hash)
+                .map_err(|detail| format!("{name}: {detail}"))?;
+        } else if !cas.has(&entry.hash) {
+            return Err(format!("blob {} ({name}) missing", entry.hash));
+        }
+    }
     Ok(())
 }
 
