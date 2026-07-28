@@ -28,11 +28,14 @@
   },
   "scripts": {
     "build": "exit 0",
-    "lint": "yarn lint:eslint",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "eslint --fix .",
     "lint:eslint": "eslint .",
+    "lint:types": "tsc",
     "test": "ses-ava"
   },
   "dependencies": {
+    "@endo/bytes": "workspace:^",
     "@endo/errors": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/is-well-formed-string": "workspace:^"

@@ -30,6 +30,9 @@
       "path": "packages/captp/tsconfig.composite.json"
     },
     {
+      "path": "packages/cbor/tsconfig.composite.json"
+    },
+    {
       "path": "packages/chacha12/tsconfig.composite.json"
     },
     {
