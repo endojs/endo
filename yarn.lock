@@ -1420,6 +1420,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/cbor@workspace:packages/cbor"
   dependencies:
+    "@endo/bytes": "workspace:^"
     "@endo/errors": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
