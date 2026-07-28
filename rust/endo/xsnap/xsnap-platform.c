@@ -23,6 +23,24 @@ struct sxJob {
 
 /* ---- Promise job flag ---- */
 
+/*
+ * the->promiseJobs is a one-shot latch, and it has two
+ * destructive consumers within a single machine: fxRunLoop (which
+ * clears it at the top of its own drain loop below) and the Rust
+ * quiesce path (Machine::quiesce and the reactive pump in
+ * src/lib.rs) via fxMachineHasPendingJobs. Whichever reads it first
+ * takes the signal; the other sees 0.
+ *
+ * The sharing is believed benign, because every quiesce-path read is
+ * immediately preceded by fxRunPromiseJobs on the same machine, so a
+ * swallowed signal has already been serviced. It is stated here
+ * rather than left implicit because one consumer eating another's
+ * latch is exactly the bug the removed process-global
+ * gHasPendingJobs caused across machines; a future caller that checks
+ * the flag without draining first would reproduce it within one
+ * machine.
+ */
+
 void fxCreateMachinePlatform(txMachine* the)
 {
 	the->promiseJobs = 0;
