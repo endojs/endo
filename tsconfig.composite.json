@@ -30,6 +30,9 @@
       "path": "packages/captp/tsconfig.composite.json"
     },
     {
+      "path": "packages/cbor/tsconfig.composite.json"
+    },
+    {
       "path": "packages/chacha12/tsconfig.composite.json"
     },
     {
@@ -136,6 +139,9 @@
     },
     {
       "path": "packages/init/tsconfig.composite.json"
+    },
+    {
+      "path": "packages/is-well-formed-string/tsconfig.composite.json"
     },
     {
       "path": "packages/lal/tsconfig.composite.json"

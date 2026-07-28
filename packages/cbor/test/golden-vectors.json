@@ -1,0 +1,1389 @@
+{
+  "comment": "Canonical CBOR golden vectors for @endo/cbor: the single source of truth, consumed directly by packages/cbor/test/cbor.test.js and prepared for the Rust twin (rust/endo/slots/src/wire/codec.rs) to mirror. Each entry is { diagnostic, value, hex }, where `value` is a language-neutral spec of the item and `hex` is the exact canonical encoding a writer must emit and a strict reader must accept and fully consume. Entries flagged `rfc8949` are published in RFC 8949 Appendix A. See README.md for the `value` grammar.",
+  "vectors": [
+    {
+      "diagnostic": "uint 0",
+      "value": {
+        "uint": "0"
+      },
+      "hex": "00",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "uint 1",
+      "value": {
+        "uint": "1"
+      },
+      "hex": "01",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "uint 10",
+      "value": {
+        "uint": "10"
+      },
+      "hex": "0a",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "uint 23 (widest five-bit argument)",
+      "value": {
+        "uint": "23"
+      },
+      "hex": "17",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "uint 24 (narrowest one-byte argument)",
+      "value": {
+        "uint": "24"
+      },
+      "hex": "1818",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "uint 25",
+      "value": {
+        "uint": "25"
+      },
+      "hex": "1819",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "uint 100",
+      "value": {
+        "uint": "100"
+      },
+      "hex": "1864",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "uint 255 (widest one-byte argument)",
+      "value": {
+        "uint": "255"
+      },
+      "hex": "18ff"
+    },
+    {
+      "diagnostic": "uint 256 (narrowest two-byte argument)",
+      "value": {
+        "uint": "256"
+      },
+      "hex": "190100"
+    },
+    {
+      "diagnostic": "uint 1000",
+      "value": {
+        "uint": "1000"
+      },
+      "hex": "1903e8",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "uint 65535 (widest two-byte argument)",
+      "value": {
+        "uint": "65535"
+      },
+      "hex": "19ffff"
+    },
+    {
+      "diagnostic": "uint 65536 (narrowest four-byte argument)",
+      "value": {
+        "uint": "65536"
+      },
+      "hex": "1a00010000"
+    },
+    {
+      "diagnostic": "uint 1000000",
+      "value": {
+        "uint": "1000000"
+      },
+      "hex": "1a000f4240",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "uint 2^32-1 (widest four-byte argument)",
+      "value": {
+        "uint": "4294967295"
+      },
+      "hex": "1affffffff"
+    },
+    {
+      "diagnostic": "uint 2^32 (narrowest eight-byte argument)",
+      "value": {
+        "uint": "4294967296"
+      },
+      "hex": "1b0000000100000000"
+    },
+    {
+      "diagnostic": "uint 1000000000000",
+      "value": {
+        "uint": "1000000000000"
+      },
+      "hex": "1b000000e8d4a51000",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "uint 2^53-1 (Number.MAX_SAFE_INTEGER)",
+      "value": {
+        "uint": "9007199254740991"
+      },
+      "hex": "1b001fffffffffffff"
+    },
+    {
+      "diagnostic": "uint 2^53 (first integer beyond the int53 range)",
+      "value": {
+        "uint": "9007199254740992"
+      },
+      "hex": "1b0020000000000000"
+    },
+    {
+      "diagnostic": "uint 2^64-1 (widest expressible head argument)",
+      "value": {
+        "uint": "18446744073709551615"
+      },
+      "hex": "1bffffffffffffffff",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "int -1",
+      "value": {
+        "int": "-1"
+      },
+      "hex": "20",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "int -10",
+      "value": {
+        "int": "-10"
+      },
+      "hex": "29",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "int -24 (widest five-bit argument)",
+      "value": {
+        "int": "-24"
+      },
+      "hex": "37"
+    },
+    {
+      "diagnostic": "int -25 (narrowest one-byte argument)",
+      "value": {
+        "int": "-25"
+      },
+      "hex": "3818"
+    },
+    {
+      "diagnostic": "int -100",
+      "value": {
+        "int": "-100"
+      },
+      "hex": "3863",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "int -256 (widest one-byte argument)",
+      "value": {
+        "int": "-256"
+      },
+      "hex": "38ff"
+    },
+    {
+      "diagnostic": "int -257 (narrowest two-byte argument)",
+      "value": {
+        "int": "-257"
+      },
+      "hex": "390100"
+    },
+    {
+      "diagnostic": "int -1000",
+      "value": {
+        "int": "-1000"
+      },
+      "hex": "3903e7",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "int -65536 (widest two-byte argument)",
+      "value": {
+        "int": "-65536"
+      },
+      "hex": "39ffff"
+    },
+    {
+      "diagnostic": "int -65537 (narrowest four-byte argument)",
+      "value": {
+        "int": "-65537"
+      },
+      "hex": "3a00010000"
+    },
+    {
+      "diagnostic": "int -2^32 (widest four-byte argument)",
+      "value": {
+        "int": "-4294967296"
+      },
+      "hex": "3affffffff"
+    },
+    {
+      "diagnostic": "int -2^32-1 (narrowest eight-byte argument)",
+      "value": {
+        "int": "-4294967297"
+      },
+      "hex": "3b0000000100000000"
+    },
+    {
+      "diagnostic": "int -2^53 (edge of the int53 range)",
+      "value": {
+        "int": "-9007199254740992"
+      },
+      "hex": "3b001fffffffffffff"
+    },
+    {
+      "diagnostic": "int -2^64 (widest expressible negative)",
+      "value": {
+        "int": "-18446744073709551616"
+      },
+      "hex": "3bffffffffffffffff",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "byte string empty",
+      "value": {
+        "bytes": ""
+      },
+      "hex": "40",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "byte string 4 bytes",
+      "value": {
+        "bytes": "01020304"
+      },
+      "hex": "4401020304",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "byte string 23 bytes (widest five-bit length)",
+      "value": {
+        "bytes": "ffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "hex": "57ffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    {
+      "diagnostic": "byte string 24 bytes (narrowest one-byte length)",
+      "value": {
+        "bytes": "ffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "hex": "5818ffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    {
+      "diagnostic": "byte string 255 bytes (widest one-byte length)",
+      "value": {
+        "bytes": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+      },
+      "hex": "58ffa5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+    },
+    {
+      "diagnostic": "byte string 256 bytes (narrowest two-byte length)",
+      "value": {
+        "bytes": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+      },
+      "hex": "590100a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+    },
+    {
+      "diagnostic": "byte string containing NULs",
+      "value": {
+        "bytes": "000100"
+      },
+      "hex": "43000100"
+    },
+    {
+      "diagnostic": "text string empty",
+      "value": {
+        "text": ""
+      },
+      "hex": "60",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "text string \"a\"",
+      "value": {
+        "text": "a"
+      },
+      "hex": "6161",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "text string \"IETF\"",
+      "value": {
+        "text": "IETF"
+      },
+      "hex": "6449455446",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "text string with escapes",
+      "value": {
+        "text": "\"\\"
+      },
+      "hex": "62225c",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "text string U+0000 (lowest code point)",
+      "value": {
+        "text": "\u0000"
+      },
+      "hex": "6100"
+    },
+    {
+      "diagnostic": "text string 2-byte UTF-8 (U+00FC)",
+      "value": {
+        "text": "ü"
+      },
+      "hex": "62c3bc",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "text string 3-byte UTF-8 (U+6C34)",
+      "value": {
+        "text": "水"
+      },
+      "hex": "63e6b0b4",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "text string 4-byte UTF-8 (U+10151)",
+      "value": {
+        "text": "𐅑"
+      },
+      "hex": "64f0908591",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "text string U+FFFF (highest BMP code point)",
+      "value": {
+        "text": "￿"
+      },
+      "hex": "63efbfbf"
+    },
+    {
+      "diagnostic": "text string U+10FFFF (highest code point)",
+      "value": {
+        "text": "􏿿"
+      },
+      "hex": "64f48fbfbf"
+    },
+    {
+      "diagnostic": "text string 23 UTF-8 bytes (widest five-bit length)",
+      "value": {
+        "text": "aaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "hex": "776161616161616161616161616161616161616161616161"
+    },
+    {
+      "diagnostic": "text string 24 UTF-8 bytes (narrowest one-byte length)",
+      "value": {
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "hex": "7818616161616161616161616161616161616161616161616161"
+    },
+    {
+      "diagnostic": "text string 255 UTF-8 bytes (widest one-byte length)",
+      "value": {
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "hex": "78ff616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161"
+    },
+    {
+      "diagnostic": "text string 256 UTF-8 bytes (narrowest two-byte length)",
+      "value": {
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "hex": "79010061616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161"
+    },
+    {
+      "diagnostic": "array empty",
+      "value": {
+        "array": []
+      },
+      "hex": "80",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "array [1, 2, 3]",
+      "value": {
+        "array": [
+          {
+            "uint": "1"
+          },
+          {
+            "uint": "2"
+          },
+          {
+            "uint": "3"
+          }
+        ]
+      },
+      "hex": "83010203",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "array [1, [2, 3], [4, 5]] (two levels)",
+      "value": {
+        "array": [
+          {
+            "uint": "1"
+          },
+          {
+            "array": [
+              {
+                "uint": "2"
+              },
+              {
+                "uint": "3"
+              }
+            ]
+          },
+          {
+            "array": [
+              {
+                "uint": "4"
+              },
+              {
+                "uint": "5"
+              }
+            ]
+          }
+        ]
+      },
+      "hex": "8301820203820405",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "array 1..25 (crosses the five-bit count boundary)",
+      "value": {
+        "array": [
+          {
+            "uint": "1"
+          },
+          {
+            "uint": "2"
+          },
+          {
+            "uint": "3"
+          },
+          {
+            "uint": "4"
+          },
+          {
+            "uint": "5"
+          },
+          {
+            "uint": "6"
+          },
+          {
+            "uint": "7"
+          },
+          {
+            "uint": "8"
+          },
+          {
+            "uint": "9"
+          },
+          {
+            "uint": "10"
+          },
+          {
+            "uint": "11"
+          },
+          {
+            "uint": "12"
+          },
+          {
+            "uint": "13"
+          },
+          {
+            "uint": "14"
+          },
+          {
+            "uint": "15"
+          },
+          {
+            "uint": "16"
+          },
+          {
+            "uint": "17"
+          },
+          {
+            "uint": "18"
+          },
+          {
+            "uint": "19"
+          },
+          {
+            "uint": "20"
+          },
+          {
+            "uint": "21"
+          },
+          {
+            "uint": "22"
+          },
+          {
+            "uint": "23"
+          },
+          {
+            "uint": "24"
+          },
+          {
+            "uint": "25"
+          }
+        ]
+      },
+      "hex": "98190102030405060708090a0b0c0d0e0f101112131415161718181819",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "array 23 elements (widest five-bit count)",
+      "value": {
+        "array": [
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          }
+        ]
+      },
+      "hex": "970000000000000000000000000000000000000000000000"
+    },
+    {
+      "diagnostic": "array 24 elements (narrowest one-byte count)",
+      "value": {
+        "array": [
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          },
+          {
+            "uint": "0"
+          }
+        ]
+      },
+      "hex": "9818000000000000000000000000000000000000000000000000"
+    },
+    {
+      "diagnostic": "array nested four levels deep",
+      "value": {
+        "array": [
+          {
+            "array": [
+              {
+                "array": [
+                  {
+                    "array": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "hex": "81818180"
+    },
+    {
+      "diagnostic": "map empty",
+      "value": {
+        "map": []
+      },
+      "hex": "a0",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "map {1: 2, 3: 4}",
+      "value": {
+        "map": [
+          [
+            {
+              "uint": "1"
+            },
+            {
+              "uint": "2"
+            }
+          ],
+          [
+            {
+              "uint": "3"
+            },
+            {
+              "uint": "4"
+            }
+          ]
+        ]
+      },
+      "hex": "a201020304",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "map {\"a\": 1, \"b\": [2, 3]}",
+      "value": {
+        "map": [
+          [
+            {
+              "text": "a"
+            },
+            {
+              "uint": "1"
+            }
+          ],
+          [
+            {
+              "text": "b"
+            },
+            {
+              "array": [
+                {
+                  "uint": "2"
+                },
+                {
+                  "uint": "3"
+                }
+              ]
+            }
+          ]
+        ]
+      },
+      "hex": "a26161016162820203",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "array [\"a\", {\"b\": \"c\"}] (map inside array)",
+      "value": {
+        "array": [
+          {
+            "text": "a"
+          },
+          {
+            "map": [
+              [
+                {
+                  "text": "b"
+                },
+                {
+                  "text": "c"
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "hex": "826161a161626163",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "map of five single-character entries",
+      "value": {
+        "map": [
+          [
+            {
+              "text": "a"
+            },
+            {
+              "text": "A"
+            }
+          ],
+          [
+            {
+              "text": "b"
+            },
+            {
+              "text": "B"
+            }
+          ],
+          [
+            {
+              "text": "c"
+            },
+            {
+              "text": "C"
+            }
+          ],
+          [
+            {
+              "text": "d"
+            },
+            {
+              "text": "D"
+            }
+          ],
+          [
+            {
+              "text": "e"
+            },
+            {
+              "text": "E"
+            }
+          ]
+        ]
+      },
+      "hex": "a56161614161626142616361436164614461656145",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "map 24 entries (narrowest one-byte count)",
+      "value": {
+        "map": [
+          [
+            {
+              "uint": "0"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "1"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "2"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "3"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "4"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "5"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "6"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "7"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "8"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "9"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "10"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "11"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "12"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "13"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "14"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "15"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "16"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "17"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "18"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "19"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "20"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "21"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "22"
+            },
+            {
+              "uint": "0"
+            }
+          ],
+          [
+            {
+              "uint": "23"
+            },
+            {
+              "uint": "0"
+            }
+          ]
+        ]
+      },
+      "hex": "b81800000100020003000400050006000700080009000a000b000c000d000e000f0010001100120013001400150016001700"
+    },
+    {
+      "diagnostic": "map nested three levels, mixed value kinds",
+      "value": {
+        "map": [
+          [
+            {
+              "text": "outer"
+            },
+            {
+              "map": [
+                [
+                  {
+                    "uint": "1"
+                  },
+                  {
+                    "array": [
+                      {
+                        "map": [
+                          [
+                            {
+                              "text": "leaf"
+                            },
+                            {
+                              "bignum": "-18446744073709551617"
+                            }
+                          ]
+                        ]
+                      },
+                      {
+                        "simple": "null"
+                      },
+                      {
+                        "float64": "-0"
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        ]
+      },
+      "hex": "a1656f75746572a10183a1646c656166c349010000000000000000f6fb8000000000000000"
+    },
+    {
+      "diagnostic": "tag 0 (narrowest tag)",
+      "value": {
+        "tag": 0
+      },
+      "hex": "c0"
+    },
+    {
+      "diagnostic": "tag 23 (widest five-bit tag)",
+      "value": {
+        "tag": 23
+      },
+      "hex": "d7"
+    },
+    {
+      "diagnostic": "tag 24 (narrowest one-byte tag)",
+      "value": {
+        "tag": 24
+      },
+      "hex": "d818"
+    },
+    {
+      "diagnostic": "tag 280",
+      "value": {
+        "tag": 280
+      },
+      "hex": "d90118"
+    },
+    {
+      "diagnostic": "tag 55799 (self-described CBOR)",
+      "value": {
+        "tag": 55799
+      },
+      "hex": "d9d9f7"
+    },
+    {
+      "diagnostic": "tag 2^32-1 (widest expressible tag)",
+      "value": {
+        "tag": 4294967295
+      },
+      "hex": "daffffffff"
+    },
+    {
+      "diagnostic": "tagged 23(h'01020304')",
+      "value": {
+        "tagged": [
+          23,
+          {
+            "bytes": "01020304"
+          }
+        ]
+      },
+      "hex": "d74401020304",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "tagged 24(h'6449455446')",
+      "value": {
+        "tagged": [
+          24,
+          {
+            "bytes": "6449455446"
+          }
+        ]
+      },
+      "hex": "d818456449455446",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "tagged 32(\"http://www.example.com\")",
+      "value": {
+        "tagged": [
+          32,
+          {
+            "text": "http://www.example.com"
+          }
+        ]
+      },
+      "hex": "d82076687474703a2f2f7777772e6578616d706c652e636f6d",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "tagged 0(\"2013-03-21T20:04:00Z\")",
+      "value": {
+        "tagged": [
+          0,
+          {
+            "text": "2013-03-21T20:04:00Z"
+          }
+        ]
+      },
+      "hex": "c074323031332d30332d32315432303a30343a30305a",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "false",
+      "value": {
+        "bool": false
+      },
+      "hex": "f4",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "true",
+      "value": {
+        "bool": true
+      },
+      "hex": "f5",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "null",
+      "value": {
+        "simple": "null"
+      },
+      "hex": "f6",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "undefined",
+      "value": {
+        "simple": "undefined"
+      },
+      "hex": "f7",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "float64 0.0",
+      "value": {
+        "float64": "0"
+      },
+      "hex": "fb0000000000000000"
+    },
+    {
+      "diagnostic": "float64 -0.0",
+      "value": {
+        "float64": "-0"
+      },
+      "hex": "fb8000000000000000"
+    },
+    {
+      "diagnostic": "float64 1.0",
+      "value": {
+        "float64": "1"
+      },
+      "hex": "fb3ff0000000000000"
+    },
+    {
+      "diagnostic": "float64 1.1",
+      "value": {
+        "float64": "1.1"
+      },
+      "hex": "fb3ff199999999999a",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "float64 -4.1",
+      "value": {
+        "float64": "-4.1"
+      },
+      "hex": "fbc010666666666666",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "float64 1.0e+300",
+      "value": {
+        "float64": "1e+300"
+      },
+      "hex": "fb7e37e43c8800759c",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "float64 smallest positive subnormal (5e-324)",
+      "value": {
+        "float64": "5e-324"
+      },
+      "hex": "fb0000000000000001"
+    },
+    {
+      "diagnostic": "float64 largest finite (1.7976931348623157e+308)",
+      "value": {
+        "float64": "1.7976931348623157e+308"
+      },
+      "hex": "fb7fefffffffffffff"
+    },
+    {
+      "diagnostic": "float64 Infinity",
+      "value": {
+        "float64": "Infinity"
+      },
+      "hex": "fb7ff0000000000000",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "float64 -Infinity",
+      "value": {
+        "float64": "-Infinity"
+      },
+      "hex": "fbfff0000000000000",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "float64 canonical NaN",
+      "value": {
+        "float64": "NaN"
+      },
+      "hex": "fb7ff8000000000000",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "bignum 0 (empty payload)",
+      "value": {
+        "bignum": "0"
+      },
+      "hex": "c240"
+    },
+    {
+      "diagnostic": "bignum -1 (empty payload)",
+      "value": {
+        "bignum": "-1"
+      },
+      "hex": "c340"
+    },
+    {
+      "diagnostic": "bignum 1",
+      "value": {
+        "bignum": "1"
+      },
+      "hex": "c24101"
+    },
+    {
+      "diagnostic": "bignum 255 (widest one-byte payload)",
+      "value": {
+        "bignum": "255"
+      },
+      "hex": "c241ff"
+    },
+    {
+      "diagnostic": "bignum 256 (narrowest two-byte payload)",
+      "value": {
+        "bignum": "256"
+      },
+      "hex": "c2420100"
+    },
+    {
+      "diagnostic": "bignum 2^64-1 (widest value also expressible as a head)",
+      "value": {
+        "bignum": "18446744073709551615"
+      },
+      "hex": "c248ffffffffffffffff"
+    },
+    {
+      "diagnostic": "bignum 2^64 (first value beyond a head)",
+      "value": {
+        "bignum": "18446744073709551616"
+      },
+      "hex": "c249010000000000000000",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "bignum -2^64-1",
+      "value": {
+        "bignum": "-18446744073709551617"
+      },
+      "hex": "c349010000000000000000",
+      "rfc8949": true
+    },
+    {
+      "diagnostic": "bignum 2^128",
+      "value": {
+        "bignum": "340282366920938463463374607431768211456"
+      },
+      "hex": "c2510100000000000000000000000000000000"
+    },
+    {
+      "diagnostic": "bignum 2^256-1 (33-byte payload, crosses the five-bit length boundary)",
+      "value": {
+        "bignum": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+      },
+      "hex": "c25820ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    }
+  ]
+}

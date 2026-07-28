@@ -1,46 +1,13 @@
 import { getEnvironmentOption } from '@endo/env-options';
 import { Fail, hideAndHardenFunction } from '@endo/errors';
+import { isWellFormedString } from '@endo/is-well-formed-string';
 
-// know about`isWellFormed`
-const hasWellFormedStringMethod = !!String.prototype.isWellFormed;
-
-/**
- * Is the argument a well-formed string?
- *
- * Unfortunately, the
- * [standard built-in `String.prototype.isWellFormed`](https://github.com/tc39/proposal-is-usv-string)
- * does a ToString on its input, causing it to judge non-strings to be
- * well-formed strings if they coerce to a well-formed strings. This
- * recapitulates the mistake in having the global `isNaN` coerce its inputs,
- * causing it to judge non-string to be NaN if they coerce to NaN.
- *
- * This `isWellFormedString` function only judges well-formed strings to be
- * well-formed strings. For all non-strings it returns false.
- *
- * @param {unknown} str
- * @returns {str is string}
- */
-export const isWellFormedString = hasWellFormedStringMethod
-  ? str => typeof str === 'string' && str.isWellFormed()
-  : str => {
-      if (typeof str !== 'string') {
-        return false;
-      }
-      for (const ch of str) {
-        // The string iterator iterates by Unicode code point, not
-        // UTF16 code unit. But if it encounters an unpaired surrogate,
-        // it will produce it.
-        const cp = /** @type {number} */ (ch.codePointAt(0));
-        if (cp >= 0xd800 && cp <= 0xdfff) {
-          // All surrogates are in this range. The string iterator only
-          // produces a character in this range for unpaired surrogates,
-          // which only happens if the string is not well-formed.
-          return false;
-        }
-      }
-      return true;
-    };
-hideAndHardenFunction(isWellFormedString);
+// `isWellFormedString` is factored out into its own leaf package
+// (`@endo/is-well-formed-string`) so primitive codecs can depend on the
+// well-formedness check without entraining `@endo/pass-style`, with a single
+// canonical implementation rather than a copy per consumer. It is already
+// hidden and hardened there; re-export it unchanged.
+export { isWellFormedString };
 
 /**
  * Returns normally when `isWellFormedString(str)` would return true.

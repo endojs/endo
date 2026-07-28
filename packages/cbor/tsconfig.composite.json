@@ -6,25 +6,16 @@
   },
   "references": [
     {
-      "path": "../common/tsconfig.composite.json"
-    },
-    {
-      "path": "../env-options/tsconfig.composite.json"
+      "path": "../bytes/tsconfig.composite.json"
     },
     {
       "path": "../errors/tsconfig.composite.json"
-    },
-    {
-      "path": "../eventual-send/tsconfig.composite.json"
     },
     {
       "path": "../harden/tsconfig.composite.json"
     },
     {
       "path": "../is-well-formed-string/tsconfig.composite.json"
-    },
-    {
-      "path": "../promise-kit/tsconfig.composite.json"
     }
   ]
 }

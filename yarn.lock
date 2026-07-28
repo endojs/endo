@@ -1416,6 +1416,23 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/cbor@workspace:packages/cbor":
+  version: 0.0.0-use.local
+  resolution: "@endo/cbor@workspace:packages/cbor"
+  dependencies:
+    "@endo/bytes": "workspace:^"
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/harden": "workspace:^"
+    "@endo/is-well-formed-string": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/chacha12-fast-check-test@workspace:packages/chacha12-fast-check-test":
   version: 0.0.0-use.local
   resolution: "@endo/chacha12-fast-check-test@workspace:packages/chacha12-fast-check-test"
@@ -2370,6 +2387,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/is-well-formed-string@workspace:^, @endo/is-well-formed-string@workspace:packages/is-well-formed-string":
+  version: 0.0.0-use.local
+  resolution: "@endo/is-well-formed-string@workspace:packages/is-well-formed-string"
+  dependencies:
+    "@endo/errors": "workspace:^"
+    "@endo/eventual-send": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+    ses: "workspace:^"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/jaine@workspace:packages/jaine":
   version: 0.0.0-use.local
   resolution: "@endo/jaine@workspace:packages/jaine"
@@ -2676,6 +2707,7 @@ __metadata:
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
+    "@endo/is-well-formed-string": "workspace:^"
     "@endo/promise-kit": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@fast-check/ava": "catalog:dev"

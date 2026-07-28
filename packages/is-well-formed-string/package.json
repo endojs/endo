@@ -1,0 +1,72 @@
+{
+  "name": "@endo/is-well-formed-string",
+  "version": "0.1.0",
+  "description": "Shared ponyfill for String.prototype.isWellFormed",
+  "keywords": [
+    "unicode",
+    "well-formed",
+    "surrogate",
+    "isWellFormed",
+    "ponyfill"
+  ],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/is-well-formed-string#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git",
+    "directory": "packages/is-well-formed-string"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint-fix": "eslint --fix .",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc",
+    "test": "ses-ava"
+  },
+  "dependencies": {
+    "@endo/errors": "workspace:^"
+  },
+  "devDependencies": {
+    "@endo/eventual-send": "workspace:^",
+    "@endo/ses-ava": "workspace:^",
+    "ava": "catalog:dev",
+    "eslint": "catalog:dev",
+    "ses": "workspace:^",
+    "typescript": "catalog:dev"
+  },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "dist",
+    "lib",
+    "src",
+    "tools"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "plugin:@endo/internal"
+    ]
+  },
+  "sesAvaConfigs": {
+    "lockdown": "../../ava-endo-lockdown.config.mjs",
+    "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
+    "endo": "../../ava-endo-shims-only.config.mjs"
+  }
+}
