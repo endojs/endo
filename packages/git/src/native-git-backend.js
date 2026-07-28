@@ -2861,6 +2861,12 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
       await assertNoRemoteTransportRepoConfig();
       const args = [...remoteProtocolArgs(url), 'push', '--porcelain'];
       if (opts.forceWithLease !== undefined) {
+        if (
+          typeof opts.forceWithLease !== 'object' ||
+          opts.forceWithLease === null
+        ) {
+          throw new Error('remotePush.forceWithLease must be a record');
+        }
         const { ref, expectedOid } = opts.forceWithLease;
         const leaseRef = requireRevision(ref, 'remotePush.forceWithLease.ref');
         const leaseOid = requireNonEmptyString(

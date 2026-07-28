@@ -1197,6 +1197,58 @@ test('GitRemote.push forwards a destination-scoped force-with-lease', async t =>
   );
 });
 
+test('GitRemote.push force-with-lease is gated by allowForcePush', async t => {
+  const { mount } = await provisionGitContext(t);
+  /** @type {unknown[]} */
+  const pushCalls = [];
+  const backend = harden({
+    ...makeNotYetImplementedBackend(),
+    remotePush: async input => {
+      pushCalls.push(input);
+      return harden({ updatedRefs: [] });
+    },
+  });
+  const git = makeGit({ mount, backend, lineageOf });
+  const { remote } = makeGitRemote({
+    git,
+    name: 'origin',
+    credential: exampleCredential(),
+    policy: {
+      url: 'https://github.com/example/repo.git',
+      allowedDirections: ['push'],
+      fetchRefspecs: [],
+      pushRefspecs: ['refs/heads/safe/*:refs/heads/safe/*'],
+      allowForcePush: false,
+    },
+  });
+
+  // A lease refspec deliberately carries no `+` (the `+` would defeat the
+  // lease), so `assertPushRefspecAllowed`'s `parsed.force` gate can never
+  // fire for a lease push. The explicit `allowForcePush` check is therefore
+  // the ONLY policy gate standing between a lease push and a force-update;
+  // pin it, or a policy that forbids force push silently permits one.
+  const expectedOid = '0123456789abcdef0123456789abcdef01234567';
+  await t.throwsAsync(
+    E(remote).push({
+      source: 'refs/heads/safe/topic',
+      forceWithLease: expectedOid,
+    }),
+    { message: /force-with-lease requires allowForcePush/ },
+  );
+  t.is(pushCalls.length, 0);
+
+  // A non-OID lease is rejected before the policy gate, so a malformed value
+  // can never reach the backend as an unbounded `--force-with-lease`.
+  await t.throwsAsync(
+    E(remote).push({
+      source: 'refs/heads/safe/topic',
+      forceWithLease: 'not-an-object-id',
+    }),
+    { message: /40-character hexadecimal object ID/ },
+  );
+  t.is(pushCalls.length, 0);
+});
+
 test('GitRemote.push revalidates concrete tag overrides against allowTags', async t => {
   // P2-3: a broad tag-disabled policy refspec (refs/heads/*:refs/*)
   // wildcard-matches a concrete override pushing a branch to a tag

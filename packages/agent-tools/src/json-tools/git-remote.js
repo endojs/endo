@@ -155,20 +155,24 @@ const gitRemoteToolSchemas = harden({
       force: {
         type: 'boolean',
         description:
-          'Force-update the destination (requires the allowForcePush policy).',
+          'Force-update the destination (requires the allowForcePush policy). ' +
+          'Applies only to an explicit source; it is ignored when the ' +
+          'policy’s configured push refspecs are pushed. Cannot be combined ' +
+          'with forceWithLease.',
       },
       forceWithLease: {
         type: 'string',
         pattern: '^[0-9a-fA-F]{40}$',
         description:
           'Force-update only when the destination still names this expected ' +
-          '40-character commit ID (requires the allowForcePush policy).',
+          '40-character commit ID (requires the allowForcePush policy). ' +
+          'Requires an explicit source and cannot be combined with force.',
       },
       setUpstream: {
         type: 'boolean',
         description:
           'Record the pushed branch’s upstream tracking; requires an ' +
-          'explicit source and destination.',
+          'explicit source.',
       },
     }),
   },
