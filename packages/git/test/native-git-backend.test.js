@@ -125,12 +125,9 @@ test('remotePush rejects a malformed force-with-lease before transport', async t
       `${LEASE_OID}0`,
       LEASE_OID.replace(/.$/u, 'g'),
     ].map(badOid =>
-      t.throwsAsync(
-        push({ ref: 'refs/heads/topic', expectedOid: badOid }),
-        {
-          message: /40-character hexadecimal object ID/,
-        },
-      ),
+      t.throwsAsync(push({ ref: 'refs/heads/topic', expectedOid: badOid }), {
+        message: /40-character hexadecimal object ID/,
+      }),
     ),
   );
 
