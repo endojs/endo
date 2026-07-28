@@ -2860,11 +2860,17 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
       await assertNoExecutableRepoConfig();
       await assertNoRemoteTransportRepoConfig();
       const args = [...remoteProtocolArgs(url), 'push', '--porcelain'];
-      if (opts.forceWithLease !== undefined) {
+      // Read the lease ONCE. `input` reaches this package directly — `@endo/git`
+      // is importable without the exo above it, so it is not guaranteed to be a
+      // frozen copyRecord, and a getter or proxy could hand the shape checks a
+      // different object than the destructure below. Check and use the same
+      // local value.
+      const lease = opts.forceWithLease;
+      if (lease !== undefined) {
         if (
-          typeof opts.forceWithLease !== 'object' ||
-          opts.forceWithLease === null ||
-          Array.isArray(opts.forceWithLease)
+          typeof lease !== 'object' ||
+          lease === null ||
+          Array.isArray(lease)
         ) {
           throw new Error('remotePush.forceWithLease must be a record');
         }
@@ -2880,7 +2886,7 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
             'remotePush.forceWithLease must not accompany a force refspec',
           );
         }
-        const { ref, expectedOid } = opts.forceWithLease;
+        const { ref, expectedOid } = lease;
         const leaseRef = requireRevision(ref, 'remotePush.forceWithLease.ref');
         // `--force-with-lease=<ref>:<oid>` is split at the LAST colon, so a ref
         // carrying its own colon does not round-trip: the lease would bind to a

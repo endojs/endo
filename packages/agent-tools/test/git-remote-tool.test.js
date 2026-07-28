@@ -175,10 +175,6 @@ const schemaStricterRecords = harden({
   push: [
     { options: { force: 'yes' } },
     { options: { forceWithLease: 'not-an-oid' } },
-    // The three OID validators (this schema, the exo, and the git backend) must
-    // accept exactly the same domain, so the schema excludes the null OID the
-    // other two reject; otherwise the model is shown a value that always fails.
-    { options: { forceWithLease: '0'.repeat(40) } },
     { options: { setUpstream: 'x' } },
   ],
 });
@@ -200,6 +196,33 @@ for (const [name, records] of Object.entries(schemaStricterRecords)) {
     }
   });
 }
+
+// A tool schema is shipped verbatim to providers, whose validators are not
+// necessarily ECMA-262: JSON Schema restricts `pattern` to a subset without
+// lookaround or backreferences (Core 2020-12 § 6.4), and an RE2-backed engine
+// fails to COMPILE those, dropping the entire tool rather than rejecting one
+// value. Ajv cannot catch this — it compiles to a JS RegExp, the one dialect
+// where a lookahead works — so pin the subset structurally.
+test('every schema pattern stays inside the portable regex subset', t => {
+  const patterns = [];
+  const collect = node => {
+    if (Array.isArray(node)) {
+      node.forEach(collect);
+    } else if (node && typeof node === 'object') {
+      for (const [key, value] of Object.entries(node)) {
+        if (key === 'pattern' && typeof value === 'string')
+          patterns.push(value);
+        collect(value);
+      }
+    }
+  };
+  for (const tool of Object.values(toolsByName())) collect(tool.parameters);
+  t.true(patterns.length > 0, 'expected at least one pattern to check');
+  for (const pattern of patterns) {
+    t.false(/\(\?[=!<]/u.test(pattern), `lookaround in ${pattern}`);
+    t.false(/\\[1-9]/u.test(pattern), `backreference in ${pattern}`);
+  }
+});
 
 // --- dispatch forwarding -----------------------------------------------------
 

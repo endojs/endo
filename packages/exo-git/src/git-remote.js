@@ -896,16 +896,31 @@ export const makeGitRemote = ({
    */
   const pushRefspecsFromOptions = options => {
     const opts =
-      /** @type {{ source?: unknown, destination?: unknown, force?: boolean, forceWithLease?: unknown, setUpstream?: boolean }} */ (
+      /** @type {{ source?: unknown, destination?: unknown, force?: unknown, forceWithLease?: unknown, setUpstream?: unknown }} */ (
         options || {}
       );
-    if (opts.force && opts.forceWithLease !== undefined) {
+    // Read the request-side authority flags coerce-free, exactly as
+    // `requirePolicyBoolean` reads the policy-side ones. The guard on this
+    // record is `M.recordOf(M.string(), M.any())`, so nothing upstream
+    // constrains the value, and an agent emitting the very common `'false'`
+    // would otherwise get a truthy read and a real force push. Fail closed.
+    const force = requirePolicyBoolean(
+      opts.force,
+      false,
+      'GitRemote.push force',
+    );
+    const setUpstream = requirePolicyBoolean(
+      opts.setUpstream,
+      false,
+      'GitRemote.push setUpstream',
+    );
+    if (force && opts.forceWithLease !== undefined) {
       throw new Error(
         'GitRemote.push force and forceWithLease are mutually exclusive',
       );
     }
     if (opts.source === undefined && opts.destination === undefined) {
-      if (opts.setUpstream || opts.forceWithLease !== undefined) {
+      if (setUpstream || opts.forceWithLease !== undefined) {
         throw new Error(
           'GitRemote.push setUpstream and forceWithLease require an explicit source',
         );
@@ -957,19 +972,18 @@ export const makeGitRemote = ({
     // `--force-with-lease` supplies the force. Do not also prefix the refspec
     // with `+`, because that would override the lease check in git push; the
     // mutual-exclusion guard above is what keeps `opts.force` from doing so.
-    const refspec = `${opts.force ? '+' : ''}${source}:${destination}`;
+    const refspec = `${force ? '+' : ''}${source}:${destination}`;
     assertPushRefspecAllowed(refspec);
     return harden({
       refspecs: harden([refspec]),
-      ...(forceWithLease === undefined
-        ? {}
-        : {
-            forceWithLease: harden({
-              ref: destination,
-              expectedOid: forceWithLease,
-            }),
-          }),
-      setUpstream: !!opts.setUpstream,
+      // Explicit `undefined`, matching the policy-refspec branch above: one
+      // function should not return the same field present-but-undefined on one
+      // path and absent on another.
+      forceWithLease:
+        forceWithLease === undefined
+          ? undefined
+          : harden({ ref: destination, expectedOid: forceWithLease }),
+      setUpstream,
     });
   };
 

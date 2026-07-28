@@ -169,11 +169,18 @@ const gitRemoteToolSchemas = harden({
       },
       forceWithLease: {
         type: 'string',
-        // The null OID is excluded: git reads it as "this ref must not exist"
-        // (create-only), the inverse of what this option means. The exo and the
-        // git backend reject it too, so all three validators accept the same
-        // domain and the model is never shown a value the capability refuses.
-        pattern: '^(?!0{40}$)[0-9a-fA-F]{40}$',
+        // JSON Schema restricts `pattern` to a regex subset without lookaround
+        // (Core 2020-12 § 6.4), and RE2-backed validators — Go implementations,
+        // and the constrained decoding some providers apply to a tool schema —
+        // fail to COMPILE a lookahead, dropping the whole tool rather than one
+        // option value. So the null-OID exclusion is not spelled here; it is
+        // enforced by the exo and by the git backend, and stated in the
+        // description below, which always reaches the model.
+        pattern: '^[0-9a-fA-F]{40}$',
+        // The width is git's SHA-1 object ID. It is repo-dependent under git's
+        // hash-function transition; see the `sha256` note in
+        // `@endo/exo-git`'s `git.js`, which tracks the eventual sweep across
+        // this pattern, the exo's guard, and the backend's.
         description:
           'Force-update only when the destination still names this expected ' +
           '40-character commit ID. Requires the allowForcePush policy and an ' +

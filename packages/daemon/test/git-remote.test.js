@@ -1302,6 +1302,67 @@ test('GitRemote.push of the policy refspecs never carries a lease', async t => {
   t.is(pushCalls.length, 2);
 });
 
+test('GitRemote.push reads its authority flags coerce-free', async t => {
+  const { mount } = await provisionGitContext(t);
+  /** @type {unknown[]} */
+  const pushCalls = [];
+  const backend = harden({
+    ...makeNotYetImplementedBackend(),
+    remotePush: async input => {
+      pushCalls.push(input);
+      return harden({ updatedRefs: [] });
+    },
+  });
+  const git = makeGit({ mount, backend, lineageOf });
+  const { remote } = makeGitRemote({
+    git,
+    name: 'origin',
+    credential: exampleCredential(),
+    policy: {
+      url: 'https://github.com/example/repo.git',
+      allowedDirections: ['push'],
+      fetchRefspecs: [],
+      pushRefspecs: ['refs/heads/safe/*:refs/heads/safe/*'],
+      allowForcePush: true,
+    },
+  });
+
+  // The guard on this options record is `M.recordOf(M.string(), M.any())`, so
+  // nothing upstream constrains the value and an LLM now sits directly on it.
+  // The string 'false' is the common wrong spelling, and truthiness would turn
+  // it into a real force push. Fail closed, exactly as `requirePolicyBoolean`
+  // does for the policy-side flags.
+  await Promise.all(
+    ['false', 'true', 0, 1, {}].map(wrong =>
+      t.throwsAsync(
+        E(remote).push(
+          /** @type {any} */ ({
+            source: 'refs/heads/safe/topic',
+            force: wrong,
+          }),
+        ),
+        { message: /GitRemote\.push force must be a boolean/ },
+      ),
+    ),
+  );
+  await t.throwsAsync(
+    E(remote).push(
+      /** @type {any} */ ({
+        source: 'refs/heads/safe/topic',
+        setUpstream: 'yes',
+      }),
+    ),
+    { message: /GitRemote\.push setUpstream must be a boolean/ },
+  );
+  t.is(pushCalls.length, 0);
+
+  // Real booleans still work, and `force: false` does not prefix the refspec.
+  await E(remote).push({ source: 'refs/heads/safe/topic', force: false });
+  t.like(/** @type {{ refspecs?: string[] }} */ (pushCalls[0]), {
+    refspecs: ['refs/heads/safe/topic:refs/heads/safe/topic'],
+  });
+});
+
 test('GitRemote.push pins the force-with-lease OID domain', async t => {
   const { mount } = await provisionGitContext(t);
   /** @type {unknown[]} */
