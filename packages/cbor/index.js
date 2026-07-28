@@ -18,14 +18,27 @@ const UINT64_BOUND = 2n ** 64n;
 
 /**
  * Exclusive upper bound of a *count*: a byte-string or text-string byte length,
- * an array or map element count, or a tag number. JavaScript itself caps every
- * one of these at four bytes (`2**32 - 1`), so counts stay in the `number`
- * domain where the arithmetic is exact and the type is honest.
+ * an array or map element count, or a tag number. Bounding all four here is this
+ * codec's own profile choice, not a limit the language imposes: JavaScript caps
+ * only array lengths at `2**32 - 1`, typed-array lengths are spec-bounded at
+ * `2**53 - 1`, and a CBOR tag number is not a JavaScript quantity at all (RFC
+ * 8949 section 3.4 permits it up to `2**64 - 1`). Within this bound counts stay
+ * in the `number` domain, where the arithmetic is exact and the type is honest.
  */
 const UINT32_BOUND = 2 ** 32;
 
-/** The one NaN bit pattern this codec writes and the only one it accepts. */
-const CANONICAL_NAN = harden(new Uint8Array([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]));
+/**
+ * The one NaN bit pattern this codec writes and the only one it accepts.
+ *
+ * Deliberately NOT `harden`ed. `harden` only prevents extensions on a typed
+ * array: a typed array's integer-indexed properties are permanently writable by
+ * specification, and `Object.freeze` on a non-empty one throws outright. So a
+ * `harden` here would read as a guarantee of byte-constancy that it does not
+ * deliver, on the very constant this codec's NaN-canonicality invariant rests
+ * on. What actually keeps it constant is that the binding never escapes this
+ * module: `appendBytes` and `bytesEqual` only read it. Do not export it.
+ */
+const CANONICAL_NAN = new Uint8Array([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
 
 /**
  * Mutable byte-accumulating state threaded through the `write*` functions.
@@ -165,12 +178,12 @@ const take = (reader, count) => {
 };
 
 /**
- * @param {object} [opts]
- * @param {number} [opts.capacity] initial buffer size, in `[0, 2**32)`
+ * @param {object} [options]
+ * @param {number} [options.capacity] initial buffer size, in `[0, 2**32)`
  * @returns {CborWriter}
  */
-export const makeCborWriter = (opts = {}) => {
-  const capacity = opts.capacity === undefined ? 256 : opts.capacity;
+export const makeCborWriter = (options = {}) => {
+  const capacity = options.capacity === undefined ? 256 : options.capacity;
   assertCount(capacity, 'capacity');
   return { buffer: new Uint8Array(capacity), length: 0 };
 };
@@ -196,6 +209,13 @@ harden(cborWriterBytes);
 export const writeHead = (writer, major, value) => {
   assertMajor(major);
   assertHeadArgument(value);
+  // Major 7 carries no integer argument: its nibble selects a simple value
+  // (below 24) or a float width. Emitting the two-byte simple-value form here
+  // would produce `f818`-`f81f`, which RFC 8949 section 3.3 declares not
+  // well-formed, and the float forms belong to `writeFloat64`.
+  major !== 7 ||
+    value < 24n ||
+    Fail`major 7 head argument must be a simple value in [0, 24), got ${q(value)}`;
   const info = canonicalInfo(value);
   append(writer, (major << 5) | info);
   if (info >= 24) {
@@ -283,11 +303,11 @@ harden(writeArrayHeader);
 
 /**
  * @param {CborWriter} writer
- * @param {number} length entry count, in `[0, 2**32)`
+ * @param {number} entryCount number of key/value pairs, in `[0, 2**32)`
  * @returns {void}
  */
-export const writeMapHeader = (writer, length) =>
-  writeCountHead(writer, 5, length, 'map length');
+export const writeMapHeader = (writer, entryCount) =>
+  writeCountHead(writer, 5, entryCount, 'map entry count');
 harden(writeMapHeader);
 
 /**
@@ -387,13 +407,14 @@ harden(writeBignum);
  * peer's bug into this side's byte-identity contract.
  *
  * @param {Uint8Array} bytes
- * @param {object} [opts]
- * @param {string} [opts.name] diagnostic label reported in error messages
+ * @param {object} [options]
+ * @param {string} [options.name] diagnostic label reported in error messages
  * @returns {CborReader}
  */
-export const makeCborReader = (bytes, opts = {}) => {
+export const makeCborReader = (bytes, options = {}) => {
   bytes instanceof Uint8Array || Fail`CBOR input must be a Uint8Array`;
-  return { bytes, index: 0, name: opts.name || '<anonymous>' };
+  const name = options.name === undefined ? '<anonymous>' : options.name;
+  return { bytes, index: 0, name };
 };
 harden(makeCborReader);
 
@@ -414,7 +435,35 @@ const readHeadInternal = reader => {
   for (const byte of extension) {
     value = (value << 8n) | BigInt(byte);
   }
-  if (canonicalInfo(value) !== info) {
+  if (major === 7) {
+    // Major 7's additional information is a TYPE SELECTOR, not an integer
+    // argument: 24 introduces a second simple-value byte and 25/26/27 select
+    // float16/float32/float64 (RFC 8949 section 3.3). Minimal-length
+    // encoding is meaningless here — an IEEE-754 bit pattern has no shorter
+    // form — so the check below is gated to majors 0-6. Applying it across
+    // the whole head space rejected every float64 whose bit pattern is under
+    // `2**32`, including `fb0000000000000000`, the canonical zero this
+    // package's own `writeFloat64` emits.
+    if (info === 24) {
+      // RFC 8949 section 3.3 makes `0xf8` followed by a byte below 32 not
+      // well-formed; simple values from 32 up are unassigned and outside this
+      // canonical subset either way, so no two-byte simple value is readable.
+      readerError(
+        reader,
+        start,
+        value < 32n
+          ? `Ill-formed two-byte simple value ${value}`
+          : `Unassigned simple value ${value}`,
+      );
+    }
+    if (info === 25 || info === 26) {
+      readerError(
+        reader,
+        start,
+        `Unsupported float${info === 25 ? 16 : 32}; this subset is float64-only`,
+      );
+    }
+  } else if (canonicalInfo(value) !== info) {
     readerError(reader, start, 'Non-minimal CBOR head');
   }
   return { major, value, start };
@@ -453,9 +502,16 @@ harden(readHead);
  */
 export const peekHead = reader => {
   const index = reader.index;
-  const head = readHead(reader);
-  reader.index = index;
-  return head;
+  // `finally`, not a restore on the success path: `readHead` advances the
+  // cursor past the initial byte before it validates, so a throwing peek would
+  // otherwise leave the reader mid-head. A caller that catches a failed peek to
+  // try another shape — which is the whole point of peeking — must find the
+  // cursor exactly where it left it.
+  try {
+    return readHead(reader);
+  } finally {
+    reader.index = index;
+  }
 };
 harden(peekHead);
 
@@ -540,7 +596,7 @@ harden(readArrayHeader);
  * @returns {number} entry count, in `[0, 2**32)`
  */
 export const readMapHeader = reader =>
-  headCount(reader, expectHead(reader, 5, 'map'), 'map length');
+  headCount(reader, expectHead(reader, 5, 'map'), 'map entry count');
 harden(readMapHeader);
 
 /**
@@ -559,10 +615,15 @@ export const readBoolean = reader => {
   const head = expectHead(reader, 7, 'boolean');
   if (head.value === 20n) return false;
   if (head.value === 21n) return true;
+  // A major-7 head is either a simple value in `[0, 24)` or a float64, so name
+  // whichever actually arrived rather than reporting a float64's 64-bit pattern
+  // as if it were a simple value.
   return readerError(
     reader,
     head.start,
-    `Expected boolean, got simple value ${head.value}`,
+    head.value < 24n
+      ? `Expected boolean, got simple value ${head.value}`
+      : 'Expected boolean, got float64',
   );
 };
 harden(readBoolean);
@@ -616,10 +677,51 @@ harden(readBignum);
 /**
  * Consumes a `null` if that is what comes next, and reports whether it did.
  *
+ * Reports `false` rather than throwing at end of input: a trailing optional
+ * that is simply absent is the ordinary case, and keeping it distinct from a
+ * malformed head is the point of a probe.
+ *
  * @param {CborReader} reader
  * @returns {boolean}
  */
+/**
+ * Consumes an `undefined` if that is what comes next, and reports whether it
+ * did. The counterpart of `writeUndefined`, so a caller need not reach past this
+ * surface to raw `readHead` to recognize a value this package can write.
+ *
+ * Reports `false` rather than throwing at end of input: absence and malformation
+ * stay distinguishable, which is the point of a probe.
+ *
+ * @param {CborReader} reader
+ * @returns {boolean}
+ */
+export const readOptionalUndefined = reader => {
+  if (reader.index >= reader.bytes.length) return false;
+  const head = peekHead(reader);
+  if (head.major !== 7 || head.value !== 23n) return false;
+  readHead(reader);
+  return true;
+};
+harden(readOptionalUndefined);
+
+/**
+ * Consumes a `null`, failing if that is not what comes next. The unconditional
+ * counterpart of `writeNull`, for a position where `null` is required rather
+ * than optional.
+ *
+ * @param {CborReader} reader
+ * @returns {void}
+ */
+export const readNull = reader => {
+  const head = readHeadInternal(reader);
+  if (head.major !== 7 || head.value !== 22n) {
+    readerError(reader, head.start, 'Expected null');
+  }
+};
+harden(readNull);
+
 export const readOptionalNull = reader => {
+  if (reader.index >= reader.bytes.length) return false;
   const head = peekHead(reader);
   if (head.major !== 7 || head.value !== 22n) return false;
   readHead(reader);

@@ -148,8 +148,14 @@ Never mix `self` and `facets` in the same context type.
 
 - Choose the type that matches the domain, not the one that is cheapest to type.
   For a quantity constrained to natural numbers, use `bigint` unless the range
-  genuinely fits in four bytes — an array index, a byte length, an element count,
-  a tag number — in which case `number` is exact and honest.
+  genuinely fits in four bytes, in which case `number` is exact and honest.
+  Establish that range from the domain being modeled, and state the reason
+  accurately: an array index really is capped at `2**32 - 1` by the language, but
+  a typed-array length is spec-bounded at `2**53 - 1`, and a protocol quantity
+  such as a CBOR tag number is not a JavaScript quantity at all. Narrowing one of
+  those to four bytes is a defensible profile choice; describing the narrowing as
+  something JavaScript forces is the same error as the int53 guard below, just
+  pointed the other way, and it forecloses revisiting the choice later.
 - `Number.isSafeInteger` guards and int53 arithmetic are an aberration of
   JavaScript, not a fact about the domain being modeled.
   A safe-integer range check on a value whose real domain is wider (a 64-bit wire

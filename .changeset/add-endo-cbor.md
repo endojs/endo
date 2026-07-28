@@ -1,5 +1,5 @@
 ---
-'@endo/cbor': minor
+'@endo/cbor': major
 ---
 
 Add `@endo/cbor`, a hardened, single-item canonical CBOR codec (phase 1 of

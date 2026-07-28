@@ -8,6 +8,7 @@ import {
   cborWriterBytes,
   makeCborReader,
   makeCborWriter,
+  peekHead,
   readArrayHeader,
   readBignum,
   readBoolean,
@@ -16,7 +17,9 @@ import {
   readHead,
   readInt,
   readMapHeader,
+  readNull,
   readOptionalNull,
+  readOptionalUndefined,
   readTag,
   readTextString,
   readUint,
@@ -34,6 +37,8 @@ import {
   writeUint,
   writeUndefined,
 } from '../index.js';
+
+/** @import { CborReader, CborWriter } from '../index.js' */
 
 /**
  * An entry of the checked-in fixture: the single source of truth for this
@@ -54,10 +59,10 @@ const { vectors } = JSON.parse(
   readFileSync(new URL('./golden-vectors.json', import.meta.url), 'utf-8'),
 );
 
-const hex = bytes =>
+const bytesToHex = bytes =>
   [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('');
 
-const unhex = value =>
+const bytesFromHex = value =>
   new Uint8Array((value.match(/../g) || []).map(pair => parseInt(pair, 16)));
 
 /**
@@ -68,7 +73,7 @@ const unhex = value =>
  * @param {number} value
  * @returns {string}
  */
-const float64Repr = value => {
+const float64ToText = value => {
   if (Number.isNaN(value)) return 'NaN';
   if (value === Infinity) return 'Infinity';
   if (value === -Infinity) return '-Infinity';
@@ -76,18 +81,18 @@ const float64Repr = value => {
   return String(value);
 };
 
-const float64Of = repr => {
-  if (repr === 'NaN') return NaN;
-  if (repr === 'Infinity') return Infinity;
-  if (repr === '-Infinity') return -Infinity;
-  return Number(repr);
+const float64FromText = text => {
+  if (text === 'NaN') return NaN;
+  if (text === 'Infinity') return Infinity;
+  if (text === '-Infinity') return -Infinity;
+  return Number(text);
 };
 
 /**
  * Writes the item a fixture `value` spec names. The spec grammar is documented
  * in ../README.md; each entry is a single-key object naming the CBOR kind.
  *
- * @param {import('../index.js').CborWriter} writer
+ * @param {CborWriter} writer
  * @param {object} spec
  * @returns {void}
  */
@@ -100,7 +105,7 @@ const writeValue = (writer, spec) => {
     case 'int':
       return writeInt(writer, BigInt(value));
     case 'bytes':
-      return writeByteString(writer, unhex(value));
+      return writeByteString(writer, bytesFromHex(value));
     case 'text':
       return writeTextString(writer, value);
     case 'array': {
@@ -127,7 +132,7 @@ const writeValue = (writer, spec) => {
     case 'simple':
       return value === 'null' ? writeNull(writer) : writeUndefined(writer);
     case 'float64':
-      return writeFloat64(writer, float64Of(value));
+      return writeFloat64(writer, float64FromText(value));
     case 'bignum':
       return writeBignum(writer, BigInt(value));
     default:
@@ -141,7 +146,7 @@ const writeValue = (writer, spec) => {
  * the expected kind because this package is a set of typed primitives, not a
  * reflective decoder: a real consumer likewise knows the shape it expects.
  *
- * @param {import('../index.js').CborReader} reader
+ * @param {CborReader} reader
  * @param {object} spec
  * @returns {object}
  */
@@ -154,7 +159,7 @@ const readValue = (reader, spec) => {
     case 'int':
       return { int: String(readInt(reader)) };
     case 'bytes':
-      return { bytes: hex(readByteString(reader)) };
+      return { bytes: bytesToHex(readByteString(reader)) };
     case 'text':
       return { text: readTextString(reader) };
     case 'array': {
@@ -181,12 +186,15 @@ const readValue = (reader, spec) => {
     case 'bool':
       return { bool: readBoolean(reader) };
     case 'simple': {
+      // Both simple values this subset carries are now recognizable through the
+      // public reader surface, so the fixture driver no longer reaches past it
+      // to raw `readHead` and a magic `23n`.
       if (readOptionalNull(reader)) return { simple: 'null' };
-      const head = readHead(reader);
-      return { simple: head.value === 23n ? 'undefined' : 'other' };
+      if (readOptionalUndefined(reader)) return { simple: 'undefined' };
+      return { simple: 'other' };
     }
     case 'float64':
-      return { float64: float64Repr(readFloat64(reader)) };
+      return { float64: float64ToText(readFloat64(reader)) };
     case 'bignum':
       return { bignum: String(readBignum(reader)) };
     default:
@@ -206,13 +214,13 @@ test('every golden vector writes to exactly its canonical bytes', t => {
   for (const { diagnostic, value, hex: expected } of vectors) {
     const writer = makeCborWriter();
     writeValue(writer, value);
-    t.is(hex(cborWriterBytes(writer)), expected, diagnostic);
+    t.is(bytesToHex(cborWriterBytes(writer)), expected, diagnostic);
   }
 });
 
 test('every golden vector reads back and is fully consumed', t => {
   for (const { diagnostic, value, hex: encoded } of vectors) {
-    const reader = makeCborReader(unhex(encoded), { name: diagnostic });
+    const reader = makeCborReader(bytesFromHex(encoded), { name: diagnostic });
     t.deepEqual(readValue(reader, value), value, diagnostic);
     t.notThrows(() => assertConsumed(reader), `consume ${diagnostic}`);
   }
@@ -223,8 +231,8 @@ test('head arguments span the full unsigned 64-bit range', t => {
   // Number.MAX_SAFE_INTEGER is ordinary, not exceptional.
   const writer = makeCborWriter();
   writeUint(writer, 2n ** 64n - 1n);
-  t.is(hex(cborWriterBytes(writer)), '1bffffffffffffffff');
-  const reader = makeCborReader(unhex('1bffffffffffffffff'), { name: 'max' });
+  t.is(bytesToHex(cborWriterBytes(writer)), '1bffffffffffffffff');
+  const reader = makeCborReader(bytesFromHex('1bffffffffffffffff'), { name: 'max' });
   t.is(readUint(reader), 2n ** 64n - 1n);
   assertConsumed(reader);
 
@@ -264,13 +272,13 @@ test('counts are bounded to four bytes on write and on read', t => {
     message: /tag number must be an integer in \[0, 2\*\*32\)/,
   });
   t.throws(() => writeMapHeader(makeCborWriter(), 1.5), {
-    message: /map length must be an integer in \[0, 2\*\*32\)/,
+    message: /map entry count must be an integer in \[0, 2\*\*32\)/,
   });
   // An eight-byte length head is well-formed CBOR but cannot index memory here.
   t.throws(
     () =>
       readArrayHeader(
-        makeCborReader(unhex('9b0000000100000000'), { name: 'wide' }),
+        makeCborReader(bytesFromHex('9b0000000100000000'), { name: 'wide' }),
       ),
     { message: /array length exceeds 2\*\*32-1.*index 0 of wide/ },
   );
@@ -309,13 +317,13 @@ test('readers are strict, with no lenient mode to opt into', t => {
 
   // Non-minimal head: 0x1817 encodes uint 23 in two bytes (minimal is 0x17).
   t.throws(
-    () => readUint(makeCborReader(unhex('1817'), { name: 'strict' })),
+    () => readUint(makeCborReader(bytesFromHex('1817'), { name: 'strict' })),
     { message: /Non-minimal CBOR head.*index 0 of strict/ },
     'a non-minimal head is rejected',
   );
   // Non-minimal bignum payload: c24100 has a leading zero byte.
   t.throws(
-    () => readBignum(makeCborReader(unhex('c24100'), { name: 'strict' })),
+    () => readBignum(makeCborReader(bytesFromHex('c24100'), { name: 'strict' })),
     { message: /Non-minimal bignum payload/ },
     'a non-minimal bignum payload is rejected',
   );
@@ -326,7 +334,7 @@ test('readers are strict, with no lenient mode to opt into', t => {
       readUint(
         // @ts-expect-error `lenient` is not in the options type: its absence is
         // the point of this assertion.
-        makeCborReader(unhex('1817'), { name: 'strict', lenient: true }),
+        makeCborReader(bytesFromHex('1817'), { name: 'strict', lenient: true }),
       ),
     { message: /Non-minimal CBOR head/ },
     'an unrecognized lenient option does not relax the reader',
@@ -336,20 +344,20 @@ test('readers are strict, with no lenient mode to opt into', t => {
 test('non-canonical NaN is rejected', t => {
   t.throws(
     () =>
-      readFloat64(makeCborReader(unhex('fb7ff0000000000001'), { name: 'nan' })),
+      readFloat64(makeCborReader(bytesFromHex('fb7ff0000000000001'), { name: 'nan' })),
     { message: /Non-canonical NaN.*index 1 of nan/ },
   );
   // Every NaN a caller writes comes back as the one canonical pattern.
   const writer = makeCborWriter();
   writeFloat64(writer, NaN);
-  t.is(hex(cborWriterBytes(writer)), 'fb7ff8000000000000');
+  t.is(bytesToHex(cborWriterBytes(writer)), 'fb7ff8000000000000');
 });
 
 test('indefinite-length and reserved additional-info are rejected', t => {
   // additional info 31 (indefinite) and 28..30 (reserved) are never valid.
   for (const value of ['5f', '9f', 'bf', '1c', '1d', '1e']) {
     t.throws(
-      () => readHead(makeCborReader(unhex(value), { name: 'bad' })),
+      () => readHead(makeCborReader(bytesFromHex(value), { name: 'bad' })),
       { message: /Invalid CBOR additional info|index .* of bad/ },
       `reject ${value}`,
     );
@@ -359,24 +367,24 @@ test('indefinite-length and reserved additional-info are rejected', t => {
 test('truncation and trailing bytes are rejected', t => {
   // Truncated head (4-byte argument, only 2 bytes present); the read fails at
   // the extension bytes, one past the initial byte.
-  t.throws(() => readUint(makeCborReader(unhex('1a0000'), { name: 'head' })), {
+  t.throws(() => readUint(makeCborReader(bytesFromHex('1a0000'), { name: 'head' })), {
     message: /Unexpected end of CBOR input.*index 1 of head/,
   });
   // Truncated payload (byte string claims 3 bytes, only 1 present).
   t.throws(
-    () => readByteString(makeCborReader(unhex('4301'), { name: 'payload' })),
+    () => readByteString(makeCborReader(bytesFromHex('4301'), { name: 'payload' })),
     { message: /index 1 of payload/ },
   );
   // Trailing bytes after a complete item.
   t.throws(
-    () => assertConsumed(makeCborReader(unhex('0001'), { name: 'trailing' })),
+    () => assertConsumed(makeCborReader(bytesFromHex('0001'), { name: 'trailing' })),
     { message: /Unexpected trailing CBOR bytes.*index 0 of trailing/ },
   );
 });
 
 test('rejections identify reader offsets', t => {
   for (const value of ['1f', '1c', '1a0000', '4301'])
-    t.throws(() => readUint(makeCborReader(unhex(value), { name: 'bad' })), {
+    t.throws(() => readUint(makeCborReader(bytesFromHex(value), { name: 'bad' })), {
       message: /index .* of bad/,
     });
 });
@@ -395,7 +403,167 @@ test('writeTextString rejects non-well-formed strings', t => {
 test('readTextString rejects invalid UTF-8', t => {
   // 0x61 0xff: a one-byte length head over a byte that starts no UTF-8 sequence.
   t.throws(
-    () => readTextString(makeCborReader(unhex('61ff'), { name: 'utf8' })),
+    () => readTextString(makeCborReader(bytesFromHex('61ff'), { name: 'utf8' })),
     { message: /Invalid UTF-8 text string.*index 0 of utf8/ },
   );
+});
+
+// The three tests below pin the major-7 head grammar. RFC 8949 section 3.3
+// makes the major-7 additional-information nibble a TYPE SELECTOR rather than
+// an integer argument, so the minimal-length rule that governs majors 0-6 does
+// not apply to it. Applying it there rejected every float64 whose bit pattern
+// is under 2**32 -- including `fb0000000000000000`, the canonical zero this
+// package's own writer emits and which the fixture already carried as valid.
+// The fixture-driven tests above could not catch it because `readValue`
+// dispatches on each vector's DECLARED kind, sending float64 entries straight
+// to `readFloat64` and never through the shared head path.
+
+test('peekHead accepts every golden vector without advancing the cursor', t => {
+  for (const { diagnostic, hex: encoded } of vectors) {
+    const reader = makeCborReader(bytesFromHex(encoded), { name: diagnostic });
+    t.notThrows(() => peekHead(reader), diagnostic);
+    t.is(reader.index, 0, `${diagnostic}: peek must not consume`);
+  }
+});
+
+test('readOptionalNull reports false on every non-null golden vector', t => {
+  for (const { diagnostic, hex: encoded } of vectors) {
+    const reader = makeCborReader(bytesFromHex(encoded), { name: diagnostic });
+    // `f6` is the only encoding of null; every other vector must report a
+    // plain false rather than throwing, since this is the probe a caller uses
+    // to decide whether an optional field is present.
+    const expected = encoded === 'f6';
+    t.is(readOptionalNull(reader), expected, diagnostic);
+  }
+});
+
+test('readHead rejects major-7 heads outside the canonical subset', t => {
+  // f818-f81f: the two-byte simple-value form below 32, which RFC 8949
+  // section 3.3 declares not well-formed.
+  for (const encoded of ['f818', 'f81f']) {
+    t.throws(
+      () => readHead(makeCborReader(bytesFromHex(encoded), { name: 'simple' })),
+      { message: /Ill-formed two-byte simple value/ },
+      encoded,
+    );
+  }
+  // f820: a well-formed but unassigned simple value, still outside this subset.
+  t.throws(() => readHead(makeCborReader(bytesFromHex('f820'), { name: 'simple' })), {
+    message: /Unassigned simple value 32/,
+  });
+  // float16 and float32 heads: well-formed CBOR, but this subset is
+  // float64-only, and the head layer must agree with `readFloat64` about that.
+  t.throws(() => readHead(makeCborReader(bytesFromHex('f97e00'), { name: 'f16' })), {
+    message: /Unsupported float16/,
+  });
+  t.throws(
+    () => readHead(makeCborReader(bytesFromHex('fa7fc00000'), { name: 'f32' })),
+    { message: /Unsupported float32/ },
+  );
+});
+
+test('writeHead refuses a major-7 argument that is not a simple value', t => {
+  // Permitted at the boundary: 23 is the last one-byte simple value.
+  t.notThrows(() => writeHead(makeCborWriter(), 7, 23n));
+  // 24 would emit `f818`, which the reader above rejects as ill-formed; a
+  // canonical writer must not be able to produce bytes its own reader refuses.
+  t.throws(() => writeHead(makeCborWriter(), 7, 24n), {
+    message: /major 7 head argument must be a simple value/,
+  });
+});
+
+test('a failed peek leaves the cursor exactly where it found it', t => {
+  // `1f` is an invalid additional-info nibble, so the head is rejected only
+  // after the initial byte has been taken -- the case a success-path-only
+  // restore misses.
+  const reader = makeCborReader(bytesFromHex('1f00'), { name: 'peek' });
+  t.throws(() => peekHead(reader));
+  t.is(reader.index, 0);
+  // The reader is still usable for a different parse after the caught failure.
+  t.is(reader.bytes.length - reader.index, 2);
+});
+
+test('readBoolean names the construct that actually arrived', t => {
+  t.throws(() => readBoolean(makeCborReader(bytesFromHex('f6'), { name: 'b' })), {
+    message: /Expected boolean, got simple value 22/,
+  });
+  // A float64 head reaching the boolean fallthrough must not be reported as a
+  // "simple value" carrying its 64-bit payload.
+  t.throws(
+    () =>
+      readBoolean(makeCborReader(bytesFromHex('fb3ff0000000000000'), { name: 'b' })),
+    { message: /Expected boolean, got float64/ },
+  );
+});
+
+test('every writer has a reader counterpart on the public surface', t => {
+  // `writeUndefined` and `writeNull` previously emitted bytes that could only be
+  // recognized by reaching past the exported readers to a raw head plus a magic
+  // constant, which is the signal that a codec's surface is incomplete.
+  const writer = makeCborWriter();
+  writeUndefined(writer);
+  writeNull(writer);
+  const reader = makeCborReader(cborWriterBytes(writer), { name: 'pair' });
+  t.true(readOptionalUndefined(reader));
+  t.notThrows(() => readNull(reader));
+  assertConsumed(reader);
+});
+
+test('the optional probes report absence at end of input', t => {
+  // A trailing optional that is simply not there is the ordinary case; it must
+  // stay distinguishable from a malformed head, which throws.
+  for (const probe of [readOptionalNull, readOptionalUndefined]) {
+    t.false(probe(makeCborReader(new Uint8Array(0), { name: 'empty' })));
+  }
+});
+
+test('readNull rejects anything that is not null', t => {
+  t.throws(() => readNull(makeCborReader(bytesFromHex('f7'), { name: 'u' })), {
+    message: /Expected null.*index 0 of u/,
+  });
+});
+
+test('a zero-capacity writer grows to hold a payload larger than its buffer', t => {
+  // `makeCborWriter({ capacity: 0 })` is the only path that reaches the
+  // `Math.max(1, ...)` floor in `append`/`appendBytes` and the `while` (rather
+  // than `if`) growth loop; with a default-capacity writer both are unreachable,
+  // so neither was pinned by any test.
+  const writer = makeCborWriter({ capacity: 0 });
+  const payload = new Uint8Array(600).fill(0xab);
+  writeByteString(writer, payload);
+  const reader = makeCborReader(cborWriterBytes(writer), { name: 'grown' });
+  t.deepEqual(readByteString(reader), payload);
+  assertConsumed(reader);
+});
+
+test('argument guards are contract, not decoration', t => {
+  // These guards were each a no-op away from surviving the whole suite. They
+  // state the callable contract of a public function, so they are pinned like
+  // the bigint and well-formedness guards already were.
+  t.throws(() => writeHead(makeCborWriter(), 8, 0n), {
+    message: /major type must be an integer in \[0, 7\]/,
+  });
+  t.throws(() => makeCborWriter({ capacity: -1 }), {
+    message: /capacity must be an integer in \[0, 2\*\*32\)/,
+  });
+  // @ts-expect-error deliberately passing the wrong type
+  t.throws(() => writeByteString(makeCborWriter(), 'nope'), {
+    message: /Uint8Array/,
+  });
+  // @ts-expect-error deliberately passing the wrong type
+  t.throws(() => writeBoolean(makeCborWriter(), 'nope'), {
+    message: /boolean expected/,
+  });
+  // @ts-expect-error deliberately passing the wrong type
+  t.throws(() => writeFloat64(makeCborWriter(), 'nope'), {
+    message: /number expected/,
+  });
+  // @ts-expect-error deliberately passing the wrong type
+  t.throws(() => writeBignum(makeCborWriter(), 'nope'), {
+    message: /bigint expected/,
+  });
+  // @ts-expect-error deliberately passing the wrong type
+  t.throws(() => makeCborReader('nope'), {
+    message: /CBOR input must be a Uint8Array/,
+  });
 });

@@ -1,11 +1,12 @@
 # @endo/cbor
 
 Canonical, hardened primitives for reading and writing **one CBOR item** at a
-time against an explicit writer or reader state. It is the shared codec layer
-that the slot-machine wire protocol (`packages/slots`) and the OCapN codec
-(`packages/ocapn`) both build on, factored out per
-[`designs/cbor-codec.md`](../../designs/cbor-codec.md) so the same canonical
-subset is not re-implemented per consumer.
+time against an explicit writer or reader state. It is the codec layer the
+slot-machine wire protocol (`packages/slots`) and the OCapN codec
+(`packages/ocapn`) are to share, factored out per
+[`designs/cbor-codec.md`](../../designs/cbor-codec.md) so that the same canonical
+subset is not re-implemented per consumer. Phase 1 publishes the package; those
+two consumers migrate onto it in phases 2 and 3, so nothing depends on it yet.
 
 `@endo/cbor` is deliberately **not**:
 
@@ -23,10 +24,18 @@ read and are unwritable.
 
 ## Canonicality
 
-- **Writers are always canonical.** Minimal-length heads (RFC 8949 §4.2.1),
-  canonical NaN (`0x7ff8000000000000`), and minimal-length bignum byte strings.
-  There is no option to emit a non-minimal head; this preserves the slot-machine's
+- **Writers are always canonical.** Minimal-length heads for the *integer*
+  arguments of majors 0 to 6 (RFC 8949 §4.2.1), canonical NaN
+  (`0x7ff8000000000000`), and minimal-length bignum byte strings. There is no
+  option to emit a non-minimal head; this preserves the slot-machine's
   byte-identity contract with its Rust twin and OCapN's signature stability.
+- **This subset deviates from §4.2.1 on floats, deliberately.** Core
+  deterministic encoding also requires the shortest float form (§4.2.1) and
+  `0xf97e00` for NaN (§4.2.2). This codec always writes float64 (`0xfb`) and
+  writes NaN as `fb7ff8000000000000`, and its reader rejects the float16 and
+  float32 widths a §4.2.1-conforming encoder would emit. That keeps one width on
+  the wire for the slot-machine's byte-identity contract, at the cost of full
+  §4.2.1 interoperability. Treat it as an interop constraint, not a nit.
 - **Readers are strict.** A reader rejects non-minimal heads and non-minimal
   bignum payloads, so no two byte-different encodings of a value both decode.
   **Non-canonical NaN is rejected too.** There is no lenient mode: every
@@ -68,10 +77,12 @@ would only be a JavaScript artifact masquerading as a protocol rule. Bignum valu
 (`writeBignum` / `readBignum`, CBOR tags 2/3) are unbounded bigints.
 
 **Counts stay `number`**: byte-string and text-string byte lengths, array and map
-element counts, and tag numbers. JavaScript itself caps each of these at four
-bytes (`2**32 - 1`), so the range genuinely fits and the arithmetic is exact. A
-reader that meets a well-formed but wider length head rejects it rather than
-truncating.
+element counts, and tag numbers. This codec bounds each to `[0, 2**32)`. That is
+its own profile choice, not a limit JavaScript imposes: the language caps only
+array lengths there, typed-array lengths are spec-bounded at `2**53 - 1`, and a
+CBOR tag number may run to `2**64 - 1` (RFC 8949 §3.4). Within that bound the
+arithmetic is exact and `number` is the honest type. A reader that meets a
+well-formed but wider head rejects it rather than truncating.
 
 Errors carry the reader's `name` and byte offset (`... at index N of <name>`).
 

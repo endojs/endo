@@ -4,7 +4,7 @@
 |---|---|
 | **Created** | 2026-07-12 |
 | **Author** | Kris Kowal (prompted) |
-| **Status** | Proposed |
+| **Status** | Phase 1 implemented (PR #755); phases 2-3 proposed |
 
 ## What is the Problem Being Solved?
 
@@ -170,15 +170,23 @@ Head arguments are **bigints**, spanning the full unsigned 64-bit
 range a CBOR head can carry (`writeHead`, `writeUint`, `writeInt`,
 `readHead`, `readUint`, `readInt`). Bignum values (`writeBignum`,
 `readBignum`) are unbounded bigints. Working in bigint also removes
-the `Math.floor(value / 0x100…)` decomposition the int53
+the `Math.floor(value / 0x100...)` decomposition the int53
 representation forced on the writer: an eight-byte argument is
 emitted with ordinary bigint shifts.
 
-**Counts stay in the number domain**, because their range genuinely
-is limited to four bytes: byte-string and text-string byte lengths,
-array and map element counts, and tag numbers are all capped by
-JavaScript itself at `2**32 - 1`. A reader that meets a well-formed
-but wider length head rejects it rather than truncating.
+**Counts stay in the number domain**: byte-string and text-string
+byte lengths, array and map element counts, and tag numbers. This is a
+deliberate profile choice by *this codec*, bounding each to
+`[0, 2**32)`, not a fact about JavaScript. Only array lengths are
+capped at `2**32 - 1` by the language; typed-array lengths are bounded
+by the spec at `2**53 - 1` (and far lower in practice on XS), and a
+CBOR tag number is not a JavaScript quantity at all (RFC 8949
+section 3.4 permits it up to `2**64 - 1`). Narrowing all four to one
+four-byte bound keeps the arithmetic exact and the `number` type
+honest; a reader that meets a well-formed but wider head rejects it
+rather than truncating. (Justifying the narrowing as something the
+language forces would be the same error this section's amendment set
+out to correct, in the opposite direction.)
 
 ### Canonicality posture
 
@@ -188,16 +196,18 @@ but wider length head rejects it rather than truncating.
   a non-minimal head. This preserves the slot-machine's byte-identity
   contract with `rust/endo/slots/src/wire/codec.rs` and ocapn's
   signature-stability requirement.
-- **Readers are tolerant by default, strict by option.** Today
-  neither implementation rejects a non-minimal head on read (the
-  ocapn decoder validates canonical NaN but accepts, say, a length 5
-  encoded in two bytes). `makeCborReader(bytes, { strict: true })`
-  additionally rejects non-minimal heads and non-minimal bignum
-  payloads. The canonical-NaN check in `readFloat64` stays
-  unconditional, matching current ocapn behavior. Whether ocapn
-  should enable `strict` for its signature-verification paths is an
-  Open Question; the shared module makes it a one-line decision
-  instead of a rewrite.
+- **Readers are strict, with no lenient mode.** Today neither of the
+  implementations being replaced rejects a non-minimal head on read
+  (the ocapn decoder validates canonical NaN but accepts, say, a
+  length 5 encoded in two bytes). This package rejects non-minimal
+  heads and non-minimal bignum payloads unconditionally, alongside the
+  canonical-NaN check in `readFloat64`. There is no `strict` option to
+  opt into or out of: per Design Decision 5, every implementation of
+  this subset is required to use the strict, canonical subset, and
+  accepting a non-canonical encoding would only launder a peer's bug.
+  Note that the minimality rule is a property of the *integer
+  argument* carried by majors 0-6; major 7's additional-information
+  nibble is a type selector (RFC 8949 section 3.3), so it is exempt.
 
 ### Buffer state
 
@@ -212,7 +222,7 @@ and peek. A later extraction of generic byte cursors into
 filed) and would not change this package's API.
 
 The reader state is a plain record over the input `Uint8Array` with
-an index, a `name`, and the `strict` flag. `readByteString` returns a
+an index and a `name`. `readByteString` returns a
 fresh `Uint8Array` copy (the slots behavior); immutability conversion
 (`bytesToImmutable` from `@endo/bytes`) remains ocapn policy at its
 class layer.
@@ -307,8 +317,10 @@ slots package can adopt `@endo/cbor` before merge and shed its
 - **Ported suites.** All cases from `packages/slots/test/cbor.test.js`
   and the primitive-level cases from
   `packages/ocapn/test/cbor/{encode,decode}.test.js`.
-- **Strict-mode cases.** Non-minimal heads accepted by default,
-  rejected under `strict`; non-canonical NaN rejected always;
+- **Strictness cases.** Non-minimal heads (majors 0-6) rejected;
+  major-7 heads outside the subset rejected (the two-byte
+  simple-value form and the float16/float32 widths); non-canonical NaN
+  rejected;
   indefinite-length and reserved additional-info bytes rejected
   always; truncated head, truncated payload, trailing bytes.
 - **Migration acceptance.** Phases 2 and 3 rerun the consumers'
@@ -363,15 +375,20 @@ slots package can adopt `@endo/cbor` before merge and shed its
    now carried by an explicit `-frame` suffix rather than a single
    trailing letter. `@endo/cbor` stays as the primitive-codec name.
 2. **Should ocapn's signature-verification paths construct readers
-   with `strict: true`?** Today non-minimal heads pass its decoder,
-   so two byte-different encodings of the same value can both
-   verify. Enabling strict tightens this; it may also reject traffic
-   from tolerant peers. Maintainer call at phase 2.
+   with `strict: true`?**
+   Resolved by the implementation: there is no `strict` option. Reads
+   are strict unconditionally, so ocapn's signature-verification paths
+   get the tightening by construction once they migrate. The residual
+   phase-2 question is not whether to enable strictness but whether
+   rejecting non-canonical traffic from tolerant peers is acceptable at
+   the point of migration; that stays a maintainer call.
 3. **Is `String.prototype.isWellFormed` available on every supported
-   engine, XS included?** Slots runs under the XS worker
-   (`packages/daemon/src/bus-worker-xs.js`). If XS lacks it, the
-   package carries a small local well-formedness check instead of a
-   `@endo/pass-style` dependency.
+   engine, XS included?**
+   Resolved by the implementation: the question is moot because the
+   check moved to the `@endo/is-well-formed-string` leaf package, a
+   ponyfill that uses the engine-native method where it exists and a
+   manual surrogate scan where it does not. `@endo/cbor` depends on
+   that package rather than on the intrinsic or on `@endo/pass-style`.
 4. **Where does phase 1 land relative to PR #124?** The design
    assumes `master` first with forward-merges to `llm` and `endor`,
    and slots adopting post-merge (phase 3). If the maintainer prefers

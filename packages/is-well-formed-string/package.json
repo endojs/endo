@@ -45,6 +45,17 @@
     "ses": "workspace:^",
     "typescript": "catalog:dev"
   },
+  "files": [
+    "./*.d.ts",
+    "./*.js",
+    "./*.map",
+    "LICENSE*",
+    "SECURITY*",
+    "dist",
+    "lib",
+    "src",
+    "tools"
+  ],
   "publishConfig": {
     "access": "public"
   },

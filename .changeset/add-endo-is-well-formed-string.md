@@ -1,5 +1,5 @@
 ---
-'@endo/is-well-formed-string': minor
+'@endo/is-well-formed-string': major
 '@endo/pass-style': patch
 ---
 
