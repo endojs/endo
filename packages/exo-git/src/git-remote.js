@@ -931,13 +931,32 @@ export const makeGitRemote = ({
         'GitRemote.push forceWithLease must be a 40-character hexadecimal object ID',
       );
     }
-    if (forceWithLease !== undefined && !currentPolicy.allowForcePush) {
+    // Git reads a null-OID lease as "expect this ref NOT to exist" — create-only
+    // rather than guard-an-update, the opposite of what the option publishes.
+    // An agent deriving a lease from a ref it could not resolve emits exactly
+    // this value, so reject it rather than silently inverting the semantics.
+    if (forceWithLease !== undefined && /^0{40}$/u.test(forceWithLease)) {
       throw new Error(
-        'GitRemote push force-with-lease requires allowForcePush',
+        'GitRemote.push forceWithLease must not be the null object ID',
+      );
+    }
+    if (forceWithLease !== undefined && !currentPolicy.allowForcePush) {
+      throw new Error('GitRemote.push forceWithLease requires allowForcePush');
+    }
+    // The lease names ONE concrete remote ref. Git matches a `--force-with-lease`
+    // refname with `refname_match` (DWIM, no globbing) and does not warn when an
+    // entry matches nothing, so a wildcard destination would bind the lease to
+    // nothing. That fails CLOSED — the refspec carries no `+`, so the push
+    // degrades to a plain non-force push rather than an unguarded force — but it
+    // silently falsifies the guarantee this option publishes.
+    if (forceWithLease !== undefined && destination.includes('*')) {
+      throw new Error(
+        'GitRemote.push forceWithLease requires a concrete destination ref',
       );
     }
     // `--force-with-lease` supplies the force. Do not also prefix the refspec
-    // with `+`, because that would override the lease check in git push.
+    // with `+`, because that would override the lease check in git push; the
+    // mutual-exclusion guard above is what keeps `opts.force` from doing so.
     const refspec = `${opts.force ? '+' : ''}${source}:${destination}`;
     assertPushRefspecAllowed(refspec);
     return harden({

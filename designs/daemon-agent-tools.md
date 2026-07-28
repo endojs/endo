@@ -379,10 +379,10 @@ the host running the derivation flow above and binding the petnames.
 Phases are ordered by what gates the M3 exit pillar. Phase 0 records
 the landed substrate; Phases 1–3 are dispatchable builder work; Phase 4
 is the integration pass that demonstrates the pillar. As of 2026-07-08,
-Phase 1 (#614), Phase 2a/2b (#615), and the local mount-bridged git
-tools (#616, Phase 3.5) have landed on `llm`; the remaining builder work
-is the push tier (Phase 3), the network tool wiring (Phase 3.6), the
-sandbox shell engine (Phase 2c), and the Phase 4 worked loop.
+Phase 1 (#614), Phase 2a/2b (#615), the local mount-bridged git
+tools (#616, Phase 3.5), and the push tier (#705, Phase 3) have landed on
+`llm`; the remaining builder work is the network tool wiring (Phase 3.6),
+the sandbox shell engine (Phase 2c), and the Phase 4 worked loop.
 
 ### Phase 0: Substrate (landed — record only)
 
@@ -438,12 +438,18 @@ sandbox shell engine (Phase 2c), and the Phase 4 worked loop.
   `Spawner` interface is shaped to accept a sandbox `DriverProcess`
   adapter, but only the host `child_process` engine ships today.
 
-### Phase 3: Push tier — not started
+### Phase 3: Push tier — landed (#705)
 
-- [ ] `makeGitRemoteTool(remoteCap)` per
+- [x] `makeGitRemoteTool(remoteCap)` per
   [endo-agent-tools](endo-agent-tools.md) § Git authority tiers:
   `fetch` / `pull` / `push` tools whose bounds come entirely from the
   granted `GitRemote`; no policy re-statement in the tool layer.
+  Landed as `packages/agent-tools/src/json-tools/git-remote.js`
+  (`inspect` / `fetch` / `pull` / `push` records, schema <-> guard
+  divergence gate), together with `GitRemote.push`'s `forceWithLease`
+  option — the capability form of `--force-with-lease`, which is what
+  makes a git branch usable as a transactional ledger
+  ([daemon-git-remotes](daemon-git-remotes.md) § Force-with-lease).
 
 ### Phase 3.5: Local mount-bridged git tools — landed (#616)
 

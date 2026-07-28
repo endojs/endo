@@ -11,6 +11,8 @@ import '@endo/init/debug.js';
 import test from 'ava';
 import { Ajv } from 'ajv';
 import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
+import { execFile } from 'node:child_process';
 import {
   matches,
   getInterfaceGuardPayload,
@@ -26,6 +28,8 @@ import {
   provisionBareRemote,
   advanceRemoteMain,
 } from './git-remote-fixtures.js';
+
+const execFileAsync = promisify(execFile);
 
 const ajv = new Ajv({ strict: false });
 
@@ -106,7 +110,7 @@ test('makeGitRemoteTool emits inspect/fetch/pull/push records', t => {
   }
 });
 
-// --- divergence gate: hand-authored schema ⟷ runtime guard ------------------
+// --- divergence gate: hand-authored schema <-> runtime guard ------------------
 
 /**
  * Candidate option records exercising valid and invalid `options` shapes plus
@@ -152,7 +156,7 @@ const checkAgreement = (t, tool, records) => {
 };
 
 for (const name of ['inspect', 'fetch', 'pull', 'push']) {
-  test(`schema ⟷ guard agree for gitRemote.${name}`, t => {
+  test(`schema <-> guard agree for gitRemote.${name}`, t => {
     checkAgreement(t, toolsByName()[name], optionRecords);
   });
 }
@@ -171,6 +175,10 @@ const schemaStricterRecords = harden({
   push: [
     { options: { force: 'yes' } },
     { options: { forceWithLease: 'not-an-oid' } },
+    // The three OID validators (this schema, the exo, and the git backend) must
+    // accept exactly the same domain, so the schema excludes the null OID the
+    // other two reject; otherwise the model is shown a value that always fails.
+    { options: { forceWithLease: '0'.repeat(40) } },
     { options: { setUpstream: 'x' } },
   ],
 });
@@ -401,21 +409,36 @@ test('fetch / pull / push tools drive the bounded native data plane', async t =>
   t.regex(pushed[0].local.oid, /^[0-9a-f]{40}$/u);
 
   // A ledger writer pins the remote branch it observed before replacing it.
-  // The matching lease succeeds, while replaying that stale observation fails
-  // instead of overwriting the newer remote state.
   const expectedOid = pushed[0].local.oid;
-  const secondNote = await E(mount).entry(['agent-second.txt']);
-  await E(mount).writeText(secondNote, 'agent second\n');
-  await E(git).add([secondNote]);
-  await E(git).commit('test: second agent branch commit');
-  await byName.push.invoke({
-    options: {
-      source: 'refs/heads/agent/topic',
-      destination: 'refs/heads/agent/topic',
-      forceWithLease: expectedOid,
-    },
-  });
 
+  // Diverge the local branch from what the remote holds, so the update below is
+  // genuinely NON-fast-forward. This is what makes the matching-lease assertion
+  // load-bearing: a fast-forward push succeeds with or without the lease, so it
+  // would stay green even if `--force-with-lease` were dropped from the argv.
+  await execFileAsync('git', ['reset', '--hard', 'HEAD~1'], { cwd: root });
+  const rewritten = await E(mount).entry(['agent-rewritten.txt']);
+  await E(mount).writeText(rewritten, 'agent rewritten\n');
+  await E(git).add([rewritten]);
+  await E(git).commit('test: rewrite the agent branch');
+
+  const leasedResult = /** @type {any} */ (
+    await byName.push.invoke({
+      options: {
+        source: 'refs/heads/agent/topic',
+        destination: 'refs/heads/agent/topic',
+        forceWithLease: expectedOid,
+      },
+    })
+  );
+  const leased = [...leasedResult.updatedRefs];
+  t.is(leased.length, 1);
+  t.not(leased[0].local.oid, expectedOid);
+
+  // Replaying the now-stale observation cannot overwrite the newer remote
+  // state. Git reports `(stale info)` on its porcelain stdout, which the
+  // backend does not surface, so the generic failure message alone would be
+  // satisfied by any transport or refspec error. Pin the observable that only
+  // a refused lease produces: the remote ref did not move.
   const staleNote = await E(mount).entry(['agent-stale.txt']);
   await E(mount).writeText(staleNote, 'agent stale\n');
   await E(git).add([staleNote]);
@@ -431,4 +454,10 @@ test('fetch / pull / push tools drive the bounded native data plane', async t =>
       }),
     { message: /failed to push some refs/u },
   );
+  const { stdout: remoteAfterStale } = await execFileAsync(
+    'git',
+    ['rev-parse', 'refs/heads/agent/topic'],
+    { cwd: remoteRoot },
+  );
+  t.is(remoteAfterStale.trim(), leased[0].local.oid);
 });

@@ -1197,6 +1197,168 @@ test('GitRemote.push forwards a destination-scoped force-with-lease', async t =>
   );
 });
 
+test('GitRemote.push scopes the lease to the destination, not the source', async t => {
+  const { mount } = await provisionGitContext(t);
+  /** @type {unknown[]} */
+  const pushCalls = [];
+  const backend = harden({
+    ...makeNotYetImplementedBackend(),
+    remotePush: async input => {
+      pushCalls.push(input);
+      return harden({ updatedRefs: [] });
+    },
+  });
+  const git = makeGit({ mount, backend, lineageOf });
+  const { remote } = makeGitRemote({
+    git,
+    name: 'origin',
+    credential: exampleCredential(),
+    policy: {
+      url: 'https://github.com/example/repo.git',
+      allowedDirections: ['push'],
+      fetchRefspecs: [],
+      // A mirroring policy, so source and destination are DIFFERENT names and
+      // the lease's binding is observable. With source === destination (as the
+      // sibling test has it) a regression to `ref: source` would pass.
+      pushRefspecs: ['refs/heads/safe/*:refs/heads/mirror/*'],
+      allowForcePush: true,
+    },
+  });
+
+  const expectedOid = '0123456789abcdef0123456789abcdef01234567';
+  await E(remote).push({
+    source: 'refs/heads/safe/topic',
+    destination: 'refs/heads/mirror/topic',
+    forceWithLease: expectedOid,
+  });
+
+  t.like(
+    /** @type {{ refspecs?: string[], forceWithLease?: unknown }} */ (
+      pushCalls[0]
+    ),
+    {
+      refspecs: ['refs/heads/safe/topic:refs/heads/mirror/topic'],
+      forceWithLease: { ref: 'refs/heads/mirror/topic', expectedOid },
+    },
+  );
+
+  // Git matches a `--force-with-lease` refname with `refname_match` (DWIM, no
+  // globbing) and does not warn when an entry matches nothing, so a wildcard
+  // destination would bind the lease to nothing and silently degrade the push
+  // to an unguarded one.
+  await t.throwsAsync(
+    E(remote).push({
+      source: 'refs/heads/safe/*',
+      destination: 'refs/heads/mirror/*',
+      forceWithLease: expectedOid,
+    }),
+    { message: /forceWithLease requires a concrete destination ref/ },
+  );
+  t.is(pushCalls.length, 1);
+});
+
+test('GitRemote.push of the policy refspecs never carries a lease', async t => {
+  const { mount } = await provisionGitContext(t);
+  /** @type {unknown[]} */
+  const pushCalls = [];
+  const backend = harden({
+    ...makeNotYetImplementedBackend(),
+    remotePush: async input => {
+      pushCalls.push(input);
+      return harden({ updatedRefs: [] });
+    },
+  });
+  const git = makeGit({ mount, backend, lineageOf });
+  const { remote } = makeGitRemote({
+    git,
+    name: 'origin',
+    credential: exampleCredential(),
+    policy: {
+      url: 'https://github.com/example/repo.git',
+      allowedDirections: ['push'],
+      fetchRefspecs: [],
+      pushRefspecs: ['refs/heads/safe/*:refs/heads/safe/*'],
+      allowForcePush: true,
+    },
+  });
+
+  // The no-source/no-destination branch pushes the policy's own refspecs. Pin
+  // that it emits no lease even under a force-permitting policy, and that
+  // `force` is dropped rather than smuggled onto a policy refspec.
+  await E(remote).push();
+  await E(remote).push({ force: true });
+  for (const call of pushCalls) {
+    t.like(
+      /** @type {{ refspecs?: string[], forceWithLease?: unknown, setUpstream?: unknown }} */ (
+        call
+      ),
+      {
+        refspecs: ['refs/heads/safe/*:refs/heads/safe/*'],
+        forceWithLease: undefined,
+        setUpstream: false,
+      },
+    );
+  }
+  t.is(pushCalls.length, 2);
+});
+
+test('GitRemote.push pins the force-with-lease OID domain', async t => {
+  const { mount } = await provisionGitContext(t);
+  /** @type {unknown[]} */
+  const pushCalls = [];
+  const backend = harden({
+    ...makeNotYetImplementedBackend(),
+    remotePush: async input => {
+      pushCalls.push(input);
+      return harden({ updatedRefs: [] });
+    },
+  });
+  const git = makeGit({ mount, backend, lineageOf });
+  const { remote } = makeGitRemote({
+    git,
+    name: 'origin',
+    credential: exampleCredential(),
+    policy: {
+      url: 'https://github.com/example/repo.git',
+      allowedDirections: ['push'],
+      fetchRefspecs: [],
+      pushRefspecs: ['refs/heads/safe/*:refs/heads/safe/*'],
+      allowForcePush: true,
+    },
+  });
+  const push = forceWithLease =>
+    E(remote).push({ source: 'refs/heads/safe/topic', forceWithLease });
+  const oid = '0123456789abcdef0123456789abcdef01234567';
+
+  // The length boundary either side, plus the non-string and empty cases.
+  for (const rejected of [
+    oid.slice(0, 39),
+    `${oid}0`,
+    '',
+    null,
+    42,
+    {},
+    [oid],
+  ]) {
+    await t.throwsAsync(push(rejected), {
+      message: /40-character hexadecimal object ID/,
+    });
+  }
+
+  // Git reads a null-OID lease as "expect this ref NOT to exist" — create-only
+  // rather than guard-an-update, inverting what the option publishes. An agent
+  // deriving a lease from an unresolvable ref emits exactly this value.
+  await t.throwsAsync(push('0'.repeat(40)), {
+    message: /must not be the null object ID/,
+  });
+  t.is(pushCalls.length, 0);
+
+  // The accept side of the domain: the exo's `/iu` regex and the tool schema's
+  // `[0-9a-fA-F]` class both admit uppercase, and they must stay in agreement.
+  await push(oid.toUpperCase());
+  t.is(pushCalls.length, 1);
+});
+
 test('GitRemote.push force-with-lease is gated by allowForcePush', async t => {
   const { mount } = await provisionGitContext(t);
   /** @type {unknown[]} */
@@ -1233,7 +1395,7 @@ test('GitRemote.push force-with-lease is gated by allowForcePush', async t => {
       source: 'refs/heads/safe/topic',
       forceWithLease: expectedOid,
     }),
-    { message: /force-with-lease requires allowForcePush/ },
+    { message: /forceWithLease requires allowForcePush/ },
   );
   t.is(pushCalls.length, 0);
 

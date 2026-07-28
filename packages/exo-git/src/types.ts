@@ -232,8 +232,12 @@ export type GitRemote = {
     /**
      * Force-update only if the destination still names this commit. This is
      * the capability form of git's `--force-with-lease=<destination>:<oid>`.
-     * Requires `allowForcePush` and an explicit `source`, and is mutually
-     * exclusive with `force`.
+     * Every precondition the implementation enforces: requires
+     * `allowForcePush`; requires an explicit `source`; the resolved
+     * destination must be a concrete ref, not a wildcard; the value must be 40
+     * hexadecimal digits and must not be the null object ID (which git reads
+     * as "this ref must not exist"); and it is mutually exclusive with
+     * `force`.
      */
     forceWithLease?: string;
     setUpstream?: boolean;

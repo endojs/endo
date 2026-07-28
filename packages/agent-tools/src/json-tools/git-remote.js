@@ -56,16 +56,16 @@ const NO_ARGS = harden({
  * open `options` matches its `M.splitRecord` guard. The top level stays closed
  * so a stray sibling key is rejected in lockstep by schema and guard alike.
  *
- * @param {Record<string, object>} optionProps Documented option properties.
+ * @param {Record<string, object>} optionProperties Documented option properties.
  * @returns {object}
  */
-const optionsParameters = optionProps =>
+const optionsParameters = optionProperties =>
   harden({
     type: 'object',
     properties: {
       options: {
         type: 'object',
-        properties: optionProps,
+        properties: optionProperties,
         description: 'Optional per-call options; forwarded to the GitRemote.',
       },
     },
@@ -83,7 +83,7 @@ const optionsParameters = optionProps =>
 const gitRemoteToolSchemas = harden({
   inspect: {
     description:
-      'Report this remote’s policy bounds: the endpoint URL, the allowed ' +
+      "Report this remote's policy bounds: the endpoint URL, the allowed " +
       'directions (fetch/push), the fetch and push refspecs, and the ' +
       'force/tags/delete flags. Reveals no credential material.',
     parameters: NO_ARGS,
@@ -98,12 +98,12 @@ const gitRemoteToolSchemas = harden({
         type: 'boolean',
         description:
           'Delete remote-tracking refs the remote no longer advertises ' +
-          '(requires the remote’s allowDelete policy).',
+          "(requires the remote's allowDelete policy).",
       },
       tags: {
         type: 'boolean',
         description:
-          'Also fetch tags (requires the remote’s allowTags policy).',
+          "Also fetch tags (requires the remote's allowTags policy).",
       },
     }),
   },
@@ -116,8 +116,8 @@ const gitRemoteToolSchemas = harden({
       branch: {
         type: 'string',
         description:
-          'The ref to integrate; must be within the remote’s fetch ' +
-          'policy. Defaults to the sole concrete fetch refspec’s ' +
+          "The ref to integrate; must be within the remote's fetch " +
+          "policy. Defaults to the sole concrete fetch refspec's " +
           'destination when omitted.',
       },
       strategy: {
@@ -139,14 +139,14 @@ const gitRemoteToolSchemas = harden({
   },
   push: {
     description:
-      'Push a local branch to the bounded remote within the policy’s push ' +
+      "Push a local branch to the bounded remote within the policy's push " +
       'refspecs. Returns the structured update record ({ updatedRefs }).',
     parameters: optionsParameters({
       source: {
         type: 'string',
         description:
-          'Local source ref to push (e.g. a branch name or refs/heads/…). ' +
-          'Omit to push the policy’s configured push refspecs.',
+          'Local source ref to push (e.g. a branch name or refs/heads/...). ' +
+          "Omit to push the policy's configured push refspecs.",
       },
       destination: {
         type: 'string',
@@ -157,21 +157,27 @@ const gitRemoteToolSchemas = harden({
         description:
           'Force-update the destination (requires the allowForcePush policy). ' +
           'Applies only to an explicit source; it is ignored when the ' +
-          'policy’s configured push refspecs are pushed. Cannot be combined ' +
+          "policy's configured push refspecs are pushed. Cannot be combined " +
           'with forceWithLease.',
       },
       forceWithLease: {
         type: 'string',
-        pattern: '^[0-9a-fA-F]{40}$',
+        // The null OID is excluded: git reads it as "this ref must not exist"
+        // (create-only), the inverse of what this option means. The exo and the
+        // git backend reject it too, so all three validators accept the same
+        // domain and the model is never shown a value the capability refuses.
+        pattern: '^(?!0{40}$)[0-9a-fA-F]{40}$',
         description:
           'Force-update only when the destination still names this expected ' +
-          '40-character commit ID (requires the allowForcePush policy). ' +
-          'Requires an explicit source and cannot be combined with force.',
+          '40-character commit ID. Requires the allowForcePush policy and an ' +
+          'explicit source; the destination must be a concrete ref (no ' +
+          'wildcard); the all-zeros ID is not accepted; and it cannot be ' +
+          'combined with force.',
       },
       setUpstream: {
         type: 'boolean',
         description:
-          'Record the pushed branch’s upstream tracking; requires an ' +
+          "Record the pushed branch's upstream tracking; requires an " +
           'explicit source.',
       },
     }),
