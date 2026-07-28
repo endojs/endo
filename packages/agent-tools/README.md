@@ -134,8 +134,15 @@ structurally excludes push.
 `push` accepts `forceWithLease`, a 40-character object ID the destination must
 still name for the update to land. That is what makes a branch usable as a
 transactional ledger: read the tip, compose the update, push against the tip you
-read. It requires the `allowForcePush` policy and an explicit `source`, and
-cannot be combined with `force`.
+read. It requires the `allowForcePush` policy and an explicit `source`, the
+destination must be a concrete ref, the all-zeros ID is refused (git reads it as
+"this ref must not exist"), and it cannot be combined with `force`.
+
+Each maker names its records after the capability's own methods, so names can
+collide across makers: `makeGitRemoteTool` emits `inspect` and `fetch`, which
+`makeShellTool` and `makeHttpTool` also emit. A host composing several makers
+into one flat tool list must disambiguate them itself; nothing in `makeTool`
+prefixes or dedupes.
 
 ## Git history tools
 

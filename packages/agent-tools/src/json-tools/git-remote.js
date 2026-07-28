@@ -31,6 +31,13 @@ import { makeTool } from '../tool.js';
  * untouched. A read-only `Git` cannot construct a `GitRemote` at all, so the
  * read tier structurally excludes push; there is nothing to filter here.
  *
+ * Composition hazard: like every maker here, the records carry the capability's
+ * bare method names, so `inspect` collides with `makeShellTool`'s and `fetch`
+ * with `makeHttpTool`'s. A host granting a git remote alongside a shell or an
+ * HTTP client must disambiguate before handing the flat list to a provider —
+ * one of the colliding names would otherwise shadow a credential-bearing git
+ * surface. Nothing in `makeTool` prefixes or dedupes.
+ *
  * Unlike `makeGitMountTools`, these methods are JSON-transparent: every option
  * in and every result out (structured `updatedRefs` / `integration` / `head`
  * records) is plain data, carrying no live capability across the wire, so the

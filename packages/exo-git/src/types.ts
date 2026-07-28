@@ -225,6 +225,11 @@ export type GitRemote = {
     tags?: boolean;
   }) => Promise<any>;
   push: (options?: {
+    /**
+     * Ignored. `pushRefspecsFromOptions` never reads this field: a caller that
+     * supplies it silently gets the policy's own `pushRefspecs`. Retained only
+     * because it is part of the shipped shape; use `source` / `destination`.
+     */
     refspecs?: string[];
     source?: string;
     destination?: string;
