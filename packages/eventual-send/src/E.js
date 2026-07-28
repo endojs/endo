@@ -1,31 +1,31 @@
+// @ts-check
+/**
+ * @file provides a `makeE` that can be parameterized with an `unwrap` function
+ * and corresponding `EUnwrap<T>`.  These will be used to
+ * extract the final settlement from a chain of PromiseLikes and PromiseSteps or
+ * similar non-thenable pseudo-promises.
+ *
+ * `@agoric/vow/vat.js` uses this mechanism to export a `V` function with
+ * similar behaviour as the default `E`, augmented with automatic unwrapping of
+ * recipient Vows as if they were PromiseLikes.
+ */
 import harden from '@endo/harden';
 import { trackTurns } from './track-turns.js';
 import { makeMessageBreakpointTester } from './message-breakpoints.js';
 
-const { details: X, quote: q, Fail, error: makeError } = assert;
+const { details: X, error: makeError } = assert;
 const { assign, freeze } = Object;
 
 /**
- * @import { HandledPromiseConstructor, RemotableBrand, Callable, Settler } from './types.js';
+ * @import {
+ *   EUnwrap, HandledPromiseConstructor,
+ *   RemotableBrand, Callable, Settler
+ * } from './types.js';
  */
 
 const onSend = makeMessageBreakpointTester('ENDO_SEND_BREAKPOINTS');
 
-/** @type {ProxyHandler<any>} */
-const baseFreezableProxyHandler = {
-  set(_target, _prop, _value) {
-    return false;
-  },
-  isExtensible(_target) {
-    return false;
-  },
-  setPrototypeOf(_target, _value) {
-    return false;
-  },
-  deleteProperty(_target, _prop) {
-    return false;
-  },
-};
+export const AsyncControl = Symbol.for('E.Control');
 
 // E Proxy handlers pretend that any property exists on the target and returns
 // a function for their value. While this function is "bound" by context, it is
@@ -37,181 +37,264 @@ const baseFreezableProxyHandler = {
 // that case.
 
 /**
- * A Proxy handler for E(x).
- *
- * @param {any} recipient Any value passed to E(x)
- * @param {HandledPromiseConstructor} HandledPromise
- * @returns {ProxyHandler<unknown>} the Proxy handler
- */
-const makeEProxyHandler = (recipient, HandledPromise) =>
-  harden({
-    ...baseFreezableProxyHandler,
-    get: (_target, propertyKey, receiver) => {
-      return harden(
-        {
-          // This function purposely checks the `this` value (see above)
-          // In order to be `this` sensitive it is defined using concise method
-          // syntax rather than as an arrow function. To ensure the function
-          // is not constructable, it also avoids the `function` syntax.
-          /** @type {(...args: any[]) => Promise<unknown>} */
-          [propertyKey](...args) {
-            if (this !== receiver) {
-              // Reject the async function call
-              return HandledPromise.reject(
-                makeError(
-                  X`Unexpected receiver for "${q(propertyKey)}" method of E(${q(
-                    recipient,
-                  )})`,
-                ),
-              );
-            }
-
-            if (onSend && onSend.shouldBreakpoint(recipient, propertyKey)) {
-              // eslint-disable-next-line no-debugger
-              debugger; // LOOK UP THE STACK
-              // Stopped at a breakpoint on eventual-send of a method-call
-              // message,
-              // so that you can walk back on the stack to see how we came to
-              // make this eventual-send
-            }
-            return HandledPromise.applyMethod(recipient, propertyKey, args);
-          },
-          // @ts-expect-error https://github.com/microsoft/TypeScript/issues/50319
-        }[propertyKey],
-      );
-    },
-    apply: (_target, _thisArg, argArray = []) => {
-      if (onSend && onSend.shouldBreakpoint(recipient, undefined)) {
-        // eslint-disable-next-line no-debugger
-        debugger; // LOOK UP THE STACK
-        // Stopped at a breakpoint on eventual-send of a function-call message,
-        // so that you can walk back on the stack to see how we came to
-        // make this eventual-send
-      }
-      return HandledPromise.applyFunction(recipient, argArray);
-    },
-    has: (_target, _p) => {
-      // We just pretend everything exists.
-      return true;
-    },
-  });
-
-/**
- * A Proxy handler for E.sendOnly(x)
- * It is a variant on the E(x) Proxy handler.
- *
- * @param {any} recipient Any value passed to E.sendOnly(x)
- * @param {HandledPromiseConstructor} HandledPromise
- * @returns {ProxyHandler<unknown>} the Proxy handler
- */
-const makeESendOnlyProxyHandler = (recipient, HandledPromise) =>
-  harden({
-    ...baseFreezableProxyHandler,
-    get: (_target, propertyKey, receiver) => {
-      return harden(
-        {
-          // This function purposely checks the `this` value (see above)
-          // In order to be `this` sensitive it is defined using concise method
-          // syntax rather than as an arrow function. To ensure the function
-          // is not constructable, it also avoids the `function` syntax.
-          /** @type {(...args: any[]) => undefined} */
-          [propertyKey](...args) {
-            // Throw since the function returns nothing
-            this === receiver ||
-              Fail`Unexpected receiver for "${q(
-                propertyKey,
-              )}" method of E.sendOnly(${q(recipient)})`;
-            if (onSend && onSend.shouldBreakpoint(recipient, propertyKey)) {
-              // eslint-disable-next-line no-debugger
-              debugger; // LOOK UP THE STACK
-              // Stopped at a breakpoint on eventual-send of a method-call
-              // message,
-              // so that you can walk back on the stack to see how we came to
-              // make this eventual-send
-            }
-            HandledPromise.applyMethodSendOnly(recipient, propertyKey, args);
-            return undefined;
-          },
-          // @ts-expect-error https://github.com/microsoft/TypeScript/issues/50319
-        }[propertyKey],
-      );
-    },
-    apply: (_target, _thisArg, argsArray = []) => {
-      if (onSend && onSend.shouldBreakpoint(recipient, undefined)) {
-        // eslint-disable-next-line no-debugger
-        debugger; // LOOK UP THE STACK
-        // Stopped at a breakpoint on eventual-send of a function-call message,
-        // so that you can walk back on the stack to see how we came to
-        // make this eventual-send
-      }
-      HandledPromise.applyFunctionSendOnly(recipient, argsArray);
-      return undefined;
-    },
-    has: (_target, _p) => {
-      // We just pretend that everything exists.
-      return true;
-    },
-  });
-
-/**
- * A Proxy handler for E.get(x)
- * It is a variant on the E(x) Proxy handler.
- *
- * @param {any} x Any value passed to E.get(x)
- * @param {HandledPromiseConstructor} HandledPromise
- * @returns {ProxyHandler<unknown>} the Proxy handler
- */
-const makeEGetProxyHandler = (x, HandledPromise) =>
-  harden({
-    ...baseFreezableProxyHandler,
-    has: (_target, _prop) => true,
-    get: (_target, prop) => HandledPromise.get(x, prop),
-  });
-
-/**
  * `freeze` but not `harden` the proxy target so it remains trapping.
- * Thus, it should not be shared outside this module.
  *
  * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
  */
-const funcTarget = freeze(() => {});
+const defaultFinishTarget = freeze;
 
 /**
+ * @template {(...args: any[]) => any} T
+ * @param {T} target
+ * @returns {T}
+ */
+export const stripFunction = target => {
+  Object.setPrototypeOf(target, {
+    __proto__: null,
+    [Symbol.toStringTag]: 'AsyncNode',
+  });
+  for (const key of Reflect.ownKeys(target)) {
+    delete target[key];
+  }
+  return target;
+};
+
 /**
- * `freeze` but not `harden` the proxy target so it remains trapping.
- * Thus, it should not be shared outside this module.
  *
- * @see https://github.com/endojs/endo/blob/master/packages/ses/docs/preparing-for-stabilize.md
+ * @param {() => unknown} getThisArg
+ * @param {Map<PropertyKey, Callable>} shadowMethods
+ * @returns {unknown}
  */
-const objTarget = freeze({ __proto__: null });
+const makeTarget = (getThisArg, shadowMethods) => {
+  const target = stripFunction(() => {});
+  for (const [key, fn] of shadowMethods.entries()) {
+    Object.defineProperty(target, key, {
+      enumerable: true,
+      value: (...args) => Reflect.apply(fn, getThisArg(), args),
+    });
+  }
+  return target;
+};
 
 /**
- * @param {HandledPromiseConstructor} HandledPromise
+ * @template T
+ * @template {boolean} [SendOnly=false]
+ * @param {unknown} boundThis
+ * @param {object} powers
+ * @param {HandledPromiseConstructor} powers.HandledPromise
+ * @param {<T>(x: T) => Promise<EUnwrap<T>>} powers.unwrap
+ * @param {Map<PropertyKey, Callable>} powers.shadowMethods
+ * @param {(tgt: any) => any} powers.finishTarget
+ * @param {{ sendMode: 'default' | 'sendOnly' | 'blackhole', boundName?: PropertyKey, thisNode: AsyncNode<any, boolean> }} [opts]
+ * @returns {AsyncNode<T, SendOnly> & { [AsyncControl]: AsyncControl<AsyncNode<T, SendOnly>> }}
  */
-const makeE = HandledPromise => {
-  return harden(
+const makeAsyncNode = (boundThis, powers, opts) => {
+  const { sendMode, thisNode, boundName } = opts || {};
+  const { HandledPromise, finishTarget, shadowMethods, unwrap } = powers;
+
+  /**
+   * @template {string} M
+   * @param {M} method
+   * @returns {M | `${M}SendOnly` | null}
+   */
+  const maybeSO = method => {
+    if (sendMode === 'blackhole') {
+      return null;
+    }
+    if (sendMode === 'sendOnly') {
+      return `${method}SendOnly`;
+    }
+    return method;
+  };
+
+  let cachedThisArg;
+  const getThisArg = () => {
+    if (cachedThisArg === undefined) {
+      if (boundName === undefined) {
+        cachedThisArg = unwrap(boundThis);
+      } else {
+        cachedThisArg = unwrap(HandledPromise.get(boundThis, boundName));
+      }
+    }
+    return cachedThisArg;
+  };
+
+  const tgt = finishTarget(makeTarget(getThisArg, shadowMethods));
+
+  const node = new Proxy(
+    tgt,
+    harden({
+      apply(_target, thisArg, argArray = []) {
+        if (thisArg !== undefined && thisArg !== thisNode) {
+          return makeAsyncNode(
+            HandledPromise.reject(
+              makeError(X`Unexpected thisArg ${thisArg}`, TypeError),
+            ),
+            powers,
+            opts,
+          );
+        }
+        if (onSend && onSend.shouldBreakpoint(boundThis, boundName)) {
+          // eslint-disable-next-line no-debugger
+          debugger; // LOOK UP THE STACK
+          // Stopped at a breakpoint on eventual-send of a function-call message,
+          // so that you can walk back on the stack to see how we came to
+          // make this eventual-send
+        }
+
+        if (sendMode === 'blackhole') {
+          // Resolve immediately to a void promise, no operation.
+          return makeAsyncNode(Promise.resolve(), powers, {
+            sendMode,
+            thisNode: node,
+          });
+        }
+
+        let retP;
+        if (boundName === undefined) {
+          retP = HandledPromise[maybeSO('applyFunction')](
+            getThisArg(),
+            argArray,
+          );
+        } else {
+          retP = HandledPromise[maybeSO('applyMethod')](
+            boundThis,
+            boundName,
+            argArray,
+          );
+        }
+        return makeAsyncNode(retP, powers, { sendMode, thisNode: node });
+      },
+      deleteProperty(target, propertyKey) {
+        if (shadowMethods.has(propertyKey)) {
+          return false;
+        }
+        if (!Reflect.deleteProperty(target, propertyKey)) {
+          return false;
+        }
+        const method = maybeSO('deleteProperty');
+        if (method !== null) {
+          HandledPromise[method](getThisArg(), propertyKey);
+        }
+        return true;
+      },
+      get(target, propertyKey, receiver) {
+        if (receiver !== target) {
+          return makeAsyncNode(
+            HandledPromise.reject(
+              makeError(
+                X`Unexpected receiver ${receiver} for get ${propertyKey}`,
+                TypeError,
+              ),
+            ),
+            powers,
+            opts,
+          );
+        }
+        if (propertyKey === AsyncControl) {
+          return makeAsyncControl(thisNode, powers, opts);
+        }
+        if (shadowMethods.has(propertyKey)) {
+          return tgt[propertyKey];
+        }
+        if (propertyKey === Symbol.toPrimitive) {
+          // Work around a cycle that locks up the Node.js REPL.
+          return undefined;
+        }
+        const thisArg = getThisArg();
+        return makeAsyncNode(thisArg, powers, {
+          sendMode,
+          thisNode: node,
+          boundName: propertyKey,
+        });
+      },
+      has: (_target, _p) => {
+        // We just pretend everything exists.
+        return true;
+      },
+      set(target, propertyKey, value, receiver) {
+        if (receiver !== node) {
+          HandledPromise.reject(
+            makeError(
+              X`Unexpected receiver ${receiver} for set ${propertyKey}`,
+              TypeError,
+            ),
+          );
+          return false;
+        }
+        if (shadowMethods.has(propertyKey)) {
+          return false;
+        }
+        if (!Reflect.set(target, propertyKey, value)) {
+          return false;
+        }
+        HandledPromise[maybeSO('set')](getThisArg(), propertyKey, value);
+        return true;
+      },
+    }),
+  );
+
+  return node;
+};
+
+/**
+ * @template [A={}]
+ * @param {HandledPromiseConstructor} HandledPromise
+ * @param {object} [powers]
+ * @param {<T>(x: T) => Promise<EUnwrap<T>>} [powers.unwrap]
+ * @param {(x: any) => any} [powers.finishTarget]
+ * @param {Map<PropertyKey, Callable>} [powers.shadowMethods]
+ * @param {A} [powers.additional]
+ */
+const makeE = (HandledPromise, powers = {}) => {
+  const {
+    additional = /** @type {A} */ ({}),
+    shadowMethods = new Map(
+      ['then', 'catch', 'finally'].map(prop => [prop, Promise.prototype[prop]]),
+    ),
+    unwrap = /** @type {NonNullable<typeof powers.unwrap>} */ (
+      HandledPromise.resolve
+    ),
+    finishTarget = defaultFinishTarget,
+  } = powers;
+
+  const asyncPowers = { HandledPromise, finishTarget, shadowMethods, unwrap };
+
+  const E = harden(
     assign(
       /**
-       * E(x) returns a proxy on which you can call arbitrary methods. Each of these
-       * method calls returns a promise. The method will be invoked on whatever
-       * 'x' designates (or resolves to) in a future turn, not this one.
+       * E(x) lifts `x` into a future turn as a thenable proxy you can call as a
+       * function or get arbitrary subproperties. The result of `E(x)(...args)`
+       * is `E((await x)(...args))`, and a property reference `E(x)[prop]` is
+       * `E((await x)[prop])`. arbitrary methods.  To lower `E(x)` into just
+       * `x`, simply `await E(x)`. To simplify unnecessary nesting, `E(E(x))` is
+       * exactly the same as just `E(x)`.
        *
-       * An example call would be
+       * Example calls are
        *
-       * E(zoe).install(bundle)
-       *   .then(installationHandle => { ... })
-       *   .catch(err => { ... });
+       * @example
+       *  // Send a contract bundle to Zoe for installation.
+       *  const installationHandle = await E(zoe).install(bundle);
        *
-       *  See https://endojs.github.io/endo/functions/_endo_far.E.html for details.
+       *  // Look up some of our friends, and interact with them.
+       *  const { alice, bob } = E(friends).getDetails();
+       *  // It's only `await`s that yield the current turn.
+       *  const [a, b] = await Promise.all([
+       *    alice.greet('hello, alice!'),
+       *    bob.give(redSweater),
+       *  ]);
+       *
+       * See https://endojs.github.io/endo/functions/_endo_far.E.html for
+       * details.
        *
        * @template T
        * @param {T} x target for method/function call
-       * @returns {ECallableOrMethods<RemoteFunctions<T>>} method/function call proxy
+       * @returns {AsyncNode<T>} thenable, function call, and getters proxy
        */
-      // @ts-expect-error XXX typedef
-      x => new Proxy(funcTarget, makeEProxyHandler(x, HandledPromise)),
+      x => makeAsyncNode(x, asyncPowers),
       {
         /**
+         * @deprecated Just use E(x)
          * E.get(x) returns a proxy on which you can get arbitrary properties.
          * Each of these properties returns a promise for the property.  The promise
          * value will be the property fetched from whatever 'x' designates (or
@@ -219,11 +302,10 @@ const makeE = HandledPromise => {
          *
          * @template T
          * @param {T} x target for property get
-         * @returns {EGetters<LocalRecord<T>>} property get proxy
+         * @returns {AsyncNode<T>} thenable, function call, and getters proxy
          * @readonly
          */
-        // @ts-expect-error XXX typedef
-        get: x => new Proxy(objTarget, makeEGetProxyHandler(x, HandledPromise)),
+        get: x => E(x),
 
         /**
          * E.resolve(x) converts x to a handled promise. It is
@@ -234,20 +316,50 @@ const makeE = HandledPromise => {
          * @returns {Promise<Awaited<T>>} handled promise for x
          * @readonly
          */
-        resolve: HandledPromise.resolve,
+        resolve: x => HandledPromise.resolve(x),
 
         /**
+         * @deprecated Instead of `E.sendOnly(x)...`, use `void E(x)[E].SendOnly...`
+         *
          * E.sendOnly returns a proxy similar to E, but for which the results
          * are ignored (undefined is returned).
          *
          * @template T
          * @param {T} x target for method/function call
-         * @returns {ESendOnlyCallableOrMethods<RemoteFunctions<T>>} method/function call proxy
+         * @returns {AsyncNode<T, true>} thenable, function call, and getters proxy
          * @readonly
          */
-        sendOnly: x =>
-          // @ts-expect-error XXX typedef
-          new Proxy(funcTarget, makeESendOnlyProxyHandler(x, HandledPromise)),
+        sendOnly: x => E(x)[AsyncControl].SendOnly,
+
+        /**
+         * Explicitly escape into the E control space.  Prefer just `[E]` for
+         * brevity.
+         *
+         * @example
+         *  E(x)[E.Control]...
+         *
+         *  // Shorthand:
+         *  E(x)[E]...
+         * @type {typeof AsyncControl}
+         * @readonly
+         */
+        Control: AsyncControl,
+
+        /**
+         * Eventual sendOnly (return Promise<void>, which settles as soon as the
+         * operations are queued).
+         *
+         * @example
+         *  // Pipeline the messages, but don't wait for response delays.
+         *  await E(x)[E].SendOnly.sayHello().andDontCallBack(...args);
+         *
+         *  // Synchronous analogy:
+         *  void x.sayHello().andDontCallBack(...args);
+         * @readonly
+         */
+        [Symbol.toPrimitive]() {
+          return E.Control;
+        },
 
         /**
          * E.when(x, res, rej) is equivalent to
@@ -266,8 +378,10 @@ const makeE = HandledPromise => {
             ...trackTurns([onfulfilled, onrejected]),
           ),
       },
+      additional,
     ),
   );
+  return E;
 };
 
 export default makeE;
@@ -305,7 +419,7 @@ export default makeE;
 
 /**
  * The awaited return type of a function.
- * For the eventual result of an E call, @see {EResult} or @see {ECallableReturn}
+ * For the eventual result of an E call, \@see {EResult} or \@see {ECallableReturn}
  *
  * @template {(...args: any[]) => any} T
  * @typedef {T extends (...args: any[]) => infer R ? Awaited<R> : never} EReturn
@@ -338,7 +452,7 @@ export default makeE;
  */
 
 /**
- * The @see {EResult} return type of a remote function.
+ * The \@see {EResult} return type of a remote function.
  *
  * @template {(...args: any[]) => any} T
  * @typedef {(
@@ -498,4 +612,60 @@ export default makeE;
  *       }
  *     : T
  * )} EOnly
+ */
+
+/**
+ * @template T,U
+ * @template {boolean} [SendOnly=false]
+ * @typedef {T extends { (...args: infer P): infer R; } ?
+ *   { (...args: P): AsyncNode<EUnwrap<R>, SendOnly>; } :
+ *   U
+ * } AsyncCallable ensure that all callables are async
+ */
+
+/**
+ * @template T
+ * @template {boolean} [SendOnly=false]
+ * @typedef { { [K in keyof T]: AsyncCallable<T[K], AsyncNode<Awaited<T[K]>, SendOnly>, SendOnly> } } AsyncShallow
+ */
+
+/**
+ * @template T
+ * @template {boolean} [SendOnly=false]
+ * @typedef {bigint extends T ? AsyncShallow<BigIntConstructor['prototype'], SendOnly> :
+ *   string extends T ? AsyncShallow<StringConstructor['prototype'], SendOnly> :
+ *   boolean extends T ? AsyncShallow<BooleanConstructor['prototype'], SendOnly> :
+ *   number extends T ? AsyncShallow<NumberConstructor['prototype'], SendOnly> :
+ *   symbol extends T ? AsyncShallow<SymbolConstructor['prototype'], SendOnly> :
+ *   {}
+ * } AsyncPrimitive Primitives need to be explicitly handled or else their
+ * prototype methods aren't asyncified.
+ */
+
+/**
+ * @template T
+ * @template {boolean} [SendOnly=false]
+ * @typedef {Omit<AsyncNode<T, SendOnly>, typeof AsyncControl | 'SendOnly' | 'OptChain' | 'catch' | 'then' | 'finally'> &
+ *   { SendOnly: AsyncNode<T, true>;
+ *     OptChain: T extends undefined ? AsyncNode<T, true> : T extends null ? AsyncNode<T, true> : AsyncNode<T, SendOnly>;
+ *     [AsyncControl]: T extends { [AsyncControl]: infer U } ? AsyncNode<U, SendOnly> : never;
+ *     catch: T extends { catch: infer U } ? AsyncNode<U, SendOnly>: never;
+ *     finally: T extends { finally: infer U } ? AsyncNode<U, SendOnly> : never;
+ *     then: T extends { then: infer U } ? AsyncNode<U, SendOnly> : never;
+ * }} AsyncControl
+ */
+
+/**
+ * @template [T=any]
+ * @template {boolean} [SendOnly=false]
+ * @typedef {Promise<SendOnly extends true ? void : EUnwrap<T>> &
+ *  AsyncCallable<T, {}, SendOnly> & AsyncShallow<T, SendOnly> &
+ *  AsyncPrimitive<T, SendOnly>} AsyncNode A node is a wrapper for an object on
+ *  which operations can be:
+ * - `.then, .catch, .finally` act on either
+ *   - `Promise<void>` if SendOnly, settled when the operation producing this
+ *     node was sent, or
+ *   - `Promise<T>` settled with the operation result after the round trip
+ * - all other ProxyHandler operations are queued on the future settlement of
+ *   this node
  */

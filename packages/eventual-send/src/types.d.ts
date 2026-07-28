@@ -12,6 +12,10 @@ export type * from './handled-promise.js';
 // @ts-ignore TS1383: Only named exports may use 'export type'.
 export type * from './track-turns.js';
 
+// Defaults for E.js implementation //////////////////////////////////
+
+export type EUnwrap<T> = Awaited<T>;
+
 // Utility Types /////////////////////////////////////////////////////
 //
 //   Types exposed to modules.
