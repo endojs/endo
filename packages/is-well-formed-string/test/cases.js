@@ -30,6 +30,10 @@ export const cases = [
   ['a number', 42, false],
   ['undefined', undefined, false],
   ['null', null, false],
-  ['an object that coerces to a well-formed string', { toString: () => 'ok' }, false],
+  [
+    'an object that coerces to a well-formed string',
+    { toString: () => 'ok' },
+    false,
+  ],
   ['an array that coerces to a well-formed string', ['ok'], false],
 ];

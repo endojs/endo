@@ -675,16 +675,6 @@ export const readBignum = reader => {
 harden(readBignum);
 
 /**
- * Consumes a `null` if that is what comes next, and reports whether it did.
- *
- * Reports `false` rather than throwing at end of input: a trailing optional
- * that is simply absent is the ordinary case, and keeping it distinct from a
- * malformed head is the point of a probe.
- *
- * @param {CborReader} reader
- * @returns {boolean}
- */
-/**
  * Consumes an `undefined` if that is what comes next, and reports whether it
  * did. The counterpart of `writeUndefined`, so a caller need not reach past this
  * surface to raw `readHead` to recognize a value this package can write.
@@ -720,6 +710,16 @@ export const readNull = reader => {
 };
 harden(readNull);
 
+/**
+ * Consumes a `null` if that is what comes next, and reports whether it did.
+ *
+ * Reports `false` rather than throwing at end of input: a trailing optional
+ * that is simply absent is the ordinary case, and keeping it distinct from a
+ * malformed head is the point of a probe.
+ *
+ * @param {CborReader} reader
+ * @returns {boolean}
+ */
 export const readOptionalNull = reader => {
   if (reader.index >= reader.bytes.length) return false;
   const head = peekHead(reader);

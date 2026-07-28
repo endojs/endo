@@ -232,7 +232,9 @@ test('head arguments span the full unsigned 64-bit range', t => {
   const writer = makeCborWriter();
   writeUint(writer, 2n ** 64n - 1n);
   t.is(bytesToHex(cborWriterBytes(writer)), '1bffffffffffffffff');
-  const reader = makeCborReader(bytesFromHex('1bffffffffffffffff'), { name: 'max' });
+  const reader = makeCborReader(bytesFromHex('1bffffffffffffffff'), {
+    name: 'max',
+  });
   t.is(readUint(reader), 2n ** 64n - 1n);
   assertConsumed(reader);
 
@@ -323,7 +325,8 @@ test('readers are strict, with no lenient mode to opt into', t => {
   );
   // Non-minimal bignum payload: c24100 has a leading zero byte.
   t.throws(
-    () => readBignum(makeCborReader(bytesFromHex('c24100'), { name: 'strict' })),
+    () =>
+      readBignum(makeCborReader(bytesFromHex('c24100'), { name: 'strict' })),
     { message: /Non-minimal bignum payload/ },
     'a non-minimal bignum payload is rejected',
   );
@@ -344,7 +347,9 @@ test('readers are strict, with no lenient mode to opt into', t => {
 test('non-canonical NaN is rejected', t => {
   t.throws(
     () =>
-      readFloat64(makeCborReader(bytesFromHex('fb7ff0000000000001'), { name: 'nan' })),
+      readFloat64(
+        makeCborReader(bytesFromHex('fb7ff0000000000001'), { name: 'nan' }),
+      ),
     { message: /Non-canonical NaN.*index 1 of nan/ },
   );
   // Every NaN a caller writes comes back as the one canonical pattern.
@@ -367,26 +372,36 @@ test('indefinite-length and reserved additional-info are rejected', t => {
 test('truncation and trailing bytes are rejected', t => {
   // Truncated head (4-byte argument, only 2 bytes present); the read fails at
   // the extension bytes, one past the initial byte.
-  t.throws(() => readUint(makeCborReader(bytesFromHex('1a0000'), { name: 'head' })), {
-    message: /Unexpected end of CBOR input.*index 1 of head/,
-  });
+  t.throws(
+    () => readUint(makeCborReader(bytesFromHex('1a0000'), { name: 'head' })),
+    {
+      message: /Unexpected end of CBOR input.*index 1 of head/,
+    },
+  );
   // Truncated payload (byte string claims 3 bytes, only 1 present).
   t.throws(
-    () => readByteString(makeCborReader(bytesFromHex('4301'), { name: 'payload' })),
+    () =>
+      readByteString(makeCborReader(bytesFromHex('4301'), { name: 'payload' })),
     { message: /index 1 of payload/ },
   );
   // Trailing bytes after a complete item.
   t.throws(
-    () => assertConsumed(makeCborReader(bytesFromHex('0001'), { name: 'trailing' })),
+    () =>
+      assertConsumed(
+        makeCborReader(bytesFromHex('0001'), { name: 'trailing' }),
+      ),
     { message: /Unexpected trailing CBOR bytes.*index 0 of trailing/ },
   );
 });
 
 test('rejections identify reader offsets', t => {
   for (const value of ['1f', '1c', '1a0000', '4301'])
-    t.throws(() => readUint(makeCborReader(bytesFromHex(value), { name: 'bad' })), {
-      message: /index .* of bad/,
-    });
+    t.throws(
+      () => readUint(makeCborReader(bytesFromHex(value), { name: 'bad' })),
+      {
+        message: /index .* of bad/,
+      },
+    );
 });
 
 test('writeTextString rejects non-well-formed strings', t => {
@@ -403,7 +418,8 @@ test('writeTextString rejects non-well-formed strings', t => {
 test('readTextString rejects invalid UTF-8', t => {
   // 0x61 0xff: a one-byte length head over a byte that starts no UTF-8 sequence.
   t.throws(
-    () => readTextString(makeCborReader(bytesFromHex('61ff'), { name: 'utf8' })),
+    () =>
+      readTextString(makeCborReader(bytesFromHex('61ff'), { name: 'utf8' })),
     { message: /Invalid UTF-8 text string.*index 0 of utf8/ },
   );
 });
@@ -448,14 +464,20 @@ test('readHead rejects major-7 heads outside the canonical subset', t => {
     );
   }
   // f820: a well-formed but unassigned simple value, still outside this subset.
-  t.throws(() => readHead(makeCborReader(bytesFromHex('f820'), { name: 'simple' })), {
-    message: /Unassigned simple value 32/,
-  });
+  t.throws(
+    () => readHead(makeCborReader(bytesFromHex('f820'), { name: 'simple' })),
+    {
+      message: /Unassigned simple value 32/,
+    },
+  );
   // float16 and float32 heads: well-formed CBOR, but this subset is
   // float64-only, and the head layer must agree with `readFloat64` about that.
-  t.throws(() => readHead(makeCborReader(bytesFromHex('f97e00'), { name: 'f16' })), {
-    message: /Unsupported float16/,
-  });
+  t.throws(
+    () => readHead(makeCborReader(bytesFromHex('f97e00'), { name: 'f16' })),
+    {
+      message: /Unsupported float16/,
+    },
+  );
   t.throws(
     () => readHead(makeCborReader(bytesFromHex('fa7fc00000'), { name: 'f32' })),
     { message: /Unsupported float32/ },
@@ -484,14 +506,19 @@ test('a failed peek leaves the cursor exactly where it found it', t => {
 });
 
 test('readBoolean names the construct that actually arrived', t => {
-  t.throws(() => readBoolean(makeCborReader(bytesFromHex('f6'), { name: 'b' })), {
-    message: /Expected boolean, got simple value 22/,
-  });
+  t.throws(
+    () => readBoolean(makeCborReader(bytesFromHex('f6'), { name: 'b' })),
+    {
+      message: /Expected boolean, got simple value 22/,
+    },
+  );
   // A float64 head reaching the boolean fallthrough must not be reported as a
   // "simple value" carrying its 64-bit payload.
   t.throws(
     () =>
-      readBoolean(makeCborReader(bytesFromHex('fb3ff0000000000000'), { name: 'b' })),
+      readBoolean(
+        makeCborReader(bytesFromHex('fb3ff0000000000000'), { name: 'b' }),
+      ),
     { message: /Expected boolean, got float64/ },
   );
 });
