@@ -42,6 +42,12 @@ This file provides conventions and constraints for AI agents working in this rep
 - Use `q()` to safely quote values in error messages.
 - Use tagged template errors where appropriate:
   `throw makeError(X\`No formula for ${ref}\`)`.
+- Name an assertion helper `assertXxx`, never `insistXxx`.
+  "Insist" belongs to an older vocabulary; here the vocabulary is `assert` and
+  `Fail` from `@endo/errors`.
+  Reaching for the name `insistFoo` is a reliable signal that what you want is
+  an `assertFoo` built on `@endo/errors` — usually the one-line
+  `condition || Fail\`...\`` form.
 
 ## TypeScript usage
 
@@ -137,6 +143,31 @@ When writing `ThisType<>` annotations in `types-index.d.ts`:
 Never mix `self` and `facets` in the same context type.
 
 ## Code style
+
+### Numeric domain
+
+- Choose the type that matches the domain, not the one that is cheapest to type.
+  For a quantity constrained to natural numbers, use `bigint` unless the range
+  genuinely fits in four bytes — an array index, a byte length, an element count,
+  a tag number — in which case `number` is exact and honest.
+- `Number.isSafeInteger` guards and int53 arithmetic are an aberration of
+  JavaScript, not a fact about the domain being modeled.
+  A safe-integer range check on a value whose real domain is wider (a 64-bit wire
+  argument, say) advertises the language's limitation as if it were the
+  protocol's, and silently truncates at 2**53 rather than failing.
+- Do not decompose a wide integer with `Math.floor(x / 0x100)`.
+  That is neither idiom it resembles: if the value needs more than 32 bits it is
+  a `bigint` and shifts (`>> 8n`) express the intent directly; if it fits in 32
+  bits, bitwise operators (`>>> 8`) do.
+  The asm.js integer-coercion idiom is `x | 0`, not `Math.floor`, and it is not
+  what wide-integer decomposition wants either.
+- Substantiate a numeric-representation choice made for speed with a benchmark.
+  Absent evidence, prefer the clearer expression; an unmeasured
+  micro-optimization is a cost with no demonstrated benefit.
+- Prefer expressing a narrow range as a TypeScript JSDoc type over a defensive
+  runtime check inside a package.
+  We only need strong runtime safety at the Exo boundary and at a parser's input
+  edge, where the values genuinely arrive untyped.
 
 ### Imports
 
