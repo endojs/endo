@@ -10,9 +10,10 @@ subset is not re-implemented per consumer.
 `@endo/cbor` is deliberately **not**:
 
 - a reflective value codec (there is no `encode(anyValue)` / `decode(bytes)`);
-- a framing package — that is [`@endo/cbor-frame`](../cbor-frame/README.md), which
-  frames a stream of length-prefixed byte strings while this package encodes the
-  bytes inside a frame;
+- a framing package — that is `@endo/cbor-frame`, a later phase of
+  [`designs/cbor-codec.md`](../../designs/cbor-codec.md), which frames a stream of
+  length-prefixed byte strings while this package encodes the bytes inside a
+  frame;
 - an OCapN codec — record labels, selectors, structure-validation stacks, and the
   `OcapnReader` / `OcapnWriter` interface stay in `packages/ocapn` as a consuming
   adapter.
