@@ -1331,19 +1331,13 @@ test('GitRemote.push pins the force-with-lease OID domain', async t => {
   const oid = '0123456789abcdef0123456789abcdef01234567';
 
   // The length boundary either side, plus the non-string and empty cases.
-  for (const rejected of [
-    oid.slice(0, 39),
-    `${oid}0`,
-    '',
-    null,
-    42,
-    {},
-    [oid],
-  ]) {
-    await t.throwsAsync(push(rejected), {
-      message: /40-character hexadecimal object ID/,
-    });
-  }
+  await Promise.all(
+    [oid.slice(0, 39), `${oid}0`, '', null, 42, {}, [oid]].map(rejected =>
+      t.throwsAsync(push(rejected), {
+        message: /40-character hexadecimal object ID/,
+      }),
+    ),
+  );
 
   // Git reads a null-OID lease as "expect this ref NOT to exist" — create-only
   // rather than guard-an-update, inverting what the option publishes. An agent

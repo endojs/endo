@@ -96,11 +96,13 @@ test('remotePush rejects a malformed force-with-lease before transport', async t
   // without the policy layer above it, so these branches are the boundary a
   // direct caller meets. Each is unreachable from the exo and therefore has no
   // other test standing behind it.
-  for (const notARecord of ['a string', 42, true, [], [LEASE_OID]]) {
-    await t.throwsAsync(push(notARecord), {
-      message: /forceWithLease must be a record/,
-    });
-  }
+  await Promise.all(
+    ['a string', 42, true, [], [LEASE_OID]].map(notARecord =>
+      t.throwsAsync(push(notARecord), {
+        message: /forceWithLease must be a record/,
+      }),
+    ),
+  );
   await t.throwsAsync(push(null), {
     message: /forceWithLease must be a record/,
   });
@@ -117,18 +119,20 @@ test('remotePush rejects a malformed force-with-lease before transport', async t
   });
 
   // The OID length boundary, either side, plus a non-hex digit.
-  for (const badOid of [
-    LEASE_OID.slice(0, 39),
-    `${LEASE_OID}0`,
-    LEASE_OID.replace(/.$/u, 'g'),
-  ]) {
-    await t.throwsAsync(
-      push({ ref: 'refs/heads/topic', expectedOid: badOid }),
-      {
-        message: /40-character hexadecimal object ID/,
-      },
-    );
-  }
+  await Promise.all(
+    [
+      LEASE_OID.slice(0, 39),
+      `${LEASE_OID}0`,
+      LEASE_OID.replace(/.$/u, 'g'),
+    ].map(badOid =>
+      t.throwsAsync(
+        push({ ref: 'refs/heads/topic', expectedOid: badOid }),
+        {
+          message: /40-character hexadecimal object ID/,
+        },
+      ),
+    ),
+  );
 
   // Git reads a null-OID lease as "expect this ref NOT to exist" — create-only,
   // the inverse of the option's meaning. The schema, the exo, and this backend
