@@ -135,7 +135,7 @@ export const writeFloat64 = (writer, x) => { ... };     // canonical NaN
 export const writeBignum = (writer, bigint) => { ... }; // tags 2/3
 
 // Reader state over a Uint8Array.
-export const makeCborReader = (bytes, opts = {}) => { ... }; // { name?, strict? }
+export const makeCborReader = (bytes, opts = {}) => { ... }; // { name? }
 export const readHead = reader => { ... };              // -> { major, value }
 export const peekHead = reader => { ... };              // no advance
 export const readUint = reader => { ... };
@@ -159,17 +159,26 @@ diagnostic convention (`... at index N of <name>`).
 
 ### Number domain
 
-Head arguments are JavaScript **numbers**, guarded by
-`Number.isSafeInteger`. This matches the slots implementation
-exactly. The ocapn decoder currently reads arguments as bigints and
-converts to `Number` at every use site; in practice every argument it
-handles (byte lengths capped by message-size limits, tag numbers up
-to 55799) fits comfortably in a number, and OCapN integers themselves
-travel as tag-2/3 bignums whose *payload* is a byte string, decoded
-by `readBignum` into a bigint. An 8-byte head whose value exceeds
-`Number.MAX_SAFE_INTEGER` throws a clear range error, exactly as the
-slots reader does today. Bignum values (`writeBignum`, `readBignum`)
-are bigints.
+*Amended per maintainer review of endojs/endo-but-for-bots#755: the
+original draft of this section put head arguments in the number
+domain behind a `Number.isSafeInteger` guard. Safe integers in the
+int53 range are an aberration of JavaScript, not a fact about the
+CBOR domain, so that guard advertised the language's limitation as if
+it were the protocol's.*
+
+Head arguments are **bigints**, spanning the full unsigned 64-bit
+range a CBOR head can carry (`writeHead`, `writeUint`, `writeInt`,
+`readHead`, `readUint`, `readInt`). Bignum values (`writeBignum`,
+`readBignum`) are unbounded bigints. Working in bigint also removes
+the `Math.floor(value / 0x100…)` decomposition the int53
+representation forced on the writer: an eight-byte argument is
+emitted with ordinary bigint shifts.
+
+**Counts stay in the number domain**, because their range genuinely
+is limited to four bytes: byte-string and text-string byte lengths,
+array and map element counts, and tag numbers are all capped by
+JavaScript itself at `2**32 - 1`. A reader that meets a well-formed
+but wider length head rejects it rather than truncating.
 
 ### Canonicality posture
 
@@ -327,13 +336,18 @@ slots package can adopt `@endo/cbor` before merge and shed its
    surface and the style native to this repository; ocapn's
    `CborWriter` / `CborReader` classes survive as adapters that
    implement OCapN's interface atop the primitives.
-4. **Number-domain heads, bigint bignums.** Safe-integer heads match
-   slots and every real ocapn argument; bigints appear exactly where
-   CBOR itself goes arbitrary-precision (tags 2/3).
-5. **Canonical writers, optionally-strict readers.** Byte identity
-   with Rust and signature stability demand canonical writes;
-   tolerant reads preserve today's observable behavior, with `strict`
-   available where verification wants it.
+4. **Bigint heads, number counts.** A head argument's domain is the
+   full uint64 range, which only `bigint` represents; counts are
+   bounded to four bytes by JavaScript itself, so `number` is exact
+   and honest there. Superseded the original "safe-integer heads"
+   choice on maintainer review (see *Number domain*).
+5. **Canonical writers, strict readers, no lenient mode.** Byte
+   identity with Rust and signature stability demand canonical
+   writes. Reads are strict with no opt-out: every implementation of
+   this subset is required to use the strict, canonical subset
+   (maintainer review of endojs/endo-but-for-bots#755), so tolerating
+   a non-canonical encoding would only launder a peer's bug into this
+   side's byte-identity contract.
 6. **Own buffer state rather than extracting syrup's
    `BufferWriter` / `BufferReader`.** Keeps the package
    dependency-light and the migration surface small; a generic
