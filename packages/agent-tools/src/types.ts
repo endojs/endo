@@ -1,6 +1,8 @@
 import type { ERef } from '@endo/eventual-send';
 import type { Filesystem } from '@endo/platform/fs/extended';
 import type {
+  EndoGit,
+  GitRef,
   GitRemote,
   WritableEndoGit,
   WritableGitWorktree,
@@ -248,3 +250,72 @@ export type HttpResponseView = HttpResponse;
 export declare function makeHttpTool(
   httpCap: ERef<HttpToolCapability>,
 ): ToolRecord[];
+
+/**
+ * The `Git` slice a workspace catalog composes: the JSON-safe tool methods
+ * ({@link GitToolCapability}) plus the mount-bridged `status` / `add` / worktree
+ * methods ({@link GitMountToolCapability}). One granted `Git` supplies both the
+ * versioning tools and — through its `worktree` mount — the file tools.
+ */
+export type WorkspaceGitCapability = GitToolCapability & GitMountToolCapability;
+
+/**
+ * The capabilities a synchronous workspace catalog is composed from. Every
+ * field is optional: a tool group is present in the catalog only when its
+ * backing capability is granted (daemon-agent-tools § Granting and
+ * Provisioning, conditional composition).
+ */
+export interface WorkspaceGrants {
+  /** Content layer: the mount `Filesystem` the file tools operate on. */
+  filesystem?: ERef<Filesystem>;
+  /**
+   * Versioning layer: the granted `Git`. Its formula-owned commit identity
+   * (captured at `provideGit` construction) attributes every commit; the
+   * catalog never re-states it.
+   */
+  git?: ERef<WorkspaceGitCapability>;
+  /** Network + credential layer: the granted `GitRemote` push tier. */
+  remote?: ERef<GitRemoteToolCapability>;
+  /** Command layer: the granted `Shell`. */
+  shell?: ERef<ShellToolCapability>;
+  /** Drop the file-tool write slice; forwarded to `makeMountFsTools`. */
+  readOnly?: boolean;
+  /** Read-tool truncation limit; forwarded to `makeMountFsTools`. */
+  maxChars?: number;
+  /** Advisory shell-tool veto policy; forwarded to `makeShellTool`. */
+  shellOptions?: ShellToolOptions;
+}
+
+export declare function makeWorkspaceTools(
+  grants?: WorkspaceGrants,
+): ToolRecord[];
+
+/**
+ * Like {@link WorkspaceGrants} but the `Filesystem` is optional even when a
+ * `Git` is granted: when omitted it is derived from the granted `Git`'s
+ * worktree mount, so a single `Git` grant yields both the file tools and the
+ * versioning tools over the same worktree.
+ */
+export interface ProvisionWorkspaceGrants extends Omit<WorkspaceGrants, 'git'> {
+  git?: ERef<WorkspaceGitCapability & Pick<EndoGit, 'worktree'>>;
+}
+
+export declare function provisionWorkspaceTools(
+  grants?: ProvisionWorkspaceGrants,
+): Promise<ToolRecord[]>;
+
+/**
+ * Grant for {@link provisionHistoryTools}: a `Git` (used only for its
+ * `filesystemAt` historical-read projection) and the ref to view.
+ */
+export interface HistoryToolsGrant {
+  git: ERef<Pick<EndoGit, 'filesystemAt'>>;
+  /** The ref to project as a read-only filesystem (`HEAD~1`, a branch, …). */
+  ref: GitRef | string;
+  /** Read-tool truncation limit; forwarded to `makeMountFsTools`. */
+  maxChars?: number;
+}
+
+export declare function provisionHistoryTools(
+  grant: HistoryToolsGrant,
+): Promise<ToolRecord[]>;

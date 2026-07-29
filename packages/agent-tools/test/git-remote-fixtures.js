@@ -22,12 +22,17 @@ const execFileAsync = promisify(execFile);
  * plane, and `makeGit` mints the exo `Git` capability over the pair.
  *
  * @param {string} root absolute path to a git working tree
+ * @param {object} [options]
+ * @param {{ authorName: string, authorEmail: string }} [options.identity] The
+ *   formula-owned commit identity to thread into the native backend, mirroring
+ *   `provideGit`'s `{ identity }` construction option. Omitted, the backend
+ *   falls back to its default `Endo <endo@invalid.local>` attribution.
  * @returns {Promise<{ git: WritableEndoGit, mount: ReturnType<typeof makeMount>, root: string }>}
  */
-export const composeGitOverWorktree = async root => {
+export const composeGitOverWorktree = async (root, { identity } = {}) => {
   const filePowers = makeFilePowers({ fs, path });
   const mount = makeMount({ rootPath: root, readOnly: false, filePowers });
-  const backend = makeNativeGitBackend({ repoRoot: root });
+  const backend = makeNativeGitBackend({ repoRoot: root, identity });
   await backend.assertRepositoryRoot();
   const git = makeGit({ mount, backend, lineageOf });
   return { git, mount, root };

@@ -12,3 +12,8 @@ export {
 } from './src/json-tools/fs.js';
 export { makeShellTool } from './src/json-tools/shell.js';
 export { makeHttpTool } from './src/json-tools/http.js';
+export {
+  makeWorkspaceTools,
+  provisionWorkspaceTools,
+  provisionHistoryTools,
+} from './src/workspace.js';

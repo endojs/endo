@@ -1240,6 +1240,7 @@ __metadata:
     "@endo/exo-shell": "workspace:^"
     "@endo/far": "workspace:^"
     "@endo/git": "workspace:^"
+    "@endo/host-spawner": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/marshal": "workspace:^"
     "@endo/pass-style": "workspace:^"

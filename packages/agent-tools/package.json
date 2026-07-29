@@ -29,6 +29,10 @@
       "types": "./tool.d.ts",
       "default": "./src/tool.js"
     },
+    "./workspace.js": {
+      "types": "./src/workspace.d.ts",
+      "default": "./src/workspace.js"
+    },
     "./json-tools/git.js": {
       "types": "./src/json-tools/git.d.ts",
       "default": "./src/json-tools/git.js"
@@ -135,6 +139,7 @@
     "@earendil-works/pi-ai": "^0.80.3",
     "@endo/daemon": "workspace:^",
     "@endo/git": "workspace:^",
+    "@endo/host-spawner": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ajv": "^8.17.1",
