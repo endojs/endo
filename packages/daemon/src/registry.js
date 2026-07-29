@@ -137,7 +137,12 @@ export const parseVersion = versionString => {
 };
 
 /**
- * Compare two prerelease identifier lists per semver §11.
+ * Compare two prerelease strings using contiguous digit and non-digit groups.
+ *
+ * Numeric groups compare numerically, while non-digit groups compare in
+ * lexical order. This retains every delimiter in the comparison rather than
+ * treating only dots as identifier boundaries, so prereleases like `rc-2`
+ * sort before `rc-10` as well as `rc.2` before `rc.10`.
  *
  * @param {string[]} a
  * @param {string[]} b
@@ -148,22 +153,24 @@ const comparePrerelease = (a, b) => {
   if (a.length === 0 && b.length === 0) return 0;
   if (a.length === 0) return 1;
   if (b.length === 0) return -1;
-  const length = Math.min(a.length, b.length);
+  const aParts = a.join('.').match(/\d+|\D+/g) ?? [];
+  const bParts = b.join('.').match(/\d+|\D+/g) ?? [];
+  const length = Math.min(aParts.length, bParts.length);
   for (let i = 0; i < length; i += 1) {
-    const ai = asNumericIdentifier(a[i]);
-    const bi = asNumericIdentifier(b[i]);
+    const ai = asNumericIdentifier(aParts[i]);
+    const bi = asNumericIdentifier(bParts[i]);
     if (ai !== undefined && bi !== undefined) {
       if (ai !== bi) return ai < bi ? -1 : 1;
     } else if (ai !== undefined) {
       return -1; // numeric identifiers have lower precedence than alphanumeric
     } else if (bi !== undefined) {
       return 1;
-    } else if (a[i] !== b[i]) {
-      return a[i] < b[i] ? -1 : 1;
+    } else if (aParts[i] !== bParts[i]) {
+      return aParts[i] < bParts[i] ? -1 : 1;
     }
   }
-  if (a.length === b.length) return 0;
-  return a.length < b.length ? -1 : 1;
+  if (aParts.length === bParts.length) return 0;
+  return aParts.length < bParts.length ? -1 : 1;
 };
 
 /**

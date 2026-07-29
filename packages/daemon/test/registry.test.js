@@ -108,6 +108,8 @@ test('semver: parse, compare, satisfies, minSatisfying', t => {
   const pv = s => /** @type {any} */ (parseVersion(s));
   t.is(compareVersions(pv('1.2.3'), pv('1.2.4')), -1);
   t.is(compareVersions(pv('2.0.0'), pv('1.9.9')), 1);
+  t.is(compareVersions(pv('1.0.0-rc-2'), pv('1.0.0-rc-10')), -1);
+  t.is(compareVersions(pv('1.0.0-rc.2'), pv('1.0.0-rc.10')), -1);
   t.true(satisfies('1.4.0', '^1.2.0'));
   t.false(satisfies('2.0.0', '^1.2.0'));
   t.true(satisfies('1.2.9', '~1.2.0'));
