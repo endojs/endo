@@ -1205,14 +1205,14 @@ export interface EndoMount extends PathEntryIssuer {
     options?: { maxResults?: number },
   ): Promise<Array<import('@endo/platform/fs/search.types').GrepMatch>>;
   /**
-   * Fused glob+grep: search the files matching `glob` for `grep`. The
-   * reference implementation composes the decoupled surface
-   * (`grep(grepPattern, glob(globPattern))`); a native powers layer may
-   * push both patterns down as one enumerate-and-scan pass.
+   * Fused glob+grep: search the files matching `globPattern` for
+   * `grepPattern`. The reference implementation composes the decoupled
+   * surface (`grep(grepPattern, glob(globPattern))`); a native powers layer
+   * may push both patterns down as one enumerate-and-scan pass.
    */
   glorp(
-    glob: string,
-    grep: string,
+    globPattern: string,
+    grepPattern: string,
     options?: { maxResults?: number },
   ): Promise<Array<import('@endo/platform/fs/search.types').GrepMatch>>;
   lookup(
