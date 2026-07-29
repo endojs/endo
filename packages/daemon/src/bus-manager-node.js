@@ -4,12 +4,12 @@
 // Establish a perimeter:
 import '@endo/init';
 
-import crypto from 'crypto';
-import net from 'net';
-import fs from 'fs';
-import fsp from 'fs/promises';
-import path from 'path';
-import url from 'url';
+import crypto from 'node:crypto';
+import net from 'node:net';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import path from 'node:path';
+import url from 'node:url';
 
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -18,6 +18,7 @@ import {
   makeFilePowers,
   makeNetworkPowers,
   makeCryptoPowers,
+  gunzip,
 } from './manager-node-powers.js';
 import { makeDaemonicBusPowers } from './bus-manager-node-powers.js';
 import {
@@ -55,6 +56,7 @@ const config = {
   statePath,
   ephemeralStatePath,
   cachePath,
+  registryUrl: process.env.ENDO_REGISTRY_URL || 'https://registry.npmjs.org',
 };
 
 const { pid } = process;
@@ -98,11 +100,17 @@ const sendEnvelope = async (handle, verb, payload, nonce) => {
 const networkPowers = makeNetworkPowers({ net, fsp });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
+const registryPowers = {
+  fetch: globalThis.fetch,
+  gunzip,
+  createHash: crypto.createHash,
+};
 const powers = makeDaemonicBusPowers({
   config,
   url,
   filePowers,
   cryptoPowers,
+  registryPowers,
   sendEnvelope,
   envelopeReadStream,
 });

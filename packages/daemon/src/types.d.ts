@@ -85,6 +85,7 @@ export type Config = {
   ephemeralStatePath: string;
   cachePath: string;
   sockPath: string;
+  registryUrl?: string;
 };
 
 export type Sha256 = {
@@ -192,6 +193,9 @@ export type HostFormula = {
   hostHandle: FormulaIdentifier;
   mainWorker: FormulaIdentifier;
   nodeWorker: FormulaIdentifier;
+  // Powers the `@registry` special name; required, mirroring `nodeWorker`
+  // (`@node`).  See designs/registry-capability.md § Host special name.
+  registry: FormulaIdentifier;
   inspector: FormulaIdentifier;
   petStore: FormulaIdentifier;
   mailboxStore: FormulaIdentifier;
@@ -261,6 +265,20 @@ export type ReadableTreeFormula = {
 
 export type ReadableTreeDeferredTaskParams = {
   readableTreeId: FormulaIdentifier;
+};
+
+// The `EndoRegistry` capability that backs the `@registry` special name.
+// The first cut carries only the configured registry URL; the backing
+// resolver table and tarball cache are process-local (rebuilt on
+// reincarnation) and delegate byte-level retention to the CAS.  See
+// designs/registry-capability.md.
+export type RegistryFormula = {
+  type: 'registry';
+  registryUrl: string;
+};
+
+export type RegistryDeferredTaskParams = {
+  registryId: FormulaIdentifier;
 };
 
 export type MountFormula = {
@@ -615,6 +633,7 @@ export type Formula =
   | EvalFormula
   | ReadableBlobFormula
   | ReadableTreeFormula
+  | RegistryFormula
   | MountFormula
   | ScratchMountFormula
   | GitFormula
@@ -2274,6 +2293,17 @@ export type DaemonicPowers = {
   persistence: DaemonicPersistencePowers;
   control: DaemonicControlPowers;
   filePowers: FilePowers;
+  registry: {
+    registryUrl: string;
+    makeRegistryBackend: (powers: {
+      contentStore: {
+        store: (readable: AsyncIterable<Uint8Array>) => Promise<string>;
+      };
+      makeReadableTree: (sha256: string) => unknown;
+      sha256Hex: (text: string) => string;
+      registryUrl: string;
+    }) => any;
+  };
 };
 
 export type FormulateResult<T> = Promise<{
@@ -2327,6 +2357,7 @@ type FormulateNumberedHostParams = {
   agentNodeNumber: NodeNumber;
   mainWorkerId: FormulaIdentifier;
   nodeWorkerId: FormulaIdentifier;
+  registryId: FormulaIdentifier;
   storeId: FormulaIdentifier;
   mailboxStoreId: FormulaIdentifier;
   mailHubId: FormulaIdentifier;

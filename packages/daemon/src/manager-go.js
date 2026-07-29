@@ -18,6 +18,7 @@ import {
   makeFilePowers,
   makeNetworkPowers,
   makeCryptoPowers,
+  gunzip,
 } from './manager-node-powers.js';
 import { makeDaemonicGoPowers } from './manager-go-powers.js';
 import {
@@ -28,7 +29,6 @@ import {
 } from './envelope.js';
 
 const fsp = { access: fs.promises.access };
-
 /** @import { PromiseKit } from '@endo/promise-kit' */
 /** @import { Config } from './types.js' */
 
@@ -59,6 +59,7 @@ const config = {
   statePath,
   ephemeralStatePath,
   cachePath,
+  registryUrl: process.env.ENDO_REGISTRY_URL || 'https://registry.npmjs.org',
 };
 
 const { pid } = process;
@@ -105,12 +106,18 @@ const { promise: cancelled, reject: cancel } =
 const networkPowers = makeNetworkPowers({ net, fsp });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
+const registryPowers = {
+  fetch: globalThis.fetch,
+  gunzip,
+  createHash: crypto.createHash,
+};
 const powers = await makeDaemonicGoPowers({
   config,
   cancelled,
   url,
   filePowers,
   cryptoPowers,
+  registryPowers,
   sendEnvelope,
   envelopeReadStream,
 });

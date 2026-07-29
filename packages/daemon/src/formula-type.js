@@ -34,6 +34,7 @@ const formulaTypes = new Set([
   'promise',
   'readable-blob',
   'readable-tree',
+  'registry',
   'resolver',
   'scratch-mount',
   'shell',

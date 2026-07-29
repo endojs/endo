@@ -774,6 +774,28 @@ export const ReadableTreeInterface = M.interface('EndoReadableTree', {
   sha256: M.call().returns(M.string()),
 });
 
+// `EndoRegistry` brokers npm-style package resolution and tarball fetch
+// against the content-addressed store, exposed on every host as the
+// `@registry` special name.  See designs/registry-capability.md.
+export const RegistryInterface = M.interface('EndoRegistry', {
+  help: M.call().optional(M.string()).returns(M.string()),
+  // resolve(packageJsonText, options?) -> RegistryResolution.  The entry
+  // package.json crosses the capability boundary as UTF-8/JSON text (a
+  // mutable Uint8Array is not Passable); callers holding bytes decode
+  // first.  A Passable immutable byte-array shape is a follow-up.
+  resolve: M.call(M.string())
+    .optional(
+      M.splitRecord({}, { offline: M.boolean(), workspaceRoot: M.any() }),
+    )
+    .returns(M.promise()),
+  // fetch(name, version) -> readable-tree capability for the package.
+  fetch: M.call(M.string(), M.string()).returns(M.promise()),
+  // lookup(name, version) -> readable-tree capability | undefined.
+  lookup: M.call(M.string(), M.string()).returns(M.promise()),
+  // list(prefix?) -> [{ name, version }].
+  list: M.call().optional(M.string()).returns(M.promise()),
+});
+
 export const DaemonFacetForWorkerInterface = M.interface(
   'EndoDaemonFacetForWorker',
   {

@@ -36,6 +36,7 @@ const ALL_FORMULA_TYPES = [
   'promise',
   'readable-blob',
   'readable-tree',
+  'registry',
   'resolver',
   'scratch-mount',
   'timer',

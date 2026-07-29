@@ -13,7 +13,7 @@ A JavaScript reference implementation of Go-like Minimum Version
 Selection (MVS) adapted to npm package versioning.
 The implementation walks a transitive dependency graph rooted at a
 `package.json`, fetches each transitively-required `package.json`
-from the configured registry, and selects the greatest mentioned
+from the configured registry, and selects the greatest required
 minor (and patch) per major.
 The output is a `RegistryResolution` consumed by the
 [registry-capability](registry-capability.md) layer.
@@ -84,8 +84,8 @@ This is the **algorithm layer** of the daemon-worker
 ## The MVS algorithm
 
 Go's MVS selects, for each transitively-required module, the
-greatest version mentioned anywhere in the dependency graph.
-For npm-style versioning, the rule adapts to "greatest mentioned
+greatest required version anywhere in the dependency graph.
+For npm-style versioning, the rule adapts to "greatest required
 minor (and patch) per major", because npm packages routinely
 declare incompatible majors and the Go assumption of one major
 per module does not hold.
@@ -236,7 +236,7 @@ ways:
 The first cut limits scope to MVS resolution from
 `package.json` alone and ignores any `package-lock.json` or
 `yarn.lock` present in the entry mount.
-MVS runs freely and produces the conservative "greatest mentioned
+MVS runs freely and produces the conservative "greatest required
 minor per major" result described in
 [endor-npm-registry-proxy](endor-npm-registry-proxy.md)
 § *Comparison with Go's MVS*; lockfile honoring is a follow-up
@@ -320,7 +320,7 @@ const resolve = async (packageJsonBytes, options = {}) => {
     const existing = resolved.get(name)?.get(major);
     let candidate;
     try {
-      candidate = await selectGreatestSatisfying(name, range, {
+      candidate = await selectLeastSatisfying(name, range, {
         table: registryTable,
         offline,
       });
@@ -356,8 +356,8 @@ const resolve = async (packageJsonBytes, options = {}) => {
 
 Notes on the sketch:
 
-- `selectGreatestSatisfying` consults the registry table for
-  published versions and picks the greatest that satisfies the
+- `selectLeastSatisfying` consults the registry table for
+  published versions and picks the least that satisfies the
   range, fetching the package's metadata from the registry when
   the table is cold.
   In `offline: true` mode, it consults only the table and rejects
@@ -395,8 +395,8 @@ The MVS-specific shape tests this design adds:
 
 - A small fixture with a transitively-required package whose
   range is widened by a deeper requirement (entry says `pkg@^1.0.0`,
-  transitive says `pkg@^1.2.0`); the resolution picks the
-  greatest `1.x` that satisfies both.
+  transitive says `pkg@^1.2.0`); the resolution picks `1.2.0`,
+  the greatest required `1.x` version.
 - A fixture where two importers require incompatible majors
   (entry says `pkg@^1`, transitive says `pkg@^2`); the resolution
   carries both majors as distinct `packagesByKey` entries.
@@ -485,7 +485,7 @@ The MVS-specific shape tests this design adds:
    for the Rust-side counterpart that defers the same lane.
 
 3. **One selection per `(name, major)`, not one per `name`.**
-   The "greatest mentioned minor per major" rule needs per-major
+   The "greatest required minor per major" rule needs per-major
    bookkeeping in the resolver state; the resolver tracks one
    selection per `(name, major)` pair throughout the walk.
    The output flattens to `packagesByKey` keyed by canonical

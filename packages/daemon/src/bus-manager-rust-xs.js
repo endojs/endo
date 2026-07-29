@@ -46,6 +46,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { mapWriter, mapReader, makePipe } from '@endo/stream';
 import { bytesFromText } from '@endo/bytes/from-string.js';
 import { bytesToText } from '@endo/bytes/to-string.js';
+import { makeError, X } from '@endo/errors';
 
 import { makeDaemon } from './manager.js';
 import { makeDaemonicPersistencePowers } from './manager-persistence-powers.js';
@@ -263,6 +264,8 @@ const sockPath = hostGetEnv('ENDO_SOCK_PATH') || '';
 const statePath = hostGetEnv('ENDO_STATE_PATH') || '';
 const ephemeralStatePath = hostGetEnv('ENDO_EPHEMERAL_STATE_PATH') || '';
 const cachePath = hostGetEnv('ENDO_CACHE_PATH') || '';
+const registryUrl =
+  hostGetEnv('ENDO_REGISTRY_URL') || 'https://registry.npmjs.org';
 
 /** @type {Config} */
 const config = harden({
@@ -270,6 +273,7 @@ const config = harden({
   statePath,
   ephemeralStatePath,
   cachePath,
+  registryUrl,
 });
 
 // ---------------------------------------------------------------------------
@@ -639,6 +643,23 @@ let shouldTerminate = false;
 /** @type {Awaited<ReturnType<typeof import('./manager.js').makeDaemon>> | null} */
 let _daemonResult = null;
 
+const makeRegistryUnavailablePowers = unavailableRegistryUrl => {
+  const unavailable = () => {
+    throw makeError(
+      X`registry: no registry transport is available on this platform`,
+    );
+  };
+  return harden({
+    registryUrl: unavailableRegistryUrl,
+    makeRegistryBackend: () => ({
+      fetchVersions: unavailable,
+      provideTree: unavailable,
+      readPackageJson: unavailable,
+      sha256Hex: unavailable,
+    }),
+  });
+};
+
 const main = async () => {
   const daemonLabel = `daemon[xs] on PID ${pid}`;
   hostTrace(`Endo daemon (xs) starting on PID ${pid}`);
@@ -666,6 +687,7 @@ const main = async () => {
     persistence: daemonicPersistencePowers,
     control: controlPowers,
     filePowers,
+    registry: makeRegistryUnavailablePowers(config.registryUrl),
   });
 
   const gcEnabled = hostGetEnv('ENDO_GC') === '1';

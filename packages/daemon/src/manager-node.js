@@ -21,11 +21,11 @@ import {
   makeNetworkPowers,
   makeDaemonicPowers,
   makeCryptoPowers,
+  gunzip,
 } from './manager-node-powers.js';
 import { startWsGateway } from './ws-gateway.js';
 
 const fsp = { access: fs.promises.access };
-
 /** @import { Config } from './types.js' */
 
 const args = process.argv.slice(2);
@@ -47,6 +47,7 @@ const config = {
   statePath,
   ephemeralStatePath,
   cachePath,
+  registryUrl: process.env.ENDO_REGISTRY_URL || 'https://registry.npmjs.org',
 };
 
 const { pid, kill } = process;
@@ -56,6 +57,11 @@ const { cancelled, cancel } = makeCancelKit();
 const networkPowers = makeNetworkPowers({ net, fsp });
 const filePowers = makeFilePowers({ fs, path });
 const cryptoPowers = makeCryptoPowers(crypto);
+const registryPowers = {
+  fetch: globalThis.fetch,
+  gunzip,
+  createHash: crypto.createHash,
+};
 
 /**
  * @param {string} [gatewayAddress]
@@ -137,6 +143,7 @@ const main = async () => {
     url,
     filePowers,
     cryptoPowers,
+    registryPowers,
   });
   const { persistence: daemonicPersistencePowers } = powers;
 

@@ -1,5 +1,6 @@
 // @ts-check
 /** @import { EndoGit, WritableGitWorktree } from '@endo/exo-git' */
+/** @import { RegistryFormula } from './types.js' */
 /* eslint-disable no-await-in-loop */
 /* global clearTimeout, process, setTimeout */
 
@@ -42,6 +43,7 @@ import {
   tarEndMarker,
 } from '@endo/tar/writer.js';
 import { checkinTarTree } from './tar-checkin.js';
+import { makeEndoRegistry, makeRegistryTable } from './registry.js';
 import { makeDirectoryMaker } from './directory.js';
 import { makeContentDataPlaneRegistry } from './content-data-plane.js';
 import { makeHttpContentDataPlane } from './http-content-plane.js';
@@ -463,6 +465,7 @@ const makeDaemonCore = async (
     persistence: persistencePowers,
     control: controlPowers,
     filePowers,
+    registry: registryPowers,
   } = powers;
   const { randomHex256, generateEd25519Keypair } = cryptoPowers;
   const contentStore = persistencePowers.makeContentStore();
@@ -690,6 +693,7 @@ const makeDaemonCore = async (
           ['hostHandle', formula.hostHandle],
           ['mainWorker', formula.mainWorker],
           ['nodeWorker', formula.nodeWorker],
+          ['registry', formula.registry],
           ['inspector', formula.inspector],
           ['petStore', formula.petStore],
           ['mailbox', formula.mailboxStore],
@@ -1886,6 +1890,43 @@ const makeDaemonCore = async (
         help: makeHelp(readableTreeHelp),
       }),
     );
+
+  /** The daemon's configured registry location. */
+  const registryDefaultUrl = registryPowers.registryUrl;
+
+  /**
+   * A content hash over arbitrary text, used to derive a
+   * `RegistryResolution`'s `resolutionHash`.
+   *
+   * @param {string} text
+   * @returns {string}
+   */
+  const registrySha256Hex = text => {
+    const digester = cryptoPowers.makeSha256();
+    digester.updateText(text);
+    return digester.digestHex();
+  };
+
+  /**
+   * Construct an `EndoRegistry` capability over the injected backend.
+   * Construction does no I/O;
+   * network access happens lazily on `resolve`/`fetch`, so incarnating the
+   * `@registry` slot never blocks daemon start.
+   *
+   * @param {string} registryUrl
+   */
+  const makeRegistry = registryUrl => {
+    const backend = registryPowers.makeRegistryBackend({
+      contentStore,
+      makeReadableTree,
+      sha256Hex: registrySha256Hex,
+      registryUrl,
+    });
+    return makeEndoRegistry(backend, {
+      table: makeRegistryTable(),
+      registryUrl,
+    });
+  };
 
   /**
    * @param {object} tree
@@ -3091,6 +3132,8 @@ const makeDaemonCore = async (
       makeEval(worker, source, names, values, context),
     'readable-blob': ({ content }) => makeReadableBlob(content),
     'readable-tree': ({ content }) => makeReadableTree(content),
+    registry: ({ registryUrl }) =>
+      makeRegistry(registryUrl ?? registryDefaultUrl),
     mount: async ({ path: mountPath, readOnly, deniedSegments }, context) => {
       // Verify the mount path exists.
       const pathExists = await filePowers.exists(mountPath);
@@ -3426,6 +3469,7 @@ const makeDaemonCore = async (
         inspector: inspectorId,
         mainWorker: hostMainWorkerId,
         nodeWorker: nodeWorkerId,
+        registry: registryId,
         endo: endoId,
         networks: networksId,
         planes: planesId,
@@ -3437,6 +3481,13 @@ const makeDaemonCore = async (
       }
       if (nodeWorkerId === undefined) {
         throw new Error('Host formula missing nodeWorker (Phase 6 required)');
+      }
+      // `@registry` is required on every host (mirroring `@node`); a
+      // pre-registry host formula fails fast here rather than exposing a
+      // host that lacks the slot.  See designs/registry-capability.md
+      // § Migration for already-formulated hosts.
+      if (registryId === undefined) {
+        throw new Error('Host formula missing registry (@registry required)');
       }
       // Look up the agent key by scanning the agent_key table for
       // an entry whose agentId has the same formula number.
@@ -3467,6 +3518,7 @@ const makeDaemonCore = async (
         inspectorId,
         hostMainWorkerId,
         nodeWorkerId,
+        registryId,
         endoId,
         networksId,
         planesId,
@@ -4513,6 +4565,27 @@ const makeDaemonCore = async (
     );
   };
 
+  /**
+   * Formulate an `EndoRegistry` capability formula.  Used at host
+   * formulation to populate the required `@registry` special name.
+   *
+   * @param {FormulaNumber} formulaNumber
+   * @param {NodeNumber} [nodeNumber]
+   * @param {string} [registryUrl]
+   */
+  const formulateNumberedRegistry = (
+    formulaNumber,
+    nodeNumber = localNodeNumber,
+    registryUrl = registryDefaultUrl,
+  ) => {
+    /** @type {RegistryFormula} */
+    const formula = {
+      type: 'registry',
+      registryUrl,
+    };
+    return formulate(formulaNumber, formula, nodeNumber);
+  };
+
   /** @type {DaemonCore['formulateShell']} */
   const formulateShell = async (mountId, policy, deferredTasks) => {
     return /** @type {FormulateResult<import('./types.js').EndoShell>} */ (
@@ -5154,6 +5227,17 @@ const makeDaemonCore = async (
         'node',
       ),
     );
+    // The @registry special name is backed by a host-scoped EndoRegistry
+    // capability, required on every host (mirroring @node) so callers never
+    // branch on its presence.  See designs/registry-capability.md.
+    const registryId = pin(
+      (
+        await formulateNumberedRegistry(
+          /** @type {FormulaNumber} */ (await randomHex256()),
+          agentNodeNumber,
+        )
+      ).id,
+    );
     // Every agent owns an initially empty `@planes` directory. A data plane is
     // opt-in: only a capability the agent places here can contribute a source
     // hint to its content locators.
@@ -5176,6 +5260,7 @@ const makeDaemonCore = async (
       mainWorkerId: hostMainWorkerId,
       nodeWorkerId,
       planesDirectoryId,
+      registryId,
       pinned,
     });
   };
@@ -5193,6 +5278,7 @@ const makeDaemonCore = async (
       inspector: identifiers.inspectorId,
       mainWorker: identifiers.mainWorkerId,
       nodeWorker: identifiers.nodeWorkerId,
+      registry: identifiers.registryId,
       endo: identifiers.endoId,
       networks: identifiers.networksDirectoryId,
       planes: identifiers.planesDirectoryId,

@@ -94,6 +94,19 @@ const filterEnv = (env = process.env) => {
     .map(([key, value = '']) => [key, value]);
 };
 
+/**
+ * @typedef {{
+ *   statePath: string,
+ *   ephemeralStatePath: string,
+ *   sockPath: string,
+ *   cachePath: string,
+ *   address: string,
+ *   gcEnabled: boolean,
+ *   registryUrl?: string,
+ * }} Config
+ */
+
+/** @type {Config} */
 const defaultConfig = {
   statePath: whereEndoState(process.platform, process.env, info),
   ephemeralStatePath: whereEndoEphemeralState(
@@ -105,9 +118,8 @@ const defaultConfig = {
   cachePath: whereEndoCache(process.platform, process.env, info),
   address: process.env.ENDO_ADDR || '127.0.0.1:8920',
   gcEnabled: process.env.ENDO_GC === '1',
+  registryUrl: process.env.ENDO_REGISTRY_URL || 'https://registry.npmjs.org',
 };
-/** @typedef {typeof defaultConfig} Config */
-
 /**
  * @param {Config} config
  */
@@ -118,6 +130,7 @@ const configToEnv = config => ({
   ENDO_CACHE_PATH: config.cachePath,
   ENDO_ADDR: config.address,
   ENDO_GC: config.gcEnabled ? '1' : '',
+  ENDO_REGISTRY_URL: config.registryUrl || defaultConfig.registryUrl,
 });
 
 /**
@@ -133,6 +146,7 @@ const configFromEnv = env => {
     ENDO_CACHE_PATH: cachePath = defaultConfig.cachePath,
     ENDO_ADDR: address = defaultConfig.address,
     ENDO_GC: gcEnabledStr,
+    ENDO_REGISTRY_URL: registryUrl = defaultConfig.registryUrl,
   } = env;
   return {
     statePath,
@@ -141,6 +155,7 @@ const configFromEnv = env => {
     cachePath,
     address,
     gcEnabled: gcEnabledStr === '1',
+    registryUrl,
   };
 };
 

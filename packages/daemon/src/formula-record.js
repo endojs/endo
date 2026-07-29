@@ -216,6 +216,10 @@ export const makeFormulaRecord = (formula, number, options = {}) => {
       properties.content = { kind: 'literal', value: formula.content };
       break;
     }
+    case 'registry': {
+      properties.registryUrl = { kind: 'literal', value: formula.registryUrl };
+      break;
+    }
     case 'marshal': {
       properties.body = { kind: 'literal', value: formula.body };
       /** @type {Record<string, FormulaIdentifier>} */

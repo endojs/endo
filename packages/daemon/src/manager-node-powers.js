@@ -2,6 +2,8 @@
 /* global Buffer, clearTimeout, process, setTimeout */
 
 import { createHash } from 'node:crypto';
+import { promisify } from 'node:util';
+import zlib from 'node:zlib';
 import harden from '@endo/harden';
 import { encodeHex } from '@endo/hex';
 import { bytesFromText } from '@endo/bytes/from-string.js';
@@ -13,12 +15,21 @@ import { makePetStoreMaker } from './pet-store.js';
 import { servePrivatePath } from './serve-private-path.js';
 import { makeSerialJobs } from './serial-jobs.js';
 import { makeDaemonDatabase } from './manager-database-node.js';
+import { makeRegistryNodePowers } from './registry-node-powers.js';
 // The shared SQLite-backed persistence powers live in
 // ./manager-persistence-powers.js so the XS-on-Rust supervisor can
 // use them without importing the Node-only graph above.
 import { makeDaemonicPersistencePowers } from './manager-persistence-powers.js';
 
 export { makeDaemonicPersistencePowers };
+
+const gunzipBuffer = promisify(zlib.gunzip);
+
+/** @param {Uint8Array} bytes */
+export const gunzip = async bytes => {
+  const output = await gunzipBuffer(bytes);
+  return new Uint8Array(output.buffer, output.byteOffset, output.byteLength);
+};
 
 /** @import { Reader, Writer } from '@endo/stream' */
 /** @import { ERef, FarRef } from '@endo/eventual-send' */
@@ -929,6 +940,7 @@ export const makeDaemonicControlPowers = (
  * @param {typeof import('url')} opts.url
  * @param {FilePowers} opts.filePowers
  * @param {CryptoPowers} opts.cryptoPowers
+ * @param {Parameters<typeof makeRegistryNodePowers>[0]} opts.registryPowers
  * @returns {Promise<DaemonicPowers>}
  */
 export const makeDaemonicPowers = async ({
@@ -939,6 +951,7 @@ export const makeDaemonicPowers = async ({
   url,
   filePowers,
   cryptoPowers,
+  registryPowers,
 }) => {
   const { fileURLToPath } = url;
 
@@ -969,5 +982,9 @@ export const makeDaemonicPowers = async ({
     persistence: daemonicPersistencePowers,
     control: daemonicControlPowers,
     filePowers,
+    registry: makeRegistryNodePowers({
+      ...registryPowers,
+      registryUrl: config.registryUrl,
+    }),
   });
 };
