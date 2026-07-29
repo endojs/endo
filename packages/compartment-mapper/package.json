@@ -46,6 +46,7 @@
     "./script-lite.js": "./script-lite.js",
     "./node-powers.js": "./node-powers.js",
     "./node-modules.js": "./node-modules.js",
+    "./policy.js": "./policy.js",
     "./package.json": "./package.json"
   },
   "scripts": {
