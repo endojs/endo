@@ -814,13 +814,18 @@ export const makeHttpClientAndControl = ({
       },
       bindings: policy.listBindings(),
     });
-    try {
-      onPolicyChange(snapshot);
-    } catch (error) {
-      // Persistence is best-effort and must never break a request or a control
-      // operation; a plugin's callback is expected to log its own failures.
-      console.error('[exo-http-client] onPolicyChange threw:', error);
-    }
+    // A persistence callback can run arbitrary integration code. Dispatch it
+    // in a later event so it cannot reenter the mutation that produced this
+    // immutable snapshot.
+    void Promise.resolve().then(() => {
+      try {
+        onPolicyChange(snapshot);
+      } catch (error) {
+        // Persistence is best-effort and must never break a request or a
+        // control operation; a plugin's callback is expected to log failures.
+        console.error('[exo-http-client] onPolicyChange threw:', error);
+      }
+    });
   };
 
   const assertNotRevoked = () => {
