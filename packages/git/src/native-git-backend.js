@@ -2845,7 +2845,7 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
 
     remotePush: async input => {
       const opts =
-        /** @type {{ url?: unknown, refspecs?: unknown, setUpstream?: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }} */ (
+        /** @type {{ url?: unknown, refspecs?: unknown, forceWithLease?: { ref?: unknown, expectedOid?: unknown }, setUpstream?: boolean, credential?: GitRemoteCredential, signal?: AbortSignal }} */ (
           input
         );
       const url = requireRevision(opts.url, 'remotePush.url');
@@ -2860,6 +2860,64 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
       await assertNoExecutableRepoConfig();
       await assertNoRemoteTransportRepoConfig();
       const args = [...remoteProtocolArgs(url), 'push', '--porcelain'];
+      // Read the lease ONCE. `input` reaches this package directly — `@endo/git`
+      // is importable without the exo above it, so it is not guaranteed to be a
+      // frozen copyRecord, and a getter or proxy could hand the shape checks a
+      // different object than the destructure below. Check and use the same
+      // local value.
+      const lease = opts.forceWithLease;
+      if (lease !== undefined) {
+        if (
+          typeof lease !== 'object' ||
+          lease === null ||
+          Array.isArray(lease)
+        ) {
+          throw new Error('remotePush.forceWithLease must be a record');
+        }
+        // A `+`-prefixed refspec carries its own force, and git lets that force
+        // convert a stale-lease rejection into a forced update — the lease is
+        // then silently void rather than an error. Every other lease
+        // precondition fails loudly; re-assert this one HERE, at the layer that
+        // builds the argv, because its breach is a silent authority escalation
+        // and `@endo/git` is importable without the policy layer above.
+        const forced = refspecs.find(refspec => refspec.startsWith('+'));
+        if (forced !== undefined) {
+          throw new Error(
+            'remotePush.forceWithLease must not accompany a force refspec',
+          );
+        }
+        const { ref, expectedOid } = lease;
+        const leaseRef = requireRevision(ref, 'remotePush.forceWithLease.ref');
+        // `--force-with-lease=<ref>:<oid>` is split at the LAST colon, so a ref
+        // carrying its own colon does not round-trip: the lease would bind to a
+        // ref nobody named. `requireRevision` permits a colon, and the policy
+        // layer that rejects one is not in the path of a direct `@endo/git`
+        // caller.
+        if (leaseRef.includes(':')) {
+          throw new Error(
+            'remotePush.forceWithLease.ref must not contain a colon',
+          );
+        }
+        const leaseOid = requireNonEmptyString(
+          expectedOid,
+          'remotePush.forceWithLease.expectedOid',
+        );
+        if (!/^[0-9a-f]{40}$/iu.test(leaseOid)) {
+          throw new Error(
+            'remotePush.forceWithLease.expectedOid must be a 40-character hexadecimal object ID',
+          );
+        }
+        // Git reads a null-OID lease as "expect this ref NOT to exist" —
+        // create-only rather than guard-an-update, inverting what the option
+        // means. Rejected at every layer that validates an OID, so the three
+        // validators accept exactly the same domain.
+        if (/^0{40}$/u.test(leaseOid)) {
+          throw new Error(
+            'remotePush.forceWithLease.expectedOid must not be the null object ID',
+          );
+        }
+        args.push(`--force-with-lease=${leaseRef}:${leaseOid}`);
+      }
       if (opts.setUpstream) {
         args.push('--set-upstream');
       }

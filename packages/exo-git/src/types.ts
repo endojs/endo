@@ -225,10 +225,26 @@ export type GitRemote = {
     tags?: boolean;
   }) => Promise<any>;
   push: (options?: {
+    /**
+     * Ignored. `pushRefspecsFromOptions` never reads this field: a caller that
+     * supplies it silently gets the policy's own `pushRefspecs`. Retained only
+     * because it is part of the shipped shape; use `source` / `destination`.
+     */
     refspecs?: string[];
     source?: string;
     destination?: string;
     force?: boolean;
+    /**
+     * Force-update only if the destination still names this commit. This is
+     * the capability form of git's `--force-with-lease=<destination>:<oid>`.
+     * Every precondition the implementation enforces: requires
+     * `allowForcePush`; requires an explicit `source`; the resolved
+     * destination must be a concrete ref, not a wildcard; the value must be 40
+     * hexadecimal digits and must not be the null object ID (which git reads
+     * as "this ref must not exist"); and it is mutually exclusive with
+     * `force`.
+     */
+    forceWithLease?: string;
     setUpstream?: boolean;
   }) => Promise<any>;
 };

@@ -205,6 +205,8 @@ interface GitRemote {
     source?: GitRef | string;
     destination?: string;
     force?: boolean;
+    /** 40-hex object ID the destination must still name; see § Force-with-lease. */
+    forceWithLease?: string;
     setUpstream?: boolean;
   }): Promise<GitPushResult>;
 }
@@ -419,7 +421,7 @@ The implementation should reject the listed "Rejected" forms with a structured e
 | `allowedBranches` | A list of branch names or `refs/heads/<glob>` patterns interpreted as a shortcut: equivalent to a derived `pushRefspecs` of `refs/heads/<b>:refs/heads/<b>` for each branch, AND a destination-side filter on any explicit `pushRefspecs` | Short names with no `refs/heads/` anchoring that would also match tags or remote-tracking refs by accident | If both `allowedBranches` and `pushRefspecs` are set, the union is forbidden: the policy must choose one mode.  If only `allowedBranches` is set, the implementation derives `pushRefspecs` from it.  If `pushRefspecs` is empty AND `allowedBranches` is empty, push is rejected entirely (a push-direction remote with no allowed targets is misconfigured, not "permit nothing"; the operator must say so explicitly with `allowedDirections: ['fetch']`) |
 | `allowTags` | `true` to allow tag refspecs in fetch and push (`refs/tags/*` on either side); `false` (default) to reject any tag-prefix refspec | Tag refspecs when `false` | Validated at refspec-parse time against both `fetchRefspecs` and `pushRefspecs` |
 | `allowDelete` | `true` to allow deletion refspecs (empty `<src>`) in fetch (`:refs/remotes/origin/foo`) and push (`:refs/heads/foo`); `false` (default) to reject deletion forms | Deletion refspecs when `false` | Deletion form is detected by an empty `<src>` in `[+]<src>:<dst>`; both directions are gated by the same flag |
-| `allowForcePush` | `true` to allow leading `+` on `pushRefspecs` entries; `false` (default) to reject the `+` prefix on push.  Fetch-side `+` is unaffected (remote-tracking refs are local). | `+`-prefixed push refspecs when `false`; non-`+` push refspecs that the server reports as non-fast-forward (the local validation cannot detect this; the post-push response check fail-closes) | Local validation rejects the `+` prefix at refspec-parse time; the post-push response check rejects an upstream non-fast-forward result regardless of the `+` flag |
+| `allowForcePush` | `true` to allow leading `+` on `pushRefspecs` entries AND to allow `push({ forceWithLease })` (§ Force-with-lease); `false` (default) to reject both.  Fetch-side `+` is unaffected (remote-tracking refs are local). | `+`-prefixed push refspecs when `false`; `forceWithLease` when `false`; non-`+` push refspecs that the server reports as non-fast-forward (the local validation cannot detect this; the post-push response check fail-closes) | Local validation rejects the `+` prefix at refspec-parse time; a lease refspec deliberately carries no `+`, so the lease path is gated by an explicit `allowForcePush` check rather than by the prefix rule; the post-push response check rejects an upstream non-fast-forward result regardless of the `+` flag |
 
 ## Operation Semantics
 
@@ -449,6 +451,35 @@ The implementation should reject the listed "Rejected" forms with a structured e
 - validates source and destination against push policy;
 - refuses force, tag creation, and deletes unless explicitly authorized;
 - uses only the bound credential and endpoint.
+
+#### Force-with-lease
+
+`push({ forceWithLease })` is the capability form of git's
+`--force-with-lease=<destination>:<oid>`: the destination is force-updated only
+while it still names the object ID the caller observed. This is what makes a
+branch usable as a **transactional ledger** — a writer reads the branch tip,
+composes its update, and pushes with the tip it read, so a concurrent writer's
+work is never silently overwritten.
+
+The bound is the granted capability's, as everywhere else:
+
+- it requires `allowForcePush`. A lease refspec deliberately carries **no** `+`
+  prefix, because git lets a refspec's own force convert a stale-lease rejection
+  into a forced update — the `+` would silently void the lease. The refspec rule
+  therefore cannot gate this path, and an explicit check does;
+- it requires an explicit `source`, and is mutually exclusive with `force`;
+- the destination must be a **concrete** ref. Git matches a lease refname with
+  `refname_match` (DWIM, no globbing) and does not warn on an entry that matches
+  nothing, so a wildcard destination would bind the lease to nothing. That fails
+  closed — without a `+` the push degrades to a plain non-force push, not an
+  unguarded force — but it silently falsifies the published guarantee;
+- the expected OID must be 40 hex digits and must not be the **null** OID, which
+  git reads as *"this ref must not exist"* — create-only, the inverse of what the
+  option means.
+
+The backend re-asserts the no-force-refspec pairing at the layer that builds the
+argv, because that is the one precondition whose breach is a silent authority
+escalation rather than an error.
 
 ## Remote Data Plane
 

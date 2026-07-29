@@ -37,6 +37,10 @@
       "types": "./src/json-tools/git-mount.d.ts",
       "default": "./src/json-tools/git-mount.js"
     },
+    "./json-tools/git-remote.js": {
+      "types": "./src/json-tools/git-remote.d.ts",
+      "default": "./src/json-tools/git-remote.js"
+    },
     "./json-tools/fs.js": {
       "types": "./src/json-tools/fs.d.ts",
       "default": "./src/json-tools/fs.js"

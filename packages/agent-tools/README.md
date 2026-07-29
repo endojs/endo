@@ -63,6 +63,7 @@ import {
   makeGitHistoryTool,
   makeGitTool,
   makeGitMountTools,
+  makeGitRemoteTool,
   makeMountReadTool,
   makeMountListTool,
   makeMountStatTool,
@@ -101,6 +102,7 @@ way to compose several capability operations.
 ```js
 import { makeGitTool } from '@endo/agent-tools/json-tools/git.js';
 import { makeGitMountTools } from '@endo/agent-tools/json-tools/git-mount.js';
+import { makeGitRemoteTool } from '@endo/agent-tools/json-tools/git-remote.js';
 import { makeMountFsTools } from '@endo/agent-tools/json-tools/fs.js';
 import { makeShellTool } from '@endo/agent-tools/json-tools/shell.js';
 import { makeHttpTool } from '@endo/agent-tools/json-tools/http.js';
@@ -114,6 +116,33 @@ accepts a result renderer.
 The SmallCaps renderer is supplied by `adapters/smallcaps.js` so plain-data
 completion values preserve BigInts, `undefined`, and sigil-prefixed strings.
 Capability-bearing values remain out of band.
+
+## Git remote tools
+
+`makeGitRemoteTool(remoteCap)` is the push tier: the network and credential
+layer, exposed only to a host that has granted a `@endo/exo-git` `GitRemote`.
+It emits `fetch`, `pull`, and `push` records plus a credential-free `inspect`
+that reports the remote's policy bounds, so an agent can read its allowed
+refspecs and directions instead of discovering them by rejection.
+
+Every bound is the granted capability's — the endpoint URL, the allowed
+directions, the refspecs, and the force/tags/delete flags — and the
+policy-bearing `GitRemoteController` stays host-side, never an agent-facing
+tool. A read-only `Git` cannot construct a `GitRemote` at all, so the read tier
+structurally excludes push.
+
+`push` accepts `forceWithLease`, a 40-character object ID the destination must
+still name for the update to land. That is what makes a branch usable as a
+transactional ledger: read the tip, compose the update, push against the tip you
+read. It requires the `allowForcePush` policy and an explicit `source`, the
+destination must be a concrete ref, the all-zeros ID is refused (git reads it as
+"this ref must not exist"), and it cannot be combined with `force`.
+
+Each maker names its records after the capability's own methods, so names can
+collide across makers: `makeGitRemoteTool` emits `inspect` and `fetch`, which
+`makeShellTool` and `makeHttpTool` also emit. A host composing several makers
+into one flat tool list must disambiguate them itself; nothing in `makeTool`
+prefixes or dedupes.
 
 ## Git history tools
 

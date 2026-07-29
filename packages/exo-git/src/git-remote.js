@@ -896,17 +896,38 @@ export const makeGitRemote = ({
    */
   const pushRefspecsFromOptions = options => {
     const opts =
-      /** @type {{ source?: unknown, destination?: unknown, force?: boolean, setUpstream?: boolean }} */ (
+      /** @type {{ source?: unknown, destination?: unknown, force?: unknown, forceWithLease?: unknown, setUpstream?: unknown }} */ (
         options || {}
       );
+    // Read the request-side authority flags coerce-free, exactly as
+    // `requirePolicyBoolean` reads the policy-side ones. The guard on this
+    // record is `M.recordOf(M.string(), M.any())`, so nothing upstream
+    // constrains the value, and an agent emitting the very common `'false'`
+    // would otherwise get a truthy read and a real force push. Fail closed.
+    const force = requirePolicyBoolean(
+      opts.force,
+      false,
+      'GitRemote.push force',
+    );
+    const setUpstream = requirePolicyBoolean(
+      opts.setUpstream,
+      false,
+      'GitRemote.push setUpstream',
+    );
+    if (force && opts.forceWithLease !== undefined) {
+      throw new Error(
+        'GitRemote.push force and forceWithLease are mutually exclusive',
+      );
+    }
     if (opts.source === undefined && opts.destination === undefined) {
-      if (opts.setUpstream) {
+      if (setUpstream || opts.forceWithLease !== undefined) {
         throw new Error(
-          'GitRemote.push setUpstream requires an explicit source and destination',
+          'GitRemote.push setUpstream and forceWithLease require an explicit source',
         );
       }
       return harden({
         refspecs: harden([...currentPolicy.pushRefspecs]),
+        forceWithLease: undefined,
         setUpstream: false,
       });
     }
@@ -915,11 +936,54 @@ export const makeGitRemote = ({
       opts.destination ?? source,
       'GitRemote.push destination',
     );
-    const refspec = `${opts.force ? '+' : ''}${source}:${destination}`;
+    const forceWithLease = opts.forceWithLease;
+    if (
+      forceWithLease !== undefined &&
+      (typeof forceWithLease !== 'string' ||
+        !/^[0-9a-f]{40}$/iu.test(forceWithLease))
+    ) {
+      throw new Error(
+        'GitRemote.push forceWithLease must be a 40-character hexadecimal object ID',
+      );
+    }
+    // Git reads a null-OID lease as "expect this ref NOT to exist" — create-only
+    // rather than guard-an-update, the opposite of what the option publishes.
+    // An agent deriving a lease from a ref it could not resolve emits exactly
+    // this value, so reject it rather than silently inverting the semantics.
+    if (forceWithLease !== undefined && /^0{40}$/u.test(forceWithLease)) {
+      throw new Error(
+        'GitRemote.push forceWithLease must not be the null object ID',
+      );
+    }
+    if (forceWithLease !== undefined && !currentPolicy.allowForcePush) {
+      throw new Error('GitRemote.push forceWithLease requires allowForcePush');
+    }
+    // The lease names ONE concrete remote ref. Git matches a `--force-with-lease`
+    // refname with `refname_match` (DWIM, no globbing) and does not warn when an
+    // entry matches nothing, so a wildcard destination would bind the lease to
+    // nothing. That fails CLOSED — the refspec carries no `+`, so the push
+    // degrades to a plain non-force push rather than an unguarded force — but it
+    // silently falsifies the guarantee this option publishes.
+    if (forceWithLease !== undefined && destination.includes('*')) {
+      throw new Error(
+        'GitRemote.push forceWithLease requires a concrete destination ref',
+      );
+    }
+    // `--force-with-lease` supplies the force. Do not also prefix the refspec
+    // with `+`, because that would override the lease check in git push; the
+    // mutual-exclusion guard above is what keeps `opts.force` from doing so.
+    const refspec = `${force ? '+' : ''}${source}:${destination}`;
     assertPushRefspecAllowed(refspec);
     return harden({
       refspecs: harden([refspec]),
-      setUpstream: !!opts.setUpstream,
+      // Explicit `undefined`, matching the policy-refspec branch above: one
+      // function should not return the same field present-but-undefined on one
+      // path and absent on another.
+      forceWithLease:
+        forceWithLease === undefined
+          ? undefined
+          : harden({ ref: destination, expectedOid: forceWithLease }),
+      setUpstream,
     });
   };
 
@@ -1106,13 +1170,15 @@ export const makeGitRemote = ({
         ensureDirection('push');
         fence = captureOperationFence();
         const transportCredential = ensureCredentialUsable();
-        const { refspecs, setUpstream } = pushRefspecsFromOptions(options);
+        const { refspecs, forceWithLease, setUpstream } =
+          pushRefspecsFromOptions(options);
         const activeOperation = beginOperation();
         let result;
         try {
           result = await backend.remotePush({
             url: currentPolicy.url,
             refspecs,
+            forceWithLease,
             setUpstream,
             credential: transportCredential,
             signal: activeOperation.signal,
