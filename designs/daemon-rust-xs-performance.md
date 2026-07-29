@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-04-16 |
-| **Updated** | 2026-04-17 |
+| **Updated** | 2026-07-28 |
 | **Author** | Kris Kowal (prompted) |
 | **Status** | Active |
 
@@ -118,33 +118,44 @@ Getting this right is essential for performance and correctness.
     //    a. Drain promise jobs until quiescent
     //    b. Drain inbound envelopes (non-blocking try_recv)
     //    c. If envelopes arrived, go to (a)
-    //    d. If fxHasPendingJobs still set, go to (a)
+    //    d. If fxMachineHasPendingJobs still set, go to (a)
     //    e. Break — truly idle
     // 4. Check __shouldTerminate()
 }
 ```
 
-### Critical insight: fxHasPendingJobs is check-and-reset
+### Critical insight: fxMachineHasPendingJobs is check-and-reset
 
 ```c
 // xsnap-platform.c
-static int gHasPendingJobs = 0;
-
 void fxQueuePromiseJobs(txMachine* the) {
-    the->promiseJobs = 1;
-    gHasPendingJobs = 1;  // Set when ANY promise resolves
+    the->promiseJobs = 1;  // Set when a promise resolves on `the`
 }
 
-int fxHasPendingJobs(void) {
-    int result = gHasPendingJobs;
-    gHasPendingJobs = 0;  // RESET on read
+int fxMachineHasPendingJobs(txMachine* the) {
+    int result = the->promiseJobs;
+    the->promiseJobs = 0;  // RESET on read
     return result;
 }
 ```
 
-`fxHasPendingJobs()` returns 1 if any promise was queued since
-the last call, then **clears the flag**.
+`fxMachineHasPendingJobs(the)` returns 1 if any promise was queued
+on that machine since the last call, then **clears the flag**.
 It is not a count; it is a one-shot latch.
+
+The flag is per-machine, and that is load-bearing.
+The original implementation kept a second, process-global
+`gHasPendingJobs` alongside `the->promiseJobs`, and exposed it as
+an argument-less `fxHasPendingJobs(void)` for the Rust pump while
+`fxRunLoop` used the per-machine flag.
+With machines running on concurrent threads, one machine's drain
+consumed another machine's pending signal, so the victim's
+`quiesce` returned with promise jobs still queued and its entry
+module never settled.
+The global was also an unsynchronized non-atomic write, a data
+race in its own right.
+Both are gone: there is one flag, it lives on the machine, and the
+Rust entry point takes the machine pointer.
 
 `fxRunPromiseJobs` moves all pending jobs to a running list and
 executes them.
@@ -153,10 +164,22 @@ which calls `fxQueuePromiseJobs` and sets the flag again.
 A single `fxRunPromiseJobs` call only drains the jobs that were
 pending at call time — newly queued jobs require another call.
 
+Because there is now one flag, it has two destructive consumers
+inside a single machine: `fxRunLoop`, which clears it at the top
+of its own drain loop, and the Rust quiesce path via
+`fxMachineHasPendingJobs`.
+Whichever reads first takes the signal.
+That is benign as written, because every quiesce-path read is
+immediately preceded by an `fxRunPromiseJobs` call on the same
+machine, so a swallowed signal has already been serviced.
+A caller that checked the flag without draining first would
+reproduce the stolen-signal bug within one machine, so the
+invariant is worth keeping.
+
 ### Why sleep(1ms) was wrong
 
 The original pump loop called `fxRunPromiseJobs` once, checked
-`fxHasPendingJobs`, and if the flag was set, slept 1ms before
+the pending-jobs flag, and if it was set, slept 1ms before
 retrying.
 This was wrong for two reasons:
 
@@ -167,14 +190,14 @@ This was wrong for two reasons:
 2. **Correctness**: the sleep was a workaround for the fact that
    one `fxRunPromiseJobs` call doesn't drain microtask chains.
    The right fix is to loop `fxRunPromiseJobs` until
-   `fxHasPendingJobs` returns 0.
+   `fxMachineHasPendingJobs` returns 0.
 
 ### Why blocking recv was wrong (first fix attempt)
 
 Replacing sleep with a blocking `recv_raw_envelope()` caused a
 deadlock.
-After `fxRunPromiseJobs`, `fxHasPendingJobs` returns 1 because
-jobs were queued during execution.
+After `fxRunPromiseJobs`, `fxMachineHasPendingJobs` returns 1
+because jobs were queued during execution.
 Those jobs don't need external input — they just need another
 `fxRunPromiseJobs` turn.
 But the code blocked on recv, waiting for an envelope that would
@@ -189,7 +212,7 @@ loop {
     // Drain promise jobs until no new jobs are queued.
     loop {
         fxRunPromiseJobs(machine.raw);
-        if fxHasPendingJobs() == 0 { break; }
+        if fxMachineHasPendingJobs(machine.raw) == 0 { break; }
     }
 
     // Drain inbound envelopes (non-blocking).
@@ -210,7 +233,7 @@ loop {
 
     // sendRawFrame (called during promise execution) may have
     // queued new jobs without producing inbound envelopes yet.
-    if fxHasPendingJobs() != 0 { continue; }
+    if fxMachineHasPendingJobs(machine.raw) != 0 { continue; }
 
     // Truly idle.
     break;
@@ -399,7 +422,7 @@ prints a comparison table.
 | `rust/endo/xsnap/src/lib.rs` | XS machine, reactive pump loop |
 | `rust/endo/xsnap/src/worker_io.rs` | Host function helpers, transport trait |
 | `rust/endo/xsnap/src/powers/*.rs` | Host function implementations |
-| `rust/endo/xsnap/xsnap-platform.c` | XS platform layer (fxHasPendingJobs, fxQueuePromiseJobs) |
+| `rust/endo/xsnap/xsnap-platform.c` | XS platform layer (fxMachineHasPendingJobs, fxQueuePromiseJobs) |
 | `rust/endo/src/inproc.rs` | In-process XS manager bridge |
 | `rust/endo/src/supervisor.rs` | Message routing |
 | `rust/endo/src/endo.rs` | Daemon entry, control message handlers |
@@ -449,9 +472,10 @@ in the XS event loop.
 **File:** `xsnap/src/lib.rs` lines 1296-1358
 
 **What changed:** replaced sleep with a three-phase drain loop
-that calls `fxRunPromiseJobs` until `fxHasPendingJobs` returns 0
-(check-and-reset semantics), drains inbound envelopes via
-non-blocking `try_recv`, and only breaks when both are exhausted.
+that calls `fxRunPromiseJobs` until `fxMachineHasPendingJobs`
+returns 0 (check-and-reset semantics), drains inbound envelopes
+via non-blocking `try_recv`, and only breaks when both are
+exhausted.
 See "Reactive Pump Loop" section above for full details.
 
 **Status:** complete, benchmarked (7-18x improvement).

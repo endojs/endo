@@ -281,11 +281,14 @@ impl Machine {
     /// This handles CapTP's multi-level async chains where resolving
     /// one promise queues new microtasks (e.g., method call → promise
     /// resolve → serialization → send → further reactions).
+    /// The pending check is per-machine so concurrent machines on
+    /// other threads cannot steal this machine's pending signal and
+    /// leave its queue undrained.
     pub fn quiesce(&self) {
         unsafe {
             loop {
                 fxRunPromiseJobs(self.raw);
-                if ffi::fxHasPendingJobs() == 0 {
+                if ffi::fxMachineHasPendingJobs(self.raw) == 0 {
                     break;
                 }
             }
@@ -1665,12 +1668,13 @@ pub fn run_xs_program(
             // non-blocking envelope dispatch so that CapTP round-trips
             // can complete without deadlocking.
             //
-            // fxHasPendingJobs() is check-and-reset: returns 1 if any
-            // promise job was queued since the last call, then clears
-            // the flag. We loop `fxRunPromiseJobs` until no new jobs
-            // are queued, then drain inbound envelopes. If after
-            // draining we still have fresh jobs, repeat. When both
-            // promise jobs and envelopes are exhausted, break.
+            // fxMachineHasPendingJobs() is check-and-reset: returns 1
+            // if any promise job was queued on this machine since the
+            // last call, then clears the flag. We loop
+            // `fxRunPromiseJobs` until no new jobs are queued, then
+            // drain inbound envelopes. If after draining we still have
+            // fresh jobs, repeat. When both promise jobs and envelopes
+            // are exhausted, break.
             let mut metering_abort = false;
             loop {
                 // Drain all ready promise jobs (multiple turns may be
@@ -1691,7 +1695,7 @@ pub fn run_xs_program(
                             break;
                         }
                     }
-                    if unsafe { ffi::fxHasPendingJobs() } == 0 {
+                    if unsafe { ffi::fxMachineHasPendingJobs(machine.raw) } == 0 {
                         break;
                     }
                 }
@@ -1732,7 +1736,7 @@ pub fn run_xs_program(
                 // No envelopes and no ready promise jobs. Check if
                 // any new jobs were queued during envelope handling
                 // (e.g., by sendRawFrame callbacks).
-                if unsafe { ffi::fxHasPendingJobs() } != 0 {
+                if unsafe { ffi::fxMachineHasPendingJobs(machine.raw) } != 0 {
                     continue;
                 }
 

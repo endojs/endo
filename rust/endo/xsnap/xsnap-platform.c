@@ -23,9 +23,23 @@ struct sxJob {
 
 /* ---- Promise job flag ---- */
 
-/* Global flag for Rust-driven quiesce loop (fxHasPendingJobs).
-   fxRunLoop uses the per-machine the->promiseJobs instead. */
-static int gHasPendingJobs = 0;
+/*
+ * the->promiseJobs is a one-shot latch, and it has two
+ * destructive consumers within a single machine: fxRunLoop (which
+ * clears it at the top of its own drain loop below) and the Rust
+ * quiesce path (Machine::quiesce and the reactive pump in
+ * src/lib.rs) via fxMachineHasPendingJobs. Whichever reads it first
+ * takes the signal; the other sees 0.
+ *
+ * The sharing is believed benign, because every quiesce-path read is
+ * immediately preceded by fxRunPromiseJobs on the same machine, so a
+ * swallowed signal has already been serviced. It is stated here
+ * rather than left implicit because one consumer eating another's
+ * latch is exactly the bug the removed process-global
+ * gHasPendingJobs caused across machines; a future caller that checks
+ * the flag without draining first would reproduce it within one
+ * machine.
+ */
 
 void fxCreateMachinePlatform(txMachine* the)
 {
@@ -48,23 +62,24 @@ void fxDeleteMachinePlatform(txMachine* the)
 /*
  * Custom fxQueuePromiseJobs.
  *
- * Sets both the per-machine flag (for fxRunLoop) and the global
- * flag (for Rust's quiesce loop via fxHasPendingJobs).
+ * Sets the per-machine flag consumed by fxRunLoop and by Rust's
+ * quiesce loop via fxMachineHasPendingJobs.
  */
 void fxQueuePromiseJobs(txMachine* the)
 {
 	the->promiseJobs = 1;
-	gHasPendingJobs = 1;
 }
 
 /*
- * Check and reset the pending-jobs flag.
- * Used by Rust's quiesce() loop.
+ * Check and reset this machine's pending-jobs flag.
+ * Used by Rust's quiesce() loop. Per-machine on purpose: a
+ * process-wide flag lets one machine's drain steal another's
+ * pending signal when machines run on concurrent threads.
  */
-int fxHasPendingJobs(void)
+int fxMachineHasPendingJobs(txMachine* the)
 {
-	int result = gHasPendingJobs;
-	gHasPendingJobs = 0;
+	int result = the->promiseJobs;
+	the->promiseJobs = 0;
 	return result;
 }
 
