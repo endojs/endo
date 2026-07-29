@@ -2,7 +2,7 @@
 /* eslint-disable no-bitwise */
 
 // Browser stand-in for the slice of `node:crypto` reachable from
-// `@endo/platform/fs/extended` (`src/shared/blobref.js` and `src/from-mount.js`).
+// `@endo/platform/fs/extended` (`src/shared/blob-ref.js` and `src/from-mount.js`).
 // Vite aliases `node:crypto` to this module for the chat bundle.
 //
 // A real SHA-256 is implemented here rather than a placeholder so
@@ -182,7 +182,7 @@ export const createHash = algorithm => {
      * Returns the raw digest bytes or, when an encoding is given,
      * a string. The bytes case returns a `Uint8Array` whose
      * `toString(encoding)` mimics Node's `Buffer` so callers
-     * such as `@endo/platform/fs/extended/shared/blobref.js` can do
+     * such as `@endo/platform/fs/extended/shared/blob-ref.js` can do
      * `hashBytes.toString('base64')` and `h[i]` interchangeably.
      *
      * @param {string} [encoding]

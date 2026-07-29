@@ -3272,7 +3272,7 @@ test('Git.filesystemAt: lsTree cache evicts on rejection so a transient failure 
 });
 
 test('Git.filesystemAt: File.snapshot returns a BlobRef over the blob bytes', async t => {
-  const { repoRoot } = await provisionGitWorktreeWithFile(
+  const { repoRoot, blobOid } = await provisionGitWorktreeWithFile(
     t,
     'README.md',
     'snapshot test\n',
@@ -3287,15 +3287,160 @@ test('Git.filesystemAt: File.snapshot returns a BlobRef over the blob bytes', as
 
   const blobRef = /** @type {any} */ (await E(file).snapshot());
   const info = await E(blobRef).getInfo();
-  // wrapBackend's BlobRef hashes the captured bytes with SHA-256;
-  // the size matches the blob length.
-  t.is(info.algorithm, 'sha256');
+  // The git-tree backend supplies the git-native content hash through
+  // wrapBackend's `blobInfoFor` hook: the `git-sha1` blob OID itself
+  // (git hashes the framed `blob <size>\0<bytes>` payload, not the raw
+  // bytes) — restoring content-address identity (design Goal 2). The
+  // size still matches the blob length.
+  t.is(info.algorithm, 'git-sha1');
+  t.is(info.hash, blobOid);
   t.is(info.size, BigInt('snapshot test\n'.length));
 
   // fetch returns the bytes.
   const reader = await E(blobRef).fetch(0n, BigInt('snapshot test\n'.length));
   const bytes = await collectReader(reader);
   t.is(new TextDecoder().decode(bytes), 'snapshot test\n');
+});
+
+test('Git.filesystemAt: QID pathId is the git object OID (directory + file)', async t => {
+  const { repoRoot, blobOid, treeOid } = await provisionGitWorktreeWithFile(
+    t,
+    'README.md',
+    'hello\n',
+  );
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend, lineageOf });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+
+  // Root directory QID `pathId` is the tree OID as a BigInt — content
+  // address, not a path hash (design Goal 2).
+  const rootQid = await E(root).getQid();
+  t.is(rootQid.type, 'directory');
+  t.is(rootQid.pathId, BigInt(`0x${treeOid}`));
+  t.is(rootQid.version, 0n);
+
+  // File QID `pathId` is the blob OID as a BigInt.
+  const readme = /** @type {any} */ (await E(root).lookup('README.md'));
+  const fileQid = await E(readme).getQid();
+  t.is(fileQid.type, 'file');
+  t.is(fileQid.pathId, BigInt(`0x${blobOid}`));
+  t.is(fileQid.version, 0n);
+});
+
+test('Git.filesystemAt: same blob at two paths reports one QID and one hash', async t => {
+  // Two distinct paths holding byte-identical content share a git blob
+  // OID, so their QID pathIds and BlobRef hashes must be equal.
+  const repoRoot = await provisionGitWorktree(t);
+  const content = 'shared content\n';
+  await fs.promises.writeFile(path.join(repoRoot, 'a.txt'), content);
+  await fs.promises.mkdir(path.join(repoRoot, 'nested'));
+  await fs.promises.writeFile(path.join(repoRoot, 'nested', 'b.txt'), content);
+  await execFileAsync('git', ['add', '.'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'dup'],
+    { cwd: repoRoot },
+  );
+  const { stdout: blobOidRaw } = await execFileAsync(
+    'git',
+    ['rev-parse', 'HEAD:a.txt'],
+    { cwd: repoRoot },
+  );
+  const blobOid = blobOidRaw.trim();
+  // Sanity: git really does deduplicate the two paths onto one blob.
+  const { stdout: blobOid2Raw } = await execFileAsync(
+    'git',
+    ['rev-parse', 'HEAD:nested/b.txt'],
+    { cwd: repoRoot },
+  );
+  t.is(blobOid2Raw.trim(), blobOid);
+
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend, lineageOf });
+  const gitFs = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  const root = /** @type {any} */ (await E(gitFs).root());
+
+  const a = /** @type {any} */ (await E(root).lookup('a.txt'));
+  const b = /** @type {any} */ (await E(root).lookup(['nested', 'b.txt']));
+
+  const aQid = await E(a).getQid();
+  const bQid = await E(b).getQid();
+  t.is(aQid.pathId, BigInt(`0x${blobOid}`));
+  t.is(aQid.pathId, bQid.pathId, 'same blob → same QID pathId across paths');
+
+  const aInfo = await E(await E(a).snapshot()).getInfo();
+  const bInfo = await E(await E(b).snapshot()).getInfo();
+  t.is(aInfo.algorithm, 'git-sha1');
+  t.is(aInfo.hash, blobOid);
+  t.is(aInfo.hash, bInfo.hash, 'same blob → same BlobRef hash across paths');
+});
+
+test('Git.filesystemAt: same blob across two refs reports one QID and one hash', async t => {
+  // The same content committed on two different trees resolves to one
+  // git blob OID globally, so its identity is stable across the two
+  // Filesystem caps (`filesystemAt(ref1)` vs `filesystemAt(ref2)`).
+  const repoRoot = await provisionGitWorktree(t);
+  const content = 'cross-ref content\n';
+  await fs.promises.writeFile(path.join(repoRoot, 'shared.txt'), content);
+  await execFileAsync('git', ['add', 'shared.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'ref1'],
+    { cwd: repoRoot },
+  );
+  const { stdout: commit1Raw } = await execFileAsync(
+    'git',
+    ['rev-parse', 'HEAD'],
+    { cwd: repoRoot },
+  );
+  const commit1 = commit1Raw.trim();
+  // Second commit changes an unrelated file; `shared.txt` (and thus its
+  // blob OID) is untouched, but the tree OID differs.
+  await fs.promises.writeFile(path.join(repoRoot, 'other.txt'), 'other\n');
+  await execFileAsync('git', ['add', 'other.txt'], { cwd: repoRoot });
+  await execFileAsync(
+    'git',
+    ['-c', 'user.email=t@t', '-c', 'user.name=T', 'commit', '-m', 'ref2'],
+    { cwd: repoRoot },
+  );
+  const { stdout: blobOidRaw } = await execFileAsync(
+    'git',
+    ['rev-parse', 'HEAD:shared.txt'],
+    { cwd: repoRoot },
+  );
+  const blobOid = blobOidRaw.trim();
+
+  const filePowers = makeFilePowers({ fs, path });
+  const mount = makeMount({ rootPath: repoRoot, readOnly: false, filePowers });
+  const backend = makeNativeGitBackend({ repoRoot });
+  const git = makeGit({ mount, backend, lineageOf });
+
+  const fs1 = /** @type {any} */ (await E(git).filesystemAt(commit1));
+  const fs2 = /** @type {any} */ (await E(git).filesystemAt('HEAD'));
+  // Different trees → different Filesystem caps.
+  t.not(fs1, fs2);
+
+  const file1 = /** @type {any} */ (
+    await E(await E(fs1).root()).lookup('shared.txt')
+  );
+  const file2 = /** @type {any} */ (
+    await E(await E(fs2).root()).lookup('shared.txt')
+  );
+
+  const qid1 = await E(file1).getQid();
+  const qid2 = await E(file2).getQid();
+  t.is(qid1.pathId, BigInt(`0x${blobOid}`));
+  t.is(qid1.pathId, qid2.pathId, 'same blob → same QID pathId across refs');
+
+  const info1 = await E(await E(file1).snapshot()).getInfo();
+  const info2 = await E(await E(file2).snapshot()).getInfo();
+  t.is(info1.hash, blobOid);
+  t.is(info1.hash, info2.hash, 'same blob → same BlobRef hash across refs');
 });
 
 test('Git.filesystemAt: Directory.list yields entries in tree order', async t => {
@@ -3330,6 +3475,20 @@ test('Git.filesystemAt: Directory.list yields entries in tree order', async t =>
     t.is(entry.kind, 'file');
     t.is(entry.qid.type, 'file');
   }
+
+  // The listing entry's `qid.pathId` is the git blob OID — the same
+  // content-addressed identity a later `lookup(name).getQid()` returns,
+  // so a 9p `Treaddir`→`Twalk` sees one identity per node, not two.
+  const { stdout: aOidRaw } = await execFileAsync(
+    'git',
+    ['rev-parse', 'HEAD:a.txt'],
+    { cwd: repoRoot },
+  );
+  const aOid = aOidRaw.trim();
+  const listedA = collected.find(e => e.name === 'a.txt');
+  t.is(listedA.qid.pathId, BigInt(`0x${aOid}`));
+  const walkedA = /** @type {any} */ (await E(root).lookup('a.txt'));
+  t.is((await E(walkedA).getQid()).pathId, listedA.qid.pathId);
 });
 
 test('Git.filesystemAt: mutating verbs all throw EACCES', async t => {

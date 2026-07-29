@@ -31,20 +31,39 @@ const textDecoder = new TextDecoder();
  * identity (algorithm + hash + size) is computed at construction;
  * subsequent mutations to the originating file are independent.
  *
+ * When `infoOverride` is supplied, its `{ algorithm, hash }` are used
+ * verbatim instead of the default SHA-256-over-captured-bytes — a
+ * content-address backend (e.g. the git-tree FsBackend) supplies the
+ * native hash it already knows (`git-sha1` blob OID), which git computes
+ * over the framed payload `blob <size>\0<bytes>`, NOT the raw bytes, so a
+ * consumer comparing hashes across sources must distinguish the two.
+ * `size` is always the captured byte length regardless of the override.
+ *
  * @param {Uint8Array} bytes
  * @param {string} [help]  optional override for the `help()` body
+ * @param {{ algorithm: string, hash: string }} [infoOverride]
+ *   optional backend-supplied algorithm + hash
  */
-export const makeBlobRefExo = (bytes, help) => {
+export const makeBlobRefExo = (bytes, help, infoOverride) => {
   const captured = harden(new Uint8Array(bytes));
-  const hashBytes = createHash('sha256').update(captured).digest();
-  const info = harden({
-    algorithm: 'sha256',
-    // `encodeBase64` (over the `Buffer`, a `Uint8Array` subclass) matches the
-    // base64 hash spelling every other implementer in this PR uses, rather
-    // than the Node-only `Buffer.prototype.toString('base64')`.
-    hash: encodeBase64(hashBytes),
-    size: BigInt(captured.length),
-  });
+  let info;
+  if (infoOverride !== undefined) {
+    info = harden({
+      algorithm: infoOverride.algorithm,
+      hash: infoOverride.hash,
+      size: BigInt(captured.length),
+    });
+  } else {
+    const hashBytes = createHash('sha256').update(captured).digest();
+    info = harden({
+      algorithm: 'sha256',
+      // `encodeBase64` (over the `Buffer`, a `Uint8Array` subclass) matches the
+      // base64 hash spelling every other implementer in this PR uses, rather
+      // than the Node-only `Buffer.prototype.toString('base64')`.
+      hash: encodeBase64(hashBytes),
+      size: BigInt(captured.length),
+    });
+  }
 
   return makeExo('BlobRef', BlobRefInterface, {
     getInfo() {

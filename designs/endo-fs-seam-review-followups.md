@@ -29,7 +29,7 @@ follow-up cleanup pass; entries are checked off as fixes land.
   `probeCapabilities` reads `caps.hash`. Nothing in wrap-backend or
   the public surface ever reads `caps.hash`.
 - `BlobRef` computes its own SHA-256 on captured bytes in
-  `shared/blobref.js`; never consults the backend.
+  `shared/blob-ref.js`; never consults the backend.
 - `node-fs-backend.js` implements `hash(path)`. No consumer can
   reach it.
 - **Fix**: either remove `hash?` from the protocol + the node-fs
