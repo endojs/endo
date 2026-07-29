@@ -1,5 +1,5 @@
 // @ts-check
-/* global globalThis, process */
+/* global process */
 
 // Establish a perimeter:
 // eslint-disable-next-line import/order

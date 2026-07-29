@@ -1,5 +1,5 @@
 // @ts-check
-/* global globalThis, process */
+/* global process */
 
 // Establish a perimeter:
 import '@endo/init';
