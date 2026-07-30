@@ -122,6 +122,7 @@ api-docs
 !packages/platform/src/fs/types.d.ts
 !packages/preact-container/src/renderer.d.ts
 !packages/preact-container/src/compartment.d.ts
+!packages/reminder/src/types.d.ts
 !packages/sandbox/src/types.d.ts
 !packages/ses/src/reporting-types.d.ts
 !packages/ses/types.d.ts
