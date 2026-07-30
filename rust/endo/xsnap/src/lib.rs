@@ -1427,6 +1427,85 @@ fn cbor_skip(data: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+/// Globals endowed into every archive compartment. Evaluated once per
+/// machine to set `globalThis.__archiveEndowments`, which the archive
+/// installer's compartment factory copies onto each compartment's
+/// globals (see `archive.rs`). Shared by the supervised archive path
+/// and the standalone `endor run` runner so the two cannot drift.
+///
+/// `console` routes log/info/debug to the process stdout so a
+/// program's output is separable from the runner's stderr
+/// diagnostics; warn/error ride the trace channel (stderr).
+///
+/// `process` is a minimal frozen shim of the Node global, not a Node
+/// emulation: real npm packages branch on `process.env.NODE_ENV`
+/// before doing anything else (react and graphql select their
+/// production builds with it), so its absence failed every such
+/// package at `get process: undefined variable`. The environment is a
+/// frozen `{ NODE_ENV: 'production' }` — deterministic, never the
+/// host's environment — `nextTick` rides the promise queue, and
+/// `versions` has no `node` key so Node-detection takes its non-Node
+/// branch. The event-emitter surface (`on`, `once`, `emit`, …) is
+/// present as chainable no-ops: packages register `exit`/signal
+/// handlers as a side effect of loading, and a no-op listener grants
+/// no authority — there is no process lifecycle to observe in the
+/// confined machine. Everything else Node puts on `process`
+/// (`stdout`, `exit`, signals, `hrtime`) stays absent by design of
+/// the confined runtime; packages touching those fail with the same
+/// clean undefined read as before.
+const ARCHIVE_ENDOWMENTS_JS: &str = r#"
+globalThis.__archiveEndowments = {
+    print: trace, trace,
+    console: (function () {
+        var format = function (args) {
+            var parts = [];
+            for (var i = 0; i < args.length; i++) {
+                var a = args[i];
+                if (typeof a === 'string') { parts.push(a); continue; }
+                var s;
+                try { s = JSON.stringify(a); } catch (e) { s = undefined; }
+                parts.push(s === undefined ? String(a) : s);
+            }
+            return parts.join(' ');
+        };
+        var out = function () { stdoutLine(format(arguments)); };
+        var err = function () { trace(format(arguments)); };
+        return { log: out, info: out, debug: out, trace: out, warn: err, error: err };
+    })(),
+    process: (function () {
+        var noopChain = function () { return this; };
+        return Object.freeze({
+            env: Object.freeze({ NODE_ENV: 'production' }),
+            argv: Object.freeze(['endor']),
+            platform: 'xs',
+            arch: 'xs',
+            version: 'v0.0.0',
+            versions: Object.freeze({ xs: '0' }),
+            browser: false,
+            cwd: function cwd() { return '/'; },
+            nextTick: function nextTick(cb) {
+                var args = Array.prototype.slice.call(arguments, 1);
+                Promise.resolve().then(function () { cb.apply(null, args); });
+            },
+            on: noopChain, addListener: noopChain, once: noopChain,
+            off: noopChain, removeListener: noopChain,
+            removeAllListeners: noopChain,
+            prependListener: noopChain, prependOnceListener: noopChain,
+            listeners: function listeners() { return []; },
+            emit: function emit() { return false; },
+        });
+    })(),
+    readFileText, writeFileText, readDir, mkdir,
+    remove, rename, exists, isDir, readLink,
+    openReader, read, closeReader,
+    openWriter, write, closeWriter,
+    openDir, closeDir, symlink, link,
+    sha256, sha256Init, sha256Update, sha256Finish,
+    randomHex256, ed25519Keygen, ed25519Sign,
+    getPid, getEnv, joinPath, realPath
+};
+"#;
+
 /// Source for an XS program driven by [`run_xs_program`].
 pub enum XsProgram<'a> {
     /// Inline IIFE/script source. Evaluated at realm top-level.
@@ -1587,37 +1666,7 @@ pub fn run_xs_program(
             }
             XsProgram::Archive(bytes) => {
                 // Provide globals visible inside archive Compartments.
-                // `console` mirrors the standalone runner's endowment
-                // (log/info/debug → stdout, warn/error → trace).
-                machine.eval(
-                    "globalThis.__archiveEndowments = { \
-                        print: trace, trace, \
-                        console: (function () { \
-                            var format = function (args) { \
-                                var parts = []; \
-                                for (var i = 0; i < args.length; i++) { \
-                                    var a = args[i]; \
-                                    if (typeof a === 'string') { parts.push(a); continue; } \
-                                    var s; \
-                                    try { s = JSON.stringify(a); } catch (e) { s = undefined; } \
-                                    parts.push(s === undefined ? String(a) : s); \
-                                } \
-                                return parts.join(' '); \
-                            }; \
-                            var out = function () { stdoutLine(format(arguments)); }; \
-                            var err = function () { trace(format(arguments)); }; \
-                            return { log: out, info: out, debug: out, trace: out, warn: err, error: err }; \
-                        })(), \
-                        readFileText, writeFileText, readDir, mkdir, \
-                        remove, rename, exists, isDir, readLink, \
-                        openReader, read, closeReader, \
-                        openWriter, write, closeWriter, \
-                        openDir, closeDir, symlink, link, \
-                        sha256, sha256Init, sha256Update, sha256Finish, \
-                        randomHex256, ed25519Keygen, ed25519Sign, \
-                        getPid, getEnv, joinPath, realPath \
-                    };",
-                );
+                machine.eval(ARCHIVE_ENDOWMENTS_JS);
                 let cursor = std::io::Cursor::new(bytes);
                 let archive = archive::load_archive(cursor)
                     .map_err(|e| XsnapError::Archive(format!("cannot read archive: {e}")))?;
@@ -1861,39 +1910,8 @@ pub fn run_xs_archive_loaded(loaded: &archive::LoadedArchive) -> Result<(), Xsna
     machine.register_worker_io();
     register_host_powers(&machine);
 
-    // Provide archive endowments. `console` is what npm code
-    // actually calls: log/info/debug go to the process stdout so a
-    // program's output is separable from the runner's stderr
-    // diagnostics; warn/error ride the trace channel (stderr).
-    machine.eval(
-        "globalThis.__archiveEndowments = { \
-            print: trace, trace, \
-            console: (function () { \
-                var format = function (args) { \
-                    var parts = []; \
-                    for (var i = 0; i < args.length; i++) { \
-                        var a = args[i]; \
-                        if (typeof a === 'string') { parts.push(a); continue; } \
-                        var s; \
-                        try { s = JSON.stringify(a); } catch (e) { s = undefined; } \
-                        parts.push(s === undefined ? String(a) : s); \
-                    } \
-                    return parts.join(' '); \
-                }; \
-                var out = function () { stdoutLine(format(arguments)); }; \
-                var err = function () { trace(format(arguments)); }; \
-                return { log: out, info: out, debug: out, trace: out, warn: err, error: err }; \
-            })(), \
-            readFileText, writeFileText, readDir, mkdir, \
-            remove, rename, exists, isDir, readLink, \
-            openReader, read, closeReader, \
-            openWriter, write, closeWriter, \
-            openDir, closeDir, symlink, link, \
-            sha256, sha256Init, sha256Update, sha256Finish, \
-            randomHex256, ed25519Keygen, ed25519Sign, \
-            getPid, getEnv, joinPath, realPath \
-        };",
-    );
+    // Provide archive endowments (shared with the supervised path).
+    machine.eval(ARCHIVE_ENDOWMENTS_JS);
 
     if !archive::install_archive_async(&machine, loaded) {
         return Err(XsnapError::Archive(

@@ -1229,6 +1229,85 @@ mod tests {
             .expect("XS execution of ESM named imports of a CJS package");
     }
 
+    /// The `process` endowment: a CJS package gating on
+    /// `process.env.NODE_ENV` (react's and graphql's entry shape)
+    /// takes its production branch, `process.nextTick` runs on the
+    /// promise queue, `process.versions.node` is absent so
+    /// Node-detection takes its non-Node branch, and the emitter
+    /// no-ops (`process.on(…)` at load time is common in real
+    /// packages) chain without effect.
+    #[test]
+    fn executes_process_env_gated_cjs_in_xs() {
+        let dep_tar = make_tarball(&[
+            (
+                "package/package.json",
+                br#"{"name":"env-gated","version":"1.0.0","main":"index.js"}"#,
+            ),
+            (
+                "package/index.js",
+                b"if (process.env.NODE_ENV === 'production') {\n\
+                    module.exports = require('./prod.js');\n\
+                  } else {\n\
+                    module.exports = require('./dev.js');\n\
+                  }\n",
+            ),
+            (
+                "package/prod.js",
+                b"if (typeof process.versions.node !== 'undefined') {\n\
+                    throw new Error('must not look like Node');\n\
+                  }\n\
+                  if (process.on('exit', function () {}) !== process) {\n\
+                    throw new Error('process.on must chain');\n\
+                  }\n\
+                  if (process.emit('exit') !== false) {\n\
+                    throw new Error('process.emit must be a no-op');\n\
+                  }\n\
+                  var ticked = false;\n\
+                  process.nextTick(function (v) { ticked = v; }, true);\n\
+                  exports.mode = 'production';\n\
+                  exports.wasTicked = function () { return ticked; };\n",
+            ),
+            ("package/dev.js", b"exports.mode = 'development';\n"),
+        ]);
+        let http = MockHttp::new()
+            .respond(
+                "https://registry.npmjs.org/env-gated",
+                registry_meta("env-gated", &["1.0.0"]),
+            )
+            .respond(&tarball_url("env-gated", "1.0.0"), dep_tar);
+
+        let cas_tmp = tempfile::tempdir().unwrap();
+        let cas = ContentStore::open(cas_tmp.path()).unwrap();
+        let registry = RegistryTable::open_in_memory().unwrap();
+        let app = tempfile::tempdir().unwrap();
+        fs::write(
+            app.path().join("package.json"),
+            r#"{"name":"app","type":"module","dependencies":{"env-gated":"^1.0.0"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            app.path().join("main.js"),
+            "import gated from 'env-gated';\n\
+             if (gated.mode !== 'production') throw new Error(`bad mode: ${gated.mode}`);\n\
+             await Promise.resolve();\n\
+             if (gated.wasTicked() !== true) throw new Error('nextTick did not run');\n\
+             print(`mode=${gated.mode}`);\n",
+        )
+        .unwrap();
+        let run = assemble_entry(
+            &http,
+            &cas,
+            &registry,
+            DEFAULT_REGISTRY,
+            &app.path().join("main.js"),
+        )
+        .unwrap();
+
+        let archive = load_assembled_archive(&cas, &run.compartment_map_hash).unwrap();
+        xsnap::run_xs_archive_loaded(&archive)
+            .expect("XS execution of the process.env-gated CJS package");
+    }
+
     /// A CommonJS entry point: the app package has no `"type"`, so
     /// its main module runs under the CJS loader and requires its
     /// dependency — which must resolve through `require` conditions
