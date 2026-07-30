@@ -20,7 +20,11 @@
 import harden from '@endo/harden';
 
 import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
-import { getModel, getProviders } from '@earendil-works/pi-ai/compat';
+import {
+  getModel,
+  getProviders,
+  streamSimple,
+} from '@earendil-works/pi-ai/compat';
 
 import buildSystemPrompt from '../system/index.js';
 import { estimateTokens } from '../utils/tokens.js';
@@ -395,6 +399,9 @@ export async function makePiAgent(options = {}) {
           m.role === 'toolResult',
       ),
     toolExecution: 'sequential',
+    // Pi 0.81 no longer supplies an implicit stream function. Genie uses the
+    // compat model registry, so its corresponding stream is the fallback.
+    streamFn: streamSimple,
     ...(isOllama ? { getApiKey: async _provider => getOllamaApiKey() } : {}),
   });
 

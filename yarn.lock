@@ -983,21 +983,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@earendil-works/pi-agent-core@npm:^0.80.3":
-  version: 0.80.3
-  resolution: "@earendil-works/pi-agent-core@npm:0.80.3"
+"@earendil-works/pi-agent-core@npm:^0.81.1":
+  version: 0.81.1
+  resolution: "@earendil-works/pi-agent-core@npm:0.81.1"
   dependencies:
-    "@earendil-works/pi-ai": "npm:^0.80.3"
+    "@earendil-works/pi-ai": "npm:^0.81.1"
     ignore: "npm:7.0.5"
     typebox: "npm:1.1.38"
     yaml: "npm:2.9.0"
-  checksum: 10c0/59b6396f07c6b2f1385808a33f0aabf1a90838454d7d9801fb48e111771a8ccbb870d26e439d505d0aa05db39c94c2a179364cda0eb9e07d1030c756ec9509bb
+  checksum: 10c0/69256aca2efdf5a36f290b51ebd687cd372bab7f4fdd62e8d4dffb8ebacca1c632eb71cdccdd1dbc583363ead29b59f82bc3db04ab142b1d5ee2ca80860041c1
   languageName: node
   linkType: hard
 
-"@earendil-works/pi-ai@npm:^0.80.3":
-  version: 0.80.3
-  resolution: "@earendil-works/pi-ai@npm:0.80.3"
+"@earendil-works/pi-ai@npm:^0.81.1":
+  version: 0.81.1
+  resolution: "@earendil-works/pi-ai@npm:0.81.1"
   dependencies:
     "@anthropic-ai/sdk": "npm:0.91.1"
     "@aws-sdk/client-bedrock-runtime": "npm:3.1048.0"
@@ -1012,7 +1012,7 @@ __metadata:
     typebox: "npm:1.1.38"
   bin:
     pi-ai: dist/cli.js
-  checksum: 10c0/368e83b70647e3e89e92051e5134d5c991bb7af78c2ffb898f67bae0835895a1bd424483bf1b8bde3f97b48efd6d3775c032bf19dd7219f216cb9e0dba33ce1d
+  checksum: 10c0/e94bc7550f48d9ff9528a8bd3f3b2b60847341d962d1fdea57cb6e36c3684b6a148fa3e28b1414c8fe8cfbbdeece46152340a7af00017d42a59d4e8122914ba1
   languageName: node
   linkType: hard
 
@@ -1231,8 +1231,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/agent-tools@workspace:packages/agent-tools"
   dependencies:
-    "@earendil-works/pi-agent-core": "npm:^0.80.3"
-    "@earendil-works/pi-ai": "npm:^0.80.3"
+    "@earendil-works/pi-agent-core": "npm:^0.81.1"
+    "@earendil-works/pi-ai": "npm:^0.81.1"
     "@endo/daemon": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/exo-git": "workspace:^"
@@ -1253,8 +1253,8 @@ __metadata:
     eslint: "catalog:dev"
     typescript: "catalog:dev"
   peerDependencies:
-    "@earendil-works/pi-agent-core": ^0.80.3
-    "@earendil-works/pi-ai": ^0.80.3
+    "@earendil-works/pi-agent-core": ^0.81.1
+    "@earendil-works/pi-ai": ^0.81.1
   peerDependenciesMeta:
     "@earendil-works/pi-agent-core":
       optional: true
@@ -1267,8 +1267,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/agentry@workspace:packages/agentry"
   dependencies:
-    "@earendil-works/pi-agent-core": "npm:^0.80.3"
-    "@earendil-works/pi-ai": "npm:^0.80.3"
+    "@earendil-works/pi-agent-core": "npm:^0.81.1"
+    "@earendil-works/pi-ai": "npm:^0.81.1"
     "@endo/agent-tools": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/errors": "workspace:^"
@@ -2168,8 +2168,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/genie@workspace:packages/genie"
   dependencies:
-    "@earendil-works/pi-agent-core": "npm:^0.80.3"
-    "@earendil-works/pi-ai": "npm:^0.80.3"
+    "@earendil-works/pi-agent-core": "npm:^0.81.1"
+    "@earendil-works/pi-ai": "npm:^0.81.1"
     "@endo/cli": "workspace:^"
     "@endo/daemon": "workspace:^"
     "@endo/errors": "workspace:^"
@@ -2440,8 +2440,8 @@ __metadata:
   resolution: "@endo/lal@workspace:packages/lal"
   dependencies:
     "@anthropic-ai/sdk": "npm:^0.95.1"
-    "@earendil-works/pi-agent-core": "npm:^0.80.3"
-    "@earendil-works/pi-ai": "npm:^0.80.3"
+    "@earendil-works/pi-agent-core": "npm:^0.81.1"
+    "@earendil-works/pi-ai": "npm:^0.81.1"
     "@endo/agent-tools": "workspace:^"
     "@endo/agentry": "workspace:^"
     "@endo/cli": "workspace:^"

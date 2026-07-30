@@ -7,6 +7,7 @@
 /** @import { GetApiKey } from './credentials.js' */
 
 import { Agent as PiAgent } from '@earendil-works/pi-agent-core';
+import { streamSimple } from '@earendil-works/pi-ai/compat';
 
 /**
  * Default `convertToLlm`: keep only the message roles the LLM transcript reads
@@ -70,7 +71,9 @@ export const makePiAgent = ({
     },
     convertToLlm,
     toolExecution,
-    streamFn,
+    // Pi 0.81 requires a stream function when a turn begins. Keep the
+    // harness's established compat-registry behavior when callers omit one.
+    streamFn: streamFn ?? streamSimple,
     // Include getApiKey only when supplied, so a non-Ollama caller leaves the
     // hook absent rather than explicitly `undefined`.
     ...(getApiKey ? { getApiKey } : {}),
