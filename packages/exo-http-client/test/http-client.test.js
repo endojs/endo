@@ -492,6 +492,21 @@ test('control can replace origins, adjust limits, and revoke', async t => {
   });
 });
 
+test('policy-change notifications run in a later event', async t => {
+  /** @type {import('../src/types.js').PolicySnapshot[]} */
+  const snapshots = [];
+  const { control } = makeHttpClientAndControl({
+    onPolicyChange: snapshot => snapshots.push(snapshot),
+  });
+
+  control.setMaxResponseBytes(9);
+  t.is(snapshots.length, 0);
+
+  await Promise.resolve();
+  t.is(snapshots.length, 1);
+  t.is(snapshots[0].policy.maxResponseBytes, 9);
+});
+
 test('origin configuration rejects non-http schemes and path-bearing entries', t => {
   const fake = makeFakeFetch();
   t.throws(

@@ -1,7 +1,5 @@
 {
-  "entryPoints": [
-    "packages/*"
-  ],
+  "entryPoints": ["packages/*"],
   "projectDocuments": [
     "README.md",
     "docs/get-started.md",
@@ -13,16 +11,10 @@
     "docs/errors.md",
     "docs/bugs.md"
   ],
-  "categoryOrder": [
-    "Guides",
-    "Reference",
-    "*",
-    "Annex"
-  ],
+  "categoryOrder": ["Guides", "Reference", "*", "Annex"],
   "exclude": [
     "**/tmp/**",
     "**/dist/**",
-    "**/dist-xs/**",
     "**/node_modules/**",
     "packages/chacha12-fast-check-test",
     "packages/chat",
@@ -52,7 +44,6 @@
     "packages/netstring",
     "packages/ocapn",
     "packages/ocapn-noise",
-    "packages/ocapn-iroh",
     "packages/platform",
     "packages/preact-container",
     "packages/relay-server",
@@ -66,9 +57,7 @@
     "packages/space-file-explorer",
     "api-docs/"
   ],
-  "plugin": [
-    "typedoc-plugin-mermaid"
-  ],
+  "plugin": ["typedoc-plugin-mermaid"],
   "name": "Endo",
   "titleLink": "https://endojs.org",
   "entryPointStrategy": "packages",

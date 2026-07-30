@@ -2123,6 +2123,21 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/fetch@workspace:packages/fetch":
+  version: 0.0.0-use.local
+  resolution: "@endo/fetch@workspace:packages/fetch"
+  dependencies:
+    "@endo/eventual-send": "workspace:^"
+    "@endo/exo-http-client": "workspace:^"
+    "@endo/init": "workspace:^"
+    "@endo/pass-style": "workspace:^"
+    "@endo/platform": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    eslint: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/floot@workspace:packages/floot":
   version: 0.0.0-use.local
   resolution: "@endo/floot@workspace:packages/floot"
