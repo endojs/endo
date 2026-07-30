@@ -23,8 +23,11 @@ All five phases implemented:
   a `ureq` production client.
 - **Phase 3**: `rust/endo/src/semver.rs` — `Version` parsing
   with ordering, `Range` parsing with `^`, `~`, `>=`, `<`, `<=`,
-  `*`, exact versions, space-separated AND composites, and
-  partial/wildcard forms (`2`, `2.1`, `2.x`, `>=2`, `~0`).
+  `*`, exact versions, space-separated AND composites,
+  partial/wildcard forms (`2`, `2.1`, `2.x`, `>=2`, `~0`), and
+  `||`-separated OR alternatives (`^17 || ^18`, the
+  peer-dependency staple) with correct union semantics — each
+  alternative an AND set, a version matching any alternative.
   `select_versions` implements Go-like MVS: greatest available
   version per major satisfying all ranges.
 - **Phase 4 (resolver half)**: `rust/endo/src/npm_resolve.rs` —
@@ -456,7 +459,37 @@ The tree's children are the package's files, stored as blobs.
 - [ ] Private registry authentication beyond `.npmrc` tokens.
 - [ ] Workspace-protocol resolution for monorepos not yet
       published to a registry.
-- [ ] `peerDependencies` and `optionalDependencies` handling.
+- [x] `peerDependencies` and `optionalDependencies` handling
+      (npm ≥7-alike, adapted to MVS): non-optional peers fold
+      into the shared requirement set as required edges — MVS
+      unifies a peer with whatever version another edge selected
+      — and bind compartment-map edges so `require('peer')`
+      links at runtime; `optionalDependencies` are attempted and
+      skipped on failure (no matching version, unsupported
+      range, fetch error), the skip reported by `endor run` /
+      `endor npm-resolve` and the map edge omitted so a guarded
+      `require` fails with a clean cannot-find; peers marked
+      optional in `peerDependenciesMeta` are constrain-only —
+      their range applies when some other edge activates the
+      package, and never activates it. Deliberate
+      simplifications: required-ness does not propagate through
+      an optional subtree (a failure below an optional package
+      skips the failing node, where npm drops the whole
+      subtree), and a whole package name is skipped when any of
+      its selected majors fails. Verified against the live
+      registry: `endor npm-resolve 'react-redux@^9.0.0'` selects
+      `react` purely via peer edges (18.3.1 from react-redux's
+      `^18.0 || ^19`, 16.14.0 from use-sync-external-store's
+      `^16.8.0 || ^17 || ^18` — distinct anchor majors coexist)
+      and leaves the optional peers `redux` / `@types/react`
+      unactivated.
+- [ ] A `process` global (`process.env.NODE_ENV` at minimum) for
+      the archive runtime's CJS loader: real-world CJS packages
+      gate dev/prod entry selection on it (`react`, `graphql`),
+      so their evaluation dies on `get process: undefined
+      variable` even though their (peer) edges now link. Whether
+      to shim a frozen `process.env` or reject remains a
+      confinement decision.
 - [ ] Pre/post-install scripts (intentionally omitted — Endo
       does not execute arbitrary install scripts).
 - [ ] Binary packages (`.node` native modules) — not

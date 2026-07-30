@@ -160,7 +160,9 @@ fn print_subcommand_help(sub: &str) {
             eprintln!("Environment:");
             eprintln!("  ENDO_WORKER_THREADS   Tokio worker thread count (default: 4)");
             eprintln!("  ENDO_MANAGER_NODE     If set, use Node.js manager child");
-            eprintln!("  ENDO_DAEMON_PATH      Path to Node.js daemon script (with ENDO_MANAGER_NODE)");
+            eprintln!(
+                "  ENDO_DAEMON_PATH      Path to Node.js daemon script (with ENDO_MANAGER_NODE)"
+            );
             eprintln!("  ENDO_DEFAULT_PLATFORM Default worker platform: separate, shared, node");
             eprintln!("  ENDO_TRACE            Enable trace logging");
         }
@@ -204,7 +206,9 @@ fn print_subcommand_help(sub: &str) {
             eprintln!("  -e, --engine <engine>  Engine to use (default: xs)");
         }
         "run" => {
-            eprintln!("Usage: endor run [-e xs] [--registry <url>] [--offline] <archive.zip | entry.js>");
+            eprintln!(
+                "Usage: endor run [-e xs] [--registry <url>] [--offline] <archive.zip | entry.js>"
+            );
             eprintln!();
             eprintln!("Run a compartment-map archive, or an entry module, standalone.");
             eprintln!();
@@ -366,8 +370,10 @@ fn parse_positional_path(args: &[String]) -> Option<PathBuf> {
             i += 2;
             continue;
         }
-        if a.starts_with("--engine=") || a.starts_with("-e=")
-            || a.starts_with("--cas=") || a.starts_with("--cas-dir=")
+        if a.starts_with("--engine=")
+            || a.starts_with("-e=")
+            || a.starts_with("--cas=")
+            || a.starts_with("--cas-dir=")
             || a.starts_with("--registry=")
         {
             i += 1;
@@ -500,9 +506,8 @@ fn cmd_run_entry(args: &[String], entry_path: &std::path::Path) -> Result<(), En
         .map_err(|e| EndoError::Config(format!("state dir: {e}")))?;
     let cas = endo::cas::ContentStore::open(&paths.state_path.join("store-sha256"))
         .map_err(|e| EndoError::Config(format!("CAS open: {e}")))?;
-    let registry_table =
-        endo::registry::RegistryTable::open(&paths.state_path.join("registry.db"))
-            .map_err(|e| EndoError::Config(format!("registry table open: {e}")))?;
+    let registry_table = endo::registry::RegistryTable::open(&paths.state_path.join("registry.db"))
+        .map_err(|e| EndoError::Config(format!("registry table open: {e}")))?;
 
     let http: Box<dyn endo::fetch::HttpClient> = if offline {
         Box::new(endo::fetch::OfflineClient)
@@ -530,6 +535,12 @@ fn cmd_run_entry(args: &[String], entry_path: &std::path::Path) -> Result<(), En
             package.name, package.version, package.tree_hash
         );
     }
+    for skipped in &assembled.skipped_optional {
+        eprintln!(
+            "endor[run]:   skipped optional {}: {}",
+            skipped.name, skipped.reason
+        );
+    }
     eprintln!("endor[run]: entry tree {}", assembled.entry_tree_hash);
     eprintln!(
         "endor[run]: compartment map {}",
@@ -538,8 +549,7 @@ fn cmd_run_entry(args: &[String], entry_path: &std::path::Path) -> Result<(), En
 
     let archive = endo::execute::load_assembled_archive(&cas, &assembled.compartment_map_hash)
         .map_err(|e| EndoError::Config(format!("{e}")))?;
-    xsnap::run_xs_archive_loaded(&archive)
-        .map_err(|e| EndoError::Config(format!("run: {e}")))?;
+    xsnap::run_xs_archive_loaded(&archive).map_err(|e| EndoError::Config(format!("run: {e}")))?;
     Ok(())
 }
 
@@ -572,8 +582,7 @@ fn cmd_run_from_cas(root_hash: &str) -> Result<(), EndoError> {
     let archive = endo::cas_archive::load_archive_from_cas(&cas, root_hash)
         .map_err(|e| EndoError::Config(format!("CAS load: {e}")))?;
 
-    xsnap::run_xs_archive_loaded(&archive)
-        .map_err(|e| EndoError::Config(format!("run: {e}")))?;
+    xsnap::run_xs_archive_loaded(&archive).map_err(|e| EndoError::Config(format!("run: {e}")))?;
     Ok(())
 }
 
@@ -639,9 +648,8 @@ fn cmd_npm_resolve(args: &[String]) -> Result<(), EndoError> {
         .map_err(|e| EndoError::Config(format!("state dir: {e}")))?;
     let cas = endo::cas::ContentStore::open(&paths.state_path.join("store-sha256"))
         .map_err(|e| EndoError::Config(format!("CAS open: {e}")))?;
-    let registry_table =
-        endo::registry::RegistryTable::open(&paths.state_path.join("registry.db"))
-            .map_err(|e| EndoError::Config(format!("registry table open: {e}")))?;
+    let registry_table = endo::registry::RegistryTable::open(&paths.state_path.join("registry.db"))
+        .map_err(|e| EndoError::Config(format!("registry table open: {e}")))?;
 
     let http: Box<dyn endo::fetch::HttpClient> = if offline {
         Box::new(endo::fetch::OfflineClient)
@@ -649,19 +657,28 @@ fn cmd_npm_resolve(args: &[String]) -> Result<(), EndoError> {
         Box::new(endo::fetch::UreqClient::with_config(config.clone()))
     };
     let http_ref: &dyn endo::fetch::HttpClient = http.as_ref();
-    let resolved = endo::npm_resolve::resolve_transitive_with_config(
+    let outcome = endo::npm_resolve::resolve_transitive_outcome(
         &http_ref,
         &cas,
         &registry_table,
         &config,
-        &roots,
+        &endo::npm_resolve::DepEdges::required_only(&roots),
     )
     .map_err(|e| EndoError::Config(format!("npm-resolve: {e}")))?;
 
-    for p in &resolved {
+    for p in &outcome.packages {
         println!("{} {} {}", p.name, p.version, p.tree_hash);
     }
-    eprintln!("endor npm-resolve: {} packages resolved", resolved.len());
+    for skipped in &outcome.skipped_optional {
+        eprintln!(
+            "endor npm-resolve: skipped optional {}: {}",
+            skipped.name, skipped.reason
+        );
+    }
+    eprintln!(
+        "endor npm-resolve: {} packages resolved",
+        outcome.packages.len()
+    );
     Ok(())
 }
 
