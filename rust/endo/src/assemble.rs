@@ -117,12 +117,11 @@ pub struct ResolvedCompartment {
     /// Bound when resolution selected a target, omitted otherwise
     /// (the runtime `require` then fails with a clean cannot-find,
     /// which guarded optional requires expect).
-
     pub optional_edges: BTreeMap<String, String>,
     /// Whether this package is a local workspace member (ingested
     /// from its working tree) rather than a registry fetch.
-
-    pub workspace: bool,}
+    pub workspace: bool,
+}
 
 /// The transitive resolution as consumed by map building: the
 /// resolved packages with their dependency edges, plus range→package
@@ -240,7 +239,7 @@ fn parse_dependencies(
     let mut dependencies = BTreeMap::new();
     if let Some(deps) = doc.get("dependencies") {
         let obj = deps.as_object().ok_or_else(|| {
-            AssembleError::BadPackageJson(format!("{who}: "dependencies" is not an object"))
+            AssembleError::BadPackageJson(format!("{who}: \"dependencies\" is not an object"))
         })?;
         for (dep, range) in obj {
             let range = range.as_str().ok_or_else(|| {
