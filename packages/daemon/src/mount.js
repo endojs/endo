@@ -13,6 +13,9 @@ import { mapReader } from '@endo/stream';
 import {
   ReadableBlobRangeInterface,
   ReadableTreeInterface,
+  provideSearch,
+  GLOB_MAX_RESULTS,
+  GREP_MAX_RESULTS,
 } from '@endo/platform/fs/lite';
 import { toSafeNumber } from '@endo/platform/fs/extended/shared/helpers.js';
 import { iterateBytesReader } from '@endo/exo-stream/iterate-bytes-reader.js';
@@ -28,6 +31,11 @@ import {
   MountFileInterface,
   MountInterface,
 } from './interfaces.js';
+
+// Re-exported from the platform search engine (the eager `glob()` collector's
+// post-sort cap). Kept as a `mount.js` export so consumers and the
+// cross-language contract test bind to the one canonical constant.
+export { GLOB_MAX_RESULTS };
 
 const mountEntryRecords = new WeakMap();
 const mountRecords = new WeakMap();
@@ -736,485 +744,605 @@ const makeMountExo = ctx => {
    * @param {string[]} segments
    */
   const makeEntry = segments => {
-    const entry = makeMountEntryExo({
+    const entryExo = makeMountEntryExo({
       ...ctx,
       entrySegments: segments,
     });
-    mountEntryRecords.set(entry, makeEntryRecord(segments));
-    return entry;
+    mountEntryRecords.set(entryExo, makeEntryRecord(segments));
+    return entryExo;
   };
 
   const help = makeHelp(mountHelp);
 
-  const exo = makeExo('EndoMount', MountInterface, {
-    help,
+  // Each method is a lexically-scoped function expression rather than a
+  // concise method on an object literal, so a method that needs another
+  // one — `glorp` calling `glob`/`grep`, `copy` calling `write`, `write`
+  // recursing — names it directly instead of reaching through `this`. The
+  // exo is assembled from the resulting bag of functions.
+  const has = async (...args) => {
+    await null;
+    assertLive();
+    const pathSegments = segmentsFromHasArgs(args);
+    if (pathSegments.length === 0) {
+      return true;
+    }
+    const target = resolveFromRoot(pathSegments);
+    const pathExists = await filePowers.exists(target);
+    if (!pathExists) {
+      return false;
+    }
+    return isConfinedPath(target, confinementRoot, filePowers);
+  };
 
-    async has(...args) {
-      await null;
-      assertLive();
-      const pathSegments = segmentsFromHasArgs(args);
-      if (pathSegments.length === 0) {
-        return true;
+  const list = async (...pathSegments) => {
+    await null;
+    const target = resolve(pathSegments);
+    await assertConfined(target, confinementRoot, filePowers);
+    const entries = await filePowers.readDirectory(target);
+    const confined = [];
+    for (const childName of entries.sort()) {
+      // Restricted names never appear in a listing, even though naming
+      // one directly in a path would throw. `list()` enumerates children
+      // that were never passed through `assertSegmentAllowed`, so it
+      // filters them here.
+      if (isDenied(childName)) {
+        // eslint-disable-next-line no-continue
+        continue;
       }
-      const target = resolveFromRoot(pathSegments);
-      const pathExists = await filePowers.exists(target);
-      if (!pathExists) {
-        return false;
+      const entryPath = filePowers.joinPath(target, childName);
+      // eslint-disable-next-line no-await-in-loop
+      if (await isConfinedPath(entryPath, confinementRoot, filePowers)) {
+        confined.push(childName);
       }
-      return isConfinedPath(target, confinementRoot, filePowers);
-    },
+    }
+    return harden(confined);
+  };
 
-    async list(...pathSegments) {
-      await null;
-      const target = resolve(pathSegments);
-      await assertConfined(target, confinementRoot, filePowers);
-      const entries = await filePowers.readDirectory(target);
-      const confined = [];
-      for (const entry of entries.sort()) {
-        // Restricted names never appear in a listing, even though naming
-        // one directly in a path would throw. `list()` enumerates children
-        // that were never passed through `assertSegmentAllowed`, so it
-        // filters them here.
-        if (isDenied(entry)) {
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        const entryPath = filePowers.joinPath(target, entry);
-        // eslint-disable-next-line no-await-in-loop
-        if (await isConfinedPath(entryPath, confinementRoot, filePowers)) {
-          confined.push(entry);
-        }
+  // Enumerate the mount-face-relative paths matching a glob `pattern`, sorted
+  // by UTF-16 code unit and capped at `GLOB_MAX_RESULTS`. The walk, the
+  // two-metacharacter dialect, the ReDoS-safe matcher, symlink-cycle
+  // termination, deny filtering, and confinement all live in the platform
+  // engine (`@endo/platform/fs/search`); this method is the eager
+  // flatten-and-cap collector over its batch generator. A `subView`'s glob
+  // sees only its own sub-root because the face's `confinementRoot` is the
+  // walk boundary, and the revocation gate wraps the call.
+  const glob = async pattern => {
+    await null;
+    assertLive();
+    const search = provideSearch(filePowers);
+    /** @type {string[]} */
+    const paths = [];
+    for await (const batch of search.globPaths(currentDir, pattern, {
+      deniedSegments:
+        deniedSegments === undefined ? undefined : [...deniedSegments],
+      confinementRoot,
+    })) {
+      paths.push(...batch);
+      if (paths.length >= GLOB_MAX_RESULTS) {
+        break;
       }
-      return harden(confined);
-    },
+    }
+    // The engine yields the full UTF-16-sorted sequence; the cap is applied
+    // post-sort so the dropped set is deterministic across platforms.
+    return harden(paths.slice(0, GLOB_MAX_RESULTS));
+  };
 
-    async lookup(pathArg) {
-      await null;
-      const segments = segmentsFromPathArg(pathArg);
-      return openExisting(resolveFromRoot(segments), segments);
-    },
-
-    // The `ReadableNameHub` lookup-or-undefined primitive: resolve `pathArg`
-    // and return its handle, or `undefined` when the path is absent (or
-    // escapes confinement). Mirrors `maybeReadText`'s broad catch — any
-    // resolution failure yields `undefined` rather than throwing.
-    async maybeLookup(pathArg) {
-      await null;
-      // A revoked mount throws rather than masquerading the revocation as a
-      // benign "absent" undefined; the gate runs before the swallowing try.
-      assertLive();
-      const segments = segmentsFromPathArg(pathArg);
-      try {
-        return await openExisting(resolveFromRoot(segments), segments);
-      } catch {
-        return undefined;
+  // Search file contents under this mount face for an ECMAScript RegExp
+  // source (no flags), yielding `{ file, line, text }` records with 1-based
+  // line numbers and CRLF-normalized text. `paths` is the set of files to
+  // search — a `string[]` (or, via CapTP, a `Promise<string[]>` the exo
+  // awaits per the `M.await` guard), so glob is an independent producer of
+  // paths that composes into grep: `E(mount).grep('TODO', E(mount).glob(g))`.
+  // Omitting `paths` searches every file under the face's root. Each supplied
+  // path that is denied, escapes confinement, is a directory, or is
+  // unreadable is skipped silently — the uniform envelope that makes
+  // glob-produced and hand-supplied paths behave identically. The walk, deny
+  // filtering, confinement, and CRLF normalization live in the platform
+  // engine (`@endo/platform/fs/search`); this method is the eager
+  // flatten-and-cap collector over its batch generator, with the revocation
+  // gate wrapping the call and a `subView`'s grep scoped to its sub-root.
+  /**
+   * @param {string} pattern
+   * @param {string[]} [paths]
+   * @param {{ maxResults?: number }} [options]
+   */
+  const grep = async (pattern, paths = undefined, options = {}) => {
+    await null;
+    assertLive();
+    const { maxResults = GREP_MAX_RESULTS } = options;
+    const search = provideSearch(filePowers);
+    /** @type {Array<{ file: string, line: number, text: string }>} */
+    const matches = [];
+    for await (const batch of search.grepFiles(currentDir, pattern, paths, {
+      deniedSegments:
+        deniedSegments === undefined ? undefined : [...deniedSegments],
+      confinementRoot,
+      maxResults,
+    })) {
+      matches.push(...batch);
+      if (matches.length >= maxResults) {
+        break;
       }
-    },
+    }
+    return harden(matches.slice(0, maxResults));
+  };
 
-    async subView(pathArg) {
-      await null;
-      const segments = segmentsFromPathArg(pathArg);
-      const target = resolveFromRoot(segments);
-      await assertConfined(target, confinementRoot, filePowers);
-      if (!(await filePowers.isDirectory(target))) {
-        throw new Error(
-          `ENOTDIR: subView target is not a directory: ${q(
-            relativeToRoot(target, confinementRoot),
-          )}`,
-        );
-      }
-      // A genuine confinement shift: the sub-view's own `confinementRoot`
-      // is `target`, so `..` clamps at the sub-view root and cannot reach
-      // the parent mount's siblings or root. This is unlike a `lookup`
-      // sub-handle, which deliberately inherits the mount's
-      // `confinementRoot` for in-mount navigation. For a *persisted*
-      // sub-root, use `provideSubMount` (a new formula); `subView` is the
-      // transient, in-session attenuator.
-      //
-      // Mint a FRESH `rootId` so the sub-view is its own identity domain:
-      // a `mountEntry` minted by the parent (whose `segments` are
-      // parent-root-relative) is rejected by `segmentsFromPathArg`'s
-      // `record.rootId !== rootId` check rather than being silently
-      // re-based against the sub-view root. Entries minted *by* the
-      // sub-view capture this new id (via the new exo's closure) and keep
-      // working.
-      return makeMountExo({
-        ...ctx,
-        currentDir: target,
-        currentSegments: [],
-        confinementRoot: target,
-        rootId: harden({}),
-        description: `Subview of ${description}`,
-      });
-    },
+  // Fused glob+grep: enumerate the files matching the `glob` pattern and
+  // search them for the `grep` pattern, returning grep's `{ file, line, text }`
+  // records. Both patterns are required positionals (unlike grep's optional
+  // `paths`), so the whole operation is expressible as a single call whose two
+  // patterns a native filesystem layer can push down and fuse into one
+  // enumerate-and-scan pass — no glob result set round-trips through JS. The
+  // reference implementation here composes the decoupled surface directly by
+  // calling the lexical `glob` and `grep` above — the same
+  // `grep(pattern, glob(g))` seam grep already exposes, with the glob result
+  // awaited before it becomes grep's `paths` argument. A native powers layer
+  // may override `glorp` with a single fused call.
+  /**
+   * @param {string} globPattern
+   * @param {string} grepPattern
+   * @param {{ maxResults?: number }} [options]
+   */
+  const glorp = async (globPattern, grepPattern, options = {}) => {
+    await null;
+    assertLive();
+    const { maxResults = GREP_MAX_RESULTS } = options;
+    const paths = await glob(globPattern);
+    return grep(grepPattern, paths, { maxResults });
+  };
 
-    entry(pathArg) {
-      assertLive();
-      return makeEntry(segmentsFromEntryPathArg(pathArg));
-    },
+  const lookup = async pathArg => {
+    await null;
+    const segments = segmentsFromPathArg(pathArg);
+    return openExisting(resolveFromRoot(segments), segments);
+  };
 
-    async makeDirectory(pathArg) {
-      await null;
-      assertWritable();
-      const segments = segmentsFromPathArg(pathArg);
-      const target = resolveFromRoot(segments);
-      await assertConfinedOrAncestor(target, confinementRoot, filePowers);
-      await filePowers.makePath(target);
-      // Return a sub-mount handle on the freshly-made path so the
-      // method satisfies `Directory.makeDirectory(path):
-      // Promise<Directory>`.  Existing callers that ignore the
-      // return value are source-compatible.
-      return openExisting(target, segments);
-    },
+  // The `ReadableNameHub` lookup-or-undefined primitive: resolve `pathArg`
+  // and return its handle, or `undefined` when the path is absent (or
+  // escapes confinement). Mirrors `maybeReadText`'s broad catch — any
+  // resolution failure yields `undefined` rather than throwing.
+  const maybeLookup = async pathArg => {
+    await null;
+    // A revoked mount throws rather than masquerading the revocation as a
+    // benign "absent" undefined; the gate runs before the swallowing try.
+    assertLive();
+    const segments = segmentsFromPathArg(pathArg);
+    try {
+      return await openExisting(resolveFromRoot(segments), segments);
+    } catch {
+      return undefined;
+    }
+  };
 
-    async makeFile(pathArg, content) {
-      await null;
-      assertWritable();
-      const target = resolvePathArg(pathArg);
-      await assertConfinedOrAncestor(target, confinementRoot, filePowers);
-      const parent = filePowers.joinPath(target, '..');
-      await filePowers.makePath(parent);
-      if (await filePowers.isDirectory(target)) {
-        throw new Error('Path is a directory');
-      }
-      if (content === undefined) {
-        if (!(await filePowers.exists(target))) {
-          await filePowers.writeFileText(target, '');
-        }
-        return;
-      }
-      if (typeof content === 'string') {
-        await filePowers.writeFileText(target, content);
-        return;
-      }
-      // Binary content is supplied via `write(path, readableBlob)` /
-      // `copy(from, to)` rather than `makeFile`: mutable typed arrays
-      // are rejected at the exo boundary, so a `Uint8Array` argument
-      // cannot reach this method through CapTP. Callers that hold raw
-      // bytes wrap them in a `ReadableBlob` and use `write()`.
+  const subView = async pathArg => {
+    await null;
+    const segments = segmentsFromPathArg(pathArg);
+    const target = resolveFromRoot(segments);
+    await assertConfined(target, confinementRoot, filePowers);
+    if (!(await filePowers.isDirectory(target))) {
       throw new Error(
-        'makeFile content must be a string (use write() with a ReadableBlob for binary content)',
+        `ENOTDIR: subView target is not a directory: ${q(
+          relativeToRoot(target, confinementRoot),
+        )}`,
       );
-    },
+    }
+    // A genuine confinement shift: the sub-view's own `confinementRoot`
+    // is `target`, so `..` clamps at the sub-view root and cannot reach
+    // the parent mount's siblings or root. This is unlike a `lookup`
+    // sub-handle, which deliberately inherits the mount's
+    // `confinementRoot` for in-mount navigation. For a *persisted*
+    // sub-root, use `provideSubMount` (a new formula); `subView` is the
+    // transient, in-session attenuator.
+    //
+    // Mint a FRESH `rootId` so the sub-view is its own identity domain:
+    // a `mountEntry` minted by the parent (whose `segments` are
+    // parent-root-relative) is rejected by `segmentsFromPathArg`'s
+    // `record.rootId !== rootId` check rather than being silently
+    // re-based against the sub-view root. Entries minted *by* the
+    // sub-view capture this new id (via the new exo's closure) and keep
+    // working.
+    return makeMountExo({
+      ...ctx,
+      currentDir: target,
+      currentSegments: [],
+      confinementRoot: target,
+      rootId: harden({}),
+      description: `Subview of ${description}`,
+    });
+  };
 
-    async stat(pathArg) {
-      await null;
-      const target = resolvePathArg(pathArg);
-      try {
-        await assertConfined(target, confinementRoot, filePowers);
-        return filePowers.statPath(target);
-      } catch {
-        return undefined;
+  const entry = pathArg => {
+    assertLive();
+    return makeEntry(segmentsFromEntryPathArg(pathArg));
+  };
+
+  const makeDirectory = async pathArg => {
+    await null;
+    assertWritable();
+    const segments = segmentsFromPathArg(pathArg);
+    const target = resolveFromRoot(segments);
+    await assertConfinedOrAncestor(target, confinementRoot, filePowers);
+    await filePowers.makePath(target);
+    // Return a sub-mount handle on the freshly-made path so the
+    // method satisfies `Directory.makeDirectory(path):
+    // Promise<Directory>`.  Existing callers that ignore the
+    // return value are source-compatible.
+    return openExisting(target, segments);
+  };
+
+  const makeFile = async (pathArg, content) => {
+    await null;
+    assertWritable();
+    const target = resolvePathArg(pathArg);
+    await assertConfinedOrAncestor(target, confinementRoot, filePowers);
+    const parent = filePowers.joinPath(target, '..');
+    await filePowers.makePath(parent);
+    if (await filePowers.isDirectory(target)) {
+      throw new Error('Path is a directory');
+    }
+    if (content === undefined) {
+      if (!(await filePowers.exists(target))) {
+        await filePowers.writeFileText(target, '');
       }
-    },
-
-    async readText(pathArg) {
-      await null;
-      const target = resolvePathArg(pathArg);
-      await assertConfined(target, confinementRoot, filePowers);
-      return filePowers.readFileText(target);
-    },
-
-    async maybeReadText(pathArg) {
-      await null;
-      const target = resolvePathArg(pathArg);
-      try {
-        await assertConfined(target, confinementRoot, filePowers);
-        return await filePowers.readFileText(target);
-      } catch {
-        return undefined;
-      }
-    },
-
-    async writeText(pathArg, content) {
-      await null;
-      assertWritable();
-      const target = resolvePathArg(pathArg);
-      await assertConfinedOrAncestor(target, confinementRoot, filePowers);
-      const parent = filePowers.joinPath(target, '..');
-      await filePowers.makePath(parent);
+      return;
+    }
+    if (typeof content === 'string') {
       await filePowers.writeFileText(target, content);
-    },
+      return;
+    }
+    // Binary content is supplied via `write(path, readableBlob)` /
+    // `copy(from, to)` rather than `makeFile`: mutable typed arrays
+    // are rejected at the exo boundary, so a `Uint8Array` argument
+    // cannot reach this method through CapTP. Callers that hold raw
+    // bytes wrap them in a `ReadableBlob` and use `write()`.
+    throw new Error(
+      'makeFile content must be a string (use write() with a ReadableBlob for binary content)',
+    );
+  };
 
-    async remove(pathArg) {
-      await null;
-      assertWritable();
-      const target = resolvePathArg(pathArg);
+  const stat = async pathArg => {
+    await null;
+    const target = resolvePathArg(pathArg);
+    try {
       await assertConfined(target, confinementRoot, filePowers);
-      await filePowers.removePath(target);
-    },
+      return filePowers.statPath(target);
+    } catch {
+      return undefined;
+    }
+  };
 
-    async move(fromArg, toArg) {
-      await null;
-      assertWritable();
-      const from = resolvePathArg(fromArg);
-      const to = resolvePathArg(toArg);
-      await assertConfined(from, confinementRoot, filePowers);
-      await assertConfinedOrAncestor(to, confinementRoot, filePowers);
-      await filePowers.renamePath(from, to);
-    },
+  const readText = async pathArg => {
+    await null;
+    const target = resolvePathArg(pathArg);
+    await assertConfined(target, confinementRoot, filePowers);
+    return filePowers.readFileText(target);
+  };
 
-    followNameChanges(...pathSegments) {
-      /**
-       * Snapshot-then-diff stream of immediate children of the
-       * resolved subdirectory.  The implementation lifts the
-       * structure from `pet-store.js`'s `followNameChanges`: yield
-       * the existing entries in sorted order, then yield diff
-       * records (`{ add, type }` / `{ remove }`) as
-       * `FilePowers.watchDirectory` reports changes.
-       *
-       * Confinement: the watched path is validated up-front, and
-       * each emitted name passes through the same `isConfinedPath`
-       * filter `list()` uses, so symlinks escaping the mount root
-       * are silently dropped from both the snapshot and the diff
-       * stream.
-       *
-       * Lifecycle: the `try / finally` releases the OS-level
-       * watcher handle when the consumer drops the iterator
-       * (the standard `for await … of` cleanup path, and what
-       * `makeIteratorRef` triggers when a remote subscription
-       * closes).
-       */
-      // `resolve` is liveness-gated, so invoking `followNameChanges` on an
-      // already-revoked mount throws here, synchronously.
-      const target = resolve(pathSegments);
-      /** @returns {AsyncGenerator<MountNameChange, undefined, undefined>} */
-      const generate = async function* generate() {
-        assertLive();
-        await assertConfined(target, confinementRoot, filePowers);
+  const maybeReadText = async pathArg => {
+    await null;
+    const target = resolvePathArg(pathArg);
+    try {
+      await assertConfined(target, confinementRoot, filePowers);
+      return await filePowers.readFileText(target);
+    } catch {
+      return undefined;
+    }
+  };
 
-        const watcher = filePowers.watchDirectory(target);
+  const writeText = async (pathArg, content) => {
+    await null;
+    assertWritable();
+    const target = resolvePathArg(pathArg);
+    await assertConfinedOrAncestor(target, confinementRoot, filePowers);
+    const parent = filePowers.joinPath(target, '..');
+    await filePowers.makePath(parent);
+    await filePowers.writeFileText(target, content);
+  };
+
+  const remove = async pathArg => {
+    await null;
+    assertWritable();
+    const target = resolvePathArg(pathArg);
+    await assertConfined(target, confinementRoot, filePowers);
+    await filePowers.removePath(target);
+  };
+
+  const move = async (fromArg, toArg) => {
+    await null;
+    assertWritable();
+    const from = resolvePathArg(fromArg);
+    const to = resolvePathArg(toArg);
+    await assertConfined(from, confinementRoot, filePowers);
+    await assertConfinedOrAncestor(to, confinementRoot, filePowers);
+    await filePowers.renamePath(from, to);
+  };
+
+  const followNameChanges = (...pathSegments) => {
+    /**
+     * Snapshot-then-diff stream of immediate children of the
+     * resolved subdirectory.  The implementation lifts the
+     * structure from `pet-store.js`'s `followNameChanges`: yield
+     * the existing entries in sorted order, then yield diff
+     * records (`{ add, type }` / `{ remove }`) as
+     * `FilePowers.watchDirectory` reports changes.
+     *
+     * Confinement: the watched path is validated up-front, and
+     * each emitted name passes through the same `isConfinedPath`
+     * filter `list()` uses, so symlinks escaping the mount root
+     * are silently dropped from both the snapshot and the diff
+     * stream.
+     *
+     * Lifecycle: the `try / finally` releases the OS-level
+     * watcher handle when the consumer drops the iterator
+     * (the standard `for await … of` cleanup path, and what
+     * `makeIteratorRef` triggers when a remote subscription
+     * closes).
+     */
+    // `resolve` is liveness-gated, so invoking `followNameChanges` on an
+    // already-revoked mount throws here, synchronously.
+    const target = resolve(pathSegments);
+    /** @returns {AsyncGenerator<MountNameChange, undefined, undefined>} */
+    const generate = async function* generate() {
+      assertLive();
+      await assertConfined(target, confinementRoot, filePowers);
+
+      const watcher = filePowers.watchDirectory(target);
+      try {
+        /** @type {Map<string, 'file' | 'directory'>} */
+        const known = new Map();
+        const entries = await filePowers.readDirectory(target);
+        for (const name of entries.sort()) {
+          // Restricted names appear in neither the snapshot batch nor the
+          // diff stream, mirroring `list()`.
+          if (isDenied(name)) {
+            // eslint-disable-next-line no-continue
+            continue;
+          }
+          const childPath = filePowers.joinPath(target, name);
+          // eslint-disable-next-line no-await-in-loop
+          if (await isConfinedPath(childPath, confinementRoot, filePowers)) {
+            // eslint-disable-next-line no-await-in-loop
+            const isDir = await filePowers.isDirectory(childPath);
+            const type = isDir ? 'directory' : 'file';
+            known.set(name, type);
+            yield harden({ add: name, type });
+          }
+        }
+
+        // Race each event pull against the revocation signal so a revoke
+        // that lands while the stream is parked awaiting the next filesystem
+        // event wakes it immediately, rather than stranding the stream until
+        // the directory next happens to change (or forever, if it never
+        // does). A plain (non-revocable) mount has no signal and just
+        // iterates the watcher directly.
+        const eventIterator = watcher.events[Symbol.asyncIterator]();
+        /** @type {Promise<typeof revokedSentinel> | undefined} */
+        const revokedSignal =
+          revocation !== undefined
+            ? revocation.whenRevoked.then(() => revokedSentinel)
+            : undefined;
         try {
-          /** @type {Map<string, 'file' | 'directory'>} */
-          const known = new Map();
-          const entries = await filePowers.readDirectory(target);
-          for (const name of entries.sort()) {
-            // Restricted names appear in neither the snapshot batch nor the
-            // diff stream, mirroring `list()`.
-            if (isDenied(name)) {
+          for (;;) {
+            // A revoke mid-stream fails the change stream rather than
+            // continuing to leak the directory's evolution.
+            assertLive();
+            // eslint-disable-next-line no-await-in-loop
+            const next = await (revokedSignal
+              ? Promise.race([eventIterator.next(), revokedSignal])
+              : eventIterator.next());
+            if (next === revokedSentinel) {
+              // The signal woke us; the re-check trips the revoked gate and
+              // throws. The `break` is unreachable in practice (the signal
+              // only fires on revoke) but keeps the loop from spinning and
+              // narrows `next` to an iterator result below.
+              assertLive();
+              break;
+            }
+            if (next.done) {
+              break;
+            }
+            const event = next.value;
+            if (isDenied(event.name)) {
               // eslint-disable-next-line no-continue
               continue;
             }
-            const childPath = filePowers.joinPath(target, name);
+            const childPath = filePowers.joinPath(target, event.name);
             // eslint-disable-next-line no-await-in-loop
-            if (await isConfinedPath(childPath, confinementRoot, filePowers)) {
+            const present = await filePowers.exists(childPath);
+            const confined =
+              present &&
+              // eslint-disable-next-line no-await-in-loop
+              (await isConfinedPath(childPath, confinementRoot, filePowers));
+            if (confined && !known.has(event.name)) {
               // eslint-disable-next-line no-await-in-loop
               const isDir = await filePowers.isDirectory(childPath);
               const type = isDir ? 'directory' : 'file';
-              known.set(name, type);
-              yield harden({ add: name, type });
+              known.set(event.name, type);
+              yield harden({ add: event.name, type });
+            } else if (!confined && known.has(event.name)) {
+              known.delete(event.name);
+              yield harden({ remove: event.name });
             }
-          }
-
-          // Race each event pull against the revocation signal so a revoke
-          // that lands while the stream is parked awaiting the next filesystem
-          // event wakes it immediately, rather than stranding the stream until
-          // the directory next happens to change (or forever, if it never
-          // does). A plain (non-revocable) mount has no signal and just
-          // iterates the watcher directly.
-          const eventIterator = watcher.events[Symbol.asyncIterator]();
-          /** @type {Promise<typeof revokedSentinel> | undefined} */
-          const revokedSignal =
-            revocation !== undefined
-              ? revocation.whenRevoked.then(() => revokedSentinel)
-              : undefined;
-          try {
-            for (;;) {
-              // A revoke mid-stream fails the change stream rather than
-              // continuing to leak the directory's evolution.
-              assertLive();
-              // eslint-disable-next-line no-await-in-loop
-              const next = await (revokedSignal
-                ? Promise.race([eventIterator.next(), revokedSignal])
-                : eventIterator.next());
-              if (next === revokedSentinel) {
-                // The signal woke us; the re-check trips the revoked gate and
-                // throws. The `break` is unreachable in practice (the signal
-                // only fires on revoke) but keeps the loop from spinning and
-                // narrows `next` to an iterator result below.
-                assertLive();
-                break;
-              }
-              if (next.done) {
-                break;
-              }
-              const event = next.value;
-              if (isDenied(event.name)) {
-                // eslint-disable-next-line no-continue
-                continue;
-              }
-              const childPath = filePowers.joinPath(target, event.name);
-              // eslint-disable-next-line no-await-in-loop
-              const present = await filePowers.exists(childPath);
-              const confined =
-                present &&
-                // eslint-disable-next-line no-await-in-loop
-                (await isConfinedPath(childPath, confinementRoot, filePowers));
-              if (confined && !known.has(event.name)) {
-                // eslint-disable-next-line no-await-in-loop
-                const isDir = await filePowers.isDirectory(childPath);
-                const type = isDir ? 'directory' : 'file';
-                known.set(event.name, type);
-                yield harden({ add: event.name, type });
-              } else if (!confined && known.has(event.name)) {
-                known.delete(event.name);
-                yield harden({ remove: event.name });
-              }
-              // Otherwise the event was a same-name in-place mutation
-              // (file contents changed, or a quick remove/re-add that
-              // the debounce window collapsed); name-set is unchanged.
-            }
-          } finally {
-            await eventIterator.return?.();
+            // Otherwise the event was a same-name in-place mutation
+            // (file contents changed, or a quick remove/re-add that
+            // the debounce window collapsed); name-set is unchanged.
           }
         } finally {
-          watcher.cancel();
+          await eventIterator.return?.();
         }
-      };
-      return readerFromIterator(generate());
-    },
-
-    readOnly() {
-      assertLive();
-      // Structural narrowing: return a ReadableTree view, not an
-      // EndoMount.  Mount-specific extensions (`entry`, `stat`,
-      // `displayPath`, `readText`, `makeFile`) are removed from the
-      // read-only surface; callers that need them keep a reference
-      // to the un-attenuated mount.
-      const readOnlyMount = readOnly
-        ? this.self // eslint-disable-line no-invalid-this
-        : makeMountExo({
-            ...ctx,
-            readOnly: true,
-            description: `Read-only view of ${description}`,
-          });
-      return makeReadableTreeView(readOnlyMount);
-    },
-
-    async snapshot() {
-      assertLive();
-      if (snapshotTree === undefined) {
-        throw new Error('snapshot() is not available for this mount');
+      } finally {
+        watcher.cancel();
       }
-      return snapshotTree(this.self); // eslint-disable-line no-invalid-this
-    },
+    };
+    return readerFromIterator(generate());
+  };
 
-    async write(pathArg, value) {
-      await null;
-      assertWritable();
-      const segments = segmentsFromPathArg(pathArg);
-      const target = resolveFromRoot(segments);
-      await assertConfinedOrAncestor(target, confinementRoot, filePowers);
-      const parent = filePowers.joinPath(target, '..');
-      await filePowers.makePath(parent);
-      // Detect blob-vs-tree by method names, the same shape-test
-      // `checkinTree` uses.  A `streamBase64`-bearing remotable is
-      // materialised through bytes; a `list`-bearing remotable is
-      // materialised recursively.
-      const source = /** @type {{
-       *   __getMethodNames__: () => Promise<string[]>;
-       *   list: () => Promise<string[]>;
-       *   lookup: (path: string | string[]) => Promise<unknown>;
-       * }} */ (value);
-      // eslint-disable-next-line no-underscore-dangle
-      const methodNames = await E(source).__getMethodNames__();
-      if (methodNames.includes('streamBase64')) {
-        if (await filePowers.isDirectory(target)) {
-          throw new Error('Path is a directory');
-        }
-        // Stream into a sibling scratch file, then atomically rename it
-        // onto the target.  Opening the writer directly on `target`
-        // would truncate it the instant the stream opens — before the
-        // source has been read.  When the source *is* the target (a live
-        // `copy(name, name)` or `write(name, lookup(name))`), that
-        // truncate destroys the very bytes the reader is about to stream,
-        // leaving the target empty.  Routing through a scratch file means
-        // the target is replaced only once the full source has been read.
-        const scratch = await reserveScratchPath(target, filePowers);
-        const writer = filePowers.makeFileWriter(scratch);
-        try {
-          assertReadableBlobSource(source, methodNames);
-          for await (const bytes of iterateBytesReader(source)) {
-            // eslint-disable-next-line no-await-in-loop
-            await writer.next(bytes);
-          }
-          await writer.return(undefined);
-        } catch (error) {
-          // Make a best effort to flush and discard the partial scratch
-          // file so a failed write leaves no debris in the mount.
-          await writer.return(undefined).catch(() => {});
-          await filePowers.removePath(scratch).catch(() => {});
-          throw error;
-        }
-        await filePowers.renamePath(scratch, target);
-        return;
+  const readOnlyView = () => {
+    assertLive();
+    // Structural narrowing: return a ReadableTree view, not an
+    // EndoMount.  Mount-specific extensions (`entry`, `stat`,
+    // `displayPath`, `readText`, `makeFile`) are removed from the
+    // read-only surface; callers that need them keep a reference
+    // to the un-attenuated mount.
+    const readOnlyMount = readOnly
+      ? exo
+      : makeMountExo({
+          ...ctx,
+          readOnly: true,
+          description: `Read-only view of ${description}`,
+        });
+    return makeReadableTreeView(readOnlyMount);
+  };
+
+  const snapshot = async () => {
+    assertLive();
+    if (snapshotTree === undefined) {
+      throw new Error('snapshot() is not available for this mount');
+    }
+    return snapshotTree(exo);
+  };
+
+  const write = async (pathArg, value) => {
+    await null;
+    assertWritable();
+    const segments = segmentsFromPathArg(pathArg);
+    const target = resolveFromRoot(segments);
+    await assertConfinedOrAncestor(target, confinementRoot, filePowers);
+    const parent = filePowers.joinPath(target, '..');
+    await filePowers.makePath(parent);
+    // Detect blob-vs-tree by method names, the same shape-test
+    // `checkinTree` uses.  A `streamBase64`-bearing remotable is
+    // materialised through bytes; a `list`-bearing remotable is
+    // materialised recursively.
+    const source = /** @type {{
+     *   __getMethodNames__: () => Promise<string[]>;
+     *   list: () => Promise<string[]>;
+     *   lookup: (path: string | string[]) => Promise<unknown>;
+     * }} */ (value);
+    // eslint-disable-next-line no-underscore-dangle
+    const methodNames = await E(source).__getMethodNames__();
+    if (methodNames.includes('streamBase64')) {
+      if (await filePowers.isDirectory(target)) {
+        throw new Error('Path is a directory');
       }
-      if (methodNames.includes('list')) {
-        await filePowers.makePath(target);
-        const names = await E(source).list();
-        for (const name of names) {
-          assertValidTreeEntryName(name);
+      // Stream into a sibling scratch file, then atomically rename it
+      // onto the target.  Opening the writer directly on `target`
+      // would truncate it the instant the stream opens — before the
+      // source has been read.  When the source *is* the target (a live
+      // `copy(name, name)` or `write(name, lookup(name))`), that
+      // truncate destroys the very bytes the reader is about to stream,
+      // leaving the target empty.  Routing through a scratch file means
+      // the target is replaced only once the full source has been read.
+      const scratch = await reserveScratchPath(target, filePowers);
+      const writer = filePowers.makeFileWriter(scratch);
+      try {
+        assertReadableBlobSource(source, methodNames);
+        for await (const bytes of iterateBytesReader(source)) {
           // eslint-disable-next-line no-await-in-loop
-          const child = await E(source).lookup(name);
-          // eslint-disable-next-line no-await-in-loop
-          await this.self.write([...segments, name], child); // eslint-disable-line no-invalid-this
+          await writer.next(bytes);
         }
-        return;
+        await writer.return(undefined);
+      } catch (error) {
+        // Make a best effort to flush and discard the partial scratch
+        // file so a failed write leaves no debris in the mount.
+        await writer.return(undefined).catch(() => {});
+        await filePowers.removePath(scratch).catch(() => {});
+        throw error;
       }
+      await filePowers.renamePath(scratch, target);
+      return;
+    }
+    if (methodNames.includes('list')) {
+      await filePowers.makePath(target);
+      const names = await E(source).list();
+      for (const name of names) {
+        assertValidTreeEntryName(name);
+        // eslint-disable-next-line no-await-in-loop
+        const child = await E(source).lookup(name);
+        // eslint-disable-next-line no-await-in-loop
+        await write([...segments, name], child);
+      }
+      return;
+    }
+    throw new Error(
+      'write() value must be a ReadableBlob or ReadableTree (no streamBase64 or list method)',
+    );
+  };
+
+  const copy = async (fromArg, toArg) => {
+    await null;
+    assertWritable();
+    const fromSegments = segmentsFromPathArg(fromArg);
+    const from = resolveFromRoot(fromSegments);
+    await assertConfined(from, confinementRoot, filePowers);
+    // Reject copying a tree into its own descendant.  `write()`
+    // materialises the destination directory before enumerating the
+    // *live* source listing, so a destination strictly below the
+    // source (e.g. copy(['dir'], ['dir', 'copy'])) would see the
+    // freshly created child, recurse into it, create its child, and
+    // loop until the filesystem is exhausted.  The first check is a
+    // segment-prefix test on the resolved paths: `to` is a descendant
+    // of `from` when `from`'s segments are a strict prefix of `to`'s.
+    const toSegments = segmentsFromPathArg(toArg);
+    const to = resolveFromRoot(toSegments);
+    const rejectDescendant = () => {
       throw new Error(
-        'write() value must be a ReadableBlob or ReadableTree (no streamBase64 or list method)',
+        `Cannot copy ${q(relativeToRoot(from, confinementRoot))} into its own descendant ${q(relativeToRoot(to, confinementRoot))}`,
       );
-    },
+    };
+    if (
+      toSegments.length > fromSegments.length &&
+      fromSegments.every((segment, i) => segment === toSegments[i])
+    ) {
+      rejectDescendant();
+    }
+    // The logical-segment test above is blind to symlinks: a `to` whose
+    // segments are not a prefix of `from`'s can still resolve *under*
+    // `from` when an intermediate `to` component is a symlink back into
+    // the source (e.g. `to = ['link', 'x']` where `link` -> the source
+    // tree).  Re-run the descendant test on the symlink-resolved
+    // physical paths so a symlinked re-entry cannot slip past.  Both
+    // operands resolve from the same confinement root, so a shared
+    // physical prefix is a genuine ancestor relationship, not a
+    // coincidence of a common mount root above the confinement.
+    const fromPhysical = await resolvePhysicalPath(from, filePowers);
+    const toPhysical = await resolvePhysicalPath(to, filePowers);
+    if (toPhysical.startsWith(`${fromPhysical}/`)) {
+      rejectDescendant();
+    }
+    const source = await openExisting(from, fromSegments);
+    await write(
+      /** @type {string | string[] | import('./types.js').EndoMountEntry} */ (
+        toArg
+      ),
+      source,
+    );
+  };
 
-    async copy(fromArg, toArg) {
-      await null;
-      assertWritable();
-      const fromSegments = segmentsFromPathArg(fromArg);
-      const from = resolveFromRoot(fromSegments);
-      await assertConfined(from, confinementRoot, filePowers);
-      // Reject copying a tree into its own descendant.  `write()`
-      // materialises the destination directory before enumerating the
-      // *live* source listing, so a destination strictly below the
-      // source (e.g. copy(['dir'], ['dir', 'copy'])) would see the
-      // freshly created child, recurse into it, create its child, and
-      // loop until the filesystem is exhausted.  The first check is a
-      // segment-prefix test on the resolved paths: `to` is a descendant
-      // of `from` when `from`'s segments are a strict prefix of `to`'s.
-      const toSegments = segmentsFromPathArg(toArg);
-      const to = resolveFromRoot(toSegments);
-      const rejectDescendant = () => {
-        throw new Error(
-          `Cannot copy ${q(relativeToRoot(from, confinementRoot))} into its own descendant ${q(relativeToRoot(to, confinementRoot))}`,
-        );
-      };
-      if (
-        toSegments.length > fromSegments.length &&
-        fromSegments.every((segment, i) => segment === toSegments[i])
-      ) {
-        rejectDescendant();
-      }
-      // The logical-segment test above is blind to symlinks: a `to` whose
-      // segments are not a prefix of `from`'s can still resolve *under*
-      // `from` when an intermediate `to` component is a symlink back into
-      // the source (e.g. `to = ['link', 'x']` where `link` -> the source
-      // tree).  Re-run the descendant test on the symlink-resolved
-      // physical paths so a symlinked re-entry cannot slip past.  Both
-      // operands resolve from the same confinement root, so a shared
-      // physical prefix is a genuine ancestor relationship, not a
-      // coincidence of a common mount root above the confinement.
-      const fromPhysical = await resolvePhysicalPath(from, filePowers);
-      const toPhysical = await resolvePhysicalPath(to, filePowers);
-      if (toPhysical.startsWith(`${fromPhysical}/`)) {
-        rejectDescendant();
-      }
-      const source = await openExisting(from, fromSegments);
-      await this.self.write(
-        /** @type {string | string[] | import('./types.js').EndoMountEntry} */ (
-          toArg
-        ),
-        source,
-      ); // eslint-disable-line no-invalid-this
-    },
+  const exo = makeExo('EndoMount', MountInterface, {
+    help,
+    has,
+    list,
+    glob,
+    grep,
+    glorp,
+    lookup,
+    maybeLookup,
+    subView,
+    entry,
+    makeDirectory,
+    makeFile,
+    stat,
+    readText,
+    maybeReadText,
+    writeText,
+    remove,
+    move,
+    followNameChanges,
+    readOnly: readOnlyView,
+    snapshot,
+    write,
+    copy,
   });
 
   mountRecords.set(

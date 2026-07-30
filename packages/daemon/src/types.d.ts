@@ -1308,6 +1308,34 @@ export interface EndoMount extends PathEntryIssuer {
   has(...pathSegments: string[]): Promise<boolean>;
   has(entry: EndoMountEntry): Promise<boolean>;
   list(...pathSegments: string[]): Promise<string[]>;
+  /**
+   * Recursive glob search delegated to the platform engine
+   * (`@endo/platform/fs/search`): mount-face-relative paths matching
+   * `pattern`, UTF-16-sorted and capped at `GLOB_MAX_RESULTS`.
+   */
+  glob(pattern: string): Promise<string[]>;
+  /**
+   * Content search for an ECMAScript RegExp source (no flags). `paths` is
+   * the file set to search; the exo awaits it (`M.await`), so a `glob`
+   * promise pipes straight in: `grep(pattern, glob(g))`. Omitted, every
+   * file under the face's root is searched.
+   */
+  grep(
+    pattern: string,
+    paths?: string[] | Promise<string[]>,
+    options?: { maxResults?: number },
+  ): Promise<Array<import('@endo/platform/fs/search.types').GrepMatch>>;
+  /**
+   * Fused glob+grep: search the files matching `globPattern` for
+   * `grepPattern`. The reference implementation composes the decoupled
+   * surface (`grep(grepPattern, glob(globPattern))`); a native powers layer
+   * may push both patterns down as one enumerate-and-scan pass.
+   */
+  glorp(
+    globPattern: string,
+    grepPattern: string,
+    options?: { maxResults?: number },
+  ): Promise<Array<import('@endo/platform/fs/search.types').GrepMatch>>;
   lookup(
     path: string | string[] | EndoMountEntry,
   ): Promise<EndoMount | EndoMountFile>;

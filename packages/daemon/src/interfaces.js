@@ -658,6 +658,31 @@ export const MountInterface = M.interface('EndoMount', {
   // remotables consistently across CapTP.
   has: M.call().rest(M.any()).returns(M.promise()),
   list: M.call().rest(PathSegmentsShape).returns(M.promise()),
+  // Recursive glob search, delegated to the platform engine. Daemon-local
+  // extension beyond the ReadableTree surface.
+  glob: M.call(M.string()).returns(M.promise()),
+  // Content search, delegated to the platform engine. `paths` is optional and
+  // consumed with an implied `await` (`M.callWhen` + `M.await`), so a caller
+  // may pipe a `glob` promise straight in — `grep(pattern, glob(g))` — and the
+  // exo awaits and shape-checks it to a `string[]` before the method runs.
+  // Omitting `paths` searches every file under the face's root. `options`
+  // carries `maxResults` (there is no `glob` option: glob is decoupled, an
+  // independent producer of the `paths` array). See
+  // designs/platform-search-pushdown.md § "The Array surface".
+  grep: M.callWhen(M.string())
+    .optional(
+      M.await(M.arrayOf(M.string())),
+      M.splitRecord({}, { maxResults: M.number() }),
+    )
+    .returns(M.array()),
+  // Fused glob+grep composition. Both patterns are required positionals (unlike
+  // grep's optional `paths`), so the operation can be pushed down to native code
+  // as a single fused enumerate-and-scan call. The reference implementation
+  // composes the delegated surface: `grep(grepPattern, glob(globPattern))`. See
+  // designs/platform-search-pushdown.md § "The Array surface".
+  glorp: M.call(M.string(), M.string())
+    .optional(M.splitRecord({}, { maxResults: M.number() }))
+    .returns(M.promise()),
   lookup: M.call(PathArgShape).returns(M.promise()),
   // `maybeLookup` is async in every mount implementation, so retain the
   // promise boundary here even though the shared name-hub record is broader.

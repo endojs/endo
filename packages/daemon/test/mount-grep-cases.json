@@ -1,0 +1,214 @@
+{
+  "description": "Grep variant coverage matrix over the shared mount fixture (mount-fixture-manifest.json), the cross-language contract for the decoupled grep(pattern, paths?, options?) surface. glob and grep are decoupled: grep takes an explicit list of paths (or, when omitted, walks the whole confined tree) and its `options` carries ONLY `maxResults` (match cap, default 1000) — there is no `glob` grep option. In each case `pattern` is an ECMAScript RegExp source (no flags); the `options.glob` field, where present, is a DRIVER-SIDE path-selection convenience, NOT a grep option: the runner resolves it via glob(g) and passes the resulting array as grep's independent `paths` argument (this is exactly how grep(pattern, glob(g)) pipelines in production). `expect` is the exact array of { file, line, text } records grep returns — ordered by the file's UTF-16 glob order, then by 1-based line number, with any trailing carriage return stripped from `text`. Cases scope the driver-side glob to text files so the binary probe (docs/img.png) never perturbs a pinned expectation; CRLF normalization and the binary no-failure guarantee are covered by dedicated Node unit tests in mount-grep.test.js, not by this table. The Node runner is mount-grep.test.js, which resolves each case's `options.glob` to `paths` before calling grep; a Rust/XS-side runner consumes this same JSON the same way to assert identical results.",
+  "cases": [
+    {
+      "name": "plain literal across a recursive glob",
+      "pattern": "export",
+      "options": {
+        "glob": "src/**/*.js"
+      },
+      "expect": [
+        {
+          "file": "src/index.js",
+          "line": 1,
+          "text": "export const index = 1;"
+        },
+        {
+          "file": "src/nested/deep.js",
+          "line": 1,
+          "text": "export const deep = 3;"
+        },
+        {
+          "file": "src/nested/deeper/deepest.js",
+          "line": 1,
+          "text": "export const deepest = 4;"
+        },
+        {
+          "file": "src/util.js",
+          "line": 1,
+          "text": "export const util = 2;"
+        }
+      ]
+    },
+    {
+      "name": "multi-match in one file with 1-based line numbers",
+      "pattern": "line",
+      "options": {
+        "glob": "notes.txt"
+      },
+      "expect": [
+        {
+          "file": "notes.txt",
+          "line": 1,
+          "text": "first line"
+        },
+        {
+          "file": "notes.txt",
+          "line": 2,
+          "text": "second line"
+        },
+        {
+          "file": "notes.txt",
+          "line": 3,
+          "text": "third line"
+        }
+      ]
+    },
+    {
+      "name": "caret anchors to the line start",
+      "pattern": "^second",
+      "options": {
+        "glob": "notes.txt"
+      },
+      "expect": [
+        {
+          "file": "notes.txt",
+          "line": 2,
+          "text": "second line"
+        }
+      ]
+    },
+    {
+      "name": "dollar anchors to the line end",
+      "pattern": "1;$",
+      "options": {
+        "glob": "src/*.js"
+      },
+      "expect": [
+        {
+          "file": "src/index.js",
+          "line": 1,
+          "text": "export const index = 1;"
+        }
+      ]
+    },
+    {
+      "name": "caret with a longer prefix selects a single file",
+      "pattern": "^export const util",
+      "options": {
+        "glob": "src/*.js"
+      },
+      "expect": [
+        {
+          "file": "src/util.js",
+          "line": 1,
+          "text": "export const util = 2;"
+        }
+      ]
+    },
+    {
+      "name": "character class matches only the selected digits",
+      "pattern": "[24]",
+      "options": {
+        "glob": "src/**/*.js"
+      },
+      "expect": [
+        {
+          "file": "src/nested/deeper/deepest.js",
+          "line": 1,
+          "text": "export const deepest = 4;"
+        },
+        {
+          "file": "src/util.js",
+          "line": 1,
+          "text": "export const util = 2;"
+        }
+      ]
+    },
+    {
+      "name": "alternation matches either branch",
+      "pattern": "index|util",
+      "options": {
+        "glob": "src/*.js"
+      },
+      "expect": [
+        {
+          "file": "src/index.js",
+          "line": 1,
+          "text": "export const index = 1;"
+        },
+        {
+          "file": "src/util.js",
+          "line": 1,
+          "text": "export const util = 2;"
+        }
+      ]
+    },
+    {
+      "name": "options.glob restricts the searched file set (non-recursive)",
+      "pattern": "export",
+      "options": {
+        "glob": "src/*.js"
+      },
+      "expect": [
+        {
+          "file": "src/index.js",
+          "line": 1,
+          "text": "export const index = 1;"
+        },
+        {
+          "file": "src/util.js",
+          "line": 1,
+          "text": "export const util = 2;"
+        }
+      ]
+    },
+    {
+      "name": "maxResults caps the record count mid-file",
+      "pattern": "line",
+      "options": {
+        "glob": "notes.txt",
+        "maxResults": 2
+      },
+      "expect": [
+        {
+          "file": "notes.txt",
+          "line": 1,
+          "text": "first line"
+        },
+        {
+          "file": "notes.txt",
+          "line": 2,
+          "text": "second line"
+        }
+      ]
+    },
+    {
+      "name": "recursive markdown search spans depths in UTF-16 file order",
+      "pattern": "#",
+      "options": {
+        "glob": "**/*.md"
+      },
+      "expect": [
+        {
+          "file": "README.md",
+          "line": 1,
+          "text": "# Fixture"
+        },
+        {
+          "file": "docs/B.md",
+          "line": 1,
+          "text": "# B"
+        },
+        {
+          "file": "docs/a.md",
+          "line": 1,
+          "text": "# a"
+        },
+        {
+          "file": "src/README.md",
+          "line": 1,
+          "text": "# src"
+        }
+      ]
+    },
+    {
+      "name": "a pattern with no match yields an empty result",
+      "pattern": "zzz-nonexistent",
+      "options": {
+        "glob": "**/*.txt"
+      },
+      "expect": []
+    }
+  ]
+}
