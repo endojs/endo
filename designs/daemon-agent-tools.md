@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Created** | 2026-03-02 |
-| **Updated** | 2026-07-15 |
+| **Updated** | 2026-07-16 |
 | **Author** | Kris Kowal, endolinbot (prompted) |
 | **Status** | In Progress |
 
@@ -101,6 +101,18 @@ What this document owns is the remainder:
 | Git (remote) | deliberately omitted ("network access is a separate capability") | `GitRemote` = `Git` + bounded HTTPS transport + non-extractable credential ([daemon-git-remotes](daemon-git-remotes.md)) | capability landed (#365, #368); `makeGitRemoteTool` remaining |
 | Network (HTTP) | not in sketch (network excluded from `Git`, Design Decision 3) | `HttpClient` / `HttpClientControl` from `@endo/exo-http-client` over the `@endo/http-confine` core, granted standalone from an injected `fetch` seam (not mount-derived) | capability landed (#566); `provideHttpClient` daemon wiring and `makeHttpTool` remaining |
 | Search | `grep` / `glob` on `Dir` | interim: `Filesystem` walks plus the Shell group's allowlisted `grep`; a capability-backed search substrate is an open question | not started |
+
+> **The JSON tool-wrapper surface is parked — see #731.** The `ToolRecord`
+> wrappers the Status column names (`makeGitTool`, `makeGitRemoteTool`,
+> `makeShellTool`, `makeHttpTool`) are parked as future work in favor of code
+> mode as the primary agent surface. The capability substrate in the
+> Reconciled-backing column is unaffected: code mode consumes those
+> capabilities directly, and they stay prioritized. The parking bars *new*
+> JSON-tool work, not the reviewed tail already in flight: PRs #705
+> (`makeGitRemoteTool`, this design's § Phase 3) and #707 (§ Phase 4
+> provisioning + the worked loop) are grandfathered and land in that order
+> ([daemon-git-next-steps](daemon-git-next-steps.md) § Phased Build Plan,
+> *Status and the #731 grandfathering*).
 
 Three properties of the reconciled map, each a correction to the sketch:
 
@@ -383,6 +395,13 @@ Phase 1 (#614), Phase 2a/2b (#615), the local mount-bridged git
 tools (#616, Phase 3.5), and the push tier (#705, Phase 3) have landed on
 `llm`; the remaining builder work is the network tool wiring (Phase 3.6),
 the sandbox shell engine (Phase 2c), and the Phase 4 worked loop.
+
+The loop-level, cross-design sequencing of the git-capability stack is
+canonical in [daemon-git-next-steps](daemon-git-next-steps.md) § Phased
+Build Plan (accepted 2026-07-11): its Phases 1 and 3 dispatch this
+document's Phases 3 and 4, and its Phase 4 dispatches this document's
+Phases 5–6. This section stays normative for each tool-layer
+deliverable's shape.
 
 ### Phase 0: Substrate (landed — record only)
 

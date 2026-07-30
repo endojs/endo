@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-05-18 |
-| **Updated** | 2026-05-29 |
+| **Updated** | 2026-07-11 |
 | **Author** | 0xPatrick (prompted) |
-| **Status** | Proposed (Phases 1-5 landed via #365; fd-pipe askpass landed via #368) |
+| **Status** | In Progress (accepted 2026-07-11 with the stack plan in [daemon-git-next-steps](daemon-git-next-steps.md) § Phased Build Plan; Phases 1-5 landed via #365, fd-pipe askpass via #368, `provideGitClone` bootstrap via #538; Phases 6-7 open) |
 
 > **Read in order.**
 > This is doc 3 of 3.
@@ -540,7 +540,10 @@ For the MVP there are two legitimate product flows:
 
 The second flow is product-relevant when an agent starts from only a remote repository, but it should remain host-mediated.
 It should not become guest authority to clone arbitrary remotes into arbitrary host paths.
-The exact bootstrap API is a follow-up design point because it must combine mount creation, endpoint policy, and sealed credential authority before a local `Git` exists.
+
+**Landed (2026-07-11 reconciliation note).**
+The second flow shipped host-mediated via #538 as `EndoHost.provideGitClone(opts)`: the host method validates the endpoint, a writable destination mount, and the credential, then drives the `makeGitCloner` seam in `@endo/exo-git` (`packages/exo-git/src/git-cloner.js`) over the native clone helper in `@endo/git`, returning the derived capabilities once the clone lands in the mount.
+The once-planned separate `daemon-git-clone.md` is therefore no longer needed for the clone half; the residual bootstrap gap is the **commit-identity boundary**, pinned and sequenced as Phase 2 of [daemon-git-next-steps](daemon-git-next-steps.md) § Phased Build Plan (§ Commit-identity boundary there carries the shape: formula-owned `{ identity: { authorName, authorEmail } }` construction option on `provideGit` / `provideGitClone`, guest-immutable).
 
 ## Security Model
 
@@ -798,6 +801,8 @@ It is not part of the normative design.
 - **#368** (`feat(daemon): use fd askpass for Git credentials`) — the design-compliant fd-pipe askpass helper described in § Initial Backend ("a daemon-shipped `GIT_ASKPASS` helper binary, exec'd by `git` and fed the credential through an anonymous pipe whose read-end fd is inherited by the helper").
   The daemon-shipped helper lives at `packages/daemon/src/git-askpass-helper.cjs`, exec'd by `git` and reading from fd 3; the fd number (`ENDO_GIT_ASKPASS_FD`) is the only credential-related value reaching the child env, so the secret never appears in argv, the process env, `/proc/<git>/environ`, or a temp file.
   The anonymous-pipe transport has no socket to keep open, so the askpass-socket-lifetime narrowing is structurally satisfied; the OS-user-account boundary (`mkdtemp` 0o700 parent directory) remains the trust model.
+- **#538** (`feat(exo-git): add remote endpoint clone seam` and siblings) — the host-mediated repository bootstrap: `EndoHost.provideGitClone`, the `makeGitCloner` seam in `@endo/exo-git`, the native clone helper in `@endo/git`, read-only-destination rejection, and credential fencing across the cloner lifecycle.
+  See § Repository Bootstrap and `clone` for how this resolves the bootstrap follow-up.
 
 Fix, test-coverage, and legibility follow-ups on the shipped trio code (issue #378) are tracked there, not here.
 
@@ -833,8 +838,8 @@ Each gets a one-line follow-up deliverable.
   If a non-trivial fraction needs SSH, the SSH design in Phase 7 moves earlier.
   Deliverable: a one-page note in `designs/` confirming or revising the HTTPS-only Phase 1.
 - **Bootstrap / clone API.**
-  A `provideGitClone({...})` host flow that composes mount creation + endpoint policy + sealed credential authority before a local `Git` exists is a real follow-up requirement (early-draft Open Question #6).
-  Design lives in its own `designs/daemon-git-clone.md` follow-up; the spike's deliverable is the design doc, scheduled for Phase 6 after HTTPS fetch/push are exercised in real workflows.
+  Resolved: `provideGitClone` landed host-mediated via #538 (see § Repository Bootstrap and `clone`), without a separate `daemon-git-clone.md`.
+  The residual identity boundary is Phase 2 of [daemon-git-next-steps](daemon-git-next-steps.md) § Phased Build Plan.
 - **Telemetry to distinguish CapTP control-plane time from remote transport data-plane time.**
   During Phase 2, add structured timing fields to `GitFetchResult` and `GitPushResult` (initial shape: `{ captpMs: number; transportMs: number }` augmenting the existing result types) and iterate based on what debug sessions actually need.
   The shape may change after the spike; the principle (timing is observable) is decision 12.

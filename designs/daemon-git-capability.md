@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Created** | 2026-05-18 |
-| **Updated** | 2026-07-06 |
+| **Updated** | 2026-07-11 |
 | **Author** | 0xPatrick (prompted) |
-| **Status** | Proposed (Phases 0-5 + bulk-archive landed via #364/#365/#367, hardening via #371) |
+| **Status** | In Progress (accepted 2026-07-11 with the stack plan in [daemon-git-next-steps](daemon-git-next-steps.md) § Phased Build Plan; Phases 0-6 landed via #364/#367/#371 plus the gated history verbs via #644 — see § Implementation Progress; Phase 7 structured shapes open) |
 
 > **Read in order.**
 > This is doc 2 of 3.
@@ -283,7 +283,12 @@ interface Git {
   add(entries: EndoMountEntry[]): Promise<void>;
   restore(entries: EndoMountEntry[], options?: { staged?: boolean }):
     Promise<void>;
-  commit(message: string): Promise<GitCommit>;
+  // options.amend rewrites HEAD in place and is additionally gated on the
+  // history-rewrite axis (Design Decision 11); a plain commit is not.
+  commit(message: string, options?: { amend?: boolean }): Promise<GitCommit>;
+  // History rewrite (gated on the allowHistoryRewrite axis, Design
+  // Decision 11): replace one commit's message, keeping its patch.
+  reword(ref: GitRef | string, message: string): Promise<GitCommit>;
 
   // Branching.
   currentBranch(): Promise<GitRef | undefined>;
@@ -324,7 +329,10 @@ interface Git {
   stashPop(index?: number): Promise<void>;
   stashDrop(index?: number): Promise<void>;
 
-  // Immutable tree access (one-turn read on the same capability).
+  // Historical read (one-turn, on the same capability).  filesystemAt is
+  // the historical-read method; tree is its narrower ReadableTree
+  // projection.  See § Historical Read.
+  filesystemAt(ref: GitRef | string): Promise<Filesystem>;
   tree(ref: GitRef | string): Promise<ReadableTree>;
 
   // Attenuation to a read-only posture.  Mutation methods on the returned
@@ -336,8 +344,9 @@ interface Git {
 
 `tree(ref)` returns the read surface defined by `GitTreeProvider` below; the interface name remains as the documented shape of the returned read capability even though tree access lives as a method on `Git` itself.
 
-`readOnly()` mirrors the `EndoMount.readOnly()` attenuation idiom ([daemon-mount-capabilities](daemon-mount-capabilities.md) § Design Decision 6): the returned `Git` exposes the same methods, but the mutation methods (`add`, `restore`, `commit`, `createBranch`, `deleteBranch`, `renameBranch`, `switchBranch`, `detach`, `merge`, `rebase`, `stashPush`, `stashApply`, `stashPop`, `stashDrop`) throw at runtime initially and are narrowed out of the type when structured shapes land (Phase 7).
+`readOnly()` mirrors the `EndoMount.readOnly()` attenuation idiom ([daemon-mount-capabilities](daemon-mount-capabilities.md) § Design Decision 6): the returned `Git` exposes the same methods, but the mutation methods (`add`, `restore`, `commit`, `reword`, `createBranch`, `deleteBranch`, `renameBranch`, `switchBranch`, `detach`, `merge`, `rebase`, `stashPush`, `stashApply`, `stashPop`, `stashDrop`) throw at runtime initially and are narrowed out of the type when structured shapes land (Phase 7).
 A read-only auditor agent holds the attenuated `Git`; the operator hands it `await E(git).readOnly()` rather than the unattenuated cap.
+Read-only is one of **two independent attenuation axes** on `Git`; the other is the history-rewrite axis (`allowHistoryRewrite`, withheld by default — Design Decision 11), and `readOnly()` drops both.
 
 ### Alternatives Considered for Tree Access Shape
 
@@ -480,6 +489,19 @@ The returned tree should:
 - expose blobs as `ReadableBlob`;
 - never expose mutation methods;
 - be usable anywhere a `ReadableTree` is accepted today, including checkin, checkout, staging, and later VFS mounting.
+
+### Historical Read: `filesystemAt(ref)` and `tree(ref)`
+
+(Reconciled 2026-07-11 per the roadmap item in [daemon-git-next-steps](daemon-git-next-steps.md); the two methods had been specified in two documents and this section merges the vocabulary.)
+
+The canonical historical-read method is **`filesystemAt(ref)`**, which lifts the git tree at `ref` into a read-only `Filesystem` — the same interface shape the content layer exposes for the live worktree — via `@endo/platform/fs/extended`'s `wrapBackend` over the git object database ([endo-fs-from-git](endo-fs-from-git.md); shipped as `makeGitFsBackend` in `packages/exo-git/src/git-filesystem.js`, with `filesystemAt` returning `readOnly(wrapBackend(makeGitFsBackend(...)))`).
+**`tree(ref)`** is not a competing name for the same thing: it projects the narrower `ReadableTree` read surface described above, which snapshot, staging, and archive flows consume directly.
+Both are one-turn reads on the same `Git` capability; a holder of either view cannot mutate through it.
+
+Two documented trade-offs of the `Filesystem` view carry into this canonical vocabulary so they are not silently lost (both reintroducible if `wrapBackend` grows a backend-supplied QID / hash hook — see [endo-fs-from-git](endo-fs-from-git.md) § Status):
+
+- the view's QID is **path-based, not the git OID**;
+- its `BlobRef.algorithm` is **`'sha256'`, not the git tree's `git-sha1`**.
 
 ### VFS Integration
 
@@ -626,14 +648,14 @@ Remote repository interaction is still required for an agent MVP; it is specifie
 - No raw git command passthrough; no public config mutation.
 - No push, pull, fetch, clone, remote mutation, or credential helpers (those live separately on [daemon-git-remotes](daemon-git-remotes.md)).
 - No hooks, aliases, external diff, fsmonitor, textconv, custom filters, merge drivers, or signing helpers unless a future explicit capability design authorizes them.
-  Repo-local executable filter / merge-driver config is verified absent before each mutating worktree operation (`add`, `restore`, `commit`, branch create / rename / delete / switch, `detach`, `switch`, `merge`, `rebase`, and the worktree-touching `stash*` verbs).
+  Repo-local executable filter / merge-driver config is verified absent before each mutating worktree operation (`add`, `restore`, `commit`, `reword`, branch create / rename / delete / switch, `detach`, `switch`, `merge`, `rebase`, and the worktree-touching `stash*` verbs).
   Read-only inspection methods (`status`, `diff`, `log`, `show`, `revParse`, `branches`, `currentBranch`, `stashList`, `stashShow`, `tree`) dispatch straight to the backend and do not re-check, because they cannot invoke a filter or merge driver in the first place.
 - No accepting arbitrary host paths; all path-bearing operations consume `EndoMountEntry` values from the same worktree mount.
 
 ### Read-Only and Snapshot Interactions
 
 - A read-only worktree mount may support inspection and immutable tree reads but must reject mutating git operations.
-- `git.tree(ref)` returns immutable read capabilities (a `ReadableTree`); the returned tree never exposes mutation.
+- `git.tree(ref)` returns immutable read capabilities (a `ReadableTree`), and `git.filesystemAt(ref)` a read-only `Filesystem` over the same tree (§ Historical Read); neither view exposes mutation.
 - `git.readOnly()` returns a `Git` whose mutation methods throw; use it to grant an auditor agent inspection authority without the worktree mutation surface.
 - `worktree.snapshot()` remains the way to capture the live worktree into content-addressed snapshot storage.
 
@@ -777,6 +799,8 @@ It is not part of the normative design.
   The advertisement is detected at runtime: remote trees that do not implement it continue to use the existing per-entry checkin path, so the bulk path is a strict optimization.
   The tar parser obeys the authority and validation rules in § Bulk Tree Data Plane: archive entry names are treated as untrusted input (absolute paths, `..`, NUL bytes, duplicate entries, and unsupported modes are rejected), and extraction is performed by trusted code into CAS formulas without giving the guest a destination path.
 - **#371** (`fix(daemon): correctness and authority-boundary fixes for the git capability`) — correctness and authority-boundary hardening on the shipped `Git` surface.
+- **`Git.filesystemAt(ref)`** ([endo-fs-from-git](endo-fs-from-git.md) Phases 1-3 plus a Phase-4 slice) — the historical-read `Filesystem` view over the git object database (§ Historical Read); the exo surface now lives in `packages/exo-git` (`makeGit`, `makeGitFsBackend`) with the native driver in `packages/git`.
+- **#644** (`feat(git): add commit amend and reword`) — `commit({ amend })` and `reword(ref, message)` behind the gated `allowHistoryRewrite` attenuation axis (Design Decision 11), plus the elevated `makeGitHistoryTool` in `@endo/agent-tools` and code-mode regeneration.
 
 ### Forward-design notes
 
@@ -856,8 +880,8 @@ No open questions remain on this document; revisit if real implementation surfac
    - **Writable→readOnly path:** `await E(git).readOnly()` returns a read-only attenuation of a `Git` constructed from a writable mount.
    - **Read-only-mount-derived path:** `provideGit(readOnlyMount)` constructs a `Git` whose mutability flag is already false; the formula does not briefly mint a writable `Git` and wrap it.
 
-   Allowed on a read-only `Git`: `status`, `diff`, `log`, `show`, `revParse`, `branches`, `currentBranch`, `tree(ref)`, `readOnly()` (idempotent — see Design Decision 9), and `worktree.snapshot()`.
-   Rejected: `add`, `restore`, `commit`, `createBranch`, `deleteBranch`, `renameBranch`, `switchBranch`, `detach`, `merge`, `rebase`, `stashPush`, `stashApply`, `stashPop`, `stashDrop`.
+   Allowed on a read-only `Git`: `status`, `diff`, `log`, `show`, `revParse`, `branches`, `currentBranch`, `tree(ref)`, `filesystemAt(ref)`, `readOnly()` (idempotent — see Design Decision 9), and `worktree.snapshot()`.
+   Rejected: `add`, `restore`, `commit`, `reword`, `createBranch`, `deleteBranch`, `renameBranch`, `switchBranch`, `detach`, `merge`, `rebase`, `stashPush`, `stashApply`, `stashPop`, `stashDrop`.
 
    Two additional boundaries on a read-only `Git`:
    - `GitRemote` construction from a read-only `Git` is rejected for now.
@@ -872,3 +896,10 @@ No open questions remain on this document; revisit if real implementation surfac
    If a future use case wants a tree-only-grant cap that hides the worktree methods entirely, the separately-grantable `GitTreeProvider` shape from § Alternatives Considered can be added without breaking existing consumers.
 10. **Bulk reads are a backend data plane.**
     Large immutable tree operations may use native archive streams internally (see § Bulk Tree Data Plane), but that does not change the guest-visible capability surface; no `stageGitTree()` style guest API exposes the bulk path.
+11. **History rewrite is a second attenuation axis, withheld by default.**
+    (Recorded 2026-07-11 for the surface #644 landed.)
+    `commit({ amend: true })` and `reword(ref, message)` alter an existing commit's content or message in place — a hazard that ordinary mutation, including a plain `rebase` (which re-parents commits onto a new base without changing their content or message), does not carry — so they are gated on a construction-time `allowHistoryRewrite` flag (`provideGit(mountCap, petName, { allowHistoryRewrite })`, default false) enforced by an `assertHistoryRewrite` guard beside `assertWritable`.
+    The axis boundary is thus "modifies a committed object in place", not the broader "produces new SHAs" — plain `rebase` produces new SHAs yet rides the ordinary-mutation lists ungated, because it preserves each replayed commit's content and message.
+    The axis composes with read-only: `readOnly()` drops both, and a `Git` minted without the flag rejects the rewrite verbs while accepting plain `commit`.
+    At the tool layer the default JSON inventory (`makeGitTool`) advertises only new-commit creation; the elevated `makeGitHistoryTool` exposes amend and reword when a host deliberately grants the rewrite authority ([daemon-agent-tools](daemon-agent-tools.md) § Phase 5).
+    The remaining history-editing verbs (`cherryPick`, autosquash `rebase`, `checkoutConflict`) are specified in [agentry-git-verb-gaps](agentry-git-verb-gaps.md) and sequenced as Phase 4 of [daemon-git-next-steps](daemon-git-next-steps.md) § Phased Build Plan; of these only the ones that modify a committed object in place ride this axis — autosquash `rebase` folds fixup/squash commits into their targets, while `cherryPick` and `checkoutConflict` are plain writable-mutation verbs (they add new commits or resolve working-tree state, leaving existing commits intact).

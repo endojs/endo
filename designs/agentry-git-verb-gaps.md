@@ -3,8 +3,22 @@
 | | |
 |---|---|
 | **Created** | 2026-07-08 |
+| **Updated** | 2026-07-16 |
 | **Author** | 0xpatrickdev (prompted) |
-| **Status** | Proposed |
+| **Status** | In Progress |
+
+## Status
+
+Two of the five verbs landed via #644: `commit({ amend })` and
+`reword(ref, message)` across the exo, guard, backend, code-mode, and elevated
+JSON (`makeGitHistoryTool`) surfaces, gated on the `allowHistoryRewrite`
+attenuation axis ([daemon-git-capability](daemon-git-capability.md) Design
+Decision 11). The remaining verbs — `cherryPick`, `rebase({ autosquash })` for
+`mode: 'start'`, and `checkoutConflict(entries, side)` — plus the `EndoGit`
+contract-test extension are sequenced as Phase 4 of
+[daemon-git-next-steps](daemon-git-next-steps.md) § Phased Build Plan
+(accepted 2026-07-11; parallel-eligible with the loop lane), with tool
+exposure per [daemon-agent-tools](daemon-agent-tools.md) § Phases 5–6.
 
 ## What is the Problem Being Solved?
 
@@ -136,6 +150,12 @@ conflict-side path lineage, and non-interactive editor behavior for reword and
 autosquash.
 
 ## Code-Mode and JSON Surfaces
+
+> **The JSON slice below is parked — see #731.** The elevated JSON history
+> tool (`makeGitHistoryTool`) rides the parked JSON tool-wrapper layer; its
+> slice definition is kept for when that layer resumes. The `EndoGit` verb
+> substrate and the generated code-mode surface are unaffected and stay
+> prioritized.
 
 Code mode receives all five additions automatically by regenerating
 `packages/agent-tools/generated/code-mode-globals/git-declarations.js` from
