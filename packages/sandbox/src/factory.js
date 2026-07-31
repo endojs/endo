@@ -465,7 +465,7 @@ export const makeSandboxFactory = ({ drivers, scratchProvider }) => {
     let disposed = false;
 
     /**
-     * @param {string[]} argv
+     * @param {readonly string[]} argv
      * @param {SpawnOpts} [spawnOpts]
      * @returns {Promise<ProcessHandle>}
      */
@@ -473,7 +473,7 @@ export const makeSandboxFactory = ({ drivers, scratchProvider }) => {
       if (disposed) {
         throw makeError(X`sandbox handle has been disposed`);
       }
-      const driverProc = await driver.spawn(driverSlice, argv, spawnOpts);
+      const driverProc = await driver.spawn(driverSlice, [...argv], spawnOpts);
 
       const stdoutRef = makeReaderExoFromAsyncIterable(
         spawnOpts.captureStdout === false

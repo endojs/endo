@@ -159,7 +159,7 @@ export const makeShell = ({
 
     /**
      * @param {string} command
-     * @param {string[]} args
+     * @param {readonly string[]} args
      * @param {{ timeoutMs?: number }} [options]
      */
     async exec(command, args, options = {}) {

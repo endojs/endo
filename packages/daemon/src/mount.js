@@ -643,7 +643,7 @@ const makeMountExo = ctx => {
    * selector rather than a single name.  Other path-bearing convenience
    * methods keep their existing single-name string compatibility.
    *
-   * @param {string | string[]} pathArg
+   * @param {string | readonly string[]} pathArg
    * @returns {string[]}
    */
   const segmentsFromEntryPathArg = pathArg => {
@@ -843,7 +843,7 @@ const makeMountExo = ctx => {
   // gate wrapping the call and a `subView`'s grep scoped to its sub-root.
   /**
    * @param {string} pattern
-   * @param {string[]} [paths]
+   * @param {readonly string[]} [paths]
    * @param {{ maxResults?: number }} [options]
    */
   const grep = async (pattern, paths = undefined, options = {}) => {

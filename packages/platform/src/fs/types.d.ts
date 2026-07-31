@@ -88,8 +88,8 @@ export type SnapshotBlob = ReadableBlob & {
  */
 export interface ReadableTree {
   has: (...petNamePath: string[]) => Promise<boolean>;
-  list: (...petNamePath: string[]) => Promise<string[]>;
-  lookup: (petNamePath: string | string[]) => Promise<unknown>;
+  list: (...petNamePath: string[]) => Promise<readonly string[]>;
+  lookup: (petNamePath: string | readonly string[]) => Promise<unknown>;
   /**
    * Recursive counterpart to `list`: every descendant under the sub-path
    * `petNamePath` (a single name, a path of segments, or `[]` for the whole
@@ -98,8 +98,8 @@ export interface ReadableTree {
    * call. Optional: only the richer tree surfaces expose it.
    */
   listTree?: (
-    petNamePath: string | string[],
-    options?: { ignore?: string[] },
+    petNamePath: string | readonly string[],
+    options?: { ignore?: readonly string[] },
   ) => Promise<TreeEntry[]>;
 }
 

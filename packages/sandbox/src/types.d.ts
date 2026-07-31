@@ -172,7 +172,7 @@ export type SeccompPolicy = 'default' | 'unconfined' | { profile: unknown };
  */
 export type SandboxMakeOpts = {
   rootfs: RootfsSpec;
-  mounts?: MountSpec[];
+  mounts?: readonly MountSpec[];
   network?: NetworkProfile;
   backend?: BackendSelector;
   seccomp?: SeccompPolicy;
@@ -293,7 +293,7 @@ export type SandboxFactory = FarRef<{
  */
 export type SandboxHandle = FarRef<{
   help(methodName?: string): string;
-  spawn(argv: string[], opts?: SpawnOpts): Promise<ProcessHandle>;
+  spawn(argv: readonly string[], opts?: SpawnOpts): Promise<ProcessHandle>;
   mount(
     cap: MountCap,
     innerPath: string,

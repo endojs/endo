@@ -182,8 +182,8 @@ const makeUnzipTree = (zipReader, node, archiveName) => {
      * skip for this call. The synthesized tree lives entirely in local
      * Maps, so the walk is synchronous under an async signature.
      *
-     * @param {string | string[]} petNamePath
-     * @param {{ ignore?: string[] }} [listTreeOptions]
+     * @param {string | readonly string[]} petNamePath
+     * @param {{ ignore?: readonly string[] }} [listTreeOptions]
      * @returns {Promise<Array<{ path: string[], type: 'file' | 'directory' }>>}
      */
     listTree: async (petNamePath, listTreeOptions = {}) => {

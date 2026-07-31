@@ -208,10 +208,10 @@ type GitLiteReadableBlob = {
 };
 type GitLiteReadableTree = {
     has: (...petNamePath: string[]) => Promise<boolean>;
-    list: (...petNamePath: string[]) => Promise<string[]>;
-    lookup: (petNamePath: string | string[]) => Promise<unknown>;
-    listTree?: (petNamePath: string | string[], options?: {
-        ignore?: string[];
+    list: (...petNamePath: string[]) => Promise<readonly string[]>;
+    lookup: (petNamePath: string | readonly string[]) => Promise<unknown>;
+    listTree?: (petNamePath: string | readonly string[], options?: {
+        ignore?: readonly string[];
     }) => Promise<GitTreeEntry[]>;
 };
 type GitNodeStat = {
@@ -487,10 +487,10 @@ type GitLiteReadableBlob = {
 };
 type GitLiteReadableTree = {
     has: (...petNamePath: string[]) => Promise<boolean>;
-    list: (...petNamePath: string[]) => Promise<string[]>;
-    lookup: (petNamePath: string | string[]) => Promise<unknown>;
-    listTree?: (petNamePath: string | string[], options?: {
-        ignore?: string[];
+    list: (...petNamePath: string[]) => Promise<readonly string[]>;
+    lookup: (petNamePath: string | readonly string[]) => Promise<unknown>;
+    listTree?: (petNamePath: string | readonly string[], options?: {
+        ignore?: readonly string[];
     }) => Promise<GitTreeEntry[]>;
 };
 type GitNodeStat = {

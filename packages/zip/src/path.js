@@ -55,7 +55,7 @@ harden(assertSafePathSegment);
  * validator used at construction time so adversarial input arriving
  * over CapTP cannot bypass the construction-time checks.
  *
- * @param {string[]} segments
+ * @param {readonly string[]} segments
  * @param {string} archiveName
  */
 export const assertSafePathSegments = (segments, archiveName) => {

@@ -7109,14 +7109,14 @@ const makeDaemonCore = async (
     const petStore = await provideStoreController(petStoreId);
 
     /**
-     * @param {string | string[]} petNameOrPath - The pet name to inspect.
+     * @param {string | readonly string[]} petNameOrPath - The pet name to inspect.
      * @returns {Promise<KnownEndoInspectors[string]>} An
      * inspector for the value of the given pet name.
      */
     const lookup = async petNameOrPath => {
       /** @type {string} */
       let petName;
-      if (Array.isArray(petNameOrPath)) {
+      if (typeof petNameOrPath !== 'string') {
         if (petNameOrPath.length !== 1) {
           throw Error(
             'PetStoreInspector.lookup(path) requires path length of 1',
@@ -7224,10 +7224,14 @@ const makeDaemonCore = async (
     /** @returns {Name[]} The list of all names in the pet store. */
     const list = () => petStore.list();
 
-    const info = makeExo('EndoInspectorHub', InspectorHubInterface, {
-      lookup,
-      list,
-    });
+    const info = /** @type {EndoInspector} */ (
+      /** @type {unknown} */ (
+        makeExo('EndoInspectorHub', InspectorHubInterface, {
+          lookup,
+          list,
+        })
+      )
+    );
 
     return info;
   };

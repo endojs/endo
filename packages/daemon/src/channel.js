@@ -1028,8 +1028,8 @@ export const makeChannelMaker = ({
             const ids = /** @type {FormulaIdentifier[]} */ (resolvedIds || []);
             await postInternal(
               adminMemberId,
-              strings,
-              names,
+              [...strings],
+              [...names],
               ids,
               /** @type {string | undefined} */ (replyTo),
               /** @type {string | undefined} */ (replyType),

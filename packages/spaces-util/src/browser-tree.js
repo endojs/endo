@@ -106,7 +106,7 @@ export const makeBrowserTree = (dirHandle, options = {}) => {
   /**
    * Navigate to a subdirectory by path segments.
    *
-   * @param {string[]} names
+   * @param {readonly string[]} names
    * @returns {Promise<FileSystemDirectoryHandle>}
    */
   const navigateDir = async names => {
@@ -146,7 +146,7 @@ export const makeBrowserTree = (dirHandle, options = {}) => {
 
     /**
      * @param  {string[]} names
-     * @returns {Promise<string[]>}
+     * @returns {Promise<readonly string[]>}
      */
     async list(...names) {
       const dir = await navigateDir(names);
@@ -160,7 +160,7 @@ export const makeBrowserTree = (dirHandle, options = {}) => {
     },
 
     /**
-     * @param {string | string[]} nameOrPath
+     * @param {string | readonly string[]} nameOrPath
      * @returns {Promise<FarRef<unknown>>}
      */
     async lookup(nameOrPath) {
@@ -200,7 +200,7 @@ export const checkoutToDirectory = async (tree, rootHandle, options = {}) => {
    */
   const walk = async (node, parentHandle) => {
     const treeNode =
-      /** @type {{ list: () => Promise<string[]>, lookup: (name: string) => Promise<unknown> }} */ (
+      /** @type {{ list: () => Promise<readonly string[]>, lookup: (name: string) => Promise<unknown> }} */ (
         node
       );
     const names = await E(treeNode).list();

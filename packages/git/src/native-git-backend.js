@@ -785,7 +785,7 @@ const requireTreeSegment = value => {
 harden(requireTreeSegment);
 
 /**
- * @param {unknown[]} args
+ * @param {readonly unknown[]} args
  * @returns {string[]}
  */
 const normalizeTreePath = args => {
@@ -2038,7 +2038,7 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
 
       /**
        * @param {...string} pathArgs
-       * @returns {Promise<string[]>}
+       * @returns {Promise<readonly string[]>}
        */
       async list(...pathArgs) {
         const segments = normalizeTreePath(pathArgs);
@@ -2051,14 +2051,14 @@ export const makeNativeGitBackend = ({ repoRoot, identity }) => {
       },
 
       /**
-       * @param {string | string[]} pathArg
+       * @param {string | readonly string[]} pathArg
        * @returns {Promise<unknown>} The nested GitTree or GitBlob remotable.
        */
       async lookup(pathArg) {
         const segments =
           typeof pathArg === 'string'
             ? [requireTreeSegment(pathArg)]
-            : normalizeTreePath(/** @type {unknown[]} */ (pathArg));
+            : normalizeTreePath(/** @type {readonly unknown[]} */ (pathArg));
         return lookupSegments(segments);
       },
     });

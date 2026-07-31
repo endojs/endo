@@ -1224,7 +1224,7 @@ export const makeGitRemote = ({
           name,
           policy: {
             ...currentPolicy,
-            allowedDirections: /** @type {GitDirection[]} */ (directions),
+            allowedDirections: /** @type {GitDirection[]} */ ([...directions]),
           },
         });
         await persistState(nextPolicy, revoked);
@@ -1236,7 +1236,7 @@ export const makeGitRemote = ({
       async setFetchRefspecs(refspecs) {
         const nextPolicy = normalizePolicy({
           name,
-          policy: { ...currentPolicy, fetchRefspecs: refspecs },
+          policy: { ...currentPolicy, fetchRefspecs: [...refspecs] },
         });
         await persistState(nextPolicy, revoked);
         currentPolicy = nextPolicy;
@@ -1247,7 +1247,7 @@ export const makeGitRemote = ({
       async setPushRefspecs(refspecs) {
         const nextPolicy = normalizePolicy({
           name,
-          policy: { ...currentPolicy, pushRefspecs: refspecs },
+          policy: { ...currentPolicy, pushRefspecs: [...refspecs] },
         });
         await persistState(nextPolicy, revoked);
         currentPolicy = nextPolicy;
@@ -1261,7 +1261,7 @@ export const makeGitRemote = ({
           policy: {
             ...currentPolicy,
             pushRefspecs: [],
-            allowedBranches: branches,
+            allowedBranches: [...branches],
           },
         });
         await persistState(nextPolicy, revoked);

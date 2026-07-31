@@ -1200,8 +1200,10 @@ export interface EndoReadableTree {
   sha256(): string;
   getInfo(): Promise<BlobInfo>;
   has(...pathSegments: string[]): Promise<boolean>;
-  list(...pathSegments: string[]): Promise<string[]>;
-  lookup(path: string | string[]): Promise<EndoReadableTree | EndoReadable>;
+  list(...pathSegments: string[]): Promise<readonly string[]>;
+  lookup(
+    path: string | readonly string[],
+  ): Promise<EndoReadableTree | EndoReadable>;
   help(method?: string): string;
 }
 
@@ -1255,12 +1257,14 @@ export interface ReadableBlobView {
  */
 export interface ReadableTreeView {
   has(...pathSegments: string[]): Promise<boolean>;
-  list(...pathSegments: string[]): Promise<string[]>;
+  list(...pathSegments: string[]): Promise<readonly string[]>;
   listTree(
-    petNamePath: string | string[],
-    options?: { ignore?: string[] },
+    petNamePath: string | readonly string[],
+    options?: { ignore?: readonly string[] },
   ): Promise<TreeEntry[]>;
-  lookup(path: string | string[]): Promise<ReadableTreeView | ReadableBlobView>;
+  lookup(
+    path: string | readonly string[],
+  ): Promise<ReadableTreeView | ReadableBlobView>;
   help(method?: string): string;
 }
 
@@ -1268,8 +1272,8 @@ export interface EndoGitTree {
   archiveTar(): PassableBytesReader;
   archiveLossless(): Promise<boolean>;
   has(...pathSegments: string[]): Promise<boolean>;
-  list(...pathSegments: string[]): Promise<string[]>;
-  lookup(path: string | string[]): Promise<EndoGitTree | EndoReadable>;
+  list(...pathSegments: string[]): Promise<readonly string[]>;
+  lookup(path: string | readonly string[]): Promise<EndoGitTree | EndoReadable>;
 }
 
 /**
@@ -1337,7 +1341,7 @@ export interface EndoMount extends PathEntryIssuer {
     options?: { maxResults?: number },
   ): Promise<Array<import('@endo/platform/fs/search.types').GrepMatch>>;
   lookup(
-    path: string | string[] | EndoMountEntry,
+    path: string | readonly string[] | EndoMountEntry,
   ): Promise<EndoMount | EndoMountFile>;
   /**
    * The `ReadableNameHub` lookup-or-undefined primitive: resolve `path`
@@ -2013,7 +2017,7 @@ export interface EndoChannelMember {
  *   earlier than `@endo/daemon@4.0.0`.
  */
 export type EndoInspector<RecordT = string> = {
-  lookup(petNameOrPath: RecordT | NameOrPath): Promise<unknown>;
+  lookup(petNameOrPath: RecordT | Name | readonly Name[]): Promise<unknown>;
   list(): RecordT[];
 };
 

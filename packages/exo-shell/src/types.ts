@@ -1,5 +1,5 @@
 export type ShellPolicy = {
-  allowedCommands: string[];
+  allowedCommands: readonly string[];
   timeoutMs: number;
   maxOutputBytes: number;
   env?: Record<string, string>;
@@ -7,7 +7,7 @@ export type ShellPolicy = {
 };
 
 export type ShellInspectResult = {
-  allowedCommands: string[];
+  allowedCommands: readonly string[];
   timeoutMs: number;
   maxOutputBytes: number;
 };
@@ -41,7 +41,7 @@ export type EndoShell = {
   inspect: () => Promise<ShellInspectResult>;
   exec: (
     command: string,
-    args: string[],
+    args: readonly string[],
     options?: { timeoutMs?: number },
   ) => Promise<ShellResult>;
 };
