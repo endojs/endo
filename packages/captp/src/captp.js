@@ -1,4 +1,5 @@
 /** @import {RemoteKit, Settler} from '@endo/eventual-send' */
+/** @import {CapData} from '@endo/marshal' */
 /** @import {CapTPSlot, TrapHost, TrapGuest, TrapImpl} from './types.js' */
 
 // Your app may need to `import '@endo/eventual-send/shim.js'` to get HandledPromise
@@ -17,6 +18,54 @@ import { makeTrap } from './trap.js';
 import { makeFinalizingMap } from './finalize.js';
 
 export { E };
+
+const { isArray } = Array;
+
+/**
+ * @param {unknown} value
+ * @returns {value is PropertyKey}
+ */
+const isPropertyKey = value =>
+  typeof value === 'string' ||
+  typeof value === 'number' ||
+  typeof value === 'symbol';
+
+/**
+ * @param {unknown} value
+ * @returns {PropertyKey}
+ */
+const assertPropertyKey = value =>
+  isPropertyKey(value) ? value : Fail`CapTP received an invalid property key`;
+
+/**
+ * @param {unknown} value
+ * @returns {value is [PropertyKey] | [null, unknown[]] | [PropertyKey, unknown[]]}
+ */
+const isDecodedMethod = value => {
+  if (!isArray(value)) {
+    return false;
+  }
+  const [prop, args] = value;
+  if (value.length === 1) {
+    return isPropertyKey(prop);
+  }
+  return (
+    value.length === 2 &&
+    (prop === null || isPropertyKey(prop)) &&
+    isArray(args)
+  );
+};
+
+/**
+ * @param {unknown} value
+ * @returns {value is [string, unknown[]]}
+ */
+const isDecodedTrapMethod = value =>
+  isArray(value) &&
+  value.length === 2 &&
+  typeof value[0] === 'string' &&
+  isArray(value[1]) &&
+  (value[0] === 'next' || value[0] === 'return' || value[0] === 'throw');
 
 const WELL_KNOWN_SLOT_PROPERTIES = harden(['answerID', 'questionID', 'target']);
 
@@ -345,6 +394,48 @@ export const makeCapTP = (
     },
   );
 
+  /**
+   * @param {unknown} reason
+   * @returns {never}
+   */
+  const rejectMalformed = reason => {
+    // A malformed peer message can have imported slots before validation
+    // fails, so disconnect to discard all connection-local state.
+    // eslint-disable-next-line no-use-before-define
+    abort(reason);
+    throw reason;
+  };
+
+  /**
+   * @param {CapData<CapTPSlot>} encoded
+   * @returns {[PropertyKey] | [null, unknown[]] | [PropertyKey, unknown[]]}
+   */
+  const decodeMethod = encoded => {
+    try {
+      const decoded = unserialize(encoded);
+      return isDecodedMethod(decoded)
+        ? decoded
+        : Fail`CapTP received an invalid method`;
+    } catch (e) {
+      return rejectMalformed(e);
+    }
+  };
+
+  /**
+   * @param {CapData<CapTPSlot>} encoded
+   * @returns {[string, unknown[]]}
+   */
+  const decodeTrapMethod = encoded => {
+    try {
+      const decoded = unserialize(encoded);
+      return isDecodedTrapMethod(decoded)
+        ? decoded
+        : Fail`CapTP received an invalid trap iterator method`;
+    } catch (e) {
+      return rejectMalformed(e);
+    }
+  };
+
   /** @type {WeakMap<any, CapTPSlot>} */
   const valToSlot = new WeakMap(); // exports looked up by val
   const exportedTrapHandlers = new WeakSet();
@@ -649,7 +740,7 @@ export const makeCapTP = (
       //   answers first; otherwise goes through unserializer
       const { questionID, target, trap } = obj;
 
-      const [prop, args] = unserialize(obj.method);
+      const [prop, args] = decodeMethod(obj.method);
       let val;
       if (answers.has(target)) {
         val = answers.get(target);
@@ -715,7 +806,7 @@ export const makeCapTP = (
       // otherwise this is property access
       let hp;
       if (!args) {
-        hp = HandledPromise.get(val, prop);
+        hp = HandledPromise.get(val, assertPropertyKey(prop));
       } else if (prop === null) {
         hp = HandledPromise.applyFunction(val, args);
       } else {
@@ -742,7 +833,7 @@ export const makeCapTP = (
       const resultP = trapIteratorResultP.get(questionID);
       resultP || Fail`CTP_TRAP_ITERATE did not expect ${questionID}`;
 
-      const [method, args] = unserialize(serialized);
+      const [method, args] = decodeTrapMethod(serialized);
 
       const getNextResultP = async () => {
         const result = await resultP;
@@ -834,9 +925,12 @@ export const makeCapTP = (
       }
       // We no longer wish to subscribe to object finalization.
       importExportTables.didDisconnect();
+      trapIterator.clear();
+      trapIteratorResultP.clear();
       for (const settler of settlers.values()) {
         settler.reject(reason);
       }
+      settlers.clear();
     },
   };
 
