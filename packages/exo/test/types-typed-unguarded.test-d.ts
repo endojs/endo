@@ -1,5 +1,4 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { expectAssignable, expectType } from 'tsd';
+import { expectTypeOf } from 'expect-type';
 import type { Passable } from '@endo/pass-style';
 import { makeExo, defineExoClass } from '../index.js';
 
@@ -16,9 +15,11 @@ import { makeExo, defineExoClass } from '../index.js';
       return loud ? `HELLO ${name}` : `hello ${name}`;
     },
   });
-  expectAssignable<Passable>(exo);
+  expectTypeOf(exo).toExtend<Passable>();
   // Parameter names and types from the implementation are preserved
-  expectType<(name: string, loud: boolean) => string>(exo.greet);
+  expectTypeOf(exo.greet).toEqualTypeOf<
+    (name: string, loud: boolean) => string
+  >();
 }
 
 // defineExoClass with undefined guard and typed init/methods
@@ -38,10 +39,10 @@ import { makeExo, defineExoClass } from '../index.js';
     },
   );
   const counter = makeCounter(0n);
-  expectAssignable<Passable>(counter);
+  expectTypeOf(counter).toExtend<Passable>();
   // Parameter name `step` and type `bigint` come from the implementation
-  expectType<(step: bigint) => bigint>(counter.incr);
-  expectType<() => bigint>(counter.read);
+  expectTypeOf(counter.incr).toEqualTypeOf<(step: bigint) => bigint>();
+  expectTypeOf(counter.read).toEqualTypeOf<() => bigint>();
 }
 
 // Verifying that parameter names from typed implementation are preserved
@@ -55,6 +56,8 @@ import { makeExo, defineExoClass } from '../index.js';
       return Math.max(min, Math.min(max, value));
     },
   });
-  expectType<(a: number, b: number) => number>(exo.add);
-  expectType<(value: number, min: number, max: number) => number>(exo.clamp);
+  expectTypeOf(exo.add).toEqualTypeOf<(a: number, b: number) => number>();
+  expectTypeOf(exo.clamp).toEqualTypeOf<
+    (value: number, min: number, max: number) => number
+  >();
 }

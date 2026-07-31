@@ -2055,9 +2055,9 @@ __metadata:
     eslint-config-prettier: "catalog:dev"
     eslint-plugin-eslint-comments: "catalog:dev"
     eslint-plugin-import: "catalog:dev"
+    expect-type: "npm:^1.4.0"
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
-    tsd: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
@@ -2785,9 +2785,9 @@ __metadata:
     eslint-config-prettier: "catalog:dev"
     eslint-plugin-eslint-comments: "catalog:dev"
     eslint-plugin-import: "catalog:dev"
+    expect-type: "npm:^1.4.0"
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
-    tsd: "npm:^0.33.0"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft

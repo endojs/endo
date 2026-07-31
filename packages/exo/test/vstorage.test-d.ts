@@ -1,5 +1,4 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { expectAssignable, expectType } from 'tsd';
+import { expectTypeOf } from 'expect-type';
 
 import type { Passable, RemotableObject } from '@endo/pass-style';
 import type { RemotableBrand } from '@endo/eventual-send';
@@ -38,7 +37,7 @@ export type VStorageKey = {
     (path: string) => ({ path, data: '' }),
     {
       async setValue(val) {
-        expectType<string>(val);
+        expectTypeOf(val).toEqualTypeOf<string>();
         this.state.data = val;
       },
       getPath() {
@@ -52,15 +51,15 @@ export type VStorageKey = {
         };
       },
       makeChildNode(name, _opts?) {
-        expectType<string>(name);
+        expectTypeOf(name).toEqualTypeOf<string>();
         return undefined as any;
       },
     },
   );
   const node = makeNode('/root');
-  expectType<(val: string) => Promise<void>>(node.setValue);
-  expectType<() => string>(node.getPath);
+  expectTypeOf(node.setValue).toEqualTypeOf<(val: string) => Promise<void>>();
+  expectTypeOf(node.getPath).toEqualTypeOf<() => string>();
 
   const keyResult = node.getStoreKey();
-  expectAssignable<Promise<Record<string, unknown>>>(keyResult);
+  expectTypeOf(keyResult).toExtend<Promise<Record<string, unknown>>>();
 }

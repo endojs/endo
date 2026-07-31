@@ -1,6 +1,5 @@
 /* eslint-disable no-lone-blocks */
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { expectAssignable, expectType } from 'tsd';
+import { expectTypeOf } from 'expect-type';
 import type { Passable, RemotableObject } from '@endo/pass-style';
 import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 import type { GuardedKit } from '../src/types.js';
@@ -10,10 +9,10 @@ import type { GuardedKit } from '../src/types.js';
 // Return type has concrete methods and is Passable
 {
   const exo = makeExo('Foo', undefined, { sayHi: () => 'hi' });
-  expectAssignable<Passable>(exo);
-  expectType<() => string>(exo.sayHi);
+  expectTypeOf(exo).toExtend<Passable>();
+  expectTypeOf(exo.sayHi).toEqualTypeOf<() => string>();
   // @ts-expect-error -- functions are not passable
-  expectAssignable<Passable>(exo.sayHi);
+  expectTypeOf(exo.sayHi).toExtend<Passable>();
 }
 
 // this.self is typed as the exo instance
@@ -21,11 +20,11 @@ import type { GuardedKit } from '../src/types.js';
   const exo = makeExo('Foo', undefined, {
     greet(name: string) {
       // this.self has the same method types
-      expectAssignable<{ greet: (s: string) => string }>(this.self);
+      expectTypeOf(this.self).toExtend<{ greet: (s: string) => string }>();
       return `hello ${name}`;
     },
   });
-  expectType<(name: string) => string>(exo.greet);
+  expectTypeOf(exo.greet).toEqualTypeOf<(name: string) => string>();
 }
 
 // ===== defineExoClass (no guard) =====
@@ -41,19 +40,20 @@ import type { GuardedKit } from '../src/types.js';
     },
   });
   const foo = makeFoo(42);
-  expectAssignable<Passable>(foo);
-  expectType<() => number>(foo.getX);
-  expectType<() => number>(foo.double);
+  expectTypeOf(foo).toExtend<Passable>();
+  expectTypeOf(foo.getX).toEqualTypeOf<() => number>();
+  expectTypeOf(foo.double).toEqualTypeOf<() => number>();
 }
 
 // this.state is typed from init return, this.self is typed
 {
   defineExoClass('Counter', undefined, (start: number) => ({ count: start }), {
     increment() {
-      expectType<{ count: number }>(this.state);
-      expectAssignable<{ increment: () => void; decrement: () => void }>(
-        this.self,
-      );
+      expectTypeOf(this.state).toEqualTypeOf<{ count: number }>();
+      expectTypeOf(this.self).toExtend<{
+        increment: () => void;
+        decrement: () => void;
+      }>();
       this.state.count += 1;
     },
     decrement() {
@@ -84,11 +84,11 @@ import type { GuardedKit } from '../src/types.js';
     },
   );
   const kit = makeKit(0);
-  expectAssignable<Passable>(kit);
-  expectAssignable<Passable>(kit.public);
-  expectAssignable<Passable>(kit.admin);
-  expectType<() => number>(kit.public.getX);
-  expectType<(val: number) => void>(kit.admin.setX);
+  expectTypeOf(kit).toExtend<Passable>();
+  expectTypeOf(kit.public).toExtend<Passable>();
+  expectTypeOf(kit.admin).toExtend<Passable>();
+  expectTypeOf(kit.public.getX).toEqualTypeOf<() => number>();
+  expectTypeOf(kit.admin.setX).toEqualTypeOf<(val: number) => void>();
 }
 
 // this.facets is typed as the full GuardedKit; this.self does not exist
@@ -97,10 +97,10 @@ import type { GuardedKit } from '../src/types.js';
     alice: {
       ping() {
         // this.facets gives typed access to all facets
-        expectAssignable<{
+        expectTypeOf(this.facets).toExtend<{
           alice: { ping: () => void };
           bob: { pong: () => void };
-        }>(this.facets);
+        }>();
         this.facets.bob.pong();
       },
     },
@@ -151,10 +151,10 @@ import type { GuardedKit } from '../src/types.js';
   const kit = defineExoClassKit('foo', undefined, () => {}, {
     public: { sayHi: () => 'hi' },
   })();
-  expectAssignable<Passable>(kit);
-  expectAssignable<Passable>(kit.public);
+  expectTypeOf(kit).toExtend<Passable>();
+  expectTypeOf(kit.public).toExtend<Passable>();
   // @ts-expect-error -- functions are not passable
-  expectAssignable<Passable>(kit.public.sayHi);
+  expectTypeOf(kit.public.sayHi).toExtend<Passable>();
 }
 
 // ===== GuardedKit type helper =====
@@ -166,8 +166,8 @@ import type { GuardedKit } from '../src/types.js';
     bob: { pong: () => string };
   };
   type GK = GuardedKit<F>;
-  expectAssignable<RemotableObject>(null as unknown as GK['alice']);
-  expectAssignable<RemotableObject>(null as unknown as GK['bob']);
+  expectTypeOf(null as unknown as GK['alice']).toExtend<RemotableObject>();
+  expectTypeOf(null as unknown as GK['bob']).toExtend<RemotableObject>();
 }
 
 // ===== Regression: F-collapse on undefined guard kit =====
@@ -192,8 +192,8 @@ import type { GuardedKit } from '../src/types.js';
       public: {
         getCurrentValue() {
           // `this.state` should be the init return type, not `any` / `unknown`.
-          expectType<number>(this.state.currentValue);
-          expectType<boolean>(this.state.done);
+          expectTypeOf(this.state.currentValue).toEqualTypeOf<number>();
+          expectTypeOf(this.state.done).toEqualTypeOf<boolean>();
           return this.state.currentValue;
         },
         markDone() {
@@ -205,17 +205,17 @@ import type { GuardedKit } from '../src/types.js';
   const kit = makeProgressTrackerKit();
 
   // Direct access by facet name must work — this is what regressed.
-  expectType<() => number>(kit.public.getCurrentValue);
-  expectType<() => void>(kit.public.markDone);
+  expectTypeOf(kit.public.getCurrentValue).toEqualTypeOf<() => number>();
+  expectTypeOf(kit.public.markDone).toEqualTypeOf<() => void>();
 
   // The empty facet still exists at runtime and at the type level.
-  expectAssignable<RemotableObject>(kit.helper);
+  expectTypeOf(kit.helper).toExtend<RemotableObject>();
 
   // The pattern that broke in the wild:
   //   const makeProgressTracker = () => makeProgressTrackerKit().public;
   // — selecting a facet from a fresh kit instance.
   const makeOnlyPublic = () => makeProgressTrackerKit().public;
-  expectType<() => number>(makeOnlyPublic().getCurrentValue);
+  expectTypeOf(makeOnlyPublic().getCurrentValue).toEqualTypeOf<() => number>();
 }
 
 // Regression: facet method that references another facet via `this.facets`

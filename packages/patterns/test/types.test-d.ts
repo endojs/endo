@@ -7,7 +7,7 @@ import type {
   RemotableObject,
 } from '@endo/pass-style';
 import type { RemotableBrand } from '@endo/eventual-send';
-import { expectNotType, expectType, expectAssignable } from 'tsd';
+import { expectTypeOf } from 'expect-type';
 import { isKey, isScalarKey } from '../src/keys/checkKey.js';
 import { M, matches, mustMatch } from '../index.js';
 import type {
@@ -36,18 +36,18 @@ M.arrayOf(M.any());
 const passable: Passable = null as any;
 {
   const result = isKey(passable);
-  expectType<boolean>(result);
+  expectTypeOf(result).toEqualTypeOf<boolean>();
   if (result) {
-    expectType<Key>(passable);
+    expectTypeOf(passable).toEqualTypeOf<Key>();
   } else {
-    expectNotType<Key>(passable);
+    expectTypeOf(passable).not.toEqualTypeOf<Key>();
   }
 }
 {
   const str = 'some string';
   if (isKey(str)) {
     // doesn't widen
-    expectType<string>(str);
+    expectTypeOf<typeof str>().toEqualTypeOf<string>();
   }
 }
 
@@ -62,11 +62,11 @@ const passable: Passable = null as any;
 
 {
   const result = isScalarKey(passable);
-  expectType<boolean>(result);
+  expectTypeOf(result).toEqualTypeOf<boolean>();
   if (result) {
-    expectType<ScalarKey>(passable);
+    expectTypeOf(passable).toEqualTypeOf<ScalarKey>();
   } else {
-    expectNotType<ScalarKey>(passable);
+    expectTypeOf(passable).not.toEqualTypeOf<ScalarKey>();
   }
 }
 
@@ -75,8 +75,8 @@ const passable: Passable = null as any;
 // MatcherOf extends Matcher
 {
   const m: MatcherOf<'string', string> = null as any;
-  expectAssignable<Matcher>(m);
-  expectAssignable<Pattern>(m);
+  expectTypeOf(m).toExtend<Matcher>();
+  expectTypeOf(m).toExtend<Pattern>();
 }
 
 // ===== 1. Every primitive matcher → correct type =====
@@ -85,42 +85,42 @@ const passable: Passable = null as any;
 {
   const p = M.string();
   type T = TypeFromPattern<typeof p>;
-  expectType<string>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<string>();
 }
 
 // M.number() → number
 {
   const p = M.number();
   type T = TypeFromPattern<typeof p>;
-  expectType<number>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<number>();
 }
 
 // M.boolean() → boolean
 {
   const p = M.boolean();
   type T = TypeFromPattern<typeof p>;
-  expectType<boolean>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<boolean>();
 }
 
 // M.bigint() → bigint
 {
   const p = M.bigint();
   type T = TypeFromPattern<typeof p>;
-  expectType<bigint>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<bigint>();
 }
 
 // M.nat() → bigint
 {
   const p = M.nat();
   type T = TypeFromPattern<typeof p>;
-  expectType<bigint>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<bigint>();
 }
 
 // M.symbol() → symbol
 {
   const p = M.symbol();
   type T = TypeFromPattern<typeof p>;
-  expectType<symbol>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<symbol>();
 }
 
 // M.undefined() → void
@@ -130,21 +130,21 @@ const passable: Passable = null as any;
 {
   const p = M.undefined();
   type T = TypeFromPattern<typeof p>;
-  expectType<void>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<void>();
 }
 
 // M.null() → null (literal pattern, not a matcher)
 {
   const p = M.null();
   type T = TypeFromPattern<typeof p>;
-  expectType<null>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<null>();
 }
 
 // M.error() → Error
 {
   const p = M.error();
   type T = TypeFromPattern<typeof p>;
-  expectType<Error>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Error>();
 }
 
 // M.promise() → PromiseLike<any>
@@ -153,14 +153,14 @@ const passable: Passable = null as any;
 {
   const p = M.promise();
   type T = TypeFromPattern<typeof p>;
-  expectType<PromiseLike<any>>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<PromiseLike<any>>();
 }
 
 // M.any() → Passable
 {
   const p = M.any();
   type T = TypeFromPattern<typeof p>;
-  expectType<Passable>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Passable>();
 }
 
 // M.remotable() → any (compatible with any concrete remotable interface)
@@ -171,7 +171,7 @@ const passable: Passable = null as any;
 {
   const p = M.remotable();
   type T = TypeFromPattern<typeof p>;
-  expectType<any>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<any>();
 }
 
 // M.remotable('label') used in M.call() → method param is `any`, not `unknown`.
@@ -184,7 +184,7 @@ const passable: Passable = null as any;
   type Fn = TypeFromMethodGuard<typeof guard>;
   // The first parameter should be `any`, not `unknown`
   type Param0 = Parameters<Fn>[0];
-  expectType<any>(null as unknown as Param0);
+  expectTypeOf(null as unknown as Param0).toEqualTypeOf<any>();
 }
 
 // Same regression: stored as a const, used via typeof
@@ -193,7 +193,7 @@ const passable: Passable = null as any;
   const guard = M.call(VoterHandle).returns(M.any());
   type Fn = TypeFromMethodGuard<typeof guard>;
   type Param0 = Parameters<Fn>[0];
-  expectType<any>(null as unknown as Param0);
+  expectTypeOf(null as unknown as Param0).toEqualTypeOf<any>();
 }
 
 // `.rest(M.arrayOf(X))` → rest type is `X[]`, not `X[][]`.
@@ -206,14 +206,18 @@ const passable: Passable = null as any;
   const guard = M.call().rest(PathShape).returns(M.any());
   type Fn = TypeFromMethodGuard<typeof guard>;
   // (...args: string[]) — not (...args: string[][])
-  expectType<(...args: string[]) => any>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (...args: string[]) => any
+  >();
 }
 
 // Non-array rest pattern still wraps: `.rest(M.string())` → `string[]`
 {
   const guard = M.call().rest(M.string()).returns(M.any());
   type Fn = TypeFromMethodGuard<typeof guard>;
-  expectType<(...args: string[]) => any>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (...args: string[]) => any
+  >();
 }
 
 // =============================================================================
@@ -228,7 +232,9 @@ const passable: Passable = null as any;
 {
   type Branded = `agoric1${string}`;
   type Casted = CastedPattern<Branded>;
-  expectType<Branded>(null as unknown as TypeFromPattern<Casted>);
+  expectTypeOf(
+    null as unknown as TypeFromPattern<Casted>,
+  ).toEqualTypeOf<Branded>();
 }
 
 // Discriminated union case (the motivating example): a structural record
@@ -240,7 +246,7 @@ const passable: Passable = null as any;
     | { kind: 'silver'; purity: number };
   type CoinShape = CastedPattern<Coin>;
   type Inferred = TypeFromPattern<CoinShape>;
-  expectType<Coin>(null as unknown as Inferred);
+  expectTypeOf(null as unknown as Inferred).toEqualTypeOf<Coin>();
 }
 
 // CastedPattern is structurally a Pattern — accepts existing pattern values
@@ -250,7 +256,7 @@ const passable: Passable = null as any;
   const innerShape = M.string();
   const casted: CastedPattern<'agoric1xyz'> = innerShape;
   type T = TypeFromPattern<typeof casted>;
-  expectType<'agoric1xyz'>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<'agoric1xyz'>();
 }
 
 // Patterns WITHOUT the phantom fall through to structural inference
@@ -260,36 +266,38 @@ const passable: Passable = null as any;
   const stringP = M.string();
   type T = TypeFromPattern<typeof stringP>;
   // Should be the leaf-table result for 'string', not `unknown`
-  expectAssignable<string>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toExtend<string>();
 }
 
 // M.byteArray() → ArrayBuffer (via kind)
 {
   const p = M.byteArray();
   type T = TypeFromPattern<typeof p>;
-  expectType<ArrayBuffer>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<ArrayBuffer>();
 }
 
 // M.record() → CopyRecord
 {
   const p = M.record();
   type T = TypeFromPattern<typeof p>;
-  expectType<CopyRecord>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<CopyRecord>();
 }
 
 // M.array() → CopyArray
 {
   const p = M.array();
   type T = TypeFromPattern<typeof p>;
-  expectType<CopyArray>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<CopyArray>();
 }
 
 // ===== 2. Literal patterns → preserve literal types =====
 
-expectType<'hello'>(null as unknown as TypeFromPattern<'hello'>);
-expectType<42>(null as unknown as TypeFromPattern<42>);
-expectType<true>(null as unknown as TypeFromPattern<true>);
-expectType<null>(null as unknown as TypeFromPattern<null>);
+expectTypeOf(
+  null as unknown as TypeFromPattern<'hello'>,
+).toEqualTypeOf<'hello'>();
+expectTypeOf(null as unknown as TypeFromPattern<42>).toEqualTypeOf<42>();
+expectTypeOf(null as unknown as TypeFromPattern<true>).toEqualTypeOf<true>();
+expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
 
 // ===== 3. Structural record/tuple patterns =====
 
@@ -297,14 +305,17 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = { name: M.string(), age: M.nat() };
   type T = TypeFromPattern<typeof p>;
-  expectType<{ name: string; age: bigint }>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{
+    name: string;
+    age: bigint;
+  }>();
 }
 
 // Tuple pattern (as const for tuple inference)
 {
   const p = [M.string(), M.nat()] as const;
   type T = TypeFromPattern<typeof p>;
-  expectType<[string, bigint]>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<[string, bigint]>();
 }
 
 // ===== 4. Combinators: or → union, and → intersection, opt, eref =====
@@ -313,49 +324,55 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.or('start', 'continue', 'abort');
   type T = TypeFromPattern<typeof p>;
-  expectType<'start' | 'continue' | 'abort'>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<
+    'start' | 'continue' | 'abort'
+  >();
 }
 
 // M.or() also preserves literal discriminants in record patterns.
 {
   const p = M.or({ mode: 'start' }, { mode: 'continue' });
   type T = TypeFromPattern<typeof p>;
-  expectType<{ mode: 'start' } | { mode: 'continue' }>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<
+    { mode: 'start' } | { mode: 'continue' }
+  >();
 }
 
 // M.or() → union
 {
   const p = M.or(M.string(), M.nat());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | bigint>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<string | bigint>();
 }
 
 // M.and() → intersection (mostly useful with record patterns)
 {
   const p = M.and(M.string(), M.nat());
   type T = TypeFromPattern<typeof p>;
-  expectType<string & bigint>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<string & bigint>();
 }
 
 // M.and() preserves literal fields in intersected record patterns.
 {
   const p = M.and({ mode: 'start' }, { payload: M.string() });
   type T = TypeFromPattern<typeof p>;
-  expectType<{ mode: 'start' } & { payload: string }>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<
+    { mode: 'start' } & { payload: string }
+  >();
 }
 
 // M.opt() → T | void (void rather than undefined; see TFKindMap comment)
 {
   const p = M.opt(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | void>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<string | void>();
 }
 
 // M.eref() → T | PromiseLike<any>
 {
   const p = M.eref(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | PromiseLike<any>>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<string | PromiseLike<any>>();
 }
 
 // ===== 5. Containers: arrayOf, recordOf, mapOf =====
@@ -364,21 +381,21 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.arrayOf(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<string[]>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<string[]>();
 }
 
 // M.recordOf(M.string(), M.nat()) → Record<string, bigint>
 {
   const p = M.recordOf(M.string(), M.nat());
   type T = TypeFromPattern<typeof p>;
-  expectType<Record<string, bigint>>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Record<string, bigint>>();
 }
 
 // M.mapOf(M.string(), M.nat()) → CopyMap
 {
   const p = M.mapOf(M.string(), M.nat());
   type T = TypeFromPattern<typeof p>;
-  expectAssignable<CopyMap>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toExtend<CopyMap>();
 }
 
 // ===== 6. splitRecord: required only, required + optional =====
@@ -387,7 +404,10 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.splitRecord({ name: M.string(), age: M.nat() });
   type T = TypeFromPattern<typeof p>;
-  expectType<{ name: string; age: bigint }>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{
+    name: string;
+    age: bigint;
+  }>();
 }
 
 // Required + optional
@@ -397,11 +417,11 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     { age: M.nat(), email: M.string() },
   );
   type T = TypeFromPattern<typeof p>;
-  expectType<{
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{
     name: string;
     age?: bigint | undefined;
     email?: string | undefined;
-  }>(null as unknown as T);
+  }>();
 }
 
 // Literal required and optional fields remain narrow.
@@ -411,10 +431,10 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     { phase: 'ready' },
   );
   type T = TypeFromPattern<typeof p>;
-  expectType<{
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{
     mode: 'start' | 'continue';
     phase?: 'ready' | undefined;
-  }>(null as unknown as T);
+  }>();
 }
 
 // ===== 7. splitArray: required only, required + optional =====
@@ -423,7 +443,7 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.splitArray([M.string(), M.nat()]);
   type T = TypeFromPattern<typeof p>;
-  expectType<[string, bigint]>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<[string, bigint]>();
 }
 
 // Required + optional: produces truly optional tuple elements `[X?, Y?]`
@@ -433,29 +453,33 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.splitArray([M.string()], [M.nat(), M.boolean()]);
   type T = TypeFromPattern<typeof p>;
-  expectType<[string, bigint?, boolean?]>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<
+    [string, bigint?, boolean?]
+  >();
 }
 
 // Literal elements remain narrow while preserving the tuple shape.
 {
   const p = M.splitArray([{ mode: 'start' }, { mode: 'continue' }], ['done']);
   type T = TypeFromPattern<typeof p>;
-  expectType<[{ mode: 'start' }, { mode: 'continue' }, 'done'?]>(
-    null as unknown as T,
-  );
+  expectTypeOf(null as unknown as T).toEqualTypeOf<
+    [{ mode: 'start' }, { mode: 'continue' }, 'done'?]
+  >();
 }
 
 // Literal rest patterns remain narrow as well.
 {
   const p = M.splitArray([], [], { mode: 'rest' });
   type T = TypeFromPattern<typeof p>;
-  expectType<{ mode: 'rest' }[]>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{ mode: 'rest' }[]>();
 }
 
 {
   const p = M.splitRecord({}, {}, { mode: 'rest' });
   type T = TypeFromPattern<typeof p>;
-  expectType<{ [key: string]: { mode: 'rest' } }>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{
+    [key: string]: { mode: 'rest' };
+  }>();
 }
 
 // ===== 8. Hint parameters (type narrowing) =====
@@ -464,14 +488,14 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.string<`${bigint}`>();
   type T = TypeFromPattern<typeof p>;
-  expectType<`${bigint}`>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<`${bigint}`>();
 }
 
 // M.number<1 | 2 | 3>() → 1 | 2 | 3
 {
   const p = M.number<1 | 2 | 3>();
   type T = TypeFromPattern<typeof p>;
-  expectType<1 | 2 | 3>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<1 | 2 | 3>();
 }
 
 // M.remotable<Brand>() with a branded type
@@ -479,7 +503,7 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   type Brand = RemotableBrand<{}, { getBrand: () => string }>;
   const p = M.remotable<Brand>('Brand');
   type T = TypeFromPattern<typeof p>;
-  expectType<Brand>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Brand>();
 }
 
 // M.promise<Payment>() → PromiseLike<Payment>
@@ -487,7 +511,7 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   type Payment = RemotableObject;
   const p = M.promise<Payment>();
   type T = TypeFromPattern<typeof p>;
-  expectType<PromiseLike<Payment>>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<PromiseLike<Payment>>();
 }
 
 // ===== M.infer ergonomics (like z.infer) =====
@@ -498,7 +522,10 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     age: M.nat(),
   });
   type Person = M.infer<typeof PersonShape>;
-  expectType<{ name: string; age: bigint }>(null as unknown as Person);
+  expectTypeOf(null as unknown as Person).toEqualTypeOf<{
+    name: string;
+    age: bigint;
+  }>();
 }
 
 // ===== Nested / complex patterns =====
@@ -514,44 +541,47 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     address: AddressShape,
   });
   type T = TypeFromPattern<typeof PersonShape>;
-  expectType<{ name: string; address: { street: string; city: string } }>(
-    null as unknown as T,
-  );
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{
+    name: string;
+    address: { street: string; city: string };
+  }>();
 }
 
 // Array of records
 {
   const p = M.arrayOf(M.splitRecord({ name: M.string(), value: M.nat() }));
   type T = TypeFromPattern<typeof p>;
-  expectType<{ name: string; value: bigint }[]>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<
+    { name: string; value: bigint }[]
+  >();
 }
 
 // M.or with different matcher types
 {
   const p = M.or(M.string(), M.nat(), M.boolean());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | bigint | boolean>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<string | bigint | boolean>();
 }
 
 // M.scalar() → ScalarKey
 {
   const p = M.scalar();
   type T = TypeFromPattern<typeof p>;
-  expectType<ScalarKey>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<ScalarKey>();
 }
 
 // M.key() → Key
 {
   const p = M.key();
   type T = TypeFromPattern<typeof p>;
-  expectType<Key>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Key>();
 }
 
 // M.pattern() → Pattern
 {
   const p = M.pattern();
   type T = TypeFromPattern<typeof p>;
-  expectType<Pattern>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Pattern>();
 }
 
 // ===== 9. M.call(...).returns(...) → MethodGuard → TypeFromMethodGuard =====
@@ -560,44 +590,50 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const mg = M.call(M.string(), M.nat()).returns(M.boolean());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(arg0: string, arg1: bigint) => boolean>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (arg0: string, arg1: bigint) => boolean
+  >();
 }
 
 // Sync method with no args: () => number
 {
   const mg = M.call().returns(M.number());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<() => number>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<() => number>();
 }
 
 // Sync method with optional args: (string, number | undefined) => Passable
 {
   const mg = M.call(M.string()).optional(M.number()).returns();
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(arg0: string, arg1: number | undefined) => Passable>(
-    null as unknown as Fn,
-  );
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (arg0: string, arg1: number | undefined) => Passable
+  >();
 }
 
 // Async method via callWhen: (...) => Promise<string>
 {
   const mg = M.callWhen(M.nat()).returns(M.string());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(arg0: bigint) => Promise<string>>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (arg0: bigint) => Promise<string>
+  >();
 }
 
 // Async method with M.await: M.await(M.nat()) should infer bigint arg
 {
   const mg = M.callWhen(M.await(M.nat())).returns(M.string());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(arg0: bigint) => Promise<string>>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (arg0: bigint) => Promise<string>
+  >();
 }
 
 // M.raw() args → any
 {
   const mg = M.call(M.raw()).returns(M.raw());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(arg0: any) => any>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<(arg0: any) => any>();
 }
 
 // ===== 10. M.interface → InterfaceGuard → TypeFromInterfaceGuard =====
@@ -608,7 +644,9 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     bar: M.call(M.string()).returns(M.nat()),
   });
   type Methods = TypeFromInterfaceGuard<typeof FooI>;
-  expectType<{ bar: (arg0: string) => bigint }>(null as unknown as Methods);
+  expectTypeOf(null as unknown as Methods).toEqualTypeOf<{
+    bar: (arg0: string) => bigint;
+  }>();
 }
 
 // A nested interface method guard keeps literal discriminants narrow.
@@ -618,21 +656,21 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     M.splitRecord({ mode: 'start' }),
     M.splitRecord({ mode: M.or('continue', 'abort', 'skip') }),
   );
-  expectType<Operation>(
+  expectTypeOf(
     null as unknown as TypeFromPattern<typeof OperationShape>,
-  );
+  ).toEqualTypeOf<Operation>();
 
   const ControllerI = M.interface('Controller', {
     handle: M.call(OperationShape).returns(M.boolean()),
   });
   type ControllerMethods = TypeFromInterfaceGuard<typeof ControllerI>;
-  expectType<{ handle: (arg0: Operation) => boolean }>(
-    null as unknown as ControllerMethods,
-  );
+  expectTypeOf(null as unknown as ControllerMethods).toEqualTypeOf<{
+    handle: (arg0: Operation) => boolean;
+  }>();
 
   const methods: ControllerMethods = {
     handle(operation) {
-      expectType<Operation>(operation);
+      expectTypeOf(operation).toEqualTypeOf<Operation>();
       return operation.mode === 'start';
     },
   };
@@ -648,11 +686,11 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     getValue: M.call().returns(M.number()),
   });
   type Methods = TypeFromInterfaceGuard<typeof CounterI>;
-  expectType<{
+  expectTypeOf(null as unknown as Methods).toEqualTypeOf<{
     incr: (arg0: number | undefined) => number;
     decr: (arg0: number) => number;
     getValue: () => number;
-  }>(null as unknown as Methods);
+  }>();
 }
 
 // Interface with async methods
@@ -662,10 +700,10 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     getAll: M.call().returns(M.arrayOf(M.string())),
   });
   type Methods = TypeFromInterfaceGuard<typeof AsyncServiceI>;
-  expectType<{
+  expectTypeOf(null as unknown as Methods).toEqualTypeOf<{
     fetch: (arg0: string) => Promise<string>;
     getAll: () => string[];
-  }>(null as unknown as Methods);
+  }>();
 }
 
 // ===== 11. Exo-style pattern: InterfaceGuard constraining method impls =====
@@ -681,7 +719,10 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     issuer: M.remotable<Issuer>('Issuer'),
   });
   type IssuerRecord = TypeFromPattern<typeof IssuerRecordShape>;
-  expectType<{ brand: Brand; issuer: Issuer }>(null as unknown as IssuerRecord);
+  expectTypeOf(null as unknown as IssuerRecord).toEqualTypeOf<{
+    brand: Brand;
+    issuer: Issuer;
+  }>();
 
   // Full Exo pattern: define interface, infer methods type, use for impl
   const ExchangeI = M.interface('Exchange', {
@@ -694,11 +735,11 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   type ExchangeMethods = TypeFromInterfaceGuard<typeof ExchangeI>;
 
   // Verify each method signature inferred from the guard
-  expectType<{
+  expectTypeOf(null as unknown as ExchangeMethods).toEqualTypeOf<{
     getIssuer: () => Issuer;
     swap: (arg0: Brand, arg1: bigint) => bigint;
     swapAsync: (arg0: Brand) => Promise<bigint>;
-  }>(null as unknown as ExchangeMethods);
+  }>();
 
   // Show that a methods object satisfies the inferred type
   const methods: ExchangeMethods = {
@@ -707,12 +748,12 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     },
     swap(_brand, amount) {
       // _brand is inferred as Brand, amount as bigint
-      expectType<Brand>(_brand);
-      expectType<bigint>(amount);
+      expectTypeOf(_brand).toEqualTypeOf<Brand>();
+      expectTypeOf(amount).toEqualTypeOf<bigint>();
       return amount;
     },
     swapAsync(_brand) {
-      expectType<Brand>(_brand);
+      expectTypeOf(_brand).toEqualTypeOf<Brand>();
       return Promise.resolve(0n);
     },
   };
@@ -729,21 +770,28 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     label: M.string(),
   });
   type T = TypeFromPattern<typeof shape>;
-  expectType<{ value: string | bigint; label: string }>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{
+    value: string | bigint;
+    label: string;
+  }>();
 }
 
 // M.opt in method guard position (via M.or desugaring)
 {
   const mg = M.call(M.opt(M.string())).returns(M.boolean());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(arg0: string | undefined) => boolean>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (arg0: string | undefined) => boolean
+  >();
 }
 
 // M.eref in method guard position
 {
   const mg = M.call(M.eref(M.nat())).returns(M.string());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(arg0: bigint | Promise<any>) => string>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (arg0: bigint | Promise<any>) => string
+  >();
 }
 
 // Nested arrayOf inside splitRecord
@@ -753,10 +801,10 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     count: M.nat(),
   });
   type T = TypeFromPattern<typeof shape>;
-  expectType<{
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{
     items: { id: bigint; name: string }[];
     count: bigint;
-  }>(null as unknown as T);
+  }>();
 }
 
 // ===== M.interface backward compat: unparameterized MethodGuard =====
@@ -764,10 +812,10 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   // Verify that using MethodGuard without type params still works
   type MG = import('../index.js').MethodGuard;
   const mg: MG = null as any;
-  expectAssignable<MG>(mg);
+  expectTypeOf(mg).toExtend<MG>();
   // The broad MethodGuard is assignable from a specific one
   const specific = M.call(M.string()).returns(M.nat());
-  expectAssignable<MG>(specific);
+  expectTypeOf(specific).toExtend<MG>();
 }
 
 // ===== Matchers that return unbranded Matcher (no TypeFromPattern inference) =====
@@ -776,42 +824,42 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.not(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<Passable>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Passable>();
 }
 
 // M.kind('boolean') → boolean (explicit kind call)
 {
   const p = M.kind('boolean');
   type T = TypeFromPattern<typeof p>;
-  expectType<boolean>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<boolean>();
 }
 
 // M.kind('copyRecord') → CopyRecord
 {
   const p = M.kind('copyRecord');
   type T = TypeFromPattern<typeof p>;
-  expectType<CopyRecord>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<CopyRecord>();
 }
 
 // M.set() → CopySet (via kind)
 {
   const p = M.set();
   type T = TypeFromPattern<typeof p>;
-  expectType<CopySet>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<CopySet>();
 }
 
 // M.bag() → CopyBag (via kind)
 {
   const p = M.bag();
   type T = TypeFromPattern<typeof p>;
-  expectType<CopyBag>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<CopyBag>();
 }
 
 // M.map() → CopyMap (via kind)
 {
   const p = M.map();
   type T = TypeFromPattern<typeof p>;
-  expectType<CopyMap>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<CopyMap>();
 }
 
 // ===== Edge cases =====
@@ -820,14 +868,14 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.splitRecord({});
   type T = TypeFromPattern<typeof p>;
-  expectType<{}>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{}>();
 }
 
 // Empty splitArray → []
 {
   const p = M.splitArray([]);
   type T = TypeFromPattern<typeof p>;
-  expectType<[]>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<[]>();
 }
 
 // Deeply nested (3+ levels) to stress-test instantiation depth
@@ -842,16 +890,18 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     }),
   });
   type T = TypeFromPattern<typeof p>;
-  expectType<{ a: { b: { c: { d: string } } } }>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{
+    a: { b: { c: { d: string } } };
+  }>();
 }
 
 // M.or with many branches
 {
   const p = M.or(M.string(), M.nat(), M.boolean(), M.remotable());
   type T = TypeFromPattern<typeof p>;
-  expectType<
+  expectTypeOf(null as unknown as T).toEqualTypeOf<
     string | bigint | boolean | RemotableObject | RemotableBrand<any, any>
-  >(null as unknown as T);
+  >();
 }
 
 // recordOf with no args defaults to Record<string, any>
@@ -861,7 +911,7 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.recordOf();
   type T = TypeFromPattern<typeof p>;
-  expectAssignable<Record<string, any>>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toExtend<Record<string, any>>();
 }
 
 // ===== Comparison matchers → Key =====
@@ -869,32 +919,32 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.lt(42);
   type T = TypeFromPattern<typeof p>;
-  expectType<Key>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Key>();
 }
 {
   const p = M.lte('foo');
   type T = TypeFromPattern<typeof p>;
-  expectType<Key>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Key>();
 }
 {
   const p = M.eq(100n);
   type T = TypeFromPattern<typeof p>;
-  expectType<Key>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Key>();
 }
 {
   const p = M.neq(true);
   type T = TypeFromPattern<typeof p>;
-  expectType<Key>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Key>();
 }
 {
   const p = M.gte(0);
   type T = TypeFromPattern<typeof p>;
-  expectType<Key>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Key>();
 }
 {
   const p = M.gt(-1);
   type T = TypeFromPattern<typeof p>;
-  expectType<Key>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Key>();
 }
 
 // ===== setOf / bagOf / tagged / containerHas =====
@@ -903,28 +953,30 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.setOf(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<CopySet<string>>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<CopySet<string>>();
 }
 
 // bagOf with element pattern
 {
   const p = M.bagOf(M.nat());
   type T = TypeFromPattern<typeof p>;
-  expectType<CopyBag<bigint>>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<CopyBag<bigint>>();
 }
 
 // tagged with tag pattern
 {
   const p = M.tagged(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<CopyTagged<string, Passable>>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<
+    CopyTagged<string, Passable>
+  >();
 }
 
 // containerHas → Passable
 {
   const p = M.containerHas(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<Passable>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<Passable>();
 }
 
 // ===== M.eref and M.opt =====
@@ -933,14 +985,14 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.eref(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectType<string | PromiseLike<any>>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<string | PromiseLike<any>>();
 }
 
 // opt infers T | void
 {
   const p = M.opt(M.nat());
   type T = TypeFromPattern<typeof p>;
-  expectType<bigint | void>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<bigint | void>();
 }
 
 // ===== matches type guard (narrows in if-blocks) =====
@@ -948,21 +1000,21 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const value: unknown = null as any;
   if (matches(value, M.string())) {
-    expectType<string>(value);
+    expectTypeOf(value).toEqualTypeOf<string>();
   }
 }
 
 {
   const value: unknown = null as any;
   if (matches(value, M.splitRecord({ name: M.string(), age: M.nat() }))) {
-    expectType<{ name: string; age: bigint }>(value);
+    expectTypeOf(value).toEqualTypeOf<{ name: string; age: bigint }>();
   }
 }
 
 {
   const value: unknown = null as any;
   if (matches(value, M.or(M.string(), M.nat()))) {
-    expectType<string | bigint>(value);
+    expectTypeOf(value).toEqualTypeOf<string | bigint>();
   }
 }
 
@@ -977,13 +1029,13 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const value: unknown = null as any;
   mustMatch(value, M.string());
-  expectType<string>(value);
+  expectTypeOf(value).toEqualTypeOf<string>();
 }
 
 {
   const value: unknown = null as any;
   mustMatch(value, M.splitRecord({ x: M.nat(), y: M.nat() }));
-  expectType<{ x: bigint; y: bigint }>(value);
+  expectTypeOf(value).toEqualTypeOf<{ x: bigint; y: bigint }>();
 }
 
 // ===== M.remotable with InterfaceGuard type parameter =====
@@ -994,7 +1046,7 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 {
   const p = M.remotable();
   type T = TypeFromPattern<typeof p>;
-  expectType<any>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<any>();
 }
 
 // M.remotable<typeof Guard>() → facet-isolated remotable type
@@ -1006,10 +1058,11 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   const p = M.remotable<typeof PublicI>('Public');
   type T = TypeFromPattern<typeof p>;
   // Should resolve to the interface's methods + remotable branding
-  expectAssignable<{ getData: () => string; getCount: () => bigint }>(
-    null as unknown as T,
-  );
-  expectAssignable<RemotableObject>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toExtend<{
+    getData: () => string;
+    getCount: () => bigint;
+  }>();
+  expectTypeOf(null as unknown as T).toExtend<RemotableObject>();
 }
 
 // Kit guard: admin facet returns the public facet with type isolation
@@ -1023,8 +1076,10 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   type AdminMethods = TypeFromInterfaceGuard<typeof AdminI>;
   // getPublic returns a remotable with getData method, not a generic RemotableObject
   type PublicFacet = ReturnType<AdminMethods['getPublic']>;
-  expectAssignable<{ getData: () => string }>(null as unknown as PublicFacet);
-  expectAssignable<RemotableObject>(null as unknown as PublicFacet);
+  expectTypeOf(null as unknown as PublicFacet).toExtend<{
+    getData: () => string;
+  }>();
+  expectTypeOf(null as unknown as PublicFacet).toExtend<RemotableObject>();
 }
 
 // TypeFromMethodGuard resolves remotable return guard
@@ -1035,8 +1090,8 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   const mg = M.call().returns(M.remotable<typeof FooI>('Foo'));
   type Fn = TypeFromMethodGuard<typeof mg>;
   type Ret = ReturnType<Fn>;
-  expectAssignable<{ bar: () => string }>(null as unknown as Ret);
-  expectAssignable<RemotableObject>(null as unknown as Ret);
+  expectTypeOf(null as unknown as Ret).toExtend<{ bar: () => string }>();
+  expectTypeOf(null as unknown as Ret).toExtend<RemotableObject>();
 }
 
 // ===== M.interface with sloppy/defaultGuards options =====
@@ -1047,7 +1102,9 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     bar: M.call(M.string()).returns(M.nat()),
   });
   type Methods = TypeFromInterfaceGuard<typeof FooI>;
-  expectType<{ bar: (arg0: string) => bigint }>(null as unknown as Methods);
+  expectTypeOf(null as unknown as Methods).toEqualTypeOf<{
+    bar: (arg0: string) => bigint;
+  }>();
 }
 
 // M.interface with explicit strict options → typed InterfaceGuard
@@ -1058,7 +1115,9 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     { defaultGuards: undefined },
   );
   type Methods = TypeFromInterfaceGuard<typeof FooI>;
-  expectType<{ bar: (arg0: string) => bigint }>(null as unknown as Methods);
+  expectTypeOf(null as unknown as Methods).toEqualTypeOf<{
+    bar: (arg0: string) => bigint;
+  }>();
 }
 
 // M.interface with defaultGuards: 'passable' → InterfaceGuard<any>
@@ -1072,16 +1131,16 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   type Methods = TypeFromInterfaceGuard<typeof FooI>;
   // With sloppy/defaultGuards, the guard is InterfaceGuard<any>,
   // so TypeFromInterfaceGuard produces the broad fallback type
-  expectAssignable<Record<string, (...args: any[]) => any>>(
-    null as unknown as Methods,
-  );
+  expectTypeOf(null as unknown as Methods).toExtend<
+    Record<string, (...args: any[]) => any>
+  >();
 }
 
 // ===== M.infer (via namespace import) =====
 {
   const shape = M.splitRecord({ x: M.nat() });
   type T = M.infer<typeof shape>;
-  expectType<{ x: bigint }>(null as unknown as T);
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{ x: bigint }>();
 }
 
 {
@@ -1092,14 +1151,14 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
     metadata: M.splitRecord({ version: M.nat() }, { description: M.string() }),
   });
   type T = M.infer<typeof shape>;
-  expectType<{
+  expectTypeOf(null as unknown as T).toEqualTypeOf<{
     name: string;
     scores: number[];
     metadata: {
       version: bigint;
       description?: string | undefined;
     };
-  }>(null as unknown as T);
+  }>();
 }
 
 // ===== Real-world interface: ChainStorageNode-like pattern =====
@@ -1128,33 +1187,39 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 
   // setValue: async method, bare .returns() defaults to MatcherOf<'kind', 'undefined'>
   // so the return type is Promise<undefined> — NOT void, NOT null
-  expectType<Promise<undefined>>(
+  expectTypeOf(
     null as unknown as ReturnType<Methods['setValue']>,
-  );
+  ).toEqualTypeOf<Promise<undefined>>();
 
   // getPath: sync, returns string
-  expectType<string>(null as unknown as ReturnType<Methods['getPath']>);
+  expectTypeOf(
+    null as unknown as ReturnType<Methods['getPath']>,
+  ).toEqualTypeOf<string>();
 
   // getStoreKey: async, returns splitRecord with required + optional fields
-  expectType<
+  expectTypeOf(
+    null as unknown as ReturnType<Methods['getStoreKey']>,
+  ).toEqualTypeOf<
     Promise<{
       storeName: string;
       storeSubkey: string;
       dataPrefixBytes: string;
       noDataValue?: string | undefined;
     }>
-  >(null as unknown as ReturnType<Methods['getStoreKey']>);
+  >();
 
   // makeChildNode: sync, returns broad remotable. Unparameterized
   // M.remotable() resolves to `any` (matching M.promise() default)
   // so the inferred return is compatible with any concrete remotable
   // typedef.
-  expectType<any>(null as unknown as ReturnType<Methods['makeChildNode']>);
+  expectTypeOf(
+    null as unknown as ReturnType<Methods['makeChildNode']>,
+  ).toEqualTypeOf<any>();
 
   // makeChildNode: first arg is string
-  expectAssignable<(name: string, ...rest: any[]) => any>(
-    null as unknown as Methods['makeChildNode'],
-  );
+  expectTypeOf(null as unknown as Methods['makeChildNode']).toExtend<
+    (name: string, ...rest: any[]) => any
+  >();
 }
 
 // ===== Bare .returns() defaults to void (from MatcherOf<'kind','undefined'>) =====
@@ -1170,10 +1235,12 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   // Sync
   const mg1 = M.call().returns();
   type Fn1 = TypeFromMethodGuard<typeof mg1>;
-  expectType<void>(null as unknown as ReturnType<Fn1>);
+  expectTypeOf(null as unknown as ReturnType<Fn1>).toEqualTypeOf<void>();
 
   // Async (callWhen)
   const mg2 = M.callWhen().returns();
   type Fn2 = TypeFromMethodGuard<typeof mg2>;
-  expectType<Promise<void>>(null as unknown as ReturnType<Fn2>);
+  expectTypeOf(null as unknown as ReturnType<Fn2>).toEqualTypeOf<
+    Promise<void>
+  >();
 }

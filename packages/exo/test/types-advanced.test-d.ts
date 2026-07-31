@@ -1,5 +1,4 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { expectAssignable, expectType } from 'tsd';
+import { expectTypeOf } from 'expect-type';
 import type { Passable, RemotableObject } from '@endo/pass-style';
 import { M } from '@endo/patterns';
 import type {
@@ -14,28 +13,34 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 {
   const mg = M.call(M.nat()).rest(M.string()).returns(M.boolean());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(n: bigint, ...rest: string[]) => boolean>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (n: bigint, ...rest: string[]) => boolean
+  >();
 }
 
 // .rest(M.any()) appends ...rest: Passable[]
 {
   const mg = M.call().rest(M.any()).returns();
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(...rest: Passable[]) => void>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (...rest: Passable[]) => void
+  >();
 }
 
 // .rest(M.raw()) appends ...rest: any[]
 {
   const mg = M.call(M.string()).rest(M.raw()).returns(M.nat());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(s: string, ...rest: any[]) => bigint>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (s: string, ...rest: any[]) => bigint
+  >();
 }
 
 // No .rest() → no rest parameter (existing behavior preserved)
 {
   const mg = M.call(M.string()).returns(M.nat());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(s: string) => bigint>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<(s: string) => bigint>();
 }
 
 // .rest() with .optional()
@@ -45,9 +50,9 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
     .rest(M.boolean())
     .returns(M.string());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(s: string, n?: bigint, ...rest: boolean[]) => string>(
-    null as unknown as Fn,
-  );
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (s: string, n?: bigint, ...rest: boolean[]) => string
+  >();
 }
 
 // .rest() negative: wrong rest element type is caught
@@ -65,10 +70,10 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 {
   const mg = M.call(M.nat()).rest(M.string()).returns(M.boolean());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(n: bigint, goodRest: string, badRest: boolean) => boolean>(
+  type BadFn = (n: bigint, goodRest: string, badRest: boolean) => boolean;
+  expectTypeOf(null as unknown as Fn)
     // @ts-expect-error -- third positional must be string (from rest), not boolean
-    null as unknown as Fn,
-  );
+    .toEqualTypeOf<BadFn>();
 }
 
 // ===== M.callWhen: async method guards =====
@@ -85,7 +90,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 {
   const mg = M.callWhen().returns(M.string());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<() => Promise<string>>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<() => Promise<string>>();
 }
 
 // M.callWhen with M.await(pattern): implementation receives the awaited value
@@ -93,7 +98,9 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 {
   const mg = M.callWhen(M.await(M.nat())).returns(M.string());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(n: bigint) => Promise<string>>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (n: bigint) => Promise<string>
+  >();
 }
 
 // M.promise() as a plain (non-awaited) arg: the runtime passes the Promise
@@ -103,7 +110,9 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 {
   const mg = M.callWhen(M.promise()).returns(M.string());
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<(p: Promise<any>) => Promise<string>>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (p: Promise<any>) => Promise<string>
+  >();
 }
 
 // M.callWhen with mixed args: M.await + plain pattern
@@ -111,7 +120,9 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   const mg = M.callWhen(M.await(M.nat()), M.string()).returns(M.boolean());
   type Fn = TypeFromMethodGuard<typeof mg>;
   // first arg awaited (bigint), second passed as-is (string)
-  expectType<(n: bigint, s: string) => Promise<boolean>>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<
+    (n: bigint, s: string) => Promise<boolean>
+  >();
 }
 
 // M.callWhen with an exo as awaited argument (M.await(M.remotable<typeof I>()))
@@ -126,10 +137,12 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   type Fn = TypeFromMethodGuard<typeof mg>;
   // arg: the exo object with read() method + remotable branding (already awaited)
   type Arg0 = Parameters<Fn>[0];
-  expectAssignable<{ read: () => string }>(null as unknown as Arg0);
-  expectAssignable<RemotableObject>(null as unknown as Arg0);
+  expectTypeOf(null as unknown as Arg0).toExtend<{ read: () => string }>();
+  expectTypeOf(null as unknown as Arg0).toExtend<RemotableObject>();
   // return: Promise<bigint>
-  expectType<Promise<bigint>>(null as unknown as ReturnType<Fn>);
+  expectTypeOf(null as unknown as ReturnType<Fn>).toEqualTypeOf<
+    Promise<bigint>
+  >();
 }
 
 // M.callWhen returning an exo (M.remotable<typeof I>()) — return is Promise<ExoType>
@@ -141,7 +154,9 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   type Fn = TypeFromMethodGuard<typeof mg>;
   type Ret = ReturnType<Fn>;
   // Ret is Promise<{ getValue: () => bigint } & RemotableObject & ...>
-  expectAssignable<Promise<{ getValue: () => bigint }>>(null as unknown as Ret);
+  expectTypeOf(null as unknown as Ret).toExtend<
+    Promise<{ getValue: () => bigint }>
+  >();
 }
 
 // makeExo with M.callWhen: observable method returns Promise<T>,
@@ -158,31 +173,33 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 
   type AsyncMethods = TypeFromInterfaceGuard<typeof AsyncI>;
   // getStringOf: implementation receives the awaited value (Passable), returns Promise<string>
-  expectAssignable<(val: Passable) => Promise<string>>(
-    null as unknown as AsyncMethods['getStringOf'],
-  );
+  expectTypeOf(null as unknown as AsyncMethods['getStringOf']).toExtend<
+    (val: Passable) => Promise<string>
+  >();
   // double: arg is bigint (awaited nat), return is Promise<bigint>
-  expectAssignable<(n: bigint) => Promise<bigint>>(
-    null as unknown as AsyncMethods['double'],
-  );
+  expectTypeOf(null as unknown as AsyncMethods['double']).toExtend<
+    (n: bigint) => Promise<bigint>
+  >();
 
   const exo = makeExo('Async', AsyncI, {
     async getStringOf(val) {
       // val: Passable — the awaited, unwrapped value (not a Promise)
-      expectAssignable<Passable>(val);
+      expectTypeOf(val).toExtend<Passable>();
       return String(val);
     },
     async double(n) {
       // n: bigint — awaited nat
-      expectType<bigint>(n);
+      expectTypeOf(n).toEqualTypeOf<bigint>();
       return n * 2n;
     },
   });
 
   // Callers see Promise<T> returns on the exo object
-  expectType<(val: Passable) => Promise<string>>(exo.getStringOf);
-  expectType<(n: bigint) => Promise<bigint>>(exo.double);
-  expectAssignable<Passable>(exo);
+  expectTypeOf(exo.getStringOf).toEqualTypeOf<
+    (val: Passable) => Promise<string>
+  >();
+  expectTypeOf(exo.double).toEqualTypeOf<(n: bigint) => Promise<bigint>>();
+  expectTypeOf(exo).toExtend<Passable>();
 }
 
 // defineExoClass with M.callWhen: state flows through, async return on observable
@@ -201,7 +218,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
     {
       async increment(n) {
         // n: bigint — the awaited value (not a promise)
-        expectType<bigint>(n);
+        expectTypeOf(n).toEqualTypeOf<bigint>();
         this.state.count += n;
       },
       read() {
@@ -212,9 +229,9 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 
   const counter = makeCounter(0n);
   // increment observable return is Promise<void>
-  expectType<(n: bigint) => Promise<void>>(counter.increment);
+  expectTypeOf(counter.increment).toEqualTypeOf<(n: bigint) => Promise<void>>();
   // read is synchronous as declared
-  expectType<() => bigint>(counter.read);
+  expectTypeOf(counter.read).toEqualTypeOf<() => bigint>();
 }
 
 // defineExoClassKit with M.callWhen: one facet's async method passes an exo
@@ -243,7 +260,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
       loader: {
         async loadData(key) {
           // key: bigint (awaited nat)
-          expectType<bigint>(key);
+          expectTypeOf(key).toEqualTypeOf<bigint>();
           return this.facets.data;
         },
       },
@@ -253,8 +270,10 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   const kit = makeKit('hello');
   // loadData returns Promise<DataFacet> — typed with get() method
   type LoadResult = ReturnType<typeof kit.loader.loadData>;
-  expectAssignable<Promise<{ get: () => string }>>(
-    null as unknown as LoadResult,
-  );
-  expectAssignable<Promise<RemotableObject>>(null as unknown as LoadResult);
+  expectTypeOf(null as unknown as LoadResult).toExtend<
+    Promise<{ get: () => string }>
+  >();
+  expectTypeOf(null as unknown as LoadResult).toExtend<
+    Promise<RemotableObject>
+  >();
 }

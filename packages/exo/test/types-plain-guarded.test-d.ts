@@ -1,6 +1,5 @@
 /* eslint-disable no-empty-function */
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { expectAssignable, expectType } from 'tsd';
+import { expectTypeOf } from 'expect-type';
 import type { Passable, RemotableObject } from '@endo/pass-style';
 import type { RemotableBrand } from '@endo/eventual-send';
 import { M } from '@endo/patterns';
@@ -17,12 +16,12 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   const foo = makeExo('Foo', FooI, {
     bar(name) {
       // TS infers name: string from the guard
-      expectType<string>(name);
+      expectTypeOf(name).toEqualTypeOf<string>();
       return 42n;
     },
   });
-  expectAssignable<Passable>(foo);
-  expectType<(name: string) => bigint>(foo.bar);
+  expectTypeOf(foo).toExtend<Passable>();
+  expectTypeOf(foo.bar).toEqualTypeOf<(name: string) => bigint>();
 }
 
 // Guard-driven: wrong argument type is a compile error
@@ -66,7 +65,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
     () => ({ addr: '' as string }),
     {
       setAddr(a) {
-        expectType<`agoric1${string}`>(a);
+        expectTypeOf(a).toEqualTypeOf<`agoric1${string}`>();
         this.state.addr = a;
       },
       getAddr() {
@@ -79,7 +78,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   addr.setAddr('agoric1abc');
   // @ts-expect-error -- wide string is not assignable to `agoric1${string}`
   addr.setAddr('cosmos1xyz');
-  expectType<() => `agoric1${string}`>(addr.getAddr);
+  expectTypeOf(addr.getAddr).toEqualTypeOf<() => `agoric1${string}`>();
 }
 
 // Return type is Guarded<M>, which is Passable and has the methods
@@ -92,9 +91,9 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
       return n + 1n;
     },
   });
-  expectAssignable<RemotableObject>(foo);
-  expectAssignable<RemotableBrand<any, any>>(foo);
-  expectType<(n: bigint) => bigint>(foo.inc);
+  expectTypeOf(foo).toExtend<RemotableObject>();
+  expectTypeOf(foo).toExtend<RemotableBrand<any, any>>();
+  expectTypeOf(foo.inc).toEqualTypeOf<(n: bigint) => bigint>();
 }
 
 // ===== defineExoClass (with InterfaceGuard) =====
@@ -111,7 +110,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
     (start: bigint) => ({ count: start }),
     {
       increment() {
-        expectType<{ count: bigint }>(this.state);
+        expectTypeOf(this.state).toEqualTypeOf<{ count: bigint }>();
         this.state.count += 1n;
       },
       read() {
@@ -120,9 +119,9 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
     },
   );
   const counter = makeCounter(0n);
-  expectAssignable<Passable>(counter);
-  expectType<() => void>(counter.increment);
-  expectType<() => bigint>(counter.read);
+  expectTypeOf(counter).toExtend<Passable>();
+  expectTypeOf(counter.increment).toEqualTypeOf<() => void>();
+  expectTypeOf(counter.read).toEqualTypeOf<() => bigint>();
 }
 
 // Guard-driven: wrong return type is a compile error
@@ -174,7 +173,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
 {
   const mg = M.call().returns();
   type Fn = TypeFromMethodGuard<typeof mg>;
-  expectType<() => void>(null as unknown as Fn);
+  expectTypeOf(null as unknown as Fn).toEqualTypeOf<() => void>();
 }
 
 // .returns() with no args defaults to undefined return type
@@ -193,8 +192,8 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   // Implementation returns void; Guarded<M> preserves the inferred impl type.
   // TypeFromMethodGuard correctly resolves .returns() to () => undefined
   // (see test above), but defineExoClass infers M from the implementation.
-  expectType<() => void>(foo.doSomething);
-  expectType<() => string>(foo.getName);
+  expectTypeOf(foo.doSomething).toEqualTypeOf<() => void>();
+  expectTypeOf(foo.getName).toEqualTypeOf<() => string>();
 }
 
 // .returns() on callWhen defaults to Promise<undefined>
@@ -210,8 +209,8 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
     },
   });
   // async void impl → Promise<void>, not Promise<undefined>
-  expectType<(s: string) => Promise<void>>(exo.fire);
-  expectType<() => Promise<string>>(exo.fetch);
+  expectTypeOf(exo.fire).toEqualTypeOf<(s: string) => Promise<void>>();
+  expectTypeOf(exo.fetch).toEqualTypeOf<() => Promise<string>>();
 }
 
 // ===== defineExoClassKit (with InterfaceGuardKit) =====
@@ -243,21 +242,21 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
     {
       public: {
         getData() {
-          expectType<{ data: string }>(this.state);
+          expectTypeOf(this.state).toEqualTypeOf<{ data: string }>();
           return this.state.data;
         },
       },
       admin: {
         setData(val: string) {
-          expectType<string>(val);
+          expectTypeOf(val).toEqualTypeOf<string>();
           this.state.data = val;
         },
       },
     },
   );
   const kit = makeKit('hello');
-  expectType<() => string>(kit.public.getData);
-  expectType<(val: string) => void>(kit.admin.setData);
+  expectTypeOf(kit.public.getData).toEqualTypeOf<() => string>();
+  expectTypeOf(kit.admin.setData).toEqualTypeOf<(val: string) => void>();
 }
 
 // TS limitation: defineExoClassKit has a fallback overload that accepts
@@ -298,8 +297,8 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   const kit = makeKit('hello');
   const pub = kit.admin.getPublic();
   // The returned value is typed with getData method + remotable branding
-  expectAssignable<{ getData: () => string }>(pub);
-  expectAssignable<RemotableObject>(pub);
+  expectTypeOf(pub).toExtend<{ getData: () => string }>();
+  expectTypeOf(pub).toExtend<RemotableObject>();
 }
 
 // Cross-facet access with guards is also a type error
