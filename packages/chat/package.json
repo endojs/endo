@@ -88,7 +88,6 @@
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
     "happy-dom": "^20.11.0",
-    "tsd": "catalog:dev",
     "typescript": "catalog:dev",
     "vite": "^6.0.0"
   },

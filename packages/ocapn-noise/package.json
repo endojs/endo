@@ -71,7 +71,6 @@
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
     "ses": "workspace:^",
-    "tsd": "catalog:dev",
     "typescript": "catalog:dev",
     "ws": "^8.13.0"
   },

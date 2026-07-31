@@ -177,14 +177,12 @@ Packages opt into public type-contract tests by owning `.test-d.ts` fixtures and
 providing a `test:types` package script.
 The repository task runs only those opted-in package scripts through Turbo.
 
-The six migrated CI suites are Bundle Source, Eventual Send Test, Immutable
-ArrayBuffer, Pass Style, SES, and Trampoline.
+All type-contract suites now use `expect-type` assertions compiled by
+checked-in `tsconfig.test-types.json` projects.
 Their scripts invoke `tsc --project tsconfig.test-types.json` with checked-in
 fixture lists.
 Their `expect-type` assertions supply exact and assignability contract checks
 while the TypeScript compiler supplies diagnostics and the failing exit status.
-Deferred suites may continue to use their existing `tsd` scripts and
-dependencies until their independent repair and migration PRs land.
 
 Generate declarations before running the contract tests:
 

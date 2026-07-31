@@ -39,7 +39,6 @@
     "ses": "workspace:^",
     "source-map": "^0.7.6",
     "ts-node-pack": "^0.3.5",
-    "tsd": "catalog:dev",
     "turbo": "^2.9.10",
     "type-coverage": "^2.29.7",
     "typedoc": "^0.28.19",

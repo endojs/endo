@@ -75,7 +75,6 @@
     "cbor": "^10.0.12",
     "eslint": "catalog:dev",
     "ses": "workspace:^",
-    "tsd": "catalog:dev",
     "typescript": "catalog:dev"
   },
   "files": [

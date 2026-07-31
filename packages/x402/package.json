@@ -57,7 +57,6 @@
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "tsd": "catalog:dev",
     "typescript": "catalog:dev"
   },
   "files": [

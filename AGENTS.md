@@ -9,10 +9,8 @@ This file provides conventions and constraints for AI agents working in this rep
 - Workspace dependencies use `"workspace:^"` version specifiers.
 - Each package has its own `tsconfig.json` and `tsconfig.build.json`.
 - Tests use `ava` (runtime) and type-contract fixtures.
-- The six migrated CI suites use `expect-type` assertions with checked-in
-  TypeScript projects.
-- Deferred suites may continue to use `tsd` until their independent repair
-  PRs land.
+- All type-contract suites use `expect-type` assertions compiled by
+  checked-in `tsconfig.test-types.json` projects.
 - Linting: `eslint` with project-specific rules; run `yarn lint` per-package
 - No copyright headers in source files; license is declared in `package.json`.
 

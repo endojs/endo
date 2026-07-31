@@ -43,7 +43,6 @@
     "eshost-cli": "^9.0.0",
     "eslint": "catalog:dev",
     "rollup": "^4.34.6",
-    "tsd": "catalog:dev",
     "typescript": "catalog:dev"
   },
   "files": [
