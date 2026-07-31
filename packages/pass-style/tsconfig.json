@@ -4,6 +4,7 @@
     "*.js",
     "src/**/*.js",
     "src/types.d.ts",
+    "src/types.test-d.ts",
     "test",
     "tools/**/*.js",
   ]
