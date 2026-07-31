@@ -7,7 +7,6 @@ import { makeInMemoryFilesystem } from '@endo/platform/fs/extended';
 
 import { make } from '../src/index.js';
 
-/* global setTimeout */
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
