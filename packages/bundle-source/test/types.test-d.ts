@@ -1,25 +1,26 @@
 /* eslint-disable  */
-import { expectType } from 'tsd';
+import { expectTypeOf } from 'expect-type';
 import { type BundleSourceResult } from '../src/types.js';
 
-expectType<BundleSourceResult<'endoZipBase64'>>({
-  moduleFormat: 'endoZipBase64',
+expectTypeOf({
+  moduleFormat: 'endoZipBase64' as const,
   endoZipBase64: '',
   endoZipBase64Sha512: '',
-});
+}).toEqualTypeOf<BundleSourceResult<'endoZipBase64'>>();
 
-expectType<BundleSourceResult<'endoZipBase64'>>({
-  moduleFormat: 'endoZipBase64',
+expectTypeOf({
+  moduleFormat: 'endoZipBase64' as const,
   endoZipBase64: '',
   endoZipBase64Sha512: '',
-});
+}).toEqualTypeOf<BundleSourceResult<'endoZipBase64'>>();
 
-expectType<BundleSourceResult<'endoZipBase64'>>({
-  moduleFormat: 'endoZipBase64',
+expectTypeOf({
+  moduleFormat: 'endoZipBase64' as const,
   endoZipBase64: '',
-  // @ts-expect-error must be string
   endoZipBase64Sha512: undefined,
-});
+})
+  // @ts-expect-error must be string
+  .toEqualTypeOf<BundleSourceResult<'endoZipBase64'>>();
 
 // a 'test' bundle is importable but not a BundleSource result
 // @ts-expect-error Type '"test"' does not satisfy the constraint 'ModuleFormat'.

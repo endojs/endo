@@ -1,6 +1,6 @@
 /* eslint-disable */
 import { ONE_N } from '@endo/nat';
-import { expectAssignable, expectType, expectNotType } from 'tsd';
+import { expectTypeOf } from 'expect-type';
 import { Far } from './make-far.js';
 import { passStyleOf } from './passStyleOf.js';
 import { makeTagged } from './makeTagged.js';
@@ -20,35 +20,45 @@ import { passableSymbolForName } from './symbol.js';
 const remotable = Far('foo', {});
 
 const copyTagged = makeTagged('someTag', remotable);
-expectType<CopyTagged<'someTag', typeof remotable>>(copyTagged);
+expectTypeOf(copyTagged).toEqualTypeOf<
+  CopyTagged<'someTag', typeof remotable>
+>();
 
 const someUnknown: unknown = null;
 
-expectType<'undefined'>(passStyleOf(undefined));
-expectType<'string'>(passStyleOf('str'));
-expectType<'boolean'>(passStyleOf(true));
-expectType<'number'>(passStyleOf(1));
-expectType<'bigint'>(passStyleOf(ONE_N));
-expectType<'symbol'>(passStyleOf(passableSymbolForName('foo')));
-expectType<'null'>(passStyleOf(null));
-expectType<'promise'>(passStyleOf(Promise.resolve()));
-expectType<'error'>(passStyleOf(new Error()));
-expectType<'tagged'>(passStyleOf(copyTagged));
-expectType<'copyArray'>(passStyleOf([]));
+expectTypeOf(passStyleOf(undefined)).toEqualTypeOf<'undefined'>();
+expectTypeOf(passStyleOf('str')).toEqualTypeOf<'string'>();
+expectTypeOf(passStyleOf(true)).toEqualTypeOf<'boolean'>();
+expectTypeOf(passStyleOf(1)).toEqualTypeOf<'number'>();
+expectTypeOf(passStyleOf(ONE_N)).toEqualTypeOf<'bigint'>();
+expectTypeOf(
+  passStyleOf(passableSymbolForName('foo')),
+).toEqualTypeOf<'symbol'>();
+expectTypeOf(passStyleOf(null)).toEqualTypeOf<'null'>();
+expectTypeOf(passStyleOf(Promise.resolve())).toEqualTypeOf<'promise'>();
+expectTypeOf(passStyleOf(new Error())).toEqualTypeOf<'error'>();
+expectTypeOf(passStyleOf(copyTagged)).toEqualTypeOf<'tagged'>();
+expectTypeOf(passStyleOf([])).toEqualTypeOf<'copyArray'>();
 // readonly / `as const` arrays classify as copyArray
-expectType<'copyArray'>(passStyleOf([1, 2, 3] as const));
+expectTypeOf(passStyleOf([1, 2, 3] as const)).toEqualTypeOf<'copyArray'>();
 const roArr: readonly number[] = [1, 2, 3];
-expectType<'copyArray'>(passStyleOf(roArr));
+expectTypeOf(passStyleOf(roArr)).toEqualTypeOf<'copyArray'>();
 
 // The three container interfaces are exported and usable as types.
-expectAssignable<CopyArrayInterface<PassableCap, Error>>([1, 'two', null]);
-expectAssignable<CopyRecordInterface<PassableCap, Error>>({ a: 1, b: 'two' });
-expectAssignable<CopyTaggedInterface<PassableCap, Error>>(copyTagged);
-expectType<'copyRecord'>(passStyleOf({}));
+expectTypeOf([1, 'two', null]).toExtend<
+  CopyArrayInterface<PassableCap, Error>
+>();
+expectTypeOf({ a: 1, b: 'two' }).toExtend<
+  CopyRecordInterface<PassableCap, Error>
+>();
+expectTypeOf(copyTagged).toExtend<CopyTaggedInterface<PassableCap, Error>>();
+expectTypeOf(passStyleOf({})).toEqualTypeOf<'copyRecord'>();
 // though the object is specifying a PASS_STYLE, it doesn't match the case for extracting it
-expectType<'copyRecord'>(passStyleOf({ [PASS_STYLE]: 'arbitrary' } as const));
-expectType<'remotable'>(passStyleOf(remotable));
-expectType<PassStyle>(passStyleOf(someUnknown));
+expectTypeOf(
+  passStyleOf({ [PASS_STYLE]: 'arbitrary' } as const),
+).toEqualTypeOf<'copyRecord'>();
+expectTypeOf(passStyleOf(remotable)).toEqualTypeOf<'remotable'>();
+expectTypeOf(passStyleOf(someUnknown)).toEqualTypeOf<PassStyle>();
 
 const expectPassable = (val: Passable) => {};
 
@@ -77,4 +87,4 @@ expectPassable(Promise.resolve(remotable));
 expectPassable({ a: Promise.resolve(remotable) });
 expectPassable({ a: Promise.resolve(fn) });
 
-expectAssignable<Checker>((cond: boolean, details?: unknown) => cond);
+expectTypeOf((cond: boolean, details?: unknown) => cond).toExtend<Checker>();

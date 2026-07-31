@@ -177,6 +177,15 @@ Packages opt into public type-contract tests by owning `.test-d.ts` fixtures and
 providing a `test:types` package script.
 The repository task runs only those opted-in package scripts through Turbo.
 
+The six migrated CI suites are Bundle Source, Eventual Send Test, Immutable
+ArrayBuffer, Pass Style, SES, and Trampoline.
+Their scripts invoke `tsc --project tsconfig.test-types.json` with checked-in
+fixture lists.
+Their `expect-type` assertions supply exact and assignability contract checks
+while the TypeScript compiler supplies diagnostics and the failing exit status.
+Deferred suites may continue to use their existing `tsd` scripts and
+dependencies until their independent repair and migration PRs land.
+
 Generate declarations before running the contract tests:
 
 ```sh
@@ -184,23 +193,18 @@ yarn build:types
 yarn test:types
 ```
 
-Package scripts invoke their native `tsd` binary with an explicit declaration
-entry and fixture glob.
-The `tsd` CLI supplies diagnostic formatting and a failing exit status for
-contract errors.
-It tests the emitted or hand-written public declarations rather than treating
-ordinary source type-checking as a substitute.
+For migrated fixtures, use `expect-type` assertions according to the property
+being tested:
 
-Use `tsd` assertions according to the property being tested:
+- `expectTypeOf(value).toEqualTypeOf<T>()` requires exact type identity.
+- `expectTypeOf(value).toExtend<T>()` checks that the expression is assignable
+  to `T`.
+- `expectTypeOf(value).not.toEqualTypeOf<T>()` records a negative exact-type
+  contract that ordinary `tsc` checking may not express.
+- `// @ts-expect-error` records an expression that must produce a diagnostic.
 
-- `expectType<T>` requires exact type identity.
-- `expectAssignable<T>` permits a narrower expression assignable to `T`.
-- `expectNotAssignable<T>` records a negative public contract that ordinary
-  `tsc` checking may not express.
-- `expectError` records an expression that must produce a diagnostic.
-
-When adding the first fixture to a package, add `tsd` from the `dev` catalog and
-the package's `test:types` script in the same change.
+When adding a fixture to a package, keep its contract tool, checked-in project,
+and `test:types` script aligned with the migration tranche that owns it.
 Do not add a package merely to increase coverage counts; type-contract testing
 remains opt-in.
 

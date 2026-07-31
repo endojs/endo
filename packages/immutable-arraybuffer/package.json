@@ -35,14 +35,14 @@
     "lint:types": "tsc",
     "test": "ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ava",
-    "test:types": "tsd --typings shim.types.d.ts --files 'test/*.test-d.ts'",
+    "test:types": "tsc --project tsconfig.test-types.json",
     "test:xs": "exit 0"
   },
   "devDependencies": {
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "tsd": "catalog:dev",
+    "expect-type": "^1.4.0",
     "typescript": "catalog:dev"
   },
   "files": [

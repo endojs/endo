@@ -93,7 +93,7 @@
     "qt": "ava",
     "test": "ava",
     "test:hermes": "./scripts/hermes-test.sh",
-    "test:types": "tsd --typings types.d.ts --files '*.test-d.ts'",
+    "test:types": "tsc --project tsconfig.test-types.json",
     "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js",
     "postpack": "git clean -fX -e node_modules/"
   },
@@ -107,8 +107,8 @@
     "c8": "catalog:dev",
     "core-js": "^3.31.0",
     "eslint": "catalog:dev",
+    "expect-type": "^1.4.0",
     "hermes-engine-cli": "^0.12.0",
-    "tsd": "catalog:dev",
     "typescript": "catalog:dev"
   },
   "files": [

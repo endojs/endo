@@ -24,7 +24,7 @@
     "lint:eslint": "eslint '**/*.js'",
     "test": "ava",
     "test:c8": "c8 ${C8_OPTIONS:-} ava",
-    "test:types": "tsd --typings ../eventual-send/src/no-shim.d.ts --files 'test/*.test-d.ts'",
+    "test:types": "tsc --project tsconfig.test-types.json",
     "test:xs": "exit 0"
   },
   "dependencies": {
@@ -36,7 +36,8 @@
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "tsd": "catalog:dev"
+    "expect-type": "^1.4.0",
+    "typescript": "catalog:dev"
   },
   "publishConfig": {
     "access": "restricted"

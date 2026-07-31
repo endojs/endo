@@ -1,5 +1,5 @@
 /* eslint-disable jsdoc/require-returns-type */
-import { expectAssignable, expectType } from 'tsd';
+import { expectTypeOf } from 'expect-type';
 import { asyncTrampoline, syncTrampoline } from '../src/trampoline.js';
 
 function* simple<TResult extends string | Promise<string>>(
@@ -10,30 +10,30 @@ function* simple<TResult extends string | Promise<string>>(
   return `${hello} world`;
 }
 
-expectAssignable<Generator<string | Promise<string>, string, string>>(
-  simple((str: string) => `${str} cruel`, 'goodbye'),
-);
+expectTypeOf(simple((str: string) => `${str} cruel`, 'goodbye')).toExtend<
+  Generator<string | Promise<string>, string, string>
+>();
 
-expectAssignable<(...args: any[]) => Generator>(simple);
+expectTypeOf(simple).toExtend<(...args: any[]) => Generator>();
 
-expectAssignable<
+expectTypeOf(simple).toExtend<
   (
     thunk: () => string | Promise<string>,
     initial: string,
   ) => Generator<string | Promise<string>, string, string>
->(simple);
+>();
 
-expectType<string>(
+expectTypeOf(
   syncTrampoline(simple, (str: string) => `${str} cruel`, 'goodbye'),
-);
+).toEqualTypeOf<string>();
 
-expectType<Promise<string>>(
+expectTypeOf(
   asyncTrampoline(simple, async (str: string) => `${str} cruel`, 'goodbye'),
-);
+).toEqualTypeOf<Promise<string>>();
 
-expectType<Promise<string>>(
+expectTypeOf(
   asyncTrampoline(simple, (str: string) => `${str} cruel`, 'goodbye'),
-);
+).toEqualTypeOf<Promise<string>>();
 
 /**
  * Generators are difficult to type. We _may know_ the order in which typed
@@ -61,20 +61,24 @@ function* varied<TResult extends number | Promise<number>, Foo = unknown>(
   return regexp instanceof RegExp ? regexp.test('hello world') : false;
 }
 
-expectAssignable<
+expectTypeOf(varied(() => 42)).toExtend<
   Generator<string | number | Promise<number> | Date, boolean, RegExp>
->(varied(() => 42));
+>();
 
-expectAssignable<(...args: any[]) => Generator>(varied);
+expectTypeOf(varied).toExtend<(...args: any[]) => Generator>();
 
-expectAssignable<
+expectTypeOf(varied).toExtend<
   (
     fn: () => number | Promise<number>,
   ) => Generator<string | Date | number | Promise<number>, boolean, RegExp>
->(varied);
+>();
 
-expectType<boolean>(syncTrampoline(varied, () => 42));
+expectTypeOf(syncTrampoline(varied, () => 42)).toEqualTypeOf<boolean>();
 
-expectType<Promise<boolean>>(asyncTrampoline(varied, async () => 42));
+expectTypeOf(asyncTrampoline(varied, async () => 42)).toEqualTypeOf<
+  Promise<boolean>
+>();
 
-expectType<Promise<boolean>>(asyncTrampoline(varied, () => 42));
+expectTypeOf(asyncTrampoline(varied, () => 42)).toEqualTypeOf<
+  Promise<boolean>
+>();
