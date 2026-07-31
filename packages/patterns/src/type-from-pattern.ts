@@ -101,6 +101,16 @@ type StringFromPattern<P> =
         ? TypeFromPattern<P>
         : Extract<TypeFromPattern<P>, string>;
 
+/** Keep the passable portion of a pattern without noisy intersections. */
+type PassableFromPattern<P> =
+  IsAny<P> extends true
+    ? Passable
+    : IsAny<TypeFromPattern<P>> extends true
+      ? Passable
+      : TypeFromPattern<P> extends Passable
+        ? TypeFromPattern<P>
+        : TypeFromPattern<P> & Passable;
+
 /**
  * Leaf matcher lookup table.
  * These matcher types return their Payload type directly or a fixed type, with no
@@ -197,11 +207,7 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
         : K extends 'arrayOf'
           ? IsAny<Payload> extends true
             ? CopyArray
-            : CopyArray<
-                TypeFromPattern<Payload> extends Passable
-                  ? TypeFromPattern<Payload>
-                  : TypeFromPattern<Payload> & Passable
-              >
+            : CopyArray<PassableFromPattern<Payload>>
           : K extends 'recordOf'
             ? IsAny<Payload> extends true
               ? CopyRecord
@@ -214,14 +220,7 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
               ? IsAny<Payload> extends true
                 ? CopyMap
                 : Payload extends readonly [infer KP, infer VP]
-                  ? IsAny<VP> extends true
-                    ? CopyMap<KeyFromPattern<KP>>
-                    : CopyMap<
-                        KeyFromPattern<KP>,
-                        TypeFromPattern<VP> extends Passable
-                          ? TypeFromPattern<VP>
-                          : TypeFromPattern<VP> & Passable
-                      >
+                  ? CopyMap<KeyFromPattern<KP>, PassableFromPattern<VP>>
                   : CopyMap
               : K extends 'splitRecord'
                 ? Payload extends readonly [infer Req, infer Opt, infer Rest]
@@ -247,9 +246,7 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
                         ? Payload extends readonly [infer TP, infer PP]
                           ? CopyTagged<
                               StringFromPattern<TP>,
-                              TypeFromPattern<PP> extends Passable
-                                ? TypeFromPattern<PP>
-                                : TypeFromPattern<PP> & Passable
+                              PassableFromPattern<PP>
                             >
                           : CopyTagged
                         : K extends 'remotable'

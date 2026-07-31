@@ -157,6 +157,40 @@ import type {
   expectTypeOf(null as unknown as CopyMap<string, string>).toExtend<Key>();
 }
 
+// Promise-bearing payload patterns remain inhabitable as passable collection
+// elements, even though PromiseLike is wider than the declared Passable cap.
+{
+  const promiseArrayPattern = M.arrayOf(M.promise());
+  type PromiseArrayValue = TypeFromPattern<typeof promiseArrayPattern>;
+  expectTypeOf(null as unknown as PromiseArrayValue).toEqualTypeOf<
+    CopyArray<PromiseLike<any> & Passable>
+  >();
+}
+
+{
+  const erefArrayPattern = M.arrayOf(M.eref(M.string()));
+  type ErefArrayValue = TypeFromPattern<typeof erefArrayPattern>;
+  expectTypeOf(null as unknown as ErefArrayValue).toEqualTypeOf<
+    CopyArray<(string | PromiseLike<any>) & Passable>
+  >();
+}
+
+{
+  const mapPattern = M.mapOf(M.string(), M.promise());
+  type MapValue = TypeFromPattern<typeof mapPattern>;
+  expectTypeOf(null as unknown as MapValue).toEqualTypeOf<
+    CopyMap<string, PromiseLike<any> & Passable>
+  >();
+}
+
+{
+  const taggedPattern = M.tagged(M.string(), M.promise());
+  type TaggedValue = TypeFromPattern<typeof taggedPattern>;
+  expectTypeOf(null as unknown as TaggedValue).toEqualTypeOf<
+    CopyTagged<string, PromiseLike<any> & Passable>
+  >();
+}
+
 // Tagged defaults model the documented M.string()/M.any() defaults, while
 // explicit tag and payload patterns remain precise.
 {
@@ -174,6 +208,42 @@ import type {
   expectTypeOf(null as unknown as ExplicitValue).not.toExtend<
     CopyTagged<'other', bigint>
   >();
+}
+
+// splitRecord validates every value as a Pattern without contextually widening
+// nested pattern literals.
+{
+  const nestedPattern = M.splitRecord({
+    outer: M.splitRecord({ inner: M.string() }),
+  });
+  type NestedValue = TypeFromPattern<typeof nestedPattern>;
+  expectTypeOf(null as unknown as NestedValue).toEqualTypeOf<{
+    outer: { inner: string };
+  }>();
+  expectTypeOf(null as unknown as NestedValue).not.toEqualTypeOf<{
+    outer: { inner: number };
+  }>();
+
+  // @ts-expect-error A promise is not a Pattern value.
+  M.splitRecord({ invalid: Promise.resolve('not a Pattern') });
+}
+
+// Deep nesting remains exact after the contextual-typing repair.
+{
+  const deepPattern = M.splitRecord({
+    a: M.splitRecord({
+      b: M.splitRecord({
+        c: M.splitRecord({ d: M.string() }),
+      }),
+    }),
+  });
+  type DeepValue = TypeFromPattern<typeof deepPattern>;
+  expectTypeOf(null as unknown as DeepValue).toEqualTypeOf<{
+    a: { b: { c: { d: string } } };
+  }>();
+  expectTypeOf(null as unknown as DeepValue).not.toEqualTypeOf<{
+    a: { b: { c: { d: number } } };
+  }>();
 }
 
 // Bare returns are a void contract, including async Promise<void> behavior.

@@ -250,6 +250,11 @@ export type AllLimits = {
 
 export type Limits = Partial<AllLimits>;
 
+/** Validate record values as Patterns without contextually widening them. */
+type PatternRecord<R extends CopyRecord<any>> = {
+  [K in keyof R]: R[K] extends Pattern ? R[K] : never;
+};
+
 /**
  * It is either a PassStyle other than 'tagged', or, if the underlying
  * PassStyle is 'tagged', then the `getTag` value for tags that are
@@ -593,8 +598,8 @@ export type PatternMatchers = {
     const Opt extends CopyRecord<any> = {},
     const Rest extends Pattern = never,
   >(
-    required: Req,
-    optional?: Opt,
+    required: Req & PatternRecord<Req>,
+    optional?: Opt & PatternRecord<Opt>,
     rest?: Rest,
   ) => MatcherOf<'splitRecord', [Req, Opt, Rest]>;
 
