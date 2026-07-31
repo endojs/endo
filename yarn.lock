@@ -1340,8 +1340,8 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
+    expect-type: "npm:^1.4.0"
     ses: "workspace:^"
-    tsd: "catalog:dev"
     typescript: "catalog:dev"
   bin:
     bundle-source: ./src/tool.js
@@ -1869,8 +1869,9 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
+    expect-type: "npm:^1.4.0"
     ses: "workspace:^"
-    tsd: "catalog:dev"
+    typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
 
@@ -2361,7 +2362,7 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    tsd: "catalog:dev"
+    expect-type: "npm:^1.4.0"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
@@ -2745,9 +2746,9 @@ __metadata:
     eslint-config-prettier: "catalog:dev"
     eslint-plugin-eslint-comments: "catalog:dev"
     eslint-plugin-import: "catalog:dev"
+    expect-type: "npm:^1.4.0"
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
-    tsd: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
@@ -3229,7 +3230,7 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    tsd: "catalog:dev"
+    expect-type: "npm:^1.4.0"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
@@ -9821,6 +9822,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expect-type@npm:^1.4.0":
+  version: 1.4.0
+  resolution: "expect-type@npm:1.4.0"
+  checksum: 10c0/d40d76b8570695d36587beb3cc28494da2ca3ec8f04e67f5622ed2d372d850e401a9adef19c6835e1a8173903f157c79540b34c7b3fbd7cd8ce726cc903c57b7
+  languageName: node
+  linkType: hard
+
 "exponential-backoff@npm:^3.1.1":
   version: 3.1.1
   resolution: "exponential-backoff@npm:3.1.1"
@@ -15678,8 +15686,8 @@ __metadata:
     c8: "catalog:dev"
     core-js: "npm:^3.31.0"
     eslint: "catalog:dev"
+    expect-type: "npm:^1.4.0"
     hermes-engine-cli: "npm:^0.12.0"
-    tsd: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
   linkType: soft
