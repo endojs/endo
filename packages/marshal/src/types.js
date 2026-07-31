@@ -98,7 +98,8 @@ export {};
  * @template Slot
  * @callback FromCapData
  * @param {CapData<Slot>} data
- * @returns {any} a Passable
+ * @returns {unknown} a decoded root whose more specific type is not encoded
+ * in CapData
  */
 
 /**

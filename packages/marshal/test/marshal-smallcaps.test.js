@@ -3,6 +3,7 @@ import test from '@endo/ses-ava/test.js';
 import harden from '@endo/harden';
 import {
   Far,
+  isPassable,
   makeTagged,
   passableSymbolForName,
   passStyleOf,
@@ -83,6 +84,9 @@ test('smallcaps unserialize static data', t => {
   const arr = uns('#[1,2]');
   t.true(isFrozen(arr));
   const a = uns('#{"b":{"c":{"d": []}}}');
+  assert(a !== null && typeof a === 'object' && 'b' in a);
+  assert(a.b !== null && typeof a.b === 'object' && 'c' in a.b);
+  assert(a.b.c !== null && typeof a.b.c === 'object' && 'd' in a.b.c);
   t.true(isFrozen(a));
   t.true(isFrozen(a.b));
   t.true(isFrozen(a.b.c));
@@ -154,15 +158,18 @@ test('smallcaps unserialize errors', t => {
   const uns = body => unserialize({ body, slots: [] });
 
   const em1 = uns('#{"#error":"msg","name":"ReferenceError"}');
+  assert(em1 instanceof Error);
   t.true(em1 instanceof ReferenceError);
   t.is(em1.message, 'msg');
   t.true(isFrozen(em1));
 
   const em2 = uns('#{"#error":"msg2","name":"TypeError"}');
+  assert(em2 instanceof Error);
   t.true(em2 instanceof TypeError);
   t.is(em2.message, 'msg2');
 
   const em3 = uns('#{"#error":"msg3","name":"Unknown"}');
+  assert(em3 instanceof Error);
   t.true(em3 instanceof Error);
   t.is(em3.message, 'msg3');
 });
@@ -174,6 +181,7 @@ test('smallcaps unserialize extended errors', t => {
   const refErr = uns(
     '#{"#error":"msg","name":"ReferenceError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
+  assert(refErr instanceof Error);
   t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
   t.false('extraProp' in refErr);
   t.false('cause' in refErr);
@@ -182,10 +190,12 @@ test('smallcaps unserialize extended errors', t => {
   const aggErr = uns(
     '#{"#error":"msg","name":"AggregateError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
+  assert(aggErr instanceof Error);
   t.is(getPrototypeOf(aggErr), decodedAggregateErrorCtor.prototype); // direct instance of
   t.false('extraProp' in aggErr);
   t.false('cause' in aggErr);
   if (supportsAggregateError) {
+    assert(aggErr instanceof AggregateError);
     t.is(aggErr.errors.length, 0);
   } else {
     t.false('errors' in aggErr);
@@ -194,6 +204,7 @@ test('smallcaps unserialize extended errors', t => {
   const unkErr = uns(
     '#{"#error":"msg","name":"UnknownError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
+  assert(unkErr instanceof Error);
   t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
   t.false('extraProp' in unkErr);
   t.false('cause' in unkErr);
@@ -209,6 +220,9 @@ testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
   const refErr = uns(
     `#{"#error":"msg","name":"ReferenceError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
+  assert(refErr instanceof Error);
+  assert('cause' in refErr);
+  assert('errors' in refErr && Array.isArray(refErr.errors));
   t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
   t.false('extraProp' in refErr);
   t.is(getPrototypeOf(refErr.cause), URIError.prototype);
@@ -217,6 +231,9 @@ testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
   const aggErr = uns(
     `#{"#error":"msg","name":"AggregateError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
+  assert(aggErr instanceof Error);
+  assert('cause' in aggErr);
+  assert('errors' in aggErr && Array.isArray(aggErr.errors));
   t.is(getPrototypeOf(aggErr), decodedAggregateErrorCtor.prototype); // direct instance of
   t.false('extraProp' in aggErr);
   t.is(getPrototypeOf(refErr.cause), URIError.prototype);
@@ -225,6 +242,9 @@ testIfAggregateError('smallcaps unserialize recognized error extensions', t => {
   const unkErr = uns(
     `#{"#error":"msg","name":"UnknownError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
+  assert(unkErr instanceof Error);
+  assert('cause' in unkErr);
+  assert('errors' in unkErr && Array.isArray(unkErr.errors));
   t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
   t.false('extraProp' in unkErr);
   t.is(getPrototypeOf(refErr.cause), URIError.prototype);
@@ -289,8 +309,12 @@ test('smallcaps records', t => {
   t.deepEqual(unser(ser(harden({ enumData: 'data' }))), { enumData: 'data' });
 
   // unserialized data can be serialized again
-  t.deepEqual(ser(unser(emptyData)), emptyData);
-  t.deepEqual(ser(unser(stringData)), stringData);
+  const empty = unser(emptyData);
+  assert(isPassable(empty));
+  t.deepEqual(ser(empty), emptyData);
+  const stringRecord = unser(stringData);
+  assert(isPassable(stringRecord));
+  t.deepEqual(ser(stringRecord), stringData);
 
   // { key: data }
   // all: pass-by-copy without warning

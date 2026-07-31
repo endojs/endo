@@ -1,22 +1,24 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { expectType } from 'tsd';
+/* eslint-disable */
+import { expectTypeOf } from 'expect-type';
 
 import { Far, type AtomStyle, type RemotableObject } from '@endo/pass-style';
-import { makeMarshal } from './marshal.js';
+import { makeMarshal, parse } from '../index.js';
 
-expectType<AtomStyle>('string');
-expectType<AtomStyle>('number');
-// @ts-expect-error
-expectType<AtomStyle>(1);
-// @ts-expect-error
-expectType<AtomStyle>('str');
+expectTypeOf<'string'>().toExtend<AtomStyle>();
+expectTypeOf<'number'>().toExtend<AtomStyle>();
+expectTypeOf<1>().not.toExtend<AtomStyle>();
+expectTypeOf<'str'>().not.toExtend<AtomStyle>();
 
 type KCap = RemotableObject & { getKref: () => string; iface: () => string };
 const valToSlot = (s: KCap) => s.getKref();
 const slotToVal = (s: string) => null as unknown as KCap;
 const marshal = makeMarshal(valToSlot, slotToVal);
 const cycled = marshal.fromCapData(marshal.toCapData(null as unknown as KCap));
-expectType<unknown>(cycled);
+expectTypeOf(cycled).toEqualTypeOf<unknown>();
+expectTypeOf(
+  marshal.unserialize(marshal.toCapData(null)),
+).toEqualTypeOf<unknown>();
+expectTypeOf(parse('null')).toEqualTypeOf<unknown>();
 
 const m = makeMarshal();
 const foo1 = Far('foo', { getBoardId: () => 'board1' });

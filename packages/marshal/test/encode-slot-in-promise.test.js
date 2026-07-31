@@ -1,7 +1,7 @@
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
-import { passStyleOf } from '@endo/pass-style';
+import { isPassable, passStyleOf } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 
 const { getOwnPropertyDescriptor, defineProperty } = Object;
@@ -48,6 +48,7 @@ test('use safe promise loophole', t => {
     slots: ['I am kref 3'],
   });
   const passable2 = fromCapData(capData1);
+  assert(isPassable(passable2));
   t.deepEqual(passable1, passable2);
   const capData2 = toCapData(passable2);
   t.deepEqual(capData1, capData2);

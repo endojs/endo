@@ -1,7 +1,12 @@
 import test from '@endo/ses-ava/test.js';
 
 import harden from '@endo/harden';
-import { passStyleOf, Far, unpassableSymbolForName } from '@endo/pass-style';
+import {
+  Far,
+  isPassable,
+  passStyleOf,
+  unpassableSymbolForName,
+} from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 import { roundTripPairs } from '../tools/marshal-test-data.js';
 
@@ -84,6 +89,9 @@ test('unserialize static data', t => {
   const arr = uns('[1,2]');
   t.truthy(isFrozen(arr));
   const a = uns('{"b":{"c":{"d": []}}}');
+  assert(a !== null && typeof a === 'object' && 'b' in a);
+  assert(a.b !== null && typeof a.b === 'object' && 'c' in a.b);
+  assert(a.b.c !== null && typeof a.b.c === 'object' && 'd' in a.b.c);
   t.truthy(isFrozen(a));
   t.truthy(isFrozen(a.b));
   t.truthy(isFrozen(a.b.c));
@@ -142,15 +150,18 @@ test('unserialize errors', t => {
   const em1 = uns(
     '{"@qclass":"error","message":"msg","name":"ReferenceError"}',
   );
+  assert(em1 instanceof Error);
   t.truthy(em1 instanceof ReferenceError);
   t.is(em1.message, 'msg');
   t.truthy(isFrozen(em1));
 
   const em2 = uns('{"@qclass":"error","message":"msg2","name":"TypeError"}');
+  assert(em2 instanceof Error);
   t.truthy(em2 instanceof TypeError);
   t.is(em2.message, 'msg2');
 
   const em3 = uns('{"@qclass":"error","message":"msg3","name":"Unknown"}');
+  assert(em3 instanceof Error);
   t.truthy(em3 instanceof Error);
   t.is(em3.message, 'msg3');
 });
@@ -162,6 +173,7 @@ test('unserialize extended errors', t => {
   const refErr = uns(
     '{"@qclass":"error","message":"msg","name":"ReferenceError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
+  assert(refErr instanceof Error);
   t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
   t.false('extraProp' in refErr);
   t.false('cause' in refErr);
@@ -170,10 +182,12 @@ test('unserialize extended errors', t => {
   const aggErr = uns(
     '{"@qclass":"error","message":"msg","name":"AggregateError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
+  assert(aggErr instanceof Error);
   t.is(getPrototypeOf(aggErr), decodedAggregateErrorCtor.prototype); // direct instance of
   t.false('extraProp' in aggErr);
   t.false('cause' in aggErr);
   if (supportsAggregateError) {
+    assert(aggErr instanceof AggregateError);
     t.is(aggErr.errors.length, 0);
   } else {
     t.false('errors' in aggErr);
@@ -182,6 +196,7 @@ test('unserialize extended errors', t => {
   const unkErr = uns(
     '{"@qclass":"error","message":"msg","name":"UnknownError","extraProp":"foo","cause":"bar","errors":["zip","zap"]}',
   );
+  assert(unkErr instanceof Error);
   t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
   t.false('extraProp' in unkErr);
   t.false('cause' in unkErr);
@@ -197,6 +212,9 @@ testIfAggregateError('unserialize recognized error extensions', t => {
   const refErr = uns(
     `{"@qclass":"error","message":"msg","name":"ReferenceError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
+  assert(refErr instanceof Error);
+  assert('cause' in refErr);
+  assert('errors' in refErr && Array.isArray(refErr.errors));
   t.is(getPrototypeOf(refErr), ReferenceError.prototype); // direct instance of
   t.false('extraProp' in refErr);
   t.is(getPrototypeOf(refErr.cause), URIError.prototype);
@@ -205,6 +223,9 @@ testIfAggregateError('unserialize recognized error extensions', t => {
   const aggErr = uns(
     `{"@qclass":"error","message":"msg","name":"AggregateError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
+  assert(aggErr instanceof Error);
+  assert('cause' in aggErr);
+  assert('errors' in aggErr && Array.isArray(aggErr.errors));
   t.is(getPrototypeOf(aggErr), decodedAggregateErrorCtor.prototype); // direct instance of
   t.false('extraProp' in aggErr);
   t.is(getPrototypeOf(aggErr.cause), URIError.prototype);
@@ -213,6 +234,9 @@ testIfAggregateError('unserialize recognized error extensions', t => {
   const unkErr = uns(
     `{"@qclass":"error","message":"msg","name":"UnknownError","extraProp":"foo","cause":${errEnc},"errors":[${errEnc}]}`,
   );
+  assert(unkErr instanceof Error);
+  assert('cause' in unkErr);
+  assert('errors' in unkErr && Array.isArray(unkErr.errors));
   t.is(getPrototypeOf(unkErr), Error.prototype); // direct instance of
   t.false('extraProp' in unkErr);
   t.is(getPrototypeOf(unkErr.cause), URIError.prototype);
@@ -280,8 +304,12 @@ test('records', t => {
   t.deepEqual(unser(ser(harden({ enumData: 'data' }))), { enumData: 'data' });
 
   // unserialized data can be serialized again
-  t.deepEqual(ser(unser(emptyData)), emptyData);
-  t.deepEqual(ser(unser(stringData)), stringData);
+  const empty = unser(emptyData);
+  assert(isPassable(empty));
+  t.deepEqual(ser(empty), emptyData);
+  const stringRecord = unser(stringData);
+  assert(isPassable(stringRecord));
+  t.deepEqual(ser(stringRecord), stringData);
 
   // { key: data }
   // all: pass-by-copy without warning

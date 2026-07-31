@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "skipLibCheck": false,
+    "strict": true
+  },
+  "files": ["index.d.ts", "src/types.test-d.ts"],
+  "include": ["src/*.test-d.ts"]
+}
