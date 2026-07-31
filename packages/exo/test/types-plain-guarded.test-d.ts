@@ -176,7 +176,7 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   expectTypeOf(null as unknown as Fn).toEqualTypeOf<() => void>();
 }
 
-// .returns() with no args defaults to undefined return type
+// .returns() with no args defaults to a void return type
 {
   const FooI = M.interface('Foo', {
     doSomething: M.call().returns(),
@@ -190,13 +190,12 @@ import { makeExo, defineExoClass, defineExoClassKit } from '../index.js';
   });
   const foo = makeFoo();
   // Implementation returns void; Guarded<M> preserves the inferred impl type.
-  // TypeFromMethodGuard correctly resolves .returns() to () => undefined
-  // (see test above), but defineExoClass infers M from the implementation.
+  // defineExoClass infers the implementation's ergonomic void return.
   expectTypeOf(foo.doSomething).toEqualTypeOf<() => void>();
   expectTypeOf(foo.getName).toEqualTypeOf<() => string>();
 }
 
-// .returns() on callWhen defaults to Promise<undefined>
+// .returns() on callWhen defaults to Promise<void>
 {
   const AsyncI = M.interface('Async', {
     fire: M.callWhen(M.await(M.string())).returns(),

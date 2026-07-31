@@ -35,8 +35,9 @@ const CounterI = M.interface('Counter', {
   const counter = makeCounter(0n);
   expectTypeOf(counter).toExtend<Passable>();
 
-  // The exo's `incr` has the impl's param name `step`
-  expectTypeOf(counter.incr).toEqualTypeOf<(step: bigint) => bigint>();
+  // The exo's `incr` preserves the impl's parameter name and defaulted
+  // optionality.
+  expectTypeOf(counter.incr).toEqualTypeOf<(step?: bigint) => bigint>();
   expectTypeOf(counter.read).toEqualTypeOf<() => bigint>();
 }
 
