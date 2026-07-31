@@ -47,7 +47,7 @@ const passable: Passable = null as any;
   const str = 'some string';
   if (isKey(str)) {
     // doesn't widen
-    expectTypeOf<typeof str>().toEqualTypeOf<string>();
+    expectTypeOf<typeof str>().toEqualTypeOf<'some string'>();
   }
 }
 
@@ -207,7 +207,7 @@ const passable: Passable = null as any;
   type Fn = TypeFromMethodGuard<typeof guard>;
   // (...args: string[]) — not (...args: string[][])
   expectTypeOf(null as unknown as Fn).toEqualTypeOf<
-    (...args: string[]) => any
+    (...args: string[]) => Passable
   >();
 }
 
@@ -216,7 +216,7 @@ const passable: Passable = null as any;
   const guard = M.call().rest(M.string()).returns(M.any());
   type Fn = TypeFromMethodGuard<typeof guard>;
   expectTypeOf(null as unknown as Fn).toEqualTypeOf<
-    (...args: string[]) => any
+    (...args: string[]) => Passable
   >();
 }
 
@@ -377,11 +377,11 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
 
 // ===== 5. Containers: arrayOf, recordOf, mapOf =====
 
-// M.arrayOf(M.string()) → string[]
+// M.arrayOf(M.string()) → CopyArray<string>
 {
   const p = M.arrayOf(M.string());
   type T = TypeFromPattern<typeof p>;
-  expectTypeOf(null as unknown as T).toEqualTypeOf<string[]>();
+  expectTypeOf(null as unknown as T).toEqualTypeOf<CopyArray<string>>();
 }
 
 // M.recordOf(M.string(), M.nat()) → Record<string, bigint>
@@ -498,10 +498,10 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
   expectTypeOf(null as unknown as T).toEqualTypeOf<1 | 2 | 3>();
 }
 
-// M.remotable<Brand>() with a branded type
+// CastedPattern preserves a concrete, non-InterfaceGuard remotable type.
 {
   type Brand = RemotableBrand<{}, { getBrand: () => string }>;
-  const p = M.remotable<Brand>('Brand');
+  const p: CastedPattern<Brand> = M.remotable('Brand');
   type T = TypeFromPattern<typeof p>;
   expectTypeOf(null as unknown as T).toEqualTypeOf<Brand>();
 }
@@ -552,7 +552,7 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
   const p = M.arrayOf(M.splitRecord({ name: M.string(), value: M.nat() }));
   type T = TypeFromPattern<typeof p>;
   expectTypeOf(null as unknown as T).toEqualTypeOf<
-    { name: string; value: bigint }[]
+    CopyArray<{ name: string; value: bigint }>
   >();
 }
 
@@ -602,12 +602,12 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
   expectTypeOf(null as unknown as Fn).toEqualTypeOf<() => number>();
 }
 
-// Sync method with optional args: (string, number | undefined) => Passable
+// Sync method with optional args: (string, number?) => void
 {
   const mg = M.call(M.string()).optional(M.number()).returns();
   type Fn = TypeFromMethodGuard<typeof mg>;
   expectTypeOf(null as unknown as Fn).toEqualTypeOf<
-    (arg0: string, arg1: number | undefined) => Passable
+    (arg0: string, arg1?: number) => void
   >();
 }
 
@@ -687,7 +687,7 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
   });
   type Methods = TypeFromInterfaceGuard<typeof CounterI>;
   expectTypeOf(null as unknown as Methods).toEqualTypeOf<{
-    incr: (arg0: number | undefined) => number;
+    incr: (arg0?: number) => number;
     decr: (arg0: number) => number;
     getValue: () => number;
   }>();
@@ -702,7 +702,7 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
   type Methods = TypeFromInterfaceGuard<typeof AsyncServiceI>;
   expectTypeOf(null as unknown as Methods).toEqualTypeOf<{
     fetch: (arg0: string) => Promise<string>;
-    getAll: () => string[];
+    getAll: () => CopyArray<string>;
   }>();
 }
 
@@ -713,10 +713,12 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
 {
   type Brand = RemotableBrand<{}, { getAllegedName: () => string }>;
   type Issuer = RemotableBrand<{}, { getAmountOf: (payment: any) => any }>;
+  const BrandShape: CastedPattern<Brand> = M.remotable('Brand');
+  const IssuerShape: CastedPattern<Issuer> = M.remotable('Issuer');
 
   const IssuerRecordShape = M.splitRecord({
-    brand: M.remotable<Brand>('Brand'),
-    issuer: M.remotable<Issuer>('Issuer'),
+    brand: BrandShape,
+    issuer: IssuerShape,
   });
   type IssuerRecord = TypeFromPattern<typeof IssuerRecordShape>;
   expectTypeOf(null as unknown as IssuerRecord).toEqualTypeOf<{
@@ -726,11 +728,9 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
 
   // Full Exo pattern: define interface, infer methods type, use for impl
   const ExchangeI = M.interface('Exchange', {
-    getIssuer: M.call().returns(M.remotable<Issuer>('Issuer')),
-    swap: M.call(M.remotable<Brand>('Brand'), M.nat()).returns(M.nat()),
-    swapAsync: M.callWhen(M.await(M.remotable<Brand>('Brand'))).returns(
-      M.nat(),
-    ),
+    getIssuer: M.call().returns(IssuerShape),
+    swap: M.call(BrandShape, M.nat()).returns(M.nat()),
+    swapAsync: M.callWhen(M.await(BrandShape)).returns(M.nat()),
   });
   type ExchangeMethods = TypeFromInterfaceGuard<typeof ExchangeI>;
 
@@ -781,7 +781,7 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
   const mg = M.call(M.opt(M.string())).returns(M.boolean());
   type Fn = TypeFromMethodGuard<typeof mg>;
   expectTypeOf(null as unknown as Fn).toEqualTypeOf<
-    (arg0: string | undefined) => boolean
+    (arg0: string | void) => boolean
   >();
 }
 
@@ -790,7 +790,7 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
   const mg = M.call(M.eref(M.nat())).returns(M.string());
   type Fn = TypeFromMethodGuard<typeof mg>;
   expectTypeOf(null as unknown as Fn).toEqualTypeOf<
-    (arg0: bigint | Promise<any>) => string
+    (arg0: bigint | PromiseLike<any>) => string
   >();
 }
 
@@ -802,7 +802,7 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
   });
   type T = TypeFromPattern<typeof shape>;
   expectTypeOf(null as unknown as T).toEqualTypeOf<{
-    items: { id: bigint; name: string }[];
+    items: CopyArray<{ id: bigint; name: string }>;
     count: bigint;
   }>();
 }
@@ -897,21 +897,21 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
 
 // M.or with many branches
 {
-  const p = M.or(M.string(), M.nat(), M.boolean(), M.remotable());
+  const RemotableShape: CastedPattern<
+    RemotableObject | RemotableBrand<any, any>
+  > = M.remotable();
+  const p = M.or(M.string(), M.nat(), M.boolean(), RemotableShape);
   type T = TypeFromPattern<typeof p>;
   expectTypeOf(null as unknown as T).toEqualTypeOf<
     string | bigint | boolean | RemotableObject | RemotableBrand<any, any>
   >();
 }
 
-// recordOf with no args defaults to Record<string, any>
-// TS limitation: TypeFromPattern defaults to Record<string, any> because
-// the default Pattern type parameter erases to the Passable union, which
-// doesn't simplify further.
+// recordOf with no args defaults to CopyRecord, matching M.record().
 {
   const p = M.recordOf();
   type T = TypeFromPattern<typeof p>;
-  expectTypeOf(null as unknown as T).toExtend<Record<string, any>>();
+  expectTypeOf(null as unknown as T).toEqualTypeOf<CopyRecord>();
 }
 
 // ===== Comparison matchers → Key =====
@@ -1153,7 +1153,7 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
   type T = M.infer<typeof shape>;
   expectTypeOf(null as unknown as T).toEqualTypeOf<{
     name: string;
-    scores: number[];
+    scores: CopyArray<number>;
     metadata: {
       version: bigint;
       description?: string | undefined;
@@ -1185,11 +1185,10 @@ expectTypeOf(null as unknown as TypeFromPattern<null>).toEqualTypeOf<null>();
 
   type Methods = TypeFromInterfaceGuard<typeof ChainStorageNodeI>;
 
-  // setValue: async method, bare .returns() defaults to MatcherOf<'kind', 'undefined'>
-  // so the return type is Promise<undefined> — NOT void, NOT null
+  // setValue: async method, bare .returns() defaults to void.
   expectTypeOf(
     null as unknown as ReturnType<Methods['setValue']>,
-  ).toEqualTypeOf<Promise<undefined>>();
+  ).toEqualTypeOf<Promise<void>>();
 
   // getPath: sync, returns string
   expectTypeOf(

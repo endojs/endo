@@ -76,6 +76,31 @@ type TFTuple<T extends readonly any[]> = T extends readonly [
   ? [TypeFromPattern<H>, ...TFTuple<R>]
   : [];
 
+/** Detect `any` without also matching `unknown`. */
+type IsAny<T> = 0 extends 1 & T ? true : false;
+
+/** Keep the key portion of a pattern without leaving noisy intersections. */
+type KeyFromPattern<P> =
+  IsAny<P> extends true
+    ? Key
+    : IsAny<TypeFromPattern<P>> extends true
+      ? Key
+      : Key extends TypeFromPattern<P>
+        ? Key
+        : TypeFromPattern<P> extends Key
+          ? TypeFromPattern<P>
+          : Extract<TypeFromPattern<P>, Key>;
+
+/** Keep the string portion of a tag pattern without allowing `any` through. */
+type StringFromPattern<P> =
+  IsAny<P> extends true
+    ? string
+    : IsAny<TypeFromPattern<P>> extends true
+      ? string
+      : TypeFromPattern<P> extends string
+        ? TypeFromPattern<P>
+        : Extract<TypeFromPattern<P>, string>;
+
 /**
  * Leaf matcher lookup table.
  * These matcher types return their Payload type directly or a fixed type, with no
@@ -170,18 +195,34 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
           ? TFAnd<Payload>
           : Passable
         : K extends 'arrayOf'
-          ? Array<TypeFromPattern<Payload>>
+          ? IsAny<Payload> extends true
+            ? CopyArray
+            : CopyArray<
+                TypeFromPattern<Payload> extends Passable
+                  ? TypeFromPattern<Payload>
+                  : TypeFromPattern<Payload> & Passable
+              >
           : K extends 'recordOf'
-            ? Payload extends readonly [any, infer VP]
-              ? Record<string, TypeFromPattern<VP>>
-              : Record<string, any>
+            ? IsAny<Payload> extends true
+              ? CopyRecord
+              : Payload extends readonly [any, infer VP]
+                ? IsAny<VP> extends true
+                  ? CopyRecord
+                  : Record<string, TypeFromPattern<VP>>
+                : CopyRecord
             : K extends 'mapOf'
-              ? Payload extends readonly [infer KP, infer VP]
-                ? CopyMap<
-                    TypeFromPattern<KP> & Key,
-                    TypeFromPattern<VP> & Passable
-                  >
-                : CopyMap
+              ? IsAny<Payload> extends true
+                ? CopyMap
+                : Payload extends readonly [infer KP, infer VP]
+                  ? IsAny<VP> extends true
+                    ? CopyMap<KeyFromPattern<KP>>
+                    : CopyMap<
+                        KeyFromPattern<KP>,
+                        TypeFromPattern<VP> extends Passable
+                          ? TypeFromPattern<VP>
+                          : TypeFromPattern<VP> & Passable
+                      >
+                  : CopyMap
               : K extends 'splitRecord'
                 ? Payload extends readonly [infer Req, infer Opt, infer Rest]
                   ? TFSplitRecord<Req, Opt, Rest>
@@ -195,14 +236,20 @@ type TFStructural<K extends string, Payload> = K extends 'kind'
                       ? TFSplitArray<Req, Opt>
                       : CopyArray
                   : K extends 'setOf'
-                    ? CopySet<TypeFromPattern<Payload> & Key>
+                    ? IsAny<Payload> extends true
+                      ? CopySet
+                      : CopySet<KeyFromPattern<Payload>>
                     : K extends 'bagOf'
-                      ? CopyBag<TypeFromPattern<Payload> & Key>
+                      ? IsAny<Payload> extends true
+                        ? CopyBag
+                        : CopyBag<KeyFromPattern<Payload>>
                       : K extends 'tagged'
                         ? Payload extends readonly [infer TP, infer PP]
                           ? CopyTagged<
-                              TypeFromPattern<TP> & string,
-                              TypeFromPattern<PP> & Passable
+                              StringFromPattern<TP>,
+                              TypeFromPattern<PP> extends Passable
+                                ? TypeFromPattern<PP>
+                                : TypeFromPattern<PP> & Passable
                             >
                           : CopyTagged
                         : K extends 'remotable'
@@ -290,12 +337,11 @@ type TFOptionalTuple<T extends readonly any[]> = {
  * - `M.remotable<typeof SomeInterfaceGuard>()`: the Payload carries the
  *   InterfaceGuard type. We resolve to the interface's methods with
  *   remotable branding, giving facet-isolated return types.
- * - `M.remotable<SomeTypedef>()` (or via a TypedPattern cast): the
- *   Payload is a concrete remotable type like `Brand`. Return it
- *   directly so guards using these shapes preserve the actual type.
- * - Unparameterized (`M.remotable()`): Payload defaults to `any` so
- *   the inferred type is compatible with any concrete remotable
- *   interface, matching `M.promise()`.
+ * - Other payloads, including unparameterized `M.remotable()`, resolve to
+ *   `any` so they remain compatible with any concrete remotable interface,
+ *   matching `M.promise()`.
+ *   Use `CastedPattern<T>` to claim a concrete non-InterfaceGuard remotable
+ *   type.
  */
 type TFRemotable<Payload> =
   Payload extends InterfaceGuard<infer MG>
@@ -349,7 +395,7 @@ type TypeFromReturnGuard<G> = G extends {
  * against pattern P. Two cases:
  *
  * - If P infers to an array type (e.g. `M.arrayOf(M.string())` →
- *   `string[]`), the rest type IS that array — don't wrap.
+ *   `CopyArray<string>`), the rest type IS that array — don't wrap.
  * - If P infers to a non-array (e.g. `M.any()` → `Passable`), each
  *   individual rest arg must match P, so the rest type is `P[]`.
  *

@@ -971,3 +971,9 @@ test('Far functions (callable remotables) are valid Keys', t => {
   const set = makeCopySet([farFn]);
   t.true(matches(set, M.set()));
 });
+
+test('explicit undefined return guards use the omitted-return default', t => {
+  const omitted = M.call().returns();
+  const explicit = M.call().returns(undefined);
+  t.deepEqual(explicit.payload.returnGuard, omitted.payload.returnGuard);
+});
