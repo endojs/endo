@@ -3942,16 +3942,17 @@ const makeDaemonCore = async (
                       console.log(
                         `addPeerInfo:   old addresses=${JSON.stringify(existingFormula.addresses)} new addresses=${JSON.stringify(addresses)}`,
                       );
-                      // eslint-disable-next-line no-use-before-define
-                      await cancelValue(
-                        existingFormulaId,
-                        new Error('Peer addresses updated'),
-                      );
                       await knownPeers.remove(
                         /** @type {PetName} */ (
                           /** @type {unknown} */ (nodeNumber)
                         ),
                       );
+                      // Do not cancel the old peer formula.  Existing contacts
+                      // may still retain it, and cancellation would reincarnate
+                      // it and fate-link that stale incarnation to the
+                      // replacement connection.  Removing this store entry
+                      // lets the old formula retire when its actual retainers
+                      // release it.
                       const { id: peerId } =
                         // eslint-disable-next-line no-use-before-define
                         await formulatePeer(networksId, nodeNumber, addresses);

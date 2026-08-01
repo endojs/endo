@@ -69,16 +69,14 @@ export const makeRemoteControlProvider = localNodeId => {
           proposedDispose,
         ) {
           // Use the gateway we already have.
-          // Bind the fates of the current peer incarnation and the inbound
-          // connection.
-          Promise.all([
-            currentCancelled.catch(proposedCancel),
-            proposedCancelled.catch(cancelCurrent),
-          ])
-            .then(() => {})
-            .then(proposedDispose);
+          // The inbound connection can outlive this proposed outbound peer
+          // incarnation.  Losing the connection must dispose that
+          // incarnation, but disposing an unused dial attempt must not close
+          // the accepted transport.
+          currentCancelled.catch(proposedCancel).then(proposedDispose);
+          proposedCancelled.catch(() => {});
           return {
-            state: accepted(remoteGateway, proposedCancel, proposedCancelled),
+            state: accepted(remoteGateway, cancelCurrent, currentCancelled),
             remoteGateway,
           };
         },

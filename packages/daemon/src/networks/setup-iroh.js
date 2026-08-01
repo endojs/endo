@@ -6,6 +6,7 @@ import { E } from '@endo/eventual-send';
 /** @import { ERef } from '@endo/eventual-send' */
 
 const irohSpecifier = new URL('iroh.js', import.meta.url).href;
+const irohWorker = 'iroh-worker';
 
 /**
  * Install the iroh network module into the daemon and register it under
@@ -14,7 +15,8 @@ const irohSpecifier = new URL('iroh.js', import.meta.url).href;
  * @param {ERef<any>} powers
  */
 export const main = async powers => {
-  await E(powers).makeUnconfined(undefined, irohSpecifier, {
+  await E(powers).provideWorker(irohWorker);
+  await E(powers).makeUnconfined(irohWorker, irohSpecifier, {
     powersName: '@agent',
     resultName: 'network-service-iroh',
   });

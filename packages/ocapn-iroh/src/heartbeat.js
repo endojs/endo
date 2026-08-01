@@ -4,7 +4,8 @@
 import harden from '@endo/harden';
 
 // iroh's QUIC stack closes a connection after its default max idle timeout
-// (~2 minutes) and @number0/iroh's `EndpointOptions` exposes no transport
+// (~30 seconds with the current binding) and @number0/iroh's
+// `EndpointOptions` exposes no transport
 // config to shorten that or to enable QUIC-level keep-alive. A quiet but
 // healthy CapTP session (two peers that have swapped bootstrap references
 // and are each awaiting the other) would therefore be torn down. The
@@ -32,7 +33,7 @@ import harden from '@endo/harden';
  * Heartbeat send period. Comfortably below iroh's QUIC idle timeout so a
  * single beat keeps the connection alive.
  */
-export const HEARTBEAT_INTERVAL_MS = 30_000;
+export const HEARTBEAT_INTERVAL_MS = 10_000;
 harden(HEARTBEAT_INTERVAL_MS);
 
 /**
