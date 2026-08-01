@@ -13,11 +13,20 @@ archive runner depending on the subcommand.
 cargo build --release -p endo --bin endor
 ```
 
-The xsnap library ships JS bundles (`daemon_bootstrap.js` — the
-manager bundle, kept under its legacy filename to minimize bundler
-churn — and `worker_bootstrap.js`) that must be generated first via
-`packages/daemon/scripts/bundle-bus-daemon-rust-xs.mjs` and
-`packages/daemon/scripts/bundle-bus-worker-xs.mjs`.
+The xsnap library `include_str!`s three JS bundles that are generated
+rather than committed (`.gitignore`), so they must be produced before
+`cargo build`:
+
+| Bundle | Generator |
+| --- | --- |
+| `ses_boot.js` | `packages/daemon/scripts/bundle-bus-worker-xs-ses-boot.mjs` |
+| `worker_bootstrap.js` | `packages/daemon/scripts/bundle-bus-worker-xs.mjs` |
+| `daemon_bootstrap.js` (the manager bundle, kept under its legacy filename to minimize bundler churn) | `packages/daemon/scripts/bundle-bus-daemon-rust-xs.mjs` |
+
+The first two run from a clean checkout. The third does not yet; see
+[Implementation status](#implementation-status) below, where
+`packages/thixotrope/scripts/bundle-xs-worker.mjs` writes a throwing stub
+so the crate still compiles.
 
 The binary lands at `target/release/endor`.
 
@@ -161,14 +170,16 @@ reasons **out of scope for the iroh work**:
    This is pre-existing — it fails on the unmodified manager too.
    The fix is to make the git backend injectable (as `better-sqlite3` already
    is) and extend the exclude list; roughly a half-day of bundler hygiene.
-2. **The worker/SES boot generators are absent.**
-   Only the daemon bundler is in the tree; `bundle-bus-worker-xs.mjs` (cited
-   under [Building](#building)) and the SES boot generator — and the
-   `bus-worker-xs.js` worker entry they bundle — are not present and are not
-   in git history.
-   The XS worker/boot path is therefore not buildable from this tree alone;
-   resolving it means locating those bundlers/artifacts (likely an unmerged
-   branch) or authoring the worker entry and its bundlers.
+2. **The XS realm is not locked down.**
+   `ses_boot.js` installs the `HandledPromise` shim but calls no
+   `lockdown()`, no separate lockdown bundle is evaluated, and the
+   `fx_lockdown` FFI binding is declared but never called, so the XS realm
+   runs on unrepaired intrinsics and a deep-freeze `harden` polyfill rather
+   than SES's.
+   The XS worker's compartments confine module scope but do not rest on a
+   hardened realm.
+   See `designs/worker-rust-xs.md` § Known Gaps for why this is more than an
+   added import.
 3. **Sandbox discovery.**
    iroh's public relay/discovery is unreachable in restricted CI/sandbox
    environments (addresses come back as placeholders), so dial-by-NodeId
@@ -176,9 +187,10 @@ reasons **out of scope for the iroh work**:
    Same-host direct-address dialing (`ENDO_IROH_LOCAL=1`) works and is what
    the integration tests use.
 
-Items 1 and 2 block a live `endor` boot regardless of the iroh work; once they
-are resolved, `ENDO_MANAGER_XS=1 ENDO_IROH=1 endor daemon` (add
-`ENDO_IROH_LOCAL=1` for same-host) completes the path.
+Item 1 blocks a live `endor` boot regardless of the iroh work; once it is
+resolved, `ENDO_MANAGER_XS=1 ENDO_IROH=1 endor daemon` (add
+`ENDO_IROH_LOCAL=1` for same-host) completes the path. Item 2 does not block
+the boot; it bounds what the boot is worth as a confinement claim.
 
 ## Integration tests
 

@@ -879,10 +879,18 @@ pub const POLYFILLS: &str = include_str!("polyfills.js");
 /// host functions registered in Rust so that bundled code which
 /// expects `hostReadFile`, `hostSendRawFrame`, etc. resolves to
 /// the real implementations. Evaluated after host powers are
-/// registered and before SES lockdown.
+/// registered and before the SES boot bundle.
 pub const HOST_ALIASES: &str = include_str!("host_aliases.js");
 
-/// HandledPromise shim + harden upgrade.
+/// The `HandledPromise` shim, generated from
+/// `packages/daemon/src/bus-worker-xs-ses-boot.js` by
+/// `packages/daemon/scripts/bundle-bus-worker-xs-ses-boot.mjs`.
+///
+/// Despite the name this bundle does NOT call `lockdown()`, and
+/// nothing else in the boot path does either (`fx_lockdown` is
+/// declared in `ffi.rs` but never called). The realm runs on
+/// unrepaired intrinsics and `polyfills.js`'s deep-freeze `harden`.
+/// Tracked in `designs/worker-rust-xs.md` § Known Gaps.
 pub const SES_BOOT: &str = include_str!("ses_boot.js");
 
 /// The bundled worker JavaScript. Self-executing IIFE that installs
@@ -1141,8 +1149,9 @@ fn dispatch_envelope(machine: &Machine, data: &[u8]) {
     );
 }
 
-/// Bootstrap an XS machine with polyfills and SES lockdown.
-/// Shared by all three entry points.
+/// Bootstrap an XS machine with polyfills and the SES boot bundle.
+/// Shared by all three entry points. Note that no `lockdown()` runs;
+/// see the `SES_BOOT` docs.
 fn bootstrap_ses(machine: &Machine, label: &str) {
     machine
         .eval(POLYFILLS)
@@ -1602,13 +1611,13 @@ pub fn run_xs_program(
         // Install host<Name> aliases so bundled code that references
         // hostReadFile / hostSendRawFrame / hostGetDaemonHandle / ...
         // resolves to the unprefixed implementations. This runs BEFORE
-        // SES lockdown so it can write to globalThis.
+        // the SES boot bundle so it can write to globalThis.
         machine
             .eval(HOST_ALIASES)
             .expect("host aliases evaluation failed");
 
-        // Install native TextEncoder/TextDecoder replacements before SES
-        // lockdown so that the bundled `new TextEncoder()` picks up the
+        // Install native TextEncoder/TextDecoder replacements before the
+        // SES boot bundle so that the bundled `new TextEncoder()` picks up the
         // fast native implementation instead of XS's built-in which is
         // extremely slow for large strings (>100KB).
         machine.eval(
@@ -3313,7 +3322,8 @@ mod tests {
         let polyfills = include_str!("polyfills.js");
         machine.eval(polyfills).expect("polyfills failed");
 
-        // Step 1: Evaluate SES boot (lockdown + HandledPromise)
+        // Step 1: Evaluate SES boot (HandledPromise shim; note that
+        // it does NOT lock down -- see the SES_BOOT docs above)
         let ses_boot = include_str!("ses_boot.js");
         eprintln!("ses_boot length: {}", ses_boot.len());
         // Use a very fine-grained error handler to get line info

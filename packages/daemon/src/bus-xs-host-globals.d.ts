@@ -12,6 +12,7 @@ declare var hostTrace: (...args: any[]) => any;
 declare var hostSendRawFrame: (...args: any[]) => any;
 declare var hostGetPid: (...args: any[]) => any;
 declare var hostGetEnv: (...args: any[]) => any;
+declare var hostGetDaemonHandle: () => number;
 declare var hostDecodeUtf8: (...args: any[]) => any;
 declare var hostReadFile: (...args: any[]) => any;
 declare var hostReadFileBytes: (...args: any[]) => any;

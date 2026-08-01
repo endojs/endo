@@ -42,17 +42,9 @@ import {
   installShouldTerminate,
   markShouldTerminate,
   silentReject,
-  textDecoder,
-  textEncoder,
 } from './bus-xs-common.js';
 
-export {
-  installShouldTerminate,
-  markShouldTerminate,
-  silentReject,
-  textDecoder,
-  textEncoder,
-};
+export { installShouldTerminate, markShouldTerminate, silentReject };
 
 // Console polyfill for XS bootstraps that share this module.
 //

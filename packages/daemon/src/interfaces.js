@@ -855,36 +855,10 @@ export const TracesInterface = M.interface('EndoTraces', {
   stats: M.call().returns(M.promise()),
 });
 
-export const WorkerFacetForDaemonInterface = M.interface(
-  'EndoWorkerFacetForDaemon',
-  {
-    terminate: M.call().returns(M.promise()),
-    evaluate: M.call(
-      M.string(),
-      M.arrayOf(M.string()),
-      M.arrayOf(M.any()),
-      IdShape,
-      M.promise(),
-    ).returns(M.promise()),
-    // Args: (readableP, powersP, contextP, env) — readable is a ZIP
-    // archive of a compartment-map plus source-form modules.  These
-    // methods receive promises that get resolved inside the worker.
-    makeArchive: M.call(M.any(), M.any(), M.any(), EnvShape).returns(
-      M.promise(),
-    ),
-    // Args: (treeP, powersP, contextP, env) — tree is a ReadableTree
-    // or Mount whose layout mirrors a compartment-mapper archive
-    // (compartment-map.json at root plus modules at their referenced
-    // paths).
-    makeFromTree: M.call(M.any(), M.any(), M.any(), EnvShape).returns(
-      M.promise(),
-    ),
-    // Args: (specifier, powersP, contextP, env)
-    makeUnconfined: M.call(M.string(), M.any(), M.any(), EnvShape).returns(
-      M.promise(),
-    ),
-  },
-);
+// Defined in `./worker-facet-interface.js` so the XS worker bootstrap
+// can guard its facet with the same pattern without importing this
+// module (which reaches `@endo/platform`'s Node-only paths).
+export { WorkerFacetForDaemonInterface } from './worker-facet-interface.js';
 
 export const EndoInterface = M.interface('Endo', {
   help: M.call().optional(M.string()).returns(M.string()),

@@ -11,12 +11,6 @@
  * both bootstraps.  The actual wire plumbing lives in bus-xs-core.js.
  */
 
-export const textEncoder = new TextEncoder();
-harden(textEncoder);
-
-export const textDecoder = new TextDecoder();
-harden(textDecoder);
-
 /**
  * No-op rejection handler.  XS console.error may crash when formatting
  * certain error objects, so we swallow CapTP-internal rejections

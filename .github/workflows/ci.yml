@@ -605,6 +605,49 @@ jobs:
           PATH=$PATH:$GITHUB_WORKSPACE/bin
           yarn test:xs
 
+  build-xsnap:
+    name: build-xsnap
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          submodules: true
+
+      - run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: .node-version
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Cache Cargo + target
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-xsnap-${{ hashFiles('Cargo.lock', 'rust/endo/**', 'c/moddable/**') }}
+          restore-keys: |
+            ${{ runner.os }}-xsnap-
+
+      - name: Generate XS bootstraps
+        run: |
+          yarn workspace @endo/thixotrope run build:xs-bundles
+          node packages/daemon/scripts/bundle-bus-worker-xs-ses-boot.mjs
+          node packages/daemon/scripts/bundle-bus-worker-xs.mjs
+
+      - name: Build xsnap crate
+        run: cargo check --manifest-path rust/endo/xsnap/Cargo.toml
+
   test-ocapn-python:
     name: test-ocapn-python
 

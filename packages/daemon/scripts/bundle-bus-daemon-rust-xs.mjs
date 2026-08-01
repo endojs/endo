@@ -6,7 +6,7 @@
  *   daemon_bootstrap.js — daemon entry point (CapTP, powers, daemon core)
  *
  * The SES boot script (ses_boot.js) is shared with the worker and
- * produced by bundle-bus-worker-xs.mjs.
+ * produced by bundle-bus-worker-xs-ses-boot.mjs.
  *
  * Usage: node packages/daemon/scripts/bundle-bus-daemon-rust-xs.mjs
  */

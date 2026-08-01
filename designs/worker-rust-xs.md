@@ -500,6 +500,65 @@ This is the primary tradeoff of the XS choice.
 
 ## Known Gaps
 
+- [ ] The XS realm never locks down.
+  `rust/endo/xsnap/src/lib.rs`'s `bootstrap_ses` evaluates
+  `polyfills.js` and then `ses_boot.js`; neither calls `lockdown()`,
+  `ses` is not bundled into either, and the `fx_lockdown` FFI binding
+  in `ffi.rs` is declared but never called.
+  So `globalThis.harden` is `polyfills.js`'s deep-freeze rather than
+  SES's, the intrinsics are unrepaired, and the compartments
+  `bus-worker-xs.js`'s `evaluate` creates confine module scope
+  without resting on a hardened realm.
+  Closing this is not a matter of adding `import 'ses'` and a
+  `lockdown()` call to `bus-worker-xs-ses-boot.js`; three things have
+  to move together:
+  1. `polyfills.js` installs `Object[Symbol.for('harden')]` with
+     `configurable: false`, which `@endo/harden`'s own
+     `make-selector.js` notes will "prevent any HardenedJS's lockdown
+     from succeeding".
+     The polyfill has to become removable (or be dropped in favor of
+     SES's own `harden`) before lockdown can run.
+  2. Lockdown replaces `globalThis`, which drops the `host<Name>`
+     aliases `lib.rs` evaluates before it (`HOST_ALIASES`) and that
+     both bootstraps resolve their host functions through.
+     Either the aliases move after lockdown or the host functions get
+     endowed into the boot compartment instead.
+  3. `polyfills.js`'s `TextEncoder` / `TextDecoder` and the native
+     replacements installed alongside them are also pre-lockdown
+     `globalThis` writes with the same ordering problem.
+  Until then, treat the XS worker as isolating by process and
+  compartment, not as a hardened-JS confinement boundary, and say so
+  wherever the boot path is documented.
+- [ ] Worker facet `makeArchive` / `makeFromTree` / `makeUnconfined`
+  — the XS worker bootstrap
+  (`packages/daemon/src/bus-worker-xs.js`) implements `evaluate` and
+  `terminate`; the three `make*` methods reject with
+  "not yet implemented".
+  The Node worker (`packages/daemon/src/worker.js`) is the reference
+  for each, and closing the gap is planned in this order, because
+  each rung depends on the one below it:
+  1. **`makeArchive`** — drain the `EndoReadable` into a single
+     `Uint8Array`, then `parseArchive` + `application.import` exactly
+     as `worker.js` does.
+     The work is not the JavaScript (which ports verbatim) but making
+     `@endo/compartment-mapper`'s archive parser load under the `xs`
+     package condition: the Node-only parser set
+     (`import-archive-all-parsers.js`, which drags in Babel) must not
+     be the retained path, so the XS condition has to select the
+     precompiled-module parser instead.
+  2. **`makeFromTree`** — walks the tree's `compartment-map.json`,
+     packs the referenced module sources into an in-memory ZIP, and
+     hands that to the `makeArchive` pipeline.
+     Follows (1), and additionally needs `@endo/zip`'s `ZipWriter`
+     verified under XS.
+  3. **`makeUnconfined`** — the Node worker implements this as a
+     dynamic `import()` of a host filesystem path, which XS has no
+     equivalent for.
+     The XS route is the one § Module Loading item 3 already
+     describes: a cap-std–backed host function reads the module
+     source and the host compartment compiles it as a `ModuleSource`.
+     This is the only one of the three that needs new Rust host
+     surface rather than only a conditions fix.
 - [ ] XS C API stability — verify that the compartment and
   ModuleSource APIs are stable across XS releases.
 - [ ] `@endo/captp` on XS — verify that CapTP's full protocol
