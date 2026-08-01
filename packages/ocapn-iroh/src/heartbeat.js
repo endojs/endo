@@ -143,8 +143,13 @@ export const makeIrohHeartbeat = (
       // A one-byte payload suffices to generate traffic; the content is
       // ignored. The binding's `sendDatagram` takes a plain
       // `Array<number>`, and a fresh array avoids handing native code a
-      // shared view.
-      /** @type {NonNullable<typeof sendDatagram>} */ (sendDatagram)([0]);
+      // shared view. Call as a method on the connection: `sendDatagram`
+      // is a NAPI-RS native method that requires `this` to be the
+      // connection, so a destructured reference fails with "Illegal
+      // invocation".
+      /** @type {NonNullable<typeof sendDatagram>} */ (connection.sendDatagram)(
+        [0],
+      );
     } catch (error) {
       // A full send buffer or transient datagram error is not fatal: the
       // next beat retries and the peer's watchdog tolerates a single
@@ -163,7 +168,9 @@ export const makeIrohHeartbeat = (
     }
     try {
       Promise.resolve(
-        /** @type {NonNullable<typeof readDatagram>} */ (readDatagram)(),
+        /** @type {NonNullable<typeof readDatagram>} */ (
+          connection.readDatagram
+        )(),
       ).then(
         () => {
           touch();

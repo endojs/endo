@@ -3,6 +3,8 @@ import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeIrohHeartbeat } from '../src/networks/iroh-heartbeat.js';
 
+test.todo('calls native datagram methods with the connection as receiver');
+
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 /**

@@ -142,8 +142,11 @@ export const makeIrohHeartbeat = (
       // A one-byte payload suffices to generate traffic; the content is
       // ignored. The binding's `sendDatagram` takes a plain `Array<number>`
       // (napi marshals `Vec<u8>` from a JS Array, not a TypedArray), and a
-      // fresh array avoids handing native code a shared view.
-      sendDatagram([0]);
+      // fresh array avoids handing native code a shared view. Call as a
+      // method on the connection: `sendDatagram` is a NAPI-RS native method
+      // that requires `this` to be the connection, so a destructured reference
+      // fails with "Illegal invocation".
+      connection.sendDatagram([0]);
     } catch (error) {
       // A full send buffer or transient datagram error is not fatal: the next
       // beat retries and the peer's watchdog tolerates a single miss.
@@ -161,7 +164,7 @@ export const makeIrohHeartbeat = (
       return;
     }
     try {
-      Promise.resolve(readDatagram()).then(
+      Promise.resolve(connection.readDatagram()).then(
         () => {
           touch();
           pump();
