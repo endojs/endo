@@ -63,10 +63,7 @@ test('calls native datagram methods with the connection as receiver', async t =>
 
   connection.push(new Uint8Array([1]));
   await delay(60);
-  t.true(
-    connection.sent.length >= 1,
-    'beats reach the receiver-checking fake',
-  );
+  t.true(connection.sent.length >= 1, 'beats reach the receiver-checking fake');
   t.is(connection.inbox.length, 0, 'the pump drains inbound datagrams');
   t.deepEqual(failures, [], 'no datagram call fell back to the failure log');
 });
