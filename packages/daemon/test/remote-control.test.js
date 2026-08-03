@@ -122,9 +122,31 @@ test('remote control keeps outbound connect when accepting from higher id', asyn
   );
   t.is(finalBobGateway, bobGateway2);
 
+  // Cancelling the unused outbound peer incarnation must not tear down the
+  // accepted transport.
+  let bob2Settled = false;
+  bob2Cancelled.catch(() => {
+    bob2Settled = true;
+  });
   cancelBob3(new Error('Peer cancelled'));
-  await t.throwsAsync(() => bob2Cancelled);
   await t.throwsAsync(() => bob3Cancelled);
+  await Promise.resolve();
+  await Promise.resolve();
+  t.false(bob2Settled, 'accepted transport survives incarnation disposal');
+
+  // The surviving transport still serves subsequent connects, and losing it
+  // still cancels the incarnations that ride on it.
+  const { promise: bob4Cancelled, reject: cancelBob4 } = makePromiseKit();
+  const laterBobGateway = bobRemoteControl.connect(
+    () => makeFakeGateway(),
+    cancelBob4,
+    bob4Cancelled,
+  );
+  t.is(laterBobGateway, bobGateway2);
+
+  cancelBob2(new Error('Connection lost'));
+  await t.throwsAsync(() => bob2Cancelled);
+  await t.throwsAsync(() => bob4Cancelled);
 });
 
 test('remote control reuses existing connection when reconnecting', async t => {
@@ -215,10 +237,30 @@ test('remote control accept after accept', async t => {
 
   // bob1 was already cancelled when the second accept replaced it.
   await t.throwsAsync(() => bob1Cancelled);
-  // bob2 and bob3 are entangled; cancelling one cancels the other.
+  // Cancelling the outbound peer incarnation must not tear down the accepted
+  // transport it rode on.
+  let bob2Settled = false;
+  bob2Cancelled.catch(() => {
+    bob2Settled = true;
+  });
   cancelBob3(new Error('Peer cancelled'));
-  await t.throwsAsync(() => bob2Cancelled);
   await t.throwsAsync(() => bob3Cancelled);
+  await Promise.resolve();
+  await Promise.resolve();
+  t.false(bob2Settled, 'accepted transport survives incarnation cancellation');
+
+  // Losing the transport still cancels the incarnations that ride on it.
+  const { promise: bob4Cancelled, reject: cancelBob4 } = makePromiseKit();
+  const bobGateway4 = bobRemoteControl.connect(
+    () => makeFakeGateway(),
+    cancelBob4,
+    bob4Cancelled,
+  );
+  t.is(bobGateway4, bobGateway2);
+
+  cancelBob2(new Error('Connection lost'));
+  await t.throwsAsync(() => bob2Cancelled);
+  await t.throwsAsync(() => bob4Cancelled);
 });
 
 test('remote control connects first, ignores second, entagles cancellation of second peer incarnations', async t => {
