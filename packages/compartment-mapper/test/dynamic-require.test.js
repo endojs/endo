@@ -341,6 +341,78 @@ test('dynamic require using absolute path avoids exitModuleImportNowHook', async
   t.is(importNowHookCallCount, 0);
 });
 
+// The same fixture as above, but with readPowers that present a Windows
+// platform. `sprunt` builds its specifier from `__dirname`, so a Windows
+// `fileURLToPath` is enough to make the specifier a Windows absolute path and
+// drive the require through the win32 branch of specifier resolution.
+//
+// Only the powers that describe the platform are swapped. Reading is
+// unaffected: makeReadNowPowers captures its own fileURLToPath internally, so
+// the fixtures are still read from the real POSIX filesystem.
+test('dynamic require using Windows absolute path avoids exitModuleImportNowHook', async t => {
+  t.plan(2);
+  const fixture = new URL(
+    'fixtures-dynamic/node_modules/absolute-app/index.js',
+    import.meta.url,
+  ).href;
+
+  // The fiction is that drive C: is mounted at the POSIX root, so these two
+  // conversions remain inverses of one another.
+  /** @param {string | URL} fileUrl */
+  const win32FileURLToPath = fileUrl =>
+    `C:${url.fileURLToPath(fileUrl).replace(/\//g, '\\')}`;
+  /** @param {string} filePath */
+  const win32PathToFileURL = filePath =>
+    new URL(
+      url
+        .pathToFileURL(filePath, { windows: true })
+        .href.replace(/^file:\/\/\/[A-Za-z]:\//, 'file:///'),
+    );
+
+  const win32Powers = {
+    ...readPowers,
+    fileURLToPath: win32FileURLToPath,
+    isAbsolute: path.win32.isAbsolute,
+    pathToFileURL: win32PathToFileURL,
+  };
+
+  let importNowHookCallCount = 0;
+  /** @type {ExitModuleImportNowHook} */
+  const importNowHook = () => {
+    importNowHookCallCount += 1;
+    throw new Error('should not be called');
+  };
+
+  /** @type {Policy} */
+  const policy = {
+    entry: {
+      packages: WILDCARD_POLICY_VALUE,
+      globals: WILDCARD_POLICY_VALUE,
+      builtins: WILDCARD_POLICY_VALUE,
+    },
+    resources: {
+      'sprunt>node-tammy-build': {
+        packages: {
+          sprunt: true,
+        },
+      },
+      sprunt: {
+        packages: {
+          'sprunt>node-tammy-build': true,
+        },
+      },
+    },
+  };
+
+  const { namespace } = await importLocation(win32Powers, fixture, {
+    policy,
+    importNowHook,
+  });
+
+  t.deepEqual({ default: { isOk: 1 }, isOk: 1 }, { ...namespace });
+  t.is(importNowHookCallCount, 0);
+});
+
 test('dynamic require of disallowed package', async t => {
   const fixture = new URL(
     'fixtures-dynamic/node_modules/broken-app/index.js',
