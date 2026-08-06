@@ -867,6 +867,7 @@ export const permitted = {
     toLocaleString: fn,
     toLocaleTimeString: fn,
     toString: fn,
+    toTemporalInstant: fn,
     toTimeString: fn,
     toUTCString: fn,
     valueOf: fn,
