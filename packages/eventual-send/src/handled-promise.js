@@ -41,6 +41,16 @@ const coerceToObjectProperty = specimen => {
   return String(specimen);
 };
 
+/**
+ * The same thenable test ECMA-262 uses in Promise resolution.
+ *
+ * @param {any} v
+ */
+const isThenable = v =>
+  v != null &&
+  (typeof v === 'object' || typeof v === 'function') &&
+  typeof v.then === 'function';
+
 // the following method (makeHandledPromise) is part
 // of the shim, and will not be exported by the module once the feature
 // becomes a part of standard javascript
@@ -107,6 +117,85 @@ export const makeHandledPromise = () => {
       }
     }
     return target;
+  };
+
+  /**
+   * Tracks shortening subscribers per handled promise. Avoids mutable own
+   * properties on hardened instances.
+   *
+   * @type {WeakMap<
+   *   Promise<unknown>,
+   *   {
+   *     done: boolean;
+   *     result: { kind: 'shortened' | 'fulfilled' | 'rejected'; value: unknown } | null;
+   *     subs: Array<(s: { kind: 'shortened' | 'fulfilled' | 'rejected'; value: unknown }) => void>;
+   *   }
+   * >}
+   */
+  const shorteningRecords = new WeakMap();
+
+  /**
+   * Every instance from this factory's constructor (native promises also
+   * satisfy `instanceof HandledPromise` because we inherit `Promise.prototype`).
+   */
+  const handledPromiseBrand = new WeakSet();
+
+  /**
+   * @param {Promise<unknown>} handledP
+   * @param {{ kind: 'shortened' | 'fulfilled' | 'rejected'; value: unknown }} result
+   */
+  const fireShorteningSubscribers = (handledP, result) => {
+    let rec = shorteningRecords.get(handledP);
+    if (!rec) {
+      rec = { done: false, result: null, subs: [] };
+      shorteningRecords.set(handledP, rec);
+    }
+    if (rec.done) {
+      return;
+    }
+    rec.done = true;
+    rec.result = result;
+    const { subs } = rec;
+    rec.subs = [];
+    for (const cb of subs) {
+      try {
+        cb(result);
+      } catch {
+        // Match `ShorteningPromise`: swallow sync errors from subscribers.
+      }
+    }
+  };
+
+  /**
+   * Subscribe to the first settlement of a handled promise (see
+   * {@link HandledPromise.getNextPromiseValue}).
+   *
+   * @param {Promise<unknown>} promise
+   * @param {(settlement: {
+   *   kind: 'shortened' | 'fulfilled' | 'rejected';
+   *   value: unknown;
+   * }) => void} cb
+   * @returns {Promise<unknown>}
+   */
+  const registerShorteningSubscriber = (promise, cb) => {
+    let rec = shorteningRecords.get(promise);
+    if (rec && rec.done) {
+      const settlement = rec.result;
+      Promise.resolve().then(() => {
+        cb(
+          /** @type {{ kind: 'shortened' | 'fulfilled' | 'rejected'; value: unknown }} */ (
+            settlement
+          ),
+        );
+      });
+      return promise;
+    }
+    if (!rec) {
+      rec = { done: false, result: null, subs: [] };
+      shorteningRecords.set(promise, rec);
+    }
+    rec.subs.push(cb);
+    return promise;
   };
 
   /**
@@ -246,6 +335,17 @@ export const makeHandledPromise = () => {
         // Remove stale pending handlers, set to canonical form.
         shorten(handledP);
 
+        let shorteningKind = /** @type {'shortened' | 'fulfilled'} */ (
+          'fulfilled'
+        );
+        if (!presenceToPromise.has(value) && isThenable(value)) {
+          shorteningKind = 'shortened';
+        }
+        fireShorteningSubscribers(handledP, {
+          kind: shorteningKind,
+          value,
+        });
+
         // Finish the resolution.
         superResolve(value);
         resolved = true;
@@ -262,11 +362,16 @@ export const makeHandledPromise = () => {
         assertNotYetForwarded();
         promiseToPendingHandler.delete(handledP);
         resolved = true;
+        fireShorteningSubscribers(handledP, {
+          kind: 'rejected',
+          value: reason,
+        });
         superReject(reason);
         continueForwarding();
       };
     };
     handledP = harden(construct(Promise, [superExecutor], new.target));
+    handledPromiseBrand.add(handledP);
 
     if (!pendingHandler) {
       // This is insufficient for actual remote handled Promises
@@ -431,6 +536,53 @@ export const makeHandledPromise = () => {
       // Ensure args is an array.
       args = [...args];
       handle(target, 'applyMethodSendOnly', [prop, args]).catch(() => {});
+    },
+    /**
+     * Invokes `onResolved` once with the first settlement of `promise`, using
+     * {@link HandledPromise.subscribeShortening} when `promise` is a handled
+     * promise (so thenable resolutions are visible as `shortened`).
+     *
+     * @param {unknown} promise
+     * @param {(settlement: {
+     *   kind: 'shortened' | 'fulfilled' | 'rejected';
+     *   value: unknown;
+     * }) => void} onResolved
+     */
+    getNextPromiseValue(promise, onResolved) {
+      if (handledPromiseBrand.has(/** @type {object} */ (promise))) {
+        registerShorteningSubscriber(
+          /** @type {Promise<unknown>} */ (promise),
+          onResolved,
+        );
+        return;
+      }
+      if (isThenable(promise)) {
+        Promise.resolve(promise).then(
+          value => {
+            onResolved({ kind: 'fulfilled', value });
+          },
+          reason => {
+            onResolved({ kind: 'rejected', value: reason });
+          },
+        );
+        return;
+      }
+      Promise.resolve().then(() => {
+        onResolved({ kind: 'fulfilled', value: promise });
+      });
+    },
+    subscribeShortening(promise, cb) {
+      (promise != null &&
+        typeof promise === 'object' &&
+        handledPromiseBrand.has(promise)) ||
+        assert.fail(
+          X`subscribeShortening expects a HandledPromise instance`,
+          TypeError,
+        );
+      return registerShorteningSubscriber(
+        /** @type {Promise<unknown>} */ (promise),
+        cb,
+      );
     },
     resolve(value) {
       // Resolving a Presence returns the pre-registered handled promise.
@@ -639,6 +791,20 @@ export const makeHandledPromise = () => {
  *   applyMethodSendOnly(target: unknown, prop: PropertyKey, args: unknown[]): void;
  *   get(target: unknown, prop: PropertyKey): Promise<unknown>;
  *   getSendOnly(target: unknown, prop: PropertyKey): void;
+ *   getNextPromiseValue(
+ *     promise: unknown,
+ *     onResolved: (settlement: {
+ *       kind: 'shortened' | 'fulfilled' | 'rejected';
+ *       value: unknown;
+ *     }) => void,
+ *   ): void;
+ *   subscribeShortening(
+ *     promise: Promise<unknown>,
+ *     cb: (settlement: {
+ *       kind: 'shortened' | 'fulfilled' | 'rejected';
+ *       value: unknown;
+ *     }) => void,
+ *   ): Promise<unknown>;
  * }} HandledPromiseStaticMethods
  */
 
