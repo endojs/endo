@@ -937,6 +937,7 @@ const makePatternKit = () => {
       let style;
       switch (kind) {
         case 'copySet':
+        case 'copyBag':
         case 'copyMap': {
           style = 'tagged';
           break;
