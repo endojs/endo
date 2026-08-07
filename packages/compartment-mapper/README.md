@@ -1,6 +1,6 @@
-# Compartment mapper
+# @endo/compartment-mapper
 
-The compartment mapper builds _compartment maps_ for Node.js style
+The `@endo/compartment-mapper` package builds _compartment maps_ for Node.js-style
 applications, finding their dependencies and describing how to create
 [Compartments][] for each package in the application.
 
@@ -21,9 +21,9 @@ The `modules` are built-in modules to grant the application's main package
 compartment.
 
 ```js
-import fs from "node:fs";
-import { fileURLToPath } from "node:url";
-import { importLocation } from "@endo/compartment-mapper";
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { importLocation } from '@endo/compartment-mapper';
 
 // ...
 
@@ -54,17 +54,17 @@ available, `__dirname` and `__filename` will be provided to CJS modules. When
 
 ```ts
 type ReadPowers = {
-  read: (location: string) => Promise<Uint8Array>,
-  canonical: (location: string) => Promise<string>,
-  computeSha512?: (bytes: Uint8Array) => string,
-  fileURLToPath?: (location: string | URL) => string,
-  pathToFileURL?: (path: string) => URL,
+  read: (location: string) => Promise<Uint8Array>;
+  canonical: (location: string) => Promise<string>;
+  computeSha512?: (bytes: Uint8Array) => string;
+  fileURLToPath?: (location: string | URL) => string;
+  pathToFileURL?: (path: string) => URL;
   requireResolve?: (
     fromLocation: string,
     specifier: string,
     options?: { paths?: string[] },
-  ) => string
-}
+  ) => string;
+};
 ```
 
 > [!NOTE]
@@ -84,9 +84,9 @@ Use `writeArchive` to capture an application in an archival format.
 Archives are `zip` files with a `compartment-map.json` manifest file.
 
 ```js
-import fs from "node:fs";
-import { fileURLToPath } from "node:url";
-import { writeArchive } from "@endo/compartment-mapper";
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { writeArchive } from '@endo/compartment-mapper';
 
 const read = async location => fs.promises.readFile(fileURLToPath(location));
 const write = async (location, content) =>
@@ -108,9 +108,9 @@ Use `importArchive` to run an application from an archive.
 Note the similarity to `importLocation`.
 
 ```js
-import fs from "node:fs";
-import { fileURLToPath } from "node:url";
-import { importArchive } from "@endo/compartment-mapper";
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { importArchive } from '@endo/compartment-mapper';
 
 // ...
 
@@ -137,7 +137,7 @@ Use `parseArchive` to construct a runner from the bytes of an archive.
 `loadArchive` and `parseArchive` do not run the archived application,
 so they can be used to safely check its hash.
 
-# Script bundles
+## Script bundles
 
 From `@endo/compartment-mapper/script.js`, the `makeScript` function is similar
 to `makeArchive` but generates a string of JavaScript suitable for `eval` or
@@ -148,10 +148,10 @@ script that subsumes `ses`, `@endo/compartment-mapper/import-archive.js`, and
 other parts of Endo, but is not as feature-complete as `importArchive`.
 
 ```js
-import url from "node:url";
-import fs from "node:fs";
-import { makeScript } from "@endo/compartment-mapper/script.js";
-import { makeReadPowers } from "@endo/compartment-mapper/node-powers.js";
+import url from 'node:url';
+import fs from 'node:fs';
+import { makeScript } from '@endo/compartment-mapper/script.js';
+import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 const readPowers = makeReadPowers({ fs, url });
 const options = {}; // if any
 const script = await makeScript(readPowers, moduleLocation, options);
@@ -162,7 +162,7 @@ The script is in UTF-8 format and uses non-ASCII characters, so may require
 headers or tags to specify the encoding.
 
 ```html
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <script src="script.js"></script>
 ```
 
@@ -264,10 +264,10 @@ location.
 The `-lite.js` modules, in general, do not entrain a specific compartment
 mapper.
 
-# Functor bundles
+## Functor bundles
 
 From `@endo/compartment-mapper/functor.js`, the `makeFunctor` function is similar
-to `makeScript` but generates a string of JavaScript suitable for `eval` but *not*
+to `makeScript` but generates a string of JavaScript suitable for `eval` but _not_
 suitable for embedding as a script. But, the completion value of the script
 is a function that accepts runtime options and returns the entry module's emulated
 module exports namespace, adding a level of indirection.
@@ -304,7 +304,7 @@ location.
 The `-lite.js` modules, in general, do not entrain a specific compartment
 mapper.
 
-# Host module exits in bundles
+## Host module exits in bundles
 
 When bundling for an archive, the compartment mapper implicitly treats any
 module specifier whose prefix matches a URI scheme (per [RFC 3986 section
@@ -319,7 +319,7 @@ implementation via `importHook` when the archive is later imported.
 Host-provided modules must be hardened and pure to avoid being a side-channel
 or man-in-the-middle attack surface between guests.
 
-# Package Descriptors
+## Package Descriptors
 
 The compartment mapper uses [Compartments], one for each Node.js package your
 application needs.
@@ -332,13 +332,13 @@ Each package has its own descriptor, `package.json`.
 Some standard properties of the descriptor are relevant and used by a
 compartment map.
 
-* `name`
-* `type`
-* `main`
-* `exports`
-* `browser`
-* `dependencies`
-* `files`
+- `name`
+- `type`
+- `main`
+- `exports`
+- `browser`
+- `dependencies`
+- `files`
 
 The compartment map will contain one compartment for each `package.json`
 necessary to build the application.
@@ -487,7 +487,7 @@ override the extension-to-language mapping.
 > module-to-module translator and endow the compartment with the `h` the
 > translated modules need.
 
-# Source Maps
+## Source Maps
 
 The `makeArchive`, `makeAndHashArchive`, and `writeArchive` tools can receive a
 `sourceMapHook` as one of its options.
@@ -507,41 +507,118 @@ These will be appended to each module from the archive, for debugging purposes.
 The `@endo/bundle-source` and `@endo/import-bundle` tools integrate source maps
 for an end-to-end debugging experience.
 
-# XS (experimental)
+
+## Runtime-computed `import()` specifiers
+
+ESM modules may call `await import(specifier)` where `specifier` is not known
+statically. The compartment mapper supports the following specifier kinds at
+runtime, with the noted `readPowers` requirements:
+
+| Specifier kind                           | Example                                     | Required `readPowers`                                          |
+| ---------------------------------------- | ------------------------------------------- | -------------------------------------------------------------- |
+| Bare package name                        | `'dep'`                                     | none (declared dependency)                                     |
+| Bare subpath                             | `'dep/util.js'`                             | none (declared dependency)                                     |
+| Relative path                            | `'./sibling.js'`                            | none                                                           |
+| `file:` URL (within compartment)         | `new URL('./foo.js', import.meta.url).href` | none — URL arithmetic only                                     |
+| `file:` URL (cross-compartment)          | `file:///abs/path/dep/index.js`             | none, but requires a policy that allows access                 |
+| Absolute POSIX path (within compartment) | `/abs/path/pkg/foo.js`                      | `isAbsolute`                                                   |
+| Absolute POSIX path (cross-compartment)  | `/abs/path/dep/index.js`                    | `isAbsolute` + a permitting policy                             |
+| Absolute Windows path                    | `C:\path\pkg\foo.js`                        | `isAbsolute` **and** `pathToFileURL`, both in a Windows flavor |
+
+**Cross-compartment access** (loading a module from a different package via an
+absolute specifier) requires a [policy] that explicitly permits the access.
+Without a policy, the import will throw `Could not import module`.
+
+**Pass `path` to get absolute-path support.** `makeReadPowers` and
+`makeReadNowPowers` substitute a stub `isAbsolute` that always answers `false`
+when the `path` option is omitted, which suppresses every absolute specifier
+regardless of what else is provided. `file:` URLs are unaffected, needing no
+powers at all.
+
+**Absolute paths degrade silently.** An absolute specifier is
+indistinguishable from a bare package name until `isAbsolute` says otherwise,
+so when the necessary powers are missing it is treated as a package name and
+reported as a missing external module rather than as a missing power.
+Diagnosing the latter would require the very power that is absent.
+
+`pathToFileURL` is optional but recommended. Without it a leading-slash path
+is still converted by URL arithmetic, which suffices on POSIX except for
+filenames containing `#` or `?`; a Windows path cannot be converted at all,
+because the URL parser reads its drive letter as a scheme.
+
+**Archive/bundle mode** does not support runtime-computed `file:` URL or
+absolute-path specifiers because the module graph is fixed at archive creation
+time. The supported specifier kinds for archives are bare package names,
+subpaths, and relative paths.
+
+## Runtime-computed `require()` specifiers
+
+CJS modules may likewise call `require(specifier)` with a specifier computed at
+runtime. This is common in the wild: a package computes `__dirname + '/x.js'`,
+or hands a directory to a loader that picks a file out of it.
+
+Support is opt-in, because `require()` is synchronous and so demands
+synchronous read powers. Supply an `importNowHook`, and `readPowers` that
+qualify as `ReadNowPowers` by providing `maybeReadNow`, `fileURLToPath`, and
+`isAbsolute`. If any are missing, dynamic require is not enabled at all and the
+error names the offending properties
+
+The specifier kinds and their resolution rules match the `import()` table
+above, including Windows absolute paths, with one significant difference:
+
+**Windows path support additionally requires `pathToFileURL` in `readPowers`.**
+
+> [!TIP]
+>
+> In Node.js, you can use `makeReadNowPowers` from
+> `@endo/compartment-mapper/node-powers.js` to get a `ReadNowPowers` object that
+> satisfies the requirements.
+>
+> ```js
+> import fs from 'node:fs';
+> import url from 'node:url';
+> import path from 'node:path';
+> import crypto from 'node:crypto';
+> import { makeReadNowPowers } from '@endo/compartment-mapper/node-powers.js';
+>
+> const readPowers = makeReadNowPowers({ fs, url, path, crypto });
+> ```
+
+## XS (experimental)
 
 The Compartment Mapper can use native XS `Compartment` and `ModuleSource` under
 certain conditions:
 
 1. The application must be an XS script that was compiled with the `xs`
-  package condition.
-  This causes `ses`, `@endo/module-source`, and `@endo/import-bundle` to
-  provide slightly different implementations that can fall through to native
-  behavior.
+   package condition.
+   This causes `ses`, `@endo/module-source`, and `@endo/import-bundle` to
+   provide slightly different implementations that can fall through to native
+   behavior.
 2. The application must opt-in with the `__native__: true` option on any
-  of the compartment mapper methods that import modules like `importLocation`
-  and `importArchive`.
+   of the compartment mapper methods that import modules like `importLocation`
+   and `importArchive`.
 
-# Design
+## Design
 
 Each workflow of the compartment mapper executes a portion of a sequence
 of underlying internals.
 
-* search ([search.js](./src/search.js)): Scan the parent directories of a given
+- search ([search.js](./src/search.js)): Scan the parent directories of a given
   `moduleLocation` until successfully finding and reading a `package.json` for
   the containing application.
-* map compartments from Node.js packages
+- map compartments from Node.js packages
   ([node-modules.js](./src/node-modules.js)): Find and gather all the
   `package.json` files for the application's transitive dependencies.
   Use these to construct a compartment map describing how to construct a
   `Compartment` for each application package and how to link the modules each
   exports in the compartments that import them.
-* load compartments ([archive.js](./src/archive.js)): Using `compartment.load`,
+- load compartments ([archive.js](./src/archive.js)): Using `compartment.load`,
   or implicitly through `compartment.import`, create a module graph for the
   application's entire working set.
   When creating an archive, this does not execute any of the modules.
   The compartment mapper uses the compartments and a special `importHook` that
   records the text of every module the main module needed.
-* import modules ([import.js](./src/import.js),
+- import modules ([import.js](./src/import.js),
   [import-archive.js](./src/import-archive.js)): Actually execute the working
   set.
 
@@ -562,7 +639,7 @@ capabilities to a compartment graph.
 For `writeArchive` and `makeArchive`, these may be provided but will be ignored
 since the application does not execute.
 
-```
+```text
                  loadLocation  writeArchive
              importLocation |  | makeArchive
                           | |  | |
@@ -583,7 +660,7 @@ assemble compartments ->  *    * *  :       *  : : <- powers
                                 '...............'
 ```
 
-# Compartment maps
+## Compartment maps
 
 The compartment mapper works by generating a _compartment map_ from your
 application workspace and all of the `node_modules` it needs.
@@ -768,7 +845,7 @@ type RealmName = string;
 type ModuleParameter = string;
 ```
 
-# Compartment map policy
+## Compartment map policy
 
 The `policy` option accepted by the compartment-mapper API methods provides means to narrow down the endowments passed to each compartment independently.  
 The rules defined by policy get preserved in the compartment map and enforced in the application. To explore how policies work, see [Policy Demo].
@@ -780,9 +857,9 @@ The shape of the `policy` object is based on `policy.json` from LavaMoat. MetaMa
 > policy.json.
 > Policy generation may be ported to Endo.
 
-  [LavaMoat]: https://github.com/LavaMoat/lavamoat
-  [Compartments]: ../ses/README.md#compartment
-  [Policy Demo]: ./demo/policy/README.md
-  [import attributes]: https://nodejs.org/docs/latest/api/esm.html#import-attributes
-  [package entry points]: https://nodejs.org/api/esm.html#esm_package_entry_points
-  [`require.resolve()`]: https://nodejs.org/docs/latest/api/modules.html#requireresolverequest-options
+[LavaMoat]: https://github.com/LavaMoat/lavamoat
+[Compartments]: ../ses/README.md#compartment
+[Policy Demo]: ./demo/policy/README.md
+[import attributes]: https://nodejs.org/docs/latest/api/esm.html#import-attributes
+[package entry points]: https://nodejs.org/api/esm.html#esm_package_entry_points
+[`require.resolve()`]: https://nodejs.org/docs/latest/api/modules.html#requireresolverequest-options
