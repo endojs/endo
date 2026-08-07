@@ -153,6 +153,16 @@ export const getAnonymousIntrinsics = () => {
     );
   }
 
+  if (typeof globalThis.URLSearchParams === 'function') {
+    // The URLSearchParams iterator prototype has no name on the global; it is
+    // reachable only by walking an instance. Sample it so the whitelist pass
+    // and harden reach it, mirroring `%ArrayIteratorPrototype%`.
+    intrinsics['%URLSearchParamsIteratorPrototype%'] = getPrototypeOf(
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      new globalThis.URLSearchParams().entries(),
+    );
+  }
+
   if (globalThis.AsyncIterator) {
     intrinsics['%AsyncIteratorHelperPrototype%'] = getPrototypeOf(
       // eslint-disable-next-line @endo/no-polymorphic-call

@@ -111,6 +111,18 @@ export const universalPropertyNames = {
   TextEncoder: 'TextEncoder',
   TextDecoder: 'TextDecoder',
 
+  // WHATWG URL Standard
+  // https://url.spec.whatwg.org/
+  // `URLSearchParams` is a pure, powerless data structure with no static
+  // side channels. It is permitted universally; its hidden iterator
+  // prototype is tamed separately (see `%URLSearchParamsIteratorPrototype%`).
+  // `URL` is *not* universal: it carries the ambient `createObjectURL` /
+  // `revokeObjectURL` authority, so it takes the `Date`-style split across
+  // `initialGlobalPropertyNames` (`%URL%`) and `sharedGlobalPropertyNames`
+  // (`%SharedURL%`). On hosts that do not provide either (XS), the sampling
+  // pass tolerates the absence.
+  URLSearchParams: 'URLSearchParams',
+
   // *** Annex B
 
   escape: 'escape',
@@ -140,6 +152,15 @@ export const initialGlobalPropertyNames = {
   Date: '%InitialDate%',
   Error: '%InitialError%',
   RegExp: '%InitialRegExp%',
+
+  // WHATWG URL Standard
+  // https://url.spec.whatwg.org/
+  // The start compartment keeps the host's full `URL`, including the ambient
+  // `createObjectURL` / `revokeObjectURL` blob-registry methods, which a host
+  // application may legitimately need. Shared compartments receive the tamed
+  // `%SharedURL%` instead. `lockdown({ urlBlobTaming: 'remove' })` collapses
+  // the split by binding `%URL%` to `%SharedURL%` as well.
+  URL: '%URL%',
 
   // Omit `Symbol`, because we want the original to appear on the
   // start compartment without passing through the permits mechanism, since
@@ -192,6 +213,13 @@ export const sharedGlobalPropertyNames = {
   Error: '%SharedError%',
   RegExp: '%SharedRegExp%',
   Symbol: '%SharedSymbol%',
+
+  // WHATWG URL Standard
+  // https://url.spec.whatwg.org/
+  // The tamed `URL`: same prototype as `%URL%` (so `instanceof URL` holds
+  // across the boundary), but `createObjectURL` / `revokeObjectURL` are
+  // omitted.
+  URL: '%SharedURL%',
 
   // *** Other Properties of the Global Object
 
@@ -878,6 +906,97 @@ export const permitted = {
     toGMTString: fn,
 
     toTemporalInstant: fn,
+  },
+
+  // WHATWG URL Standard
+  // https://url.spec.whatwg.org/
+
+  // `%URL%` is the powered start-compartment binding. It keeps the ambient
+  // blob-registry statics; on hosts that lack them (or under
+  // `urlBlobTaming: 'remove'`, where `%URL%` is bound to `%SharedURL%`) they
+  // are simply absent, which the whitelist pass tolerates.
+  '%URL%': {
+    // Properties of the URL Constructor
+    '[[Proto]]': '%FunctionPrototype%',
+    parse: fn,
+    canParse: fn,
+    // Ambient blob-registry authority the start compartment may keep.
+    createObjectURL: fn,
+    revokeObjectURL: fn,
+    prototype: '%URLPrototype%',
+  },
+
+  // `%SharedURL%` is the tamed binding installed on every compartment created
+  // after lockdown. It omits `createObjectURL` and `revokeObjectURL` so a
+  // shared compartment cannot mint or revoke blob URLs.
+  '%SharedURL%': {
+    // Properties of the URL Constructor
+    '[[Proto]]': '%FunctionPrototype%',
+    parse: fn,
+    canParse: fn,
+    prototype: '%URLPrototype%',
+  },
+
+  '%URLPrototype%': {
+    // `constructor` points at the tamed `%SharedURL%` so no compartment
+    // reaches the powered `%URL%` via `URL.prototype.constructor`, mirroring
+    // how `%DatePrototype%.constructor` points at `%SharedDate%`.
+    constructor: '%SharedURL%',
+    hash: accessor,
+    host: accessor,
+    hostname: accessor,
+    href: accessor,
+    // `origin` and `searchParams` are read-only in the WHATWG standard.
+    origin: getter,
+    password: accessor,
+    pathname: accessor,
+    port: accessor,
+    protocol: accessor,
+    search: accessor,
+    searchParams: getter,
+    username: accessor,
+    toJSON: fn,
+    toString: fn,
+    '@@toStringTag': 'string',
+  },
+
+  URLSearchParams: {
+    // Properties of the URLSearchParams Constructor
+    '[[Proto]]': '%FunctionPrototype%',
+    prototype: '%URLSearchParamsPrototype%',
+  },
+
+  '%URLSearchParamsPrototype%': {
+    constructor: 'URLSearchParams',
+    append: fn,
+    delete: fn,
+    get: fn,
+    getAll: fn,
+    has: fn,
+    set: fn,
+    sort: fn,
+    size: getter,
+    toString: fn,
+    // Each returns an instance of `%URLSearchParamsIteratorPrototype%`, tamed
+    // below.
+    entries: fn,
+    forEach: fn,
+    keys: fn,
+    values: fn,
+    '@@iterator': fn,
+    '@@toStringTag': 'string',
+  },
+
+  // The URLSearchParams iterator prototype has no name on the global; it is
+  // reachable only by walking an instance (see `get-anonymous-intrinsics.js`,
+  // which samples it). Taming it here keeps a compartment holding a single
+  // `URLSearchParams` from mutating every other compartment's iteration.
+  '%URLSearchParamsIteratorPrototype%': {
+    '[[Proto]]': '%IteratorPrototype%',
+    next: fn,
+    // `return` is absent on some hosts (e.g. Node); permitted when present.
+    return: fn,
+    '@@toStringTag': 'string',
   },
 
   // Text Processing
