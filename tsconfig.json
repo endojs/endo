@@ -13,6 +13,7 @@
         "packages/test262-runner",
         "packages/ses/test262",
         "packages/ses/types.test-d.ts",
+        "packages/parser-pipeline/test/fixture/*-error.js",
         "**/build",
         "**/demo",
         "**/dist",
