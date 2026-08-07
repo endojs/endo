@@ -382,10 +382,7 @@ test('bundle cjs-compat default-difficulties', async t => {
   });
   t.deepEqual(resultExports, [
     ['default', 'even'],
-    ['default', 'even', 'version'],
     ['__esModule', 'default', 'even', 'version'],
-    ['__esModule', 'default', 'even', 'version'],
-    ['default', 'even', 'version'],
     ['default', 'even'],
     ['default', 'even'],
   ]);
