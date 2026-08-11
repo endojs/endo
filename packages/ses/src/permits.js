@@ -2083,6 +2083,9 @@ export const permitted = {
     encodeInto: fn,
     encoding: getter,
     '@@toStringTag': 'string',
+
+    // Non-standard property used by Node.js
+    'RegisteredSymbol(nodejs.util.inspect.custom)': false,
   },
 
   TextDecoder: {
@@ -2098,6 +2101,9 @@ export const permitted = {
     fatal: getter,
     ignoreBOM: getter,
     '@@toStringTag': 'string',
+
+    // Non-standard property used by Node.js
+    'RegisteredSymbol(nodejs.util.inspect.custom)': false,
   },
 
   // Appendix B
