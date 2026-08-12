@@ -92,7 +92,7 @@ jobs:
         run: echo LANG=en_US.utf8 >> $GITHUB_ENV
       - name: Restore Guix tarball cache
         id: guix-cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: guix-binary.x86_64-linux.tar.xz
           # Cache key includes the version and sha256 so a version
