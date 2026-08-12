@@ -54,6 +54,8 @@ import { unpackReadPowers } from './powers.js';
  *   ModuleSourceHook,
  *   ParseFn,
  *   AsyncParseFn,
+ *   MaybeReadPowers,
+ *   PackageCompartmentDescriptor,
  * } from './types.js'
  */
 
@@ -116,6 +118,52 @@ const nodejsConventionSearchSuffixes = [
 ];
 
 /**
+ * Convert a module specifier to a `file://` URL string (maybe).
+ *
+ * Normalizes a runtime-computed module specifier to a `file://` URL string when
+ * the specifier names a filesystem location. Returns `undefined` for specifiers
+ * that need no such handling (relative paths, bare package names) and for
+ * locations that cannot be recognized with the available powers.
+ *
+ * A leading `/` is unambiguously absolute and costs no powers to recognize.
+ * Every other absolute form — notably a Windows path such as `C:\dir\mod.js` —
+ * is syntactically indistinguishable from a bare package specifier, so
+ * recognizing one requires `isAbsolute`.
+ *
+ * Conversion prefers `pathToFileURL`. That is the only correct option for a
+ * Windows path, since the URL parser reads the drive letter of `C:\dir\mod.js`
+ * as a scheme and yields `c:\dir\mod.js`, and it is also the only one that
+ * percent-encodes a `#` or `?` occurring in a filename. Lacking the power we
+ * fall back to URL arithmetic, which resolves a leading slash against the root
+ * correctly and so keeps POSIX hosts working with no powers at all.
+ *
+ * Where a needed power is absent this returns `undefined`, leaving the
+ * specifier to fall through to the exit-module hook.
+ *
+ * @param {string} moduleSpecifier
+ * @param {ReadPowers} readPowers
+ * @returns {string | undefined} A `file:` URL href, or `undefined`
+ */
+const asFileUrl = (moduleSpecifier, readPowers) => {
+  if (moduleSpecifier.startsWith('file://')) {
+    return new URL(moduleSpecifier).href;
+  }
+  const { isAbsolute = specifier => specifier.startsWith('/'), pathToFileURL } =
+    readPowers;
+  if (!isAbsolute(moduleSpecifier)) {
+    return undefined;
+  }
+  if (typeof pathToFileURL === 'function') {
+    return pathToFileURL(moduleSpecifier).href;
+  }
+  // this conditional will always fail on Windows paths.
+  // pathToFileURL will URL-encode fragments and querystrings; this will not.
+  return moduleSpecifier.startsWith('/')
+    ? new URL(moduleSpecifier, 'file:').href
+    : undefined;
+};
+
+/**
  * Returns `true` if `absoluteModuleSpecifier` is within the path `compartmentLocation`.
  * @param {string} absoluteModuleSpecifier Absolute path to module specifier
  * @param {string} compartmentLocation Absolute path to compartment location
@@ -145,7 +193,7 @@ const relativeSpecifier = (absoluteModuleSpecifier, compartmentLocation) => {
  * Given a module specifier which is an absolute path, attempt to match it with
  * an existing compartment; return a {@link RedirectStaticModuleInterface} if found.
  *
- * @throws If we determine `absoluteModuleSpecifier` is unknown
+ * @throws {Error} If we determine `absoluteModuleSpecifier` is unknown
  * @param {FindRedirectParams} params Parameters
  * @returns {RedirectStaticModuleInterface|undefined} A redirect or nothing
  */
@@ -626,7 +674,9 @@ export const makeImportHookMaker = (
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || create(null);
     sources[packageLocation] = packageSources;
-    const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
+    const compartmentDescriptor = /** @type {PackageCompartmentDescriptor} */ (
+      compartmentDescriptors[packageLocation] || create(null)
+    );
     const { modules: moduleDescriptors = create(null) } = compartmentDescriptor;
     compartmentDescriptor.modules = moduleDescriptors;
 
@@ -638,15 +688,40 @@ export const makeImportHookMaker = (
 
     /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
+      const unpackedPowers = unpackReadPowers(readPowers);
+      const { maybeRead } = unpackedPowers;
+
       compartmentDescriptor.retained = true;
 
-      // for lint rule
       await null;
 
       // All importHook errors must be deferred if coming from loading dependencies
       // identified by a parser that discovers imports heuristically.
       try {
         // per-module:
+
+        // Handle runtime-computed `file://` URLs and absolute paths, which
+        // `resolveDynamic` in `resolveHook` passes through verbatim. We
+        // normalize them to a `file:` URL and then either return a redirect
+        // (within-compartment) or delegate to `findRedirect` (cross-package).
+        const locationUrl = asFileUrl(moduleSpecifier, unpackedPowers);
+        if (locationUrl !== undefined) {
+          if (isLocationWithinCompartment(locationUrl, packageLocation)) {
+            return {
+              specifier: relativeSpecifier(locationUrl, packageLocation),
+              compartment: compartments[packageLocation],
+            };
+          }
+          const record = findRedirect({
+            compartmentDescriptor,
+            compartmentDescriptors,
+            compartments,
+            absoluteModuleSpecifier: locationUrl,
+          });
+          if (record !== undefined) {
+            return record;
+          }
+        }
 
         // In Node.js, an absolute specifier always indicates a built-in or
         // third-party dependency.
@@ -701,8 +776,6 @@ export const makeImportHookMaker = (
             )} in package ${packageLocation}`,
           );
         }
-
-        const { maybeRead } = unpackReadPowers(readPowers);
 
         const candidates = nominateCandidates(moduleSpecifier, searchSuffixes);
 
@@ -869,18 +942,23 @@ export function makeImportNowHookMaker(
 
     compartmentDescriptor.modules = moduleDescriptors;
 
-    const { maybeReadNow, isAbsolute } = readPowers;
+    const { maybeReadNow } = readPowers;
 
     /** @type {ImportNowHook} */
     const importNowHook = moduleSpecifier => {
       try {
-        // many dynamically-required specifiers will be absolute paths owing to use of `require.resolve()` and `path.resolve()`
-        if (isAbsolute(moduleSpecifier)) {
+        // many dynamically-required specifiers will be absolute paths owing to
+        // use of `require.resolve()` and `path.resolve()`. Normalizing to a
+        // `file:` URL up front is what lets the comparisons below hold: every
+        // compartment location is a URL, so an unconverted path could never
+        // match one.
+        const locationUrl = asFileUrl(moduleSpecifier, readPowers);
+        if (locationUrl !== undefined) {
           const record = findRedirect({
             compartmentDescriptor,
             compartmentDescriptors,
             compartments,
-            absoluteModuleSpecifier: moduleSpecifier,
+            absoluteModuleSpecifier: locationUrl,
           });
           if (record) {
             return record;
@@ -889,16 +967,8 @@ export function makeImportNowHookMaker(
           // if and only if the module specifier is within the compartment can we
           // make it a relative specifier. the following conditional avoids a try/catch
           // since `relativeSpecifier` will throw if this condition is not met
-          if (
-            isLocationWithinCompartment(
-              moduleSpecifier,
-              compartmentDescriptor.location,
-            )
-          ) {
-            moduleSpecifier = relativeSpecifier(
-              moduleSpecifier,
-              compartmentDescriptor.location,
-            );
+          if (isLocationWithinCompartment(locationUrl, packageLocation)) {
+            moduleSpecifier = relativeSpecifier(locationUrl, packageLocation);
           }
         } else if (
           moduleSpecifier !== '.' &&

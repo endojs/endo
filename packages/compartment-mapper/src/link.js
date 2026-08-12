@@ -53,6 +53,34 @@ const { apply } = Reflect;
 const { allSettled } = Promise;
 
 /**
+ * A resolve hook that passes `file://` URLs and leading-slash (absolute)
+ * paths through untouched, delegating everything else to `resolveFallback`.
+ *
+ * This is the default `resolveHook` for live-import paths. It ensures that
+ * runtime-computed dynamic `import()` specifiers of the form
+ * `file:///abs/path/mod.js` or `/abs/path/mod.js` survive the
+ * `resolveHook` stage and reach `importHook` intact, where they are resolved
+ * against the compartment map. `resolveFallback` would otherwise throw on
+ * the latter and mangle the former.
+ *
+ * Windows absolute paths such as `C:\dir\mod.js` need no case of their own:
+ * `resolveFallback` already returns them unchanged, since it recognizes only
+ * `.` and `..` segments as meaningful. They are likewise resolved in
+ * `importHook`, which unlike this hook has the `isAbsolute` power needed to
+ * distinguish them from bare package specifiers.
+ *
+ * @param {string} spec
+ * @param {string} referrer
+ * @returns {string}
+ */
+const resolveFallbackUnlessAbsolute = (spec, referrer) => {
+  if (spec.startsWith('file://') || spec.startsWith('/')) {
+    return spec;
+  }
+  return resolveFallback(spec, referrer);
+};
+
+/**
  * @template T
  * @type {(iterable: Iterable<Promise<T>>) => Promise<Array<PromiseSettledResult<T>>>}
  */
@@ -358,7 +386,7 @@ export const link = (
   options,
 ) => {
   const {
-    resolve = resolveFallback,
+    resolve = resolveFallbackUnlessAbsolute,
     makeImportHook,
     makeImportNowHook = impossibleImportNowHookMaker,
     parserForLanguage: parserForLanguageOption = {},
