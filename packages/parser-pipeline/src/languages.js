@@ -27,7 +27,7 @@ const { freeze } = Object;
  *
  * @type {RecordFinalizer<CjsLanguage>}
  */
-export const defaultCjsFinalizeRecord = (
+const defaultCjsFinalizeRecord = (
   cjsRecord,
   location,
   packageLocation,
