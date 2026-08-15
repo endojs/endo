@@ -40,7 +40,6 @@
     "typescript": ">=4.8.4 <7.0.0"
   },
   "devDependencies": {
-    "@types/eslint-config-prettier": "^6.11.3",
     "@typescript-eslint/rule-tester": "^8.62.1",
     "@typescript-eslint/types": "^8.63.0",
     "eslint": "catalog:dev",
