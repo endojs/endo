@@ -1,5 +1,11 @@
 # @endo/evasive-transform
 
+## 2.3.1
+
+### Patch Changes
+
+- [#3344](https://github.com/endojs/endo/pull/3344) [`cafd9fc`](https://github.com/endojs/endo/commit/cafd9fc0c4b49becf1311d18e157ce7f19a6bb58) Thanks [@boneskull](https://github.com/boneskull)! - Bump for release only.
+
 ## 2.3.0
 
 ### Minor Changes
