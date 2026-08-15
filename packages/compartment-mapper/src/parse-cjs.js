@@ -15,7 +15,7 @@ const textDecoder = new TextDecoder();
 const { freeze } = Object;
 
 /** @type {ParseFn} */
-export const parseCjs = (
+const parseCjs = (
   bytes,
   _specifier,
   location,

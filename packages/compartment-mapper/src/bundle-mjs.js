@@ -38,7 +38,7 @@ const adaptReexport = reexportMap => {
   return ret;
 };
 
-export const runtime = `\
+const runtime = `\
 function observeImports(map, importName, importIndex) {
   for (const [name, observers] of map.get(importName)) {
     const cell = cells[importIndex][name];

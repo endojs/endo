@@ -26,7 +26,7 @@ import { buildCjsExecuteRecord } from './cjs.js';
 const textDecoder = new TextDecoder();
 
 /** @type {ParseFn} */
-export const parseCjsBabel = (
+const parseCjsBabel = (
   bytes,
   _specifier,
   location,

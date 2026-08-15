@@ -109,7 +109,7 @@ const captureSourceLocations = async (sources, captureSourceLocation) => {
  * @param {Sources} sources
  * @returns {ArchiveResult}
  */
-export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
+const makeArchiveCompartmentMap = (compartmentMap, sources) => {
   /** @type {CompartmentsRenameFn<FileUrlString, string>} */
   const renameCompartments = compartments => {
     /** @type {Record<FileUrlString, string>} */
