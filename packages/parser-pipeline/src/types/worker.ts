@@ -54,7 +54,7 @@ export interface WorkerParserPoolOptions {
  * @returns A promise that resolves when the pool is terminated.
  * @internal
  */
-export type TerminateFn = () => Promise<void>;
+type TerminateFn = () => Promise<void>;
 
 /**
  * Base interface for all worker messages.
@@ -62,7 +62,7 @@ export type TerminateFn = () => Promise<void>;
  * @template TType The `type` property of the message.
  * @internal
  */
-export interface BaseWorkerMessage<TType extends string = string> {
+interface BaseWorkerMessage<TType extends string = string> {
   type: TType;
   id: string;
 }
@@ -160,7 +160,7 @@ export type WorkerResponseMessage =
 /**
  * @internal
  */
-export interface BaseWorkerPoolTask<
+interface BaseWorkerPoolTask<
   TVisitorResults extends readonly any[] = unknown[],
 > {
   resolve: (
