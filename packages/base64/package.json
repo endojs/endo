@@ -41,10 +41,8 @@
   },
   "devDependencies": {
     "ava": "catalog:dev",
-    "babel-eslint": "^10.1.0",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "prettier": "^3.5.3",
     "typescript": "catalog:dev"
   },
   "files": [
