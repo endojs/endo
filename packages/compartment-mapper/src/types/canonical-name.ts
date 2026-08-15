@@ -85,7 +85,7 @@ type IsValidPackageNameSegment<S extends string> =
 // ============================================================================
 
 /** A scoped npm package name, like "@scope/pkg" */
-export type ScopedPackageName<S extends string = string> =
+type ScopedPackageName<S extends string = string> =
   S extends `@${infer Scope}/${infer Name}`
     ? IsValidPackageNameSegment<Scope> extends true
       ? IsValidPackageNameSegment<Name> extends true
@@ -104,7 +104,7 @@ export type ScopedPackageName<S extends string = string> =
  * npm rules, but they exist in the wild. TypeScript cannot reliably validate
  * case at the type level, so we don't enforce this.
  */
-export type UnscopedPackageName<S extends string = string> =
+type UnscopedPackageName<S extends string = string> =
   S extends `${string}/${string}`
     ? never
     : IsValidPackageNameSegment<S> extends true
@@ -114,7 +114,7 @@ export type UnscopedPackageName<S extends string = string> =
 /**
  * A scoped or unscoped npm package name.
  */
-export type NpmPackageName<S extends string = string> =
+type NpmPackageName<S extends string = string> =
   S extends `@${string}/${string}`
     ? ScopedPackageName<S>
     : UnscopedPackageName<S>;
@@ -122,7 +122,7 @@ export type NpmPackageName<S extends string = string> =
 /**
  * Split a string on `>`—the canonical name delimiter—into a tuple of segments.
  */
-export type SplitOnDelimiter<S extends string> =
+type SplitOnDelimiter<S extends string> =
   S extends `${infer Head}>${infer Tail}`
     ? [Head, ...SplitOnDelimiter<Tail>]
     : [S];
@@ -131,15 +131,14 @@ export type SplitOnDelimiter<S extends string> =
  * Validate that every element in a tuple of strings is a valid npm package
  * name.
  */
-export type AllValidPackageNames<Parts extends readonly string[]> =
-  Parts extends [
-    infer Head extends string,
-    ...infer Tail extends readonly string[],
-  ]
-    ? NpmPackageName<Head> extends never
-      ? never
-      : AllValidPackageNames<Tail>
-    : Parts;
+type AllValidPackageNames<Parts extends readonly string[]> = Parts extends [
+  infer Head extends string,
+  ...infer Tail extends readonly string[],
+]
+  ? NpmPackageName<Head> extends never
+    ? never
+    : AllValidPackageNames<Tail>
+  : Parts;
 
 /**
  * A Canonical Name string comprised of one or more npm package names separated

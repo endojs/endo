@@ -1309,7 +1309,7 @@ const finalizeGraph = (
  * @param {CompartmentMapForNodeModulesOptions} [options]
  * @returns {Promise<PackageCompartmentMapDescriptor>}
  */
-export const compartmentMapForNodeModules_ = async (
+const compartmentMapForNodeModules_ = async (
   readPowers,
   entryPackageLocation,
   conditionsOption,
@@ -1550,5 +1550,6 @@ export const mapNodeModules = async (
 
 /**
  * @deprecated Use {@link mapNodeModules} instead.
+ * @alias
  */
 export const compartmentMapForNodeModules = compartmentMapForNodeModules_;

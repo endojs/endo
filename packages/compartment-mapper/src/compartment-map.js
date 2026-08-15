@@ -833,7 +833,7 @@ export const assertFileCompartmentMap = (
  * @param {string} url
  * @returns {asserts allegedCompartments is Record<string, DigestedCompartmentDescriptor>}
  */
-export const assertDigestedCompartmentDescriptors = (
+const assertDigestedCompartmentDescriptors = (
   allegedCompartments,
   url = '<unknown-compartment-map.json>',
 ) => {
@@ -862,8 +862,10 @@ export const assertDigestedCompartmentMap = (
  * @param {unknown} allegedCompartmentMap
  * @param {string} [url]
  * @returns {asserts allegedCompartmentMap is PackageCompartmentMapDescriptor}
+ * @knipignore
  */
-export const assertPackageCompartmentMap = (
+// eslint-disable-next-line no-unused-vars
+const assertPackageCompartmentMap = (
   allegedCompartmentMap,
   url = '<unknown-compartment-map.json>',
 ) => {
