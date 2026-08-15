@@ -16,7 +16,7 @@ import { wrap, getModulePaths } from './parse-cjs-shared-export-wrapper.js';
 const textDecoder = new TextDecoder();
 
 /** @type {ParseFn} */
-export const parsePreCjs = (
+const parsePreCjs = (
   bytes,
   _specifier,
   location,

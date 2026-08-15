@@ -18,7 +18,7 @@ const freeze = Object.freeze;
 const textDecoder = new TextDecoder();
 
 /** @type {ParseFn} */
-export const parseJson = (bytes, _specifier, location, _packageLocation) => {
+const parseJson = (bytes, _specifier, location, _packageLocation) => {
   const source = textDecoder.decode(bytes);
   /** @type {Array<string>} */
   const imports = freeze([]);

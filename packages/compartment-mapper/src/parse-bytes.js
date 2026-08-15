@@ -17,7 +17,7 @@
 const freeze = Object.freeze;
 
 /** @type {ParseFn} */
-export const parseBytes = (bytes, _specifier, _location, _packageLocation) => {
+const parseBytes = (bytes, _specifier, _location, _packageLocation) => {
   // Snapshot ArrayBuffer
   const buffer = new ArrayBuffer(bytes.length);
   const bytesView = new Uint8Array(buffer);

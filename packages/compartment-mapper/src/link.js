@@ -556,11 +556,3 @@ export const link = (
     ),
   };
 };
-
-/**
- * @param {PackageCompartmentMapDescriptor} compartmentMap
- * @param {LinkOptions} options
- * @deprecated Use {@link link}.
- */
-export const assemble = (compartmentMap, options) =>
-  link(compartmentMap, options).compartment;

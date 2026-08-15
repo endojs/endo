@@ -13,7 +13,7 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 /** @type {ParseFn} */
-export const parseArchiveMjs = (
+const parseArchiveMjs = (
   bytes,
   _specifier,
   sourceUrl,
