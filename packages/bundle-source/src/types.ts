@@ -5,7 +5,7 @@ export type ModuleFormat =
   | 'getExport';
 
 export type Logger = (...args: unknown[]) => void;
-export type ComputeSha512 = (bytes: string | Uint8Array) => string;
+type ComputeSha512 = (bytes: string | Uint8Array) => string;
 
 export interface SharedPowers {
   computeSha512?: ComputeSha512 | undefined;
@@ -33,12 +33,12 @@ export interface BundleCacheOptions extends BundleCacheOperationOptions {
   log?: Logger | undefined;
 }
 
-export interface BundleMetaModuleSource {
+interface BundleMetaModuleSource {
   relative: string;
   absolute: string;
 }
 
-export interface BundleMetaContent {
+interface BundleMetaContent {
   relativePath: string;
   mtime: string;
   size: number;
@@ -212,31 +212,29 @@ export type BundleSourceResult<T extends ModuleFormat> =
           }
         : never;
 
-export interface BundlePowers extends SharedPowers {
+interface BundlePowers extends SharedPowers {
   read?: ReadFn | undefined;
   canonical?: CanonicalFn | undefined;
   externals?: string[] | undefined;
 }
 
-export type BundleSourceSimple = <T extends 'endoZipBase64'>(
+type BundleSourceSimple = <T extends 'endoZipBase64'>(
   startFilename: string,
 ) => Promise<BundleSourceResult<T>>;
 
-export type BundleSourceWithFormat = <T extends ModuleFormat = 'endoZipBase64'>(
+type BundleSourceWithFormat = <T extends ModuleFormat = 'endoZipBase64'>(
   startFilename: string,
   format: T,
   powers?: BundlePowers,
 ) => Promise<BundleSourceResult<T>>;
 
-export type BundleSourceWithOptions = <
-  T extends ModuleFormat = 'endoZipBase64',
->(
+type BundleSourceWithOptions = <T extends ModuleFormat = 'endoZipBase64'>(
   startFilename: string,
   bundleOptions: BundleOptions<T>,
   powers?: BundlePowers,
 ) => Promise<BundleSourceResult<T>>;
 
-export type BundleSourceGeneral = <T extends ModuleFormat = 'endoZipBase64'>(
+type BundleSourceGeneral = <T extends ModuleFormat = 'endoZipBase64'>(
   startFilename: string,
   formatOrOptions?: T | BundleOptions<T>,
   powers?: BundlePowers,
