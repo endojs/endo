@@ -1,5 +1,11 @@
 # @endo/pass-style
 
+## 2.0.1
+
+### Patch Changes
+
+- [#3343](https://github.com/endojs/endo/pull/3343) [`c0f60b4`](https://github.com/endojs/endo/commit/c0f60b437dee39cf8a62c3edb580809c5b0a1fe3) Thanks [@boneskull](https://github.com/boneskull)! - Version bump for `latest` dist-tag only. This is the same version as v1.8.2.
+
 ## 1.8.2
 
 ### Patch Changes
