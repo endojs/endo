@@ -19,10 +19,7 @@ export const withInterrupt = async callback => {
   }
 };
 
-export const withEndoBootstrap = (
-  { os, process, clientName = 'cli' },
-  callback,
-) =>
+const withEndoBootstrap = ({ os, process, clientName = 'cli' }, callback) =>
   withInterrupt(async ({ cancel, cancelled }) => {
     const { username, homedir } = os.userInfo();
     const temp = os.tmpdir();
