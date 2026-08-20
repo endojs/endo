@@ -86,6 +86,9 @@ api-docs
 # pack-all output
 /dist/
 
+# profiler output
+*.cpuprofile
+
 # ignore all declarations and mappings, but allow the "*.types.d{m,c,t}s"
 # convention below to make it easier to track new declaration files as needed
 *.d.ts*
