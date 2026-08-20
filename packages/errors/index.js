@@ -92,13 +92,31 @@ export {
 };
 
 // conventional abbreviations
+/**
+ * @alias
+ */
 export const b = bare;
+/**
+ * @alias
+ */
 export const X = details;
+/**
+ * @alias
+ */
 export const q = quote;
 
 // other aliases
+/**
+ * @alias
+ */
 export const annotateError = note;
+/**
+ * @alias
+ */
 export const redacted = details;
+/**
+ * @alias
+ */
 export const throwRedacted = Fail;
 
 /**
