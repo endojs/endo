@@ -83,7 +83,7 @@ export const confirmElements = (elements, reject) => {
 };
 harden(confirmElements);
 
-export const assertElements = elements => {
+const assertElements = elements => {
   confirmElements(elements, Fail);
 };
 hideAndHardenFunction(assertElements);
