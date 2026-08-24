@@ -4,8 +4,6 @@ import {
   Set,
   String,
   isArray,
-  arrayJoin,
-  arraySlice,
   arraySort,
   arrayMap,
   keys,
@@ -20,29 +18,6 @@ import {
   stringifyJson,
   toStringTagSymbol,
 } from '../commons.js';
-
-/** @import {Stringable} from '../../types.js' */
-
-/**
- * Joins English terms with commas and an optional conjunction.
- *
- * @param {(string | Stringable)[]} terms
- * @param {"and" | "or"} conjunction
- */
-export const enJoin = (terms, conjunction) => {
-  if (terms.length === 0) {
-    return '(none)';
-  } else if (terms.length === 1) {
-    return terms[0];
-  } else if (terms.length === 2) {
-    const [first, second] = terms;
-    return `${first} ${conjunction} ${second}`;
-  } else {
-    return `${arrayJoin(arraySlice(terms, 0, -1), ', ')}, ${conjunction} ${
-      terms[terms.length - 1]
-    }`;
-  }
-};
 
 /**
  * Prepend the correct indefinite article onto a noun, typically a typeof

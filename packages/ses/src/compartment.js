@@ -139,7 +139,7 @@ const compartmentImportNow = (compartment, specifier) => {
 };
 
 /** @type {Compartment & {constructor: typeof InertCompartment}} */
-export const CompartmentPrototype = {
+const CompartmentPrototype = {
   constructor: InertCompartment,
 
   get globalThis() {
