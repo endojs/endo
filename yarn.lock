@@ -767,7 +767,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@endo/env-options@workspace:packages/env-options"
   dependencies:
-    ava: "catalog:dev"
     eslint: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
