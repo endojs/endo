@@ -47,7 +47,7 @@ const normalizeFilePath = path => {
  * @param {object} args
  * @param {(error: Error) => void} args.cancel
  */
-export const makeWorkerFacet = ({ cancel }) => {
+const makeWorkerFacet = ({ cancel }) => {
   return makeExo('EndoWorkerFacetForDaemon', WorkerFacetForDaemonInterface, {
     terminate: async () => {
       console.error('Endo worker received terminate request');

@@ -19,13 +19,13 @@ export const isPetName = petName => validPetNamePattern.test(petName);
  * @param {string} name
  * @returns {name is SpecialName}
  */
-export const isSpecialName = name => validSpecialNamePattern.test(name);
+const isSpecialName = name => validSpecialNamePattern.test(name);
 
 /**
  * @param {string} name
  * @returns {name is Name}
  */
-export const isName = name => isPetName(name) || isSpecialName(name);
+const isName = name => isPetName(name) || isSpecialName(name);
 
 /**
  * @param {string} petName
@@ -41,7 +41,7 @@ export const assertPetName = petName => {
  * @param {string} name
  * @returns {asserts name is SpecialName}
  */
-export const assertSpecialName = name => {
+const assertSpecialName = name => {
   if (typeof name !== 'string' || !isSpecialName(name)) {
     throw new Error(`Invalid special name ${q(name)}`);
   }
