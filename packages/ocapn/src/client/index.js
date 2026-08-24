@@ -21,7 +21,7 @@ import { makeOcapn } from './ocapn.js';
  * @param {OcapnLocation} myLocation
  * @returns {SelfIdentity}
  */
-export const makeSelfIdentity = myLocation => {
+const makeSelfIdentity = myLocation => {
   const keyPair = makeOcapnKeyPair();
   const myLocationSig = signLocation(myLocation, keyPair);
   return { keyPair, location: myLocation, locationSignature: myLocationSig };

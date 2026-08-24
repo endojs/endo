@@ -88,7 +88,7 @@ const slotTypes = harden({
  * @param {SlotType} type
  * @returns {SlotTypeName}
  */
-export const slotTypeToName = type => {
+const slotTypeToName = type => {
   const name = slotTypes[type];
   if (name === undefined) {
     throw new Error(`OCapN: Unknown slot type: ${type}`);
