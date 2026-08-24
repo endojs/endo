@@ -209,8 +209,6 @@ const unredactedDetails = (template, ...args) => {
   return redactedDetails(template, ...args);
 };
 freeze(unredactedDetails);
-export { unredactedDetails };
-
 /**
  * Get arguments suitable for a console logger function (e.g., `console.error`)
  * from `details` template literal contents, unquoting quoted substitution
@@ -307,7 +305,7 @@ const tagError = (err, optErrorName = err.name) => {
  *
  * @param {Error} error
  */
-export const sanitizeError = error => {
+const sanitizeError = error => {
   const descs = getOwnPropertyDescriptors(error);
   const {
     name: _nameDesc,

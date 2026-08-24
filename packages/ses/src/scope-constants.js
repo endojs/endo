@@ -100,7 +100,7 @@ const identifierPattern = freezeRegexp(/^[a-zA-Z_$][\w$]*$/);
  *
  * @param {string} name
  */
-export const isValidIdentifierName = name =>
+const isValidIdentifierName = name =>
   !setHas(reservedNames, name) && regexpSearch(identifierPattern, name) !== -1;
 
 /*
