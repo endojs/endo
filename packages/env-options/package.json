@@ -31,7 +31,6 @@
     "test": "exit 0"
   },
   "devDependencies": {
-    "ava": "catalog:dev",
     "eslint": "catalog:dev",
     "typescript": "catalog:dev"
   },
