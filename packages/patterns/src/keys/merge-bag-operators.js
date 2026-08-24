@@ -285,7 +285,7 @@ const bagify = bagEntriesOp => (xbag, ybag) =>
   makeBagOfEntries(bagEntriesOp(xbag.payload, ybag.payload));
 
 export const bagIsSuperbag = rawBagify(bagEntriesIsSuperbag);
-export const bagIsDisjoint = rawBagify(bagEntriesIsDisjoint);
+const bagIsDisjoint = rawBagify(bagEntriesIsDisjoint);
 export const bagUnion = bagify(bagEntriesUnion);
 export const bagIntersection = bagify(bagEntriesIntersection);
 export const bagDisjointSubtract = bagify(bagEntriesDisjointSubtract);
