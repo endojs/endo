@@ -1276,11 +1276,13 @@ __metadata:
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/panic": "workspace:^"
-    ava: "npm:^6 || ^7 || ^8"
+    ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
     typescript: "catalog:dev"
+  peerDependencies:
+    ava: ^6 || ^7 || ^8
   bin:
     ses-ava: bin/ses-ava.cjs
   languageName: unknown
@@ -3403,7 +3405,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ava@npm:^6 || ^7 || ^8, ava@npm:^8.0.1":
+"ava@npm:^8.0.1":
   version: 8.0.1
   resolution: "ava@npm:8.0.1"
   dependencies:
