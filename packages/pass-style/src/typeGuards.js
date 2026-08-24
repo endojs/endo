@@ -23,7 +23,7 @@ hideAndHardenFunction(isCopyArray);
  * @param {Passable} arr
  * @returns {arr is ByteArray}
  */
-export const isByteArray = arr => passStyleOf(arr) === 'byteArray';
+const isByteArray = arr => passStyleOf(arr) === 'byteArray';
 hideAndHardenFunction(isByteArray);
 
 /**
@@ -64,7 +64,7 @@ hideAndHardenFunction(assertCopyArray);
  * @param {string=} optNameOfArray
  * @returns {asserts arr is ByteArray}
  */
-export const assertByteArray = (arr, optNameOfArray = 'Alleged byteArray') => {
+const assertByteArray = (arr, optNameOfArray = 'Alleged byteArray') => {
   const passStyle = passStyleOf(arr);
   passStyle === 'byteArray' ||
     Fail`${q(
