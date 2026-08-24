@@ -151,7 +151,7 @@ harden(confirmSafePromise);
  * @param {unknown} pr The value to examine
  * @returns {pr is Promise} Whether it is a promise
  */
-export const isSafePromise = pr => confirmSafePromise(pr, false);
+const isSafePromise = pr => confirmSafePromise(pr, false);
 hideAndHardenFunction(isSafePromise);
 
 export const assertSafePromise = pr => confirmSafePromise(pr, Fail);
