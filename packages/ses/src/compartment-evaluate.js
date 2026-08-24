@@ -12,7 +12,7 @@ import {
 } from './transforms.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
 
-export const provideCompartmentEvaluator = (compartmentFields, options) => {
+const provideCompartmentEvaluator = (compartmentFields, options) => {
   const { sloppyGlobalsMode = false, __moduleShimLexicals__ = undefined } =
     options;
 
