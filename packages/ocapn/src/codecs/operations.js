@@ -60,7 +60,7 @@ const OpGcAnswersCodec = makeOcapnRecordCodecFromDefinition(
   },
 );
 
-export const OcapnPreSessionOperationsCodecs = makeRecordUnionCodec(
+const OcapnPreSessionOperationsCodecs = makeRecordUnionCodec(
   'OcapnPreSessionOperations',
   {
     OpStartSession: OpStartSessionCodec,

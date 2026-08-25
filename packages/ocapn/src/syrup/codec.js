@@ -83,7 +83,7 @@ export const makeCodec = (codecName, { write, read }) => {
 };
 
 /** @type {SyrupCodec} */
-export const SelectorAsStringCodec = makeCodec('SelectorAsString', {
+const SelectorAsStringCodec = makeCodec('SelectorAsString', {
   write: (value, syrupWriter) => syrupWriter.writeSelectorFromString(value),
   read: syrupReader => syrupReader.readSelectorAsString(),
 });
@@ -184,7 +184,7 @@ export const makeExpectedLengthBytestringCodec = (codecName, length) => {
 };
 
 /** @type {SyrupCodec} */
-export const NumberPrefixCodec = makeCodec('NumberPrefix', {
+const NumberPrefixCodec = makeCodec('NumberPrefix', {
   read: syrupReader => {
     const { type, value } = syrupReader.readTypeAndMaybeValue();
     if (
@@ -477,11 +477,7 @@ export const makeRecordCodecFromDefinition = (
  * @param {function(any): SyrupCodec} selectCodecForWrite
  * @returns {SyrupCodec}
  */
-export const makeUnionCodec = (
-  codecName,
-  selectCodecForRead,
-  selectCodecForWrite,
-) => {
+const makeUnionCodec = (codecName, selectCodecForRead, selectCodecForWrite) => {
   /**
    * @param {SyrupReader} syrupReader
    * @returns {SyrupCodec}

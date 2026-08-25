@@ -42,7 +42,7 @@ export const ShimStartCompartment = makeCompartmentConstructor(
   tameFunctionToString(),
 );
 
-export const shimCompartmentPrototype = ShimStartCompartment.prototype;
+const shimCompartmentPrototype = ShimStartCompartment.prototype;
 
 export const shimEvaluate = uncurryThis(shimCompartmentPrototype.evaluate);
 export const shimImport = uncurryThis(shimCompartmentPrototype.import);

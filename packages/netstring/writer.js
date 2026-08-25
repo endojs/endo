@@ -93,5 +93,8 @@ export const makeNetstringWriter = (output, { chunked = false } = {}) => {
 };
 harden(makeNetstringWriter);
 
-// Legacy
+/**
+ * Legacy
+ * @alias
+ */
 export const netstringWriter = makeNetstringWriter;

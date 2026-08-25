@@ -313,11 +313,7 @@ const getBundlerKitForModule = (module, params) => {
  * @param {BundleOptions} [options]
  * @returns {Promise<string>}
  */
-export const makeFunctorFromMap = async (
-  readPowers,
-  compartmentMap,
-  options,
-) => {
+const makeFunctorFromMap = async (readPowers, compartmentMap, options) => {
   const {
     moduleTransforms,
     syncModuleTransforms,
@@ -659,11 +655,7 @@ ${m.bundlerKit.getFunctor()}`,
  * @param {BundleOptions} [options]
  * @returns {Promise<string>}
  */
-export const makeScriptFromMap = async (
-  readPowers,
-  compartmentMap,
-  options,
-) => {
+const makeScriptFromMap = async (readPowers, compartmentMap, options) => {
   // Functors partially apply the linker runtime.
   // Scripts go on to apply static options and execute immediately.
   const functor = await makeFunctorFromMap(readPowers, compartmentMap, options);

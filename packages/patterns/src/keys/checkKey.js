@@ -167,7 +167,7 @@ harden(getCopySetKeys);
  * @param {(key: K, index: number) => boolean} fn
  * @returns {boolean}
  */
-export const everyCopySetKey = (s, fn) =>
+const everyCopySetKey = (s, fn) =>
   getCopySetKeys(s).every((key, index) => fn(key, index));
 harden(everyCopySetKey);
 
@@ -248,7 +248,7 @@ harden(getCopyBagEntries);
  * @param {(entry: [K, bigint], index: number) => boolean} fn
  * @returns {boolean}
  */
-export const everyCopyBagEntry = (b, fn) =>
+const everyCopyBagEntry = (b, fn) =>
   getCopyBagEntries(b).every((entry, index) => fn(entry, index));
 harden(everyCopyBagEntry);
 
@@ -366,7 +366,7 @@ harden(getCopyMapKeys);
  * @param {CopyMap<K,V>} m
  * @returns {V[]}
  */
-export const getCopyMapValues = m => {
+const getCopyMapValues = m => {
   assertCopyMap(m);
   return m.payload.values;
 };
@@ -430,7 +430,7 @@ harden(getCopyMapEntries);
  * @param {(key: K, index: number) => boolean} fn
  * @returns {boolean}
  */
-export const everyCopyMapKey = (m, fn) =>
+const everyCopyMapKey = (m, fn) =>
   getCopyMapKeys(m).every((key, index) => fn(key, index));
 harden(everyCopyMapKey);
 
@@ -441,7 +441,7 @@ harden(everyCopyMapKey);
  * @param {(value: V, index: number) => boolean} fn
  * @returns {boolean}
  */
-export const everyCopyMapValue = (m, fn) =>
+const everyCopyMapValue = (m, fn) =>
   getCopyMapValues(m).every((value, index) => fn(value, index));
 harden(everyCopyMapValue);
 

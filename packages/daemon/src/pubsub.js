@@ -17,20 +17,20 @@ const freeze = /** @type {<T>(v: T | Readonly<T>) => T} */ (Object.freeze);
  * @param {TValue} value
  * @returns {AsyncQueue<TValue, unknown>}
  */
-export const makeNullQueue = value =>
+const makeNullQueue = value =>
   harden({
     put: () => {},
     get: async () => value,
   });
 
-export const nullIteratorQueue = makeNullQueue(
+const nullIteratorQueue = makeNullQueue(
   harden({ value: undefined, done: false }),
 );
 
 /**
  * @template TValue
  */
-export const makeChangePubSub = () => {
+const makeChangePubSub = () => {
   // Request pubsub async queue internals
   let { promise: tailPromise, resolve: tailResolve } = makePromiseKit();
 

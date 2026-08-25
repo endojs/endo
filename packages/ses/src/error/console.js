@@ -325,7 +325,7 @@ freeze(makeLoggingConsoleKit);
  * @param {LogRecord[]} log
  * @param {VirtualConsole} baseConsole
  */
-export const pumpLogToConsole = (log, baseConsole) => {
+const pumpLogToConsole = (log, baseConsole) => {
   for (const [name, ...args] of log) {
     // eslint-disable-next-line @endo/no-polymorphic-call
     baseConsole[name](...args);

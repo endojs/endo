@@ -125,7 +125,7 @@ export interface RunPipelineResult<TLanguage extends PipelineLanguage> {
  * @template TLanguage - The specific pipeline language this definition covers.
  * @internal
  */
-export interface LanguageDefinition<
+interface LanguageDefinition<
   TLanguage extends PipelineLanguage,
   TAnalysisContext,
 > {

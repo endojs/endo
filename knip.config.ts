@@ -118,6 +118,7 @@ const config: KnipConfig = {
         // afaict everything here is up for grabs
         entry: ['**/*.js'],
       },
+      ignoreDependencies: [/.*/],
     },
   },
   // allows use of @knipignore in docstrings to suppress errors

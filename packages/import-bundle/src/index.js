@@ -202,6 +202,7 @@ export async function importBundle(bundle, options = {}, powers = {}) {
  * @param {object} [options]
  * @param {object} [powers]
  * @returns {Promise<T>}
+ * @alias
  */
 export const typedImportBundle = importBundle;
 
