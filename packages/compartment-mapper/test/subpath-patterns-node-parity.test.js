@@ -12,6 +12,7 @@ import {
   assertConditionalDefault,
   assertPrecedence,
   assertImportsEdgeCasesDefault,
+  assertOwnExportPatterns,
 } from './_subpath-patterns-assertions.js';
 
 const fixtureBase = new URL(
@@ -161,6 +162,16 @@ test('absolute path in subpath pattern is rejected by Node.js', async t => {
       code: 'ERR_INVALID_PACKAGE_TARGET',
     },
   );
+});
+
+test("Node does not apply a package's own export patterns to its internal specifiers", async t => {
+  const ns = await import(
+    new URL(
+      'fixtures-package-imports-exports/node_modules/own-export-patterns-app/main.js',
+      import.meta.url,
+    ).href
+  );
+  assertOwnExportPatterns(t, ns);
 });
 
 test('Node prefers the longer full pattern key on equal prefix length', async t => {

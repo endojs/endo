@@ -1,9 +1,12 @@
 /**
  * Shared assertion logic for subpath pattern tests.
  *
- * Both the Node.js parity tests and the Compartment Mapper (Endo) tests
- * import from this module so that the expected values are defined in exactly
- * one place. If both test suites pass, parity is verified by construction.
+ * Both the Node.js parity tests and the Compartment Mapper (Endo) tests import
+ * from this module so that the expected values are defined in exactly one
+ * place. If both test suites pass, parity is verified by construction.
+ *
+ * A shallow clone is taken of the namespace because the result is a `Module`
+ * object, which would not otherwise satisfy AVA's `deepEqual` assertion.
  *
  * @module
  */
@@ -41,11 +44,21 @@ export const expectedImportsEdgeCasesDev = {
 };
 
 /**
+ * A package's own `exports` patterns are keyed by the subpath an importer asks
+ * for, so they apply to `own-export-patterns-lib/feature/helper.js` but never
+ * to the library's own `./feature/helper.js`.
+ */
+export const expectedOwnExportPatterns = {
+  internal: 'internal-relative',
+  external: 'external-subpath',
+};
+
+/**
  * @param {ExecutionContext} t
  * @param {object} namespace
  */
 export const assertMain = (t, namespace) => {
-  t.like(namespace, expectedMain);
+  t.deepEqual({ ...namespace }, expectedMain);
 };
 
 /**
@@ -53,7 +66,7 @@ export const assertMain = (t, namespace) => {
  * @param {object} namespace
  */
 export const assertConditionalBlue = (t, namespace) => {
-  t.like(namespace, expectedConditionalBlue);
+  t.deepEqual({ ...namespace }, expectedConditionalBlue);
 };
 
 /**
@@ -61,7 +74,7 @@ export const assertConditionalBlue = (t, namespace) => {
  * @param {object} namespace
  */
 export const assertConditionalDefault = (t, namespace) => {
-  t.like(namespace, expectedConditionalDefault);
+  t.deepEqual({ ...namespace }, expectedConditionalDefault);
 };
 
 /**
@@ -69,7 +82,7 @@ export const assertConditionalDefault = (t, namespace) => {
  * @param {object} namespace
  */
 export const assertPrecedence = (t, namespace) => {
-  t.like(namespace, expectedPrecedence);
+  t.deepEqual({ ...namespace }, expectedPrecedence);
 };
 
 /**
@@ -77,7 +90,7 @@ export const assertPrecedence = (t, namespace) => {
  * @param {object} namespace
  */
 export const assertImportsEdgeCasesDefault = (t, namespace) => {
-  t.like(namespace, expectedImportsEdgeCasesDefault);
+  t.deepEqual({ ...namespace }, expectedImportsEdgeCasesDefault);
 };
 
 /**
@@ -85,5 +98,13 @@ export const assertImportsEdgeCasesDefault = (t, namespace) => {
  * @param {object} namespace
  */
 export const assertImportsEdgeCasesDev = (t, namespace) => {
-  t.like(namespace, expectedImportsEdgeCasesDev);
+  t.deepEqual({ ...namespace }, expectedImportsEdgeCasesDev);
+};
+
+/**
+ * @param {ExecutionContext} t
+ * @param {object} namespace
+ */
+export const assertOwnExportPatterns = (t, namespace) => {
+  t.deepEqual({ ...namespace }, expectedOwnExportPatterns);
 };
