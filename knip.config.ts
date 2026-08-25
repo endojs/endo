@@ -55,8 +55,6 @@ const config: KnipConfig = {
         // consider any .test-d.ts file to be a tsd test including in src dirs
         entry: ['**/*.test-d.ts'],
       },
-      // ses-ava invokes ava, but knip cannot detect this
-      ignoreDependencies: ['ava'],
     },
     'packages/cli': {
       ignoreBinaries: ['tail'],
