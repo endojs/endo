@@ -974,11 +974,32 @@ const translateGraph = (
       label,
       sourceDirname,
       internalAliases,
-      patterns,
+      patterns: inferredPatterns,
       parsers,
       types,
       packageDescriptor,
     } = graph[dependeeLocation];
+
+    // Patterns installed on this compartment.
+    //
+    // A package's own "exports" patterns are keyed by the subpath an *importer*
+    // asks for, so they must never be installed verbatim: "./cjs/*" means
+    // "pkg/cjs/*" to the outside world, and Node never re-resolves a package's
+    // own internal specifiers through "exports". Installed as-is, they hijack
+    // those specifiers, either loading the wrong module in silence; or, when the
+    // pattern matches its own output as "./cjs/*" -> "./cjs/*.cjs" does,
+    // appending another suffix on every pass until an OOM exception. Fun!
+    //
+    // Export patterns still reach this compartment name-prefixed, via
+    // `digestExternalAliases` below: reflexively so the package can reference
+    // itself by name, and onto each dependee so it can reference this one.
+    //
+    // Only "imports" patterns, which are keyed by "#" and are internal by
+    // definition, belong to the package's own compartment as inferred.
+    const patterns = inferredPatterns.filter(({ from }) =>
+      from.startsWith('#'),
+    );
+
     /** @type {Record<string, CompartmentModuleConfiguration>} */
     const moduleDescriptors = create(null);
     /** @type {Record<string, ScopeDescriptor<PackageCompartmentDescriptorName>>} */

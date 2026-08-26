@@ -21,6 +21,7 @@ import {
   assertConditionalDefault,
   assertPrecedence,
   assertImportsEdgeCasesDev,
+  assertOwnExportPatterns,
 } from './_subpath-patterns-assertions.js';
 
 const fixture = new URL(
@@ -169,6 +170,35 @@ test('exports edge cases: ./ key skipped, nested subpath with name != "."', asyn
   );
   t.is(namespace.main, 'exports-edge-cases-main');
   t.is(namespace.nested, 'nested-esm');
+});
+
+test('exports edge cases: avoid recursive matching', async t => {
+  const exportsEdgeCasesFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/exports-edge-cases-app-cjs/main.js',
+    import.meta.url,
+  ).toString();
+  const { namespace } = await importLocation(
+    readPowers,
+    exportsEdgeCasesFixture,
+    {
+      conditions: new Set(['require']),
+    },
+  );
+  t.is(namespace.main, 'exports-edge-cases-main-cjs');
+});
+
+test("exports edge cases: a package's own export patterns cannot rewrite its internal specifiers", async t => {
+  // Unlike `exports-edge-cases-lib`, this pattern does not match its own
+  // output, but would otherwise load the wrong module.
+  const ownExportPatternsFixture = new URL(
+    'fixtures-package-imports-exports/node_modules/own-export-patterns-app/main.js',
+    import.meta.url,
+  ).toString();
+  const { namespace } = await importLocation(
+    readPowers,
+    ownExportPatternsFixture,
+  );
+  assertOwnExportPatterns(t, namespace);
 });
 
 test('non-object exports field causes an exception', async t => {
