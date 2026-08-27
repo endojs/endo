@@ -63,6 +63,11 @@ test('console sanitize by method', t => {
             console.assert(false, 'a%cb', err2, err1);
             break;
           }
+          case 'dir': {
+            t.is(level, 'log');
+            console.dir(err1);
+            break;
+          }
           case 'timeLog': {
             t.is(level, 'log');
             console.timeLog('a%cb', err2, err1);
@@ -86,6 +91,8 @@ test('console sanitize by method', t => {
       ['groupEnd'],
       // each special method is its own case
       ['assert', false, 'ab', '(Error#1)'],
+      // each special method is its own case
+      ['dir', '(Error#1)', undefined],
       // each special method is its own case
       ['timeLog', 'a%cb', '(Error#2)', '(Error#1)'],
       ['group', 'Nested 2 errors'],

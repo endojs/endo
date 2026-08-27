@@ -17,6 +17,7 @@ import {
   fromEntries,
   globalThis,
   isError,
+  isPrimitive,
   stringEndsWith,
   stringIncludes,
   stringSplit,
@@ -96,6 +97,8 @@ export const consoleLevelMethods = freeze([
 /**
  * We special case `console.assert` because it contains `fmt?, ...args` just
  * like the `consoleLevelMethods`, but not in the same place.
+ * We special case `console.dir` because its second argument is not data to be
+ * logged.
  * We special case `console.timeLog` because it contains the same kind of
  * `...args`, but with no format string.
  *
@@ -103,6 +106,7 @@ export const consoleLevelMethods = freeze([
  */
 export const consoleSpecialMethods = freeze([
   ['assert', 'error'], // (value, fmt?, ...args)
+  ['dir', 'log'], // (item, options?)
   ['timeLog', 'log'], // (label?, ...args) no fmt string
 ]);
 
@@ -122,7 +126,6 @@ export const consoleOtherMethods = freeze([
   ['clear', 'info'], // (), level is not well defined
   ['count', 'info'], // (label?)
   ['countReset', 'info'], // (label?), level is not well defined
-  ['dir', 'log'], // (item, options?)
   ['groupEnd', 'log'], // ()
   // In theory tabular data may be or contain an error. However, we currently
   // do not detect these and may never.
@@ -544,6 +547,21 @@ export const makeCausalConsole = (feralConsole, loggedErrorHandler) => {
     }
   });
 
+  const dirMethod = defineName('dir', (value, options) => {
+    const subErrors = [];
+    const dirArg = extractErrorArgs([value], subErrors)[0];
+    if (isPrimitive(options)) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      baseConsole.dir(dirArg, options);
+    } else {
+      // https://nodejs.org/docs/latest/api/console.html#consoledirobj-options
+      const { colors, depth, showHidden } = options;
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      baseConsole.dir(dirArg, { colors, depth, showHidden });
+    }
+    logSubErrors('error', subErrors);
+  });
+
   const timeLogMethod = defineName('timeLog', (...timeLogArgs) => {
     if (timeLogArgs.length <= 1) {
       // eslint-disable-next-line @endo/no-polymorphic-call
@@ -574,6 +592,7 @@ export const makeCausalConsole = (feralConsole, loggedErrorHandler) => {
     [
       ...levelMethods,
       ['assert', assertMethod],
+      ['dir', dirMethod],
       ['timeLog', timeLogMethod],
       ...otherMethods,
     ],
@@ -648,6 +667,9 @@ export const defineCausalConsoleFromLogger = loggedErrorHandler => {
         defineName(name, (...args) => logWithIndent(name, ...args)),
       ]),
     ]);
+    baseConsole.dir = defineName('dir', (...args) =>
+      logWithIndent('dir', ...args),
+    );
     // https://console.spec.whatwg.org/#grouping
     for (const name of ['group', 'groupCollapsed']) {
       if (baseConsole[name]) {
