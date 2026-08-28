@@ -108,8 +108,8 @@ const defaultExpectations = {
     },
     nestedScopedBob: { scoped: 1 },
     scopedBob: { scoped: 1 },
-    builtins: '{"a":1,"b":2,"default":{"a":1,"b":2}}',
-    builtins2: '{"c":3,"default":{"c":3}}',
+    builtins: '{"a":1,"b":2}',
+    builtins2: '{"c":3}',
   }),
 };
 const anyExpectations = {
