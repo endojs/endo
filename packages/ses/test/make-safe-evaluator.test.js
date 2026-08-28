@@ -115,3 +115,30 @@ test('safeEvaluate - transforms - rewrite source', t => {
     'localTransforms rewrite source first',
   );
 });
+
+test.failing(`safeEvaluate - stack overflow doesn't leak feral eval`, t => {
+  t.plan(3);
+  const globalObject = Object.create(null);
+  const moduleLexicals = Object.create(null);
+
+  const { safeEvaluate: evaluate } = makeSafeEvaluator({
+    globalObject,
+    moduleLexicals,
+  });
+
+  let depth = 0;
+  function stackBuildUp() {
+    depth += 1;
+    evaluate(`1+1`);
+    // didn't fail yet? keep digging.
+    return stackBuildUp();
+  }
+
+  t.throws(stackBuildUp, {
+    instanceOf: RangeError,
+    message: /Maximum call stack size exceeded/,
+  });
+  t.log('stack depth', depth);
+  t.is(depth > 1, true, 'stack overflow occurred after many recursions');
+  t.is(evaluate('1+1'), 2, `stack overflow didn't compromise evaluate scope`);
+});
