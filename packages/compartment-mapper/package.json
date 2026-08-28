@@ -84,7 +84,6 @@
     "eslint-plugin-eslint-comments": "catalog:dev",
     "eslint-plugin-import": "catalog:dev",
     "prettier": "^3.5.3",
-    "ses": "workspace:^",
     "typescript": "catalog:dev"
   },
   "files": [
