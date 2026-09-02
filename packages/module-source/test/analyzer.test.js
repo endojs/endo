@@ -1,11 +1,9 @@
 /* eslint-disable no-underscore-dangle */
 import test from '@endo/ses-ava/prepare-endo.js';
 import { parse as parseBabel } from '@babel/parser';
-import babelTraverse from '@babel/traverse';
+import traverseBabel from '@babel/traverse';
 import { generate as generateBabel } from '@babel/generator';
 import { makeModuleAnalysisContext } from '../src/analyzer.js';
-
-const { default: traverseBabel } = babelTraverse;
 
 // --- ESM (analyzeModule) ---
 

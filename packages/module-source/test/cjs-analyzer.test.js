@@ -1,10 +1,8 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import { parse as parseBabel } from '@babel/parser';
-import babelTraverse from '@babel/traverse';
+import traverseBabel from '@babel/traverse';
 import { generate as generateBabel } from '@babel/generator';
 import { makeCjsModuleAnalysisContext } from '../src/cjs-analyzer.js';
-
-const { default: traverseBabel } = babelTraverse;
 
 test('analyzeCjs returns context with analyzePass, transformPass, buildRecord', t => {
   const ctx = makeCjsModuleAnalysisContext();

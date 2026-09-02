@@ -9,7 +9,7 @@
 
 import { generate as generateBabel } from '@babel/generator';
 import { parse as parseBabel } from '@babel/parser';
-import babelTraverse from '@babel/traverse';
+import traverseBabel from '@babel/traverse';
 import { makeCjsModuleAnalysisContext } from './cjs-analyzer.js';
 
 /**
@@ -17,8 +17,6 @@ import { makeCjsModuleAnalysisContext } from './cjs-analyzer.js';
  * @import {CjsModuleSourceRecord} from './types/cjs-module-source.js'
  * @import {AnalysisOptions} from './types/analyzer.js'
  */
-
-const { default: traverseBabel } = babelTraverse;
 
 /**
  * Creates a CJS module analyzer function. Call the returned function with CJS
