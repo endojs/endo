@@ -301,12 +301,24 @@ function makeModulePlugins(options) {
           );
         }
       },
-      CallExpression(path) {
+      // Babel 8 parses `import(FOO)` into a dedicated `ImportExpression`
+      // node instead of a `CallExpression` whose callee is `Import`, so there
+      // is no callee to swap out and the replacement call has to be built.
+      // `options` is the import-attributes argument; it does not select the
+      // module, but it is forwarded so `$h_import` sees the original call.
+      ImportExpression(path) {
         // import(FOO) -> $h_import(FOO)
-        if (path.node.callee.type === 'Import') {
-          dynamicImport.present = true;
-          path.node.callee = hiddenIdentifier(h.HIDDEN_IMPORT);
-        }
+        const { source, options } = path.node;
+        dynamicImport.present = true;
+        path.replaceWith(
+          replace(
+            path.node,
+            t.callExpression(
+              hiddenIdentifier(h.HIDDEN_IMPORT),
+              options ? [source, options] : [source],
+            ),
+          ),
+        );
       },
     };
 
