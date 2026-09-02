@@ -1,10 +1,8 @@
 import test from '@endo/ses-ava/prepare-endo.js';
 import { parse as parseBabel } from '@babel/parser';
-import babelTraverse from '@babel/traverse';
+import traverseBabel from '@babel/traverse';
 import { generate as generateBabel } from '@babel/generator';
 import { makeCjsModuleAnalysisContext } from '../src/cjs-analyzer.js';
-
-const { default: traverseBabel } = babelTraverse;
 
 test('analyzeCjs returns context with analyzePass, transformPass, buildRecord', t => {
   const ctx = makeCjsModuleAnalysisContext();
@@ -33,8 +31,7 @@ test('analyzeCjs() identifies requires and exports via buildRecord', t => {
 
   const { code } = generateBabel(
     ast,
-    // @ts-expect-error undocumented option
-    { retainLines: true, verbatim: true },
+    { retainLines: true },
     source,
   );
 
@@ -60,11 +57,8 @@ test('analyzeCjs().buildRecord produces a record with cjsFunctor', t => {
   const { code } = generateBabel(
     ast,
     {
-      // @ts-expect-error undocumented
       experimental_preserveFormat: true,
-      preserveFormat: true,
       retainLines: true,
-      verbatim: true,
     },
     source,
   );

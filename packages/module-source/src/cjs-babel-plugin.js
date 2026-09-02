@@ -20,6 +20,7 @@ import * as h from './hidden.js';
  * @import {VisitorPlugin} from './types/analyzer.js'
  * @import {Node,
  *  CallExpression,
+ *  ImportExpression,
  *  UnaryExpression,
  *  Expression,
  *  PrivateName,
@@ -33,7 +34,8 @@ import * as h from './hidden.js';
  *  ExpressionStatement,
  *  VariableDeclarator,
  * } from '@babel/types'
- * @import {Visitor, NodePath} from '@babel/traverse'
+ * @import {NodePath} from '@babel/traverse'
+ * @import {PluginVisitor} from './types/analyzer.js'
  */
 
 const { freeze } = Object;
@@ -779,22 +781,38 @@ export default function makeCjsModulePlugins(options) {
   } = options;
 
   const analyzePlugin = {
-    /** @type {Visitor} */
+    /** @type {PluginVisitor} */
     visitor: {
       /**
-       * Detects the five call-expression shapes that carry CJS import/export
+       * Flags dynamic `import()` and records its specifier.
+       *
+       * Babel 8 parses `import(...)` into its own `ImportExpression` node, so
+       * this no longer arrives as a `CallExpression` with an `Import` callee.
+       * The specifier is `source`; import attributes live in `options` and do
+       * not select the module, so they are ignored here.
+       *
+       * @param {NodePath<ImportExpression>} path
+       */
+      ImportExpression(path) {
+        const { source } = path.node;
+        dynamicImport.present = true;
+        if (source && source.type === 'StringLiteral') {
+          importsArr.push(source.value);
+        }
+      },
+
+      /**
+       * Detects the four call-expression shapes that carry CJS import/export
        * information:
        *
        * 1. `require('specifier')` → records an import specifier.
-       * 2. `import('specifier')` → flags dynamic `import()` and records the
-       *    specifier (any arg count is accepted, unlike `require`).
-       * 3. `__export(require('x'))` / `tslib.__exportStar(require('x'))` — the
+       * 2. `__export(require('x'))` / `tslib.__exportStar(require('x'))` — the
        *    Babel/TypeScript star-reexport helpers → records both a require and
        *    a reexport.
-       * 4. `Object.defineProperty(exports, 'name', descriptor)` (or on
+       * 3. `Object.defineProperty(exports, 'name', descriptor)` (or on
        *    `module.exports`) → records a named export, or files it under
        *    `unsafeGetters` when the descriptor's getter is not lexer-safe.
-       * 5. `Object.keys(x).forEach(k => { ... })` copy loops → records a star
+       * 4. `Object.keys(x).forEach(k => { ... })` copy loops → records a star
        *    reexport (see {@link matchForEachReexportPattern}).
        *
        * @param {NodePath<CallExpression>} path
@@ -806,22 +824,6 @@ export default function makeCjsModulePlugins(options) {
           const specifier = getStringCallArg(node);
           if (specifier !== null) {
             requires.push(specifier);
-          }
-          return;
-        }
-
-        if (node.callee.type === 'Import') {
-          dynamicImport.present = true;
-          // Use the first arg directly — import attributes are the second arg
-          // and do not affect which module is loaded, so we accept any arg
-          // count here (unlike require(), which must have exactly one arg).
-          const firstArg = node.arguments[0];
-          const specifier =
-            firstArg && firstArg.type === 'StringLiteral'
-              ? firstArg.value
-              : null;
-          if (specifier !== null) {
-            importsArr.push(specifier);
           }
           return;
         }
@@ -1070,7 +1072,7 @@ export default function makeCjsModulePlugins(options) {
   };
 
   const transformPlugin = {
-    /** @type {Visitor} */
+    /** @type {PluginVisitor} */
     visitor: {
       /**
        * Guards the reserved namespace the functor uses for its own machinery.
@@ -1102,12 +1104,18 @@ export default function makeCjsModulePlugins(options) {
       },
       /**
        * Rewrites dynamic `import(...)` calls so SES cannot censor them. The
-       * `Import` callee (the `import` keyword in `import('x')`) is replaced with
-       * a plain call to the hidden identifier {@link h.HIDDEN_IMPORT}:
+       * whole expression becomes a plain call to the hidden identifier
+       * {@link h.HIDDEN_IMPORT}:
        *
        * ```js
        * import('x')  →  $h͏_import('x')
        * ```
+       *
+       * Babel 8 parses `import(...)` into an `ImportExpression` rather than a
+       * `CallExpression` with an `Import` callee, so the replacement call is
+       * built here rather than swapping a callee in place. Import attributes
+       * (`options`) are forwarded so the rewritten call keeps every argument
+       * the original had.
        *
        * The hidden name uses a prefix that embeds an invisible U+034F combining
        * grapheme joiner, so user code cannot spell (and therefore cannot spoof)
@@ -1115,12 +1123,18 @@ export default function makeCjsModulePlugins(options) {
        * dynamic-import implementation, preserving `import()` semantics without
        * tripping SES's evaluator restrictions.
        *
-       * @param {NodePath<CallExpression>} path
+       * @param {NodePath<ImportExpression>} path
        */
-      CallExpression(path) {
-        if (path.node.callee.type === 'Import') {
-          path.node.callee = hiddenIdentifier(h.HIDDEN_IMPORT);
-        }
+      ImportExpression(path) {
+        const { source, options: importOptions, loc } = path.node;
+        const call = t.callExpression(
+          hiddenIdentifier(h.HIDDEN_IMPORT),
+          importOptions ? [source, importOptions] : [source],
+        );
+        // Swapping the callee in place used to preserve these for free.
+        call.loc = loc;
+        t.inheritsComments(call, path.node);
+        path.replaceWith(call);
       },
     },
   };

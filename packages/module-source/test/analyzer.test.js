@@ -1,11 +1,9 @@
 /* eslint-disable no-underscore-dangle */
 import test from '@endo/ses-ava/prepare-endo.js';
 import { parse as parseBabel } from '@babel/parser';
-import babelTraverse from '@babel/traverse';
+import traverseBabel from '@babel/traverse';
 import { generate as generateBabel } from '@babel/generator';
 import { makeModuleAnalysisContext } from '../src/analyzer.js';
-
-const { default: traverseBabel } = babelTraverse;
 
 // --- ESM (analyzeModule) ---
 
@@ -38,8 +36,7 @@ test('analyzeModule() identifies imports and exports via buildRecord', t => {
 
   const { code } = generateBabel(
     ast,
-    // @ts-expect-error undocumented option
-    { retainLines: true, verbatim: true },
+    { retainLines: true },
     source,
   );
 
@@ -65,9 +62,7 @@ test('analyzeModule().buildRecord produces a record with __syncModuleProgram__',
   const { code } = generateBabel(
     ast,
     {
-      // @ts-expect-error undocumented
       experimental_preserveFormat: true,
-      preserveFormat: true,
       retainLines: true,
     },
     source,
@@ -94,8 +89,7 @@ test('analyzeModule instances are independent (fresh state each call)', t => {
   const gen = (ast, src) =>
     generateBabel(
       ast,
-      // @ts-expect-error undocumented option
-      { retainLines: true, verbatim: true },
+      { retainLines: true },
       src,
     ).code;
 
