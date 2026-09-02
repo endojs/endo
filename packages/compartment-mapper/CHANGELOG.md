@@ -1,5 +1,14 @@
 # @endo/compartment-mapper
 
+## 2.4.1
+
+### Patch Changes
+
+- [#3354](https://github.com/endojs/endo/pull/3354) [`77d9d0c`](https://github.com/endojs/endo/commit/77d9d0cdf82e58e0dcf6f38fdc54798e37f0ab93) Thanks [@boneskull](https://github.com/boneskull)! - Fixed an issue where certain combinations of conditions and subpath exports could result in the wrong module being loaded.
+
+- Updated dependencies [[`d745d3f`](https://github.com/endojs/endo/commit/d745d3fb4b78bf3838ab146fb2d15647255638f7), [`194f816`](https://github.com/endojs/endo/commit/194f816b415f6cceb1e964541da40e2b7decb505)]:
+  - ses@2.4.0
+
 ## 2.4.0
 
 ### Minor Changes
