@@ -19,7 +19,6 @@ export const makeTransformSource = () => {
     const { code: transformedCode } = generateBabel(ast, {
       retainLines: true,
       compact: true,
-      verbatim: true,
     });
     return transformedCode;
   };

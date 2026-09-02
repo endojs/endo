@@ -5,8 +5,8 @@ import * as h from './hidden.js';
 
 /**
  * @import {TransformSourceParams} from './types/module-source.js'
- * @import {Visitor, NodePath, Binding} from '@babel/traverse'
- * @import {VisitorPlugin} from './types/analyzer.js'
+ * @import {NodePath, Binding} from '@babel/traverse'
+ * @import {PluginVisitor, VisitorPlugin} from './types/analyzer.js'
  */
 
 /**
@@ -281,7 +281,7 @@ function makeModulePlugins(options) {
       }
     };
 
-    /** @type {Visitor} */
+    /** @type {PluginVisitor} */
     const visitor = {
       Identifier(path) {
         if (options.allowHidden || allowedHiddens.has(path.node)) {
@@ -308,21 +308,20 @@ function makeModulePlugins(options) {
       // module, but it is forwarded so `$h_import` sees the original call.
       ImportExpression(path) {
         // import(FOO) -> $h_import(FOO)
-        const { source, options } = path.node;
+        const { source, options: importOptions, loc } = path.node;
         dynamicImport.present = true;
-        path.replaceWith(
-          replace(
-            path.node,
-            t.callExpression(
-              hiddenIdentifier(h.HIDDEN_IMPORT),
-              options ? [source, options] : [source],
-            ),
-          ),
+        const call = t.callExpression(
+          hiddenIdentifier(h.HIDDEN_IMPORT),
+          importOptions ? [source, importOptions] : [source],
         );
+        // Swapping the callee in place used to preserve these for free.
+        call.loc = loc;
+        t.inheritsComments(call, path.node);
+        path.replaceWith(call);
       },
     };
 
-    /** @type {Visitor} */
+    /** @type {PluginVisitor} */
     const importMetaVisitor = {
       MetaProperty(path) {
         if (
@@ -343,7 +342,7 @@ function makeModulePlugins(options) {
      *
      * @param {boolean} doAnalyze
      * @param {boolean} doTransform
-     * @returns {Visitor}
+     * @returns {PluginVisitor}
      */
     const moduleVisitor = (doAnalyze, doTransform) => ({
       // We handle all the import and export productions.

@@ -101,11 +101,8 @@ export const runPipeline = ({
     {
       ...babelGeneratorOptions,
       sourceMaps: needsSourceMaps,
-      // @ts-expect-error undocumented
       experimental_preserveFormat: true,
-      preserveFormat: true,
       retainLines: true,
-      verbatim: true,
     },
     source,
   );

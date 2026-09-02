@@ -77,9 +77,7 @@ export const hermesTransforms = {
       {
         // Nothing being done with sourcemaps as this point
         experimental_preserveFormat: true,
-        preserveFormat: true,
         retainLines: true,
-        verbatim: true,
       },
       sourceString,
     );

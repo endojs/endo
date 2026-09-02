@@ -31,8 +31,7 @@ test('analyzeCjs() identifies requires and exports via buildRecord', t => {
 
   const { code } = generateBabel(
     ast,
-    // @ts-expect-error undocumented option
-    { retainLines: true, verbatim: true },
+    { retainLines: true },
     source,
   );
 
@@ -58,11 +57,8 @@ test('analyzeCjs().buildRecord produces a record with cjsFunctor', t => {
   const { code } = generateBabel(
     ast,
     {
-      // @ts-expect-error undocumented
       experimental_preserveFormat: true,
-      preserveFormat: true,
       retainLines: true,
-      verbatim: true,
     },
     source,
   );

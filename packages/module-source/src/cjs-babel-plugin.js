@@ -20,6 +20,7 @@ import * as h from './hidden.js';
  * @import {VisitorPlugin} from './types/analyzer.js'
  * @import {Node,
  *  CallExpression,
+ *  ImportExpression,
  *  UnaryExpression,
  *  Expression,
  *  PrivateName,
@@ -33,7 +34,8 @@ import * as h from './hidden.js';
  *  ExpressionStatement,
  *  VariableDeclarator,
  * } from '@babel/types'
- * @import {Visitor, NodePath} from '@babel/traverse'
+ * @import {NodePath} from '@babel/traverse'
+ * @import {PluginVisitor} from './types/analyzer.js'
  */
 
 const { freeze } = Object;
@@ -779,7 +781,7 @@ export default function makeCjsModulePlugins(options) {
   } = options;
 
   const analyzePlugin = {
-    /** @type {Visitor} */
+    /** @type {PluginVisitor} */
     visitor: {
       /**
        * Flags dynamic `import()` and records its specifier.
@@ -1070,7 +1072,7 @@ export default function makeCjsModulePlugins(options) {
   };
 
   const transformPlugin = {
-    /** @type {Visitor} */
+    /** @type {PluginVisitor} */
     visitor: {
       /**
        * Guards the reserved namespace the functor uses for its own machinery.
@@ -1124,13 +1126,15 @@ export default function makeCjsModulePlugins(options) {
        * @param {NodePath<ImportExpression>} path
        */
       ImportExpression(path) {
-        const { source, options } = path.node;
-        path.replaceWith(
-          t.callExpression(
-            hiddenIdentifier(h.HIDDEN_IMPORT),
-            options ? [source, options] : [source],
-          ),
+        const { source, options: importOptions, loc } = path.node;
+        const call = t.callExpression(
+          hiddenIdentifier(h.HIDDEN_IMPORT),
+          importOptions ? [source, importOptions] : [source],
         );
+        // Swapping the callee in place used to preserve these for free.
+        call.loc = loc;
+        t.inheritsComments(call, path.node);
+        path.replaceWith(call);
       },
     },
   };

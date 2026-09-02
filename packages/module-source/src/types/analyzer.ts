@@ -12,10 +12,16 @@ import type { Visitor } from '@babel/traverse';
 import type { ModuleSourceRecord } from './module-source.js';
 
 /**
- * An object containing a {@link Visitor}.
+ * A hand-written Babel visitor, as opposed to one Babel has already
+ * "exploded" into its normalized internal form.
+ */
+export type PluginVisitor = Exclude<Visitor, { _exploded: true }>;
+
+/**
+ * An object containing a {@link PluginVisitor}.
  */
 export interface VisitorPlugin {
-  readonly visitor: Visitor;
+  readonly visitor: PluginVisitor;
 }
 
 /**

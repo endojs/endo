@@ -36,8 +36,7 @@ test('analyzeModule() identifies imports and exports via buildRecord', t => {
 
   const { code } = generateBabel(
     ast,
-    // @ts-expect-error undocumented option
-    { retainLines: true, verbatim: true },
+    { retainLines: true },
     source,
   );
 
@@ -63,9 +62,7 @@ test('analyzeModule().buildRecord produces a record with __syncModuleProgram__',
   const { code } = generateBabel(
     ast,
     {
-      // @ts-expect-error undocumented
       experimental_preserveFormat: true,
-      preserveFormat: true,
       retainLines: true,
     },
     source,
@@ -92,8 +89,7 @@ test('analyzeModule instances are independent (fresh state each call)', t => {
   const gen = (ast, src) =>
     generateBabel(
       ast,
-      // @ts-expect-error undocumented option
-      { retainLines: true, verbatim: true },
+      { retainLines: true },
       src,
     ).code;
 
