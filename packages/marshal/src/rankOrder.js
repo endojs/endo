@@ -10,7 +10,7 @@ import {
 
 /**
  * @import {Passable, PassStyle} from '@endo/pass-style'
- * @import {FullCompare, PartialCompare, PartialComparison, RankCompare, RankComparison, RankCover} from './types.js'
+ * @import {FullCompare, PartialCompare, RankCompare, RankComparison, RankCover} from './types.js'
  */
 
 const { isNaN: NumberIsNaN } = Number;
@@ -329,8 +329,10 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => NaN) => {
   /** @type {RankCompare} */
   const outerComparator = (x, y) =>
     // When the inner comparator returns NaN to indicate incomparability,
-    // replace that with 0 to indicate a tie.
-    /** @type {Exclude<PartialComparison, NaN>} */ (comparator(x, y) || 0);
+    // replace that with 0 to indicate a tie. TypeScript has no `NaN` literal
+    // type, so the narrowing to a `RankComparison` is asserted here (`|| 0`
+    // maps both NaN and 0 to a `0` tie) rather than expressed as an `Exclude`.
+    /** @type {RankComparison} */ (comparator(x, y) || 0);
 
   /** @type {RankCompare} */
   const antiComparator = (x, y) => outerComparator(y, x);

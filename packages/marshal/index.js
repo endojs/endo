@@ -30,7 +30,7 @@ export {
   unionRankCovers,
 } from './src/rankOrder.js';
 
-// eslint-disable-next-line import/export
+// eslint-disable-next-line import/export -- ESLint does not recognize type exports from types.d.ts
 export * from './src/types.js';
 
 // For compatibility, but importers of these should instead import these

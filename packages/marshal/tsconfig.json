@@ -3,6 +3,7 @@
   "include": [
     "*.js",
     "src/**/*.js",
+    "src/types.d.ts",
     "src/types.test-d.ts",
     "test",
     "!**/*.d.ts"
