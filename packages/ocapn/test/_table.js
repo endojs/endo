@@ -1,4 +1,5 @@
-import { makeTagged, makeSelector } from '../src/pass-style-helpers.js';
+import { makeTagged } from '@endo/pass-style';
+import { makeSelector } from '../src/selector.js';
 import {
   sel,
   str,

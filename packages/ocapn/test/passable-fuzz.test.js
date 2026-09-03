@@ -1,12 +1,15 @@
 // @ts-check
 
 import test from '@endo/ses-ava/prepare-endo.js';
+import { makeTagged } from '@endo/pass-style';
 import { Buffer } from 'buffer';
 import { XorShift } from './_xorshift.js';
 import { OCapNPassableUnionCodec } from '../src/codecs/passable.js';
 import { makeSyrupWriter } from '../src/syrup/encode.js';
 import { makeSyrupReader } from '../src/syrup/decode.js';
-import { makeTagged, makeSelector } from '../src/pass-style-helpers.js';
+import { makeSelector } from '../src/selector.js';
+
+const { quote } = assert;
 
 /**
  * @param {number} budget
@@ -157,10 +160,10 @@ test('fuzz', t => {
       let syrup4;
       t.notThrows(() => {
         object3 = decodePassable(syrupBytes2);
-      }, `fuzz decode ${index} for ${desc} on ${object1}\n${hexString}`);
+      }, `fuzz decode ${index} for ${desc} on ${quote(object1)}\n${hexString}`);
       t.notThrows(() => {
         syrup4 = encodePassable(object3);
-      }, `fuzz encode ${index} for ${desc} on ${object3}\n${hexString}`);
+      }, `fuzz encode ${index} for ${desc} on ${quote(object3)}\n${hexString}`);
       t.deepEqual(object3, object1, desc);
       t.deepEqual(syrupBytes2, syrup4, desc);
     })(i);

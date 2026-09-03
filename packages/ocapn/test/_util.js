@@ -35,7 +35,10 @@ export const notThrowsWithErrorUnwrapping = (t, fn, testName) => {
       current = current.cause;
     }
     t.log(`Function threw for ${testName}:`);
-    t.log(causes);
+    for (const cause of causes) {
+      t.log(cause.stack);
+      t.log('\n');
+    }
     t.fail(`Function threw. ${error}`);
   }
 };

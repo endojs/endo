@@ -1,10 +1,7 @@
 // @ts-check
 
-import {
-  makeTagged,
-  makeSelector,
-  passStyleOf,
-} from '../pass-style-helpers.js';
+import { makeTagged, passStyleOf } from '@endo/pass-style';
+import { makeSelector, getSelectorName } from '../selector.js';
 import {
   BooleanCodec,
   IntegerCodec,
@@ -68,7 +65,7 @@ const OCapNSelectorCodec = makeCodec('OCapNSelectorCodec', {
     return makeSelector(name);
   },
   write(value, syrupWriter) {
-    const name = value[Symbol.toStringTag];
+    const name = getSelectorName(value);
     syrupWriter.writeSelectorFromString(name);
   },
 });
@@ -264,12 +261,13 @@ export const OCapNPassableUnionCodec = makeTypeHintUnionCodec(
         // eslint-disable-next-line no-use-before-define
         return ContainerCodecs.list;
       }
+      harden(value);
       const passStyle = passStyleOf(value);
       if (passStyle === 'tagged') {
         // eslint-disable-next-line no-use-before-define
         return ContainerCodecs.tagged;
       }
-      if (passStyle === 'selector') {
+      if (passStyle === 'symbol') {
         return AtomCodecs.selector;
       }
       if (
