@@ -1,1 +1,6 @@
 route-payload.js
+
+# Nix build artifacts
+result
+result-*
+.direnv
