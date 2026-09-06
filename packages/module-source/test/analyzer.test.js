@@ -34,11 +34,7 @@ test('analyzeModule() identifies imports and exports via buildRecord', t => {
   traverseBabel(ast, ctx.analyzePass.visitor);
   traverseBabel(ast, ctx.transformPass.visitor);
 
-  const { code } = generateBabel(
-    ast,
-    { retainLines: true },
-    source,
-  );
+  const { code } = generateBabel(ast, { retainLines: true }, source);
 
   const record = ctx.buildRecord(code);
   t.deepEqual([...record.imports].sort(), ['bar', 'qux']);
@@ -86,12 +82,7 @@ test('analyzeModule instances are independent (fresh state each call)', t => {
       createParenthesizedExpressions: true,
     });
 
-  const gen = (ast, src) =>
-    generateBabel(
-      ast,
-      { retainLines: true },
-      src,
-    ).code;
+  const gen = (ast, src) => generateBabel(ast, { retainLines: true }, src).code;
 
   traverseBabel(parse(source1), ctx1.analyzePass.visitor);
   traverseBabel(parse(source2), ctx2.analyzePass.visitor);

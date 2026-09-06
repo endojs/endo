@@ -29,11 +29,7 @@ test('analyzeCjs() identifies requires and exports via buildRecord', t => {
   traverseBabel(ast, ctx.analyzePass.visitor);
   traverseBabel(ast, ctx.transformPass.visitor);
 
-  const { code } = generateBabel(
-    ast,
-    { retainLines: true },
-    source,
-  );
+  const { code } = generateBabel(ast, { retainLines: true }, source);
 
   const record = ctx.buildRecord(code);
   // CJS: record.imports combines require() + import() specifiers
