@@ -251,7 +251,7 @@ const assertPackageDescriptorHasName = (
   }
   if (name === ENTRY_COMPARTMENT || name === ATTENUATORS_COMPARTMENT) {
     throw Error(
-      `package.json at ${q(packageDescriptorLocation)} must not have a "name" field of ${q(name)}`,
+      `package.json at ${q(packageDescriptorLocation)} must not have a "name" field of ${q(name)}. This might indicate malware.`,
     );
   }
 };
