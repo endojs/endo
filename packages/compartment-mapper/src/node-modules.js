@@ -226,15 +226,17 @@ const assertPackageDescriptor = allegedPackageDescriptor => {
  * Asserts that the given `PackageDescriptor` has a non-empty `name`.
  *
  * `name` is required by {@link PackageDescriptor} and the compartment mapper
- * relies on it to label and link compartments. Without it, downstream
- * failures are obscure (for example, the bundler reports an undefined name
- * far from the offending `package.json`). This surfaces a precise
- * diagnostic that points at the offending file so the misconfiguration
- * is easy to fix.
+ * relies on it to label and link compartments. Without it, downstream failures
+ * are obscure (for example, the bundler reports an undefined name far from the
+ * offending `package.json`). This surfaces a precise diagnostic that points at
+ * the offending file so the misconfiguration is easy to fix.
+ *
+ * The names of the entry compartment and attenuators compartment are reserved
+ * and cannot be used.
  *
  * @param {PackageDescriptor} packageDescriptor
- * @param {string} packageDescriptorLocation - URL of the `package.json`
- * file that produced this descriptor, used to attribute errors.
+ * @param {string} packageDescriptorLocation - URL of the `package.json` file
+ * that produced this descriptor, used to attribute errors.
  * @returns {void}
  */
 const assertPackageDescriptorHasName = (
@@ -245,6 +247,11 @@ const assertPackageDescriptorHasName = (
   if (name === undefined || name === '') {
     throw Error(
       `package.json at ${q(packageDescriptorLocation)} must have a "name" field; consider naming it after the parent directory`,
+    );
+  }
+  if (name === ENTRY_COMPARTMENT || name === ATTENUATORS_COMPARTMENT) {
+    throw Error(
+      `package.json at ${q(packageDescriptorLocation)} must not have a "name" field of ${q(name)}`,
     );
   }
 };

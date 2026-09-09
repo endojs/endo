@@ -63,7 +63,7 @@ const phonyFixture = /** @type {const} */ ({
   entrypoint: 'file:///node_modules/app/index.js',
 });
 
-test(`mapNodeModules() should return compartment descriptors containing shortest path`, async t => {
+test(`mapNodeModules - should return compartment descriptors containing shortest path`, async t => {
   const shortestPathFixture = new URL(
     'fixtures-shortest-path/node_modules/app/index.js',
     import.meta.url,
@@ -90,7 +90,7 @@ test(`mapNodeModules() should return compartment descriptors containing shortest
 });
 
 test.serial(
-  'mapNodeModules() should consider peerDependenciesMeta without corresponding peerDependencies when the dependency is present',
+  'mapNodeModules - should consider peerDependenciesMeta without corresponding peerDependencies when the dependency is present',
   async t => {
     t.plan(2);
     const moduleLocation = new URL(
@@ -109,7 +109,7 @@ test.serial(
   },
 );
 
-test('mapNodeModules() should not consider peerDependenciesMeta without corresponding peerDependencies when the dependency is missing', async t => {
+test('mapNodeModules - should not consider peerDependenciesMeta without corresponding peerDependencies when the dependency is missing', async t => {
   const moduleLocation = new URL(
     'fixtures-missing-optional-peer-dependencies/node_modules/app/index.js',
     import.meta.url,
@@ -965,6 +965,28 @@ test('mapNodeModules - packageDataHook provides all package data', async t => {
     expectedCanonicalNames,
     'should receive exactly the expected canonical names from the project fixture',
   );
+});
+
+test('mapNodeModules - bad project names - should throw an error if the package name is the same as the entry compartment', async t => {
+  const badNameFixture = new URL(
+    'fixtures-bad-package-name/node_modules/app/index.js',
+    import.meta.url,
+  ).href;
+
+  await t.throwsAsync(mapNodeModules(readPowers, badNameFixture), {
+    message: new RegExp(`must not have a "name" field of "\\$root\\$"`),
+  });
+});
+
+test('mapNodeModules - bad project names - should throw an error if the package name is the same as the attenuators compartment', async t => {
+  const badNameFixture = new URL(
+    'fixtures-bad-package-name/node_modules/app2/index.js',
+    import.meta.url,
+  ).href;
+
+  await t.throwsAsync(mapNodeModules(readPowers, badNameFixture), {
+    message: new RegExp(`must not have a "name" field of "<ATTENUATORS>"`),
+  });
 });
 
 test('additionalLocations - adds package to compartment map', async t => {
