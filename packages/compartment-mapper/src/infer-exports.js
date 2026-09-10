@@ -183,7 +183,7 @@ function* interpretImports(imports, conditions, log) {
  * with any recognized module's type, if implied by a tag.
  * @yields {[string, string | null]}
  */
-export const inferExportsEntries = function* inferExportsEntries(
+const inferExportsEntries = function* inferExportsEntries(
   { main, module, exports },
   conditions,
   types,

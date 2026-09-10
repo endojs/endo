@@ -348,7 +348,7 @@ harden(makeComparatorKit);
  * @param {RankCompare} comparator
  * @returns {RankCompare=}
  */
-export const comparatorMirrorImage = comparator =>
+const comparatorMirrorImage = comparator =>
   comparatorMirrorImages.get(comparator);
 harden(comparatorMirrorImage);
 
@@ -505,7 +505,7 @@ export const FullRankCover = harden(['', '{']);
  * @param {IndexCover} indexCover
  * @returns {Iterable<[number, Passable]>}
  */
-export const coveredEntries = (sorted, [leftIndex, rightIndex]) => {
+const coveredEntries = (sorted, [leftIndex, rightIndex]) => {
   /** @type {Iterable<[number, Passable]>} */
   const iterable = harden({
     [Symbol.iterator]: () => {

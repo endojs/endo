@@ -58,7 +58,7 @@ export const PositiveIntegerListCodec = makeListCodecFromEntryCodec(
 );
 
 /** @type {SyrupCodec} */
-export const FalseCodec = makeCodec('False', {
+const FalseCodec = makeCodec('False', {
   write: (value, syrupWriter) => {
     if (value) {
       throw Error('FalseCodec: value must be false');

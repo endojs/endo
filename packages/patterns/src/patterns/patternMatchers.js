@@ -2174,8 +2174,7 @@ const makePatternKit = () => {
 // `makePatternKit()` yourself. Since there are currently no external
 // uses of `getRankCover`, for clarity during development, `makePatternKit`
 // is not currently exported.
-export const {
-  confirmMatches,
+const {
   confirmLabeledMatches,
   matches,
   mustMatch,
@@ -2186,6 +2185,17 @@ export const {
   kindOf,
   containerHasSplit,
 } = makePatternKit();
+
+export {
+  matches,
+  mustMatch,
+  assertPattern,
+  isPattern,
+  getRankCover,
+  M,
+  kindOf,
+  containerHasSplit,
+};
 
 MM = M;
 

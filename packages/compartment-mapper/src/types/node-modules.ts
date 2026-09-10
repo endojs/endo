@@ -1,4 +1,5 @@
 import type { GenericGraph } from '../generic-graph.js';
+import { ATTENUATORS_COMPARTMENT } from '../policy-format.js';
 import type {
   CanonicalName,
   PackageCompartmentDescriptorName,
@@ -15,7 +16,6 @@ import type {
 } from './external.js';
 import type { PatternDescriptor } from './pattern-replacement.js';
 import type { LiteralUnion } from './typescript.js';
-import { ATTENUATORS_COMPARTMENT } from '../policy-format.js';
 
 /**
  * A mapping of conditions to their resolved exports.
@@ -24,7 +24,7 @@ import { ATTENUATORS_COMPARTMENT } from '../policy-format.js';
  *
  * @see {@link https://github.com/sindresorhus/type-fest/blob/850b33c4dd292e0ff8cff039ee167d69be324fce/source/package-json.d.ts#L227-L248 | type-fest ExportConditions}
  */
-export type ExportConditions = {
+type ExportConditions = {
   [condition: string]: Exports;
 };
 
@@ -56,7 +56,7 @@ export type Imports = {
   [key: `#${string}`]: Exports;
 };
 
-export type CommonDependencyDescriptors = Record<
+type CommonDependencyDescriptors = Record<
   string,
   { spec: string; alias: string }
 >;
@@ -65,7 +65,7 @@ export type CommonDependencyDescriptors = Record<
  * Options bag containing {@link CommonDependencyDescriptors} that will be added to
  * _all_ packages in the graph.
  */
-export type CommonDependencyDescriptorsOptions = {
+type CommonDependencyDescriptorsOptions = {
   /**
    * Dependencies added to _all_ packages
    */
@@ -75,7 +75,7 @@ export type CommonDependencyDescriptorsOptions = {
 /**
  * Options bag containing a {@link PackageDependenciesHook}
  */
-export type PackageDependenciesHookOption = {
+type PackageDependenciesHookOption = {
   packageDependenciesHook?: PackageDependenciesHook | undefined;
 };
 

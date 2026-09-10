@@ -29,7 +29,7 @@ const { freeze, defineProperty } = Object;
 const { ownKeys } = Reflect;
 const quote = JSON.stringify;
 
-export const SYRUP_SELECTOR_PREFIX = 'syrup:';
+const SYRUP_SELECTOR_PREFIX = 'syrup:';
 
 // To be used as keys, syrup selectors must be javascript symbols.
 // To avoid an otherwise meaningful symbol name, we prefix it with 'syrup:'.
@@ -40,7 +40,7 @@ export const SyrupSelectorFor = name =>
  * @param {symbol} selectorSymbol
  * @returns {string}
  */
-export const getSyrupSelectorName = selectorSymbol => {
+const getSyrupSelectorName = selectorSymbol => {
   const description = selectorSymbol.description;
   if (!description) {
     throw TypeError(`Symbol ${String(selectorSymbol)} has no description`);
@@ -66,7 +66,7 @@ const SelectorAsSymbolCodec = {
 };
 
 /** @type {SyrupCodec} */
-export const NumberPrefixCodecWithSelectorAsSymbol = {
+const NumberPrefixCodecWithSelectorAsSymbol = {
   read: syrupReader => {
     const { type, value } = syrupReader.readTypeAndMaybeValue();
     if (
@@ -103,7 +103,7 @@ export const NumberPrefixCodecWithSelectorAsSymbol = {
 };
 
 /** @type {SyrupCodec} */
-export const AnyCodec = makeTypeHintUnionCodec(
+const AnyCodec = makeTypeHintUnionCodec(
   'SyrupAnyCodec',
   {
     boolean: BooleanCodec,
@@ -146,11 +146,8 @@ export const AnyCodec = makeTypeHintUnionCodec(
   },
 );
 
-export const ListCodec = makeListCodecFromEntryCodec(
-  'SyrupListCodec',
-  AnyCodec,
-);
-export const SetCodec = makeSetCodecFromEntryCodec('SyrupSetCodec', AnyCodec);
+const ListCodec = makeListCodecFromEntryCodec('SyrupListCodec', AnyCodec);
+const SetCodec = makeSetCodecFromEntryCodec('SyrupSetCodec', AnyCodec);
 
 /** @type {SyrupCodec} */
 const DictionaryKeyCodec = {
@@ -182,7 +179,7 @@ const DictionaryKeyCodec = {
 };
 
 /** @type {SyrupCodec} */
-export const DictionaryCodec = freeze({
+const DictionaryCodec = freeze({
   read: syrupReader => {
     const result = {};
     /** @type {symbol | string | undefined} */

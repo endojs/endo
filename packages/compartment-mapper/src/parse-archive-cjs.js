@@ -19,7 +19,7 @@ const noopExecute = () => {};
 freeze(noopExecute);
 
 /** @type {ParseFn} */
-export const parseArchiveCjs = (
+const parseArchiveCjs = (
   bytes,
   _specifier,
   location,

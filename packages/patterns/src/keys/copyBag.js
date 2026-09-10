@@ -109,7 +109,7 @@ harden(confirmBagEntries);
  * @param {[Passable,bigint][]} bagEntries
  * @returns {asserts bagEntries is [Passable,bigint][]}
  */
-export const assertBagEntries = bagEntries => {
+const assertBagEntries = bagEntries => {
   confirmBagEntries(bagEntries, Fail);
 };
 hideAndHardenFunction(assertBagEntries);

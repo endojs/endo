@@ -144,7 +144,12 @@ export const makeModuleSourceAnalyzer = () =>
     return ctx.buildRecord(scriptSource, sourceUrl);
   };
 
-// TODO: May be unused; referenced only in ses/test262
+/**
+ * TODO: May be unused; referenced only in ses/test262
+ * @param {any} _babel
+ * @param {any} importer
+ * @knipignore
+ */
 export const makeModuleTransformer = (_babel, importer) => {
   const createStaticRecord = makeModuleSourceAnalyzer();
 
