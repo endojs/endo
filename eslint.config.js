@@ -111,9 +111,12 @@ export default defineConfig(
           // these tags from TypeDoc all begin with @ which the eslint plugin
           // doesn't expect
           definedTags: [
-            ...OptionDefaults.blockTags,
-            ...OptionDefaults.modifierTags,
-          ].map(tag => tag.slice(1)),
+            ...[
+              ...OptionDefaults.blockTags,
+              ...OptionDefaults.modifierTags,
+            ].map(tag => tag.slice(1)),
+            'knipignore',
+          ],
           inlineTags: OptionDefaults.inlineTags.map(tag => tag.slice(1)),
         },
       ],
