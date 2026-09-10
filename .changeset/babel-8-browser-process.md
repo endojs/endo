@@ -1,7 +1,7 @@
 ---
 '@endo/module-source': minor
 '@endo/evasive-transform': minor
-'@endo/parser-pipeline': minor
+'@endo/parser-pipeline': major
 ---
 
 Upgraded the Babel dependencies from 7.x to 8.x, which makes these packages
