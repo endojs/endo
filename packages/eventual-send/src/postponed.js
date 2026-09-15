@@ -42,5 +42,6 @@ export const makePostponedHandler = HandledPromise => {
   // @ts-expect-error 2454
   assert(donePostponing);
 
+  // @ts-expect-error ts doesn't know it is always assigned before here.
   return [postponedHandler, donePostponing];
 };

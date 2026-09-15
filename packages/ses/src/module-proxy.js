@@ -28,7 +28,7 @@ import {
   toStringTagSymbol,
   weakmapSet,
 } from './commons.js';
-import { assert } from './error/assert.js';
+import { assert } from '@endo/errors-internal';
 
 const { quote: q } = assert;
 

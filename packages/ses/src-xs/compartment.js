@@ -28,7 +28,7 @@ import {
 import { getGlobalIntrinsics } from '../src/intrinsics.js';
 import { tameFunctionToString } from '../src/tame-function-tostring.js';
 import { chooseReporter } from '../src/reporting.js';
-import { makeError } from '../src/error/assert.js';
+import { makeError } from '@endo/errors-internal';
 
 /**
  * @import {CompartmentOptionsArgs, LegacyCompartmentOptionsArgs} from '../src/compartment.js'

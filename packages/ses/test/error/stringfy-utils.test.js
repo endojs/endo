@@ -1,5 +1,5 @@
 import test from 'ava';
-import { assert } from '../../src/error/assert.js';
+import { assert } from '@endo/errors-internal';
 
 const { Fail, quote: q } = assert;
 

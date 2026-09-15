@@ -20,6 +20,7 @@
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
+    "./commons.js": "./commons.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -32,7 +33,9 @@
     "test:c8": "c8 ${C8_OPTIONS:-} ses-ava",
     "test:xs": "exit 0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@endo/cache-map": "workspace:^"
+  },
   "devDependencies": {
     "@endo/lockdown": "workspace:^",
     "@endo/ses-ava": "workspace:^",

@@ -1,6 +1,6 @@
 import test from 'ava';
 import { assertLogs, throwsAndLogs } from './_throws-and-logs.js';
-import { assert } from '../../src/error/assert.js';
+import { assert } from '@endo/errors-internal';
 
 const { details: X, quote: q, bare: b, makeError, Fail } = assert;
 

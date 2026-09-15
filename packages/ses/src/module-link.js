@@ -1,6 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 
-import { assert } from './error/assert.js';
+import { assert } from '@endo/errors-internal';
 import {
   makeModuleInstance,
   makeVirtualModuleInstance,

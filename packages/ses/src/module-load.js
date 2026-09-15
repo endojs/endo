@@ -23,7 +23,7 @@ import {
   weakmapGet,
   weakmapHas,
 } from './commons.js';
-import { makeError, annotateError, q, b, X } from './error/assert.js';
+import { makeError, annotateError, q, b, X } from '@endo/errors-internal';
 
 const noop = () => {};
 

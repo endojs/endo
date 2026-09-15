@@ -21,7 +21,7 @@ import {
   toStringTagSymbol,
 } from '../commons.js';
 
-/** @import {Stringable} from '../../types.js' */
+/** @import {Stringable} from './types.js' */
 
 /**
  * Joins English terms with commas and an optional conjunction.

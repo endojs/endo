@@ -3,9 +3,8 @@
 
 import { freeze } from '../commons.js';
 import { makeAssert } from './assert.js';
-import './types.js';
 
-/** @import {Assert} from '../../types.js' */
+/** @import {Assert} from './types.js' */
 
 let abandon;
 // Sniff for host-provided functions for terminating the enclosing UOPT (see
@@ -22,7 +21,6 @@ if (typeof abandon === 'function') {
     // Check `console` each time `raise` is called.
 
     if (typeof console === 'object' && typeof console.error === 'function') {
-      // eslint-disable-next-line @endo/no-polymorphic-call
       console.error('Failed because:', reason);
     }
     abandon(1);

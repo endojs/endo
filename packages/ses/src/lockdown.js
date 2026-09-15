@@ -53,9 +53,9 @@ import { tameFunctionToString } from './tame-function-tostring.js';
 import { tameDomains } from './tame-domains.js';
 import { tameModuleSource } from './tame-module-source.js';
 
-import { tameConsole } from './error/tame-console.js';
-import tameErrorConstructor from './error/tame-error-constructor.js';
-import { assert, makeAssert } from './error/assert.js';
+import { tameConsole } from '@endo/errors-internal';
+import tameErrorConstructor from '@endo/errors-internal';
+import { assert, makeAssert } from '@endo/errors-internal';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment.js';
 import { tameHarden } from './tame-harden.js';

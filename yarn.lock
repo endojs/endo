@@ -735,6 +735,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/console-internal@workspace:^, @endo/console-internal@workspace:packages/console-internal":
+  version: 0.0.0-use.local
+  resolution: "@endo/console-internal@workspace:packages/console-internal"
+  dependencies:
+    "@endo/lockdown": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    tsd: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/daemon@workspace:^, @endo/daemon@workspace:packages/daemon":
   version: 0.0.0-use.local
   resolution: "@endo/daemon@workspace:packages/daemon"
@@ -780,10 +794,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@endo/errors-internal@workspace:^, @endo/errors-internal@workspace:packages/errors-internal":
+  version: 0.0.0-use.local
+  resolution: "@endo/errors-internal@workspace:packages/errors-internal"
+  dependencies:
+    "@endo/cache-map": "workspace:^"
+    "@endo/lockdown": "workspace:^"
+    "@endo/ses-ava": "workspace:^"
+    ava: "catalog:dev"
+    c8: "catalog:dev"
+    eslint: "catalog:dev"
+    tsd: "catalog:dev"
+    typescript: "catalog:dev"
+  languageName: unknown
+  linkType: soft
+
 "@endo/errors@workspace:^, @endo/errors@workspace:packages/errors":
   version: 0.0.0-use.local
   resolution: "@endo/errors@workspace:packages/errors"
   dependencies:
+    "@endo/errors-internal": "workspace:^"
     "@endo/eventual-send": "workspace:^"
     "@endo/harden": "workspace:^"
     "@endo/lockdown": "workspace:^"
@@ -791,7 +821,6 @@ __metadata:
     ava: "catalog:dev"
     c8: "catalog:dev"
     eslint: "catalog:dev"
-    ses: "workspace:^"
     ses0.18.3: "npm:ses@0.18.3"
     tsd: "catalog:dev"
     typescript: "catalog:dev"
@@ -8429,7 +8458,9 @@ __metadata:
     "@babel/types": "npm:~7.28.2"
     "@endo/cache-map": "workspace:^"
     "@endo/compartment-mapper": "workspace:^"
+    "@endo/console-internal": "workspace:^"
     "@endo/env-options": "workspace:^"
+    "@endo/errors-internal": "workspace:^"
     "@endo/immutable-arraybuffer": "workspace:^"
     "@endo/module-source": "workspace:^"
     "@endo/test262-runner": "workspace:^"

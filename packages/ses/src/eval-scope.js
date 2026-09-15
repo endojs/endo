@@ -1,6 +1,6 @@
 import { FERAL_EVAL, create, defineProperties, freeze } from './commons.js';
 
-import { assert } from './error/assert.js';
+import { assert } from '@endo/errors-internal';
 
 const { Fail } = assert;
 
