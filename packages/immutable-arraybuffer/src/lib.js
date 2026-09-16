@@ -11,8 +11,13 @@ const {
   // eslint-disable-next-line no-restricted-globals
 } = globalThis;
 
-const { freeze, defineProperty, getOwnPropertyDescriptor, getPrototypeOf } =
-  Object;
+const {
+  freeze,
+  defineProperty,
+  entries,
+  getOwnPropertyDescriptor,
+  getPrototypeOf,
+} = Object;
 const { apply, ownKeys } = Reflect;
 
 // Capture the WeakMap prototype methods up front so we can use them with
@@ -165,13 +170,7 @@ export const immutableArrayBufferLibProperties = {
     if (isEmulatedImmutable(this)) {
       return false;
     }
-    // Genuine `ArrayBuffer.prototype.detached` is a stage-finished accessor
-    // on platforms with the resizable-ArrayBuffer proposal. On older
-    // platforms (Node <= 18, Hermes) it does not exist; the conservative
-    // answer for a non-detached genuine buffer in that case is false.
-    if (optArrayBufferDetached === undefined) {
-      return false;
-    }
+    // @ts-expect-error TS2769 if we reach this line, there's definitely a function to apply.
     return apply(optArrayBufferDetached, this, []);
   },
   /**
@@ -183,9 +182,7 @@ export const immutableArrayBufferLibProperties = {
       // cannot grow.
       return apply(arrayBufferByteLength, amplifyArrayBuffer(this), []);
     }
-    if (optArrayBufferMaxByteLength === undefined) {
-      return apply(arrayBufferByteLength, this, []);
-    }
+    // @ts-expect-error TS2769 if we reach this line, there's definitely a function to apply.
     return apply(optArrayBufferMaxByteLength, this, []);
   },
   /**
@@ -195,9 +192,7 @@ export const immutableArrayBufferLibProperties = {
     if (isEmulatedImmutable(this)) {
       return false;
     }
-    if (optArrayBufferResizable === undefined) {
-      return false;
-    }
+    // @ts-expect-error TS2769 if we reach this line, there's definitely a function to apply.
     return apply(optArrayBufferResizable, this, []);
   },
   /**
@@ -231,11 +226,6 @@ export const immutableArrayBufferLibProperties = {
     if (isEmulatedImmutable(this)) {
       throw TypeError('Cannot resize an immutable ArrayBuffer');
     }
-    if (optResize === undefined) {
-      throw TypeError(
-        'Cannot resize ArrayBuffer: underlying platform lacks ArrayBuffer.prototype.resize',
-      );
-    }
     return apply(optResize, this, [newByteLength]);
   },
   /**
@@ -246,11 +236,6 @@ export const immutableArrayBufferLibProperties = {
     if (isEmulatedImmutable(this)) {
       throw TypeError('Cannot detach an immutable ArrayBuffer');
     }
-    if (optTransfer === undefined) {
-      throw TypeError(
-        'Cannot transfer ArrayBuffer: underlying platform lacks ArrayBuffer.prototype.transfer',
-      );
-    }
     return apply(optTransfer, this, [newLength]);
   },
   /**
@@ -260,11 +245,6 @@ export const immutableArrayBufferLibProperties = {
   transferToFixedLength(newLength = undefined) {
     if (isEmulatedImmutable(this)) {
       throw TypeError('Cannot detach an immutable ArrayBuffer');
-    }
-    if (optTransferToFixedLength === undefined) {
-      throw TypeError(
-        'Cannot transferToFixedLength ArrayBuffer: underlying platform lacks ArrayBuffer.prototype.transferToFixedLength',
-      );
     }
     return apply(optTransferToFixedLength, this, [newLength]);
   },
@@ -286,6 +266,21 @@ export const immutableArrayBufferLibProperties = {
     return optTransferBufferToImmutable(this, newLength);
   },
 };
+
+// Avoid *introducing* properties unrelated to immutable ArrayBuffers.
+const optionalProperties = {
+  detached: optArrayBufferDetached,
+  maxByteLength: optArrayBufferMaxByteLength,
+  resizable: optArrayBufferResizable,
+  resize: optResize,
+  transfer: optTransfer,
+  transferToFixedLength: optTransferToFixedLength,
+};
+for (const [name, optMethod] of entries(optionalProperties)) {
+  if (!optMethod) {
+    delete immutableArrayBufferLibProperties[name];
+  }
+}
 
 // Better fidelity emulation of a class prototype: each property is
 // non-enumerable, matching the shape `ArrayBuffer.prototype` itself uses.
