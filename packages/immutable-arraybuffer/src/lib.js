@@ -66,6 +66,18 @@ const { get: uint8ArrayBuffer } = getOwnPropertyDescriptor(
 );
 
 /**
+ * Insist that a value is a genuine `ArrayBuffer` exotic object (i.e., a user
+ * code equivalent of `? RequireInternalSlot(arrayBuffer, [[ArrayBufferData]])`).
+ *
+ * @param {unknown} arrayBuffer
+ * @returns {asserts arrayBuffer is ArrayBuffer}
+ */
+const insistArrayBuffer = arrayBuffer => {
+  // Reading byteLength should be an efficient check.
+  apply(arrayBufferByteLength, arrayBuffer, []);
+};
+
+/**
  * Copy a range of values from a genuine ArrayBuffer exotic object into a new
  * ArrayBuffer.
  *
@@ -97,9 +109,7 @@ if (optTransfer) {
   optArrayBufferTransfer = arrayBuffer => apply(optTransfer, arrayBuffer, []);
 } else if (optStructuredClone) {
   optArrayBufferTransfer = arrayBuffer => {
-    // Hopefully, a zero-length slice is cheap, but still enforces that
-    // `arrayBuffer` is a genuine `ArrayBuffer` exotic object.
-    arrayBufferSlice(arrayBuffer, 0, 0);
+    insistArrayBuffer(arrayBuffer);
     return optStructuredClone(arrayBuffer, {
       transfer: [arrayBuffer],
     });
@@ -199,7 +209,11 @@ export const immutableArrayBufferLibProperties = {
    * @this {ArrayBuffer}
    */
   get immutable() {
-    return isEmulatedImmutable(this);
+    if (isEmulatedImmutable(this)) {
+      return true;
+    }
+    insistArrayBuffer(this);
+    return false;
   },
   /**
    * @this {ArrayBuffer}
