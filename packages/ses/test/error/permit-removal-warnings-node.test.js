@@ -65,4 +65,23 @@ test('node reporting to stderr with indented group', async t => {
   for (const expectedLine of expectedLines) {
     t.assert(stderrLines.some(line => line === expectedLine));
   }
+
+  // Regression guard for the WHATWG URL family permits: the blob-registry
+  // statics `URL.createObjectURL`/`revokeObjectURL` carry an undeletable own
+  // `.prototype` (permitted via `fnWithUndeletablePrototype`), and the three
+  // URL prototypes carry a `Symbol.for('nodejs.util.inspect.custom')`
+  // (expressly excluded). All are covered by `src/permits.js`, so lockdown
+  // must NOT report them on any Node major this package's CI exercises. A
+  // future permits regression would make one of these lines reappear.
+  const forbiddenSubstrings = [
+    'createObjectURL.prototype',
+    'revokeObjectURL.prototype',
+    'RegisteredSymbol(nodejs.util.inspect.custom)',
+  ];
+  for (const forbidden of forbiddenSubstrings) {
+    t.false(
+      stderrLines.some(line => line.includes(forbidden)),
+      `lockdown report must be silent for ${forbidden}`,
+    );
+  }
 });
