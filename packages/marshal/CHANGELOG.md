@@ -1,5 +1,14 @@
 # @endo/marshal
 
+## 1.11.0
+
+### Minor Changes
+
+- [#3053](https://github.com/endojs/endo/pull/3053) [`2993990`](https://github.com/endojs/endo/commit/2993990b12bef487f625ca8c029cedd1745ee48f) Thanks [@gibson042](https://github.com/gibson042)! - - `FullRankCover` is deprecated. Instead, use `provideStaticRanks(encodePassable)['*'].cover`.
+  - `getPassStyleCover(passStyle)` is deprecated. Instead, use `provideStaticRanks(encodePassable)[passStyle].cover`.
+  - `getRankCover` now works with format "compactOrdered", and produces tighter bounds for arrays and `M.nat()` (which has an implicit lower bound at 0).
+  - `intersectRankCovers` and `unionRankCovers` now reject an empty list of covers (not that an empty list was ever semantically valid).
+
 ## 1.10.0
 
 ### Minor Changes
