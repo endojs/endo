@@ -21,6 +21,9 @@
       "path": "../marshal/tsconfig.composite.json"
     },
     {
+      "path": "../memoize/tsconfig.composite.json"
+    },
+    {
       "path": "../pass-style/tsconfig.composite.json"
     }
   ]

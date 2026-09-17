@@ -51,6 +51,7 @@
     "eslint-config-prettier": "catalog:dev",
     "eslint-plugin-eslint-comments": "catalog:dev",
     "eslint-plugin-import": "catalog:dev",
+    "fast-check": "^4.0.0",
     "prettier": "^3.5.3",
     "ses": "workspace:^",
     "tsd": "^0.31.2",

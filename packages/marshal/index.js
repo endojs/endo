@@ -26,6 +26,7 @@ export {
   compareAntiRankRemotablesTied,
   makeFullOrderComparatorKit,
   getPassStyleCover,
+  provideStaticRanks,
   intersectRankCovers,
   unionRankCovers,
 } from './src/rankOrder.js';

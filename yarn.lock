@@ -1052,6 +1052,7 @@ __metadata:
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/lockdown": "workspace:^"
+    "@endo/memoize": "workspace:^"
     "@endo/nat": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/ses-ava": "workspace:^"
@@ -1069,7 +1070,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@endo/memoize@workspace:packages/memoize":
+"@endo/memoize@workspace:^, @endo/memoize@workspace:packages/memoize":
   version: 0.0.0-use.local
   resolution: "@endo/memoize@workspace:packages/memoize"
   dependencies:
@@ -1239,6 +1240,7 @@ __metadata:
     eslint-config-prettier: "catalog:dev"
     eslint-plugin-eslint-comments: "catalog:dev"
     eslint-plugin-import: "catalog:dev"
+    fast-check: "npm:^4.0.0"
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
     tsd: "npm:^0.31.2"
@@ -1268,6 +1270,7 @@ __metadata:
     "@endo/harden": "workspace:^"
     "@endo/init": "workspace:^"
     "@endo/marshal": "workspace:^"
+    "@endo/memoize": "workspace:^"
     "@endo/pass-style": "workspace:^"
     "@endo/ses-ava": "workspace:^"
     "@fast-check/ava": "catalog:dev"
@@ -1278,6 +1281,7 @@ __metadata:
     eslint-config-prettier: "catalog:dev"
     eslint-plugin-eslint-comments: "catalog:dev"
     eslint-plugin-import: "catalog:dev"
+    fast-check: "npm:^4.0.0"
     prettier: "npm:^3.5.3"
     ses: "workspace:^"
     tsd: "npm:^0.31.2"
