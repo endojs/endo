@@ -1,6 +1,6 @@
 /** @import {ModuleExportsNamespace} from '../types.js' */
 
-import { assert } from './error/assert.js';
+import { assert } from '@endo/errors-internal';
 import { getDeferredExports } from './module-proxy.js';
 import {
   ReferenceError,

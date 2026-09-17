@@ -7,7 +7,7 @@ import { createSloppyGlobalsScopeTerminator } from './sloppy-globals-scope-termi
 import { makeEvalScopeKit } from './eval-scope.js';
 import { applyTransforms, mandatoryTransforms } from './transforms.js';
 import { makeEvaluate } from './make-evaluate.js';
-import { assert } from './error/assert.js';
+import { assert } from '@endo/errors-internal';
 
 const { Fail } = assert;
 

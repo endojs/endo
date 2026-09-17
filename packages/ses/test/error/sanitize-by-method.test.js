@@ -4,7 +4,7 @@ import {
   consoleLevelMethods,
   consoleSpecialMethods,
   consoleOtherMethods,
-} from '../../src/error/console.js';
+} from '@endo/errors-internal';
 import { assertLogs } from './_throws-and-logs.js';
 
 lockdown();

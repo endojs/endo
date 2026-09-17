@@ -1,6 +1,6 @@
 import { symbolFor, globalThis } from './commons.js';
-import { defineCausalConsoleFromLogger } from './error/console.js';
-import { loggedErrorHandler } from './error/assert.js';
+import { defineCausalConsoleFromLogger } from '@endo/errors-internal';
+import { loggedErrorHandler } from '@endo/errors-internal';
 
 // TODO possible additional exports. Some are privileged.
 // export { loggedErrorHandler };
@@ -11,12 +11,12 @@ import { loggedErrorHandler } from './error/assert.js';
 //   makeLoggingConsoleKit,
 //   filterConsole,
 //   pumpLogToConsole,
-// } from './src/error/console.js';
-// export { assertLogs, throwsAndLogs } from './src/error/throws-and-logs.js';
+// } from '@endo/errors-internal';
+// export { assertLogs, throwsAndLogs } from '@endo/errors-internal';
 
 /**
  * Makes a Console like the
- * [SES causal `console`](https://github.com/endojs/endo/blob/master/packages/ses/src/error/README.md)
+ * [SES causal `console`](https://github.com/endojs/endo/blob/master/packages/console-internal/README.md)
  * but whose output is redirected to the supplied `logger` function.
  */
 const makeCausalConsoleFromLoggerForSesAva =

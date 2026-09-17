@@ -23,7 +23,7 @@ import {
   freeze,
   defineProperty,
   freezeRegexp,
-  globalThis,
+  globalThis as commonGlobalThis,
   is,
   isError,
   regexpSearch,
@@ -43,8 +43,6 @@ import {
   hasOwn,
 } from '../commons.js';
 import { an, bestEffortStringify } from './stringify-utils.js';
-import './types.js';
-import './internal-types.js';
 import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
 /**
@@ -58,8 +56,10 @@ import { makeNoteLogArgsArrayKit } from './note-log-args.js';
  *   MakeAssert,
  *   Details,
  *   GenericErrorConstructor,
- *   AssertMakeErrorOptions} from '../../types.js';
- * @import {LogArgs, NoteCallback, LoggedErrorHandler} from './internal-types.js';
+ *   LogArgs,
+ *   NoteCallback,
+ *   LoggedErrorHandler,
+ * } from './types.js';
  */
 
 // For internal debugging purposes, uncomment
@@ -244,7 +244,7 @@ const getLogArgs = ({ template, args }) => {
   if (logArgs[logArgs.length - 1] === '') {
     arrayPop(logArgs);
   }
-  return logArgs;
+  return /** @type {LogArgs} */ (/** @type {unknown} */ (logArgs));
 };
 
 /**
@@ -376,7 +376,7 @@ const makeError = (
   // Internally, this is a GenericErrorConstructor, but externally it can be
   // some T which extends GenericErrorConstructor.
   const errCtor = /** @type {GenericErrorConstructor} */ (
-    errConstructor ?? globalThis.Error
+    errConstructor ?? commonGlobalThis.Error
   );
   // Promote string-valued `optDetails` into a minimal DetailsParts
   // consisting of that string as the sole literal part with no substitutions.
@@ -494,7 +494,7 @@ const defaultGetStackString = error => {
 
 /** @type {LoggedErrorHandler} */
 const loggedErrorHandler = {
-  getStackString: globalThis.getStackString || defaultGetStackString,
+  getStackString: commonGlobalThis.getStackString || defaultGetStackString,
   tagError: error => tagError(error),
   resetErrorTagNum: () => {
     errorTagNum = 0;

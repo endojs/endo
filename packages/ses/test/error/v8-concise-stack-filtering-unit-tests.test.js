@@ -2,7 +2,7 @@ import test from 'ava';
 import {
   filterFileName as ff,
   shortenCallSiteString as scs,
-} from '../../src/error/tame-v8-error-constructor.js';
+} from '@endo/errors-internal';
 
 test('filter file name unit test', t => {
   t.truthy(ff(undefined), 'Keep frames with no fileName.');
@@ -15,7 +15,7 @@ test('filter file name unit test', t => {
   t.falsy(ff('internal/process/task_queues.js'));
   t.falsy(
     ff(
-      'file:///Users/markmiller/src/ongithub/agoric/SES-shim/packages/ses/src/error/assert.js',
+      'file:///Users/markmiller/src/ongithub/agoric/SES-shim/packages/errors-internal/assert.js',
     ),
     'Drop frames from the assert.js module',
   );

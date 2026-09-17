@@ -95,7 +95,9 @@
   },
   "dependencies": {
     "@endo/cache-map": "workspace:^",
+    "@endo/console-internal": "workspace:^",
     "@endo/env-options": "workspace:^",
+    "@endo/errors-internal": "workspace:^",
     "@endo/immutable-arraybuffer": "workspace:^"
   },
   "devDependencies": {

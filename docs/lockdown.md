@@ -896,9 +896,9 @@ of the eventual-send shim:
             }
       Error#1: blue is not 42
 
-        at makeError (packages/ses/src/error/assert.js:350:61)
-        at fail (packages/ses/src/error/assert.js:482:20)
-        at Fail (packages/ses/src/error/assert.js:492:39)
+        at makeError (packages/error-internal/src/assert.js:350:61)
+        at fail (packages/error-internal/src/assert.js:482:20)
+        at Fail (packages/error-internal/src/assert.js:492:39)
         at Object.bar (packages/errors/test/deep-send.test.js:22:18)
         at localApplyMethod (packages/eventual-send/src/local.js:134:18)
         at Object.applyMethod (packages/eventual-send/src/handled-promise.js:463:16)
@@ -960,9 +960,9 @@ of the eventual-send shim:
             }
       Error#1: blue is not 42
 
-        at makeError (file:///Users/markmiller/src/ongithub/endojs/endo/packages/ses/src/error/assert.js:350:61)
-        at fail (file:///Users/markmiller/src/ongithub/endojs/endo/packages/ses/src/error/assert.js:482:20)
-        at Fail (file:///Users/markmiller/src/ongithub/endojs/endo/packages/ses/src/error/assert.js:492:39)
+        at makeError (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors-internal/assert.js:350:61)
+        at fail (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors-internal/assert.js:482:20)
+        at Fail (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors-internal/assert.js:492:39)
         at Object.bar (file:///Users/markmiller/src/ongithub/endojs/endo/packages/errors/test/deep-send.test.js:22:18)
         at localApplyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/local.js:134:18)
         at Object.applyMethod (file:///Users/markmiller/src/ongithub/endojs/endo/packages/eventual-send/src/handled-promise.js:463:16)

@@ -2,7 +2,7 @@
 
 import test from 'ava';
 import { makeHardener } from '../src/make-hardener.js';
-import { assert } from '../src/error/assert.js';
+import { assert } from '@endo/errors-internal';
 
 const { quote: q } = assert;
 

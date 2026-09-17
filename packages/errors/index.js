@@ -8,7 +8,7 @@
 // this module must be considered a resource module.
 
 // The assertions re-exported here are defined in
-// https://github.com/endojs/endo/blob/HEAD/packages/ses/src/error/assert.js
+// https://github.com/endojs/endo/blob/HEAD/packages/errors-internal/assert.js
 
 import harden from '@endo/harden';
 

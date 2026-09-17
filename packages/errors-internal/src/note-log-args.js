@@ -6,7 +6,7 @@ import { makeCacheMapKit } from '@endo/cache-map';
 
 /**
  * @import {CacheMapKit} from '@endo/cache-map';
- * @import {LogArgs} from './internal-types.js';
+ * @import {LogArgs} from './types.js';
  */
 
 const { freeze } = Object;

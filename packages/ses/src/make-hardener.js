@@ -50,7 +50,7 @@ import {
   FERAL_STACK_SETTER,
   isError,
 } from './commons.js';
-import { assert } from './error/assert.js';
+import { assert } from '@endo/errors-internal';
 
 /**
  * @import {Harden} from '../types.js'

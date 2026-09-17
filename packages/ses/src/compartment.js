@@ -58,7 +58,7 @@ import {
   setGlobalObjectMutableProperties,
   setGlobalObjectEvaluators,
 } from './global-object.js';
-import { assert, assertEqual, q } from './error/assert.js';
+import { assert, assertEqual, q } from '@endo/errors-internal';
 import { sharedGlobalPropertyNames } from './permits.js';
 import { load, loadNow } from './module-load.js';
 import { link } from './module-link.js';

@@ -4,7 +4,7 @@
 // failure looks like.
 
 import '../../index.js';
-import { fatal } from '../../src/error/fatal-assert.js';
+import { fatal } from '@endo/errors-internal';
 
 lockdown();
 

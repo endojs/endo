@@ -1,7 +1,7 @@
 import util from 'node:util';
 import test from 'ava';
 
-import { sanitizeFormatData } from '../../src/error/console.js';
+import { sanitizeFormatData } from '@endo/errors-internal';
 import { sanitizeBeforeAfterData } from './_console-sanitize-test-data.js';
 
 test('sanitizeFormatData', t => {
