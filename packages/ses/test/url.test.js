@@ -18,6 +18,81 @@ test('URL is present on the start compartment when the host provides it', t => {
   t.true('revokeObjectURL' in globalThis.URL);
 });
 
+// CHARACTERIZATION TEST (not a regression pin for this permit change).
+//
+// This pins a pre-existing invariant, not the warning-suppression the
+// `fnWithUndeletablePrototype` permit introduces. `cauterizeProperty` already
+// set the undeletable `.prototype` slot to `undefined` before this permit
+// existed (the slot's value ends up `undefined` whether or not the permit is
+// present); the permit only silences the report for that fallback. So this
+// test stays green even with the `fnWithUndeletablePrototype`/`known`-gate
+// change reverted — it does NOT witness this PR's behavior. The regression
+// test for the warning-suppression lives in
+// `test/error/permit-removal-warnings-node.test.js`. This is kept as a
+// characterization of the end state so a future permit that instead preserved
+// a live `.prototype` object (a real, if benign, behavior change on a
+// start-compartment global) would redden here.
+test('characterization: the blob statics keep their undeletable `.prototype` end state', t => {
+  if (!hasURL || !('createObjectURL' in globalThis.URL)) {
+    t.pass('host does not provide the blob-registry statics');
+    return;
+  }
+  for (const name of ['createObjectURL', 'revokeObjectURL']) {
+    const fn = globalThis.URL[name];
+    t.is(typeof fn, 'function', `${name} is present`);
+    t.is(
+      fn.prototype,
+      undefined,
+      `${name}.prototype is undefined post-lockdown`,
+    );
+    // The undeletable own `.prototype` slot is a Node.js artifact. A
+    // spec-conformant host builds these statics with `CreateBuiltinFunction`
+    // (https://tc39.es/ecma262/#sec-createbuiltinfunction), which does not add
+    // an own `.prototype` unless one is explicitly requested, so on such a host
+    // these statics have no own `.prototype` slot at all and there is nothing
+    // for lockdown to cauterize. Only pin the valueless descriptor shape where
+    // the host actually exhibits the undeletable-own-`.prototype` quirk this
+    // permit exists to quiet.
+    const desc = Object.getOwnPropertyDescriptor(fn, 'prototype');
+    if (desc) {
+      // The slot survives (undeletable) but is now valueless and frozen:
+      // `cauterizeProperty` reassigns via `obj.prototype = undefined`, then
+      // lockdown's `harden` pass freezes the intrinsic graph, so the surviving
+      // slot ends up non-writable and non-configurable. Pin every descriptor
+      // attribute so a future change that left the slot writable, enumerable,
+      // or holding a live value would redden here rather than pass on a partial
+      // pin.
+      t.is(desc.value, undefined);
+      t.is(desc.configurable, false);
+      t.is(desc.writable, false);
+      t.is(desc.enumerable, false);
+    } else {
+      t.pass(`${name} has no own .prototype slot on this host`);
+    }
+  }
+});
+
+test('the URL-family prototypes have no `nodejs.util.inspect.custom` post-lockdown', t => {
+  if (!hasURL || !hasURLSearchParams) {
+    t.pass('host does not provide the WHATWG URL family');
+    return;
+  }
+  // The three `'RegisteredSymbol(nodejs.util.inspect.custom)': false` permits
+  // expressly exclude Node.js's non-standard inspection hook from the URL-family
+  // prototypes. This positively pins that the symbol is actually GONE
+  // post-lockdown (not merely that no warning mentions it): a future refactor
+  // of `cauterizeProperty` that coupled "suppress the warning" to "skip the
+  // delete" would silence the stderr guard yet leave the property in place, and
+  // only this assertion would catch it.
+  const nodejsInspectCustom = Symbol.for('nodejs.util.inspect.custom');
+  const iteratorPrototype = Object.getPrototypeOf(
+    new URLSearchParams().entries(),
+  );
+  t.false(nodejsInspectCustom in globalThis.URL.prototype);
+  t.false(nodejsInspectCustom in globalThis.URLSearchParams.prototype);
+  t.false(nodejsInspectCustom in iteratorPrototype);
+});
+
 test('URLSearchParams is present on the start compartment when the host provides it', t => {
   if (!hasURLSearchParams) {
     t.pass('host does not provide URLSearchParams; nothing to permit');

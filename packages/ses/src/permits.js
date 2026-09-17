@@ -384,6 +384,23 @@ arrayForEach(['caller', 'arguments'], prop => {
   }
 });
 
+// A permit for a function that carries an own `prototype` property that is
+// writable but non-configurable, so lockdown cannot delete it — as Node
+// implements the WHATWG `URL` blob-registry statics `createObjectURL` /
+// `revokeObjectURL`. Spreading `fn` (`FunctionInstance`) then setting
+// `prototype: false` marks the `.prototype` exclusion `known`, so
+// `cauterizeProperty` reassigns the slot to `undefined` silently (see its
+// `known` @param for the `false`-permit contract); the end state is unchanged.
+//
+// INVARIANT: declared *after* the Hermes `arrayForEach` patch above so the
+// `{ ...fn }` spread captures `FunctionInstance`'s post-patch shape (the
+// `caller`/`arguments` accessor sub-permits it gains on a Hermes host). Moving
+// this above that block would silently drop those sub-permits on Hermes.
+const fnWithUndeletablePrototype = {
+  ...fn,
+  prototype: false,
+};
+
 export const isAccessorPermit = permit => {
   return permit === getter || permit === accessor;
 };
@@ -920,9 +937,11 @@ export const permitted = {
     '[[Proto]]': '%FunctionPrototype%',
     parse: fn,
     canParse: fn,
-    // Ambient blob-registry authority the start compartment may keep.
-    createObjectURL: fn,
-    revokeObjectURL: fn,
+    // Ambient blob-registry authority the start compartment may keep. Node
+    // gives each an undeletable own `.prototype`; see
+    // `fnWithUndeletablePrototype`.
+    createObjectURL: fnWithUndeletablePrototype,
+    revokeObjectURL: fnWithUndeletablePrototype,
     prototype: '%URLPrototype%',
   },
 
@@ -958,6 +977,9 @@ export const permitted = {
     toJSON: fn,
     toString: fn,
     '@@toStringTag': 'string',
+
+    // Non-standard property used by Node.js
+    'RegisteredSymbol(nodejs.util.inspect.custom)': false,
   },
 
   URLSearchParams: {
@@ -985,6 +1007,9 @@ export const permitted = {
     values: fn,
     '@@iterator': fn,
     '@@toStringTag': 'string',
+
+    // Non-standard property used by Node.js
+    'RegisteredSymbol(nodejs.util.inspect.custom)': false,
   },
 
   // The URLSearchParams iterator prototype has no name on the global; it is
@@ -997,6 +1022,9 @@ export const permitted = {
     // `return` is absent on some hosts (e.g. Node); permitted when present.
     return: fn,
     '@@toStringTag': 'string',
+
+    // Non-standard property used by Node.js
+    'RegisteredSymbol(nodejs.util.inspect.custom)': false,
   },
 
   // Text Processing
