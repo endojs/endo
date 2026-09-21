@@ -4,12 +4,11 @@
  * @file Type experiment for a fluent eventual-send facade.
  *
  * The runtime code here is intentionally tiny; most of the file describes the
- * shape of an `E` proxy with JSDoc typedefs. `E(x)` is the same as
- * `E.Once(x)`: it permits at most one property access and at most one
- * function or method call before returning a promise-like result. Further
- * pipelining can be expressed either with nested `E(...)` calls or by selecting
- * a chaining proxy through `.then.Send`, `.then.SendOnly`, `.then.Optional`, or
- * `.then.Once`.
+ * shape of an `E` proxy with JSDoc typedefs. `E(x)` is the one-step entry
+ * point: it permits at most one property access and at most one function or
+ * method call before returning a promise-like result. Further pipelining can be
+ * expressed either with nested `E(...)` calls or by selecting a chaining proxy
+ * through `.then.Send`, `.then.SendOnly`, or `.then.Optional`.
  */
 
 /**
@@ -23,8 +22,8 @@
 /**
  * Controls how far the proxy type follows returned properties. Deep recursion
  * models the chaining proxies, which keep pipelining through every property
- * access. Shallow models `Once`, which exposes only one property step. None
- * suppresses further property forwarding after that step.
+ * access. Shallow models the default `E(x)` entry, which exposes only one
+ * property step. None suppresses further property forwarding after that step.
  *
  * @typedef {'Deep' | 'Shallow' | 'None'} ERecursion
  */
@@ -77,15 +76,14 @@
  *
  * Awaiting the proxy gives either the target result or `void` for SendOnly.
  * The customized `then` property is also the control surface for choosing the
- * send mode, optional-chain behavior, and whether the next operation should be
- * one-step (`Once`) or continue pipelining (`Send`, `SendOnly`, `Optional`).
+ * send mode and optional-chain behavior. `Send`, `SendOnly`, and `Optional`
+ * continue pipelining; the only one-step entry is `E(x)`.
  *
  * @template T
  * @template {ESendModes} [SendMode='Send']
  * @template {never | undefined} [OptionalResult=never]
  * @typedef {Promise<SendMode extends 'SendOnly' ? void : T | OptionalResult> & {
  *   then: {
- *     Once: ETarget<T, SendMode, OptionalResult, 'Shallow'>;
  *     Optional: ETarget<Exclude<T, null | undefined>, SendMode, undefined>;
  *     Send: ETarget<T, SendMode, OptionalResult>;
  *     SendOnly: ETarget<T, 'SendOnly', OptionalResult>;
@@ -112,10 +110,10 @@
  * In Deep recursion, each property is itself represented as an `ETarget`, so
  * chains selected with `E.Send(x)` or `E(x).then.Send` can type
  * `E.Send(x).a.b.c()` without awaiting at every step. In Shallow recursion,
- * used by default `E(x)`/`E.Once(x)`, only the next property is exposed; any
- * further pipelining must be made explicit with nested `E(...)` calls or a
- * `.then` control proxy. Optional mode removes `null` and `undefined` before
- * the next property access and unions the eventual result with `undefined`.
+ * used by default `E(x)`, only the next property is exposed; any further
+ * pipelining must be made explicit with nested `E(...)` calls or a `.then`
+ * control proxy. Optional mode removes `null` and `undefined` before the next
+ * property access and unions the eventual result with `undefined`.
  *
  * @template T
  * @template {ESendModes} SendMode
@@ -150,11 +148,10 @@
  */
 
 /**
- * Build one of the top-level `E` entry points.
+ * Build one of the chaining `E` entry points.
  *
- * The default entry point is built from `Once`, so `E(x)` intentionally has the
- * same one-step surface as `E.Once(x)`. The other entry points expose the same
- * target with different send and recursion semantics.
+ * These entry points expose the same target with different send and recursion
+ * semantics.
  *
  * The returned function first moves `x` into a future turn before consulting
  * `.then[method]`. That avoids synchronously invoking a hostile or surprising
@@ -179,9 +176,19 @@ const makeEMethod =
   };
 
 export const E = Object.assign(
-    makeEMethod('Once'),
+    /**
+     * @template T
+     * @param {T} x
+     * @returns {ETarget<T, 'Send', never, 'Shallow'>}
+     */
+    x => {
+    // We push this to a future turn to thwart a malicious x.then.
+    const ePromise = /** @type {EPromise<T>} */ (
+      Promise.resolve().then(() => x)
+    );
+    return /** @type {ETarget<T, 'Send', never, 'Shallow'>} */ (ePromise);
+  },
     /** @type {const} */ ({
-    Once: makeEMethod('Once'),
     Optional: makeEMethod('Optional'),
     Send: makeEMethod('Send'),
     SendOnly: makeEMethod('SendOnly'),

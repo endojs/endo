@@ -1,7 +1,10 @@
 import test from 'ava';
 
 import { E as TypeE } from '../src/E2.js';
-import { makePromiseClient } from '../src/e2-shim.js';
+import {
+  makePromiseClient,
+  makePromiseThenAccessor,
+} from '../src/promise-client.js';
 
 const E = makePromiseClient();
 
@@ -41,14 +44,14 @@ async () => {
 test('makePromiseClient creates the E2 surface without mutating Promise', t => {
   t.false('client' in Promise);
   t.is(typeof E, 'function');
-  t.is(E.Once, E);
+  t.false('Once' in E);
   t.is(typeof E.Send, 'function');
   t.is(typeof E.SendOnly, 'function');
   t.is(typeof E.Optional, 'function');
 
   const node = E({ value: 1 });
   t.is(typeof node.then, 'function');
-  t.is(typeof node.then.Once, 'function');
+  t.false('Once' in node.then);
   t.is(typeof node.then.Send, 'function');
   t.is(typeof node.then.SendOnly, 'function');
   t.is(typeof node.then.Optional, 'function');
@@ -83,7 +86,7 @@ test('E2 client defers thenable and property access', async t => {
   t.true(readProp);
 });
 
-test('E2 Once gets, applies, and invokes one step', async t => {
+test('E2 default gets, applies, and invokes one step', async t => {
   const obj = {
     name: 'buddy',
     value: 123,
@@ -96,10 +99,9 @@ test('E2 Once gets, applies, and invokes one step', async t => {
   t.is(await E(obj).value, 123);
   t.is(await E(n => n * 2)(21), 42);
   t.is(await E(obj).hello('Hello'), 'Hello, buddy!');
-  t.is(await E.Once(obj).hello('Hi'), 'Hi, buddy!');
 });
 
-test('E2 Once method proxies reject wrong receivers', async t => {
+test('E2 default method proxies reject wrong receivers', async t => {
   const obj = {
     value: 3,
     double() {
@@ -128,6 +130,35 @@ test('E2 Send chains explicitly', async t => {
   await null;
   t.is(await E.Send(obj).a.b.c(7), 21);
   t.is(await E(obj).a.then.Send.b.c(8), 24);
+});
+
+test('E2 then accessor ponyfill creates installable then controls', async t => {
+  const descriptor = makePromiseThenAccessor(Promise, E);
+  t.is(typeof descriptor.get, 'function');
+  const getThen = descriptor.get;
+  if (typeof getThen !== 'function') {
+    throw TypeError('expected a then accessor getter');
+  }
+
+  const then = getThen.call(
+    Promise.resolve({
+      a: {
+        b: {
+          c() {
+            return 42;
+          },
+        },
+      },
+    }),
+  );
+
+  t.is(typeof then, 'function');
+  t.is(typeof then.Send, 'function');
+  t.is(typeof then.SendOnly, 'function');
+  t.is(typeof then.Optional, 'function');
+  t.false('Once' in then);
+  const result = await then.Send.a.b.c();
+  t.is(result, 42);
 });
 
 test('E2 Optional short-circuits the remaining chain', async t => {
