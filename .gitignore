@@ -116,3 +116,4 @@ api-docs
 !packages/stream/types.d.ts
 !packages/trampoline/types.d.ts
 !packages/where/types.d.ts
+/.vscode
