@@ -1,6 +1,6 @@
 // @ts-check
 
-/** @typedef {'Optional' | 'Send' | 'SendOnly'} EModes */
+/** @typedef {'Send' | 'SendOnly'} EModes */
 
 /**
  * @template T
@@ -20,13 +20,21 @@
 
 /**
  * @template T
+ * @template [This=T]
+ * @typedef {{ [P in keyof T]: T[P] extends (...args: infer A) => infer R ?
+ *   ((this: This, ...args: A) => R) & T[P]
+ *   : T[P] }} NeedThis
+ */
+
+/**
+ * @template T
  * @template {EModes} [Mode='Send']
  * @template {never | undefined} [OptionalChain=never]
  * @typedef {Promise<Mode extends 'SendOnly' ? void : T | OptionalChain> & {
  *   then: {
- *     Optional: ENext<T, 'Optional', OptionalChain>;
- *     Send: ENext<T, 'Send', OptionalChain>;
- *     SendOnly: ENext<T, 'SendOnly', OptionalChain>;
+ *     Optional: ETarget<Exclude<T, null | undefined>, Mode, undefined>;
+ *     Send: ETarget<T, Mode, OptionalChain>;
+ *     SendOnly: ETarget<T, 'SendOnly', OptionalChain>;
  *   } & NullPrototype;
  * } & NullPrototype} EPromise
  */
@@ -41,21 +49,12 @@
  */
 
 /**
- * @template NT
- * @template {EModes} Mode
- * @template {never | undefined} OptionalChain
- * @typedef {Mode extends 'Optional' ? ETarget<Exclude<NT, null | undefined>,
- *     'Send', undefined>
- *   : ETarget<NT, Mode, OptionalChain>} ENext
- */
-
-/**
  * @template T
  * @template {EModes} Mode
  * @template {never | undefined} OptionalChain
- * @typedef {EThenable<T, Mode, OptionalChain> &
- *   { [P in keyof PropsOf<T>]: ENext<PropsOf<T>[P], Mode, OptionalChain> }
- * } EProps
+ * @typedef {NeedThis<{
+ *   [P in keyof PropsOf<T>]: ETarget<PropsOf<T>[P], Mode, OptionalChain>
+ * }>} EProps
  */
 
 /**
@@ -63,45 +62,65 @@
  * @template {EModes} [Mode='Send']
  * @template {never | undefined} [OptionalChain=never]
  * @typedef {(T extends (...args: infer A) => infer R ?
- *      EProps<T, Mode, OptionalChain> & ((...args: A) => ENext<R, Mode, OptionalChain>)
- *    : EProps<T, Mode, OptionalChain>)} ETarget
+ *       ((...args: A) => ETarget<R, Mode, OptionalChain>)
+ *    : EProps<T, Mode, OptionalChain>) &
+ *      EThenable<T, Mode, OptionalChain>} ETarget
  */
 
 /**
- * @template T
- * @param {T} x
- * @returns {EPromise<T>['then']['Send']}
+ * @template {keyof EPromise<any>['then']} M
+ * @param {M} method
  */
-const makeESender = x => {
+const makeEMethod =
+  method =>
+  /**
+   * @template T
+   * @param {T} x
+   * @return {EPromise<T>['then'][M]}
+   */
+  x => {
     // We push this to a future turn to thwart a malicious x.then.
-    const ePromise = /** @type {EPromise<T>} */ (Promise.resolve().then(() => x));
-    return ePromise.then.Send;
-};
-const E = Object.assign(makeESender, /** @type {const} */ ({}));
+    const ePromise = /** @type {EPromise<T>} */ (
+      Promise.resolve().then(() => x)
+    );
+    return ePromise.then[method];
+  };
 
-(async () => {
-    /** @type {Map<number, 'abc' | undefined>} */
-    const m = new Map();
+const E = Object.assign(
+  makeEMethod('Send'),
+  /** @type {const} */ ({
+    Optional: makeEMethod('Optional'),
+    Send: makeEMethod('Send'),
+    SendOnly: makeEMethod('SendOnly'),
+  }),
+);
 
-    /** @type {null | (() => 'hello')} */
-    const fnum = Math.random() < 0.5 ? null : () => 'hello';
-    const v1 = await E(Math).min(3, 2).then.Optional.toString();
-    const v2 = await E(m).then.SendOnly.set(9, 'abc');
-    const v3 = await E(2).toFixed.then.Optional().charAt(3);
-    const o1p = E({ abc: fnum }).abc.then.Optional();
-    // @ts-expect-error expression is not callable
-    const o1 = await E({ abc: fnum }).abc();
-    const v4 = await E(2).then.SendOnly.toFixed().at(-1);
+async () => {
+  /** @type {Map<number, 'abc' | undefined>} */
+  const m = new Map();
+
+  /** @type {null | (() => 'hello')} */
+  const fnum = Math.random() < 0.5 ? null : () => 'hello';
+  /** @satisfies {string | undefined} */ (await E(Math).min(3, 2).then.Optional.toString());
+  /** @satisfies {void} */ (await E.SendOnly(m).set(9, 'abc'));
+  /** @satisfies {string | undefined} */ (await E.Optional(2345).toFixed().charAt(3));
+  /** @satisfies {'hello' | undefined} */ (await E({ abc: fnum }).abc.then.Optional());
+  // @ts-expect-error expression is not callable
+  await E({ abc: fnum }).abc();
+  /** @satisfies {void} */ (await E.SendOnly(2).toFixed().at(-1));
+  {
     const v5This = E(2);
-    /** @type {(this: EProps<number, 'Send', never>) => EProps<string, 'Send', never>} */
+    /** @satisfies {string} */ (await v5This.toExponential());
     const v5Fn = v5This.toExponential;
-    const v5real = await v5This.toExponential();
-    const v5 = await v5Fn();
+    // @ts-expect-error void not assignable to type...
+    await v5Fn();
     const fakeThis = {
-        v5Fn,
+      toExponential: v5Fn,
     };
-    const v5Fake = await fakeThis.v5Fn();
-    // @ts-expect-error no inherited toString.
-    const zot = await E(null).toString();
-    const zot2 = await E(fnum).then.Optional().length;
-});
+    // @ts-expect-error the this context of type...
+    await fakeThis.toExponential();
+  }
+  // @ts-expect-error no inherited toString.
+  await E(null).toString();
+  /** @satisfies {number | undefined} */ (await E.Optional(fnum)().length);
+};
