@@ -3,7 +3,7 @@
 Decomposing HandledPromise into coherent pieces for standardization
 
 Michael FIG [mfig@agoric.com](mailto:mfig@agoric.com), 2023-06-27  
-Last updated: 2024-10-27
+Last updated: 2026-09-21
 
 # **HandledPromise in Pieces**
 
@@ -18,7 +18,7 @@ Even better, they can be layered.
 * \#1 \- Attach eventual handlers to fresh objects  
 * \#0 \- PromiseSteps to enable pipelining
 
-# **\#3 \- Promise.client**
+# **\#3 \- Promise.client / E2 sketch**
 
 Most uses of eventual send can be accomplished by the eventual send client API. It is only library authors that need to understand the deeper layers.
 
@@ -26,44 +26,65 @@ The client API is currently only provided by a non-standard export (E) from the 
 
 This split allows the introduction of changes in the standard client that would break the Endo client, such as leveraging support from the Promise.watch implementation (layer \#0).
 
+The current `packages/eventual-send/src/E2.js` sketch refines the client API as a family of small proxy entry points:
+
+* `E(x)` is exactly `E.Once(x)`.
+* `Once` permits at most one property access and at most one function or method call before yielding a promise-like result.
+* Pipelining beyond that one step is explicit: either wrap an intermediate result with another `E(...)`, or select a chaining proxy with `E.Send(x)`, `E.SendOnly(x)`, `E.Optional(x)`, or the corresponding `.then` controls.
+* The `.then` property is both the normal awaitable surface and the control surface for selecting the next operation mode: `.then.Once`, `.then.Send`, `.then.SendOnly`, and `.then.Optional`.
+
 *Concise eventual client API*
 
 # **Eventual Send Client (old)**
 
-```js
+```ts
 // Obtain the eventual client
 import { E } from '@endo/far';
 
 // Eventual get (property access)
-const pr = E.get(x)[prop]; // .get needed to distinguish from eventual send
+const pr = await E.get(x)[prop]; // .get needed to distinguish from eventual send
 
 // Eventual invoke (function call)
-const pr2 = E(x)(...args);
+const pr2 = await E(x)(...args);
 
 // Eventual send (method call)
-const pr3 = E(x)[prop](...args);
+const pr3 = await E(x)[prop](...args);
 
 // Supply "eventual options" to the operation, and chain.
-const pr4 = E(E.get(E(x, opts)(...args)))[subProp])[method](...args2);
+const pr4 = await E(E.get(E(x, opts)(...args)))[subProp])[method](...args2);
 ```
 
-# **Promise.client (new)**
+# **Promise.client / E2 sketch (new)**
 
-```js
-// Obtain the promise client API.
+```ts
+// Obtain the promise client API. In the E2 sketch, this has the shape of E.
 const { client: E } = Promise;
 
-// Eventual get (property access); delete; set
-const pr = E(x)[prop]; delete E(x)[prop]; E(x)[prop] = value;
+// One-step eventual get. E(x) is E.Once(x).
+const pr = await E(x)[prop];
 
-// Eventual apply (function call)
-const pr2 = E(x)(...args);
+// One-step eventual apply (function call).
+const pr2 = await E(x)(...args);
 
-// Eventual invoke (method call)
-const pr3 = E(x)[prop](...args);
+// One-step eventual invoke (method call).
+const pr3 = await E(x)[prop](...args);
 
-// Supply "eventual options" to the operation, and chain.
-const pr4 = E(x, opts)(...args)[subProp][method](...args2);
+// One-step mode does not keep exposing arbitrary subproperties.
+// Continue explicitly by nesting E around the intermediate promise.
+const pr4 = await E(E(x)[prop])[subProp](...args2);
+
+// Or choose a chaining proxy to make pipelining explicit.
+const pr5 = await E.Send(x)[prop][subProp][method](...args2);
+
+// The same controls are available from the thenable surface.
+const pr6 = await E(x)[prop].then.Send[subProp][method](...args2);
+
+// Optional mode short-circuits nullish targets to undefined.
+const maybe = await E.Optional(x)[prop][subProp](...args);
+
+// SendOnly queues the sends and discards the eventual result.
+const ignored = E.SendOnly(x)[prop][subProp](...args);
+await ignored; // Promise<void>
 ```
 
 # **\#2 \- Promise.reflect**
@@ -78,7 +99,7 @@ Also, the new API allows for a standard "eventual options" final argument to eac
 
 # **HandledPromise reflect (old)**
 
-```js
+```ts
 // Obtain operations
 const pReflect = HandledPromise;
 
@@ -94,7 +115,7 @@ const pr3 = pReflect.applyMethod(x, prop, args); // HandledPromise<T>
 
 # **Promise.reflect (new)**
 
-```js
+```ts
 // Obtain operations
 const { reflect: pReflect } = Promise;
 
@@ -121,7 +142,7 @@ The new Proxy.eventual encapsulates an eventual handler, and its methods create 
 
 # **HandledPromise handlers (old)**
 
-```js
+```ts
 // Create a HandledPromise handler that intercepts some eventual traps.
 const hpHandler = { applyMethod(x, prop, args) { … } };
 
@@ -140,33 +161,32 @@ new HandledPromise((res, rej, resWP) => (proxy = resWP(hpHandler, proxyOpts)));
 
 # **Proxy.eventual (new)**
 
-t  
-const evHandler \= { invoke(x, prop, args) { … } }; // an eventual handler  
-const evFactory \= new Proxy.eventualFactory(evHandler); // an eventual factory
+```ts
+const evHandler = { invoke(x, prop, args) { … } }; // an eventual handler  
+const evFactory = new Proxy.eventualFactory(evHandler); // an eventual factory
 
 // Attach the eventual handler to a fresh Promise  
-const pr \= evFactory.promiseResolve(resolution);
+const pr = evFactory.promiseResolve(resolution);
 
 // …or to a fresh Object  
-const obj \= evFactory.objectCreate(null);
+const obj = evFactory.objectCreate(null);
 
 // …or to a fresh Proxy  
-const proxy \= evFactory.newProxy(proxyTarget, proxyHandler);
+const proxy = evFactory.newProxy(proxyTarget, proxyHandler);
 
 // …or to a fresh revocable Proxy  
-const { proxy, revoke } \= evFactory.proxyRevocable(proxyTarget, proxyHandler);
-
-````
+const { proxy, revoke } = evFactory.proxyRevocable(proxyTarget, proxyHandler);
+```
 
 ## Proxy.eventual (new) cont’d
 
-```javascript
+```ts
 // …or to a fresh Function
 const func = evFactory.functionCreate(wrappedFunction);
 
 // …or to a fresh PromiseStep (next section)
 const promiseStep = evFactory.promiseWatch(resolution);
-````
+```
 
 # **\#0 \- Promise.watch**
 
@@ -180,7 +200,7 @@ We propose that Javascript platform Promises should allow user code to track for
 
 # **Promise.watch (methods)**
 
-```
+```ts
 interface PromiseConstructor { // Static methods added to globalThis.Promise
   // Create a record of a pending PromiseStep, and its resolver (with both
   // resolver.resolve(_) and resolver.reject(_) methods).
@@ -201,24 +221,23 @@ interface PromiseConstructor { // Static methods added to globalThis.Promise
 
 # **Promise.watch (types)**
 
-t  
+```ts
 // Types that are conceptually similar to Promise.
 
-type Promissory \= PromiseLike | PromiseStep | Vow; // …etc
+type Promissory = PromiseLike | PromiseStep | Vow; // …etc
 
-| . |
-| :---- |
-| // Extract the final fulfilment type from a chain of Promissories. |
-| type Fulfilled \= T extends Promissory ? Fulfilled : T; |
+// Extract the final fulfilment type from a chain of Promissories. |
+type Fulfilled = T extends Promissory ? Fulfilled : T; |
 
 // Object whose resolve method forwards or settles a PromiseStep with F, or its reject  
 // method rejects the PromiseStep.  
-type Resolver \= { resolve(value: F | Promissory): void; reject(reason: any): void };
+type Resolver = { resolve(value: F | Promissory): void; reject(reason: any): void };
 
 // Object for subscribing to Promissory’s lifecycle events.  
 // Watching a non-Promissory only ever calls onFulfilled.  
-type PromissoryWatcher\<F, C extends unknown\[\] \= \[\], TResult1 \= F, TResult2 \= never\> \= {  
-onForwarded?: (next: Promissory, …context: C) \=\> void; // when more-resolved detected  
-onFulfilled?: (fulfilment: F, …context: C) \=\> TResult1; // once when completely fulfilled  
-onRejected?: (reason: any, …context: C) \=\> TResult2; // once when rejected  
+type PromissoryWatcher\<F, C extends unknown\[\] = \[\], TResult1 = F, TResult2 = never\> = {  
+onForwarded?: (next: Promissory, …context: C) =\> void; // when more-resolved detected  
+onFulfilled?: (fulfilment: F, …context: C) =\> TResult1; // once when completely fulfilled  
+onRejected?: (reason: any, …context: C) =\> TResult2; // once when rejected  
 };
+```

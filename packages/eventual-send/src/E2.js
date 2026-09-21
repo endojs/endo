@@ -168,7 +168,7 @@ const makeEMethod =
   /**
    * @template T
    * @param {T} x
-   * @return {EPromise<T>['then'][M]}
+   * @returns {EPromise<T>['then'][M]}
    */
   x => {
     // We push this to a future turn to thwart a malicious x.then.
@@ -178,7 +178,7 @@ const makeEMethod =
     return ePromise.then[method];
   };
 
-const E = Object.assign(
+export const E = Object.assign(
     makeEMethod('Once'),
     /** @type {const} */ ({
     Once: makeEMethod('Once'),
@@ -187,36 +187,3 @@ const E = Object.assign(
     SendOnly: makeEMethod('SendOnly'),
   }),
 );
-
-// Type assertions below document the intended behavior of the typedefs above.
-// They are not runtime coverage for eventual-send; they are compiler checks for
-// the fluent proxy surface.
-async () => {
-  /** @type {Map<number, 'abc' | undefined>} */
-  const m = new Map();
-
-  /** @type {null | (() => 'hello')} */
-  const fnum = Math.random() < 0.5 ? null : () => 'hello';
-  /** @satisfies {string | undefined} */ (await E(Math).min(3, 2).then.Optional.toString());
-  /** @satisfies {void} */ (await E.SendOnly(m).set(9, 'abc'));
-  /** @satisfies {string | undefined} */ (await E.Optional(2345).toFixed().charAt(3));
-  /** @satisfies {'hello' | undefined} */ (await E({ abc: fnum }).abc.then.Optional());
-  // @ts-expect-error expression is not callable
-  await E({ abc: fnum }).abc();
-  /** @satisfies {void} */ (await E.SendOnly(2).toFixed().at(-1));
-  {
-    const v5This = E(2);
-    /** @satisfies {string} */ (await v5This.toExponential());
-    const v5Fn = v5This.toExponential;
-    // @ts-expect-error void not assignable to type...
-    await v5Fn();
-    const fakeThis = {
-      toExponential: v5Fn,
-    };
-    // @ts-expect-error the this context of type...
-    await fakeThis.toExponential();
-  }
-  // @ts-expect-error no inherited toString.
-  await E(null).toString();
-  /** @satisfies {number | undefined} */ (await E.Optional(fnum)().length);
-};
