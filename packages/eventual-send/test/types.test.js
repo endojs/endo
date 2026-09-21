@@ -53,20 +53,19 @@ const foo = async (t, a) => {
   t.is(baz, 42);
 
   const bP = E(a).bar(); // bP is a promise for a string
-  t.is(Promise.resolve(bP), bP);
-  t.is(await bP, 'barRet');
+  t.is(typeof bP.then, 'function');
+  t.is(/** @type {any} */ (await bP), 'barRet');
 
   // Should be type error, but isn't.
   (await a).bar();
 
   const bazP = E.get(a).baz; // bazP is a promise for a number
-  t.is(Promise.resolve(bazP), bazP);
-  t.is(await bazP, 42);
+  t.is(typeof bazP.then, 'function');
+  t.is(/** @type {any} */ (await bazP), 42);
 
   // Should be type error, but isn't.
   const barP = E.get(a).bar;
-  t.is(Promise.resolve(barP), barP);
-  t.is(typeof (await barP), 'function');
+  t.is(typeof barP, 'function');
 
   t.is((await a).baz, 42);
 
@@ -89,8 +88,8 @@ const foo2 = async (t, a) => {
   t.is(baz, 42);
 
   const bP = E(a).bar(); // bP is a promise for a string
-  t.is(Promise.resolve(bP), bP);
-  t.is(await bP, 'barRet');
+  t.is(typeof bP.then, 'function');
+  t.is(/** @type {any} */ (await bP), 'barRet');
 
   // @ts-expect-error - awaiting remotes cannot get functions
   (await a).bar;
@@ -103,17 +102,16 @@ const foo2 = async (t, a) => {
 
   // Can call the far function.
   const ffP = E(ff)();
-  t.is(Promise.resolve(ffP), ffP);
-  t.is(await ffP, 'hello');
+  t.is(typeof ffP.then, 'function');
+  t.is(/** @type {any} */ (await ffP), 'hello');
 
   const bazP = E.get(a).baz; // bazP is a promise for a number
-  t.is(Promise.resolve(bazP), bazP);
-  t.is(await bazP, 42);
+  t.is(typeof bazP.then, 'function');
+  t.is(/** @type {any} */ (await bazP), 42);
 
   // @ts-expect-error - E.get cannot obtain remote functions
   const barP = E.get(a).bar;
-  t.is(Promise.resolve(barP), barP);
-  t.is(typeof (await barP), 'function');
+  t.is(typeof barP, 'function');
 
   t.is((await a).baz, 42);
 

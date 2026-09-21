@@ -2,7 +2,7 @@ import { getEnvironmentOption } from '@endo/env-options';
 
 const { quote: q, Fail } = assert;
 
-const { hasOwn, freeze, entries } = Object;
+const { freeze, entries } = Object;
 
 /**
  * @typedef {string | '*'} MatchStringTag
@@ -88,11 +88,14 @@ const simplifyTag = tag => {
  * @returns {MessageBreakpointTester | undefined}
  */
 export const makeMessageBreakpointTester = optionName => {
-  let breakpoints = JSON.parse(getEnvironmentOption(optionName, 'null'));
+  const rawBreakpoints = JSON.parse(getEnvironmentOption(optionName, 'null'));
 
-  if (breakpoints === null) {
+  if (rawBreakpoints === null) {
     return undefined;
   }
+
+  /** @type {MessageBreakpoints} */
+  let breakpoints = rawBreakpoints;
 
   /** @type {BreakpointTable} */
   let breakpointsTable;
@@ -104,8 +107,8 @@ export const makeMessageBreakpointTester = optionName => {
     isJSONRecord(newBreakpoints) ||
       Fail`Expected ${q(optionName)} option to be a JSON breakpoints record`;
 
-    /** @type {BreakpointTable} */
-    const newBreakpointsTable = { __proto__: null };
+    const newBreakpointsTable =
+      /** @type {BreakpointTable} */ (Object.create(null));
 
     for (const [tag, methodBPs] of entries(newBreakpoints)) {
       tag === simplifyTag(tag) ||
@@ -123,12 +126,14 @@ export const makeMessageBreakpointTester = optionName => {
             methodName,
           )} to be "*" or a non-negative integer`;
 
-        const classBPs = hasOwn(newBreakpointsTable, methodName)
-          ? newBreakpointsTable[methodName]
-          : (newBreakpointsTable[methodName] = {
-              __proto__: null,
-            });
-        classBPs[tag] = count;
+        let classBPs = newBreakpointsTable[methodName];
+        if (classBPs === undefined) {
+          classBPs = /** @type {Record<MatchStringTag, MatchCountdown>} */ (
+            Object.create(null)
+          );
+          newBreakpointsTable[methodName] = classBPs;
+        }
+        classBPs[tag] = /** @type {MatchCountdown} */ (count);
       }
     }
     breakpoints = newBreakpoints;

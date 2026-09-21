@@ -55,7 +55,7 @@ test('E method calls', async t => {
   };
   const d = E(x).double(6);
   t.is(typeof d.then, 'function', 'return is a thenable');
-  t.is(await d, 12, 'method call works');
+  t.is(/** @type {any} */ (await d), 12, 'method call works');
   const methodProxy = E(x);
   t.assert(Object.isFrozen(methodProxy));
   const output = await methodProxy.frozenTest({ arg: 123 });
@@ -167,13 +167,17 @@ test('E shortcuts', async t => {
       return `${greeting}, ${this.name}!`;
     },
   };
-  t.is(await E(x).hello('Hello'), 'Hello, buddy!', 'method call works');
   t.is(
-    await E(await E.get(await E.get(x).y).fn)(4),
+    /** @type {any} */ (await E(x).hello('Hello')),
+    'Hello, buddy!',
+    'method call works',
+  );
+  t.is(
+    /** @type {any} */ (await E(await E.get(await E.get(x).y).fn)(4)),
     8,
     'anonymous method works',
   );
-  t.is(await E.get(x).val, 123, 'property get');
+  t.is(/** @type {any} */ (await E.get(x).val), 123, 'property get');
 });
 
 test('E.get', async t => {
@@ -201,9 +205,9 @@ test('E.get', async t => {
     'function apply output is frozen',
   );
   t.is(
-    await E(await E.get(await E.get(x).y).fn)(4),
+    /** @type {any} */ (await E(await E.get(await E.get(x).y).fn)(4)),
     8,
     'anonymous method works',
   );
-  t.is(await E.get(x).val, 123, 'property get');
+  t.is(/** @type {any} */ (await E.get(x).val), 123, 'property get');
 });

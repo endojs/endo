@@ -27,6 +27,25 @@ const onSend = makeMessageBreakpointTester('ENDO_SEND_BREAKPOINTS');
 
 export const AsyncControl = Symbol.for('E.Control');
 
+/**
+ * @type {(
+ *   boundThis: unknown,
+ *   thisNode: AsyncNode<any, boolean>,
+ *   powers: {
+ *     HandledPromise: HandledPromiseConstructor,
+ *     unwrap: <T>(x: T) => Promise<EUnwrap<T>>,
+ *     shadowMethods: Map<PropertyKey, Callable>,
+ *     finishTarget: (tgt: any) => any,
+ *   },
+ *   opts?: {
+ *     sendMode?: 'default' | 'sendOnly' | 'blackhole',
+ *     boundName?: PropertyKey,
+ *     thisNode?: AsyncNode<any, boolean>,
+ *   },
+ * ) => any}
+ */
+let makeAsyncControl;
+
 // E Proxy handlers pretend that any property exists on the target and returns
 // a function for their value. While this function is "bound" by context, it is
 // meant to be called as a method. For that reason, the returned function
@@ -85,11 +104,11 @@ const makeTarget = (getThisArg, shadowMethods) => {
  * @param {<T>(x: T) => Promise<EUnwrap<T>>} powers.unwrap
  * @param {Map<PropertyKey, Callable>} powers.shadowMethods
  * @param {(tgt: any) => any} powers.finishTarget
- * @param {{ sendMode: 'default' | 'sendOnly' | 'blackhole', boundName?: PropertyKey, thisNode: AsyncNode<any, boolean> }} [opts]
+ * @param {{ sendMode?: 'default' | 'sendOnly' | 'blackhole', boundName?: PropertyKey, thisNode?: AsyncNode<any, boolean> }} [opts]
  * @returns {AsyncNode<T, SendOnly> & { [AsyncControl]: AsyncControl<AsyncNode<T, SendOnly>> }}
  */
 const makeAsyncNode = (boundThis, powers, opts) => {
-  const { sendMode, thisNode, boundName } = opts || {};
+  const { sendMode = 'default', thisNode, boundName } = opts || {};
   const { HandledPromise, finishTarget, shadowMethods, unwrap } = powers;
 
   /**
@@ -125,11 +144,17 @@ const makeAsyncNode = (boundThis, powers, opts) => {
     tgt,
     harden({
       apply(_target, thisArg, argArray = []) {
-        if (thisArg !== undefined && thisArg !== thisNode) {
+        if (
+          boundName === undefined
+            ? thisArg !== undefined && thisArg !== thisNode
+            : thisArg !== thisNode
+        ) {
+          const error = makeError(X`Unexpected thisArg ${thisArg}`, TypeError);
+          if (sendMode === 'sendOnly') {
+            throw error;
+          }
           return makeAsyncNode(
-            HandledPromise.reject(
-              makeError(X`Unexpected thisArg ${thisArg}`, TypeError),
-            ),
+            HandledPromise.reject(error),
             powers,
             opts,
           );
@@ -152,16 +177,16 @@ const makeAsyncNode = (boundThis, powers, opts) => {
 
         let retP;
         if (boundName === undefined) {
-          retP = HandledPromise[maybeSO('applyFunction')](
-            getThisArg(),
-            argArray,
-          );
+          const method = maybeSO('applyFunction');
+          assert(method !== null);
+          retP = HandledPromise[method](getThisArg(), argArray);
         } else {
-          retP = HandledPromise[maybeSO('applyMethod')](
-            boundThis,
-            boundName,
-            argArray,
-          );
+          const method = maybeSO('applyMethod');
+          assert(method !== null);
+          retP = HandledPromise[method](boundThis, boundName, argArray);
+        }
+        if (sendMode === 'sendOnly') {
+          return undefined;
         }
         return makeAsyncNode(retP, powers, { sendMode, thisNode: node });
       },
@@ -179,7 +204,7 @@ const makeAsyncNode = (boundThis, powers, opts) => {
         return true;
       },
       get(target, propertyKey, receiver) {
-        if (receiver !== target) {
+        if (receiver !== node) {
           return makeAsyncNode(
             HandledPromise.reject(
               makeError(
@@ -192,10 +217,13 @@ const makeAsyncNode = (boundThis, powers, opts) => {
           );
         }
         if (propertyKey === AsyncControl) {
-          return makeAsyncControl(thisNode, powers, opts);
+          return makeAsyncControl(boundThis, node, powers, opts);
         }
         if (shadowMethods.has(propertyKey)) {
           return tgt[propertyKey];
+        }
+        if (propertyKey === 'call') {
+          return Function.prototype.call.bind(receiver);
         }
         if (propertyKey === Symbol.toPrimitive) {
           // Work around a cycle that locks up the Node.js REPL.
@@ -228,13 +256,42 @@ const makeAsyncNode = (boundThis, powers, opts) => {
         if (!Reflect.set(target, propertyKey, value)) {
           return false;
         }
-        HandledPromise[maybeSO('set')](getThisArg(), propertyKey, value);
+        const method = maybeSO('set');
+        if (method !== null) {
+          HandledPromise[method](getThisArg(), propertyKey, value);
+        }
         return true;
       },
     }),
   );
 
   return node;
+};
+
+/**
+ * @param {unknown} boundThis
+ * @param {AsyncNode<any, boolean>} thisNode
+ * @param {Parameters<typeof makeAsyncNode>[1]} powers
+ * @param {Parameters<typeof makeAsyncNode>[2]} opts
+ */
+makeAsyncControl = (boundThis, thisNode, powers, opts = {}) => {
+  const { sendMode = 'default' } = opts;
+  return harden({
+    get SendOnly() {
+      return makeAsyncNode(boundThis, powers, {
+        ...opts,
+        sendMode: 'sendOnly',
+        thisNode,
+      });
+    },
+    get OptChain() {
+      return makeAsyncNode(boundThis, powers, {
+        ...opts,
+        sendMode,
+        thisNode,
+      });
+    },
+  });
 };
 
 /**
@@ -291,7 +348,7 @@ const makeE = (HandledPromise, powers = {}) => {
        * @param {T} x target for method/function call
        * @returns {AsyncNode<T>} thenable, function call, and getters proxy
        */
-      x => makeAsyncNode(x, asyncPowers),
+      x => /** @type {AsyncNode<T>} */ (makeAsyncNode(x, asyncPowers)),
       {
         /**
          * @deprecated Just use E(x)
@@ -302,10 +359,11 @@ const makeE = (HandledPromise, powers = {}) => {
          *
          * @template T
          * @param {T} x target for property get
-         * @returns {AsyncNode<T>} thenable, function call, and getters proxy
+         * @returns {AsyncNode<LocalRecord<EUnwrap<T>>>} thenable, function call, and getters proxy
          * @readonly
          */
-        get: x => E(x),
+        get: x =>
+          /** @type {AsyncNode<LocalRecord<EUnwrap<T>>>} */ (E(x)),
 
         /**
          * E.resolve(x) converts x to a handled promise. It is
@@ -316,7 +374,7 @@ const makeE = (HandledPromise, powers = {}) => {
          * @returns {Promise<Awaited<T>>} handled promise for x
          * @readonly
          */
-        resolve: x => HandledPromise.resolve(x),
+        resolve: HandledPromise.resolve,
 
         /**
          * @deprecated Instead of `E.sendOnly(x)...`, use `void E(x)[E].SendOnly...`
@@ -659,8 +717,10 @@ export default makeE;
  * @template [T=any]
  * @template {boolean} [SendOnly=false]
  * @typedef {Promise<SendOnly extends true ? void : EUnwrap<T>> &
- *  AsyncCallable<T, {}, SendOnly> & AsyncShallow<T, SendOnly> &
- *  AsyncPrimitive<T, SendOnly>} AsyncNode A node is a wrapper for an object on
+ *  AsyncCallable<RemoteFunctions<EUnwrap<T>>, {}, SendOnly> &
+ *  AsyncShallow<RemoteFunctions<EUnwrap<T>>, SendOnly> &
+ *  AsyncShallow<LocalRecord<EUnwrap<T>>, SendOnly> &
+ *  AsyncPrimitive<EUnwrap<T>, SendOnly>} AsyncNode A node is a wrapper for an object on
  *  which operations can be:
  * - `.then, .catch, .finally` act on either
  *   - `Promise<void>` if SendOnly, settled when the operation producing this

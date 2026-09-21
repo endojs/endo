@@ -1,4 +1,4 @@
-import { expectType } from 'tsd';
+import { expectAssignable, expectType } from 'tsd';
 import { E } from '../test/_get-hp.js';
 import type { ERef, EReturn, FarRef } from './exports.js';
 
@@ -6,15 +6,15 @@ import type { ERef, EReturn, FarRef } from './exports.js';
 const foo = async (a: ERef<{ bar(): string; baz: number }>) => {
   const { baz } = await a;
 
-  expectType<Promise<string>>(E(a).bar());
+  expectAssignable<Promise<string>>(E(a).bar());
 
   // Should be type error, but isn't.
   (await a).bar();
 
-  expectType<Promise<number>>(E.get(a).baz);
+  expectAssignable<Promise<number>>(E.get(a).baz);
 
   // Should be type error, but isn't.
-  expectType<Promise<() => string>>(E.get(a).bar);
+  expectAssignable<() => Promise<string>>(E.get(a).bar);
 
   // @ts-expect-error - calling a directly is not typed, but works.
   a.bar();
@@ -38,12 +38,12 @@ const foo2 = async (a: FarRef<{ bar(): string; baz: number }>) => {
   const { baz } = await a;
   expectType<number>(baz);
 
-  expectType<Promise<string>>(E(a).bar());
+  expectAssignable<Promise<string>>(E(a).bar());
 
   // @ts-expect-error - awaiting remotes cannot get functions
   (await a).bar;
 
-  expectType<Promise<number>>(E.get(a).baz);
+  expectAssignable<Promise<number>>(E.get(a).baz);
 
   // @ts-expect-error - E.get cannot obtain remote functions
   E.get(a).bar;
@@ -79,5 +79,5 @@ E.when(
 
 {
   const local = { getVal: () => 'val' };
-  expectType<Promise<string>>(E(local).getVal());
+  expectAssignable<Promise<string>>(E(local).getVal());
 }
