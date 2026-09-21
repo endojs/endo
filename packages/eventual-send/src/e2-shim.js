@@ -213,7 +213,6 @@ makeNode = (state, recursion, sendMode, optional) => {
           propertyKey
         ];
       });
-      operationP.catch(() => {});
       const targetP =
         sendMode === 'sendOnly'
           ? (operationP.catch(() => {}), Promise.resolve(undefined))
