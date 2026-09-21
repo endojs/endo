@@ -13,7 +13,7 @@ const isSkipped = value => value === skipped;
  * @typedef {'shallow' | 'deep' | 'none'} Recursion
  *
  * @typedef {object} NodeState
- * @property {Promise<unknown>} targetP
+ * @property {Promise<unknown>} [targetP]
  * @property {SendMode} sendMode
  * @property {boolean} optional
  * @property {Recursion} recursion
@@ -55,8 +55,35 @@ const applyFunction = (target, args) => {
  * @param {NodeState} state
  * @returns {Promise<unknown>}
  */
+const materializeP = state => {
+  if (state.targetP !== undefined) {
+    return state.targetP;
+  }
+  if (state.methodTargetP === undefined || state.methodKey === undefined) {
+    throw TypeError('Invalid promise client node state');
+  }
+  const { methodKey } = state;
+  return state.methodTargetP.then(resolution => {
+    if (isSkipped(resolution)) {
+      return skipped;
+    }
+    if (state.methodOptional === true && resolution == null) {
+      return skipped;
+    }
+    return /** @type {Record<PropertyKey, unknown>} */ (resolution)[methodKey];
+  });
+};
+
+/**
+ * @param {NodeState} state
+ * @returns {Promise<unknown>}
+ */
 const resultP = state => {
-  return state.targetP.then(value => (isSkipped(value) ? undefined : value));
+  const targetP = materializeP(state);
+  if (state.sendMode === 'sendOnly') {
+    return targetP.catch(() => undefined).then(() => undefined);
+  }
+  return targetP.then(value => (isSkipped(value) ? undefined : value));
 };
 
 /**
@@ -159,7 +186,7 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
                   optionalCall,
                 );
               })
-            : state.targetP.then(resolution => {
+            : materializeP(state).then(resolution => {
                 if (isSkipped(resolution)) {
                   return skipped;
                 }
@@ -170,7 +197,7 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
               });
         const targetP =
           sendMode === 'sendOnly'
-            ? (operationP.catch(() => {}), PromiseCtor.resolve(undefined))
+            ? operationP.catch(() => undefined)
             : operationP;
 
         return makeNode(
@@ -194,7 +221,11 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
         if (recursion === 'none') {
           return makeNode(
             {
-              targetP: PromiseCtor.reject(TypeError('Cannot pipeline further')),
+              targetP: PromiseCtor.reject(
+                TypeError(
+                  'Cannot pipeline further; enable chaining with E.Send(x) or E(x).then.Send',
+                ),
+              ),
               sendMode,
               optional,
               recursion: 'none',
@@ -205,29 +236,12 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
           );
         }
 
-        const operationP = state.targetP.then(resolution => {
-          if (isSkipped(resolution)) {
-            return skipped;
-          }
-          if (optional && resolution == null) {
-            return skipped;
-          }
-          return /** @type {Record<PropertyKey, unknown>} */ (resolution)[
-            propertyKey
-          ];
-        });
-        const targetP =
-          sendMode === 'sendOnly'
-            ? (operationP.catch(() => {}), PromiseCtor.resolve(undefined))
-            : operationP;
-
         return makeNode(
           {
-            targetP,
             sendMode,
             optional: false,
             recursion: recursion === 'shallow' ? 'none' : recursion,
-            methodTargetP: state.targetP,
+            methodTargetP: materializeP(state),
             methodKey: propertyKey,
             methodOptional: optional,
             expectedThis: receiver,
@@ -294,6 +308,7 @@ export const makePromiseThenAccessor = (
 
   return harden({
     configurable: true,
+    enumerable: false,
     get() {
       const promise = this;
       const eNode = client(promise);
