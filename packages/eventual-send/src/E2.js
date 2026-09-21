@@ -1,6 +1,7 @@
 // @ts-check
 
-/** @typedef {'Send' | 'SendOnly'} EModes */
+/** @typedef {'Send' | 'SendOnly'} ESendModes */
+/** @typedef {'Deep' | 'Shallow' | 'None'} ERecursion */
 
 /**
  * @template T
@@ -28,12 +29,13 @@
 
 /**
  * @template T
- * @template {EModes} [Mode='Send']
+ * @template {ESendModes} [SendMode='Send']
  * @template {never | undefined} [OptionalChain=never]
- * @typedef {Promise<Mode extends 'SendOnly' ? void : T | OptionalChain> & {
+ * @typedef {Promise<SendMode extends 'SendOnly' ? void : T | OptionalChain> & {
  *   then: {
- *     Optional: ETarget<Exclude<T, null | undefined>, Mode, undefined>;
- *     Send: ETarget<T, Mode, OptionalChain>;
+ *     Once: ETarget<T, SendMode, OptionalChain, 'Shallow'>;
+ *     Optional: ETarget<Exclude<T, null | undefined>, SendMode, undefined>;
+ *     Send: ETarget<T, SendMode, OptionalChain>;
  *     SendOnly: ETarget<T, 'SendOnly', OptionalChain>;
  *   } & NullPrototype;
  * } & NullPrototype} EPromise
@@ -41,30 +43,37 @@
 
 /**
  * @template T
- * @template {EModes} Mode
+ * @template {ESendModes} SendMode
  * @template {never | undefined} OptionalChain
  * @typedef {T extends PromiseLike<infer U>
- *   ? EThenable<U, Mode, OptionalChain>
- *   : EPromise<T, Mode, OptionalChain>} EThenable
+ *   ? EThenable<U, SendMode, OptionalChain>
+ *   : EPromise<T, SendMode, OptionalChain>} EThenable
  */
 
 /**
  * @template T
- * @template {EModes} Mode
+ * @template {ESendModes} SendMode
  * @template {never | undefined} OptionalChain
- * @typedef {NeedThis<{
- *   [P in keyof PropsOf<T>]: ETarget<PropsOf<T>[P], Mode, OptionalChain>
+ * @template {ERecursion} Recursion
+ * @typedef {Recursion extends 'None' ? {} : NeedThis<{
+ *   [P in keyof PropsOf<T>]: ETarget<PropsOf<T>[P], SendMode,
+ *     OptionalChain,
+ *     Recursion extends 'Shallow' ? 'None' : Recursion>
  * }>} EProps
  */
 
 /**
  * @template T
- * @template {EModes} [Mode='Send']
+ * @template {ESendModes} [SendMode='Send']
  * @template {never | undefined} [OptionalChain=never]
+ * @template {ERecursion} [Recursion='Deep']
  * @typedef {(T extends (...args: infer A) => infer R ?
- *       ((...args: A) => ETarget<R, Mode, OptionalChain>)
- *    : EProps<T, Mode, OptionalChain>) &
- *      EThenable<T, Mode, OptionalChain>} ETarget
+ *       ((...args: A) => Recursion extends 'Deep' ?
+ *         ETarget<R, SendMode, OptionalChain, Recursion>
+ *         : EPromise<R, SendMode, OptionalChain>) &
+ *       EProps<T, SendMode, OptionalChain, Recursion>
+ *    : EProps<T, SendMode, OptionalChain, Recursion>) &
+ *      EThenable<T, SendMode, OptionalChain>} ETarget
  */
 
 /**
@@ -87,8 +96,9 @@ const makeEMethod =
   };
 
 const E = Object.assign(
-  makeEMethod('Send'),
-  /** @type {const} */ ({
+    makeEMethod('Once'),
+    /** @type {const} */ ({
+    Once: makeEMethod('Once'),
     Optional: makeEMethod('Optional'),
     Send: makeEMethod('Send'),
     SendOnly: makeEMethod('SendOnly'),
