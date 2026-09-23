@@ -86,6 +86,112 @@ Never mix `self` and `facets` in the same context type.
 
 Always run `yarn lint` in each package you've modified before committing.
 
+## Running CI locally
+
+Use `.github/act.sh` to emulate the practical Linux portion of GitHub Actions
+locally with `act`. The wrapper forwards the current GitHub credential from
+`GITHUB_TOKEN`, `GH_TOKEN`, or `gh auth token` through a temporary secret file;
+it does not write credentials into the repository.
+
+The default runner image is `catthehacker/ubuntu:full-latest` because the
+lighter image is missing tools that GitHub's `ubuntu-latest` runner has, such as
+`shellcheck`. The wrapper also keeps Yarn's global cache inside the mounted
+workspace so Yarn can hardlink packages during `yarn install --immutable`.
+
+For broad local coverage, use the core preset:
+
+```sh
+ACT_DRYRUN=1 .github/act.sh ci-core  # prove the practical jobs schedule
+.github/act.sh ci-core > /tmp/endo-ci-core.log 2>&1; status=$?
+tail -200 /tmp/endo-ci-core.log
+exit $status
+```
+
+Prefer logging long `act` runs to a file and inspecting the tail after the
+command exits. Do not stream the full output into an agent conversation unless
+you need it; the tool does not reason while waiting, but the returned output
+still consumes tokens.
+
+Use `.github/act.sh --help` to see the available presets and which narrower
+presets are included in broader presets such as `ci-core` and `ci-heavy`. Run a
+narrower preset while iterating, for example:
+
+```sh
+.github/act.sh lint
+.github/act.sh test22
+.github/act.sh test24
+.github/act.sh depcheck
+```
+
+Known limits:
+
+- `act` needs Docker access. In restricted environments, rerun through the
+  approved Docker-capable execution path rather than treating Docker permission
+  errors as test failures.
+- `act` cannot faithfully emulate macOS runners; use explicit local
+  package/workspace commands for macOS-specific risk.
+- `.github/act.sh zizmor` is available but may spend time fetching nested action
+  dependencies. Keep it separate from the default `ci-core` pass.
+- `.github/act.sh ci-heavy` covers expensive or environment-sensitive jobs such
+  as release smoke tests, XS, OCapN Python interop, and browser tests. Treat it
+  as optional follow-up validation.
+
+## Dependabot security findings
+
+When addressing GitHub Dependabot security findings, also known as
+"Dependabotany", optimize for clearing the largest safe group of open findings
+with the fewest private branches while keeping the branch easy to bisect:
+
+Before asking for help, exhaust the local best-shot work in the current branch.
+The absence of a draft security advisory is not a reason to stop local work:
+make the bisectable local commits first, then use `.github/act.sh` to emulate as
+much of GitHub Actions CI as possible with the current `gh` credentials. Stop
+only when blocked by information, permissions, or a required external decision
+that cannot be inferred or safely handled locally.
+
+1. Start from the [Dependabot security page](./security/dependabot) and work
+   open findings in descending severity order: critical, high, medium, then low.
+   Ignore fixed, dismissed, or otherwise closed findings unless they explain why
+   an open finding remains.
+2. DO NOT create any security-sensitive PRs in a public repository! You will
+   probably prematurely leak a bunch of vulnerabilities that have not been fixed.
+   Work in the current local branch and do not push to a public branch until the
+   security-sensitive fix plan is ready for a draft security advisory review
+   path.
+3. Group findings by ecosystem, manifest or lockfile, and dependency tree. Prefer
+   one branch for all findings that can be resolved by a compatible set of upgrades
+   in the same manifest or lockfile, especially when multiple findings collapse
+   to the same transitive upgrade.
+4. Within that branch, use separate commits for each direct manifest change,
+   lockfile-only transitive upgrade family, or toolchain/runtime family. This
+   keeps the overall branch count low while allowing CI failures to be bisected,
+   reverted, or tweaked at commit granularity.
+5. Resolve the highest-severity direct dependency findings first, then add
+   transitive lockfile resolutions that clear findings at the same severity, then
+   include lower-severity findings only when they ride on the same upgrade path
+   without materially increasing risk.
+6. Avoid one-alert-per-branch churn. Split into separate branches only when upgrades are
+   behaviorally unrelated and high risk, require incompatible major-version
+   migrations, touch different package managers or generated lockfiles, or need
+   different reviewers and test plans.
+7. After each commit, check which findings should be cleared and run the narrowest
+   relevant validation first. Before asking for review, run the lint/test
+   commands for each modified package and any workspace-level checks affected by
+   lockfile or dependency graph changes.
+8. Use the [local CI workflow](#running-ci-locally) instead of creating a DSA
+   solely to get CI. Start with narrow package/workspace checks while iterating,
+   then use `.github/act.sh ci-core` for broader private validation when
+   Docker/time allow.
+9. When the local branch is ready to share, create a
+   [draft security advisory](./security/advisories) (DSA) and create the private
+   PR from that advisory. Use the DSA only as the private collaboration and
+   review surface for security-sensitive code; do not expect GitHub-hosted CI to
+   run there. Include the local `act` results, package checks, and any known CI
+   gaps in the advisory or private PR notes.
+10. In the private review summary, summarize counts by severity and scope rather
+   than naming vulnerabilities. Call out the commit structure so reviewers can
+   bisect or request targeted adjustments without splitting the branch.
+
 ## Composite TypeScript build
 
 An opt-in composite TypeScript configuration lets you build or watch
