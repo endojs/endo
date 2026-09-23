@@ -1,10 +1,7 @@
 import test from 'ava';
 
 import { E as TypeE } from '../src/E2.js';
-import {
-  makePromiseClient,
-  makePromiseThenAccessor,
-} from '../src/promise-client.js';
+import { makePromiseClient } from '../src/promise-client.js';
 
 const E = makePromiseClient();
 
@@ -188,6 +185,14 @@ test('E2 default method proxies reject wrong receivers', async t => {
   t.is(await node.double(), 6);
 });
 
+test('E2 default operation failures follow normal JavaScript errors', async t => {
+  await t.throwsAsync(() => E({}).missing(), { instanceOf: TypeError });
+  await t.throwsAsync(() => E(3)(), { instanceOf: TypeError });
+  await t.throwsAsync(() => E({ value: 3 }).value(), {
+    instanceOf: TypeError,
+  });
+});
+
 test('E2 Send chains explicitly', async t => {
   const obj = {
     a: {
@@ -204,33 +209,23 @@ test('E2 Send chains explicitly', async t => {
   t.is(await E(obj).a.then.Send.b.c(8), 24);
 });
 
-test('E2 then accessor ponyfill creates installable then controls', async t => {
-  const descriptor = makePromiseThenAccessor(Promise, E);
-  t.is(typeof descriptor.get, 'function');
-  const getThen = descriptor.get;
-  if (typeof getThen !== 'function') {
-    throw TypeError('expected a then accessor getter');
-  }
+test('E2 Send supports nested wrapping and propagates chain errors', async t => {
+  const obj = {
+    a: {
+      b: 9,
+    },
+  };
+  const nested = await E(E(obj).a).b;
+  t.is(nested, 9);
 
-  const then = getThen.call(
-    Promise.resolve({
-      a: {
-        b: {
-          c() {
-            return 42;
-          },
-        },
-      },
-    }),
-  );
-
-  t.is(typeof then, 'function');
-  t.is(typeof then.Send, 'function');
-  t.is(typeof then.SendOnly, 'function');
-  t.is(typeof then.Optional, 'function');
-  t.false('Once' in then);
-  const result = await then.Send.a.b.c();
-  t.is(result, 42);
+  const reason = Error('boom');
+  const throwing = {
+    get a() {
+      throw reason;
+    },
+  };
+  const thrown = await t.throwsAsync(() => E.Send(throwing).a.b);
+  t.is(thrown, reason);
 });
 
 test('E2 Optional short-circuits the remaining chain', async t => {
@@ -283,6 +278,20 @@ test('E2 Optional mirrors per-step optional chaining', async t => {
   );
 });
 
+test('E2 Optional preserves SendOnly mode', async t => {
+  let readValue = false;
+  const target = {
+    get value() {
+      readValue = true;
+      throw Error('suppressed');
+    },
+  };
+
+  const result = await E.SendOnly(target).then.Optional.value;
+  t.is(result, undefined);
+  t.true(readValue);
+});
+
 test('E2 SendOnly resolves when queued and suppresses operation failures', async t => {
   let count = 0;
   /** @type {(value?: unknown) => void} */
@@ -291,7 +300,8 @@ test('E2 SendOnly resolves when queued and suppresses operation failures', async
     resolveIncrDone = resolve;
   });
   const counter = {
-    incr(n) {
+    async incr(n) {
+      await nextTurn();
       count += n;
       resolveIncrDone();
       return count;
@@ -302,6 +312,7 @@ test('E2 SendOnly resolves when queued and suppresses operation failures', async
   t.is(count, 0);
   const result = await resultP;
   t.is(result, undefined);
+  t.is(count, 0);
   await incrDone;
   t.is(count, 5);
 
@@ -316,6 +327,29 @@ test('E2 uses normal lookup for primitives and inherited properties', async t =>
   await t.throwsAsync(() => E(null).toString(), {
     instanceOf: TypeError,
   });
+});
+
+test('E2 hardens arguments and results', async t => {
+  const arg = { value: 1 };
+  const result = { returned: true };
+  const target = {
+    echo(seenArg) {
+      t.true(Object.isFrozen(seenArg));
+      return result;
+    },
+    get result() {
+      return result;
+    },
+  };
+
+  const callResult = await E(target).echo(arg);
+  t.is(callResult, result);
+  t.true(Object.isFrozen(arg));
+  t.true(Object.isFrozen(result));
+
+  const propertyResult = await E(target).result;
+  t.is(propertyResult, result);
+  t.true(Object.isFrozen(propertyResult));
 });
 
 test('E2 hardens client and then-control surfaces', t => {
@@ -342,9 +376,7 @@ test('E2 hardens client and then-control surfaces', t => {
     t.false(descriptor?.configurable);
   }
 
-  const thenDescriptor = makePromiseThenAccessor(Promise, E);
-  t.true(Object.isFrozen(thenDescriptor));
-  t.false(thenDescriptor.enumerable);
-  t.true(thenDescriptor.configurable);
-  t.is(typeof thenDescriptor.get, 'function');
+  t.false('Send' in Promise.resolve().then);
+  t.false('SendOnly' in Promise.resolve().then);
+  t.false('Optional' in Promise.resolve().then);
 });

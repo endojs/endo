@@ -2,7 +2,7 @@
 
 import harden from '@endo/harden';
 
-const { defineProperties, getOwnPropertyDescriptor } = Object;
+const { defineProperties } = Object;
 
 const skipped = harden({});
 
@@ -70,20 +70,26 @@ const materializeP = state => {
     if (state.methodOptional === true && resolution == null) {
       return skipped;
     }
-    return /** @type {Record<PropertyKey, unknown>} */ (resolution)[methodKey];
+    return harden(
+      /** @type {Record<PropertyKey, unknown>} */ (resolution)[methodKey],
+    );
   });
 };
 
 /**
  * @param {NodeState} state
+ * @param {Pick<PromiseConstructor, 'resolve'>} PromiseCtor
  * @returns {Promise<unknown>}
  */
-const resultP = state => {
+const resultP = (state, PromiseCtor) => {
   const targetP = materializeP(state);
   if (state.sendMode === 'sendOnly') {
-    return targetP.catch(() => undefined).then(() => undefined);
+    targetP.catch(() => undefined);
+    return PromiseCtor.resolve(undefined);
   }
-  return targetP.then(value => (isSkipped(value) ? undefined : value));
+  return targetP.then(value =>
+    isSkipped(value) ? undefined : harden(value),
+  );
 };
 
 /**
@@ -109,7 +115,7 @@ const hardenThen = (then, getSend, getSendOnly, getOptional) => {
 };
 
 /**
- * @param {PromiseConstructor} [PromiseCtor]
+ * @param {Pick<PromiseConstructor, 'resolve' | 'reject'>} [PromiseCtor]
  * @returns {any}
  */
 export const makePromiseClient = (PromiseCtor = Promise) => {
@@ -133,7 +139,7 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
    */
   const makeThen = state => {
     const then = (onFulfilled, onRejected) =>
-      resultP(state).then(onFulfilled, onRejected);
+      resultP(state, PromiseCtor).then(onFulfilled, onRejected);
     const controlledState = { ...state, expectedThis: undefined };
 
     return hardenThen(
@@ -168,7 +174,7 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
           );
         }
 
-        const args = [...argArray];
+        const args = harden([...argArray]);
         const optionalCall = optional || state.methodOptional === true;
         const operationP =
           state.methodTargetP !== undefined && state.methodKey !== undefined
@@ -179,11 +185,13 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
                 if (optionalCall && resolution == null) {
                   return skipped;
                 }
-                return applyMethod(
-                  /** @type {object} */ (resolution),
-                  state.methodKey,
-                  args,
-                  optionalCall,
+                return harden(
+                  applyMethod(
+                    /** @type {object} */ (resolution),
+                    state.methodKey,
+                    args,
+                    optionalCall,
+                  ),
                 );
               })
             : materializeP(state).then(resolution => {
@@ -193,15 +201,14 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
                 if (optional && resolution == null) {
                   return skipped;
                 }
-                return applyFunction(resolution, args);
+                return harden(applyFunction(resolution, args));
               });
-        const targetP =
-          sendMode === 'sendOnly'
-            ? operationP.catch(() => undefined)
-            : operationP;
+        if (sendMode === 'sendOnly') {
+          operationP.catch(() => undefined);
+        }
 
         return makeNode(
-          { targetP, sendMode, optional: false, recursion },
+          { targetP: operationP, sendMode, optional: false, recursion },
           recursion === 'deep' ? 'deep' : 'none',
           sendMode,
           false,
@@ -284,43 +291,4 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
   return harden(client);
 };
 
-/**
- * Make a `then` accessor descriptor that can be installed by callers wherever
- * they want promise `.then` controls.
- *
- * @param {PromiseConstructor} [PromiseCtor]
- * @param {ReturnType<typeof makePromiseClient>} [client]
- * @returns {PropertyDescriptor}
- */
-export const makePromiseThenAccessor = (
-  PromiseCtor = Promise,
-  client = makePromiseClient(PromiseCtor),
-) => {
-  const thenDescriptor = getOwnPropertyDescriptor(PromiseCtor.prototype, 'then');
-  if (
-    !thenDescriptor ||
-    typeof thenDescriptor.value !== 'function' ||
-    thenDescriptor.get !== undefined
-  ) {
-    throw TypeError('`Promise.prototype.then` must be a data method');
-  }
-  const nativeThen = thenDescriptor.value;
-
-  return harden({
-    configurable: true,
-    enumerable: false,
-    get() {
-      const promise = this;
-      const eNode = client(promise);
-      return hardenThen(
-        nativeThen.bind(promise),
-        () => eNode.then.Send,
-        () => eNode.then.SendOnly,
-        () => eNode.then.Optional,
-      );
-    },
-  });
-};
-
 harden(makePromiseClient);
-harden(makePromiseThenAccessor);

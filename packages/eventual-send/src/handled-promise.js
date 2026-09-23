@@ -125,7 +125,7 @@ export const makeHandledPromise = () => {
    * @param {keyof Handler<any>} operation
    * @param {any} o
    * @param {any[]} opArgs
-   * @param {Promise<unknown>} [returnedP]
+   * @param {PromiseLike<unknown>} [returnedP]
    * @returns {any}
    */
   const dispatchToHandler = (
@@ -193,7 +193,7 @@ export const makeHandledPromise = () => {
     );
   };
 
-  /** @typedef {{new <R>(executor: HandledExecutor<R>, unfulfilledHandler?: Handler<Promise<unknown>>): Promise<R>, prototype: Promise<unknown>} & PromiseConstructor & HandledPromiseStaticMethods} HandledPromiseConstructor */
+  /** @typedef {{new <R>(executor: HandledExecutor<R>, unfulfilledHandler?: Handler<PromiseLike<unknown>>): Promise<R>, prototype: Promise<unknown>} & PromiseConstructor & HandledPromiseStaticMethods} HandledPromiseConstructor */
   /** @type {HandledPromiseConstructor} */
   let HandledPromise;
 
@@ -202,7 +202,7 @@ export const makeHandledPromise = () => {
    *
    * @template R
    * @param {HandledExecutor<R>} executor
-   * @param {Handler<Promise<R>>} [pendingHandler]
+   * @param {Handler<PromiseLike<R>>} [pendingHandler]
    * @returns {Promise<R>}
    */
   function baseHandledPromise(executor, pendingHandler = undefined) {
@@ -387,7 +387,7 @@ export const makeHandledPromise = () => {
    * must not have any own properties. The requirements are otherwise
    * identical.
    *
-   * @param {Promise<unknown>} p
+   * @param {PromiseLike<unknown>} p
    * @returns {boolean}
    */
   const isSafePromise = p => {
@@ -593,11 +593,11 @@ export const makeHandledPromise = () => {
 /**
  * @template T
  * @typedef {{
- *   get?(p: T, name: PropertyKey, returnedP?: Promise<unknown>): unknown;
+ *   get?(p: T, name: PropertyKey, returnedP?: PromiseLike<unknown>): unknown;
  *   getSendOnly?(p: T, name: PropertyKey): void;
- *   applyFunction?(p: T, args: unknown[], returnedP?: Promise<unknown>): unknown;
+ *   applyFunction?(p: T, args: unknown[], returnedP?: PromiseLike<unknown>): unknown;
  *   applyFunctionSendOnly?(p: T, args: unknown[]): void;
- *   applyMethod?(p: T, name: PropertyKey | undefined, args: unknown[], returnedP?: Promise<unknown>): unknown;
+ *   applyMethod?(p: T, name: PropertyKey | undefined, args: unknown[], returnedP?: PromiseLike<unknown>): unknown;
  *   applyMethodSendOnly?(p: T, name: PropertyKey | undefined, args: unknown[]): void;
  * }} Handler
  */
