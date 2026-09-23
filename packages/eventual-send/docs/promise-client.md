@@ -46,6 +46,10 @@ await E(obj).method(arg);
 The first implementation is a ponyfill. It should export a function that creates
 the implementation standalone and leaves it up to the caller to install the
 components somewhere useful, for example on `Promise.client`.
+The `.then` controls are only attached to E proxy-owned then functions. The
+ponyfill intentionally does not provide controls for arbitrary native promise
+`.then` functions, since relying on the underlying native `.then` receiver path
+is risky.
 
 ## Semantics From The Sketch
 
@@ -127,10 +131,11 @@ handler implements:
   produced by property access;
 - minimal invariants needed for `await`, `Promise.resolve`, and AVA assertions.
 
-For `E(x)`, property access returns a shallow node whose next call returns a
-plain promise result. Further ordinary properties on that result are not exposed
-unless the user selects `.then.Send`, `.then.SendOnly`, `.then.Optional`, or
-wraps the result with `E(...)`.
+For `E(x)`, property access returns a one-step E node. Calling it returns an E
+node that can be awaited, but further ordinary property access rejects with
+`Cannot pipeline further`. Select `.then.Send`, `.then.SendOnly`, or
+`.then.Optional` to continue chaining, or wrap the intermediate node with
+`E(...)`.
 
 For `Send`, property access and calls return deep nodes so the chain remains
 proxy-addressable until awaited.
@@ -168,38 +173,39 @@ SendOnly
 Optional
 ```
 
-Also export a `.then` accessor descriptor factory. Callers can install that
-descriptor wherever they choose, including `Promise.prototype.then`, without the
-ponyfill mutating the environment itself. The accessor returns a receiver-bound
-native `then` function decorated with `Send`, `SendOnly`, and `Optional`
-controls that close over the promise receiver.
+These controls do not live on native promise `.then` functions. The ponyfill
+does not expose a `Promise.prototype.then` accessor shim; users who want
+controls must enter through the E proxy.
 
 ## Test-Driven Cycle
 
 Create `test/e2.test.js`. Keep it independent from `HandledPromise` and the
 existing `E` tests. Import only the E2 shim and AVA.
 
+Current status: phases 1 through 8 are covered for the intentionally narrow
+ponyfill scope. The policy decisions for this scope are recorded under
+"Resolved Design Choices".
+
 ### Phase 1: installation and shape
 
 Tests:
 
 - importing the module does not mutate `Promise`;
-- repeated imports/installer calls are idempotent;
 - `makePromiseClient()` returns a callable client;
 - `E.Send`, `E.SendOnly`, and `E.Optional` are callable;
 - `E.Once` is absent;
 - shim-created proxy results expose `.then.Send`, `.then.SendOnly`, and
   `.then.Optional`;
 - `.then.Once` is absent;
-- `makePromiseThenAccessor()` returns an installable descriptor whose getter
-  decorates a receiver-bound native `then`.
+- native promise `.then` functions do not expose `Send`, `SendOnly`, or
+  `Optional`.
 
 Implementation:
 
 - add `makePromiseClient`;
 - define the top-level client object and mode-specific entry points;
 - add enough node/proxy creation for shape tests;
-- add `makePromiseThenAccessor`.
+- keep `.then` controls scoped to E proxy-owned then functions.
 
 ### Phase 2: future-turn discipline
 
@@ -303,34 +309,32 @@ Tests:
 
 - client and mode functions are frozen or at least non-extensible if that is the
   intended Endo convention;
-- installed properties are non-enumerable and non-writable if standard-library
-  style is desired;
+- client mode properties are non-enumerable and non-writable;
 - no package entry point mutates Promise; installation is caller-owned.
+- arguments and fulfilled results are hardened.
 
 Implementation:
 
 - define client properties with explicit descriptors;
+- harden arguments and fulfilled results;
 - use `@endo/harden` and `@endo/assert` where helpful. The shims can be
   decoupled from running under SES later.
 
-## Open Questions
+## Resolved Design Choices
 
-These are the points where the current docs and `E2.js` sketch do not yet fully
-determine behavior.
+These decisions bound the current ponyfill:
 
-1. Should arbitrary native promises ever support `somePromise.then.Send` through
-   an invasive `Promise.prototype.then` accessor shim, or are E proxy-owned then
-   functions the intended permanent control surface?
+1. Arbitrary native promises do not support `somePromise.then.Send`; controls
+   remain on E proxy-owned then functions only.
 
-2. Should the basic shim freeze/harden arguments and results like the current
-   Endo `E` implementation, or leave pass-by-copy hardening out of scope?
+2. Arguments and fulfilled results are hardened.
 
-3. If this graduates beyond tests, should `src/promise-client.js` remain an
-   internal module or become a package subpath export?
+3. `src/promise-client.js` remains internal/test-only for now rather than
+   becoming a package subpath export.
 
 ## First Commit Shape
 
-The first implementation commit should be small:
+The first implementation commit was kept small:
 
 - add `test/e2.test.js` with Phase 1 and Phase 2 tests;
 - add an unexported ponyfill module at `src/promise-client.js`;
@@ -338,5 +342,6 @@ The first implementation commit should be small:
   implementation;
 - leave the package public exports unchanged until the API surface stabilizes.
 
-After that, each phase can be one red/green/refactor cycle with the open
-questions answered just before they block implementation.
+Subsequent test-driven passes filled out the remaining local ponyfill behavior
+for one-step sends, explicit `Send` chaining, `Optional`, `SendOnly`, primitive
+and inherited lookup, and hardening/property descriptors.
