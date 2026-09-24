@@ -1,12 +1,45 @@
 // @ts-check
 
 import harden from '@endo/harden';
+import {
+  makePromiseReflect,
+  whenCompleted,
+  whenQueued,
+} from './promise-reflect.js';
 
 const { defineProperties } = Object;
 
 const skipped = harden({});
 
 const isSkipped = value => value === skipped;
+
+/**
+ * @param {NodeState} state
+ * @param {SendMode} [sendMode]
+ */
+const reflectOptions = (state, sendMode = state.sendMode) => ({
+  ...state.eventualOptions,
+  senderContext: state.eventualOptions?.senderContext ?? {},
+  sendMode,
+});
+
+/**
+ * @param {Promise<unknown>} result
+ * @param {SendMode} sendMode
+ */
+const continuedResult = (result, sendMode) => {
+  if (sendMode === 'sendOnly') {
+    // The queue-stage failure is also observed through whenQueued(result).
+    result.catch(() => undefined);
+    return whenCompleted(result);
+  }
+  return result;
+};
+
+/** @type {WeakMap<NodeState, Promise<unknown>>} */
+const materialized = new WeakMap();
+/** @type {WeakMap<NodeState, () => Promise<unknown>>} */
+const queued = new WeakMap();
 
 /**
  * @typedef {'send' | 'sendOnly'} SendMode
@@ -21,71 +54,67 @@ const isSkipped = value => value === skipped;
  * @property {PropertyKey} [methodKey]
  * @property {boolean} [methodOptional]
  * @property {unknown} [expectedThis]
+ * @property {import('./promise-reflect.js').EventualOptions} [eventualOptions]
  */
 
-/**
- * @param {object} target
- * @param {PropertyKey} key
- * @param {unknown[]} args
- * @param {boolean} optional
- * @returns {unknown}
- */
-const applyMethod = (target, key, args, optional) => {
-  const method = target[key];
-  if (optional && method == null) {
-    return skipped;
-  }
-  return Reflect.apply(method, target, args);
-};
-
-/**
- * @param {unknown} target
- * @param {unknown[]} args
- * @returns {unknown}
- */
-const applyFunction = (target, args) => {
-  return Reflect.apply(
-    /** @type {(...args: unknown[]) => unknown} */ (target),
-    undefined,
-    args,
-  );
-};
+/** @param {unknown} value */
+const lookupTarget = value => (value == null ? value : Object(value));
 
 /**
  * @param {NodeState} state
+ * @param {ReturnType<typeof makePromiseReflect>} promiseReflect
  * @returns {Promise<unknown>}
  */
-const materializeP = state => {
+const materializeP = (state, promiseReflect) => {
   if (state.targetP !== undefined) {
     return state.targetP;
+  }
+  const cached = materialized.get(state);
+  if (cached !== undefined) {
+    return cached;
   }
   if (state.methodTargetP === undefined || state.methodKey === undefined) {
     throw TypeError('Invalid promise client node state');
   }
   const { methodKey } = state;
-  return state.methodTargetP.then(resolution => {
+  const operationP = state.methodTargetP.then(resolution => {
     if (isSkipped(resolution)) {
-      return skipped;
+      return { result: Promise.resolve(skipped), queue: Promise.resolve() };
     }
     if (state.methodOptional === true && resolution == null) {
-      return skipped;
+      return { result: Promise.resolve(skipped), queue: Promise.resolve() };
     }
-    return harden(
-      /** @type {Record<PropertyKey, unknown>} */ (resolution)[methodKey],
+    const target = lookupTarget(resolution);
+    const publicResult = promiseReflect.get(
+      target,
+      methodKey,
+      target,
+      reflectOptions(state),
     );
+    return {
+      result: continuedResult(publicResult, state.sendMode),
+      queue: whenQueued(publicResult),
+    };
   });
+  const result = operationP.then(operation => operation.result);
+  materialized.set(state, result);
+  queued.set(state, () => operationP.then(operation => operation.queue));
+  return result;
 };
 
 /**
  * @param {NodeState} state
  * @param {Pick<PromiseConstructor, 'resolve'>} PromiseCtor
+ * @param {ReturnType<typeof makePromiseReflect>} promiseReflect
  * @returns {Promise<unknown>}
  */
-const resultP = (state, PromiseCtor) => {
-  const targetP = materializeP(state);
+const resultP = (state, PromiseCtor, promiseReflect) => {
+  const targetP = materializeP(state, promiseReflect);
   if (state.sendMode === 'sendOnly') {
     targetP.catch(() => undefined);
-    return PromiseCtor.resolve(undefined);
+    return (queued.get(state)?.() ?? PromiseCtor.resolve()).then(
+      () => undefined,
+    );
   }
   return targetP.then(value =>
     isSkipped(value) ? undefined : harden(value),
@@ -116,9 +145,13 @@ const hardenThen = (then, getSend, getSendOnly, getOptional) => {
 
 /**
  * @param {Pick<PromiseConstructor, 'resolve' | 'reject'>} [PromiseCtor]
+ * @param {ReturnType<typeof makePromiseReflect>} [promiseReflect]
  * @returns {any}
  */
-export const makePromiseClient = (PromiseCtor = Promise) => {
+export const makePromiseClient = (
+  PromiseCtor = Promise,
+  promiseReflect = makePromiseReflect(PromiseCtor),
+) => {
   /**
    * @param {unknown} target
    * @returns {Promise<unknown>}
@@ -139,8 +172,8 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
    */
   const makeThen = state => {
     const then = (onFulfilled, onRejected) =>
-      resultP(state, PromiseCtor).then(onFulfilled, onRejected);
-    const controlledState = { ...state, expectedThis: undefined };
+      resultP(state, PromiseCtor, promiseReflect).then(onFulfilled, onRejected);
+    const controlledState = { ...state, expectedThis: then };
 
     return hardenThen(
       then,
@@ -159,7 +192,7 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
     /** @type {ProxyHandler<(...args: unknown[]) => unknown>} */
     const handler = harden({
       apply(_target, thisArg, argArray = []) {
-        if (state.expectedThis !== undefined && thisArg !== state.expectedThis) {
+        if (thisArg !== state.expectedThis) {
           return makeNode(
             {
               ...state,
@@ -167,6 +200,7 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
               methodTargetP: undefined,
               methodKey: undefined,
               expectedThis: undefined,
+              eventualOptions: state.eventualOptions,
             },
             recursion === 'deep' ? 'deep' : 'none',
             sendMode,
@@ -176,39 +210,104 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
 
         const args = harden([...argArray]);
         const optionalCall = optional || state.methodOptional === true;
-        const operationP =
+        const operationRecordP =
           state.methodTargetP !== undefined && state.methodKey !== undefined
             ? state.methodTargetP.then(resolution => {
                 if (isSkipped(resolution)) {
-                  return skipped;
+                  return {
+                    result: PromiseCtor.resolve(skipped),
+                    queue: PromiseCtor.resolve(),
+                  };
                 }
                 if (optionalCall && resolution == null) {
-                  return skipped;
+                  return {
+                    result: PromiseCtor.resolve(skipped),
+                    queue: PromiseCtor.resolve(),
+                  };
                 }
-                return harden(
-                  applyMethod(
-                    /** @type {object} */ (resolution),
-                    state.methodKey,
-                    args,
-                    optionalCall,
-                  ),
+                const target = lookupTarget(resolution);
+                if (optionalCall) {
+                  const publicResult = promiseReflect.optional(
+                    target,
+                    present =>
+                      promiseReflect
+                        .get(
+                          present,
+                          state.methodKey,
+                          present,
+                          reflectOptions(state, 'send'),
+                        )
+                        .then(method =>
+                          method == null
+                            ? skipped
+                            : promiseReflect.apply(
+                                method,
+                                resolution,
+                                args,
+                                reflectOptions(state, 'send'),
+                              ),
+                        ),
+                    reflectOptions(state, sendMode),
+                  );
+                  return {
+                    result: continuedResult(publicResult, sendMode),
+                    queue: whenQueued(publicResult),
+                  };
+                }
+                const publicResult = promiseReflect.invoke(
+                  target,
+                  resolution,
+                  state.methodKey,
+                  args,
+                  reflectOptions(state, sendMode),
                 );
+                return {
+                  result: continuedResult(publicResult, sendMode),
+                  queue: whenQueued(publicResult),
+                };
               })
-            : materializeP(state).then(resolution => {
+            : materializeP(state, promiseReflect).then(resolution => {
                 if (isSkipped(resolution)) {
-                  return skipped;
+                  return {
+                    result: PromiseCtor.resolve(skipped),
+                    queue: PromiseCtor.resolve(),
+                  };
                 }
                 if (optional && resolution == null) {
-                  return skipped;
+                  return {
+                    result: PromiseCtor.resolve(skipped),
+                    queue: PromiseCtor.resolve(),
+                  };
                 }
-                return harden(applyFunction(resolution, args));
+                const publicResult = promiseReflect.apply(
+                  resolution,
+                  undefined,
+                  args,
+                  reflectOptions(state, sendMode),
+                );
+                return {
+                  result: continuedResult(publicResult, sendMode),
+                  queue: whenQueued(publicResult),
+                };
               });
+        const operationP = operationRecordP.then(operation => operation.result);
         if (sendMode === 'sendOnly') {
           operationP.catch(() => undefined);
         }
 
+        /** @type {NodeState} */
+        const nextState = {
+          targetP: operationP,
+          sendMode,
+          optional: false,
+          recursion,
+          eventualOptions: state.eventualOptions,
+        };
+        queued.set(nextState, () =>
+          operationRecordP.then(operation => operation.queue),
+        );
         return makeNode(
-          { targetP: operationP, sendMode, optional: false, recursion },
+          nextState,
           recursion === 'deep' ? 'deep' : 'none',
           sendMode,
           false,
@@ -236,6 +335,8 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
               sendMode,
               optional,
               recursion: 'none',
+              expectedThis: receiver,
+              eventualOptions: state.eventualOptions,
             },
             'none',
             sendMode,
@@ -248,10 +349,11 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
             sendMode,
             optional: false,
             recursion: recursion === 'shallow' ? 'none' : recursion,
-            methodTargetP: materializeP(state),
+            methodTargetP: materializeP(state, promiseReflect),
             methodKey: propertyKey,
             methodOptional: optional,
             expectedThis: receiver,
+            eventualOptions: state.eventualOptions,
           },
           recursion === 'shallow' ? 'none' : recursion,
           sendMode,
@@ -267,15 +369,16 @@ export const makePromiseClient = (PromiseCtor = Promise) => {
    * @param {Recursion} recursion
    * @param {SendMode} sendMode
    * @param {boolean} optional
-   * @returns {(target: unknown) => any}
+   * @returns {(target: unknown, eventualOptions?: import('./promise-reflect.js').EventualOptions) => any}
    */
-  const makeEntry = (recursion, sendMode, optional) => target =>
+  const makeEntry = (recursion, sendMode, optional) => (target, eventualOptions) =>
     makeNode(
       {
         targetP: later(target),
         sendMode,
         optional,
         recursion,
+        eventualOptions,
       },
       recursion,
       sendMode,

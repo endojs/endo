@@ -2,6 +2,8 @@ import test from 'ava';
 
 import { E as TypeE } from '../src/E2.js';
 import { makePromiseClient } from '../src/promise-client.js';
+import { localPromiseHandler } from '../src/promise-handler.js';
+import { makePromiseReflect } from '../src/promise-reflect.js';
 
 const E = makePromiseClient();
 
@@ -178,11 +180,34 @@ test('E2 default method proxies reject wrong receivers', async t => {
   const double = node.double;
 
   await t.throwsAsync(() => double(), { instanceOf: TypeError });
+  await t.throwsAsync(() => Reflect.apply(double, obj, []), {
+    instanceOf: TypeError,
+    message: /Unexpected thisArg/,
+  });
   await t.throwsAsync(() => double.call(obj), {
     instanceOf: TypeError,
     message: /^Cannot pipeline further/,
   });
   t.is(await node.double(), 6);
+});
+
+test('E2 direct function proxies reject a supplied receiver', async t => {
+  let called = false;
+  const node = E(
+    /** @this {unknown} */
+    function checkReceiver() {
+      called = true;
+      return this;
+    },
+  );
+
+  await t.throwsAsync(() => Reflect.apply(node, { unexpected: true }, []), {
+    instanceOf: TypeError,
+    message: /Unexpected thisArg/,
+  });
+  t.false(called);
+  t.is(await node(), undefined);
+  t.true(called);
 });
 
 test('E2 default operation failures follow normal JavaScript errors', async t => {
@@ -289,7 +314,119 @@ test('E2 Optional preserves SendOnly mode', async t => {
 
   const result = await E.SendOnly(target).then.Optional.value;
   t.is(result, undefined);
+  await nextTurn();
   t.true(readValue);
+});
+
+test('E2 optional SendOnly call acknowledges queueing before method completion', async t => {
+  /** @type {(value: string) => void} */
+  let finish = () => t.fail('completion resolver was not installed');
+  const pending = new Promise(resolve => {
+    finish = resolve;
+  });
+  let called = false;
+  const target = {
+    method() {
+      called = true;
+      return pending;
+    },
+  };
+
+  const queued = E.SendOnly(target).then.Optional.method.then.Optional();
+  const value = await queued;
+  t.is(value, undefined);
+  await nextTurn();
+  t.true(called);
+  finish('done');
+});
+
+test('E2 client delegates gets, applies, and invokes to Promise.reflect', async t => {
+  const underlying = makePromiseReflect();
+  const calls = [];
+  const promiseReflect = {
+    ...underlying,
+    get(...args) {
+      calls.push('get');
+      return Reflect.apply(underlying.get, underlying, args);
+    },
+    apply(...args) {
+      calls.push('apply');
+      return Reflect.apply(underlying.apply, underlying, args);
+    },
+    invoke(...args) {
+      calls.push('invoke');
+      return Reflect.apply(underlying.invoke, underlying, args);
+    },
+  };
+  const client = makePromiseClient(Promise, promiseReflect);
+  const target = { value: 2, method() { return 3; } };
+
+  const property = await client(target).value;
+  t.is(property, 2);
+  t.is(await client(() => 4)(), 4);
+  t.is(await client(target).method(), 3);
+  t.deepEqual(calls, ['get', 'apply', 'invoke']);
+});
+
+test('E2 static modes carry eventual options across reflect operations', async t => {
+  const contexts = [];
+  const receivedResults = [];
+  const returnedResults = [];
+  const handler = {
+    ...localPromiseHandler,
+    get(target, key, receiver, options) {
+      contexts.push(options.senderContext);
+      receivedResults.push(options.result);
+      return localPromiseHandler.get(target, key, receiver, options);
+    },
+    apply(target, thisArg, args, options) {
+      contexts.push(options.senderContext);
+      return localPromiseHandler.apply(target, thisArg, args, options);
+    },
+    invoke(target, thisArg, key, args, options) {
+      contexts.push(options.senderContext);
+      return localPromiseHandler.invoke(target, thisArg, key, args, options);
+    },
+  };
+  const underlying = makePromiseReflect(Promise, handler);
+  const promiseReflect = {
+    ...underlying,
+    get(...args) {
+      const resultP = Reflect.apply(underlying.get, underlying, args);
+      returnedResults.push(resultP);
+      return resultP;
+    },
+  };
+  const client = makePromiseClient(Promise, promiseReflect);
+  const senderContext = Object.create({ inherited: true });
+  senderContext.requestId = { value: 'send' };
+  const options = { senderContext };
+
+  const defaultResult = await client({ a: 0 }, options).a;
+  t.is(defaultResult, 0);
+  const result = await client.Send({ a: { b: 1 } }, options).a.b;
+  t.is(result, 1);
+  t.is(await client.Optional({ a: 2 }, options).a, 2);
+  t.is(await client.SendOnly({ a: 3 }, options).a, undefined);
+  t.is(await client.Send(() => 4, options)(), 4);
+  t.is(await client.Send({ method() { return 5; } }, options).method(), 5);
+  await nextTurn();
+  t.is(contexts.length, 7);
+  t.deepEqual(receivedResults, returnedResults);
+  for (const context of contexts) {
+    t.false('inherited' in context);
+    t.deepEqual(context, { requestId: { value: 'send' } });
+    t.true(Object.isFrozen(context));
+  }
+
+  await t.throwsAsync(
+    () =>
+      client.Send({ a: 4 }, {
+        result: Promise.resolve(),
+        senderContext: {},
+      }).a,
+    { instanceOf: TypeError, message: /result must be empty/ },
+  );
 });
 
 test('E2 SendOnly resolves when queued and suppresses operation failures', async t => {
@@ -319,6 +456,37 @@ test('E2 SendOnly resolves when queued and suppresses operation failures', async
   t.is(await E.SendOnly(null).incr(1), undefined);
 });
 
+test('E2 SendOnly waits for the handler queue acknowledgement', async t => {
+  /** @type {() => void} */
+  let releaseQueue = () => t.fail('queue resolver was not installed');
+  /** @type {(value: number) => void} */
+  let finish = () => t.fail('completion resolver was not installed');
+  const pending = new Promise(resolve => {
+    finish = resolve;
+  });
+  const handler = {
+    ...localPromiseHandler,
+    invoke(...args) {
+      return new Promise(resolve => {
+        releaseQueue = () => resolve(Reflect.apply(localPromiseHandler.invoke, localPromiseHandler, args));
+      });
+    },
+  };
+  const client = makePromiseClient(Promise, makePromiseReflect(Promise, handler));
+  let settled = false;
+  const queued = client.SendOnly({ method: () => pending }).method().then(
+    () => {
+      settled = true;
+    },
+  );
+  await new Promise(resolve => setImmediate(resolve));
+  t.false(settled);
+  releaseQueue();
+  await queued;
+  t.true(settled);
+  finish(1);
+});
+
 test('E2 uses normal lookup for primitives and inherited properties', async t => {
   await nextTurn();
   t.is(await E(2345).toFixed(), '2345');
@@ -327,6 +495,21 @@ test('E2 uses normal lookup for primitives and inherited properties', async t =>
   await t.throwsAsync(() => E(null).toString(), {
     instanceOf: TypeError,
   });
+});
+
+test('E2 methods may update mutable receivers', async t => {
+  const target = {
+    count: 0,
+    increment() {
+      this.count += 1;
+      return this.count;
+    },
+  };
+
+  const result = await E(target).increment();
+  t.is(result, 1);
+  t.is(target.count, 1);
+  t.false(Object.isFrozen(target));
 });
 
 test('E2 hardens arguments and results', async t => {

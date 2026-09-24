@@ -28,10 +28,9 @@ This split allows the introduction of changes in the standard client that would 
 
 The current `packages/eventual-send/src/E2.js` sketch refines the client API as a family of small proxy entry points:
 
-* `E(x)` is exactly `E.Once(x)`.
-* `Once` permits at most one property access and at most one function or method call before yielding a promise-like result.
-* Pipelining beyond that one step is explicit: either wrap an intermediate result with another `E(...)`, or select a chaining proxy with `E.Send(x)`, `E.SendOnly(x)`, `E.Optional(x)`, or the corresponding `.then` controls.
-* The `.then` property is both the normal awaitable surface and the control surface for selecting the next operation mode: `.then.Once`, `.then.Send`, `.then.SendOnly`, and `.then.Optional`.
+* `E(x, opts?)` is the one-step entry point. It permits at most one property access and at most one function or method call before yielding a promise-like result.
+* Pipelining beyond that one step is explicit: either wrap an intermediate result with another `E(...)`, or select a chaining proxy with `E.Send(x, opts?)`, `E.SendOnly(x, opts?)`, `E.Optional(x, opts?)`, or the corresponding `.then` controls.
+* The `.then` property is both the normal awaitable surface and the control surface for selecting the next operation mode: `.then.Send`, `.then.SendOnly`, and `.then.Optional`.
 
 *Concise eventual client API*
 
@@ -60,8 +59,9 @@ const pr4 = await E(E.get(E(x, opts)(...args)))[subProp])[method](...args2);
 // Obtain the promise client API. In the E2 sketch, this has the shape of E.
 const { client: E } = Promise;
 
-// One-step eventual get. E(x) is E.Once(x).
+// One-step eventual get; options can be carried across the chain.
 const pr = await E(x)[prop];
+const contextual = await E(x, { senderContext: { traceId } })[prop];
 
 // One-step eventual apply (function call).
 const pr2 = await E(x)(...args);
@@ -74,7 +74,7 @@ const pr3 = await E(x)[prop](...args);
 const pr4 = await E(E(x)[prop])[subProp](...args2);
 
 // Or choose a chaining proxy to make pipelining explicit.
-const pr5 = await E.Send(x)[prop][subProp][method](...args2);
+const pr5 = await E.Send(x, { senderContext: { traceId } })[prop][subProp][method](...args2);
 
 // The same controls are available from the thenable surface.
 const pr6 = await E(x)[prop].then.Send[subProp][method](...args2);
@@ -93,7 +93,18 @@ The eventual operations invoked by the eventual client are implemented as global
 
 The old operation names were chosen to avoid conflicting with methods on the `HandledPromise` constructor’s function prototype. The new names are not properties on a function, and thus can be more conventional.
 
-Also, the new API allows for a standard "eventual options" final argument to each operation, and reserves arguments after the options for future standards.
+Each method accepts a final, optional eventual-options argument after its
+ordinary Reflect operands. Its shape is
+`{ result?: Promise<unknown>, senderContext: Record<string, any>, sendMode?: 'send' | 'sendOnly', harden?: 'none' | 'all' }`.
+Callers must leave `result` empty. The reflect layer rejects a populated
+`result`, copies and hardens `senderContext`, then passes the resulting context
+and the returned operation promise as `result` to the handler. With the default
+`send` mode, that promise follows operation completion and propagates errors.
+With `sendOnly`, it fulfills with `undefined` once the handler acknowledges
+queueing; failures after queueing are suppressed. The local handler does not use
+the result or sender context metadata yet. `sendMode` defaults to `send` and
+`harden` defaults to `none`. Client options are static for a chain and reach each reflect
+operation, with the client selecting its current send mode.
 
 *Distinct eventual operations*
 
@@ -120,17 +131,68 @@ const pr3 = pReflect.applyMethod(x, prop, args); // HandledPromise<T>
 const { reflect: pReflect } = Promise;
 
 // Eventual get (property access)
-const pr = pReflect.get(x, prop, opts); // Promise<T>
+const pr = pReflect.get(x, prop, receiver, opts); // Promise<T>; receiver optional
 
-// Eventual apply (function call)
-const pr2 = pReflect.apply(x, args, opts); // Promise<T>
+// Eventual apply (function call); thisArg is passed to the function.
+const pr2 = pReflect.apply(x, thisArg, args, opts); // Promise<T>
 
-// Eventual invoke (method call)
-const pr3 = pReflect.invoke(x, prop, args, opts); // Promise<T>
+// Eventual invoke (method call); look up prop on x and call with thisArg.
+const pr3 = pReflect.invoke(x, thisArg, prop, args, opts); // Promise<T>
 
-const pr4 = pReflect.set(x, prop, value, opts); // Eventual set
-const pr5 = pReflect.delete(x, prop, opts); // Eventual delete
+const pr4 = pReflect.set(x, prop, value, receiver, opts); // Promise<boolean>; receiver optional
+const pr5 = pReflect.deleteProperty(x, prop, opts); // Promise<boolean>
+const prHas = pReflect.has(x, prop, opts); // Promise<boolean>
+const prKeys = pReflect.ownKeys(x, opts); // Promise<PropertyKey[]>
+const prObject = pReflect.construct(x, args, newTarget, opts); // Promise<object>
+
+// Continue only when the eventual value is non-nullish.
+const pr6 = pReflect.optional(x, nonNullish => pReflect.get(nonNullish, prop), opts);
+// Promise<T | undefined>; nullish x skips the continuation.
 ```
+
+`optional` waits for `x` in a future turn. It invokes the continuation once
+with a non-nullish resolution, adopting its value or promise. A nullish
+resolution skips the continuation and fulfills with `undefined`; input and
+continuation failures reject the returned promise.
+
+All `Promise.reflect` methods return promises and schedule work in a future
+turn. The wrapper returns the exact promise passed to the handler as `result`;
+this requires a promise-returning wrapper rather than JavaScript `async`
+function syntax, which would create a different outer promise. The local
+handler delegates to the corresponding `Reflect` methods (and composes
+`Reflect.get` with `Reflect.apply` for `invoke`), preserving optional receiver
+and new-target arguments. Eventual options come after those operands, including the optional
+`receiver` or `newTarget` slot, and are not forwarded to native `Reflect`.
+Consequently, `get` and `invoke` reject primitive targets instead of boxing
+them for property lookup.
+`set`, `deleteProperty`, and `has` resolve to the booleans returned by the
+corresponding `Reflect` operations. `ownKeys` returns an array of own
+string and symbol keys. `construct` accepts an optional eventual `newTarget`.
+The reflect layer shallow-copies and freezes argument lists, and hardens
+assigned values, optional continuations, sender context, returned promises, and
+its API surface. The local handler returns a hardened outer promise settling to
+a hardened `{ result }` envelope, whose inner result promise is also hardened.
+Targets, `thisArg`, `receiver`, individual argument values, and fulfilled
+results remain mutable by default. With `harden: 'all'`, these values are
+hardened too, including resolved targets, the original argument array, and all
+fulfillment values and rejection reasons as promises settle. An explicit
+`newTarget` is hardened when distinct from the target. The client proxy
+checks the local call receiver before forwarding an apply or invoke; a mismatched
+receiver rejects.
+
+The first handler is `localPromiseHandler` in `src/promise-handler.js`. Its
+methods receive the resolved target, their operation operands, and final
+`{ result, senderContext, sendMode }` metadata. Each handler method returns a
+`Promise<{ result: Promise<unknown> }>`: the outer promise settles when the
+operation is queued, while the inner `result` settles when it completes.
+`makePromiseReflect` delegates each
+operation to this handler by default; handler selection based on eventual
+proxies is a later layer. `Promise.client` performs its operations through the
+reflect ponyfill while retaining its lazy one-property cache and call-receiver
+checks. For pipelined send-only operations, the client retains the inner
+completion promise to supply the next operation, but exposes only the queue
+acknowledgement to callers. RPC-specific hardening belongs in a future custom
+handler harness, not in `localPromiseHandler`.
 
 # **\#1 \- Proxy.eventual**
 

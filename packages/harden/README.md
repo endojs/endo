@@ -81,7 +81,7 @@ does not interfere with uncoordinated alteration of the realm intrinsics, on
 which some testing and frontend user interface frameworks rely.
 
 To opt out of any safety guarantees and to avoid the computation cost of
-transitively hardening own properties, use the `-C harden:unsafe` build
+transitively hardening own properties, use the `-C noop-harden` build
 condition with tools like `node` and Endo's `bundle-source`.
 
 # Multiple instances

@@ -38,6 +38,21 @@ This is how we mitigate, what we call, "eval twins".
 import { E } from '@endo/eventual-send';
 ```
 
+## Hardening
+
+Eventual send uses `@endo/harden` to freeze values it shares. Outside an SES
+environment, `@endo/harden` also freezes values by default. If your top-level
+program does not use SES `lockdown()` and aggressive hardening is not desired,
+start it with the `noop-harden` condition:
+
+```sh
+node -C noop-harden app.js
+```
+
+Apply the same condition when bundling if the bundler supports package export
+conditions. Choose this mode only for programs that will not call `lockdown()`
+later.
+
 ## Core API
 
 ### E(target).method(...args)
