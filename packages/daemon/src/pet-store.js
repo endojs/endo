@@ -76,12 +76,16 @@ export const makePetStoreMaker = (filePowers, config) => {
 
     /** @param {string} petName */
     const read = async petName => {
+      assertValidName(petName);
       const petNamePath = filePowers.joinPath(petNameDirectoryPath, petName);
       const petNameText = await filePowers.readFileText(petNamePath);
       const formulaIdentifier = petNameText.trim();
       assertValidId(formulaIdentifier, petName);
       return formulaIdentifier;
     };
+
+    /** @type {Promise<void> | undefined} */
+    let lock = Promise.resolve();
 
     await filePowers.makePath(petNameDirectoryPath);
 
@@ -111,6 +115,8 @@ export const makePetStoreMaker = (filePowers, config) => {
       assertValidName(petName);
       assertValidId(formulaIdentifier);
 
+      const nextLock = lock.then(async () => {
+
       if (idsToPetNames.hasValue(petName)) {
         const oldFormulaIdentifier = idsToPetNames.getKey(petName);
         if (oldFormulaIdentifier === formulaIdentifier) {
@@ -130,6 +136,9 @@ export const makePetStoreMaker = (filePowers, config) => {
       const petNameText = `${formulaIdentifier}\n`;
       await filePowers.writeFileText(petNamePath, petNameText);
       publishNameAddition(formulaIdentifier, petName);
+    });
+      lock = nextLock.catch(() => {});
+      return nextLock;
     };
 
     /** @type {PetStore['list']} */
