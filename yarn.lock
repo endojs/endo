@@ -792,7 +792,6 @@ __metadata:
     c8: "catalog:dev"
     eslint: "catalog:dev"
     ses: "workspace:^"
-    ses0.18.3: "npm:ses@0.18.3"
     tsd: "catalog:dev"
     typescript: "catalog:dev"
   languageName: unknown
@@ -8413,13 +8412,6 @@ __metadata:
   version: 1.0.1
   resolution: "server-destroy@npm:1.0.1"
   checksum: 10c0/ab771f12b24cde1bc622cce0c14a1365f3ab0685937c641c762916fb43aa7a03d6c577cc4375ea5361d6bc1bb20ab689ec5723086e5798c6781edb61287e24b8
-  languageName: node
-  linkType: hard
-
-"ses0.18.3@npm:ses@0.18.3":
-  version: 0.18.3
-  resolution: "ses@npm:0.18.3"
-  checksum: 10c0/c07df71cf297f31e862efbc2cc46ee724e85f73cc67002b9b4fa47089fc89d147a56e579b8012fb1534419c77afafbb98bc5808fae82096951479d0bd6dfb377
   languageName: node
   linkType: hard
 
