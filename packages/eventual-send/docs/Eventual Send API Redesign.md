@@ -18,7 +18,7 @@ Even better, they can be layered.
 * \#1 \- Attach eventual handlers to fresh objects  
 * \#0 \- PromiseSteps to enable pipelining
 
-# **\#3 \- Promise.client / E2 sketch**
+# **\#3 \- Proxy.async / E2 sketch**
 
 Most uses of eventual send can be accomplished by the eventual send client API. It is only library authors that need to understand the deeper layers.
 
@@ -53,11 +53,11 @@ const pr3 = await E(x)[prop](...args);
 const pr4 = await E(E.get(E(x, opts)(...args)))[subProp])[method](...args2);
 ```
 
-# **Promise.client / E2 sketch (new)**
+# **Proxy.async / E2 sketch (new)**
 
 ```ts
-// Obtain the promise client API. In the E2 sketch, this has the shape of E.
-const { client: E } = Promise;
+// Obtain the async client API. In the E2 sketch, this has the shape of E.
+const { async: E } = Proxy;
 
 // One-step eventual get; options can be carried across the chain.
 const pr = await E(x)[prop];
@@ -87,7 +87,7 @@ const ignored = E.SendOnly(x)[prop][subProp](...args);
 await ignored; // Promise<void>
 ```
 
-# **\#2 \- Promise.reflect**
+# **\#2 \- Reflect.async**
 
 The eventual operations invoked by the eventual client are implemented as globally-available static methods, much like how normal JS operations are available as methods of globalThis.Reflect.
 
@@ -124,11 +124,11 @@ const pr2 = pReflect.applyFunction(x, args); // HandledPromise<T>
 const pr3 = pReflect.applyMethod(x, prop, args); // HandledPromise<T>
 ```
 
-# **Promise.reflect (new)**
+# **Reflect.async (new)**
 
 ```ts
 // Obtain operations
-const { reflect: pReflect } = Promise;
+const { async: pReflect } = Reflect;
 
 // Eventual get (property access)
 const pr = pReflect.get(x, prop, receiver, opts); // Promise<T>; receiver optional
@@ -155,7 +155,7 @@ with a non-nullish resolution, adopting its value or promise. A nullish
 resolution skips the continuation and fulfills with `undefined`; input and
 continuation failures reject the returned promise.
 
-All `Promise.reflect` methods return promises and schedule work in a future
+All `Reflect.async` methods return promises and schedule work in a future
 turn. The wrapper returns the exact promise passed to the handler as `result`;
 this requires a promise-returning wrapper rather than JavaScript `async`
 function syntax, which would create a different outer promise. The local
@@ -180,25 +180,25 @@ fulfillment values and rejection reasons as promises settle. An explicit
 checks the local call receiver before forwarding an apply or invoke; a mismatched
 receiver rejects.
 
-The first handler is `localPromiseHandler` in `src/promise-handler.js`. Its
+The first handler is `localAsyncHandler` in `src/async-handler.js`. Its
 methods receive the resolved target, their operation operands, and final
 `{ result, senderContext, sendMode }` metadata. Each handler method returns a
 `Promise<{ result: Promise<unknown> }>`: the outer promise settles when the
 operation is queued, while the inner `result` settles when it completes.
-`makePromiseReflect` delegates each
+`makeAsyncReflect` delegates each
 operation to this handler by default; handler selection based on eventual
-proxies is a later layer. `Promise.client` performs its operations through the
+proxies is a later layer. `Proxy.async` performs its operations through the
 reflect ponyfill while retaining its lazy one-property cache and call-receiver
 checks. For pipelined send-only operations, the client retains the inner
 completion promise to supply the next operation, but exposes only the queue
 acknowledgement to callers. RPC-specific hardening belongs in a future custom
-handler harness, not in `localPromiseHandler`.
+handler harness, not in `localAsyncHandler`.
 
-# **\#1 \- Proxy.eventual**
+# **\#1 \- AsyncFactory**
 
 Attaching an eventual handler to a `HandledPromise` can be done upon its construction. More baroquely, code within a `HandledPromise`’s executor can use its third argument (resolveWithPresence) to attach a handler to a fresh Object or Proxy.
 
-The new Proxy.eventual encapsulates an eventual handler, and its methods create various kinds of fresh objects with the handler attached. The handler attachment is only used by the eventual operations; no user code can directly inspect the eventual handler when provided one of the created objects.
+The new `AsyncFactory` encapsulates an eventual handler, and its methods create various kinds of fresh objects with the handler attached. The handler attachment is only used by the eventual operations; no user code can directly inspect the eventual handler when provided one of the created objects.
 
 *Attach eventual handlers to fresh objects*
 
@@ -221,33 +221,33 @@ let proxy;
 new HandledPromise((res, rej, resWP) => (proxy = resWP(hpHandler, proxyOpts)));
 ```
 
-# **Proxy.eventual (new)**
+# **AsyncFactory (new)**
 
 ```ts
 const evHandler = { invoke(x, prop, args) { … } }; // an eventual handler  
-const evFactory = new Proxy.eventualFactory(evHandler); // an eventual factory
+const asyncFactory = new AsyncFactory(evHandler); // an asynchronous factory
 
 // Attach the eventual handler to a fresh Promise  
-const pr = evFactory.promiseResolve(resolution);
+const pr = asyncFactory.promiseResolve(resolution);
 
 // …or to a fresh Object  
-const obj = evFactory.objectCreate(null);
+const obj = asyncFactory.objectCreate(null);
 
 // …or to a fresh Proxy  
-const proxy = evFactory.newProxy(proxyTarget, proxyHandler);
+const proxy = asyncFactory.newProxy(proxyTarget, proxyHandler);
 
 // …or to a fresh revocable Proxy  
-const { proxy, revoke } = evFactory.proxyRevocable(proxyTarget, proxyHandler);
+const { proxy, revoke } = asyncFactory.proxyRevocable(proxyTarget, proxyHandler);
 ```
 
-## Proxy.eventual (new) cont’d
+## AsyncFactory (new) cont’d
 
 ```ts
 // …or to a fresh Function
-const func = evFactory.functionCreate(wrappedFunction);
+const func = asyncFactory.functionCreate(wrappedFunction);
 
 // …or to a fresh PromiseStep (next section)
-const promiseStep = evFactory.promiseWatch(resolution);
+const promiseStep = asyncFactory.promiseWatch(resolution);
 ```
 
 # **\#0 \- Promise.watch**

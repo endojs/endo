@@ -1,9 +1,9 @@
 import test from 'ava';
 
-import { localPromiseHandler } from '../src/promise-handler.js';
-import { makePromiseReflect } from '../src/promise-reflect.js';
+import { localAsyncHandler } from '../src/async-handler.js';
+import { makeAsyncReflect } from '../src/async-reflect.js';
 
-const reflect = makePromiseReflect();
+const reflect = makeAsyncReflect();
 
 test('local handler separates queue acknowledgement from completion', async t => {
   /** @type {(value: number) => void} */
@@ -11,7 +11,7 @@ test('local handler separates queue acknowledgement from completion', async t =>
   const pending = new Promise(resolve => {
     finish = resolve;
   });
-  const outer = localPromiseHandler.get(
+  const outer = localAsyncHandler.get(
     { value: pending },
     'value',
     undefined,
@@ -45,7 +45,7 @@ test('local handler harden all covers inner fulfillment and rejection', async t 
     harden: /** @type {const} */ ('all'),
   };
   const value = { label: 'ready' };
-  const fulfilled = await localPromiseHandler.get(
+  const fulfilled = await localAsyncHandler.get(
     { value },
     'value',
     undefined,
@@ -55,7 +55,7 @@ test('local handler harden all covers inner fulfillment and rejection', async t 
   t.true(Object.isFrozen(value));
 
   const reason = Error('failed');
-  const rejected = await localPromiseHandler.apply(
+  const rejected = await localAsyncHandler.apply(
     () => Promise.reject(reason),
     undefined,
     [],
@@ -170,12 +170,12 @@ test('harden all freezes rejection reasons, including send-only completions', as
 test('harden all freezes handler queue failures', async t => {
   const reason = Error('queue');
   const handler = {
-    ...localPromiseHandler,
+    ...localAsyncHandler,
     get() {
       return Promise.reject(reason);
     },
   };
-  const customReflect = makePromiseReflect(Promise, handler);
+  const customReflect = makeAsyncReflect(Promise, handler);
   const resultP = customReflect.get({}, 'value', undefined, {
     senderContext: {},
     harden: 'all',
@@ -360,15 +360,15 @@ test('apply preserves mutable receiver and values while freezing a copy of args'
     return Promise.resolve(result);
   };
   const handler = {
-    ...localPromiseHandler,
+    ...localAsyncHandler,
     apply(fn, receiver, receivedArgs, options) {
       t.not(receivedArgs, args);
       t.true(Object.isFrozen(receivedArgs));
       t.is(receivedArgs[0], arg);
-      return localPromiseHandler.apply(fn, receiver, receivedArgs, options);
+      return localAsyncHandler.apply(fn, receiver, receivedArgs, options);
     },
   };
-  const customReflect = makePromiseReflect(Promise, handler);
+  const customReflect = makeAsyncReflect(Promise, handler);
   const resultP = customReflect.apply(Promise.resolve(target), thisArg, args);
   t.true(Object.isFrozen(resultP));
   const actual = await resultP;
@@ -398,11 +398,11 @@ test('invoke looks up an inherited method and applies the supplied receiver', as
   });
 
   const handler = {
-    ...localPromiseHandler,
+    ...localAsyncHandler,
     invoke(target, receiverArg, key, receivedArgs, options) {
       t.not(receivedArgs, args);
       t.true(Object.isFrozen(receivedArgs));
-      return localPromiseHandler.invoke(
+      return localAsyncHandler.invoke(
         target,
         receiverArg,
         key,
@@ -411,7 +411,7 @@ test('invoke looks up an inherited method and applies the supplied receiver', as
       );
     },
   };
-  const customReflect = makePromiseReflect(Promise, handler);
+  const customReflect = makeAsyncReflect(Promise, handler);
   const result = await customReflect.invoke(
     Promise.resolve(receiver),
     thisArg,
@@ -452,11 +452,11 @@ test('construct leaves argument values and instances mutable and accepts newTarg
   function NewTarget() {}
 
   const handler = {
-    ...localPromiseHandler,
+    ...localAsyncHandler,
     construct(target, receivedArgs, newTarget, options) {
       t.not(receivedArgs, args);
       t.true(Object.isFrozen(receivedArgs));
-      return localPromiseHandler.construct(
+      return localAsyncHandler.construct(
         target,
         receivedArgs,
         newTarget,
@@ -464,7 +464,7 @@ test('construct leaves argument values and instances mutable and accepts newTarg
       );
     },
   };
-  const customReflect = makePromiseReflect(Promise, handler);
+  const customReflect = makeAsyncReflect(Promise, handler);
   const result = await customReflect.construct(Promise.resolve(Target), args);
   t.true(result instanceof Target);
   t.is(result.value, 5);
@@ -545,16 +545,16 @@ test('reflect rejects a supplied result and sends its result identity and saniti
 
   const source = Object.create({ inherited: 'hidden' });
   source.requestId = { value: 'visible' };
-  /** @type {import('../src/promise-handler.js').HandlerOptions | undefined} */
+  /** @type {import('../src/async-handler.js').HandlerOptions | undefined} */
   let received;
   const handler = {
-    ...localPromiseHandler,
+    ...localAsyncHandler,
     get(target, key, receiver, options) {
       received = options;
-      return localPromiseHandler.get(target, key, receiver, options);
+      return localAsyncHandler.get(target, key, receiver, options);
     },
   };
-  const customReflect = makePromiseReflect(Promise, handler);
+  const customReflect = makeAsyncReflect(Promise, handler);
   const resultP = customReflect.get({ value: 9 }, 'value', undefined, {
     senderContext: source,
   });
@@ -612,9 +612,9 @@ test('reflect operations defer delivery and reject on normal JavaScript errors',
   t.true(nonObject instanceof TypeError);
 });
 
-test('makePromiseReflect leaves Promise unchanged', t => {
-  t.false('reflect' in Promise);
+test('makeAsyncReflect leaves Reflect unchanged', t => {
+  t.false('async' in Reflect);
   t.true(Object.isFrozen(reflect));
-  t.true(Object.isFrozen(makePromiseReflect));
+  t.true(Object.isFrozen(makeAsyncReflect));
   t.false('delete' in reflect);
 });

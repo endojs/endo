@@ -1,11 +1,11 @@
 import test from 'ava';
 
 import { E as TypeE } from '../src/E2.js';
-import { makePromiseClient } from '../src/promise-client.js';
-import { localPromiseHandler } from '../src/promise-handler.js';
-import { makePromiseReflect } from '../src/promise-reflect.js';
+import { makeAsyncClient } from '../src/async-client.js';
+import { localAsyncHandler } from '../src/async-handler.js';
+import { makeAsyncReflect } from '../src/async-reflect.js';
 
-const E = makePromiseClient();
+const E = makeAsyncClient();
 
 const nextTurn = () => new Promise(resolve => setImmediate(resolve));
 
@@ -42,8 +42,8 @@ async () => {
   /** @satisfies {number | undefined} */ (await TypeE.Optional(fnum)().length);
 };
 
-test('makePromiseClient creates the E2 surface without mutating Promise', t => {
-  t.false('client' in Promise);
+test('makeAsyncClient creates the E2 surface without mutating Proxy', t => {
+  t.false('async' in Proxy);
   t.is(typeof E, 'function');
   t.false('Once' in E);
   t.is(typeof E.Send, 'function');
@@ -340,10 +340,10 @@ test('E2 optional SendOnly call acknowledges queueing before method completion',
   finish('done');
 });
 
-test('E2 client delegates gets, applies, and invokes to Promise.reflect', async t => {
-  const underlying = makePromiseReflect();
+test('E2 client delegates gets, applies, and invokes to Reflect.async', async t => {
+  const underlying = makeAsyncReflect();
   const calls = [];
-  const promiseReflect = {
+  const asyncReflect = {
     ...underlying,
     get(...args) {
       calls.push('get');
@@ -358,7 +358,7 @@ test('E2 client delegates gets, applies, and invokes to Promise.reflect', async 
       return Reflect.apply(underlying.invoke, underlying, args);
     },
   };
-  const client = makePromiseClient(Promise, promiseReflect);
+  const client = makeAsyncClient(Promise, asyncReflect);
   const target = { value: 2, method() { return 3; } };
 
   const property = await client(target).value;
@@ -373,23 +373,23 @@ test('E2 static modes carry eventual options across reflect operations', async t
   const receivedResults = [];
   const returnedResults = [];
   const handler = {
-    ...localPromiseHandler,
+    ...localAsyncHandler,
     get(target, key, receiver, options) {
       contexts.push(options.senderContext);
       receivedResults.push(options.result);
-      return localPromiseHandler.get(target, key, receiver, options);
+      return localAsyncHandler.get(target, key, receiver, options);
     },
     apply(target, thisArg, args, options) {
       contexts.push(options.senderContext);
-      return localPromiseHandler.apply(target, thisArg, args, options);
+      return localAsyncHandler.apply(target, thisArg, args, options);
     },
     invoke(target, thisArg, key, args, options) {
       contexts.push(options.senderContext);
-      return localPromiseHandler.invoke(target, thisArg, key, args, options);
+      return localAsyncHandler.invoke(target, thisArg, key, args, options);
     },
   };
-  const underlying = makePromiseReflect(Promise, handler);
-  const promiseReflect = {
+  const underlying = makeAsyncReflect(Promise, handler);
+  const asyncReflect = {
     ...underlying,
     get(...args) {
       const resultP = Reflect.apply(underlying.get, underlying, args);
@@ -397,7 +397,7 @@ test('E2 static modes carry eventual options across reflect operations', async t
       return resultP;
     },
   };
-  const client = makePromiseClient(Promise, promiseReflect);
+  const client = makeAsyncClient(Promise, asyncReflect);
   const senderContext = Object.create({ inherited: true });
   senderContext.requestId = { value: 'send' };
   const options = { senderContext };
@@ -465,14 +465,14 @@ test('E2 SendOnly waits for the handler queue acknowledgement', async t => {
     finish = resolve;
   });
   const handler = {
-    ...localPromiseHandler,
+    ...localAsyncHandler,
     invoke(...args) {
       return new Promise(resolve => {
-        releaseQueue = () => resolve(Reflect.apply(localPromiseHandler.invoke, localPromiseHandler, args));
+        releaseQueue = () => resolve(Reflect.apply(localAsyncHandler.invoke, localAsyncHandler, args));
       });
     },
   };
-  const client = makePromiseClient(Promise, makePromiseReflect(Promise, handler));
+  const client = makeAsyncClient(Promise, makeAsyncReflect(Promise, handler));
   let settled = false;
   const queued = client.SendOnly({ method: () => pending }).method().then(
     () => {

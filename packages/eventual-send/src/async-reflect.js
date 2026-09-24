@@ -1,9 +1,9 @@
 // @ts-check
 
 import harden from '@endo/harden';
-import { localPromiseHandler } from './promise-handler.js';
+import { localAsyncHandler } from './async-handler.js';
 
-/** @import { PromiseHandler, HandlerOptions } from './promise-handler.js' */
+/** @import { AsyncHandler, HandlerOptions } from './async-handler.js' */
 
 /**
  * @typedef {object} EventualOptions
@@ -33,11 +33,11 @@ export const whenCompleted = result =>
 
 /**
  * @param {Pick<PromiseConstructor, 'resolve'>} [PromiseCtor]
- * @param {PromiseHandler} [handler]
+ * @param {AsyncHandler} [handler]
  */
-export const makePromiseReflect = (
+export const makeAsyncReflect = (
   PromiseCtor = Promise,
-  handler = localPromiseHandler,
+  handler = localAsyncHandler,
 ) => {
   /** @param {unknown} target */
   const later = target => PromiseCtor.resolve().then(() => target);
@@ -305,4 +305,4 @@ export const makePromiseReflect = (
   });
 };
 
-harden(makePromiseReflect);
+harden(makeAsyncReflect);

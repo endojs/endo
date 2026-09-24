@@ -2,7 +2,7 @@
 
 This plan starts from `src/E2.js` and `docs/Eventual Send API Redesign.md`.
 Together they provide enough design information to begin a test-driven design
-cycle for the local `Promise.client` shim, provided we keep the first
+cycle for the local `Proxy.async` shim, provided we keep the first
 implementation intentionally narrow:
 
 - no HandledPromise integration;
@@ -22,7 +22,7 @@ stuck.
 Create a standalone client:
 
 ```js
-const E = makePromiseClient();
+const E = makeAsyncClient();
 E.Send
 E.SendOnly
 E.Optional
@@ -39,13 +39,13 @@ E(x).then.Optional
 The default client entry point is the only one-step entry:
 
 ```js
-const E = makePromiseClient();
+const E = makeAsyncClient();
 await E(obj).method(arg);
 ```
 
 The first implementation is a ponyfill. It should export a function that creates
 the implementation standalone and leaves it up to the caller to install the
-components somewhere useful, for example on `Promise.client`.
+components somewhere useful, for example on `Proxy.async`.
 The `.then` controls are only attached to E proxy-owned then functions. The
 ponyfill intentionally does not provide controls for arbitrary native promise
 `.then` functions, since relying on the underlying native `.then` receiver path
@@ -105,11 +105,11 @@ controls, and send-only queueing.
 
 ## Proposed Runtime Model
 
-Implement a small `makePromiseClient(PromiseCtor = Promise)` helper.
+Implement a small `makeAsyncClient(PromiseCtor = Promise)` helper.
 
 The helper returns a hardened callable `client` with own properties `Send`,
-`SendOnly`, and `Optional`. It does not mutate `Promise`; callers that want a
-global-style shim can install the returned client themselves.
+`SendOnly`, and `Optional`. It does not mutate `Proxy`; callers that want a
+global-style shim can install the returned client on `Proxy.async` themselves.
 
 Represent each expression as a proxy node:
 
@@ -179,7 +179,7 @@ controls must enter through the E proxy.
 
 ## Test-Driven Cycle
 
-Create `test/e2.test.js`. Keep it independent from `HandledPromise` and the
+Create `test/async-client.test.js`. Keep it independent from `HandledPromise` and the
 existing `E` tests. Import only the E2 shim and AVA.
 
 Current status: phases 1 through 8 are covered for the intentionally narrow
@@ -190,8 +190,8 @@ ponyfill scope. The policy decisions for this scope are recorded under
 
 Tests:
 
-- importing the module does not mutate `Promise`;
-- `makePromiseClient()` returns a callable client;
+- importing the module does not mutate `Proxy`;
+- `makeAsyncClient()` returns a callable client;
 - `E.Send`, `E.SendOnly`, and `E.Optional` are callable;
 - `E.Once` is absent;
 - shim-created proxy results expose `.then.Send`, `.then.SendOnly`, and
@@ -202,7 +202,7 @@ Tests:
 
 Implementation:
 
-- add `makePromiseClient`;
+- add `makeAsyncClient`;
 - define the top-level client object and mode-specific entry points;
 - add enough node/proxy creation for shape tests;
 - keep `.then` controls scoped to E proxy-owned then functions.
@@ -310,7 +310,7 @@ Tests:
 - client and mode functions are frozen or at least non-extensible if that is the
   intended Endo convention;
 - client mode properties are non-enumerable and non-writable;
-- no package entry point mutates Promise; installation is caller-owned.
+- no package entry point mutates Proxy; installation is caller-owned.
 - arguments and fulfilled results are hardened.
 
 Implementation:
@@ -329,15 +329,15 @@ These decisions bound the current ponyfill:
 
 2. Arguments and fulfilled results are hardened.
 
-3. `src/promise-client.js` remains internal/test-only for now rather than
+3. `src/async-client.js` remains internal/test-only for now rather than
    becoming a package subpath export.
 
 ## First Commit Shape
 
 The first implementation commit was kept small:
 
-- add `test/e2.test.js` with Phase 1 and Phase 2 tests;
-- add an unexported ponyfill module at `src/promise-client.js`;
+- add `test/async-client.test.js` with Phase 1 and Phase 2 tests;
+- add an unexported ponyfill module at `src/async-client.js`;
 - make those tests pass without touching the existing `E`/`HandledPromise`
   implementation;
 - leave the package public exports unchanged until the API surface stabilizes.

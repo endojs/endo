@@ -2,10 +2,10 @@
 
 import harden from '@endo/harden';
 import {
-  makePromiseReflect,
+  makeAsyncReflect,
   whenCompleted,
   whenQueued,
-} from './promise-reflect.js';
+} from './async-reflect.js';
 
 const { defineProperties } = Object;
 
@@ -54,7 +54,7 @@ const queued = new WeakMap();
  * @property {PropertyKey} [methodKey]
  * @property {boolean} [methodOptional]
  * @property {unknown} [expectedThis]
- * @property {import('./promise-reflect.js').EventualOptions} [eventualOptions]
+ * @property {import('./async-reflect.js').EventualOptions} [eventualOptions]
  */
 
 /** @param {unknown} value */
@@ -62,10 +62,10 @@ const lookupTarget = value => (value == null ? value : Object(value));
 
 /**
  * @param {NodeState} state
- * @param {ReturnType<typeof makePromiseReflect>} promiseReflect
+ * @param {ReturnType<typeof makeAsyncReflect>} asyncReflect
  * @returns {Promise<unknown>}
  */
-const materializeP = (state, promiseReflect) => {
+const materializeP = (state, asyncReflect) => {
   if (state.targetP !== undefined) {
     return state.targetP;
   }
@@ -74,7 +74,7 @@ const materializeP = (state, promiseReflect) => {
     return cached;
   }
   if (state.methodTargetP === undefined || state.methodKey === undefined) {
-    throw TypeError('Invalid promise client node state');
+    throw TypeError('Invalid async client node state');
   }
   const { methodKey } = state;
   const operationP = state.methodTargetP.then(resolution => {
@@ -85,7 +85,7 @@ const materializeP = (state, promiseReflect) => {
       return { result: Promise.resolve(skipped), queue: Promise.resolve() };
     }
     const target = lookupTarget(resolution);
-    const publicResult = promiseReflect.get(
+    const publicResult = asyncReflect.get(
       target,
       methodKey,
       target,
@@ -105,11 +105,11 @@ const materializeP = (state, promiseReflect) => {
 /**
  * @param {NodeState} state
  * @param {Pick<PromiseConstructor, 'resolve'>} PromiseCtor
- * @param {ReturnType<typeof makePromiseReflect>} promiseReflect
+ * @param {ReturnType<typeof makeAsyncReflect>} asyncReflect
  * @returns {Promise<unknown>}
  */
-const resultP = (state, PromiseCtor, promiseReflect) => {
-  const targetP = materializeP(state, promiseReflect);
+const resultP = (state, PromiseCtor, asyncReflect) => {
+  const targetP = materializeP(state, asyncReflect);
   if (state.sendMode === 'sendOnly') {
     targetP.catch(() => undefined);
     return (queued.get(state)?.() ?? PromiseCtor.resolve()).then(
@@ -145,12 +145,12 @@ const hardenThen = (then, getSend, getSendOnly, getOptional) => {
 
 /**
  * @param {Pick<PromiseConstructor, 'resolve' | 'reject'>} [PromiseCtor]
- * @param {ReturnType<typeof makePromiseReflect>} [promiseReflect]
+ * @param {ReturnType<typeof makeAsyncReflect>} [asyncReflect]
  * @returns {any}
  */
-export const makePromiseClient = (
+export const makeAsyncClient = (
   PromiseCtor = Promise,
-  promiseReflect = makePromiseReflect(PromiseCtor),
+  asyncReflect = makeAsyncReflect(PromiseCtor),
 ) => {
   /**
    * @param {unknown} target
@@ -172,7 +172,7 @@ export const makePromiseClient = (
    */
   const makeThen = state => {
     const then = (onFulfilled, onRejected) =>
-      resultP(state, PromiseCtor, promiseReflect).then(onFulfilled, onRejected);
+      resultP(state, PromiseCtor, asyncReflect).then(onFulfilled, onRejected);
     const controlledState = { ...state, expectedThis: then };
 
     return hardenThen(
@@ -187,7 +187,7 @@ export const makePromiseClient = (
   };
 
   makeNode = (state, recursion, sendMode, optional) => {
-    const proxyTarget = function promiseClientTarget() {};
+    const proxyTarget = function asyncClientTarget() {};
 
     /** @type {ProxyHandler<(...args: unknown[]) => unknown>} */
     const handler = harden({
@@ -227,10 +227,10 @@ export const makePromiseClient = (
                 }
                 const target = lookupTarget(resolution);
                 if (optionalCall) {
-                  const publicResult = promiseReflect.optional(
+                  const publicResult = asyncReflect.optional(
                     target,
                     present =>
-                      promiseReflect
+                      asyncReflect
                         .get(
                           present,
                           state.methodKey,
@@ -240,7 +240,7 @@ export const makePromiseClient = (
                         .then(method =>
                           method == null
                             ? skipped
-                            : promiseReflect.apply(
+                            : asyncReflect.apply(
                                 method,
                                 resolution,
                                 args,
@@ -254,7 +254,7 @@ export const makePromiseClient = (
                     queue: whenQueued(publicResult),
                   };
                 }
-                const publicResult = promiseReflect.invoke(
+                const publicResult = asyncReflect.invoke(
                   target,
                   resolution,
                   state.methodKey,
@@ -266,7 +266,7 @@ export const makePromiseClient = (
                   queue: whenQueued(publicResult),
                 };
               })
-            : materializeP(state, promiseReflect).then(resolution => {
+            : materializeP(state, asyncReflect).then(resolution => {
                 if (isSkipped(resolution)) {
                   return {
                     result: PromiseCtor.resolve(skipped),
@@ -279,7 +279,7 @@ export const makePromiseClient = (
                     queue: PromiseCtor.resolve(),
                   };
                 }
-                const publicResult = promiseReflect.apply(
+                const publicResult = asyncReflect.apply(
                   resolution,
                   undefined,
                   args,
@@ -318,7 +318,7 @@ export const makePromiseClient = (
           return makeThen(state);
         }
         if (propertyKey === Symbol.toStringTag) {
-          return 'PromiseClientNode';
+          return 'AsyncClientNode';
         }
         if (propertyKey === Symbol.toPrimitive) {
           return undefined;
@@ -349,7 +349,7 @@ export const makePromiseClient = (
             sendMode,
             optional: false,
             recursion: recursion === 'shallow' ? 'none' : recursion,
-            methodTargetP: materializeP(state, promiseReflect),
+            methodTargetP: materializeP(state, asyncReflect),
             methodKey: propertyKey,
             methodOptional: optional,
             expectedThis: receiver,
@@ -369,7 +369,7 @@ export const makePromiseClient = (
    * @param {Recursion} recursion
    * @param {SendMode} sendMode
    * @param {boolean} optional
-   * @returns {(target: unknown, eventualOptions?: import('./promise-reflect.js').EventualOptions) => any}
+   * @returns {(target: unknown, eventualOptions?: import('./async-reflect.js').EventualOptions) => any}
    */
   const makeEntry = (recursion, sendMode, optional) => (target, eventualOptions) =>
     makeNode(
@@ -394,4 +394,4 @@ export const makePromiseClient = (
   return harden(client);
 };
 
-harden(makePromiseClient);
+harden(makeAsyncClient);

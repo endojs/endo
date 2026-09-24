@@ -31,7 +31,7 @@ const queue = (operation, options) => {
   return harden(Promise.resolve(harden({ result })));
 };
 
-export const localPromiseHandler = harden({
+export const localAsyncHandler = harden({
   /**
    * @param {unknown} target
    * @param {PropertyKey} key
@@ -155,4 +155,4 @@ export const localPromiseHandler = harden({
   },
 });
 
-/** @typedef {typeof localPromiseHandler} PromiseHandler */
+/** @typedef {typeof localAsyncHandler} AsyncHandler */
