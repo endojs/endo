@@ -688,3 +688,142 @@ test('pipeline: remote answer promise sent as argument is local to receiver (no 
     shutdownBoth();
   }
 });
+
+test('four-node promise chain emits op:flush on third-party relay hops (experimental)', async t => {
+  const flushOptions = { enableExperimentalFeatureFlush: true };
+  const writeLatencyMs = 50;
+
+  const dObjectTable = new Map();
+  dObjectTable.set(
+    'Depth',
+    Far('Depth', {
+      makeToken: () =>
+        Far('Token', {
+          kind: () => 'deep',
+        }),
+    }),
+  );
+
+  const clientKitD = await makeTestClient({
+    debugLabel: 'D',
+    makeDefaultSwissnumTable: () => dObjectTable,
+    clientOptions: flushOptions,
+    writeLatencyMs,
+  });
+
+  /** @type {any} */
+  let clientKitC;
+  const cObjectTable = new Map();
+  cObjectTable.set(
+    'Chain',
+    Far('ChainC', {
+      extend: async () => {
+        const session = await clientKitC.debug.provideInternalSession(
+          clientKitD.location,
+        );
+        const boot = session.ocapn.getRemoteBootstrap();
+        const depth = await E(boot).fetch(encodeSwissnum('Depth'));
+        return E(depth).makeToken();
+      },
+    }),
+  );
+
+  clientKitC = await makeTestClient({
+    debugLabel: 'C',
+    makeDefaultSwissnumTable: () => cObjectTable,
+    clientOptions: flushOptions,
+    writeLatencyMs,
+  });
+
+  /** @type {any} */
+  let clientKitB;
+  const bObjectTable = new Map();
+  bObjectTable.set(
+    'Chain',
+    Far('ChainB', {
+      extend: async () => {
+        const session = await clientKitB.debug.provideInternalSession(
+          clientKitC.location,
+        );
+        const boot = session.ocapn.getRemoteBootstrap();
+        const chain = await E(boot).fetch(encodeSwissnum('Chain'));
+        return E(chain).extend();
+      },
+    }),
+  );
+
+  clientKitB = await makeTestClient({
+    debugLabel: 'B',
+    makeDefaultSwissnumTable: () => bObjectTable,
+    clientOptions: flushOptions,
+    writeLatencyMs,
+  });
+
+  const clientKitA = await makeTestClient({
+    debugLabel: 'A',
+    clientOptions: flushOptions,
+    writeLatencyMs,
+  });
+
+  const shutdownAll = () => {
+    clientKitA.client.shutdown();
+    clientKitB.client.shutdown();
+    clientKitC.client.shutdown();
+    clientKitD.client.shutdown();
+  };
+
+  try {
+    await clientKitC.debug.provideInternalSession(clientKitD.location);
+    await clientKitB.debug.provideInternalSession(clientKitC.location);
+    const sessionAtoB = await clientKitA.debug.provideInternalSession(
+      clientKitB.location,
+    );
+
+    const sessionCtoB = await clientKitC.debug.provideInternalSession(
+      clientKitB.location,
+    );
+    const sessionBtoA = await clientKitB.debug.provideInternalSession(
+      clientKitA.location,
+    );
+
+    const recorderCtoB = createMessageRecorder(sessionCtoB.ocapn, 'C', 'B');
+    const recorderBtoA = createMessageRecorder(sessionBtoA.ocapn, 'B', 'A');
+
+    const bootstrapB = sessionAtoB.ocapn.getRemoteBootstrap();
+    const chainHead = await E(bootstrapB).fetch(encodeSwissnum('Chain'));
+    const token = await E(chainHead).extend();
+    t.is(await E(token).kind(), 'deep', 'leaf capability works end-to-end');
+
+    recorderCtoB.unsubscribe();
+    recorderBtoA.unsubscribe();
+
+    const cFlushSends = recorderCtoB.transcript.filter(
+      e => e.from === 'C' && e.message.type === 'op:flush',
+    );
+    const bFlushSends = recorderBtoA.transcript.filter(
+      e => e.from === 'B' && e.message.type === 'op:flush',
+    );
+
+    t.is(cFlushSends.length, 1, 'C sends one op:flush when resolving to B');
+    t.is(bFlushSends.length, 1, 'B sends one op:flush when resolving to A');
+
+    const cFlush = cFlushSends[0].message;
+    const bFlush = bFlushSends[0].message;
+    const cFlushPosition = cFlush.position;
+    t.true(
+      typeof cFlushPosition === 'bigint' && cFlushPosition >= 0n,
+      'C op:flush carries non-negative answer/export position',
+    );
+    const bFlushPosition = bFlush.position;
+    t.true(
+      typeof bFlushPosition === 'bigint' && bFlushPosition >= 0n,
+      'B op:flush carries non-negative answer/export position',
+    );
+    t.true(
+      cFlush.resolveMeDesc !== undefined && bFlush.resolveMeDesc !== undefined,
+      'op:flush includes resolveMeDesc for flush-done',
+    );
+  } finally {
+    shutdownAll();
+  }
+});
