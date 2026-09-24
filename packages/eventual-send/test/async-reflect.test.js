@@ -11,17 +11,12 @@ test('local handler separates queue acknowledgement from completion', async t =>
   const pending = new Promise(resolve => {
     finish = resolve;
   });
-  const outer = localAsyncHandler.get(
-    { value: pending },
-    'value',
-    undefined,
-    {
-      result: Promise.resolve(),
-      senderContext: {},
-      sendMode: 'send',
-      harden: 'none',
-    },
-  );
+  const outer = localAsyncHandler.get({ value: pending }, 'value', undefined, {
+    result: Promise.resolve(),
+    senderContext: {},
+    sendMode: 'send',
+    harden: 'none',
+  });
   t.true(Object.isFrozen(outer));
   const envelope = await outer;
   t.true(Object.isFrozen(envelope));
@@ -188,10 +183,9 @@ test('harden all freezes handler queue failures', async t => {
 async () => {
   /** @type {{ label: string } | null} */
   const maybe = Math.random() < 0.5 ? null : { label: 'ready' };
-  /** @satisfies {string | undefined} */ (await reflect.optional(
-    maybe,
-    present => present.label,
-  ));
+  /** @satisfies {string | undefined} */ (
+    await reflect.optional(maybe, present => present.label)
+  );
 };
 
 test('optional skips a nullish value without calling the continuation', async t => {
@@ -514,7 +508,12 @@ test('set and deleteProperty return booleans from normal Reflect operations', as
 
 test('eventual options follow the Reflect operands without changing local operations', async t => {
   const options = { senderContext: { requestId: 'local' } };
-  const target = { value: 1, method() { return this.value; } };
+  const target = {
+    value: 1,
+    method() {
+      return this.value;
+    },
+  };
   const argumentList = [];
   function Created() {
     this.value = 2;
@@ -527,8 +526,14 @@ test('eventual options follow the Reflect operands without changing local operat
   t.is(await reflect.apply(() => 3, undefined, argumentList, options), 3);
   t.true(await reflect.set(target, 'other', 4, target, options));
   t.true(await reflect.deleteProperty(target, 'other', options));
-  t.is(await reflect.invoke(target, target, 'method', argumentList, options), 1);
-  t.is((await reflect.construct(Created, argumentList, Created, options)).value, 2);
+  t.is(
+    await reflect.invoke(target, target, 'method', argumentList, options),
+    1,
+  );
+  t.is(
+    (await reflect.construct(Created, argumentList, Created, options)).value,
+    2,
+  );
   t.is(await reflect.optional(5, present => present + 1, options), 6);
 });
 

@@ -176,19 +176,19 @@ const makeEMethod =
   };
 
 export const E = Object.assign(
-    /**
-     * @template T
-     * @param {T} x
-     * @returns {ETarget<T, 'Send', never, 'Shallow'>}
-     */
-    x => {
+  /**
+   * @template T
+   * @param {T} x
+   * @returns {ETarget<T, 'Send', never, 'Shallow'>}
+   */
+  x => {
     // We push this to a future turn to thwart a malicious x.then.
     const ePromise = /** @type {EPromise<T>} */ (
       Promise.resolve().then(() => x)
     );
     return /** @type {ETarget<T, 'Send', never, 'Shallow'>} */ (ePromise);
   },
-    /** @type {const} */ ({
+  /** @type {const} */ ({
     Optional: makeEMethod('Optional'),
     Send: makeEMethod('Send'),
     SendOnly: makeEMethod('SendOnly'),

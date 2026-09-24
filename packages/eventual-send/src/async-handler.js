@@ -51,7 +51,10 @@ export const localAsyncHandler = harden({
    * @param {HandlerOptions} options
    */
   has(target, key, options) {
-    return queue(() => Reflect.has(/** @type {object} */ (target), key), options);
+    return queue(
+      () => Reflect.has(/** @type {object} */ (target), key),
+      options,
+    );
   },
 
   /**
@@ -59,7 +62,10 @@ export const localAsyncHandler = harden({
    * @param {HandlerOptions} options
    */
   ownKeys(target, options) {
-    return queue(() => Reflect.ownKeys(/** @type {object} */ (target)), options);
+    return queue(
+      () => Reflect.ownKeys(/** @type {object} */ (target)),
+      options,
+    );
   },
 
   /**

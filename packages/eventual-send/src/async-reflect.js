@@ -106,16 +106,15 @@ export const makeAsyncReflect = (
         operation(hardenIfAll(resolved, handlerOptions), handlerOptions),
       )
       .then(envelope => {
-        const result =
-          hardenAll
-            ? envelope.result.then(
-                value => harden(value),
-                reason => {
-                  harden(reason);
-                  throw reason;
-                },
-              )
-            : envelope.result;
+        const result = hardenAll
+          ? envelope.result.then(
+              value => harden(value),
+              reason => {
+                harden(reason);
+                throw reason;
+              },
+            )
+          : envelope.result;
         return harden({ result: harden(result) });
       })
       .catch(reason => {

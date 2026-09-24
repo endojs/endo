@@ -153,11 +153,7 @@ const makeAsyncNode = (boundThis, powers, opts) => {
           if (sendMode === 'sendOnly') {
             throw error;
           }
-          return makeAsyncNode(
-            HandledPromise.reject(error),
-            powers,
-            opts,
-          );
+          return makeAsyncNode(HandledPromise.reject(error), powers, opts);
         }
         if (onSend && onSend.shouldBreakpoint(boundThis, boundName)) {
           // eslint-disable-next-line no-debugger
@@ -362,8 +358,7 @@ const makeE = (HandledPromise, powers = {}) => {
          * @returns {AsyncNode<LocalRecord<EUnwrap<T>>>} thenable, function call, and getters proxy
          * @readonly
          */
-        get: x =>
-          /** @type {AsyncNode<LocalRecord<EUnwrap<T>>>} */ (E(x)),
+        get: x => /** @type {AsyncNode<LocalRecord<EUnwrap<T>>>} */ (E(x)),
 
         /**
          * E.resolve(x) converts x to a handled promise. It is

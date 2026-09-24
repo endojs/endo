@@ -116,9 +116,7 @@ const resultP = (state, PromiseCtor, asyncReflect) => {
       () => undefined,
     );
   }
-  return targetP.then(value =>
-    isSkipped(value) ? undefined : harden(value),
-  );
+  return targetP.then(value => (isSkipped(value) ? undefined : harden(value)));
 };
 
 /**
@@ -371,19 +369,20 @@ export const makeAsyncClient = (
    * @param {boolean} optional
    * @returns {(target: unknown, eventualOptions?: import('./async-reflect.js').EventualOptions) => any}
    */
-  const makeEntry = (recursion, sendMode, optional) => (target, eventualOptions) =>
-    makeNode(
-      {
-        targetP: later(target),
+  const makeEntry =
+    (recursion, sendMode, optional) => (target, eventualOptions) =>
+      makeNode(
+        {
+          targetP: later(target),
+          sendMode,
+          optional,
+          recursion,
+          eventualOptions,
+        },
+        recursion,
         sendMode,
         optional,
-        recursion,
-        eventualOptions,
-      },
-      recursion,
-      sendMode,
-      optional,
-    );
+      );
 
   const client = makeEntry('shallow', 'send', false);
   defineProperties(client, {

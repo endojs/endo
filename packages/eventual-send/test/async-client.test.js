@@ -18,10 +18,16 @@ async () => {
 
   /** @type {null | (() => 'hello')} */
   const fnum = Math.random() < 0.5 ? null : () => 'hello';
-  /** @satisfies {string | undefined} */ (await TypeE(Math).min(3, 2).then.Optional.toString());
+  /** @satisfies {string | undefined} */ (
+    await TypeE(Math).min(3, 2).then.Optional.toString()
+  );
   /** @satisfies {void} */ (await TypeE.SendOnly(m).set(9, 'abc'));
-  /** @satisfies {string | undefined} */ (await TypeE.Optional(2345).toFixed().charAt(3));
-  /** @satisfies {'hello' | undefined} */ (await TypeE({ abc: fnum }).abc.then.Optional());
+  /** @satisfies {string | undefined} */ (
+    await TypeE.Optional(2345).toFixed().charAt(3)
+  );
+  /** @satisfies {'hello' | undefined} */ (
+    await TypeE({ abc: fnum }).abc.then.Optional()
+  );
   // @ts-expect-error expression is not callable
   await TypeE({ abc: fnum }).abc();
   /** @satisfies {void} */ (await TypeE.SendOnly(2).toFixed().at(-1));
@@ -282,8 +288,9 @@ test('E2 Optional mirrors per-step optional chaining', async t => {
       };
     },
   };
-  const presentResult =
-    await E(present).then.Optional.method.then.Optional().then.Optional.toString();
+  const presentResult = await E(present)
+    .then.Optional.method.then.Optional()
+    .then.Optional.toString();
   t.is(presentResult, 'done');
 
   t.is(
@@ -291,13 +298,14 @@ test('E2 Optional mirrors per-step optional chaining', async t => {
     undefined,
   );
   t.is(
-    await E({ method: undefined }).then.Optional.method.then.Optional(
-      'ignored',
-    ).then.Optional.toString(),
+    await E({ method: undefined })
+      .then.Optional.method.then.Optional('ignored')
+      .then.Optional.toString(),
     undefined,
   );
   t.is(
-    await E({ method: () => null }).then.Optional.method.then.Optional()
+    await E({ method: () => null })
+      .then.Optional.method.then.Optional()
       .then.Optional.toString(),
     undefined,
   );
@@ -359,7 +367,12 @@ test('E2 client delegates gets, applies, and invokes to Reflect.async', async t 
     },
   };
   const client = makeAsyncClient(Promise, asyncReflect);
-  const target = { value: 2, method() { return 3; } };
+  const target = {
+    value: 2,
+    method() {
+      return 3;
+    },
+  };
 
   const property = await client(target).value;
   t.is(property, 2);
@@ -409,7 +422,19 @@ test('E2 static modes carry eventual options across reflect operations', async t
   t.is(await client.Optional({ a: 2 }, options).a, 2);
   t.is(await client.SendOnly({ a: 3 }, options).a, undefined);
   t.is(await client.Send(() => 4, options)(), 4);
-  t.is(await client.Send({ method() { return 5; } }, options).method(), 5);
+  t.is(
+    await client
+      .Send(
+        {
+          method() {
+            return 5;
+          },
+        },
+        options,
+      )
+      .method(),
+    5,
+  );
   await nextTurn();
   t.is(contexts.length, 7);
   t.deepEqual(receivedResults, returnedResults);
@@ -421,10 +446,13 @@ test('E2 static modes carry eventual options across reflect operations', async t
 
   await t.throwsAsync(
     () =>
-      client.Send({ a: 4 }, {
-        result: Promise.resolve(),
-        senderContext: {},
-      }).a,
+      client.Send(
+        { a: 4 },
+        {
+          result: Promise.resolve(),
+          senderContext: {},
+        },
+      ).a,
     { instanceOf: TypeError, message: /result must be empty/ },
   );
 });
@@ -468,17 +496,21 @@ test('E2 SendOnly waits for the handler queue acknowledgement', async t => {
     ...localAsyncHandler,
     invoke(...args) {
       return new Promise(resolve => {
-        releaseQueue = () => resolve(Reflect.apply(localAsyncHandler.invoke, localAsyncHandler, args));
+        releaseQueue = () =>
+          resolve(
+            Reflect.apply(localAsyncHandler.invoke, localAsyncHandler, args),
+          );
       });
     },
   };
   const client = makeAsyncClient(Promise, makeAsyncReflect(Promise, handler));
   let settled = false;
-  const queued = client.SendOnly({ method: () => pending }).method().then(
-    () => {
+  const queued = client
+    .SendOnly({ method: () => pending })
+    .method()
+    .then(() => {
       settled = true;
-    },
-  );
+    });
   await new Promise(resolve => setImmediate(resolve));
   t.false(settled);
   releaseQueue();

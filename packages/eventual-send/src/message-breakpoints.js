@@ -107,8 +107,9 @@ export const makeMessageBreakpointTester = optionName => {
     isJSONRecord(newBreakpoints) ||
       Fail`Expected ${q(optionName)} option to be a JSON breakpoints record`;
 
-    const newBreakpointsTable =
-      /** @type {BreakpointTable} */ (Object.create(null));
+    const newBreakpointsTable = /** @type {BreakpointTable} */ (
+      Object.create(null)
+    );
 
     for (const [tag, methodBPs] of entries(newBreakpoints)) {
       tag === simplifyTag(tag) ||
