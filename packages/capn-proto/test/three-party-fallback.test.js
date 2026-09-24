@@ -1,0 +1,169 @@
+// @ts-nocheck
+/**
+ * Vine fallback for L3 recipient-side Accept.
+ *
+ * Exercises the branches of `threeParty.acceptThirdParty` that don't get
+ * hit by the existing host-side e2e test in `three-party.test.js`:
+ *
+ *   1. Direct A↔C path succeeds → Release the vine, return the direct cap.
+ *   2. Direct path throws synchronously (network can't dial) → fall back
+ *      to the vine import.
+ *   3. Direct path's Accept Return is an exception (no such provision,
+ *      host gone) → keep the vine alive and resolve to it.
+ *
+ * Built directly on `makeThreeParty` with hand-rolled deps so the test
+ * doesn't drag the whole connection wiring in for what is fundamentally
+ * a small dispatch-time decision.
+ */
+
+import test from '@endo/ses-ava/test.js';
+import { makeThreeParty } from '../src/three-party.js';
+
+const dummyEncodeReturn = arg => /** @type {any} */ (arg);
+const noopEncode = () => () => {};
+
+/**
+ * Build the network shape that `acceptThirdParty` needs. Tests only set
+ * the fields they actually exercise; the rest get plausible no-ops.
+ *
+ * @param {{
+ *   connectToThirdParty?: (slot: any) => any,
+ * }} [overrides]
+ */
+const networkMock = ({ connectToThirdParty } = {}) => ({
+  encodeThirdPartyCapId: () => noopEncode(),
+  connectToThirdParty: connectToThirdParty || (() => null),
+  encodeProvisionForHandoff: () => noopEncode(),
+  encodeRecipient: () => noopEncode(),
+  acceptIncomingProvide: () => {},
+  consumeProvision: () => undefined,
+});
+
+const makeMockCtx = (overrides = {}) => {
+  const released = [];
+  const importedVineIds = [];
+  const ctx = {
+    network: networkMock(),
+    encodeProvide: () => new ArrayBuffer(0),
+    encodeDisembargo: () => new ArrayBuffer(0),
+    encodeReturn: dummyEncodeReturn,
+    sendFramed: () => {},
+    sendRelease: id => released.push(id),
+    importRegistry: {
+      importCap: id => {
+        importedVineIds.push(id);
+        return { isVinePresence: true, vineId: id };
+      },
+      importIdOf: () => undefined,
+    },
+    tables: {
+      exports: new Map(),
+    },
+    questionIds: { alloc: () => 0, release: () => {} },
+    exportRegistry: { exportValue: () => ({ id: 0 }) },
+    encodeCapContent: () => () => {},
+    ...overrides,
+  };
+  return { ctx, released, importedVineIds };
+};
+
+const fakeIdSlot = { msg: null, segId: 0, wordOffset: 0 };
+
+test('vine fallback: sendAccept Return is an exception → resolves to vine', async t => {
+  const { ctx, released, importedVineIds } = makeMockCtx({
+    network: networkMock({
+      connectToThirdParty: () => ({
+        sendAccept: () => Promise.reject(Error('unknown provision')),
+      }),
+    }),
+  });
+  const tp = makeThreeParty(ctx);
+
+  const resolved = await tp.acceptThirdParty({
+    idSlot: fakeIdSlot,
+    vineId: 42,
+  });
+
+  t.deepEqual(importedVineIds, [42], 'vine was imported eagerly');
+  t.true(resolved.isVinePresence, 'resolved value is the vine Presence');
+  t.is(resolved.vineId, 42);
+  t.deepEqual(released, [], 'vine NOT released — it is now the live path');
+});
+
+test('vine fallback: connectToThirdParty throws → resolves to vine', async t => {
+  const { ctx, released, importedVineIds } = makeMockCtx({
+    network: networkMock({
+      connectToThirdParty: () => {
+        throw Error('no route to host');
+      },
+    }),
+  });
+  const tp = makeThreeParty(ctx);
+
+  const resolved = await tp.acceptThirdParty({
+    idSlot: fakeIdSlot,
+    vineId: 7,
+  });
+
+  t.deepEqual(importedVineIds, [7]);
+  t.true(resolved.isVinePresence);
+  t.deepEqual(released, []);
+});
+
+test('vine fallback: connectToThirdParty returns a peer without sendAccept → vine', async t => {
+  const { ctx, importedVineIds } = makeMockCtx({
+    network: networkMock({
+      connectToThirdParty: () => ({}),
+    }),
+  });
+  const tp = makeThreeParty(ctx);
+
+  const resolved = await tp.acceptThirdParty({
+    idSlot: fakeIdSlot,
+    vineId: 11,
+  });
+  t.deepEqual(importedVineIds, [11]);
+  t.true(resolved.isVinePresence);
+});
+
+test('direct path success: Release the vine and resolve to the direct cap', async t => {
+  const directCap = { isDirect: true };
+  const { ctx, released } = makeMockCtx({
+    network: networkMock({
+      connectToThirdParty: () => ({
+        sendAccept: () => Promise.resolve(directCap),
+      }),
+    }),
+  });
+  const tp = makeThreeParty(ctx);
+
+  const resolved = await tp.acceptThirdParty({
+    idSlot: fakeIdSlot,
+    vineId: 99,
+  });
+
+  t.is(resolved, directCap, 'resolved to the direct cap');
+  t.deepEqual(released, [99], 'vine released exactly once');
+});
+
+test('direct path success: sendRelease throws → still returns the direct cap', async t => {
+  const directCap = { isDirect: true };
+  const { ctx } = makeMockCtx({
+    sendRelease: () => {
+      throw Error('connection aborted');
+    },
+    network: networkMock({
+      connectToThirdParty: () => ({
+        sendAccept: () => Promise.resolve(directCap),
+      }),
+    }),
+  });
+  const tp = makeThreeParty(ctx);
+
+  const resolved = await tp.acceptThirdParty({
+    idSlot: fakeIdSlot,
+    vineId: 13,
+  });
+
+  t.is(resolved, directCap, 'vine release failure is non-fatal');
+});
