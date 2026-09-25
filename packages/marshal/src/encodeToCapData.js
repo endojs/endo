@@ -17,8 +17,10 @@ import {
 } from '@endo/pass-style';
 import { X, Fail, q } from '@endo/errors';
 
-/** @import {Passable, RemotableObject} from '@endo/pass-style' */
-/** @import {Encoding, EncodingUnion} from './types.js' */
+/**
+ * @import {Passable, RemotableObject} from '@endo/pass-style'
+ * @import {Encoding, EncodingUnion} from './types.js'
+ */
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;

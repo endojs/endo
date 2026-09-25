@@ -18,7 +18,7 @@ import { makeMarshal } from './marshal.js';
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
-const { stringify: quote } = JSON;
+const { stringify } = JSON;
 
 /**
  * @typedef {object} Indenter
@@ -34,7 +34,7 @@ const { stringify: quote } = JSON;
  *
  * @returns {Indenter}
  */
-const makeYesIndenter = () => {
+export const makeYesIndenter = () => {
   const strings = [];
   let level = 0;
   let needSpace = false;
@@ -89,7 +89,7 @@ const badPairPattern = /^(?:\w\w|<<|>>|\+\+|--|<!|->)$/;
  *
  * @returns {Indenter}
  */
-const makeNoIndenter = () => {
+export const makeNoIndenter = () => {
   /** @type {string[]} */
   const strings = [];
   return harden({
@@ -118,9 +118,9 @@ const makeNoIndenter = () => {
   });
 };
 
-const identPattern = /^[a-zA-Z]\w*$/;
+export const identPattern = /^[a-zA-Z]\w*$/;
 harden(identPattern);
-const AtAtPrefixPattern = /^@@(.*)$/;
+export const AtAtPrefixPattern = /^@@(.*)$/;
 harden(AtAtPrefixPattern);
 
 /**
@@ -278,7 +278,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
     } else if (identPattern.test(name)) {
       out.next(`${name}:`);
     } else {
-      out.next(`${quote(name)}:`);
+      out.next(`${stringify(name)}:`);
     }
     decode(value);
     out.next(',');
@@ -293,7 +293,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
   const recur = rawTree => {
     if (isPrimitive(rawTree)) {
       // primitives get quoted
-      return out.next(quote(rawTree));
+      return out.next(stringify(rawTree));
     }
     // Assertions of the above to narrow the type.
     assert.typeof(rawTree, 'object');
@@ -328,20 +328,13 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
           assert.typeof(name, 'string');
           const sym = passableSymbolForName(name);
           assert.typeof(sym, 'symbol');
-          const registeredName = nameForPassableSymbol(sym);
-          if (registeredName === undefined) {
-            const match = AtAtPrefixPattern.exec(name);
-            assert(match !== null);
-            const suffix = match[1];
-            assert(Symbol[suffix] === sym);
-            assert(identPattern.test(suffix));
-            return out.next(`Symbol.${suffix}`);
-          }
-          return out.next(`passableSymbolForName(${quote(registeredName)})`);
+          const passableName = nameForPassableSymbol(sym);
+          assert(name === passableName);
+          return out.next(`passableSymbolForName(${stringify(name)})`);
         }
         case 'tagged': {
           const { tag, payload } = rawTree;
-          out.next(`makeTagged(${quote(tag)}`);
+          out.next(`makeTagged(${stringify(tag)}`);
           out.next(',');
           decode(payload);
           return out.next(')');
@@ -404,7 +397,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
             Fail`AggregateError not yet implemented in marshal-justin`;
           errors === undefined ||
             Fail`error errors not yet implemented in marshal-justin`;
-          return out.next(`${name}(${quote(message)})`);
+          return out.next(`${name}(${stringify(message)})`);
         }
 
         default: {
