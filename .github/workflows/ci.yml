@@ -86,6 +86,10 @@ jobs:
       - name: build API docs
         run: yarn docs
 
+      - name: Run Knip
+        continue-on-error: true # disable Knip failures for now
+        run: yarn lint:knip
+
   test:
     name: test
 
