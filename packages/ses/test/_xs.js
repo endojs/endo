@@ -8,7 +8,7 @@
 // This generates ../tmp/test-xs.js, which can be run with xst directly for
 // validation of the XS environment under SES-for-XS.
 
-/* global print */
+/* global globalThis, print */
 
 // Eslint does not know about package reflexive imports (importing your own
 // package), which in this case is necessary to go through the conditional
@@ -20,10 +20,34 @@ import 'ses';
 // eslint-disable-next-line import/no-unresolved
 import precompiledModuleSource from '../tmp/_meaning.pre-mjs.json';
 
+const hostTextEncoderType = typeof globalThis.TextEncoder;
+const hostTextDecoderType = typeof globalThis.TextDecoder;
+
 lockdown();
 
 // spot checks
 assert(Object.isFrozen(Object));
+
+print('# compartments observe the host text codecs, or their absence');
+{
+  const compartment = new Compartment();
+  assert.equal(
+    compartment.evaluate('typeof TextEncoder'),
+    hostTextEncoderType,
+    'TextEncoder presence matches the host',
+  );
+  assert.equal(
+    compartment.evaluate('typeof TextDecoder'),
+    hostTextDecoderType,
+    'TextDecoder presence matches the host',
+  );
+  if (hostTextEncoderType === 'function') {
+    assert(Object.isFrozen(TextEncoder.prototype), 'TextEncoder is hardened');
+  }
+  if (hostTextDecoderType === 'function') {
+    assert(Object.isFrozen(TextDecoder.prototype), 'TextDecoder is hardened');
+  }
+}
 
 print('# shim compartment can import a shim precompiled module source');
 {
