@@ -7,7 +7,8 @@ Eventual send: a uniform async messaging API for local and remote objects.
 The **@endo/eventual-send** package provides the `E()` proxy for asynchronous
 message passing.
 Whether an object is in the same vat, a different vat, or across a network,
-`E()` provides a consistent API that always returns promises.
+`E()` provides a consistent asynchronous API. Result-bearing sends return
+promises; send-only operations acknowledge queueing without exposing a result.
 
 This enables:
 - **Uniform communication**: Same code for local and remote objects
@@ -25,7 +26,7 @@ To construct an environment suitable for Eventual Send requires the
 `HandledPromise` shim:
 
 ```js
-import '@agoric/eventual-send/shim.js';
+import '@endo/eventual-send/shim.js';
 ```
 
 The shim ensures that every instance of Eventual Send can recognize every other

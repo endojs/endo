@@ -6,6 +6,12 @@ import { localAsyncHandler } from './async-handler.js';
 /** @import { AsyncHandler, HandlerOptions } from './async-handler.js' */
 
 /**
+ * @typedef {object} Metadata
+ * @property {Record<string, any>} senderContext
+ * @property {'none' | 'all'} harden
+ */
+
+/**
  * @typedef {object} EventualOptions
  * @property {Promise<unknown>} [result]
  * @property {Record<string, any>} senderContext

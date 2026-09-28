@@ -14,12 +14,11 @@ const skipped = harden({});
 const isSkipped = value => value === skipped;
 
 /**
- * @param {NodeState} state
- * @param {SendMode} [sendMode]
+ * @param {Metadata} metadata
+ * @param {SendMode} sendMode
  */
-const reflectOptions = (state, sendMode = state.sendMode) => ({
-  ...state.eventualOptions,
-  senderContext: state.eventualOptions?.senderContext ?? {},
+const reflectOptions = (metadata, sendMode) => ({
+  ...metadata,
   sendMode,
 });
 
@@ -44,9 +43,11 @@ const queued = new WeakMap();
 /**
  * @typedef {'send' | 'sendOnly'} SendMode
  * @typedef {'shallow' | 'deep' | 'none'} Recursion
+ * @typedef {import('./async-reflect.js').Metadata} Metadata
  *
  * @typedef {object} NodeState
  * @property {Promise<unknown>} [targetP]
+ * @property {Promise<Metadata>} metadataP
  * @property {SendMode} sendMode
  * @property {boolean} optional
  * @property {Recursion} recursion
@@ -54,7 +55,6 @@ const queued = new WeakMap();
  * @property {PropertyKey} [methodKey]
  * @property {boolean} [methodOptional]
  * @property {unknown} [expectedThis]
- * @property {import('./async-reflect.js').EventualOptions} [eventualOptions]
  */
 
 /** @param {unknown} value */
@@ -77,25 +77,27 @@ const materializeP = (state, asyncReflect) => {
     throw TypeError('Invalid async client node state');
   }
   const { methodKey } = state;
-  const operationP = state.methodTargetP.then(resolution => {
-    if (isSkipped(resolution)) {
-      return { result: Promise.resolve(skipped), queue: Promise.resolve() };
-    }
-    if (state.methodOptional === true && resolution == null) {
-      return { result: Promise.resolve(skipped), queue: Promise.resolve() };
-    }
-    const target = lookupTarget(resolution);
-    const publicResult = asyncReflect.get(
-      target,
-      methodKey,
-      target,
-      reflectOptions(state),
-    );
-    return {
-      result: continuedResult(publicResult, state.sendMode),
-      queue: whenQueued(publicResult),
-    };
-  });
+  const operationP = state.methodTargetP.then(resolution =>
+    state.metadataP.then(metadata => {
+      if (isSkipped(resolution)) {
+        return { result: Promise.resolve(skipped), queue: Promise.resolve() };
+      }
+      if (state.methodOptional === true && resolution == null) {
+        return { result: Promise.resolve(skipped), queue: Promise.resolve() };
+      }
+      const target = lookupTarget(resolution);
+      const publicResult = asyncReflect.get(
+        target,
+        methodKey,
+        target,
+        reflectOptions(metadata, state.sendMode),
+      );
+      return {
+        result: continuedResult(publicResult, state.sendMode),
+        queue: whenQueued(publicResult),
+      };
+    }),
+  );
   const result = operationP.then(operation => operation.result);
   materialized.set(state, result);
   queued.set(state, () => operationP.then(operation => operation.queue));
@@ -104,17 +106,16 @@ const materializeP = (state, asyncReflect) => {
 
 /**
  * @param {NodeState} state
- * @param {Pick<PromiseConstructor, 'resolve'>} PromiseCtor
  * @param {ReturnType<typeof makeAsyncReflect>} asyncReflect
  * @returns {Promise<unknown>}
  */
-const resultP = (state, PromiseCtor, asyncReflect) => {
+const resultP = (state, asyncReflect) => {
   const targetP = materializeP(state, asyncReflect);
   if (state.sendMode === 'sendOnly') {
     targetP.catch(() => undefined);
-    return (queued.get(state)?.() ?? PromiseCtor.resolve()).then(
-      () => undefined,
-    );
+    return state.metadataP
+      .then(() => queued.get(state)?.() ?? state.metadataP)
+      .then(() => undefined);
   }
   return targetP.then(value => (isSkipped(value) ? undefined : harden(value)));
 };
@@ -124,9 +125,10 @@ const resultP = (state, PromiseCtor, asyncReflect) => {
  * @param {() => any} getSend
  * @param {() => any} getSendOnly
  * @param {() => any} getOptional
+ * @param {() => (updateOptions: (oldOptions: Metadata) => Metadata) => any} getMeta
  * @returns {any}
  */
-const hardenThen = (then, getSend, getSendOnly, getOptional) => {
+const hardenThen = (then, getSend, getSendOnly, getOptional, getMeta) => {
   defineProperties(then, {
     Send: {
       get: getSend,
@@ -136,6 +138,9 @@ const hardenThen = (then, getSend, getSendOnly, getOptional) => {
     },
     Optional: {
       get: getOptional,
+    },
+    Meta: {
+      get: getMeta,
     },
   });
   return harden(then);
@@ -157,6 +162,39 @@ export const makeAsyncClient = (
   const later = target => PromiseCtor.resolve().then(() => target);
 
   /**
+   * @param {Partial<Metadata> | undefined} options
+   * @param {boolean} complete
+   * @returns {Metadata}
+   */
+  const normalizeMetadata = (options, complete) => {
+    if (complete && options?.senderContext === undefined) {
+      throw TypeError('Meta updater must return senderContext');
+    }
+    if (complete && options?.harden === undefined) {
+      throw TypeError('Meta updater must return harden');
+    }
+    const hardenMode = options?.harden ?? 'none';
+    if (hardenMode !== 'none' && hardenMode !== 'all') {
+      throw TypeError("metadata.harden must be 'none' or 'all'");
+    }
+    const senderContext = harden(
+      Object.fromEntries(Object.entries(options?.senderContext ?? {})),
+    );
+    return harden({ senderContext, harden: hardenMode });
+  };
+
+  /**
+   * @param {import('./async-reflect.js').EventualOptions | undefined} options
+   * @returns {Metadata}
+   */
+  const initialMetadata = options => {
+    if (options?.result !== undefined) {
+      throw TypeError('eventualOptions.result must be empty');
+    }
+    return normalizeMetadata(options, false);
+  };
+
+  /**
    * @param {NodeState} state
    * @param {Recursion} recursion
    * @param {SendMode} sendMode
@@ -170,7 +208,7 @@ export const makeAsyncClient = (
    */
   const makeThen = state => {
     const then = (onFulfilled, onRejected) =>
-      resultP(state, PromiseCtor, asyncReflect).then(onFulfilled, onRejected);
+      resultP(state, asyncReflect).then(onFulfilled, onRejected);
     const controlledState = { ...state, expectedThis: then };
 
     return hardenThen(
@@ -181,6 +219,38 @@ export const makeAsyncClient = (
         // Optional changes only the next operation and preserves the send mode.
         return makeNode(controlledState, 'deep', state.sendMode, true);
       },
+      () =>
+        harden(updateOptions => {
+          const targetP = materializeP(state, asyncReflect);
+          const predecessorQueue = queued.get(state);
+          const metadataP = state.metadataP.then(oldOptions => {
+            const updated = Reflect.apply(
+              harden(updateOptions),
+              undefined,
+              harden([oldOptions]),
+            );
+            return normalizeMetadata(updated, true);
+          });
+          /** @type {NodeState} */
+          const metaState = {
+            ...controlledState,
+            targetP: metadataP.then(() => targetP),
+            metadataP,
+            methodTargetP: undefined,
+            methodKey: undefined,
+            methodOptional: undefined,
+            expectedThis: undefined,
+          };
+          if (predecessorQueue !== undefined) {
+            queued.set(metaState, predecessorQueue);
+          }
+          return makeNode(
+            metaState,
+            'deep',
+            state.sendMode,
+            state.optional,
+          );
+        }),
     );
   };
 
@@ -198,7 +268,6 @@ export const makeAsyncClient = (
               methodTargetP: undefined,
               methodKey: undefined,
               expectedThis: undefined,
-              eventualOptions: state.eventualOptions,
             },
             recursion === 'deep' ? 'deep' : 'none',
             sendMode,
@@ -208,7 +277,7 @@ export const makeAsyncClient = (
 
         const args = harden([...argArray]);
         const optionalCall = optional || state.methodOptional === true;
-        const operationRecordP =
+        const operationRecordP = state.metadataP.then(metadata =>
           state.methodTargetP !== undefined && state.methodKey !== undefined
             ? state.methodTargetP.then(resolution => {
                 if (isSkipped(resolution)) {
@@ -233,7 +302,7 @@ export const makeAsyncClient = (
                           present,
                           state.methodKey,
                           present,
-                          reflectOptions(state, 'send'),
+                          reflectOptions(metadata, 'send'),
                         )
                         .then(method =>
                           method == null
@@ -242,10 +311,10 @@ export const makeAsyncClient = (
                                 method,
                                 resolution,
                                 args,
-                                reflectOptions(state, 'send'),
+                                reflectOptions(metadata, 'send'),
                               ),
                         ),
-                    reflectOptions(state, sendMode),
+                    reflectOptions(metadata, sendMode),
                   );
                   return {
                     result: continuedResult(publicResult, sendMode),
@@ -257,7 +326,7 @@ export const makeAsyncClient = (
                   resolution,
                   state.methodKey,
                   args,
-                  reflectOptions(state, sendMode),
+                  reflectOptions(metadata, sendMode),
                 );
                 return {
                   result: continuedResult(publicResult, sendMode),
@@ -281,13 +350,14 @@ export const makeAsyncClient = (
                   resolution,
                   undefined,
                   args,
-                  reflectOptions(state, sendMode),
+                  reflectOptions(metadata, sendMode),
                 );
                 return {
                   result: continuedResult(publicResult, sendMode),
                   queue: whenQueued(publicResult),
                 };
-              });
+              }),
+        );
         const operationP = operationRecordP.then(operation => operation.result);
         if (sendMode === 'sendOnly') {
           operationP.catch(() => undefined);
@@ -299,7 +369,7 @@ export const makeAsyncClient = (
           sendMode,
           optional: false,
           recursion,
-          eventualOptions: state.eventualOptions,
+          metadataP: state.metadataP,
         };
         queued.set(nextState, () =>
           operationRecordP.then(operation => operation.queue),
@@ -334,7 +404,7 @@ export const makeAsyncClient = (
               optional,
               recursion: 'none',
               expectedThis: receiver,
-              eventualOptions: state.eventualOptions,
+              metadataP: state.metadataP,
             },
             'none',
             sendMode,
@@ -351,7 +421,7 @@ export const makeAsyncClient = (
             methodKey: propertyKey,
             methodOptional: optional,
             expectedThis: receiver,
-            eventualOptions: state.eventualOptions,
+            metadataP: state.metadataP,
           },
           recursion === 'shallow' ? 'none' : recursion,
           sendMode,
@@ -369,20 +439,24 @@ export const makeAsyncClient = (
    * @param {boolean} optional
    * @returns {(target: unknown, eventualOptions?: import('./async-reflect.js').EventualOptions) => any}
    */
-  const makeEntry =
-    (recursion, sendMode, optional) => (target, eventualOptions) =>
-      makeNode(
+  const makeEntry = (recursion, sendMode, optional) =>
+    function asyncClientEntry(target, eventualOptions) {
+      const metadataP = PromiseCtor.resolve().then(() =>
+        initialMetadata(eventualOptions),
+      );
+      return makeNode(
         {
-          targetP: later(target),
+          targetP: metadataP.then(() => later(target)),
+          metadataP,
           sendMode,
           optional,
           recursion,
-          eventualOptions,
         },
         recursion,
         sendMode,
         optional,
       );
+    };
 
   const client = makeEntry('shallow', 'send', false);
   defineProperties(client, {

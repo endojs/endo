@@ -1,9 +1,9 @@
-# E2 Implementation Plan
+# Async Client Implementation Plan
 
 This plan starts from `src/E2.js` and `docs/Eventual Send API Redesign.md`.
-Together they provide enough design information to begin a test-driven design
-cycle for the local `Proxy.async` shim, provided we keep the first
-implementation intentionally narrow:
+Together they provide enough design information for the completed local
+`Proxy.async` baseline and its next integration with dispatching async handlers.
+The completed baseline is intentionally narrow:
 
 - no HandledPromise integration;
 - no eventual proxy or presence-handler support;
@@ -11,11 +11,16 @@ implementation intentionally narrow:
 - native Promise scheduling only;
 - local objects, functions, primitives, and native promise/thenable targets only.
 
-The current sketch is sufficient for the user-facing shape of the API, the
-distinction between one-step and chaining sends, and the type expectations. It
-is not yet sufficient for several edge cases. Those are flagged under
-"Open questions" so they can be answered when tests or implementation get
-stuck.
+The handler integration described in `docs/async-handler.md` supersedes these
+limitations without discarding the tested client syntax and lazy operation
+model. In particular, that integration must preserve original target identity
+until `Reflect.async` dispatch and use the forwarding/`shorten` model from
+`src/handled-promise.js`.
+
+The current implementation and tests establish the user-facing shape, the
+distinction between one-step and chaining sends, and the type expectations for
+the local baseline. Handler dispatch, target forwarding, and PromiseStep
+integration belong to the later phases in `docs/async-handler.md`.
 
 ## Target API
 
@@ -34,6 +39,7 @@ and control proxies on the `then` functions returned by E proxy nodes:
 E(x).then.Send
 E(x).then.SendOnly
 E(x).then.Optional
+E(x).then.Meta(updateOptions)
 ```
 
 The default client entry point is the only one-step entry:
@@ -92,6 +98,19 @@ await E(target).then.Optional.method
   .then.Optional.toString();
 ```
 
+`Meta` updates immutable metadata for the following segment without changing
+send mode or optional state:
+
+```js
+await E.Send(target, { senderContext: {}, harden: 'none' })
+  .method()
+  .then.Meta(oldOptions => ({
+    ...oldOptions,
+    senderContext: { ...oldOptions.senderContext, traceId },
+  }))
+  .nextMethod();
+```
+
 The `NullPrototype` type trick in `E2.js` is only a TypeScript workaround. The
 runtime must always use normal JavaScript property lookup, including inherited
 properties and Object prototype methods.
@@ -99,29 +118,41 @@ properties and Object prototype methods.
 All operations must move to a future turn before reading target properties,
 target methods, or a user-supplied thenable's `then`.
 
-Delete and set operations wait for the reflect layer. The basic client ponyfill
-only covers get, function call, method call, chaining controls, optional
-controls, and send-only queueing.
+Set and delete are not part of the concise client surface. They are available
+through `Reflect.async`; the client ponyfill covers get, function call, method
+call, chaining controls, optional controls, and send-only queueing.
 
 ## Proposed Runtime Model
 
-Implement a small `makeAsyncClient(PromiseCtor = Promise)` helper.
+Implement a small
+`makeAsyncClient(PromiseCtor = Promise, asyncReflect = makeAsyncReflect(PromiseCtor))`
+helper.
 
 The helper returns a hardened callable `client` with own properties `Send`,
 `SendOnly`, and `Optional`. It does not mutate `Proxy`; callers that want a
 global-style shim can install the returned client on `Proxy.async` themselves.
 
-Represent each expression as a proxy node:
+The completed local baseline represents each expression as a proxy node with
+either a materialized target promise or one lazily cached property name:
 
 ```js
 {
-  targetP: Promise<unknown>,
+  targetP?: Promise<unknown>,
+  metadataP: Promise<Metadata>,
+  methodTargetP?: Promise<unknown>,
+  methodKey?: PropertyKey,
+  methodOptional?: boolean,
   sendMode: 'send' | 'sendOnly',
   optional: boolean,
-  recursion: 'shallow' | 'deep',
-  receiverToken: object,
+  recursion: 'shallow' | 'deep' | 'none',
+  expectedThis?: unknown,
 }
 ```
+
+Phase 10 replaces the root `targetP` with the original target identity until an
+operation reaches `Reflect.async`. The one-property cache remains lazy: merely
+forming `E(x).prop` records `prop`; awaiting `.then` performs a get, while
+calling `(args)` performs one atomic invoke.
 
 The proxy target should be callable so `E(x)(...args)` can work. Its proxy
 handler implements:
@@ -142,10 +173,11 @@ proxy-addressable until awaited.
 
 For `SendOnly`, calls and property sends should be queued in a future turn and
 the returned promise should resolve to `undefined` once the operation is queued.
-Rejections from the queued operation are suppressed with `.catch(() => {})`.
-The only way `SendOnly` should throw is if the operation cannot be queued, which
-this basic implementation does not model because it has no custom operation
-handling.
+After queueing is acknowledged, rejection of that confirmed send-only
+completion is suppressed with `.catch(() => {})`. No queue-stage or ordinary
+send promise is silenced. The only way `SendOnly` should reject is if the
+operation cannot be queued, which the local baseline cannot model because it
+has no custom operation handling.
 
 For `Optional`, the selected get or call gates on the nullishness of its
 predecessor. If the predecessor resolves to `null` or `undefined`, the chain
@@ -155,7 +187,16 @@ continues normally with the selected recursion mode. Optional method calls also
 short-circuit if the selected method is nullish. Selecting `.then.Optional`
 preserves the current send mode, so `SendOnly` remains send-only.
 
-## E Proxy `then` Controls
+For `Meta`, calling `.then.Meta(updateOptions)` materializes the predecessor
+with its existing metadata and creates a deep continuation with a derived
+`metadataP`. The updater receives a hardened, fully populated
+`{ senderContext, harden }` record, runs exactly once in a future turn, and must
+return a complete record synchronously. The returned metadata is copied,
+hardened, and retained for later operations in that branch. Sibling branches
+retain their own metadata. Updater failures and invalid asynchronous results
+reject the updated branch.
+
+## Async Client `then` Controls
 
 `E2.js` models controls as properties of `.then`:
 
@@ -171,6 +212,7 @@ proxy node for:
 Send
 SendOnly
 Optional
+Meta
 ```
 
 These controls do not live on native promise `.then` functions. The ponyfill
@@ -179,12 +221,16 @@ controls must enter through the E proxy.
 
 ## Test-Driven Cycle
 
-Create `test/async-client.test.js`. Keep it independent from `HandledPromise` and the
-existing `E` tests. Import only the E2 shim and AVA.
+`test/async-client.test.js` remains independent from `HandledPromise` and the
+existing `E` tests. It imports the async client ponyfill and AVA.
 
-Current status: phases 1 through 8 are covered for the intentionally narrow
+Current status: phases 1 through 9 are covered for the intentionally narrow
 ponyfill scope. The policy decisions for this scope are recorded under
 "Resolved Design Choices".
+
+Future-turn assertions should wait with
+`await new Promise(resolve => setImmediate(resolve))`; chained `await null`
+expressions do not establish the intended event-loop boundary.
 
 ### Phase 1: installation and shape
 
@@ -196,9 +242,10 @@ Tests:
 - `E.Once` is absent;
 - shim-created proxy results expose `.then.Send`, `.then.SendOnly`, and
   `.then.Optional`;
+- shim-created proxy results expose callable `.then.Meta`;
 - `.then.Once` is absent;
 - native promise `.then` functions do not expose `Send`, `SendOnly`, or
-  `Optional`.
+  `Optional`, or `Meta`.
 
 Implementation:
 
@@ -281,13 +328,13 @@ Tests:
 - `await E.SendOnly(obj).method()` resolves to `undefined`;
 - side effects are queued for a later turn;
 - return values and thrown fulfillment values from successful sends are ignored;
-- thrown errors from queued operations are suppressed.
+- completion errors after successful queueing are suppressed.
 
 Implementation:
 
 - execute the queued operation;
 - return a promise that resolves when the operation is queued;
-- suppress the queued operation with `.catch(() => {})`.
+- suppress only the confirmed send-only completion with `.catch(() => {})`.
 
 ### Phase 7: primitive and inherited surface behavior
 
@@ -310,7 +357,7 @@ Tests:
 - client and mode functions are frozen or at least non-extensible if that is the
   intended Endo convention;
 - client mode properties are non-enumerable and non-writable;
-- no package entry point mutates Proxy; installation is caller-owned.
+- no package entry point mutates Proxy; installation is caller-owned;
 - arguments and fulfilled results are hardened.
 
 Implementation:
@@ -319,6 +366,55 @@ Implementation:
 - harden arguments and fulfilled results;
 - use `@endo/harden` and `@endo/assert` where helpful. The shims can be
   decoupled from running under SES later.
+
+### Phase 9: metadata updates
+
+Tests:
+
+- `.then.Meta(updateOptions)` runs the updater once in a future turn;
+- the updater receives sanitized and hardened defaulted metadata;
+- predecessor operations use old metadata and following operations use updated
+  metadata;
+- updated metadata persists through the remainder of its branch;
+- sibling branches retain independent metadata;
+- updater failures reject only the updated branch;
+- promise-returning updaters reject because metadata updates are synchronous;
+- `Meta` preserves `SendOnly` and `Optional` behavior;
+- `.then.Meta` is hardened and does not appear on native promise `then`
+  functions.
+
+Implementation:
+
+- normalize entry options into a promised immutable `Metadata` record;
+- derive a new metadata promise for each `Meta` continuation;
+- materialize a lazy predecessor before installing metadata for its successor;
+- carry metadata independently from recursion, send mode, and optional state;
+- sanitize and harden both the updater input and returned metadata.
+
+### Phase 10: async-handler integration
+
+Tests:
+
+- the client passes the original target identity through `Reflect.async`;
+- an associated promise receives pipelined operations before assimilation;
+- local unassociated promises retain the current eventual behavior;
+- lazy property-name caching still distinguishes property gets from atomic
+  method calls;
+- `Send`, `SendOnly`, and `Optional` retain orthogonal recursion and send-mode
+  behavior;
+- only a confirmed `sendOnly` completion is silenced; queueing failures reject.
+
+Implementation:
+
+- store the original target in each root node instead of eagerly normalizing it
+  with `Promise.resolve().then(() => target)`;
+- preserve object and function identity, while continuing to box primitives at
+  the operation boundary when normal property lookup requires it;
+- defer target following to `Reflect.async` and `makeAsyncHandler`;
+- retain the existing one-property lazy cache, receiver checks, and skipped
+  optional-chain sentinel;
+- use the handler's queue/completion envelope to distinguish send-only queue
+  acknowledgement from operation completion.
 
 ## Resolved Design Choices
 
@@ -331,6 +427,9 @@ These decisions bound the current ponyfill:
 
 3. `src/async-client.js` remains internal/test-only for now rather than
    becoming a package subpath export.
+
+4. `Metadata` contains `senderContext` and `harden`. `.then.Meta` updates only
+   those fields and preserves send mode, optional state, and branch isolation.
 
 ## First Commit Shape
 

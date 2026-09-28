@@ -3,11 +3,7 @@
 import harden from '@endo/harden';
 
 /**
- * @typedef {object} HandlerOptions
- * @property {Promise<unknown>} result
- * @property {Record<string, any>} senderContext
- * @property {'send' | 'sendOnly'} sendMode
- * @property {'none' | 'all'} harden
+ * @typedef {Required<import('./async-reflect.js').EventualOptions>} HandlerOptions
  */
 
 /**

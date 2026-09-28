@@ -62,6 +62,7 @@ test('makeAsyncClient creates the E2 surface without mutating Proxy', t => {
   t.is(typeof node.then.Send, 'function');
   t.is(typeof node.then.SendOnly, 'function');
   t.is(typeof node.then.Optional, 'function');
+  t.is(typeof node.then.Meta, 'function');
 });
 
 test('E2 client defers thenable and property access', async t => {
@@ -457,6 +458,180 @@ test('E2 static modes carry eventual options across reflect operations', async t
   );
 });
 
+test('E2 Meta updates immutable metadata for subsequent operations', async t => {
+  const received = [];
+  const handler = {
+    ...localAsyncHandler,
+    invoke(target, thisArg, key, args, options) {
+      received.push({
+        key,
+        senderContext: options.senderContext,
+        harden: options.harden,
+        sendMode: options.sendMode,
+      });
+      return localAsyncHandler.invoke(
+        target,
+        thisArg,
+        key,
+        args,
+        options,
+      );
+    },
+  };
+  const client = makeAsyncClient(
+    Promise,
+    makeAsyncReflect(Promise, handler),
+  );
+  const inheritedContext = Object.create({ inherited: true });
+  inheritedContext.stage = 'initial';
+  let updates = 0;
+  const target = {
+    first() {
+      return {
+        second() {
+          return 'done';
+        },
+      };
+    },
+  };
+
+  const resultP = client
+    .Send(target, { senderContext: inheritedContext })
+    .first()
+    .then.Meta(oldOptions => {
+      updates += 1;
+      t.true(Object.isFrozen(oldOptions));
+      t.true(Object.isFrozen(oldOptions.senderContext));
+      t.false('inherited' in oldOptions.senderContext);
+      t.deepEqual(oldOptions, {
+        senderContext: { stage: 'initial' },
+        harden: 'none',
+      });
+      return {
+        senderContext: {
+          ...oldOptions.senderContext,
+          stage: 'updated',
+        },
+        harden: 'all',
+      };
+    })
+    .second();
+
+  t.is(updates, 0);
+  const result = await resultP;
+  t.is(result, 'done');
+  t.is(updates, 1);
+  t.deepEqual(received, [
+    {
+      key: 'first',
+      senderContext: { stage: 'initial' },
+      harden: 'none',
+      sendMode: 'send',
+    },
+    {
+      key: 'second',
+      senderContext: { stage: 'updated' },
+      harden: 'all',
+      sendMode: 'send',
+    },
+  ]);
+  t.true(Object.isFrozen(received[1].senderContext));
+});
+
+test('E2 Meta creates independent persistent branches', async t => {
+  const contexts = [];
+  const handler = {
+    ...localAsyncHandler,
+    get(target, key, receiver, options) {
+      contexts.push(options.senderContext);
+      return localAsyncHandler.get(target, key, receiver, options);
+    },
+  };
+  const client = makeAsyncClient(
+    Promise,
+    makeAsyncReflect(Promise, handler),
+  );
+  const base = client.Send(
+    { nested: { left: 1, right: 2 } },
+    { senderContext: { branch: 'base' } },
+  ).nested;
+  const left = base.then.Meta(oldOptions => ({
+    ...oldOptions,
+    senderContext: { branch: 'left' },
+  })).left;
+  const right = base.then.Meta(oldOptions => ({
+    ...oldOptions,
+    senderContext: { branch: 'right' },
+  })).right;
+
+  const results = await Promise.all([left, right]);
+  t.deepEqual(results, [1, 2]);
+  t.deepEqual(contexts, [
+    { branch: 'base' },
+    { branch: 'left' },
+    { branch: 'right' },
+  ]);
+});
+
+test('E2 Meta updater failures reject only their branch', async t => {
+  const reason = Error('metadata update failed');
+  let called = false;
+  const base = E.Send({ value: 1 });
+  const failed = base.then.Meta(() => {
+    called = true;
+    throw reason;
+  }).value;
+  const unaffected = base.value;
+
+  t.false(called);
+  const thrown = await t.throwsAsync(() => failed);
+  t.is(thrown, reason);
+  t.true(called);
+  t.is(await unaffected, 1);
+
+  await t.throwsAsync(
+    () =>
+      E.Send({ value: 1 }).then.Meta(
+        /** @type {any} */ (async oldOptions => oldOptions),
+      ).value,
+    { instanceOf: TypeError, message: /senderContext/ },
+  );
+
+  const sendOnlyReason = Error('send-only metadata update failed');
+  const sendOnlyThrown = await t.throwsAsync(() =>
+    E.SendOnly({ value: 1 }).then.Meta(() => {
+      throw sendOnlyReason;
+    }).value,
+  );
+  t.is(sendOnlyThrown, sendOnlyReason);
+});
+
+test('E2 Meta preserves SendOnly and Optional controls', async t => {
+  const modes = [];
+  const handler = {
+    ...localAsyncHandler,
+    get(target, key, receiver, options) {
+      modes.push(options.sendMode);
+      return localAsyncHandler.get(target, key, receiver, options);
+    },
+  };
+  const client = makeAsyncClient(
+    Promise,
+    makeAsyncReflect(Promise, handler),
+  );
+  const update = oldOptions => ({
+    ...oldOptions,
+    senderContext: { updated: true },
+  });
+
+  const sendOnlyResult = await client.SendOnly({ value: 1 }).then.Meta(update)
+    .value;
+  t.is(sendOnlyResult, undefined);
+  t.is(await client.Optional(null).then.Meta(update).missing.deep, undefined);
+  await nextTurn();
+  t.deepEqual(modes, ['sendOnly']);
+});
+
 test('E2 SendOnly resolves when queued and suppresses operation failures', async t => {
   let count = 0;
   /** @type {(value?: unknown) => void} */
@@ -584,7 +759,7 @@ test('E2 hardens client and then-control surfaces', t => {
 
   const nodeThen = E({}).then;
   t.true(Object.isFrozen(nodeThen));
-  for (const key of ['Send', 'SendOnly', 'Optional']) {
+  for (const key of ['Send', 'SendOnly', 'Optional', 'Meta']) {
     const descriptor = Object.getOwnPropertyDescriptor(nodeThen, key);
     t.is(typeof descriptor?.get, 'function');
     t.false(descriptor?.enumerable);
@@ -594,4 +769,6 @@ test('E2 hardens client and then-control surfaces', t => {
   t.false('Send' in Promise.resolve().then);
   t.false('SendOnly' in Promise.resolve().then);
   t.false('Optional' in Promise.resolve().then);
+  t.false('Meta' in Promise.resolve().then);
+  t.true(Object.isFrozen(nodeThen.Meta));
 });
