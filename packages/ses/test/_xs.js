@@ -42,9 +42,19 @@ print('# compartments observe the host text codecs, or their absence');
     'TextDecoder presence matches the host',
   );
   if (hostTextEncoderType === 'function') {
+    assert.equal(
+      compartment.evaluate('TextEncoder'),
+      TextEncoder,
+      'compartment shares the hardened TextEncoder',
+    );
     assert(Object.isFrozen(TextEncoder.prototype), 'TextEncoder is hardened');
   }
   if (hostTextDecoderType === 'function') {
+    assert.equal(
+      compartment.evaluate('TextDecoder'),
+      TextDecoder,
+      'compartment shares the hardened TextDecoder',
+    );
     assert(Object.isFrozen(TextDecoder.prototype), 'TextDecoder is hardened');
   }
 }
