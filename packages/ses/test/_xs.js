@@ -30,6 +30,8 @@ assert(Object.isFrozen(Object));
 
 print('# compartments observe the host text codecs, or their absence');
 {
+  print(`# host TextEncoder: ${hostTextEncoderType}`);
+  print(`# host TextDecoder: ${hostTextDecoderType}`);
   const compartment = new Compartment();
   assert.equal(
     compartment.evaluate('typeof TextEncoder'),
@@ -47,7 +49,11 @@ print('# compartments observe the host text codecs, or their absence');
       TextEncoder,
       'compartment shares the hardened TextEncoder',
     );
-    assert(Object.isFrozen(TextEncoder.prototype), 'TextEncoder is hardened');
+    assert(Object.isFrozen(TextEncoder), 'TextEncoder itself is frozen');
+    assert(
+      Object.isFrozen(TextEncoder.prototype),
+      'TextEncoder.prototype is frozen',
+    );
   }
   if (hostTextDecoderType === 'function') {
     assert.equal(
@@ -55,7 +61,11 @@ print('# compartments observe the host text codecs, or their absence');
       TextDecoder,
       'compartment shares the hardened TextDecoder',
     );
-    assert(Object.isFrozen(TextDecoder.prototype), 'TextDecoder is hardened');
+    assert(Object.isFrozen(TextDecoder), 'TextDecoder itself is frozen');
+    assert(
+      Object.isFrozen(TextDecoder.prototype),
+      'TextDecoder.prototype is frozen',
+    );
   }
 }
 
