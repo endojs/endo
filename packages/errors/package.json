@@ -44,7 +44,6 @@
     "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "ses0.18.3": "npm:ses@0.18.3",
     "tsd": "catalog:dev",
     "typescript": "catalog:dev"
   },
@@ -66,7 +65,7 @@
     "lockdown": "../../ava-endo-lockdown.config.mjs",
     "unsafe": "../../ava-endo-lockdown-unsafe.config.mjs",
     "endo": "../../ava-endo-shims-only.config.mjs",
-    "ses0.18.3": "test/_ava-ses-0-18-3.config.js"
+    "legacy-assert": "test/_ava-legacy-assert.config.js"
   },
   "typeCoverage": {
     "atLeast": 95.91

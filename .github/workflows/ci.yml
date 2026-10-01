@@ -125,8 +125,13 @@ jobs:
           echo "ORIGINAL_WORKDIR=$ORIGINAL_WORKDIR" >> $GITHUB_ENV
           cd "$RUNNER_TEMP"
           WORKDIR="$(mktemp --tmpdir="$(pwd)" --dry-run checkout-XXXXXX)"
-          mv -fv "$ORIGINAL_WORKDIR" "$WORKDIR"
-          echo "WORKDIR=$WORKDIR" >> $GITHUB_ENV
+          if mv -v "$ORIGINAL_WORKDIR" "$WORKDIR"; then
+            echo "WORKDIR_MOVED=1" >> $GITHUB_ENV
+            echo "WORKDIR=$WORKDIR" >> $GITHUB_ENV
+          else
+            echo "WORKDIR_MOVED=0" >> $GITHUB_ENV
+            echo "WORKDIR=$ORIGINAL_WORKDIR" >> $GITHUB_ENV
+          fi
 
       - name: Install dependencies
         working-directory: ${{ env.WORKDIR }}
@@ -145,7 +150,10 @@ jobs:
       - name: Restore working directory
         if: ${{ steps.move-wd.outcome == 'success' }}
         working-directory: ${{ runner.temp }}
-        run: mv -fv "$WORKDIR" "$ORIGINAL_WORKDIR"
+        run: |
+          if test "$WORKDIR_MOVED" -ne 0; then
+            mv -v "$WORKDIR" "$ORIGINAL_WORKDIR"
+          fi
 
   cover:
     name: cover

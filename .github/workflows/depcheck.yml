@@ -32,7 +32,9 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Install graphviz
-        run: sudo apt install -y graphviz
+        run: |
+          sudo apt update
+          sudo apt install -y graphviz
 
       - name: Check for cycles
         run: scripts/check-dependency-cycles.sh 0
