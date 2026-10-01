@@ -1,0 +1,542 @@
+// @ts-nocheck
+/* global Buffer */
+// Byte-level interop test against the reference Cap'n Proto C++
+// implementation. Runs only when the `capnp` CLI is on PATH; otherwise the
+// suite exits cleanly with a single skip so the rest of CI can proceed.
+//
+// For each rpc.capnp Message variant we:
+//   1. Encode a fixture using our encoder.
+//   2. Pipe the bytes through `capnp decode rpc.capnp Message` (the C++
+//      reference implementation) and parse the resulting text.
+//   3. Assert the parsed text contains the expected field values.
+//
+// We also do the reverse: encode a known message via `capnp encode` and
+// confirm our decoder reads it back identically.
+//
+// Both directions catch wire-format regressions including offsets, default
+// XOR, union discriminator placement, far-pointer landing pads, framing,
+// and pointer kind tags.
+
+import test from '@endo/ses-ava/test.js';
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+import {
+  encodeBootstrap,
+  encodeCall,
+  encodeReturn,
+  encodeFinish,
+  encodeRelease,
+  encodeResolve,
+  encodeDisembargo,
+  encodeProvide,
+  encodeAccept,
+  encodeAbort,
+  decodeMessage,
+  loadSchema,
+  pack,
+  unpack,
+} from '../src/index.js';
+import { writeData } from '../src/wire/text.js';
+
+// Local shim: encode `bytes` as a Data list at the Payload.content AnyPointer
+// slot. Real callers use schema-typed struct content via encodeStructInto;
+// these proto-level interop tests only need *some* well-formed AnyPointer
+// payload so capnp's decode CLI prints the surrounding fields cleanly.
+const contentAsData = bytes => (msg, slot) => writeData(msg, slot, bytes);
+
+const here = dirname(fileURLToPath(import.meta.url));
+const RPC_CAPNP = join(here, '..', 'rpc.capnp');
+
+const haveCapnp = (() => {
+  const r = spawnSync('capnp', ['--version'], { encoding: 'utf8' });
+  return r.status === 0;
+})();
+
+const runCapnpDecode = framed => {
+  const r = spawnSync('capnp', ['decode', RPC_CAPNP, 'Message'], {
+    input: Buffer.from(framed),
+    encoding: 'utf8',
+  });
+  if (r.status !== 0) {
+    throw Error(`capnp decode failed: ${r.stderr || r.stdout}`);
+  }
+  // capnp decode appends an "*** ERROR ..." block when there is residual
+  // input; trim everything after a sentinel newline if present.
+  const out = r.stdout.split('*** ERROR')[0];
+  return out.trim();
+};
+
+const runCapnpEncode = text => {
+  const r = spawnSync('capnp', ['encode', RPC_CAPNP, 'Message'], {
+    input: text,
+  });
+  if (r.status !== 0) {
+    throw Error(
+      `capnp encode failed: ${r.stderr?.toString() || r.stdout?.toString()}`,
+    );
+  }
+  // r.stdout is a Buffer; copy out the bytes into a fresh ArrayBuffer.
+  const stdout = /** @type {Buffer} */ (r.stdout);
+  const out = new ArrayBuffer(stdout.length);
+  new Uint8Array(out).set(stdout);
+  return out;
+};
+
+if (!haveCapnp) {
+  test('SKIP: capnp CLI not available, skipping interop tests', t => {
+    t.pass('install `capnproto` to run interop tests');
+  });
+} else {
+  test('interop: Bootstrap decoded by capnp CLI', t => {
+    const framed = encodeBootstrap({ questionId: 42 });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /bootstrap/);
+    t.regex(out, /questionId = 42/);
+  });
+
+  test('interop: Call decoded by capnp CLI matches every field', t => {
+    const framed = encodeCall({
+      questionId: 7,
+      target: { kind: 'importedCap', id: 3 },
+      interfaceId: 0xa1b2c3d4e5f60718n,
+      methodId: 11,
+      params: {
+        encodeContent: contentAsData(new Uint8Array([1, 2, 3])),
+        capTable: [{ kind: 'senderHosted', id: 9 }],
+      },
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /questionId = 7/);
+    t.regex(out, /methodId = 11/);
+    t.regex(out, /interfaceId = 11651590505119483672/); // 0xa1b2c3d4e5f60718
+    t.regex(out, /importedCap = 3/);
+    t.regex(out, /senderHosted = 9/);
+    t.regex(out, /sendResultsTo = \(caller = void\)/);
+    t.regex(out, /allowThirdPartyTailCall = false/);
+  });
+
+  test('interop: Return with results decoded; releaseParamCaps default true', t => {
+    const framed = encodeReturn({
+      answerId: 12,
+      result: {
+        kind: 'results',
+        payload: { capTable: [] },
+      },
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /answerId = 12/);
+    // We didn't pass releaseParamCaps so it defaults to true; verify the
+    // XOR-against-default storage encodes that correctly.
+    t.regex(out, /releaseParamCaps = true/);
+  });
+
+  test('interop: Return with releaseParamCaps=false writes 1-bit on wire', t => {
+    const framed = encodeReturn({
+      answerId: 1,
+      releaseParamCaps: false,
+      result: {
+        kind: 'results',
+        payload: { capTable: [] },
+      },
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /releaseParamCaps = false/);
+  });
+
+  test('interop: Finish defaults true for both bool fields', t => {
+    const framed = encodeFinish({ questionId: 8 });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /questionId = 8/);
+    t.regex(out, /releaseResultCaps = true/);
+    t.regex(out, /requireEarlyCancellationWorkaround = true/);
+  });
+
+  test('interop: Release decoded with id and refcount', t => {
+    const framed = encodeRelease({ id: 6, referenceCount: 3 });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /id = 6/);
+    t.regex(out, /referenceCount = 3/);
+  });
+
+  test('interop: Resolve cap decoded as senderHosted', t => {
+    const framed = encodeResolve({
+      promiseId: 4,
+      payload: { kind: 'cap', cap: { kind: 'senderHosted', id: 17 } },
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /promiseId = 4/);
+    t.regex(out, /senderHosted = 17/);
+  });
+
+  test('interop: Resolve exception decoded with reason and type', t => {
+    const framed = encodeResolve({
+      promiseId: 9,
+      payload: { kind: 'exception', exception: { type: 2, reason: 'lost' } },
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /promiseId = 9/);
+    t.regex(out, /reason = "lost"/);
+    t.regex(out, /type = disconnected/);
+  });
+
+  test('interop: Disembargo senderLoopback decoded with correct context', t => {
+    const framed = encodeDisembargo({
+      target: { kind: 'importedCap', id: 1 },
+      context: { kind: 'senderLoopback', id: 99 },
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /senderLoopback = 99/);
+    t.regex(out, /importedCap = 1/);
+  });
+
+  test('interop: Disembargo receiverLoopback decoded', t => {
+    const framed = encodeDisembargo({
+      target: { kind: 'importedCap', id: 1 },
+      context: { kind: 'receiverLoopback', id: 99 },
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /receiverLoopback = 99/);
+  });
+
+  test('interop: Disembargo accept (Void variant) decoded', t => {
+    const framed = encodeDisembargo({
+      target: { kind: 'importedCap', id: 1 },
+      context: { kind: 'accept' },
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /accept = void/);
+  });
+
+  test('interop: Disembargo provide carries provide question id', t => {
+    const framed = encodeDisembargo({
+      target: { kind: 'importedCap', id: 1 },
+      context: { kind: 'provide', questionId: 42 },
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /provide = 42/);
+  });
+
+  test('interop: Provide decoded', t => {
+    const framed = encodeProvide({
+      questionId: 10,
+      target: { kind: 'importedCap', id: 7 },
+      encodeRecipient: contentAsData(new Uint8Array([1, 2, 3])),
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /questionId = 10/);
+    t.regex(out, /importedCap = 7/);
+  });
+
+  test('interop: Accept decoded with embargo flag', t => {
+    const framed = encodeAccept({
+      questionId: 22,
+      encodeProvision: contentAsData(new Uint8Array([4, 5, 6])),
+      embargo: true,
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /questionId = 22/);
+    t.regex(out, /embargo = true/);
+  });
+
+  // ---------- L3 AnyPointer payloads, structured per l3.capnp ----------
+  //
+  // The Cap'n Proto rpc.capnp spec defines `Provide.recipient`,
+  // `Accept.provision`, and `ThirdPartyCapDescriptor.id` as `:AnyPointer` —
+  // their schemas are application-defined. For CF / capnp-cpp interop
+  // with any peer using a VatNetwork that puts struct-shaped payloads at
+  // those slots (the only sensible choice — `getAs<MyStructType>()` is
+  // how the C++ side reads them), we have to be able to (a) write a
+  // proper struct pointer at the AnyPointer slot, and (b) decode one
+  // back. These tests use loadSchema to drive both directions against a
+  // minimal `l3.capnp` schema (VatLocation / TestRecipientId /
+  // TestProvisionId / TestThirdPartyCapId).
+
+  const L3_SCHEMA_PATH = join(here, 'interop-rpc', 'l3.capnp');
+  const l3Schema = loadSchema(readFileSync(L3_SCHEMA_PATH, 'utf8'));
+  const recipientCodec = l3Schema.structCodec('TestRecipientId');
+  const provisionCodec = l3Schema.structCodec('TestProvisionId');
+  const tpcIdCodec = l3Schema.structCodec('TestThirdPartyCapId');
+
+  test('interop L3: Provide.recipient round-trips via TestRecipientId schema', t => {
+    const recipientValue = {
+      recipient: { vatId: 'A', transport: 'tcp://127.0.0.1:9000' },
+    };
+    const { encodeContent: encodeRecipient } = recipientCodec.encode(
+      recipientValue,
+      {},
+    );
+    const framed = encodeProvide({
+      questionId: 11,
+      target: { kind: 'importedCap', id: 5 },
+      encodeRecipient,
+    });
+
+    // (1) capnp CLI accepts the framed Message: the parent rpc.capnp
+    // bytes parse cleanly even though capnp doesn't know the AnyPointer
+    // schema. This is the "byte-correct outer envelope" check.
+    const out = runCapnpDecode(framed);
+    t.regex(out, /questionId = 11/);
+    t.regex(out, /importedCap = 5/);
+
+    // (2) Round-trip via our decoder + structCodec — the recipient
+    // AnyPointer slot decodes as a real TestRecipientId struct, not
+    // opaque bytes.
+    const m = decodeMessage(framed);
+    t.is(m.type, 'provide');
+    const decoded = recipientCodec.decode(
+      { contentSlot: m.recipientSlot, capTable: [] },
+      {},
+    );
+    t.deepEqual(decoded, recipientValue);
+  });
+
+  test('interop L3: Accept.provision round-trips via TestProvisionId schema', t => {
+    const swiss = new Uint8Array(32);
+    for (let i = 0; i < swiss.length; i += 1) swiss[i] = (i * 7) % 256;
+    const provisionValue = { swissNum: swiss };
+    const { encodeContent: encodeProvision } = provisionCodec.encode(
+      provisionValue,
+      {},
+    );
+    const framed = encodeAccept({
+      questionId: 33,
+      encodeProvision,
+      embargo: true,
+    });
+
+    const out = runCapnpDecode(framed);
+    t.regex(out, /questionId = 33/);
+    t.regex(out, /embargo = true/);
+
+    const m = decodeMessage(framed);
+    const decoded = provisionCodec.decode(
+      { contentSlot: m.provisionSlot, capTable: [] },
+      {},
+    );
+    t.deepEqual(Array.from(decoded.swissNum), Array.from(swiss));
+  });
+
+  test('interop L3: ThirdPartyCapDescriptor.id round-trips via TestThirdPartyCapId schema', t => {
+    const swiss = new Uint8Array([
+      0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+    ]);
+    const tpcIdValue = {
+      host: { vatId: 'C', transport: 'tcp://127.0.0.1:9001' },
+      swissNum: swiss,
+    };
+    const { encodeContent: encodeId } = tpcIdCodec.encode(tpcIdValue, {});
+    const framed = encodeResolve({
+      promiseId: 7,
+      payload: {
+        kind: 'cap',
+        cap: { kind: 'thirdPartyHosted', vineId: 21, encodeId },
+      },
+    });
+
+    const out = runCapnpDecode(framed);
+    t.regex(out, /promiseId = 7/);
+    t.regex(out, /thirdPartyHosted/);
+
+    const m = decodeMessage(framed);
+    t.is(m.payload.cap.kind, 'thirdPartyHosted');
+    t.is(m.payload.cap.vineId, 21);
+    const decoded = tpcIdCodec.decode(
+      { contentSlot: m.payload.cap.idSlot, capTable: [] },
+      {},
+    );
+    t.is(decoded.host.vatId, 'C');
+    t.is(decoded.host.transport, 'tcp://127.0.0.1:9001');
+    t.deepEqual(Array.from(decoded.swissNum), Array.from(swiss));
+  });
+
+  test('interop: Abort variant is an Exception inline', t => {
+    const framed = encodeAbort({
+      exception: { type: 2, reason: 'shutdown' },
+    });
+    const out = runCapnpDecode(framed);
+    t.regex(out, /reason = "shutdown"/);
+    t.regex(out, /type = disconnected/);
+  });
+
+  test('interop: PromisedAnswer transform path with field ordinals decoded', t => {
+    const framed = encodeCall({
+      questionId: 1,
+      target: {
+        kind: 'promisedAnswer',
+        questionId: 99,
+        transform: [
+          { op: 'getPointerField', fieldOrdinal: 5 },
+          { op: 'getPointerField', fieldOrdinal: 7 },
+        ],
+      },
+      interfaceId: 0n,
+      methodId: 0,
+      params: { capTable: [] },
+    });
+    const out = runCapnpDecode(framed);
+    // Two getPointerField ops should both appear with the right ordinals.
+    t.regex(out, /getPointerField = 5/);
+    t.regex(out, /getPointerField = 7/);
+    t.regex(out, /questionId = 99/);
+  });
+
+  test('interop reverse: capnp encodes a Bootstrap → our decoder reads it', t => {
+    const text = '( bootstrap = (questionId = 1234) )';
+    const framed = runCapnpEncode(text);
+    const m = decodeMessage(framed);
+    t.is(m.type, 'bootstrap');
+    t.is(m.questionId, 1234);
+  });
+
+  test('interop reverse: capnp encodes a Call → our decoder reads it', t => {
+    const text = `( call = (
+      questionId = 7,
+      target = (importedCap = 3),
+      interfaceId = 11651590505119483672,
+      methodId = 11,
+      params = ( capTable = [(senderHosted = 9)] ),
+      sendResultsTo = (caller = void) ) )`;
+    const framed = runCapnpEncode(text);
+    const m = decodeMessage(framed);
+    t.is(m.type, 'call');
+    t.is(m.questionId, 7);
+    t.is(m.methodId, 11);
+    t.is(m.interfaceId, 0xa1b2c3d4e5f60718n);
+    t.is(m.target.kind, 'importedCap');
+    t.is(m.target.id, 3);
+    t.is(m.params.capTable.length, 1);
+    t.is(m.params.capTable[0].kind, 'senderHosted');
+    t.is(m.params.capTable[0].id, 9);
+  });
+
+  test('interop reverse: capnp encodes Disembargo with provide context', t => {
+    const text = `( disembargo = (
+      target = (importedCap = 5),
+      context = (provide = 42) ) )`;
+    const framed = runCapnpEncode(text);
+    const m = decodeMessage(framed);
+    t.is(m.type, 'disembargo');
+    t.is(m.context.kind, 'provide');
+    t.is(m.context.questionId, 42);
+    t.is(m.target.kind, 'importedCap');
+    t.is(m.target.id, 5);
+  });
+
+  test('interop reverse: capnp encodes a Return exception', t => {
+    const text = `( return = (
+      answerId = 7,
+      releaseParamCaps = false,
+      exception = ( reason = "boom", type = failed ) ) )`;
+    const framed = runCapnpEncode(text);
+    const m = decodeMessage(framed);
+    t.is(m.type, 'return');
+    t.is(m.answerId, 7);
+    t.is(m.releaseParamCaps, false);
+    t.is(m.result.kind, 'exception');
+    t.is(m.result.exception.reason, 'boom');
+    t.is(m.result.exception.type, 0);
+  });
+
+  test('interop reverse: capnp encodes Release', t => {
+    const text = '( release = ( id = 100, referenceCount = 5 ) )';
+    const framed = runCapnpEncode(text);
+    const m = decodeMessage(framed);
+    t.is(m.type, 'release');
+    t.is(m.id, 100);
+    t.is(m.referenceCount, 5);
+  });
+
+  // ----- Packed encoding interop ------------------------------------------
+
+  /**
+   * Spawn `capnp decode --packed rpc.capnp Message` with the given packed
+   * bytes on stdin.
+   *
+   * @param {ArrayBuffer | Uint8Array} packedFramed
+   */
+  const runCapnpDecodePacked = packedFramed => {
+    const r = spawnSync('capnp', ['decode', '--packed', RPC_CAPNP, 'Message'], {
+      input: Buffer.from(packedFramed),
+      encoding: 'utf8',
+    });
+    if (r.status !== 0) {
+      throw Error(`capnp decode --packed failed: ${r.stderr || r.stdout}`);
+    }
+    return r.stdout.split('*** ERROR')[0].trim();
+  };
+
+  /**
+   * Spawn `capnp encode --packed rpc.capnp Message` with text on stdin.
+   *
+   * @param {string} text
+   */
+  const runCapnpEncodePacked = text => {
+    const r = spawnSync('capnp', ['encode', '--packed', RPC_CAPNP, 'Message'], {
+      input: text,
+    });
+    if (r.status !== 0) {
+      throw Error(
+        `capnp encode --packed failed: ${
+          r.stderr?.toString() || r.stdout?.toString()
+        }`,
+      );
+    }
+    const stdout = r.stdout;
+    const out = new ArrayBuffer(stdout.length);
+    new Uint8Array(out).set(stdout);
+    return out;
+  };
+
+  test('interop packed: our pack(framed) decoded by `capnp decode --packed`', t => {
+    const framed = encodeCall({
+      questionId: 7,
+      target: { kind: 'importedCap', id: 3 },
+      interfaceId: 0xa1b2c3d4e5f60718n,
+      methodId: 11,
+      params: {
+        encodeContent: contentAsData(new Uint8Array([1, 2, 3])),
+        capTable: [{ kind: 'senderHosted', id: 9 }],
+      },
+    });
+    const packed = pack(framed);
+    // Sanity: packed should usually be smaller than unpacked (Cap'n Proto
+    // messages are full of zero padding).
+    t.true(
+      packed.byteLength <= framed.byteLength,
+      `packed (${packed.byteLength}) <= unpacked (${framed.byteLength})`,
+    );
+    const out = runCapnpDecodePacked(packed);
+    t.regex(out, /questionId = 7/);
+    t.regex(out, /methodId = 11/);
+    t.regex(out, /senderHosted = 9/);
+  });
+
+  test('interop packed reverse: `capnp encode --packed` → unpack() → our decoder', t => {
+    const text = '( bootstrap = (questionId = 4242) )';
+    const packed = runCapnpEncodePacked(text);
+    const unpacked = unpack(packed);
+    const m = decodeMessage(unpacked);
+    t.is(m.type, 'bootstrap');
+    t.is(m.questionId, 4242);
+  });
+
+  test('interop packed: pack ∘ unpack ≡ identity for a real Message', t => {
+    const framed = encodeReturn({
+      answerId: 1,
+      releaseParamCaps: false,
+      result: {
+        kind: 'results',
+        payload: { capTable: [] },
+      },
+    });
+    const repacked = unpack(pack(framed));
+    t.deepEqual(
+      Array.from(new Uint8Array(repacked)),
+      Array.from(new Uint8Array(framed)),
+      'pack/unpack round-trip is byte-identical',
+    );
+  });
+}
