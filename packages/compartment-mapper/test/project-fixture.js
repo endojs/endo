@@ -84,6 +84,7 @@ export const dumpProjectFixture = (
 /**
  * Convenience function to create a version of `dumpProjectFixture` bound to a logger.
  *
+ * @knipignore
  * @template [Context=unknown]
  * @param {{log: LogFn}|ExecutionContext<Context>} logger
  * @returns {(...args: RestParameters<typeof dumpProjectFixture>) => void}
@@ -171,6 +172,7 @@ export default value;
  * This is the async version that supports delay options and returns `undefined`
  * for missing files instead of throwing errors.
  *
+ * @knipignore
  * @param {ProjectFixture} fixture
  * @param {MakeMaybeReadProjectFixtureOptions|MakeMaybeReadProjectFixtureOptionsWithRandomDelay} [options]
  * @returns {MaybeReadFn}
