@@ -89,6 +89,8 @@
     }
   },
   "resolutions": {
-    "@endo/eslint-plugin": "workspace:^"
+    "@endo/eslint-plugin": "workspace:^",
+    "eshost@npm:^9.0.0": "patch:eshost@npm%3A9.0.0#~/.yarn/patches/eshost-npm-9.0.0-58e194371d.patch",
+    "socket.io@npm:^2.3.0": "npm:4.8.4"
   }
 }

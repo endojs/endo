@@ -1,0 +1,21 @@
+diff --git a/lib/Server.js b/lib/Server.js
+index 9befc5581a51daf7b63fdbe244e9ada8512223d1..bf2cf018ca99a7fddeb4e224b9fc9ef9aead10d7 100644
+--- a/lib/Server.js
++++ b/lib/Server.js
+@@ -11,12 +11,14 @@ const activeClients = new Set();
+ const runtimeHtml = fs.readFileSync(Path.join(__dirname, '../runtimes/browser.html'), 'utf8');
+ const runtimeJs = fs.readFileSync(Path.join(__dirname, '../runtimes/browser.js'), 'utf8');
+ const stackParserPath = Path.join(Path.dirname(require.resolve('error-stack-parser')), 'dist/error-stack-parser.js');
+-const stackframePath = Path.join(Path.dirname(require.resolve('stackframe')), 'dist/stackframe.js')
++const stackframePath = Path.join(Path.dirname(require.resolve('stackframe', {
++  paths: [Path.dirname(require.resolve('error-stack-parser/package.json'))]
++})), 'dist/stackframe.js')
+ const stackJs = fs.readFileSync(stackframePath, 'utf8') + fs.readFileSync(stackParserPath, 'utf8');
+ 
+ const server = http.createServer(httpHandler);
+ enableDestroy(server);
+-const sio = io(server);
++const sio = new io.Server(server);
+ sio.on('connection', socketHandler);
+ 
+ function httpHandler (req, res) {
