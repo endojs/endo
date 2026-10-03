@@ -1,5 +1,37 @@
 # @endo/patterns
 
+## 2.2.0
+
+### Minor Changes
+
+- [#3073](https://github.com/endojs/endo/pull/3073) [`aaf9ea4`](https://github.com/endojs/endo/commit/aaf9ea4f447200d33af8e7d8af9b7ea9bce1a620) Thanks [@gibson042](https://github.com/gibson042)! - - PatternMatchers now includes a `M.choose(keyName, subPatternsRecord)` function to match a CopyRecord against a sub-pattern selected by the value of a specified discriminator key (i.e., for matching values of a discriminated union type). Behaviorally, the new matchers are slightly weaker than those from `M.or(...patterns)`, but more efficient, and they produce more precise error messages upon match failure. Note that the sub-patterns apply to a derived CopyRecord that lacks the discriminator property, so e.g.
+
+  ```js
+  M.choose('flavor', {
+    original: M.and({ flavor: 'original' }, M.any()),
+  });
+  ```
+
+  does not match anything, while
+
+  ```js
+  M.choose('flavor', {
+    original: M.any(),
+  });
+  ```
+
+  matches any CopyRecord with a "flavor" property whose value is "original".
+
+- [#3053](https://github.com/endojs/endo/pull/3053) [`2993990`](https://github.com/endojs/endo/commit/2993990b12bef487f625ca8c029cedd1745ee48f) Thanks [@gibson042](https://github.com/gibson042)! - - `FullRankCover` is deprecated. Instead, use `provideStaticRanks(encodePassable)['*'].cover`.
+  - `getPassStyleCover(passStyle)` is deprecated. Instead, use `provideStaticRanks(encodePassable)[passStyle].cover`.
+  - `getRankCover` now works with format "compactOrdered", and produces tighter bounds for arrays and `M.nat()` (which has an implicit lower bound at 0).
+  - `intersectRankCovers` and `unionRankCovers` now reject an empty list of covers (not that an empty list was ever semantically valid).
+
+### Patch Changes
+
+- Updated dependencies [[`2993990`](https://github.com/endojs/endo/commit/2993990b12bef487f625ca8c029cedd1745ee48f)]:
+  - @endo/marshal@1.11.0
+
 ## 2.1.0
 
 ### Minor Changes
