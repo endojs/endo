@@ -90,7 +90,7 @@
     "qt": "ava",
     "test": "tsd && ava",
     "test:hermes": "./scripts/hermes-test.sh",
-    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js && node scripts/generate-test-xs.js && xst tmp/test-xs.js && rm -rf tmp",
+    "test:xs": "xst dist/ses.umd.js test/_lockdown-safe.js && node scripts/generate-test-xs.js && xst tmp/test-xs.js && xst tmp/test-xs-missing-text-codecs.js && rm -rf tmp",
     "postpack": "git clean -fX -e node_modules/"
   },
   "dependencies": {

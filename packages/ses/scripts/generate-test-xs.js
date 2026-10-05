@@ -47,9 +47,22 @@ const main = async () => {
   );
 
   await write(new URL('../tmp/test-xs.js', import.meta.url).href, xsPrelude);
+
+  const xsMissingTextCodecs = await makeBundle(
+    read,
+    new URL('../test/_xs-missing-text-codecs.js', import.meta.url).href,
+    {
+      tags: new Set(['xs']),
+    },
+  );
+
+  await write(
+    new URL('../tmp/test-xs-missing-text-codecs.js', import.meta.url).href,
+    xsMissingTextCodecs,
+  );
 };
 
-main().catch(err => {
-  console.error('Error running main:', err);
+main().catch(error => {
+  console.error('Error running main:', error);
   process.exitCode = 1;
 });
