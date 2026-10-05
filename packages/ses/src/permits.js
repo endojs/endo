@@ -366,6 +366,10 @@ const accessor = {
   set: fn,
 };
 
+const nullDesc = {
+  value: null,
+}
+
 // eslint-disable-next-line func-names
 const strict = function () {
   'use strict';
@@ -2194,6 +2198,8 @@ export const permitted = {
     // Properties of the TextEncoder Constructor
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%TextEncoderPrototype%',
+    arguments: nullDesc,
+    caller: nullDesc,
   },
 
   '%TextEncoderPrototype%': {
@@ -2211,6 +2217,8 @@ export const permitted = {
     // Properties of the TextDecoder Constructor
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%TextDecoderPrototype%',
+    arguments: nullDesc,
+    caller: nullDesc,
   },
 
   '%TextDecoderPrototype%': {
