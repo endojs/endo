@@ -624,7 +624,10 @@ export const makeCapTP = (
         gcStats.DROPPED += 1;
         slotToNumRefs.delete(slot);
         importExportTables.deleteExport(slot);
-        answers.delete(slot);
+        // Answers use the peer's question ID, not a locally reversed export
+        // slot. Deleting q+N would leave the stored q-N promise (and its
+        // fulfilled payload) retained for the lifetime of this connection.
+        answers.delete(slotID);
       }
     },
     // Remote is invoking a method or retrieving a property.
