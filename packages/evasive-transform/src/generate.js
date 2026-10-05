@@ -4,18 +4,7 @@
  * @module
  */
 
-// @ts-ignore XXX no types defined
-import babelGenerator from '@babel/generator';
-
-// TODO The following is sufficient on Node.js, but for compatibility with
-// `node -r esm`, we must use the pattern below.
-// Restore after https://github.com/Agoric/agoric-sdk/issues/8671.
-// OR, upgrading to Babel 8 probably addresses this defect.
-// const { default: generator } = /** @type {any} */ (babelGenerator);
-const generator = /** @type {typeof import('@babel/generator')['default']} */ (
-  // @ts-ignore -- errors but not in typedoc build
-  babelGenerator.default || babelGenerator
-);
+import { generate as generator } from '@babel/generator';
 
 /**
  * Options for {@link generateCode} with source map
@@ -89,7 +78,6 @@ export const generate = (ast, options) => {
     {
       sourceFileName: sourceUrl,
       sourceMaps: Boolean(sourceUrl),
-      // @ts-expect-error undocumented option
       inputSourceMap,
       retainLines: true,
       ...(source === undefined ? {} : { experimental_preserveFormat: true }),
