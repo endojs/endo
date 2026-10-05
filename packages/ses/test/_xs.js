@@ -28,11 +28,14 @@ lockdown();
 // spot checks
 assert(Object.isFrozen(Object));
 
+// xst provides both codecs, so the absent-codec path runs in
+// _xs-missing-text-codecs.js, which deletes them before importing SES.
 print('# compartments observe the host text codecs, or their absence');
 {
   print(`# host TextEncoder: ${hostTextEncoderType}`);
   print(`# host TextDecoder: ${hostTextDecoderType}`);
   const compartment = new Compartment();
+  const otherCompartment = new Compartment();
   assert.equal(
     compartment.evaluate('typeof TextEncoder'),
     hostTextEncoderType,
@@ -49,6 +52,11 @@ print('# compartments observe the host text codecs, or their absence');
       TextEncoder,
       'compartment shares the hardened TextEncoder',
     );
+    assert.equal(
+      otherCompartment.evaluate('TextEncoder'),
+      TextEncoder,
+      'every compartment shares the hardened TextEncoder',
+    );
     assert(Object.isFrozen(TextEncoder), 'TextEncoder itself is frozen');
     assert(
       Object.isFrozen(TextEncoder.prototype),
@@ -61,10 +69,32 @@ print('# compartments observe the host text codecs, or their absence');
       TextDecoder,
       'compartment shares the hardened TextDecoder',
     );
+    assert.equal(
+      otherCompartment.evaluate('TextDecoder'),
+      TextDecoder,
+      'every compartment shares the hardened TextDecoder',
+    );
     assert(Object.isFrozen(TextDecoder), 'TextDecoder itself is frozen');
     assert(
       Object.isFrozen(TextDecoder.prototype),
       'TextDecoder.prototype is frozen',
+    );
+  }
+  if (
+    hostTextEncoderType === 'function' &&
+    hostTextDecoderType === 'function'
+  ) {
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    assert.equal(
+      decoder.decode(encoder.encode('hello')),
+      'hello',
+      'hardened codecs round-trip text',
+    );
+    assert.equal(
+      decoder.decode(encoder.encode('')),
+      '',
+      'hardened codecs round-trip the empty string',
     );
   }
 }
