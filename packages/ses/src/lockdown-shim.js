@@ -7,6 +7,17 @@ import './assert-sloppy-mode.js';
 import { globalThis } from './commons.js';
 import { repairIntrinsics } from './lockdown.js';
 
+// Mitigate Node.js TextDecoder hardening failure.
+// See https://github.com/endojs/endo/issues/2145
+if (typeof TextDecoder !== 'undefined') {
+  try {
+    // eslint-disable-next-line no-new
+    new TextDecoder();
+  } catch (_e) {
+    // Ignore.
+  }
+}
+
 /** @import {LockdownOptions} from '../types.js' */
 
 /**
