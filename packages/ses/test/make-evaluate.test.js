@@ -47,7 +47,7 @@ test('makeEvaluate - optimizer', t => {
   globalObjectOps.length = 0;
   moduleLexicalsOps.length = 0;
 
-  evalScopeKit.allowNextEvalToBeUnsafe();
+  evalScopeKit.allowNextEvalToBeUnsafe(evaluate, globalObject);
 
   const result = apply(evaluate, globalObject, [`!foo && bar && baz`]);
 
@@ -70,9 +70,9 @@ test('makeEvaluate - strict-mode', t => {
     freeze({ scopeTerminator, globalObject, moduleLexicals, evalScope }),
   );
 
-  evalScopeKit.allowNextEvalToBeUnsafe();
+  evalScopeKit.allowNextEvalToBeUnsafe(evaluate, globalObject);
   t.throws(() => apply(evaluate, globalObject, [`foo = 42`]));
 
-  evalScopeKit.allowNextEvalToBeUnsafe();
+  evalScopeKit.allowNextEvalToBeUnsafe(evaluate, globalObject);
   t.throws(() => apply(evaluate, globalObject, [`with({}) {}`]));
 });
