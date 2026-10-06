@@ -181,6 +181,18 @@ security-sensitive bugs privately.
 For non-security bugs, please use the [regular Issues
 page](https://github.com/Agoric/SES-shim/issues).
 
+## Contributing
+
+This repository uses lerna as a monorepo, to allow the included packages to depend on each other.
+
+To get started after pulling the repository, to get started, in the root directory run:
+
+```
+corepack enable
+yarn install
+```
+You should then be able to navigate to the package you're interested in and use it directly.
+
 ### License
 
 Endo and its components are [Apache 2.0 licensed][license-url].
