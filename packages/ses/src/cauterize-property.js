@@ -1,4 +1,4 @@
-import { hasOwn } from './commons.js';
+import { getOwnPropertyDescriptor, hasOwn } from './commons.js';
 
 /**
  * @import {Reporter} from './reporting-types.js'
@@ -58,6 +58,26 @@ export const cauterizeProperty = (
         obj.prototype = undefined;
         if (obj.prototype === undefined) {
           warn(`Tolerating undeletable ${subPath} === undefined`);
+          return;
+        }
+      }
+      if (
+        typeof obj === 'function' &&
+        (prop === 'arguments' || prop === 'caller')
+      ) {
+        // Some engines (Chromium's V8 through at least 133, as shipped in the
+        // Android System WebView) give every API function own, frozen
+        // `arguments: null` and `caller: null` poison pills. They cannot be
+        // deleted, and they leak nothing: a frozen `null` is inert. Tolerate
+        // exactly that shape; anything else still fails lockdown.
+        const desc = getOwnPropertyDescriptor(obj, prop);
+        if (
+          desc !== undefined &&
+          desc.value === null &&
+          desc.writable === false &&
+          desc.configurable === false
+        ) {
+          warn(`Tolerating undeletable ${subPath} === null`);
           return;
         }
       }
