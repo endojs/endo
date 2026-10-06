@@ -18,8 +18,6 @@ import { makeFinalizingMap } from './finalize.js';
 
 export { E };
 
-const WELL_KNOWN_SLOT_PROPERTIES = harden(['answerID', 'questionID', 'target']);
-
 const sink = () => {};
 harden(sink);
 
@@ -293,9 +291,7 @@ export const makeCapTP = (
   const send = obj => {
     sendStats[obj.type] = (sendStats[obj.type] || 0) + 1;
 
-    for (const prop of WELL_KNOWN_SLOT_PROPERTIES) {
-      sendSlot.add(obj[prop]);
-    }
+    // Commit the references that serializing this message's payload added.
     sendSlot.commit();
 
     // Don't throw here if unplugged, just don't send.
@@ -624,7 +620,10 @@ export const makeCapTP = (
         gcStats.DROPPED += 1;
         slotToNumRefs.delete(slot);
         importExportTables.deleteExport(slot);
-        answers.delete(slot);
+        // Answers use the peer's question ID, not a locally reversed export
+        // slot. Deleting q+N would leave the stored q-N promise (and its
+        // fulfilled payload) retained for the lifetime of this connection.
+        answers.delete(slotID);
       }
     },
     // Remote is invoking a method or retrieving a property.
@@ -861,9 +860,10 @@ export const makeCapTP = (
         return false;
       }
 
-      for (const prop of WELL_KNOWN_SLOT_PROPERTIES) {
-        recvSlot.add(obj[prop]);
-      }
+      // The message's own answerID, questionID, and target only name the
+      // question or target; they transfer no reference. Every real transfer
+      // is counted when the payload is unserialized (convertSlotToVal), so
+      // counting these as well, under any key, would double-count.
       fn(obj);
       recvSlot.commit();
 
