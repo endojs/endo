@@ -27,6 +27,7 @@ import {
 } from '../src/compartment.js';
 import { getGlobalIntrinsics } from '../src/intrinsics.js';
 import { tameFunctionToString } from '../src/tame-function-tostring.js';
+import { tameTextCodecs } from '../src/tame-text-codecs.js';
 import { chooseReporter } from '../src/reporting.js';
 import { makeError } from '../src/error/assert.js';
 
@@ -35,6 +36,14 @@ import { makeError } from '../src/error/assert.js';
  */
 
 const muteReporter = chooseReporter('none');
+
+// Replace the host text codec constructors, where the shell provides them,
+// before sampling the global intrinsics below, so shim compartments share
+// the SES-owned replacements that `lockdown()` will also observe on the
+// start compartment's global. Idempotent: the later `lockdown()` call
+// leaves the replacements in place.
+// See https://github.com/endojs/endo/issues/3369
+tameTextCodecs();
 
 export const ShimStartCompartment = makeCompartmentConstructor(
   makeCompartmentConstructor,

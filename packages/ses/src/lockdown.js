@@ -62,6 +62,7 @@ import { tameHarden } from './tame-harden.js';
 import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 import { tameFauxDataProperties } from './tame-faux-data-properties.js';
 import { tameRegeneratorRuntime } from './tame-regenerator-runtime.js';
+import { tameTextCodecs } from './tame-text-codecs.js';
 import { shimArrayBufferTransfer } from './shim-arraybuffer-transfer.js';
 import { reportInGroup, chooseReporter } from './reporting.js';
 
@@ -347,6 +348,13 @@ export const repairIntrinsics = (options = {}) => {
   // Replace Function.prototype.toString with one that recognizes
   // shimmed functions as honorary native functions.
   const markVirtualizedNativeFunction = tameFunctionToString();
+
+  // Replace the host text codec constructors before the intrinsics collector
+  // samples the universal property names from the global object, so the
+  // permitted `TextEncoder` and `TextDecoder` are SES-owned constructors and
+  // the host constructor objects stay out of the permitted intrinsics graph.
+  // See https://github.com/endojs/endo/issues/3369
+  tameTextCodecs();
 
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
     makeIntrinsicsCollector(reporter);
