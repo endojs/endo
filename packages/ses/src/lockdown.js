@@ -160,7 +160,9 @@ const probeHostEvaluators = () => {
  * native-function marker once repairs are done, for an engine adapter that
  * must build its own start Compartment constructor from them. It is called
  * synchronously, at most once, before `repairIntrinsics` returns. A repeated
- * call throws `SES_ALREADY_LOCKED_DOWN` before reaching it.
+ * call throws `SES_ALREADY_LOCKED_DOWN` before reaching it. This module is
+ * not exported from `ses`, and the public `lockdown` and `repairIntrinsics`
+ * on `globalThis` deliberately do not forward this parameter.
  */
 export const repairIntrinsics = (options = {}, onIntrinsics = undefined) => {
   // First time, absent options default to 'safe'.

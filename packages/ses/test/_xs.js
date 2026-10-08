@@ -22,6 +22,7 @@ import precompiledModuleSource from '../tmp/_meaning.pre-mjs.json';
 
 const hostTextEncoderType = typeof globalThis.TextEncoder;
 const hostTextDecoderType = typeof globalThis.TextDecoder;
+globalThis.addedBeforeLockdown = {};
 
 lockdown();
 
@@ -102,6 +103,11 @@ print('# compartments observe the host text codecs, or their absence');
 print('# compartments receive shared intrinsics from lockdown');
 {
   const compartment = new Compartment();
+  assert.equal(
+    compartment.evaluate('typeof addedBeforeLockdown'),
+    'undefined',
+    'non-universal global added before lockdown must not leak into compartments',
+  );
   assert(
     compartment.evaluate('Date') !== globalThis.Date,
     'compartments must receive %SharedDate%, not %InitialDate%',
