@@ -18,11 +18,16 @@ const lockdown = options => {
   // Sampling the start compartment's global object after lockdown would not
   // do either, since it holds the powerful %Initial*% intrinsics where new
   // compartments must receive the tamed %Shared*% ones.
-  let ShimStartCompartment;
+  // The prototype methods (`shimEvaluate`, `shimImport`, ...) still come from
+  // the import-time constructor in `./compartment.js`; they apply to
+  // compartments from this constructor through the module-level
+  // `privateFields` WeakMap in `../src/compartment.js`.
+  /** @type {ReturnType<typeof makeCompartmentConstructor> | undefined} */
+  let LockdownShimStartCompartment;
   const hardenIntrinsics = repairIntrinsics(
     options,
     (intrinsics, markVirtualizedNativeFunction) => {
-      ShimStartCompartment = makeCompartmentConstructor(
+      LockdownShimStartCompartment = makeCompartmentConstructor(
         makeCompartmentConstructor,
         intrinsics,
         markVirtualizedNativeFunction,
@@ -35,7 +40,7 @@ const lockdown = options => {
   // @ts-expect-error Incomplete global type on XS.
   globalThis.Compartment = adaptCompartmentConstructors(
     NativeStartCompartment,
-    ShimStartCompartment,
+    LockdownShimStartCompartment,
     harden,
   );
 };

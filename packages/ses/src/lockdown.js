@@ -155,10 +155,12 @@ const probeHostEvaluators = () => {
  * @param {LockdownOptions} [options]
  * @param {(
  *   intrinsics: Record<string, any>,
- *   markVirtualizedNativeFunction: (func: Function) => void,
+ *   markVirtualizedNativeFunction: (object: object) => void,
  * ) => void} [onIntrinsics] receives the lockdown intrinsics and the
  * native-function marker once repairs are done, for an engine adapter that
- * must build its own start Compartment constructor from them.
+ * must build its own start Compartment constructor from them. It is called
+ * synchronously, at most once, before `repairIntrinsics` returns, and not on a
+ * repeated call that returns early.
  */
 export const repairIntrinsics = (options = {}, onIntrinsics = undefined) => {
   // First time, absent options default to 'safe'.
