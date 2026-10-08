@@ -40,8 +40,8 @@ const muteReporter = chooseReporter('none');
 // Replace the host text codec constructors, where the shell provides them,
 // before sampling the global intrinsics below, so shim compartments share
 // the SES-owned replacements that `lockdown()` will also observe on the
-// start compartment's global. Idempotent: the later `lockdown()` call
-// leaves the replacements in place.
+// start compartment's global. The XS lockdown shim tells `repairIntrinsics`
+// that this repair has already run.
 // See https://github.com/endojs/endo/issues/3369
 tameTextCodecs();
 

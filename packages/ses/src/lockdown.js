@@ -153,8 +153,12 @@ const probeHostEvaluators = () => {
 
 /**
  * @param {LockdownOptions} [options]
+ * @param {boolean} [textCodecsAlreadyTamed]
  */
-export const repairIntrinsics = (options = {}) => {
+export const repairIntrinsics = (
+  options = {},
+  textCodecsAlreadyTamed = false,
+) => {
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -354,7 +358,9 @@ export const repairIntrinsics = (options = {}) => {
   // permitted `TextEncoder` and `TextDecoder` are SES-owned constructors and
   // the host constructor objects stay out of the permitted intrinsics graph.
   // See https://github.com/endojs/endo/issues/3369
-  tameTextCodecs();
+  if (!textCodecsAlreadyTamed) {
+    tameTextCodecs();
+  }
 
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
     makeIntrinsicsCollector(reporter);

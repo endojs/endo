@@ -2,22 +2,12 @@
 
 import {
   TypeError,
-  WeakSet,
   construct,
   defineProperties,
   defineProperty,
   globalThis,
   isPrimitive,
-  weaksetAdd,
-  weaksetHas,
 } from './commons.js';
-
-// The SES-owned replacement constructors already installed, so a second
-// `tameTextCodecs()` call is a no-op rather than wrapping a replacement in
-// another replacement. SES-for-XS tames at module load, before its shim
-// compartment constructor samples the global intrinsics, and `lockdown()`
-// tames again on every platform.
-const replacements = new WeakSet();
 
 /**
  * Replace one host text codec constructor, if present, with a SES-owned
@@ -31,10 +21,6 @@ const tameTextCodec = name => {
   if (typeof NativeCodec !== 'function') {
     // Absent on this host (for example XS, unless the engine shell provides
     // the codecs). The permits already tolerate the absence.
-    return;
-  }
-  if (weaksetHas(replacements, NativeCodec)) {
-    // Already tamed.
     return;
   }
   const nativePrototype = NativeCodec.prototype;
@@ -76,8 +62,6 @@ const tameTextCodec = name => {
     enumerable: false,
     configurable: true,
   });
-
-  weaksetAdd(replacements, SharedCodec);
 };
 
 /**
