@@ -1,7 +1,7 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
 
-// endojs/endo#3369: on V8 before roughly Chrome 127, the WebIDL `TextEncoder`
+// endojs/endo#3369: on Chromium before version 138, the WebIDL `TextEncoder`
 // and `TextDecoder` constructors carry own legacy restricted properties —
 // `caller` and `arguments`, each
 // `{ value: null, writable: false, configurable: false }` — which `lockdown()`
@@ -26,7 +26,7 @@ test('lockdown completes with legacy restricted properties on the text codec con
 
     // Simulate the affected host shape wherever it is absent, so this test
     // exercises the same failure on every browser. On a genuinely affected
-    // Chromium (before roughly 127) the properties already exist with
+    // Chromium before version 138 already has these properties with
     // exactly this descriptor and the simulation is a no-op.
     const restricted = {
       value: null,

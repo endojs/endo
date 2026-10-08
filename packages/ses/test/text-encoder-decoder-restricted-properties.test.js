@@ -1,7 +1,7 @@
 // @ts-nocheck
 /* global globalThis */
 
-// Reproduces endojs/endo#3369: on V8 before roughly Chrome 127, the WebIDL
+// Reproduces endojs/endo#3369: on Chromium before version 138, the WebIDL
 // `TextEncoder` and `TextDecoder` constructors carry own legacy restricted
 // properties — `caller` and `arguments`, each
 // `{ value: null, writable: false, configurable: false }` — which `lockdown()`

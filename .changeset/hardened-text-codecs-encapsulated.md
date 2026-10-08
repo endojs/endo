@@ -6,7 +6,7 @@
 constructors with SES-owned constructors that delegate construction to the
 captured host originals and share the host prototypes.
 
-On V8 before roughly Chrome 127, the WebIDL codec constructors carry own
+On Chromium before version 138, the WebIDL codec constructors carry own
 legacy restricted properties — `caller` and `arguments`, each
 `{ value: null, writable: false, configurable: false }` — which `lockdown()`
 can neither delete nor repair in place, so `lockdown()` failed on those

@@ -85,7 +85,7 @@ const tameTextCodec = name => {
  * present, with SES-owned constructors that delegate construction to the
  * captured host originals and share the host prototypes.
  *
- * On V8 before roughly Chrome 127, WebIDL constructors such as `TextEncoder`
+ * On Chromium before version 138, WebIDL constructors such as `TextEncoder`
  * and `TextDecoder` carry own legacy restricted properties — `caller` and
  * `arguments`, each `{ value: null, writable: false, configurable: false }` —
  * that lockdown can neither delete nor repair in place, so lockdown fails
