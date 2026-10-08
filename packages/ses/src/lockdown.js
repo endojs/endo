@@ -159,8 +159,8 @@ const probeHostEvaluators = () => {
  * ) => void} [onIntrinsics] receives the lockdown intrinsics and the
  * native-function marker once repairs are done, for an engine adapter that
  * must build its own start Compartment constructor from them. It is called
- * synchronously, at most once, before `repairIntrinsics` returns, and not on a
- * repeated call that returns early.
+ * synchronously, at most once, before `repairIntrinsics` returns. A repeated
+ * call throws `SES_ALREADY_LOCKED_DOWN` before reaching it.
  */
 export const repairIntrinsics = (options = {}, onIntrinsics = undefined) => {
   // First time, absent options default to 'safe'.
