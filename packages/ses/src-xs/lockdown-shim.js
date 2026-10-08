@@ -8,13 +8,27 @@
 import { globalThis } from '../src/commons.js';
 import { NativeStartCompartment } from './commons.js';
 import { repairIntrinsics } from '../src/lockdown.js';
-import {
-  ShimStartCompartment,
-  adaptCompartmentConstructors,
-} from './compartment.js';
+import { makeCompartmentConstructor } from '../src/compartment.js';
+import { adaptCompartmentConstructors } from './compartment.js';
 
 const lockdown = options => {
-  const hardenIntrinsics = repairIntrinsics(options);
+  // The shim Compartment constructor must be made from the lockdown
+  // intrinsics, as on other engines, rather than reuse the one made when SES
+  // was imported, which sampled the then-untamed globals.
+  // Sampling the start compartment's global object after lockdown would not
+  // do either, since it holds the powerful %Initial*% intrinsics where new
+  // compartments must receive the tamed %Shared*% ones.
+  let ShimStartCompartment;
+  const hardenIntrinsics = repairIntrinsics(
+    options,
+    (intrinsics, markVirtualizedNativeFunction) => {
+      ShimStartCompartment = makeCompartmentConstructor(
+        makeCompartmentConstructor,
+        intrinsics,
+        markVirtualizedNativeFunction,
+      );
+    },
+  );
   hardenIntrinsics();
   // Replace global Compartment with a version that is hardened and hardens
   // transitive child Compartment.

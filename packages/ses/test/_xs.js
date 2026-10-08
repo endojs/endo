@@ -99,6 +99,29 @@ print('# compartments observe the host text codecs, or their absence');
   }
 }
 
+print('# compartments receive shared intrinsics from lockdown');
+{
+  const compartment = new Compartment();
+  assert(
+    compartment.evaluate('Date') !== globalThis.Date,
+    'compartments must receive %SharedDate%, not %InitialDate%',
+  );
+  for (const source of ['Date.now()', 'Math.random()']) {
+    const outcome = compartment.evaluate(`
+      try {
+        ${source};
+        'returned';
+      } catch (error) {
+        error.message;
+      }
+    `);
+    assert(
+      outcome.startsWith('secure mode'),
+      `${source} must throw in compartments made after lockdown`,
+    );
+  }
+}
+
 print('# shim compartment can import a shim precompiled module source');
 {
   const shimCompartment = new Compartment({

@@ -153,8 +153,14 @@ const probeHostEvaluators = () => {
 
 /**
  * @param {LockdownOptions} [options]
+ * @param {(
+ *   intrinsics: Record<string, any>,
+ *   markVirtualizedNativeFunction: (func: Function) => void,
+ * ) => void} [onIntrinsics] receives the lockdown intrinsics and the
+ * native-function marker once repairs are done, for an engine adapter that
+ * must build its own start Compartment constructor from them.
  */
-export const repairIntrinsics = (options = {}) => {
+export const repairIntrinsics = (options = {}, onIntrinsics = undefined) => {
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -592,6 +598,10 @@ export const repairIntrinsics = (options = {}) => {
 
     return tamedHarden;
   };
+
+  if (onIntrinsics !== undefined) {
+    onIntrinsics(intrinsics, markVirtualizedNativeFunction);
+  }
 
   return hardenIntrinsics;
 };
