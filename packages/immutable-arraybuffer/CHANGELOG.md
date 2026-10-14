@@ -1,5 +1,11 @@
 # @endo/immutable-arraybuffer
 
+## 2.0.1
+
+### Patch Changes
+
+- [#3367](https://github.com/endojs/endo/pull/3367) [`8e204e3`](https://github.com/endojs/endo/commit/8e204e32e22c10ade188f5fa56d37fd091cb155e) Thanks [@gibson042](https://github.com/gibson042)! - When shimming in support for immutable ArrayBuffers, absence of unrelated ArrayBuffer.prototype properties is preserved.
+
 ## 2.0.0
 
 ### Major Changes
