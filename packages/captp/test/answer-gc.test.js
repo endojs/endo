@@ -38,8 +38,17 @@ test('collected questions release their streamed copy-record answers', async t =
     }
   };
   await consume();
-  await gcAndFinalize();
-  await gcAndFinalize();
+  // Dropping a question lets the far side release its answer, which becomes
+  // collectible only in a later cycle, and finalizers for 64 registrations can
+  // be spread across turns. Poll a bounded number of cycles rather than assume
+  // a fixed count suffices.
+  const released = () =>
+    Number(getFarStats().gc.DROPPED) >= 64 &&
+    records.every(ref => ref.deref() === undefined);
+  for (let i = 0; i < 10 && !released(); i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await gcAndFinalize();
+  }
   t.is(records.length, 64);
   // The far side only ever holds the 64 read questions plus a few handshake
   // slots, so reaching 64 means the read questions themselves were dropped.

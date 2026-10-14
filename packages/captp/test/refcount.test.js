@@ -9,6 +9,17 @@ import { makeGcAndFinalize } from './gc-and-finalize.js';
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+// Collection and finalization happen in cycles, and finalizers can be spread
+// across turns, so poll a bounded number of cycles for the expected outcome
+// rather than assume a fixed count suffices.
+const settleUntil = async (gcAndFinalize, done) => {
+  await null;
+  for (let i = 0; i < 10 && !done(); i += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await gcAndFinalize();
+  }
+};
+
 /**
  * Connect two CapTPs, A and B, both with gcImports. Messages from A can be
  * held in flight, and every CTP_DROP either side sends is recorded.
@@ -86,8 +97,9 @@ test.serial(
       t.is(await E(presence).ping(), 'alive');
     };
     await borrow();
-    await gcAndFinalize();
-    await gcAndFinalize();
+    await settleUntil(gcAndFinalize, () =>
+      drops.B.some(drop => drop.slotID === 'o-2'),
+    );
     t.truthy(drops.B.find(drop => drop.slotID === 'o-2'));
     // A still holds the object and exports it again. The new presence must
     // resolve to a live export, not the slot that was just dropped.
@@ -129,8 +141,9 @@ test.serial(
       t.is(answer, 'B');
     };
     await ask();
-    await gcAndFinalize();
-    await gcAndFinalize();
+    await settleUntil(gcAndFinalize, () =>
+      drops.A.some(d => d.slotID === 'q-2'),
+    );
 
     const drop = drops.A.find(d => d.slotID === 'q-2');
     t.truthy(drop, 'A dropped its question q-2');
@@ -183,8 +196,9 @@ test.serial(
     // A sends a second reference to objA, held in flight, while B's presence
     // for objA is collected and B reports the drop.
     const { result: takeP } = await holdNext(() => E(bootBonA).take(objA));
-    await gcAndFinalize();
-    await gcAndFinalize();
+    await settleUntil(gcAndFinalize, () =>
+      drops.B.some(d => d.slotID === 'o-2'),
+    );
     const drop = drops.B.find(d => d.slotID === 'o-2');
     t.truthy(drop, 'B dropped its import o-2');
     // B saw exactly one reference, so A must keep o+2 for the one in flight.
