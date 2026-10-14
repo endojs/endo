@@ -3,9 +3,12 @@
  * @file Build a publishable .tgz for every public workspace.
  *
  * The flow:
- *   1. `git clean -fX -e node_modules` — wipe ignored artifacts (stale .d.ts,
- *      coverage, etc.) so `tsc --build` can't hit TS5055 "would overwrite input
- *      file" and so tarballs always reflect the current source tree.
+ *   1. `git clean -fX -e node_modules -e '!.yarn/install-state.gz'` — wipe
+ *      ignored artifacts (stale .d.ts, coverage, etc.) so `tsc --build` can't
+ *      hit TS5055 "would overwrite input file" and so tarballs always reflect
+ *      the current source tree.  Yarn's install state is kept: `.yarn/` holds
+ *      tracked patches, so `git clean` descends into it, and without the state
+ *      every later `yarn` command fails as if the project were not installed.
  *   2. `yarn build` — runs the real per-workspace build scripts.  Only `ses`
  *      does substantive work (producing `dist/ses.cjs` and friends); every
  *      other package has `build: exit 0`.
@@ -19,9 +22,10 @@
  *      resolved by Yarn natively; `catalog:` specifiers are not used in runtime
  *      deps (only devDependencies), so they never appear in published tarballs.
  *   5. Creates `dist/` dir if missing.
- *   6. `git clean -fX -e node_modules -e /dist` — restore pristine source tree
- *      while preserving the tarballs in the repo-root `dist/`.  The anchored
- *      `-e /dist` leaves only the top-level `dist/` intact.
+ *   6. `git clean -fX` with the step 1 exclusions plus `-e /dist` — restore
+ *      pristine source tree while preserving the tarballs in the repo-root
+ *      `dist/`.  The anchored `-e /dist` leaves only the top-level `dist/`
+ *      intact.
  *
  * Freshness guarantee: `dist/` is recursively removed before step 4, so there
  * is no way for a previous run's stale or partial output to survive.  Combined
@@ -60,8 +64,10 @@ const run = (cmd, argv, options) =>
     );
   });
 
+const keepInstall = ['-e', 'node_modules', '-e', '!.yarn/install-state.gz'];
+
 console.error('pack-all: step 1 — git clean -fX');
-await run('git', ['clean', '-fX', '-e', 'node_modules'], { cwd: repoRoot });
+await run('git', ['clean', '-fX', ...keepInstall], { cwd: repoRoot });
 
 console.error('pack-all: step 2 — yarn build');
 await run('yarn', ['build'], { cwd: repoRoot });
@@ -102,7 +108,7 @@ const tarballs = readdirSync(distDir)
   .sort();
 
 console.error('pack-all: step 6 — git clean -fX (preserving dist/)');
-await run('git', ['clean', '-fX', '-e', 'node_modules', '-e', '/dist'], {
+await run('git', ['clean', '-fX', ...keepInstall, '-e', '/dist'], {
   cwd: repoRoot,
 });
 
