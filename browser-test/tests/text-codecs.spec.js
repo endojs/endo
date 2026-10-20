@@ -5,9 +5,9 @@ const { test, expect } = require('@playwright/test');
 // and `TextDecoder` constructors carry own legacy restricted properties —
 // `caller` and `arguments`, each
 // `{ value: null, writable: false, configurable: false }` — which `lockdown()`
-// can neither delete nor repair in place, so `lockdown()` throws. The permitted
-// codecs are now SES-owned encapsulating constructors, so the host constructor
-// objects never enter the permitted intrinsics graph on any engine.
+// can neither delete nor repair in place, so `lockdown()` throws. An affected
+// codec is replaced by a SES-owned encapsulating constructor, so its host
+// constructor object never enters the permitted intrinsics graph.
 
 test.beforeEach(async ({ page, browser, browserName }) => {
   console.log(browserName, browser.version());
@@ -48,7 +48,7 @@ test('lockdown completes with legacy restricted properties on the text codec con
   expect(result).toBe('Pass');
 });
 
-test('the host text codec constructors are encapsulated behind SES-owned constructors', async ({
+test('only affected host text codec constructors are encapsulated', async ({
   page,
 }) => {
   const result = await page.evaluate(() => {
@@ -56,6 +56,12 @@ test('the host text codec constructors are encapsulated behind SES-owned constru
 
     const NativeTextEncoder = globalThis.TextEncoder;
     const NativeTextDecoder = globalThis.TextDecoder;
+    const textEncoderIsAffected = Boolean(
+      Object.getOwnPropertyDescriptor(NativeTextEncoder, 'arguments'),
+    );
+    const textDecoderIsAffected = Boolean(
+      Object.getOwnPropertyDescriptor(NativeTextDecoder, 'arguments'),
+    );
 
     lockdown();
 
@@ -68,8 +74,14 @@ test('the host text codec constructors are encapsulated behind SES-owned constru
     };
 
     const { TextEncoder, TextDecoder } = globalThis;
-    check('TextEncoder is replaced', TextEncoder !== NativeTextEncoder);
-    check('TextDecoder is replaced', TextDecoder !== NativeTextDecoder);
+    check(
+      'TextEncoder replacement matches its descriptor',
+      (TextEncoder !== NativeTextEncoder) === textEncoderIsAffected,
+    );
+    check(
+      'TextDecoder replacement matches its descriptor',
+      (TextDecoder !== NativeTextDecoder) === textDecoderIsAffected,
+    );
     check(
       'TextEncoder has no own caller or arguments',
       !Object.getOwnPropertyDescriptor(TextEncoder, 'caller') &&
@@ -96,7 +108,7 @@ test('the host text codec constructors are encapsulated behind SES-owned constru
 
     const compartment = new Compartment();
     check(
-      'compartments share the SES-owned codecs',
+      'compartments share the permitted codecs',
       compartment.evaluate('TextEncoder') === TextEncoder &&
         compartment.evaluate('TextDecoder') === TextDecoder,
     );
