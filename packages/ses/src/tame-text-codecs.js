@@ -5,6 +5,7 @@ import {
   construct,
   defineProperties,
   defineProperty,
+  getOwnPropertyDescriptor,
   globalThis,
   isPrimitive,
 } from './commons.js';
@@ -21,6 +22,11 @@ const tameTextCodec = name => {
   if (typeof NativeCodec !== 'function') {
     // Absent on this host (for example XS, unless the engine shell provides
     // the codecs). The permits already tolerate the absence.
+    return;
+  }
+  if (getOwnPropertyDescriptor(NativeCodec, 'arguments') === undefined) {
+    // This host constructor does not have the legacy restricted property that
+    // prevents lockdown from removing or repairing it.
     return;
   }
   const nativePrototype = NativeCodec.prototype;
@@ -65,9 +71,9 @@ const tameTextCodec = name => {
 };
 
 /**
- * Replace the host's `TextEncoder` and `TextDecoder` constructors, where
- * present, with SES-owned constructors that delegate construction to the
- * captured host originals and share the host prototypes.
+ * Replace affected host `TextEncoder` and `TextDecoder` constructors with
+ * SES-owned constructors that delegate construction to the captured host
+ * originals and share the host prototypes.
  *
  * On Chromium before version 138, WebIDL constructors such as `TextEncoder`
  * and `TextDecoder` carry own legacy restricted properties — `caller` and
@@ -76,10 +82,11 @@ const tameTextCodec = name => {
  * (https://github.com/endojs/endo/issues/3369). That descriptor shape is
  * indistinguishable from the live `caller` and `arguments` slots of a sloppy
  * function, so neither tolerating nor permitting it is safe. Encapsulation
- * sidesteps the dilemma: the permitted `TextEncoder` and `TextDecoder`
- * intrinsics are SES-owned constructors on every engine, and the host
- * constructor objects, restricted properties and all, never enter the
- * permitted intrinsics graph.
+ * sidesteps the dilemma: when a host constructor has the affected
+ * `arguments` descriptor, the permitted intrinsic is a SES-owned constructor,
+ * and the host constructor object, restricted properties and all, never enters
+ * the permitted intrinsics graph. Hosts without the affected descriptor retain
+ * their original constructors.
  *
  * The host prototype objects carry no restricted properties, and all codec
  * behavior (methods, getters, brand checks) lives there, so the replacement

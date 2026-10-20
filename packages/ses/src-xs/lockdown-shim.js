@@ -14,7 +14,7 @@ import {
 } from './compartment.js';
 
 const lockdown = options => {
-  const hardenIntrinsics = repairIntrinsics(options, true);
+  const hardenIntrinsics = repairIntrinsics(options);
   hardenIntrinsics();
   // Replace global Compartment with a version that is hardened and hardens
   // transitive child Compartment.

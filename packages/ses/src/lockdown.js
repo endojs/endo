@@ -153,12 +153,8 @@ const probeHostEvaluators = () => {
 
 /**
  * @param {LockdownOptions} [options]
- * @param {boolean} [textCodecsAlreadyTamed]
  */
-export const repairIntrinsics = (
-  options = {},
-  textCodecsAlreadyTamed = false,
-) => {
+export const repairIntrinsics = (options = {}) => {
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -353,14 +349,12 @@ export const repairIntrinsics = (
   // shimmed functions as honorary native functions.
   const markVirtualizedNativeFunction = tameFunctionToString();
 
-  // Replace the host text codec constructors before the intrinsics collector
-  // samples the universal property names from the global object, so the
-  // permitted `TextEncoder` and `TextDecoder` are SES-owned constructors and
-  // the host constructor objects stay out of the permitted intrinsics graph.
+  // Replace affected host text codec constructors before the intrinsics
+  // collector samples the universal property names from the global object, so
+  // host constructors with legacy restricted properties stay out of the
+  // permitted intrinsics graph.
   // See https://github.com/endojs/endo/issues/3369
-  if (!textCodecsAlreadyTamed) {
-    tameTextCodecs();
-  }
+  tameTextCodecs();
 
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
     makeIntrinsicsCollector(reporter);

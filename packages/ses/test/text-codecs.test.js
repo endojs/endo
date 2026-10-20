@@ -1,9 +1,21 @@
 import '../index.js';
-import './_lockdown-safe.js';
 import test from 'ava';
 
 const hasTextEncoder = typeof globalThis.TextEncoder === 'function';
 const hasTextDecoder = typeof globalThis.TextDecoder === 'function';
+const initialTextEncoder = globalThis.TextEncoder;
+const initialTextDecoder = globalThis.TextDecoder;
+
+lockdown();
+
+test('unaffected host codec constructors are retained', t => {
+  if (!hasTextEncoder || !hasTextDecoder) {
+    t.pass('host does not provide TextEncoder/TextDecoder');
+    return;
+  }
+  t.is(globalThis.TextEncoder, initialTextEncoder);
+  t.is(globalThis.TextDecoder, initialTextDecoder);
+});
 
 test('TextEncoder is present on the start compartment when the host provides it', t => {
   if (!hasTextEncoder) {
