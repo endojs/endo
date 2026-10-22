@@ -8,13 +8,17 @@ const initialTextDecoder = globalThis.TextDecoder;
 
 lockdown();
 
-test('unaffected host codec constructors are retained', t => {
+test('host codec constructors are encapsulated', t => {
   if (!hasTextEncoder || !hasTextDecoder) {
     t.pass('host does not provide TextEncoder/TextDecoder');
     return;
   }
-  t.is(globalThis.TextEncoder, initialTextEncoder);
-  t.is(globalThis.TextDecoder, initialTextDecoder);
+  t.not(globalThis.TextEncoder, initialTextEncoder);
+  t.not(globalThis.TextDecoder, initialTextDecoder);
+  t.is(globalThis.TextEncoder.prototype, initialTextEncoder.prototype);
+  t.is(globalThis.TextDecoder.prototype, initialTextDecoder.prototype);
+  t.is(initialTextEncoder.prototype.constructor, globalThis.TextEncoder);
+  t.is(initialTextDecoder.prototype.constructor, globalThis.TextDecoder);
 });
 
 test('TextEncoder is present on the start compartment when the host provides it', t => {

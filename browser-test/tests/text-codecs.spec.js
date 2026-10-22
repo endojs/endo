@@ -1,4 +1,5 @@
 // @ts-check
+// prefer-endo-primitives-exempt: direct text codec regression fixture
 const { test, expect } = require('@playwright/test');
 
 // endojs/endo#3369: on Chromium before version 138, the WebIDL `TextEncoder`
@@ -6,12 +7,12 @@ const { test, expect } = require('@playwright/test');
 // `caller` and `arguments`, each
 // `{ value: null, writable: false, configurable: false }` — which `lockdown()`
 // can neither delete nor repair in place, so `lockdown()` throws. An affected
-// codec is replaced by a SES-owned encapsulating constructor, so its host
+// Each codec is replaced by a SES-owned encapsulating constructor, so its host
 // constructor object never enters the permitted intrinsics graph.
 
 test.beforeEach(async ({ page, browser, browserName }) => {
   console.log(browserName, browser.version());
-  page.on('console', msg => console.log('> Log in page:', msg.text()));
+  page.on('console', message => console.log('> Log in page:', message.text()));
   page.on('pageerror', error => {
     console.error(`> Error in page: ${error.message}\n${error.stack}`);
   });
@@ -34,10 +35,13 @@ test('lockdown completes with legacy restricted properties on the text codec con
       enumerable: false,
       configurable: false,
     };
-    for (const ctor of [globalThis.TextEncoder, globalThis.TextDecoder]) {
-      for (const prop of ['caller', 'arguments']) {
-        if (!Object.getOwnPropertyDescriptor(ctor, prop)) {
-          Object.defineProperty(ctor, prop, restricted);
+    for (const constructor of [
+      globalThis.TextEncoder,
+      globalThis.TextDecoder,
+    ]) {
+      for (const property of ['caller', 'arguments']) {
+        if (!Object.getOwnPropertyDescriptor(constructor, property)) {
+          Object.defineProperty(constructor, property, restricted);
         }
       }
     }
@@ -48,7 +52,7 @@ test('lockdown completes with legacy restricted properties on the text codec con
   expect(result).toBe('Pass');
 });
 
-test('only affected host text codec constructors are encapsulated', async ({
+test('host text codec constructors are encapsulated on every engine', async ({
   page,
 }) => {
   const result = await page.evaluate(() => {
@@ -56,32 +60,19 @@ test('only affected host text codec constructors are encapsulated', async ({
 
     const NativeTextEncoder = globalThis.TextEncoder;
     const NativeTextDecoder = globalThis.TextDecoder;
-    const textEncoderIsAffected = Boolean(
-      Object.getOwnPropertyDescriptor(NativeTextEncoder, 'arguments'),
-    );
-    const textDecoderIsAffected = Boolean(
-      Object.getOwnPropertyDescriptor(NativeTextDecoder, 'arguments'),
-    );
-
     lockdown();
 
     /** @type {string[]} */
     const failures = [];
-    const check = (label, ok) => {
-      if (!ok) {
+    const check = (label, passed) => {
+      if (!passed) {
         failures.push(label);
       }
     };
 
     const { TextEncoder, TextDecoder } = globalThis;
-    check(
-      'TextEncoder replacement matches its descriptor',
-      (TextEncoder !== NativeTextEncoder) === textEncoderIsAffected,
-    );
-    check(
-      'TextDecoder replacement matches its descriptor',
-      (TextDecoder !== NativeTextDecoder) === textDecoderIsAffected,
-    );
+    check('TextEncoder is replaced', TextEncoder !== NativeTextEncoder);
+    check('TextDecoder is replaced', TextDecoder !== NativeTextDecoder);
     check(
       'TextEncoder has no own caller or arguments',
       !Object.getOwnPropertyDescriptor(TextEncoder, 'caller') &&

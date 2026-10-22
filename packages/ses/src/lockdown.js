@@ -359,7 +359,7 @@ export const repairIntrinsics = (options = {}, onIntrinsics = undefined) => {
   // shimmed functions as honorary native functions.
   const markVirtualizedNativeFunction = tameFunctionToString();
 
-  // Replace affected host text codec constructors before the intrinsics
+  // Replace host text codec constructors before the intrinsics
   // collector samples the universal property names from the global object, so
   // host constructors with legacy restricted properties stay out of the
   // permitted intrinsics graph.

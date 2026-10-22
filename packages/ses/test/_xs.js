@@ -1,4 +1,5 @@
 // @ts-nocheck
+// prefer-endo-primitives-exempt: direct text codec regression fixture
 // This is a test fixture for minimal spot checks of the XS-specific variant of
 // SES.
 // The script ../scripts/generate-test-xs.js generates the _meaning.pre-mjs.json
@@ -22,6 +23,8 @@ import precompiledModuleSource from '../tmp/_meaning.pre-mjs.json';
 
 const hostTextEncoderType = typeof globalThis.TextEncoder;
 const hostTextDecoderType = typeof globalThis.TextDecoder;
+const HostTextEncoder = globalThis.TextEncoder;
+const HostTextDecoder = globalThis.TextDecoder;
 globalThis.addedBeforeLockdown = {};
 
 lockdown();
@@ -48,6 +51,11 @@ print('# compartments observe the host text codecs, or their absence');
     'TextDecoder presence matches the host',
   );
   if (hostTextEncoderType === 'function') {
+    assert(TextEncoder !== HostTextEncoder, 'TextEncoder is encapsulated');
+    assert(
+      HostTextEncoder.prototype.constructor === TextEncoder,
+      'host TextEncoder prototype points to the replacement',
+    );
     assert.equal(
       compartment.evaluate('TextEncoder'),
       TextEncoder,
@@ -65,6 +73,11 @@ print('# compartments observe the host text codecs, or their absence');
     );
   }
   if (hostTextDecoderType === 'function') {
+    assert(TextDecoder !== HostTextDecoder, 'TextDecoder is encapsulated');
+    assert(
+      HostTextDecoder.prototype.constructor === TextDecoder,
+      'host TextDecoder prototype points to the replacement',
+    );
     assert.equal(
       compartment.evaluate('TextDecoder'),
       TextDecoder,

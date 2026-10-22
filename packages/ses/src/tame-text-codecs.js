@@ -1,14 +1,7 @@
 // @ts-check
 
-import {
-  TypeError,
-  construct,
-  defineProperties,
-  defineProperty,
-  getOwnPropertyDescriptor,
-  globalThis,
-  isPrimitive,
-} from './commons.js';
+import { defineProperty, globalThis, isPrimitive } from './commons.js';
+import { encapsulateHostConstructor } from './encapsulate-host-constructor.js';
 
 /**
  * Replace one host text codec constructor, if present, with a SES-owned
@@ -18,47 +11,19 @@ import {
  * @param {'TextEncoder' | 'TextDecoder'} name
  */
 const tameTextCodec = name => {
-  const NativeCodec = globalThis[name];
-  if (typeof NativeCodec !== 'function') {
+  const HostCodec = globalThis[name];
+  if (typeof HostCodec !== 'function') {
     // Absent on this host (for example XS, unless the engine shell provides
     // the codecs). The permits already tolerate the absence.
     return;
   }
-  if (getOwnPropertyDescriptor(NativeCodec, 'arguments') === undefined) {
-    // This host constructor does not have the legacy restricted property that
-    // prevents lockdown from removing or repairing it.
-    return;
-  }
-  const nativePrototype = NativeCodec.prototype;
-  if (isPrimitive(nativePrototype)) {
+  if (isPrimitive(HostCodec.prototype)) {
     // Not a plausible codec constructor. Leave it for the permits
     // enforcement pass to remove or reject.
     return;
   }
 
-  const SharedCodec = function TextCodec(...rest) {
-    if (new.target === undefined) {
-      throw TypeError(`Constructor ${name} requires 'new'`);
-    }
-    return construct(NativeCodec, rest, new.target);
-  };
-
-  defineProperties(SharedCodec, {
-    name: { value: name },
-    prototype: {
-      value: nativePrototype,
-      writable: false,
-      enumerable: false,
-      configurable: false,
-    },
-  });
-
-  // Point the shared prototype's `constructor` back at the replacement, so
-  // the host constructor object is unreachable from the permitted
-  // intrinsics graph.
-  defineProperties(nativePrototype, {
-    constructor: { value: SharedCodec },
-  });
+  const SharedCodec = encapsulateHostConstructor(HostCodec, name);
 
   // Replace the global binding, so both the start compartment and the
   // intrinsics sampling pass observe only the replacement.
@@ -71,7 +36,7 @@ const tameTextCodec = name => {
 };
 
 /**
- * Replace affected host `TextEncoder` and `TextDecoder` constructors with
+ * Replace host `TextEncoder` and `TextDecoder` constructors with
  * SES-owned constructors that delegate construction to the captured host
  * originals and share the host prototypes.
  *
@@ -82,11 +47,10 @@ const tameTextCodec = name => {
  * (https://github.com/endojs/endo/issues/3369). That descriptor shape is
  * indistinguishable from the live `caller` and `arguments` slots of a sloppy
  * function, so neither tolerating nor permitting it is safe. Encapsulation
- * sidesteps the dilemma: when a host constructor has the affected
- * `arguments` descriptor, the permitted intrinsic is a SES-owned constructor,
+ * sidesteps the dilemma: the permitted intrinsic is a SES-owned constructor,
  * and the host constructor object, restricted properties and all, never enters
- * the permitted intrinsics graph. Hosts without the affected descriptor retain
- * their original constructors.
+ * the permitted intrinsics graph. The replacement is unconditional so every
+ * host exposes the same permitted shape.
  *
  * The host prototype objects carry no restricted properties, and all codec
  * behavior (methods, getters, brand checks) lives there, so the replacement
