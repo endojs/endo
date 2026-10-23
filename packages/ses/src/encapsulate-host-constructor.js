@@ -3,24 +3,38 @@
 import { TypeError, construct, defineProperties } from './commons.js';
 
 /**
+ * @typedef {object} HostConstructorProperties
+ * @property {object} prototype
+ * @property {number} length
+ */
+
+/**
+ * @typedef {HostConstructorProperties & (new (...argumentsList: any[]) => object)} HostConstructor
+ */
+
+/**
+ * @typedef {HostConstructor & ((...argumentsList: any[]) => never)} EncapsulatedHostConstructor
+ */
+
+/**
  * Make an SES-owned constructor that delegates to a host constructor while
  * sharing and repointing its prototype.
  *
- * @param {Function} HostConstructor
+ * @param {HostConstructor} HostConstructor
  * @param {string} name
- * @returns {Function}
+ * @returns {EncapsulatedHostConstructor}
  */
 export const encapsulateHostConstructor = (HostConstructor, name) => {
   const hostPrototype = HostConstructor.prototype;
 
-  const EncapsulatedConstructor = function EncapsulatedConstructor(
-    ...argumentsList
-  ) {
-    if (new.target === undefined) {
-      throw TypeError(`Calling ${name} constructor as a function throws`);
+  const EncapsulatedConstructor = /** @type {EncapsulatedHostConstructor} */ (
+    function EncapsulatedConstructor(...argumentsList) {
+      if (new.target === undefined) {
+        throw TypeError(`Calling ${name} constructor as a function throws`);
+      }
+      return construct(HostConstructor, argumentsList, new.target);
     }
-    return construct(HostConstructor, argumentsList, new.target);
-  };
+  );
 
   defineProperties(EncapsulatedConstructor, {
     length: { value: HostConstructor.length },
