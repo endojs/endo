@@ -1,15 +1,17 @@
 // @ts-nocheck
-// XS smoke check for the degradation path of the hardened text codecs: a host
-// without TextEncoder and TextDecoder must still lock down, and compartments
-// must observe their absence.
+// XS smoke check for globals removed between importing SES and lockdown:
+// compartments must receive the intrinsics collected during lockdown rather
+// than the import-time globals.
 // Lockdown happens once per realm, so this runs as its own xst script, bundled
 // by ../scripts/generate-test-xs.js into ../tmp/test-xs-missing-text-codecs.js.
 
 /* global globalThis, print */
 
-import './_xs-delete-text-codecs.js';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import 'ses';
+
+delete globalThis.TextEncoder;
+delete globalThis.TextDecoder;
 
 assert.equal(typeof globalThis.TextEncoder, 'undefined', 'TextEncoder deleted');
 assert.equal(typeof globalThis.TextDecoder, 'undefined', 'TextDecoder deleted');
