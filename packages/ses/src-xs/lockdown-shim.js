@@ -12,21 +12,11 @@ import { makeCompartmentConstructor } from '../src/compartment.js';
 import { adaptCompartmentConstructors } from './compartment.js';
 
 const lockdown = options => {
-  // The shim Compartment constructor must be made from the lockdown
-  // intrinsics, as on other engines, rather than reuse the one made when SES
-  // was imported, which sampled the then-untamed globals.
-  // Sampling the start compartment's global object after lockdown would not
-  // do either, since it holds the powerful %Initial*% intrinsics where new
-  // compartments must receive the tamed %Shared*% ones.
-  // Nor can we reuse the `Compartment` that `repairIntrinsics` installs on
-  // `globalThis`: it enforces `new`, but `adaptCompartmentConstructors`
-  // initializes each native compartment by calling the shim constructor as a
-  // function, so this one is made without `enforceNew`. It is otherwise
-  // frozen and marked like the rest of the `Compartment` family.
-  // The prototype methods (`shimEvaluate`, `shimImport`, ...) still come from
-  // the import-time constructor in `./compartment.js`; they apply to
-  // compartments from this constructor through the module-level
-  // `privateFields` WeakMap in `../src/compartment.js`.
+  // Build from lockdown's %Shared*% intrinsics, not the import-time snapshot
+  // or the start compartment's powerful %Initial*% intrinsics. The constructor
+  // installed by `repairIntrinsics` enforces `new`, but the XS adapter invokes
+  // this shim as a function. Its prototype methods share the module-private
+  // state used by every shim compartment.
   /** @type {ReturnType<typeof makeCompartmentConstructor> | undefined} */
   let LockdownShimStartCompartment;
   const hardenIntrinsics = repairIntrinsics(

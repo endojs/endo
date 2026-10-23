@@ -6,8 +6,8 @@ const { test, expect } = require('@playwright/test');
 // and `TextDecoder` constructors carry own legacy restricted properties —
 // `caller` and `arguments`, each
 // `{ value: null, writable: false, configurable: false }` — which `lockdown()`
-// can neither delete nor repair in place, so `lockdown()` throws. An affected
-// Each codec is replaced by a SES-owned encapsulating constructor, so its host
+// can neither delete nor repair in place, so `lockdown()` throws. Each codec is
+// replaced by a SES-owned encapsulating constructor, so its host
 // constructor object never enters the permitted intrinsics graph.
 
 test.beforeEach(async ({ page, browser, browserName }) => {
