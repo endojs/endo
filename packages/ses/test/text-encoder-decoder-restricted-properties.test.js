@@ -118,6 +118,45 @@ test('the encapsulated codecs preserve host behavior', t => {
   });
 });
 
+test('the encapsulated codecs preserve boundary behavior', t => {
+  const encoder = new TextEncoder();
+
+  const shortBuffer = new Uint8Array(3);
+  const shortResult = encoder.encodeInto('\u{1f4a9}', shortBuffer);
+  t.deepEqual(shortResult, { read: 0, written: 0 });
+  t.deepEqual([...shortBuffer], [0, 0, 0]);
+
+  const loneSurrogateBuffer = new Uint8Array(3);
+  const loneSurrogateResult = encoder.encodeInto('\ud800', loneSurrogateBuffer);
+  t.deepEqual(loneSurrogateResult, { read: 1, written: 3 });
+  t.deepEqual([...loneSurrogateBuffer], [0xef, 0xbf, 0xbd]);
+
+  const streamingDecoder = new TextDecoder();
+  t.is(
+    streamingDecoder.decode(new Uint8Array([0xe2, 0x82]), { stream: true }),
+    '',
+  );
+  t.is(streamingDecoder.decode(new Uint8Array([0xac])), '\u20ac');
+
+  for (const label of ['utf8', 'unicode-1-1-utf-8']) {
+    t.is(new TextDecoder(label).encoding, 'utf-8');
+  }
+
+  const byteOrderMarkAndLetter = new Uint8Array([0xef, 0xbb, 0xbf, 0x61]);
+  t.is(
+    new TextDecoder('utf-8', { ignoreBOM: false }).decode(
+      byteOrderMarkAndLetter,
+    ),
+    'a',
+  );
+  t.is(
+    new TextDecoder('utf-8', { ignoreBOM: true }).decode(
+      byteOrderMarkAndLetter,
+    ),
+    '\ufeffa',
+  );
+});
+
 test('the encapsulated constructors require new', t => {
   t.throws(() => TextEncoder(), {
     instanceOf: TypeError,
