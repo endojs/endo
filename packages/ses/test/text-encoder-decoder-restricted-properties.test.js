@@ -2,19 +2,11 @@
 // prefer-endo-primitives-exempt: direct text codec regression fixture
 /* global globalThis */
 
-// Reproduces endojs/endo#3369: on Chromium before version 138, the WebIDL
-// `TextEncoder` and `TextDecoder` constructors carry own legacy restricted
-// properties — `caller` and `arguments`, each
-// `{ value: null, writable: false, configurable: false }` — which `lockdown()`
-// can neither delete nor repair in place. This file simulates that host shape
-// before `lockdown()` (the synthetic reproduction from the issue), and asserts
-// that lockdown completes because the permitted codecs are SES-owned
-// encapsulating constructors that keep the host constructor objects out of
-// the permitted intrinsics graph.
-//
-// This must live in its own test file (AVA runs each file in its own worker)
-// because the host shape has to be established *before* `lockdown()` samples
-// the host intrinsics.
+// Simulates the Chromium host shape from endojs/endo#3369 (see
+// src/tame-text-codecs.js) and asserts that lockdown completes with the host
+// constructors outside the permitted intrinsics graph.
+// The shape must exist before `lockdown()` samples the host intrinsics, so this
+// lives in its own file (AVA runs each file in its own worker).
 
 import '../index.js';
 import test from 'ava';

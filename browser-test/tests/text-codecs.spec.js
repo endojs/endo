@@ -2,13 +2,8 @@
 // prefer-endo-primitives-exempt: direct text codec regression fixture
 const { test, expect } = require('@playwright/test');
 
-// endojs/endo#3369: on Chromium before version 138, the WebIDL `TextEncoder`
-// and `TextDecoder` constructors carry own legacy restricted properties —
-// `caller` and `arguments`, each
-// `{ value: null, writable: false, configurable: false }` — which `lockdown()`
-// can neither delete nor repair in place, so `lockdown()` throws. Each codec is
-// replaced by a SES-owned encapsulating constructor, so its host
-// constructor object never enters the permitted intrinsics graph.
+// Covers endojs/endo#3369 in real browsers; packages/ses/src/tame-text-codecs.js
+// explains the Chromium host shape.
 
 test.beforeEach(async ({ page, browser, browserName }) => {
   console.log(browserName, browser.version());

@@ -13,10 +13,13 @@ import { adaptCompartmentConstructors } from './compartment.js';
 
 const lockdown = options => {
   // Build from lockdown's %Shared*% intrinsics, not the import-time snapshot
-  // or the start compartment's powerful %Initial*% intrinsics. The constructor
-  // installed by `repairIntrinsics` enforces `new`, but the XS adapter invokes
-  // this shim as a function. Its prototype methods share the module-private
-  // state used by every shim compartment.
+  // or the start compartment's powerful %Initial*% intrinsics. The
+  // `globalThis.Compartment` that `repairIntrinsics` installs enforces `new`,
+  // but `adaptCompartmentConstructors` invokes this shim constructor as a
+  // function, so the adapter needs its own. Its prototype methods share the
+  // module-private state used by every shim compartment.
+  // `repairIntrinsics` calls `onIntrinsics` synchronously before returning, so
+  // the binding is assigned by the time the adapter reads it.
   /** @type {ReturnType<typeof makeCompartmentConstructor> | undefined} */
   let LockdownShimStartCompartment;
   const hardenIntrinsics = repairIntrinsics(

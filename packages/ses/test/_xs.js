@@ -32,8 +32,6 @@ lockdown();
 // spot checks
 assert(Object.isFrozen(Object));
 
-// xst provides both codecs, so the removal path runs in
-// _xs-missing-text-codecs.js, which deletes them before lockdown.
 print('# compartments observe the host text codecs, or their absence');
 {
   print(`# host TextEncoder: ${hostTextEncoderType}`);
