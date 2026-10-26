@@ -256,11 +256,10 @@ to the programming environment standardized by the WHATWG web platform, and are 
 to JavaScript.
 
 When the host provides `TextEncoder` and `TextDecoder`, lockdown exposes
-SES-owned stand-ins for those constructors. They preserve host behavior and
-share the host prototypes, but are not identical to constructor references
-captured before lockdown. The
-[hardened text codecs design](https://github.com/endojs/endo-but-for-bots/pull/1431)
-explains why the stand-ins are necessary.
+SES-owned stand-ins for those constructors, because some hosts give the
+original constructors properties that lockdown cannot harden. The stand-ins
+preserve host behavior and share the host prototypes, but are not identical to
+constructor references captured before lockdown.
 
 Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs/api/globals.html) are
 **unavailable** including:

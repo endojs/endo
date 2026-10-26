@@ -18,7 +18,7 @@ The SES shim transforms ordinary JavaScript environments into HardenedJS environ
 
 On Node.js you can import or require `ses` in either CommonJS or ECMAScript
 modules, then call `lockdown()`. This is a *shim*. It mutates the environment
-in place so any code running after the shim can assume it's running in a
+in place so any code running after the shim can assume it’s running in a
 HardenedJS environment. This includes the globals `lockdown()`, `harden()`,
 `Compartment`, and so on. For example:
 
