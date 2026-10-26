@@ -13,8 +13,8 @@ import { encapsulateHostConstructor } from './encapsulate-host-constructor.js';
 const tameTextCodec = name => {
   const HostCodec = globalThis[name];
   if (typeof HostCodec !== 'function') {
-    // Absent on this host (for example XS, unless the engine shell provides
-    // the codecs). The permits already tolerate the absence.
+    // Absent on this host (for example Hermes, or XS unless the engine shell
+    // provides the codecs). The permits already tolerate the absence.
     return;
   }
   if (isPrimitive(HostCodec.prototype)) {
@@ -23,12 +23,12 @@ const tameTextCodec = name => {
     return;
   }
 
-  const SharedCodec = encapsulateHostConstructor(HostCodec, name);
+  const EncapsulatedCodec = encapsulateHostConstructor(HostCodec, name);
 
   // Replace the global binding, so both the start compartment and the
   // intrinsics sampling pass observe only the replacement.
   defineProperty(globalThis, name, {
-    value: SharedCodec,
+    value: EncapsulatedCodec,
     writable: true,
     enumerable: false,
     configurable: true,

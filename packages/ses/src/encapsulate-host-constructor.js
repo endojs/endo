@@ -3,38 +3,33 @@
 import { TypeError, construct, defineProperties } from './commons.js';
 
 /**
- * @typedef {object} HostConstructorProperties
- * @property {object} prototype
- * @property {number} length
- */
-
-/**
- * @typedef {HostConstructorProperties & (new (...argumentsList: any[]) => object)} HostConstructor
- */
-
-/**
- * @typedef {HostConstructor & ((...argumentsList: any[]) => never)} EncapsulatedHostConstructor
+ * @typedef {(new (...argumentsList: any[]) => object) & { prototype: object, length: number }} HostConstructorShape
  */
 
 /**
  * Make an SES-owned constructor that delegates to a host constructor while
  * sharing and repointing its prototype.
+ * The result mirrors a WebIDL interface object
+ * (https://webidl.spec.whatwg.org/#interface-object): calling it without `new`
+ * throws, its `prototype` is non-writable and non-configurable, and the
+ * prototype's `constructor` keeps its writable, configurable attributes.
  *
- * @param {HostConstructor} HostConstructor
+ * @param {HostConstructorShape} HostConstructor
  * @param {string} name
- * @returns {EncapsulatedHostConstructor}
+ * @returns {HostConstructorShape & ((...argumentsList: any[]) => never)}
  */
 export const encapsulateHostConstructor = (HostConstructor, name) => {
   const hostPrototype = HostConstructor.prototype;
 
-  const EncapsulatedConstructor = /** @type {EncapsulatedHostConstructor} */ (
-    function EncapsulatedConstructor(...argumentsList) {
-      if (new.target === undefined) {
-        throw TypeError(`Calling ${name} constructor as a function throws`);
+  const EncapsulatedConstructor =
+    /** @type {HostConstructorShape & ((...argumentsList: any[]) => never)} */ (
+      function EncapsulatedConstructor(...argumentsList) {
+        if (new.target === undefined) {
+          throw TypeError(`Calling ${name} constructor as a function throws`);
+        }
+        return construct(HostConstructor, argumentsList, new.target);
       }
-      return construct(HostConstructor, argumentsList, new.target);
-    }
-  );
+    );
 
   defineProperties(EncapsulatedConstructor, {
     length: { value: HostConstructor.length },
@@ -51,9 +46,10 @@ export const encapsulateHostConstructor = (HostConstructor, name) => {
     defineProperties(hostPrototype, {
       constructor: { value: EncapsulatedConstructor },
     });
-  } catch (_error) {
+  } catch (error) {
     throw TypeError(
       `Cannot tame ${name}: its prototype's constructor cannot be repointed; the prototype was frozen or locked before lockdown(), possibly by a second copy of SES`,
+      { cause: error },
     );
   }
 

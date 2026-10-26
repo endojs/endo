@@ -11,6 +11,7 @@ const assertDiagnostic = (t, HostConstructor, name) => {
   );
   t.is(error.constructor, TypeError);
   t.regex(error.message, new RegExp(`Cannot tame ${name}`));
+  t.is(error.cause?.constructor, TypeError);
 };
 
 test('encapsulateHostConstructor rejects a frozen prototype', t => {
