@@ -22,7 +22,7 @@ for to use HardenedJS without much explanation.
 
 HardenedJS:
 - Is a JavaScript runtime library for safely running third-party code.
-- Addresses JavaScript’s lack of internal security.
+- Addresses JavaScript's lack of internal security.
   - This is particularly significant because JavaScript applications
     use and rely on third-party code (modules, packages, libraries,
     user-provided code for extensions and plug-ins, etc.).
@@ -110,7 +110,7 @@ Ordinary JavaScript does not fully qualify as an OCaps language due to the perva
 mutability of shared objects. You can construct a JavaScript subset with a
 transitively immutable environment without any unintended capabilities. Starting
 in 2007 with ECMAScript 5, Agoric engineers and the OCap community have influenced
-JavaScript’s evolution so a program can transform its own environment into
+JavaScript's evolution so a program can transform its own environment into
 this safe JavaScript environment.
 
 As of February 2021, HardenedJS (under the name SES) is making its way
@@ -131,7 +131,7 @@ JavaScript environments.
 
 On Node.js you can import or require `ses` in either CommonJS or ECMAScript
 modules, then call `lockdown()`. This is a *shim*. It mutates the environment
-in place so any code running after the shim can assume it’s running in a hardened
+in place so any code running after the shim can assume it's running in a hardened
 environment. This includes the globals `lockdown()`, `harden()`, `Compartment`,
 and so on. For example:
 ```js
@@ -200,7 +200,7 @@ However, any such shim must preserve the qualities of Lockdown:
 all reachable objects in an empty compartment must be hardened and must not
 provide a way for isolated parties to communicate.
 So, application authors are responsible for ensuring these shims maintain their
-application’s integrity invariants.
+application's integrity invariants.
 
 ## What Lockdown does to JavaScript
 
@@ -255,11 +255,11 @@ be surprised that `Buffer` and `require` are Node.js additions. Also `setTimeout
 to the programming environment standardized by the WHATWG web platform, and are not intrinsic
 to JavaScript.
 
-When the host provides `TextEncoder` and `TextDecoder`, lockdown exposes
-SES-owned stand-ins for those constructors, because some hosts give the
-original constructors properties that lockdown cannot harden. The stand-ins
-preserve host behavior and share the host prototypes, but are not identical to
-constructor references captured before lockdown.
+When a host's `TextEncoder` or `TextDecoder` constructor has properties that
+lockdown cannot harden, as on Chromium before version 138, lockdown exposes a
+SES-owned stand-in for that constructor. The stand-in preserves host behavior
+and shares the host prototype, but is not identical to constructor references
+captured before lockdown.
 
 Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs/api/globals.html) are
 **unavailable** including:
@@ -300,7 +300,7 @@ future JavaScript environments will include them as global objects. So the curre
 makes those global objects available.
 
 - `console` is available for debugging. While not in the official spec, since all implementations
-  add it, leaving it out would cause confusion. Note that `console.log`’s exact
+  add it, leaving it out would cause confusion. Note that `console.log`'s exact
   behavior is up to the host program; display to the operator is not guaranteed. Use the
   console for debug information only. The console is not obliged to write to the POSIX standard output.
 
@@ -360,7 +360,7 @@ in detail in the next section.
 
 ## Compartments
 
-A *compartment* is an execution environment for evaluating a stranger’s code. It has
+A *compartment* is an execution environment for evaluating a stranger's code. It has
 its own `globalThis` global object and wholly independent system of
 modules. Otherwise it shares the same batch of intrinsics such as `Array` with its surrounding
 compartment. The concept of a compartment implies an initial compartment,
@@ -383,7 +383,7 @@ This new compartment has a different global object than the start compartment. W
 posit that all JavaScript executes in a realm and compartment. Every realm has
 distinct intrinsics, whereas every compartment shares intrinsics. The initial
 realm and compartment are not constructed with `new Realm()` or `new Compartment()` but
-that’s invisible to the code running; they could just as well be running within
+that's invisible to the code running; they could just as well be running within
 a constructed realm or compartment.
 
 We call the one compartment in a realm that was not expressly constructed the start
@@ -472,7 +472,7 @@ detail of tools and runtimes.
 
 Vats in the Agoric runtime use compartments to isolate contracts within a vat.
 A vat can use multiple compartments.
-MetaMask’s LavaMoat uses a Compartment for every module, to create
+MetaMask's LavaMoat uses a Compartment for every module, to create
 boundaries between application code and third-party dependencies.
 
 The lifetime of a compartment is bounded by garbage collection and the
@@ -594,7 +594,7 @@ The regular expression for this pattern is safe and should never allow any use o
 dynamic import, however obfuscated the usage is. Because of this, it may be confused
 into falsely rejecting legitimate code.
 
-For example, the word “import” near a parenthesis or at the end of a line inside a
+For example, the word "import" near a parenthesis or at the end of a line inside a
 comment is identified as a disallowed use of `import()` and falsely rejected:
 ```js
 //
@@ -641,7 +641,7 @@ anything in scope.
 
 To avoid this confusion and compatibility risk, the shim uses a regular expression to
 reject code that looks like it is performing a direct eval. This regexp is not complete
-(you can trick it into allowing a direct eval), but that’s safe because it really performs
+(you can trick it into allowing a direct eval), but that's safe because it really performs
 an indirect eval. Our goal is just to guide people away from confusing and non-compliant
 behaviors early in their development process.
 

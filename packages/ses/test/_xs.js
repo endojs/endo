@@ -21,9 +21,9 @@ import 'ses';
 // eslint-disable-next-line import/no-unresolved
 import precompiledModuleSource from '../tmp/_meaning.pre-mjs.json';
 
-// xst provides both codecs. Requiring them keeps this script from passing
-// without exercising the encapsulation; _xs-missing-text-codecs.js covers
-// their absence.
+// xst provides both codecs without the affected shape from endojs/endo#3369.
+// Giving only TextEncoder that shape exercises both the encapsulated and the
+// retained path; _xs-missing-text-codecs.js covers their absence.
 assert.equal(
   typeof globalThis.TextEncoder,
   'function',
@@ -36,6 +36,14 @@ assert.equal(
 );
 const HostTextEncoder = globalThis.TextEncoder;
 const HostTextDecoder = globalThis.TextDecoder;
+const restricted = {
+  value: null,
+  writable: false,
+  enumerable: false,
+  configurable: false,
+};
+Object.defineProperty(HostTextEncoder, 'caller', restricted);
+Object.defineProperty(HostTextEncoder, 'arguments', restricted);
 globalThis.addedBeforeLockdown = {};
 
 lockdown();
@@ -43,7 +51,7 @@ lockdown();
 // spot checks
 assert(Object.isFrozen(Object));
 
-print('# compartments share the encapsulated host text codecs');
+print('# compartments share the encapsulated and retained host text codecs');
 {
   const compartment = new Compartment();
   const otherCompartment = new Compartment();
@@ -67,11 +75,7 @@ print('# compartments share the encapsulated host text codecs');
     Object.isFrozen(TextEncoder.prototype),
     'TextEncoder.prototype is frozen',
   );
-  assert(TextDecoder !== HostTextDecoder, 'TextDecoder is encapsulated');
-  assert(
-    HostTextDecoder.prototype.constructor === TextDecoder,
-    'host TextDecoder prototype points to the replacement',
-  );
+  assert(TextDecoder === HostTextDecoder, 'unaffected TextDecoder is retained');
   assert.equal(
     compartment.evaluate('TextDecoder'),
     TextDecoder,

@@ -3,8 +3,9 @@
 
 // A host codec global whose `prototype` is primitive is left for the permits
 // pass rather than encapsulated, while a plausible codec in the same lockdown
-// is still encapsulated. Without the primitive-prototype guard, lockdown
-// throws; without codec taming, `TextEncoder` keeps its host identity.
+// is still encapsulated. Both carry an own `arguments` property, so both reach
+// the guard. Without the primitive-prototype guard, lockdown throws; without
+// codec taming, `TextEncoder` keeps its host identity.
 // AVA runs this file in its own worker.
 
 import '../index.js';
@@ -14,6 +15,20 @@ const HostTextEncoder = globalThis.TextEncoder;
 const ImplausibleTextDecoder = function TextDecoder() {};
 ImplausibleTextDecoder.prototype = undefined;
 globalThis.TextDecoder = ImplausibleTextDecoder;
+
+const restricted = {
+  value: null,
+  writable: false,
+  enumerable: false,
+  configurable: false,
+};
+Object.defineProperty(HostTextEncoder, 'caller', restricted);
+Object.defineProperty(HostTextEncoder, 'arguments', restricted);
+// Configurable, so the permits pass can remove it.
+Object.defineProperty(ImplausibleTextDecoder, 'arguments', {
+  ...restricted,
+  configurable: true,
+});
 
 lockdown();
 

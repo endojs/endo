@@ -2,7 +2,9 @@
 /* global globalThis */
 
 // Exercises a host that provides TextDecoder but not TextEncoder before
-// lockdown samples the host intrinsics. AVA runs this file in its own worker.
+// lockdown samples the host intrinsics. The remaining TextDecoder has the
+// affected shape from endojs/endo#3369, so lockdown encapsulates it. AVA runs
+// this file in its own worker.
 
 import '../index.js';
 import test from 'ava';
@@ -11,6 +13,15 @@ const savedTextEncoder = globalThis.TextEncoder;
 const NativeTextDecoder = globalThis.TextDecoder;
 
 delete globalThis.TextEncoder;
+
+const restricted = {
+  value: null,
+  writable: false,
+  enumerable: false,
+  configurable: false,
+};
+Object.defineProperty(NativeTextDecoder, 'caller', restricted);
+Object.defineProperty(NativeTextDecoder, 'arguments', restricted);
 
 lockdown();
 

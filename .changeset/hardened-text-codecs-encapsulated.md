@@ -2,7 +2,7 @@
 'ses': major
 ---
 
-Breaking: after `lockdown()`, the `TextEncoder` and `TextDecoder` globals and their prototypes' `constructor` properties are SES-owned constructors, not the host constructors captured before `lockdown()`; compare against the post-lockdown globals instead.
-Instances, prototypes, methods, and `instanceof` checks keep their host behavior, and hosts without the codecs are unchanged.
-`lockdown()` now succeeds on hosts whose codec constructors carry restricted `caller` and `arguments` properties, such as Chromium before version 138.
-On XS, compartments created after `lockdown()` now see the tamed intrinsics, including these codecs, instead of the globals present when SES was imported.
+Breaking on XS: compartments created after `lockdown()` now see the tamed intrinsics, including these codecs, instead of the globals present when SES was imported.
+`lockdown()` now succeeds on hosts whose `TextEncoder` or `TextDecoder` constructor carries restricted `caller` and `arguments` properties, such as Chromium before version 138.
+On those hosts, the affected global and its prototype's `constructor` property are a SES-owned constructor, not the host constructor captured before `lockdown()`; instances, prototypes, methods, and `instanceof` checks keep their host behavior.
+Other hosts, and hosts without the codecs, keep their original codec constructors.

@@ -89,6 +89,13 @@ test('the host constructors are unreachable from the permitted intrinsics', t =>
   t.false(reachable.has(NativeTextDecoder));
 });
 
+test('the encapsulated codec constructors present as native functions', t => {
+  t.is(`${TextEncoder}`, 'function TextEncoder() { [native code] }');
+  t.is(`${TextDecoder}`, 'function TextDecoder() { [native code] }');
+  t.is(TextEncoder.length, NativeTextEncoder.length);
+  t.is(TextDecoder.length, NativeTextDecoder.length);
+});
+
 test('the encapsulated codecs preserve host behavior', t => {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
