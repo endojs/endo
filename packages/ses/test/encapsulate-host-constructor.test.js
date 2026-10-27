@@ -64,3 +64,26 @@ test('encapsulateHostConstructor preserves construction behavior', t => {
     message: 'Calling EncapsulatedConstructor constructor as a function throws',
   });
 });
+
+test('encapsulateHostConstructor gives length, name, and prototype interface-object attributes', t => {
+  class AttributeHost {}
+  const EncapsulatedConstructor = encapsulateHostConstructor(
+    AttributeHost,
+    'AttributeHost',
+  );
+  const readOnly = { writable: false, enumerable: false };
+  t.like(Object.getOwnPropertyDescriptor(EncapsulatedConstructor, 'length'), {
+    value: 0,
+    ...readOnly,
+    configurable: true,
+  });
+  t.like(Object.getOwnPropertyDescriptor(EncapsulatedConstructor, 'name'), {
+    value: 'AttributeHost',
+    ...readOnly,
+    configurable: true,
+  });
+  t.like(
+    Object.getOwnPropertyDescriptor(EncapsulatedConstructor, 'prototype'),
+    { ...readOnly, configurable: false },
+  );
+});
