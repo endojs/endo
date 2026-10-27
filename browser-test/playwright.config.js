@@ -1,6 +1,9 @@
 // @ts-check
 const { defineConfig, devices } = require('@playwright/test');
 
+const port = Number(process.env.BROWSER_TEST_PORT || 3000);
+const baseURL = `http://127.0.0.1:${port}`;
+
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
@@ -25,7 +28,7 @@ module.exports = defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -57,7 +60,7 @@ module.exports = defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: {
     command: 'node server.js',
-    url: 'http://127.0.0.1:3000',
+    url: baseURL,
     reuseExistingServer: true,
   },
 });

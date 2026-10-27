@@ -29,4 +29,7 @@ const server = http.createServer((req, res) => {
   return undefined;
 });
 
-server.listen({ host: '127.0.0.1', port: 3000 });
+server.listen({
+  host: '127.0.0.1',
+  port: Number(process.env.BROWSER_TEST_PORT || 3000),
+});

@@ -2,9 +2,6 @@
 // prefer-endo-primitives-exempt: direct text codec regression fixture
 const { test, expect } = require('@playwright/test');
 
-// Covers endojs/endo#3369 in real browsers; packages/ses/src/tame-text-codecs.js
-// explains the Chromium host shape.
-
 test.beforeEach(async ({ page, browser, browserName }) => {
   console.log(browserName, browser.version());
   page.on('console', message => console.log('> Log in page:', message.text()));
