@@ -21,6 +21,7 @@ import {
   FERAL_EVAL,
   TypeError,
   arrayFilter,
+  freeze,
   globalThis,
   is,
   ownKeys,
@@ -154,13 +155,17 @@ const probeHostEvaluators = () => {
 /**
  * @param {LockdownOptions} [options]
  * @param {(
- *   intrinsics: Record<string, any>,
- *   markVirtualizedNativeFunction: (object: object) => void,
- * ) => void} [onIntrinsics] called synchronously, at most once, before
- * `repairIntrinsics` returns. The public `lockdown` and `repairIntrinsics` on
- * `globalThis` do not forward it.
+ *   ShimStartCompartment: ReturnType<typeof makeCompartmentConstructor>,
+ * ) => void} [onShimStartCompartment] called synchronously, at most once,
+ * before `repairIntrinsics` returns, with a frozen shim `Compartment`
+ * constructor built from lockdown's intrinsics. It receives only that
+ * constructor, not the intrinsics or the native-function marker. The public
+ * `lockdown` and `repairIntrinsics` on `globalThis` do not forward it.
  */
-export const repairIntrinsics = (options = {}, onIntrinsics = undefined) => {
+export const repairIntrinsics = (
+  options = {},
+  onShimStartCompartment = undefined,
+) => {
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -596,8 +601,16 @@ export const repairIntrinsics = (options = {}, onIntrinsics = undefined) => {
     return tamedHarden;
   };
 
-  if (onIntrinsics !== undefined) {
-    onIntrinsics(intrinsics, markVirtualizedNativeFunction);
+  if (onShimStartCompartment !== undefined) {
+    const ShimStartCompartment = freeze(
+      makeCompartmentConstructor(
+        makeCompartmentConstructor,
+        intrinsics,
+        markVirtualizedNativeFunction,
+      ),
+    );
+    markVirtualizedNativeFunction(ShimStartCompartment);
+    onShimStartCompartment(ShimStartCompartment);
   }
 
   return hardenIntrinsics;

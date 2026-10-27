@@ -5,10 +5,9 @@
  * the SES Compartment, depending on the __native__ Compartment constructor
  * option.
  */
-import { TypeError, freeze, globalThis } from '../src/commons.js';
+import { TypeError, globalThis } from '../src/commons.js';
 import { NativeStartCompartment } from './commons.js';
 import { repairIntrinsics } from '../src/lockdown.js';
-import { makeCompartmentConstructor } from '../src/compartment.js';
 import { adaptCompartmentConstructors } from './compartment.js';
 
 const lockdown = options => {
@@ -17,23 +16,15 @@ const lockdown = options => {
   // `globalThis.Compartment` that `repairIntrinsics` installs enforces `new`,
   // but `adaptCompartmentConstructors` invokes this shim constructor as a
   // function, so the adapter needs its own.
-  /** @type {ReturnType<typeof makeCompartmentConstructor> | undefined} */
+  /** @type {ReturnType<typeof import('../src/compartment.js').makeCompartmentConstructor> | undefined} */
   let LockdownShimStartCompartment;
-  const hardenIntrinsics = repairIntrinsics(
-    options,
-    (intrinsics, markVirtualizedNativeFunction) => {
-      LockdownShimStartCompartment = freeze(
-        makeCompartmentConstructor(
-          makeCompartmentConstructor,
-          intrinsics,
-          markVirtualizedNativeFunction,
-        ),
-      );
-      markVirtualizedNativeFunction(LockdownShimStartCompartment);
-    },
-  );
+  const hardenIntrinsics = repairIntrinsics(options, ShimStartCompartment => {
+    LockdownShimStartCompartment = ShimStartCompartment;
+  });
   if (LockdownShimStartCompartment === undefined) {
-    throw TypeError('repairIntrinsics did not report the lockdown intrinsics');
+    throw TypeError(
+      'repairIntrinsics did not report the shim Compartment constructor',
+    );
   }
   hardenIntrinsics();
   // Replace global Compartment with a version that is hardened and hardens
