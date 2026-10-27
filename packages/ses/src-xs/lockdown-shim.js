@@ -5,7 +5,7 @@
  * the SES Compartment, depending on the __native__ Compartment constructor
  * option.
  */
-import { freeze, globalThis } from '../src/commons.js';
+import { TypeError, freeze, globalThis } from '../src/commons.js';
 import { NativeStartCompartment } from './commons.js';
 import { repairIntrinsics } from '../src/lockdown.js';
 import { makeCompartmentConstructor } from '../src/compartment.js';
@@ -16,10 +16,7 @@ const lockdown = options => {
   // or the start compartment's powerful %Initial*% intrinsics. The
   // `globalThis.Compartment` that `repairIntrinsics` installs enforces `new`,
   // but `adaptCompartmentConstructors` invokes this shim constructor as a
-  // function, so the adapter needs its own. Its prototype methods share the
-  // module-private state used by every shim compartment.
-  // `repairIntrinsics` calls `onIntrinsics` synchronously before returning, so
-  // the binding is assigned by the time the adapter reads it.
+  // function, so the adapter needs its own.
   /** @type {ReturnType<typeof makeCompartmentConstructor> | undefined} */
   let LockdownShimStartCompartment;
   const hardenIntrinsics = repairIntrinsics(
@@ -35,6 +32,9 @@ const lockdown = options => {
       markVirtualizedNativeFunction(LockdownShimStartCompartment);
     },
   );
+  if (LockdownShimStartCompartment === undefined) {
+    throw TypeError('repairIntrinsics did not report the lockdown intrinsics');
+  }
   hardenIntrinsics();
   // Replace global Compartment with a version that is hardened and hardens
   // transitive child Compartment.
