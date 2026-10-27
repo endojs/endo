@@ -38,8 +38,9 @@ const tameTextCodec = name => {
 /**
  * Replace host text codec constructors before the intrinsics collector samples
  * the global object. Chromium before version 138 gives these constructors
- * restricted `caller` and `arguments` properties that cannot be safely
- * permitted or repaired (https://github.com/endojs/endo/issues/3369).
+ * restricted `caller` and `arguments` properties that, as reported in
+ * https://github.com/endojs/endo/issues/3369, lockdown can neither remove nor
+ * safely permit.
  * Encapsulation keeps the host constructors outside the permitted graph while
  * sharing their prototypes and behavior.
  */

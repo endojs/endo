@@ -21,9 +21,9 @@ test('lockdown completes with legacy restricted properties on the text codec con
     'use strict';
 
     // Simulate the affected host shape wherever it is absent, so this test
-    // exercises the same failure on every browser. On a genuinely affected
-    // Chromium before version 138 already has these properties with
-    // exactly this descriptor and the simulation is a no-op.
+    // exercises the same failure on every browser. Chromium before version
+    // 138 reportedly already defines these properties (endojs/endo#3369), in
+    // which case the simulation changes nothing.
     const restricted = {
       value: null,
       writable: false,

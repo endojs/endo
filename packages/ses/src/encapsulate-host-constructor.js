@@ -9,10 +9,9 @@ import { TypeError, construct, defineProperties } from './commons.js';
 /**
  * Make an SES-owned constructor that delegates to a host constructor while
  * sharing and repointing its prototype.
- * The result mirrors a WebIDL interface object
- * (https://webidl.spec.whatwg.org/#interface-object): calling it without `new`
- * throws, its `prototype` is non-writable and non-configurable, and the
- * prototype's `constructor` keeps its writable, configurable attributes.
+ * The result mirrors the `new` check and `prototype` attributes of a WebIDL
+ * interface object (https://webidl.spec.whatwg.org/#interface-object), so it
+ * presents like the host constructor it replaces.
  *
  * @param {HostConstructorShape} HostConstructor
  * @param {string} name

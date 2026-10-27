@@ -2,8 +2,7 @@
 // XS smoke check for globals removed between importing SES and lockdown:
 // compartments must receive the intrinsics collected during lockdown rather
 // than the import-time globals.
-// Lockdown happens once per realm, so this runs as its own xst script, bundled
-// by ../scripts/generate-test-xs.js into ../tmp/test-xs-missing-text-codecs.js.
+// Lockdown happens once per realm, so this runs as its own xst script.
 
 /* global globalThis, print */
 
