@@ -9,8 +9,27 @@ import {
 import { encapsulateHostConstructor } from './encapsulate-host-constructor.js';
 
 /**
- * Replace one host text codec constructor, if it has the affected own
- * `arguments` property, with a SES-owned constructor that delegates
+ * Whether a host constructor carries an own, non-configurable `caller` or
+ * `arguments` property, which the permits pass could neither delete nor
+ * permit. Either member of the pair suffices; a configurable one is left for
+ * the permits pass to delete.
+ *
+ * @param {object} HostCodec
+ * @param {'caller' | 'arguments'} key
+ */
+const isRestrictedProperty = (HostCodec, key) => {
+  const desc = getOwnPropertyDescriptor(HostCodec, key);
+  return desc !== undefined && !desc.configurable;
+};
+
+/** @param {object} HostCodec */
+const hasRestrictedProperty = HostCodec =>
+  isRestrictedProperty(HostCodec, 'caller') ||
+  isRestrictedProperty(HostCodec, 'arguments');
+
+/**
+ * Replace one host text codec constructor, if it has an affected own
+ * `caller` or `arguments` property, with a SES-owned constructor that delegates
  * construction to the captured host original and shares the host prototype.
  *
  * @param {'TextEncoder' | 'TextDecoder'} name
@@ -22,7 +41,7 @@ const tameTextCodec = name => {
     // provides the codecs). The permits already tolerate the absence.
     return;
   }
-  if (getOwnPropertyDescriptor(HostCodec, 'arguments') === undefined) {
+  if (!hasRestrictedProperty(HostCodec)) {
     // Unaffected host: lockdown can harden the original constructor.
     return;
   }
@@ -51,8 +70,9 @@ const tameTextCodec = name => {
  * reported in https://github.com/endojs/endo/issues/3369, lockdown can neither
  * remove nor safely permit.
  * Encapsulation keeps such a host constructor outside the permitted graph
- * while sharing its prototype and behavior. Hosts whose constructors lack an
- * own `arguments` property keep their original constructors.
+ * while sharing its prototype and behavior. Hosts whose constructors lack a
+ * non-configurable own `caller` or `arguments` property keep their original
+ * constructors.
  */
 export const tameTextCodecs = () => {
   tameTextCodec('TextEncoder');
