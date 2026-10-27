@@ -5,6 +5,7 @@
  * the SES Compartment, depending on the __native__ Compartment constructor
  * option.
  */
+/** @import {makeCompartmentConstructor} from '../src/compartment.js' */
 import { TypeError, globalThis } from '../src/commons.js';
 import { NativeStartCompartment } from './commons.js';
 import { repairIntrinsics } from '../src/lockdown.js';
@@ -16,7 +17,7 @@ const lockdown = options => {
   // `globalThis.Compartment` that `repairIntrinsics` installs enforces `new`,
   // but `adaptCompartmentConstructors` invokes this shim constructor as a
   // function, so the adapter needs its own.
-  /** @type {ReturnType<typeof import('../src/compartment.js').makeCompartmentConstructor> | undefined} */
+  /** @type {ReturnType<typeof makeCompartmentConstructor> | undefined} */
   let LockdownShimStartCompartment;
   const hardenIntrinsics = repairIntrinsics(options, ShimStartCompartment => {
     LockdownShimStartCompartment = ShimStartCompartment;
