@@ -124,6 +124,13 @@ test('the encapsulated codecs preserve boundary behavior', t => {
   t.deepEqual(shortResult, { read: 0, written: 0 });
   t.deepEqual([...shortBuffer], [0, 0, 0]);
 
+  for (const input of ['', 'a', '\u{1f4a9}']) {
+    t.deepEqual(encoder.encodeInto(input, new Uint8Array(0)), {
+      read: 0,
+      written: 0,
+    });
+  }
+
   const loneSurrogateBuffer = new Uint8Array(3);
   const loneSurrogateResult = encoder.encodeInto('\ud800', loneSurrogateBuffer);
   t.deepEqual(loneSurrogateResult, { read: 1, written: 3 });
