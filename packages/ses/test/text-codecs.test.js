@@ -26,6 +26,8 @@ test('encapsulated codec constructors present as native functions', t => {
     t.pass('host does not provide TextEncoder/TextDecoder');
     return;
   }
+  t.not(globalThis.TextEncoder, initialTextEncoder);
+  t.not(globalThis.TextDecoder, initialTextDecoder);
   t.is(`${globalThis.TextEncoder}`, 'function TextEncoder() { [native code] }');
   t.is(`${globalThis.TextDecoder}`, 'function TextDecoder() { [native code] }');
   t.is(globalThis.TextEncoder.length, initialTextEncoder.length);
