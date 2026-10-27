@@ -11,7 +11,7 @@ test.beforeEach(async ({ page, browser, browserName }) => {
   page.on('pageerror', error => {
     console.error(`> Error in page: ${error.message}\n${error.stack}`);
   });
-  await page.goto(`http://127.0.0.1:3000/`);
+  await page.goto('/');
 });
 
 test('lockdown completes with legacy restricted properties on the text codec constructors (endojs/endo#3369)', async ({
