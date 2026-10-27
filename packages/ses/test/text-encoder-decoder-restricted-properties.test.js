@@ -1,6 +1,5 @@
 // @ts-nocheck
 // prefer-endo-primitives-exempt: direct text codec regression fixture
-/* global globalThis */
 
 // Simulates the Chromium host shape from endojs/endo#3369 (see
 // src/tame-text-codecs.js) and asserts that lockdown completes with the host
@@ -201,7 +200,7 @@ test('Reflect.construct preserves an arbitrary new target', t => {
   let observedReceiver;
   let observedProperty;
   const prototype = {};
-  const NewTarget = new Proxy(function NewTarget() {}, {
+  const NewTarget = new Proxy(function ProxyTarget() {}, {
     get(target, property, receiver) {
       observedReceiver = receiver;
       observedProperty = property;

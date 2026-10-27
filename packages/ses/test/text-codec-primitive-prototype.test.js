@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global globalThis */
 
 // A host codec global whose `prototype` is primitive is left for the permits
 // pass rather than encapsulated, while a plausible codec in the same lockdown

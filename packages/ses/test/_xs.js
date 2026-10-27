@@ -9,7 +9,7 @@
 // This generates ../tmp/test-xs.js, which can be run with xst directly for
 // validation of the XS environment under SES-for-XS.
 
-/* global globalThis, print */
+/* global print */
 
 // Eslint does not know about package reflexive imports (importing your own
 // package), which in this case is necessary to go through the conditional

@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global globalThis */
 
 // Exercises a host that provides TextEncoder but not TextDecoder before
 // lockdown samples the host intrinsics. The remaining TextEncoder has the

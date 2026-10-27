@@ -4,7 +4,7 @@
 // than the import-time globals.
 // Lockdown happens once per realm, so this runs as its own xst script.
 
-/* global globalThis, print */
+/* global print */
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import 'ses';
