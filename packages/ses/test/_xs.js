@@ -21,8 +21,19 @@ import 'ses';
 // eslint-disable-next-line import/no-unresolved
 import precompiledModuleSource from '../tmp/_meaning.pre-mjs.json';
 
-const hostTextEncoderType = typeof globalThis.TextEncoder;
-const hostTextDecoderType = typeof globalThis.TextDecoder;
+// xst provides both codecs. Requiring them keeps this script from passing
+// without exercising the encapsulation; _xs-missing-text-codecs.js covers
+// their absence.
+assert.equal(
+  typeof globalThis.TextEncoder,
+  'function',
+  'xst provides TextEncoder',
+);
+assert.equal(
+  typeof globalThis.TextDecoder,
+  'function',
+  'xst provides TextDecoder',
+);
 const HostTextEncoder = globalThis.TextEncoder;
 const HostTextDecoder = globalThis.TextDecoder;
 globalThis.addedBeforeLockdown = {};
@@ -32,83 +43,62 @@ lockdown();
 // spot checks
 assert(Object.isFrozen(Object));
 
-print('# compartments observe the host text codecs, or their absence');
+print('# compartments share the encapsulated host text codecs');
 {
-  print(`# host TextEncoder: ${hostTextEncoderType}`);
-  print(`# host TextDecoder: ${hostTextDecoderType}`);
   const compartment = new Compartment();
   const otherCompartment = new Compartment();
-  assert.equal(
-    compartment.evaluate('typeof TextEncoder'),
-    hostTextEncoderType,
-    'TextEncoder presence matches the host',
+  assert(TextEncoder !== HostTextEncoder, 'TextEncoder is encapsulated');
+  assert(
+    HostTextEncoder.prototype.constructor === TextEncoder,
+    'host TextEncoder prototype points to the replacement',
   );
   assert.equal(
-    compartment.evaluate('typeof TextDecoder'),
-    hostTextDecoderType,
-    'TextDecoder presence matches the host',
+    compartment.evaluate('TextEncoder'),
+    TextEncoder,
+    'compartment shares the hardened TextEncoder',
   );
-  if (hostTextEncoderType === 'function') {
-    assert(TextEncoder !== HostTextEncoder, 'TextEncoder is encapsulated');
-    assert(
-      HostTextEncoder.prototype.constructor === TextEncoder,
-      'host TextEncoder prototype points to the replacement',
-    );
-    assert.equal(
-      compartment.evaluate('TextEncoder'),
-      TextEncoder,
-      'compartment shares the hardened TextEncoder',
-    );
-    assert.equal(
-      otherCompartment.evaluate('TextEncoder'),
-      TextEncoder,
-      'every compartment shares the hardened TextEncoder',
-    );
-    assert(Object.isFrozen(TextEncoder), 'TextEncoder itself is frozen');
-    assert(
-      Object.isFrozen(TextEncoder.prototype),
-      'TextEncoder.prototype is frozen',
-    );
-  }
-  if (hostTextDecoderType === 'function') {
-    assert(TextDecoder !== HostTextDecoder, 'TextDecoder is encapsulated');
-    assert(
-      HostTextDecoder.prototype.constructor === TextDecoder,
-      'host TextDecoder prototype points to the replacement',
-    );
-    assert.equal(
-      compartment.evaluate('TextDecoder'),
-      TextDecoder,
-      'compartment shares the hardened TextDecoder',
-    );
-    assert.equal(
-      otherCompartment.evaluate('TextDecoder'),
-      TextDecoder,
-      'every compartment shares the hardened TextDecoder',
-    );
-    assert(Object.isFrozen(TextDecoder), 'TextDecoder itself is frozen');
-    assert(
-      Object.isFrozen(TextDecoder.prototype),
-      'TextDecoder.prototype is frozen',
-    );
-  }
-  if (
-    hostTextEncoderType === 'function' &&
-    hostTextDecoderType === 'function'
-  ) {
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    assert.equal(
-      decoder.decode(encoder.encode('hello')),
-      'hello',
-      'hardened codecs round-trip text',
-    );
-    assert.equal(
-      decoder.decode(encoder.encode('')),
-      '',
-      'hardened codecs round-trip the empty string',
-    );
-  }
+  assert.equal(
+    otherCompartment.evaluate('TextEncoder'),
+    TextEncoder,
+    'every compartment shares the hardened TextEncoder',
+  );
+  assert(Object.isFrozen(TextEncoder), 'TextEncoder itself is frozen');
+  assert(
+    Object.isFrozen(TextEncoder.prototype),
+    'TextEncoder.prototype is frozen',
+  );
+  assert(TextDecoder !== HostTextDecoder, 'TextDecoder is encapsulated');
+  assert(
+    HostTextDecoder.prototype.constructor === TextDecoder,
+    'host TextDecoder prototype points to the replacement',
+  );
+  assert.equal(
+    compartment.evaluate('TextDecoder'),
+    TextDecoder,
+    'compartment shares the hardened TextDecoder',
+  );
+  assert.equal(
+    otherCompartment.evaluate('TextDecoder'),
+    TextDecoder,
+    'every compartment shares the hardened TextDecoder',
+  );
+  assert(Object.isFrozen(TextDecoder), 'TextDecoder itself is frozen');
+  assert(
+    Object.isFrozen(TextDecoder.prototype),
+    'TextDecoder.prototype is frozen',
+  );
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  assert.equal(
+    decoder.decode(encoder.encode('hello')),
+    'hello',
+    'hardened codecs round-trip text',
+  );
+  assert.equal(
+    decoder.decode(encoder.encode('')),
+    '',
+    'hardened codecs round-trip the empty string',
+  );
 }
 
 print('# compartments receive shared intrinsics from lockdown');
