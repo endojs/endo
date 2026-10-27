@@ -290,6 +290,8 @@ Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs
 None of the huge list of [other Browser environment features](https://developer.mozilla.org/en-US/docs/Web/API)
 presented as names in the global scope (some also added to Node.js) are available in a
 hardened environment. The most surprising removals include `atob` and `URL`.
+`TextEncoder` and `TextDecoder` are exceptions when the host provides them;
+on some Chromium versions, lockdown replaces them with SES-owned constructors.
 
 `debugger` is a first-class JavaScript statement, and behaves as expected.
 
