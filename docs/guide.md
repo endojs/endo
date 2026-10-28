@@ -285,8 +285,9 @@ None of the huge list of [other Browser environment features](https://developer.
 presented as names in the global scope (some also added to Node.js) are available in a
 hardened environment. The most surprising removals include `atob` and `URL`.
 `TextEncoder` and `TextDecoder` are exceptions when the host provides them.
-Where lockdown cannot harden a host codec constructor, as on Chromium before
-version 138, it substitutes a SES-owned constructor that shares the host
+Where lockdown cannot harden a host codec constructor, as on Chromium 120
+through 137 (we tested 120, 126, 127, 133, 136, and 137; 138, 139, and 140
+were unaffected), it substitutes a SES-owned constructor that shares the host
 prototype but is not identical to references captured before lockdown.
 
 `debugger` is a first-class JavaScript statement, and behaves as expected.

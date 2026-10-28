@@ -63,10 +63,12 @@ const tameTextCodec = name => {
 };
 
 /**
- * Chromium before version 138 gives the text codec constructors restricted
+ * Some Chromium versions give the text codec constructors restricted
  * `caller` and `arguments` properties that, as reported in
  * https://github.com/endojs/endo/issues/3369, lockdown can neither remove nor
  * safely permit.
+ * We observed this in Chromium 120, 126, 127, 133, 136, and 137, but not in
+ * 138, 139, or 140.
  * Encapsulation keeps such a host constructor outside the permitted graph
  * while sharing its prototype and behavior.
  */
