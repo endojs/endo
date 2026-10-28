@@ -255,12 +255,6 @@ be surprised that `Buffer` and `require` are Node.js additions. Also `setTimeout
 to the programming environment standardized by the WHATWG web platform, and are not intrinsic
 to JavaScript.
 
-When a host's `TextEncoder` or `TextDecoder` constructor has properties that
-lockdown cannot harden, as on Chromium before version 138, lockdown exposes a
-SES-owned stand-in for that constructor. The stand-in preserves host behavior
-and shares the host prototype, but is not identical to constructor references
-captured before lockdown.
-
 Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs/api/globals.html) are
 **unavailable** including:
 
@@ -290,8 +284,10 @@ Most Node.js-specific [global objects](https://nodejs.org/dist/latest-v14.x/docs
 None of the huge list of [other Browser environment features](https://developer.mozilla.org/en-US/docs/Web/API)
 presented as names in the global scope (some also added to Node.js) are available in a
 hardened environment. The most surprising removals include `atob` and `URL`.
-`TextEncoder` and `TextDecoder` are exceptions when the host provides them;
-on some Chromium versions, lockdown replaces them with SES-owned constructors.
+`TextEncoder` and `TextDecoder` are exceptions when the host provides them.
+Where lockdown cannot harden a host codec constructor, as on Chromium before
+version 138, it substitutes a SES-owned constructor that shares the host
+prototype but is not identical to references captured before lockdown.
 
 `debugger` is a first-class JavaScript statement, and behaves as expected.
 
