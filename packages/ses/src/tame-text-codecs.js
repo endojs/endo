@@ -28,9 +28,8 @@ const hasRestrictedProperty = HostCodec =>
   isRestrictedProperty(HostCodec, 'arguments');
 
 /**
- * Replace one host text codec constructor, if it has an affected own
- * `caller` or `arguments` property, with a SES-owned constructor that delegates
- * construction to the captured host original and shares the host prototype.
+ * Encapsulate one host text codec constructor if it has an affected own
+ * `caller` or `arguments` property.
  *
  * @param {'TextEncoder' | 'TextDecoder'} name
  */
@@ -64,15 +63,12 @@ const tameTextCodec = name => {
 };
 
 /**
- * Replace affected host text codec constructors before the intrinsics
- * collector samples the global object. Chromium before version 138 gives these
- * constructors restricted `caller` and `arguments` properties that, as
- * reported in https://github.com/endojs/endo/issues/3369, lockdown can neither
- * remove nor safely permit.
+ * Chromium before version 138 gives the text codec constructors restricted
+ * `caller` and `arguments` properties that, as reported in
+ * https://github.com/endojs/endo/issues/3369, lockdown can neither remove nor
+ * safely permit.
  * Encapsulation keeps such a host constructor outside the permitted graph
- * while sharing its prototype and behavior. Hosts whose constructors lack a
- * non-configurable own `caller` or `arguments` property keep their original
- * constructors.
+ * while sharing its prototype and behavior.
  */
 export const tameTextCodecs = () => {
   tameTextCodec('TextEncoder');

@@ -7,7 +7,6 @@
 // implausible codec's undeletable `arguments`. Without the primitive-prototype
 // guard, encapsulation instead throws `Cannot tame TextDecoder`; without codec
 // taming, `TextEncoder` keeps its host identity.
-// AVA runs this file in its own worker.
 
 import '../index.js';
 import test from 'ava';

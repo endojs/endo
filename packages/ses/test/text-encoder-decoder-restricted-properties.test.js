@@ -5,7 +5,7 @@
 // src/tame-text-codecs.js) and asserts that lockdown completes with the host
 // constructors outside the permitted intrinsics graph.
 // The shape must exist before `lockdown()` samples the host intrinsics, so this
-// lives in its own file (AVA runs each file in its own worker).
+// must be its own test file.
 
 import '../index.js';
 import test from 'ava';

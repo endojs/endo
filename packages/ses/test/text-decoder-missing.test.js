@@ -2,8 +2,7 @@
 
 // Exercises a host that provides TextEncoder but not TextDecoder before
 // lockdown samples the host intrinsics. The remaining TextEncoder has the
-// affected shape from endojs/endo#3369, so lockdown encapsulates it. AVA runs
-// this file in its own worker.
+// affected shape from endojs/endo#3369, so lockdown encapsulates it.
 
 import '../index.js';
 import test from 'ava';
