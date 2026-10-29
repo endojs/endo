@@ -1,3 +1,5 @@
+// @ts-check
+
 import test from '@endo/ses-ava/test.js';
 
 import { Far } from '@endo/marshal';
@@ -24,6 +26,9 @@ test('test loopback gc', async t => {
   const gcAndFinalize = await makeGcAndFinalize(detectEngineGC());
 
   await isolated(t, makeFar);
+  await gcAndFinalize();
+  // Dropping the question releases its answer, which can make further remote
+  // references collectible only in the next collection/finalization cycle.
   await gcAndFinalize();
 
   // Check the GC stats.
