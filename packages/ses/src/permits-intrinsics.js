@@ -272,6 +272,10 @@ export default function removeUnpermittedIntrinsics(
       const subPermit = getSubPermit(obj, permit, propString);
 
       if (!subPermit || !isAllowedProperty(subPath, obj, prop, subPermit)) {
+        // `subPermit === false` marks the exclusion `known` — an audited,
+        // intentional removal that `cauterizeProperty` performs silently (see
+        // its `known` @param for the `false`-permit contract). To surface an
+        // anomaly instead, omit the permit rather than setting it `false`.
         cauterizeProperty(obj, prop, subPermit === false, subPath, reporter);
       }
     }
