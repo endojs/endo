@@ -9,27 +9,20 @@
 
 import { generate as generateBabel } from '@babel/generator';
 import { parse as parseBabel } from '@babel/parser';
-import babelTraverse from '@babel/traverse';
+import traverseBabel, {
+  Hub as BabelHub,
+  NodePath as BabelNodePath,
+} from '@babel/traverse';
 import { makeModuleAnalysisContext } from './analyzer.js';
 import * as h from './hidden.js';
 
 /**
- * @import {ModuleSourceOptions, ModuleSourceRecord} from './types/module-source.js'
+ * @import {ModuleSourceOptions, ModuleSourceRecord, SourceMapObject} from './types/module-source.js'
  * @import {AnalysisOptions} from './types/analyzer.js'
  * @import {ParseResult} from '@babel/parser'
  * @import {File} from '@babel/types'
  * @import {NodePath} from '@babel/traverse'
  */
-
-// `Hub` and `NodePath` are *named* exports of `@babel/traverse`, alongside
-// the callable default `traverse` function.  Under the ESM/CJS interop shape
-// where `babelTraverse.default` is the function, the named exports remain on
-// the module namespace itself, so we read them from the namespace.
-const {
-  default: traverseBabel,
-  Hub: BabelHub,
-  NodePath: BabelNodePath,
-} = babelTraverse;
 
 /**
  * Builds a synthetic `parentPath` carrying a Babel `Hub`.
@@ -49,8 +42,7 @@ const {
  * @returns {NodePath} a `NodePath` whose child paths inherit a `Hub`.
  */
 const makeHubParentPath = ast => {
-  const wrapper = { type: 'File', container: ast };
-  // @ts-expect-error - XXX unsure
+  const wrapper = /** @type {any} */ ({ type: 'File', container: ast });
   return BabelNodePath.get({
     hub: new BabelHub(),
     parentPath: null,
@@ -112,18 +104,15 @@ export const makeModuleSourceAnalyzer = () =>
           {
             sourceFileName: sourceMapUrl,
             sourceMaps: !!sourceMapHook,
-            // @ts-expect-error - unknown/undocumented option
             inputSourceMap: sourceMap,
             experimental_preserveFormat: true,
-            preserveFormat: true,
             retainLines: true,
-            verbatim: true,
           },
           moduleSource,
         );
 
       if (sourceMapHook && transformedSourceMap) {
-        sourceMapHook(transformedSourceMap, {
+        sourceMapHook(/** @type {SourceMapObject} */ (transformedSourceMap), {
           sourceUrl,
           sourceMapUrl,
           source: moduleSource,

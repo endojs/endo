@@ -9,15 +9,13 @@
 
 import { generate as generateBabel } from '@babel/generator';
 import { parse as parseBabel } from '@babel/parser';
-import traverse from '@babel/traverse';
+import traverseBabel from '@babel/traverse';
 import { LANGUAGES } from './languages.js';
 
 /**
  * @import { RunPipelineOptions, RunPipelineResult } from './types/internal.js'
  * @import { BabelParseError, PipelineLanguage, PipelineRecord, VisitorPass } from './types/pipeline.js'
  */
-
-const { default: traverseBabel } = traverse;
 
 const textDecoder = new TextDecoder();
 const textEncoder = new TextEncoder();
@@ -103,11 +101,8 @@ export const runPipeline = ({
     {
       ...babelGeneratorOptions,
       sourceMaps: needsSourceMaps,
-      // @ts-expect-error undocumented
       experimental_preserveFormat: true,
-      preserveFormat: true,
       retainLines: true,
-      verbatim: true,
     },
     source,
   );

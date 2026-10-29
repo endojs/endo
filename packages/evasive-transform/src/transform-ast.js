@@ -4,7 +4,7 @@
  * @module
  */
 
-import babelTraverse from '@babel/traverse';
+import traverse from '@babel/traverse';
 import { evadeComment, elideComment } from './transform-comment.js';
 import {
   evadeStrings,
@@ -18,15 +18,6 @@ import {
  * @import {Visitor, NodePath} from '@babel/traverse'
  * @import {File} from '@babel/types'
  */
-
-// TODO The following is sufficient on Node.js, but for compatibility with
-// `node -r esm`, we must use the pattern below.
-// Restore after https://github.com/Agoric/agoric-sdk/issues/8671.
-// OR, upgrading to Babel 8 probably addresses this defect.
-// const { default: traverse } = /** @type {any} */ (babelTraverse);
-const traverse = /** @type {typeof import('@babel/traverse')['default']} */ (
-  babelTraverse.default || babelTraverse
-);
 
 /**
  * Options shared by {@link makeEvasiveTransformVisitor} and {@link transformAst}.

@@ -1,14 +1,7 @@
 import { parse } from '@babel/parser';
-import babelGenerate from '@babel/generator';
-import babelTraverse from '@babel/traverse';
+import { generate } from '@babel/generator';
+import traverse from '@babel/traverse';
 import * as t from '@babel/types';
-
-// TODO The following is sufficient on Node.js, but for compatibility with
-// `node -r esm`, we must use the pattern below.
-// Remove after https://github.com/Agoric/agoric-sdk/issues/8671.
-// OR, upgrading to Babel 8 probably addresses this defect.
-const traverse = babelTraverse.default || babelTraverse;
-const generate = babelGenerate.default || babelGenerate;
 
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
@@ -84,9 +77,7 @@ export const hermesTransforms = {
       {
         // Nothing being done with sourcemaps as this point
         experimental_preserveFormat: true,
-        preserveFormat: true,
         retainLines: true,
-        verbatim: true,
       },
       sourceString,
     );
