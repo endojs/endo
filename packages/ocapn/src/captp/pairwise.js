@@ -16,6 +16,7 @@ import { makeRefCounter } from './refcount.js';
  * @property {(value: object) => Slot | undefined} getSlotForValue - Lookup the slot for a value. Does NOT increment refcount.
  * @property {(slot: Slot) => object | undefined} getValueForSlot - Lookup the value for a slot. Does NOT increment refcount.
  * @property {(slot: Slot, value: object) => void} registerSlot - Register a slot and value. Does NOT increment refcount.
+ * @property {(slot: Slot, value: object) => void} replaceExportValue - Replace the value held at an existing local (export) slot, preserving its refcount. Used by op:flush to swap a resolver in place.
  * @property {(slot: Slot, refcount: number) => void} dropSlot - Decrements refcount by the given amount, Drops the slot and value if the refcount reaches 0.
  * @property {(slot: Slot) => number} getRefCount - Get the committed refcount for the slot.
  * @property {(slot: Slot) => void} recordSentSlot - Increments refcount for the slot.
@@ -168,6 +169,32 @@ export const makePairwiseTable = ({
   };
 
   /**
+   * Replace the value at an existing local (export) slot, keeping its
+   * refcount intact. The previous value's reverse mapping is dropped and
+   * the new value's mapping is installed so that lookups by value continue
+   * to work. The export hook is fired again so observers can re-record the
+   * binding. This is only used for the `op:flush` operation.
+   *
+   * @param {Slot} slot
+   * @param {object} newValue
+   */
+  const replaceExportValue = (slot, newValue) => {
+    if (!isSlotLocal(slot)) {
+      throw new Error('replaceExportValue: only local slots are supported');
+    }
+    if (!exportTable.has(slot)) {
+      throw new Error(`replaceExportValue: no export at slot ${slot}`);
+    }
+    const oldValue = exportTable.get(slot);
+    if (oldValue !== undefined) {
+      valueToSlot.delete(oldValue);
+    }
+    exportTable.set(slot, newValue);
+    valueToSlot.set(newValue, slot);
+    exportHook(newValue, slot);
+  };
+
+  /**
    * @param {Slot} slot
    * @param {number} refcount
    */
@@ -234,6 +261,7 @@ export const makePairwiseTable = ({
     getSlotForValue,
     getValueForSlot,
     registerSlot,
+    replaceExportValue,
     dropSlot,
     getRefCount,
     recordSentSlot,
