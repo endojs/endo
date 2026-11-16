@@ -1,0 +1,79 @@
+name: capn-proto interop
+
+# Verifies that the @endo/capn-proto package is byte- and protocol-level
+# compatible with the reference Cap'n Proto C++ implementation:
+#   1. test/interop.test.js — wire-format interop. Each rpc.capnp Message
+#      variant round-trips through `capnp decode` and `capnp encode`.
+#   2. test/schema-interop.test.js — schema-typed structs round-trip via
+#      `capnp encode <schema> <Struct>`.
+#   3. test/interop-rpc.test.js — live RPC interop. The C++ Echo server
+#      built from test/interop-rpc/echo-server.c++ (using `capnp::EzRpcServer`)
+#      listens on TCP; our Node client connects via `connectTcp` and
+#      exercises the `Echo` interface end-to-end.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capn-proto-interop:
+    name: capn-proto interop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - run: corepack enable
+
+      - name: Use Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22.x
+          cache: yarn
+
+      - name: Install Cap'n Proto reference implementation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y capnproto libcapnp-dev pkg-config
+          capnp --version
+          pkg-config --modversion capnp-rpc
+
+      - name: Install Node dependencies
+        run: yarn install --immutable
+
+      - name: Build
+        run: yarn build
+
+      - name: Build C++ Echo server fixture
+        working-directory: packages/capn-proto/test/interop-rpc
+        run: ./build.sh
+
+      - name: Run capn-proto unit tests
+        working-directory: packages/capn-proto
+        run: yarn test
+
+      - name: Run capn-proto interop tests against capnp CLI + EzRpcServer
+        working-directory: packages/capn-proto
+        run: |
+          # These files run by default as part of `yarn test`, but we re-run
+          # them in isolation here so the workflow log surfaces a clear
+          # pass/fail per interop layer:
+          #   - byte-level rpc.capnp Message variants
+          #   - schema-typed user struct round-trip
+          #   - live RPC (single client) against the C++ TestSuite server
+          #   - live RPC multi-client: two-clients-isolation, pipelining,
+          #     cap-as-argument, fan-out concurrency
+          yarn ses-ava test/interop.test.js
+          yarn ses-ava test/schema-interop.test.js
+          yarn ses-ava test/interop-rpc.test.js
+          yarn ses-ava test/interop-rpc-multi.test.js
