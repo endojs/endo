@@ -98,6 +98,41 @@ jobs:
           # Cache key includes the version and sha256 so a version
           # bump or upstream re-publish forces a fresh download.
           key: guix-binary-x86_64-linux-${{ env.GUIX_VERSION }}-${{ env.GUIX_TARBALL_SHA256 }}
+      - name: Restore Guix store cache
+        # Iteration III of the guix-CI resilience pattern (#82 was I,
+        # #255 was II). The tarball cache above amortizes the
+        # installer download; this second cache amortizes the
+        # *runtime store* the daemon resolves on every run. Without
+        # it, both substitute servers being degraded means each
+        # `guix build` re-fetches the full guile + fibers + websocket
+        # + gnutls + gcrypt closure end-to-end. With it, the daemon
+        # finds the resolved store paths already present and short-
+        # circuits the substitute round-trip, so a degraded-server
+        # day no longer blocks the workflow's runtime path.
+        #
+        # `/gnu/store` and `/var/guix/db` are both root-owned with
+        # strict permissions, so `actions/cache` (which runs as
+        # `runner`) cannot read or write them directly. We cache a
+        # runner-owned staging directory containing a zstd tarball
+        # of the two store paths; the *Restore* and *Snapshot* shell
+        # steps below wrap the actual `sudo tar` extract and create.
+        # The same pattern matches the install step's existing
+        # `sudo tar --extract` of the installer tarball.
+        id: guix-store-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/guix-store-cache
+          # The key includes the pinned Guix version (a version bump
+          # may change the on-disk DB schema) and a hash of the
+          # workflow file (the package set and daemon configuration
+          # both live here, so any change to either forces a fresh
+          # snapshot). `restore-keys` lets a workflow edit that does
+          # not actually invalidate the store (a comment tweak, a
+          # timeout bump) still seed from the prior snapshot and
+          # re-save at job end.
+          key: guix-store-${{ env.GUIX_VERSION }}-${{ hashFiles('.github/workflows/ocapn-guile-interop.yml') }}
+          restore-keys: |
+            guix-store-${{ env.GUIX_VERSION }}-
       - name: Download Guix stable tarball
         # `ftp.gnu.org/gnu/guix/` is the GNU project's canonical
         # mirror for release binaries. It is operationally independent
@@ -191,6 +226,38 @@ jobs:
           sudo systemctl enable --now gnu-store.mount guix-daemon.service
 
           echo "$GUIX_PATH/bin" >> "$GITHUB_PATH"
+      - name: Restore Guix store from cache snapshot
+        # Paired with the `Restore Guix store cache` step above. When
+        # a prior run's snapshot is present, extract it on top of the
+        # just-installed store so the daemon's next `guix build`
+        # finds the resolved closure already on disk and skips the
+        # substitute-server round-trip entirely. `--no-overwrite-dir`
+        # preserves the installer-laid `/gnu` and `/var` directory
+        # entries themselves. Files inside those directories overlap
+        # in two ways: store paths that the installer ships are
+        # byte-identical to the same store paths in the snapshot
+        # (Guix store contents are content-addressed by hash), so
+        # the default overwrite is safe; the daemon database under
+        # `/var/guix/db` in the snapshot is a strict superset of the
+        # installer's blank DB (it records every store path the
+        # daemon resolved on the prior run), so the overwrite is
+        # exactly what makes the cache effective.
+        #
+        # The daemon is stopped across the extract so the on-disk
+        # store and the daemon's in-memory view of it cannot diverge
+        # mid-flight. A divergence would surface later as missing-
+        # store-item errors from `guix build`.
+        if: steps.guix-store-cache.outputs.cache-matched-key != ''
+        run: |
+          set -euo pipefail
+          if [ ! -f ~/guix-store-cache/store.tar.zst ]; then
+            echo "cache key matched but no snapshot present at ~/guix-store-cache/store.tar.zst"
+            exit 0
+          fi
+          sudo systemctl stop guix-daemon.service
+          sudo tar --extract --file ~/guix-store-cache/store.tar.zst \
+              --directory / --no-overwrite-dir
+          sudo systemctl start guix-daemon.service
       - name: Authorize build farm
         # Authorizes both ci.guix.gnu.org and bordeaux.guix.gnu.org;
         # both .pub files ship inside the Guix tarball under
@@ -267,6 +334,37 @@ jobs:
               echo "GCRYPT_OUT=$GCRYPT"
             } > "$scratch"
             cat "$scratch" >> "$GITHUB_ENV"
+
+      - name: Snapshot Guix store for cache
+        # Paired with the `Restore Guix store cache` step at the top
+        # of the job. Snapshots `/gnu/store` and `/var/guix/db`
+        # together so a future run restores a coherent view: the
+        # store paths exist on disk *and* the daemon's DB records
+        # them as valid. Caching `/gnu/store` alone would leave the
+        # daemon re-resolving substitutes anyway because it would
+        # not trust the unrecorded paths.
+        #
+        # Skipped on an exact-key cache hit; the snapshot we would
+        # write is byte-equivalent to the one we restored. The post-
+        # job save in `actions/cache` then picks up the directory
+        # contents (the tarball we just wrote) and uploads it under
+        # the current key.
+        if: steps.guix-store-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ~/guix-store-cache
+          # zstd compression keeps the snapshot well inside the 10 GB
+          # per-repo cache budget; the test's runtime closure is on
+          # the order of a few hundred megabytes uncompressed. The
+          # daemon does not need to be stopped for a snapshot: tar
+          # reads at the filesystem layer and the DB is a SQLite
+          # file that tar captures as a point-in-time copy.
+          sudo tar --create --file ~/guix-store-cache/store.tar.zst --zstd \
+              /gnu/store /var/guix/db
+          # `actions/cache` runs as the `runner` user and cannot
+          # upload a root-owned file. Hand the tarball to the runner
+          # so the post-job save sees a readable path.
+          sudo chown -R "$(id -u):$(id -g)" ~/guix-store-cache
 
       - name: Start Guile goblin-chat host
         working-directory: endo
