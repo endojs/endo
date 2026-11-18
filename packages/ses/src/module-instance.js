@@ -42,6 +42,8 @@ export const makeVirtualModuleInstance = (
   );
 
   const notifiers = create(null);
+  const exportsProps = create(null);
+
 
   if (moduleSource.exports) {
     if (
@@ -65,9 +67,15 @@ export const makeVirtualModuleInstance = (
         }
       };
 
-      defineProperty(exportsTarget, name, {
+      defineProperty(exportsProps, name, {
         get,
         set,
+        enumerable: true,
+        configurable: false,
+      });
+      defineProperty(exportsTarget, name, {
+        get,
+        set: undefined,
         enumerable: true,
         configurable: false,
       });
@@ -94,11 +102,12 @@ export const makeVirtualModuleInstance = (
         throw localState.errorFromExecute;
       }
       if (!localState.activated) {
+        freeze(exportsTarget);
         activate();
         localState.activated = true;
         try {
           // eslint-disable-next-line @endo/no-polymorphic-call
-          moduleSource.execute(exportsTarget, compartment, resolvedImports);
+          moduleSource.execute(exportsProps, compartment, resolvedImports);
         } catch (err) {
           localState.errorFromExecute = err;
           throw err;
