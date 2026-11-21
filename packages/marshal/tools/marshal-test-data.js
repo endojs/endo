@@ -5,6 +5,21 @@ import {
   exampleBob,
   exampleCarol,
 } from '@endo/pass-style/tools.js';
+import { makeMarshal } from '../src/marshal.js';
+
+/**
+ * @import {MakeMarshalOptions} from '../src/types.js';
+ */
+
+/**
+ * @param {MakeMarshalOptions} [opts]
+ */
+export const makeSmallcapsTestMarshal = (opts = { errorTagging: 'off' }) =>
+  makeMarshal(undefined, undefined, {
+    serializeBodyFormat: 'smallcaps',
+    marshalSaveError: _err => {},
+    ...opts,
+  });
 
 /** @import { Passable } from '@endo/pass-style' */
 
