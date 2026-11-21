@@ -7,7 +7,11 @@ const server = http.createServer((req, res) => {
   console.log(req.url);
 
   if (req.url === '/') {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.writeHead(200, { 
+      'Content-Type': 'text/html', 
+      // ensure SES works when eval is firbidden by CSP (no `unsafe-eval` in script-src)
+      'content-security-policy': "default-src 'self'; script-src 'self';" 
+    });
     return res.end('<!doctype html><script src="ses.umd.js"></script>');
   }
   if (req.url === '/ses.umd.js') {
