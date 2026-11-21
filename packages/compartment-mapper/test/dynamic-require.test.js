@@ -1044,3 +1044,153 @@ test('dynamic require of ancestor disallowed if policy omitted', async t => {
     },
   );
 });
+
+// The "attenuated-app" fixture depends on "attenuated", which loads the exit
+// module "builtin" through a computed specifier and reports the names of the
+// properties it received.
+const attenuatedFixture = new URL(
+  'fixtures-dynamic/node_modules/attenuated-app/index.js',
+  import.meta.url,
+).href;
+
+/**
+ * Provides a fake exit module named "builtin" with three properties, so the
+ * effect of attenuation does not depend on the shape of a real builtin.
+ *
+ * @type {ExitModuleImportNowHook}
+ */
+const fakeBuiltinImportNowHook = specifier => {
+  if (specifier !== 'builtin') {
+    throw new Error(`Unexpected exit module: ${specifier}`);
+  }
+  const ns = { a: 1, b: 2, c: 3 };
+  return freeze(
+    /** @type {ThirdPartyStaticModuleInterface} */ ({
+      imports: [],
+      exports: keys(ns),
+      execute: moduleExports => {
+        moduleExports.default = ns;
+        assign(moduleExports, ns);
+      },
+    }),
+  );
+};
+
+/**
+ * An attenuator provided to the application as an exit module.
+ */
+const pickAttenuator = freeze({
+  /**
+   * @param {string[]} params
+   * @param {Record<string, unknown>} ns
+   */
+  attenuateModule: (params, ns) =>
+    freeze(Object.fromEntries(params.map(key => [key, ns[key]]))),
+});
+
+test('dynamic require of exit module provided by modules option', async t => {
+  const { namespace } = await importLocation(readPowers, attenuatedFixture, {
+    modules: { builtin: { a: 1, b: 2 } },
+  });
+
+  t.deepEqual(namespace.keys, ['a', 'b']);
+});
+
+test('dynamic require of exit module is attenuated per builtins policy', async t => {
+  const { namespace } = await importLocation(readPowers, attenuatedFixture, {
+    importNowHook: fakeBuiltinImportNowHook,
+    policy: {
+      entry: {
+        packages: WILDCARD_POLICY_VALUE,
+        globals: WILDCARD_POLICY_VALUE,
+        builtins: WILDCARD_POLICY_VALUE,
+      },
+      resources: {
+        attenuated: {
+          builtins: {
+            builtin: { attenuate: 'pick-attenuator', params: ['a'] },
+          },
+        },
+        'pick-attenuator': {},
+      },
+    },
+  });
+
+  t.deepEqual(namespace.keys, ['a']);
+});
+
+test('dynamic require of exit module is attenuated by a default attenuator provided as an exit module', async t => {
+  const { namespace } = await importLocation(readPowers, attenuatedFixture, {
+    importNowHook: fakeBuiltinImportNowHook,
+    modules: { '@attenuator@': pickAttenuator },
+    policy: {
+      defaultAttenuator: '@attenuator@',
+      entry: {
+        packages: WILDCARD_POLICY_VALUE,
+        globals: WILDCARD_POLICY_VALUE,
+        builtins: WILDCARD_POLICY_VALUE,
+      },
+      resources: {
+        attenuated: {
+          builtins: {
+            builtin: ['a', 'c'],
+          },
+        },
+      },
+    },
+  });
+
+  t.deepEqual(namespace.keys, ['a', 'c']);
+});
+
+test('dynamic require of exit module is not attenuated if policy allows the whole module', async t => {
+  const { namespace } = await importLocation(readPowers, attenuatedFixture, {
+    importNowHook: fakeBuiltinImportNowHook,
+    policy: {
+      entry: {
+        packages: WILDCARD_POLICY_VALUE,
+        globals: WILDCARD_POLICY_VALUE,
+        builtins: WILDCARD_POLICY_VALUE,
+      },
+      resources: {
+        attenuated: {
+          builtins: {
+            builtin: true,
+          },
+        },
+      },
+    },
+  });
+
+  t.deepEqual(namespace.keys, ['a', 'b', 'c']);
+});
+
+// this is @lavamoat/node's use-case; it causes the attenuator itself to be
+// imported as an exit module
+test('dynamic require of exit module fails if its attenuator is unusable', async t => {
+  await t.throwsAsync(
+    importLocation(readPowers, attenuatedFixture, {
+      importNowHook: fakeBuiltinImportNowHook,
+      // this attenuator lacks an "attenuateModule" export
+      modules: { '@attenuator@': freeze({}) },
+      policy: {
+        defaultAttenuator: '@attenuator@',
+        entry: {
+          packages: WILDCARD_POLICY_VALUE,
+          globals: WILDCARD_POLICY_VALUE,
+          builtins: WILDCARD_POLICY_VALUE,
+        },
+        resources: {
+          attenuated: {
+            builtins: {
+              builtin: ['a'],
+            },
+          },
+        },
+      },
+    }),
+    {
+      message: /does not export "attenuateModule"/,
+    },
+  );
+});

@@ -37,6 +37,7 @@
 import { link } from './link.js';
 import {
   exitModuleImportHookMaker,
+  exitModuleImportNowHookMaker,
   makeImportHookMaker,
   makeImportNowHookMaker,
 } from './import-hook.js';
@@ -196,7 +197,10 @@ export const loadFromMap = async (readPowers, compartmentMap, options = {}) => {
           entryModuleSpecifier,
           compartmentDescriptors: compartmentMap.compartments,
           searchSuffixes,
-          importNowHook: exitModuleImportNowHook,
+          importNowHook: exitModuleImportNowHookMaker({
+            modules,
+            exitModuleImportNowHook,
+          }),
           moduleSourceHook,
         },
       );

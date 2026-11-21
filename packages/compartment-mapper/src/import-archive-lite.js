@@ -105,7 +105,7 @@ const makeArchiveImportHookMaker = (
   const makeImportHook = ({
     packageLocation,
     packageName,
-    attenuators,
+    importAttenuator,
     // note `compartments` are not passed to makeImportHook because
     // the reference was passed to makeArchiveImportHookMaker.
   }) => {
@@ -140,7 +140,7 @@ const makeArchiveImportHookMaker = (
               moduleSpecifier,
               record,
               compartmentDescriptor.policy,
-              attenuators,
+              importAttenuator,
             );
           } else {
             // if exitModuleImportHook is allowed, the mechanism to defer

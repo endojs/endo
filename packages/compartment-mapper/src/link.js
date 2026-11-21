@@ -404,14 +404,8 @@ export const link = (
 
   /** @type {Record<string, Compartment>} */
   const compartments = create(null);
-
-  /**
-   * @param {string} attenuatorSpecifier
-   */
-  const attenuators = makeDeferredAttenuatorsProvider(
-    compartments,
-    compartmentDescriptors,
-  );
+  const { import: importAttenuator, importNow: importAttenuatorNow } =
+    makeDeferredAttenuatorsProvider(compartments, compartmentDescriptors);
 
   const pendingJobs = [];
 
@@ -474,7 +468,7 @@ export const link = (
     const importHook = makeImportHook({
       packageLocation: location,
       packageName: name,
-      attenuators,
+      importAttenuator,
       parse,
       shouldDeferError,
       compartments,
@@ -483,6 +477,7 @@ export const link = (
     const importNowHook = makeImportNowHook({
       packageLocation: location,
       packageName: name,
+      importNowAttenuator: importAttenuatorNow,
       parse,
       compartments,
       shouldDeferError,
@@ -514,7 +509,7 @@ export const link = (
         compartment.globalThis,
         globals,
         compartmentDescriptor.policy,
-        attenuators,
+        importAttenuator,
         pendingJobs,
         compartmentDescriptor.name,
       );

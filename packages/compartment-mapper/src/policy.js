@@ -11,6 +11,8 @@
  *   PackagePolicy,
  *   AttenuationDefinition,
  *   DeferredAttenuatorsProvider,
+ *   ImportAttenuatorFn,
+ *   ImportNowAttenuatorFn,
  *   CompartmentDescriptor,
  *   Attenuator,
  *   SomePolicy,
@@ -19,6 +21,8 @@
  *   CompartmentDescriptorWithPolicy,
  *   ModuleConfiguration,
  *   CanonicalName,
+ *   UnifiedAttenuationDefinition,
+ *   BoundAttenuator,
  * } from './types.js'
  * @import {
  *   ModuleDescriptor,
@@ -188,36 +192,77 @@ const GLOBAL_ATTENUATOR = 'attenuateGlobals';
 const MODULE_ATTENUATOR = 'attenuateModule';
 
 /**
- * Imports attenuator per its definition and provider
- * @param {AttenuationDefinition} attenuationDefinition
- * @param {DeferredAttenuatorsProvider} attenuatorsProvider
+ * Selects the named export of an imported attenuator and binds it to the
+ * params of its attenuation definition.
+ *
+ * @param {Attenuator} attenuator
  * @param {string} attenuatorExportName
- * @returns {Promise<Function>}
+ * @param {UnifiedAttenuationDefinition} definition
+ * @returns {BoundAttenuator}
  */
-const importAttenuatorForDefinition = async (
-  attenuationDefinition,
-  attenuatorsProvider,
+const bindAttenuator = (
+  attenuator,
   attenuatorExportName,
+  { params, displayName },
 ) => {
-  if (!attenuatorsProvider) {
-    throw Error(`attenuatorsProvider is required to import attenuators`);
-  }
-  const { specifier, params, displayName } = getAttenuatorFromDefinition(
-    attenuationDefinition,
-  );
-  const attenuator = await attenuatorsProvider.import(specifier);
   if (!attenuator[attenuatorExportName]) {
     throw Error(
       `Attenuator ${q(displayName)} does not export ${q(attenuatorExportName)}`,
     );
   }
-  // TODO: uncurry bind for security?
-  const attenuate = attenuator[attenuatorExportName].bind(attenuator, params);
-  return attenuate;
+  return attenuator[attenuatorExportName].bind(attenuator, params);
 };
 
 /**
- * Makes an async provider for attenuators
+ * Imports attenuator per its definition
+ * @param {AttenuationDefinition} attenuationDefinition
+ * @param {ImportAttenuatorFn} importAttenuator
+ * @param {string} attenuatorExportName
+ * @returns {Promise<BoundAttenuator>}
+ */
+const importAttenuatorForDefinition = async (
+  attenuationDefinition,
+  importAttenuator,
+  attenuatorExportName,
+) => {
+  if (!importAttenuator) {
+    throw Error(`importAttenuator is required to import attenuators`);
+  }
+  const definition = getAttenuatorFromDefinition(attenuationDefinition);
+  const attenuator = await importAttenuator(definition.specifier);
+  return bindAttenuator(attenuator, attenuatorExportName, definition);
+};
+
+/**
+ * Synchronously imports attenuator per its definition; the counterpart of
+ * {@link importAttenuatorForDefinition} for dynamic requires.
+ *
+ * @param {AttenuationDefinition} attenuationDefinition
+ * @param {ImportNowAttenuatorFn} importAttenuatorNow
+ * @param {string} attenuatorExportName
+ * @returns {BoundAttenuator}
+ */
+const importAttenuatorForDefinitionNow = (
+  attenuationDefinition,
+  importAttenuatorNow,
+  attenuatorExportName,
+) => {
+  if (!importAttenuatorNow) {
+    throw Error(`importAttenuatorNow is required to import attenuators`);
+  }
+  const definition = getAttenuatorFromDefinition(attenuationDefinition);
+  const attenuator = importAttenuatorNow(definition.specifier);
+  return bindAttenuator(attenuator, attenuatorExportName, definition);
+};
+
+/**
+ * Makes a provider for attenuators, which can import them asynchronously or
+ * (for dynamic requires) synchronously.
+ *
+ * Consumers should be handed whichever one of the provider's two functions
+ * suits them rather than the provider itself, so that a synchronous import hook
+ * cannot reach for the asynchronous import and vice versa.
+ *
  * @param {Record<string, Compartment>} compartments
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
  * @returns {DeferredAttenuatorsProvider}
@@ -226,13 +271,18 @@ export const makeDeferredAttenuatorsProvider = (
   compartments,
   compartmentDescriptors,
 ) => {
-  /** @type {DeferredAttenuatorsProvider['import']} */
+  /** @type {ImportAttenuatorFn} */
   let importAttenuator;
+  /** @type {ImportNowAttenuatorFn} */
+  let importAttenuatorNow;
   let defaultAttenuator;
   // Attenuators compartment is not created when there's no policy.
   // Errors should be thrown when the provider is used.
   if (!compartmentDescriptors[ATTENUATORS_COMPARTMENT]) {
     importAttenuator = async () => {
+      throw Error(`No attenuators specified in policy`);
+    };
+    importAttenuatorNow = () => {
       throw Error(`No attenuators specified in policy`);
     };
   } else {
@@ -270,29 +320,52 @@ export const makeDeferredAttenuatorsProvider = (
         attenuatorsCompartment.__noNamespaceBox__ ? result : result.namespace
       );
     };
+
+    /**
+     * An attenuator which has already been imported is served from the
+     * attenuators compartment's memo of module instances. Otherwise, the
+     * compartment loads it through its `importNowHook`.
+     *
+     * @param {string | null} attenuatorSpecifier
+     * @returns {Attenuator}
+     */
+    importAttenuatorNow = attenuatorSpecifier => {
+      if (!attenuatorSpecifier) {
+        if (!defaultAttenuator) {
+          throw Error(`No default attenuator specified in policy`);
+        }
+        attenuatorSpecifier = defaultAttenuator;
+      }
+      // Unlike `import`, `importNow` never boxes the namespace.
+      return /** @type {Attenuator} */ (
+        compartments[ATTENUATORS_COMPARTMENT].importNow(
+          /** @type {string} */ (attenuatorSpecifier),
+        )
+      );
+    };
   }
 
-  return { import: importAttenuator };
+  return { import: importAttenuator, importNow: importAttenuatorNow };
 };
 
 /**
  * Attenuates the `globalThis` object
  *
  * @param {object} options
- * @param {DeferredAttenuatorsProvider} options.attenuators
+ * @param {ImportAttenuatorFn} options.importAttenuator
  * @param {AttenuationDefinition} options.attenuationDefinition
  * @param {object} options.globalThis
  * @param {object} options.globals
  */
 async function attenuateGlobalThis({
-  attenuators,
+  importAttenuator,
   attenuationDefinition,
   globalThis,
   globals,
 }) {
   const attenuate = await importAttenuatorForDefinition(
     attenuationDefinition,
-    attenuators,
+    importAttenuator,
     GLOBAL_ATTENUATOR,
   );
 
@@ -320,7 +393,7 @@ async function attenuateGlobalThis({
  * @param {object} globalThis
  * @param {object} globals
  * @param {PackagePolicy|undefined} packagePolicy
- * @param {DeferredAttenuatorsProvider} attenuators
+ * @param {ImportAttenuatorFn} importAttenuator
  * @param {Array<Promise>} pendingJobs
  * @param {string} name
  * @returns {void}
@@ -329,7 +402,7 @@ export const attenuateGlobals = (
   globalThis,
   globals,
   packagePolicy,
-  attenuators,
+  importAttenuator,
   pendingJobs,
   name = '<unknown>',
 ) => {
@@ -350,7 +423,7 @@ export const attenuateGlobals = (
     const attenuationPromise = Promise.resolve() // delay to next tick while linking is synchronously finalized
       .then(() =>
         attenuateGlobalThis({
-          attenuators,
+          importAttenuator,
           attenuationDefinition,
           globalThis,
           globals,
@@ -494,66 +567,17 @@ export const enforcePackagePolicyByCanonicalName = (
 };
 
 /**
- * Attenuates a virtual module source.
- *
- * @param {object} options
- * @param {DeferredAttenuatorsProvider} options.attenuators
- * @param {AttenuationDefinition} options.attenuationDefinition
- * @param {VirtualModuleSource} options.moduleSource
- * @returns {Promise<VirtualModuleSource>}
- */
-async function attenuateVirtualModuleSource({
-  attenuators,
-  attenuationDefinition,
-  moduleSource,
-}) {
-  const attenuate = await importAttenuatorForDefinition(
-    attenuationDefinition,
-    attenuators,
-    MODULE_ATTENUATOR,
-  );
-
-  // An async attenuator maker could be introduced here to return a synchronous attenuator.
-  // For async attenuators see PR https://github.com/endojs/endo/pull/1535
-
-  // Freeze the returned virtual module source so the attenuator boundary does
-  // not hand callers a mutable wrapper they could tamper with after the fact.
-  return freeze(
-    /** @type {VirtualModuleSource} */ ({
-      imports: moduleSource.imports,
-      // It seems ok to declare the exports but then let the attenuator trim the values.
-      // Seems ok for attenuation to leave them undefined - accessing them is malicious behavior.
-      exports: moduleSource.exports,
-      execute: (moduleExports, compartment, resolvedImports) => {
-        const ns = {};
-        moduleSource.execute(ns, compartment, resolvedImports);
-        const attenuated = attenuate(ns);
-        moduleExports.default = attenuated;
-        assign(moduleExports, attenuated);
-      },
-    }),
-  );
-}
-
-/**
- * Attenuates a module descriptor whose source is a virtual module source.
+ * Finds the virtual module source of a module descriptor, which is the only
+ * kind of source an attenuator can wrap.
  * Other shapes (including NamespaceModuleDescriptor, which is part of
  * StrictModuleDescriptor but has no source to attenuate) pass through
  * unchanged at the call site; this function throws when given a descriptor
  * the attenuator cannot wrap.
  *
- * @param {object} options
- * @param {DeferredAttenuatorsProvider} options.attenuators
- * @param {AttenuationDefinition} options.attenuationDefinition
- * @param {VirtualModuleSource | SourceModuleDescriptor} options.moduleDescriptor
- * @returns {Promise<SourceModuleDescriptor>}
+ * @param {VirtualModuleSource | SourceModuleDescriptor} moduleDescriptor
+ * @returns {VirtualModuleSource}
  */
-async function attenuateModule({
-  attenuators,
-  attenuationDefinition,
-  moduleDescriptor,
-}) {
-  await null;
+const getVirtualModuleSource = moduleDescriptor => {
   if ('source' in moduleDescriptor) {
     const { source: moduleSource } = moduleDescriptor;
     if (
@@ -562,59 +586,125 @@ async function attenuateModule({
       'exports' in moduleSource &&
       'execute' in moduleSource
     ) {
-      return freeze(
-        /** @type {SourceModuleDescriptor} */ ({
-          source: await attenuateVirtualModuleSource({
-            attenuators,
-            attenuationDefinition,
-            moduleSource,
-          }),
-        }),
-      );
+      return moduleSource;
     }
   } else if (
     'imports' in moduleDescriptor &&
     'exports' in moduleDescriptor &&
     'execute' in moduleDescriptor
   ) {
-    return freeze(
-      /** @type {SourceModuleDescriptor} */ ({
-        source: await attenuateVirtualModuleSource({
-          attenuators,
-          attenuationDefinition,
-          moduleSource: moduleDescriptor,
-        }),
-      }),
-    );
+    return moduleDescriptor;
   }
   throw new Error(
     `attenuateModule received a non-attenuatable module descriptor: ${q(
       moduleDescriptor,
     )}`,
   );
+};
+
+/**
+ * Wraps a virtual module source in a module descriptor that applies an
+ * attenuator to the module's exports as it executes.
+ *
+ * Shared by {@link attenuateModule} and {@link attenuateModuleNow} so that
+ * static and dynamic loads of an exit module cannot be attenuated differently.
+ *
+ * @param {VirtualModuleSource} moduleSource
+ * @param {BoundAttenuator} attenuate
+ * @returns {SourceModuleDescriptor}
+ */
+const makeAttenuatedModuleDescriptor = (moduleSource, attenuate) =>
+  freeze(
+    /** @type {SourceModuleDescriptor} */ ({
+      // Freeze the returned virtual module source so the attenuator boundary
+      // does not hand callers a mutable wrapper they could tamper with after
+      // the fact.
+      source: freeze(
+        /** @type {VirtualModuleSource} */ ({
+          imports: moduleSource.imports,
+          // It seems ok to declare the exports but then let the attenuator trim the values.
+          // Seems ok for attenuation to leave them undefined - accessing them is malicious behavior.
+          exports: moduleSource.exports,
+          execute: (moduleExports, compartment, resolvedImports) => {
+            const ns = {};
+            moduleSource.execute(ns, compartment, resolvedImports);
+            const attenuated = attenuate(ns);
+            moduleExports.default = attenuated;
+            assign(moduleExports, attenuated);
+          },
+        }),
+      ),
+    }),
+  );
+
+/**
+ * Attenuates a module descriptor whose source is a virtual module source.
+ *
+ * @param {object} options
+ * @param {ImportAttenuatorFn} options.importAttenuator
+ * @param {AttenuationDefinition} options.attenuationDefinition
+ * @param {VirtualModuleSource | SourceModuleDescriptor} options.moduleDescriptor
+ * @returns {Promise<SourceModuleDescriptor>}
+ */
+async function attenuateModule({
+  importAttenuator,
+  attenuationDefinition,
+  moduleDescriptor,
+}) {
+  await null;
+  const moduleSource = getVirtualModuleSource(moduleDescriptor);
+
+  // An async attenuator maker could be introduced here to return a synchronous attenuator.
+  // For async attenuators see PR https://github.com/endojs/endo/pull/1535
+  const attenuate = await importAttenuatorForDefinition(
+    attenuationDefinition,
+    importAttenuator,
+    MODULE_ATTENUATOR,
+  );
+  return makeAttenuatedModuleDescriptor(moduleSource, attenuate);
 }
 
 /**
- * Throws if importing of the specifier is not allowed by the policy
+ * Synchronously attenuates a module descriptor whose source is a virtual
+ * module source; the counterpart of {@link attenuateModule} for dynamic
+ * requires.
+ *
+ * @param {object} options
+ * @param {ImportNowAttenuatorFn} options.importAttenuatorNow
+ * @param {AttenuationDefinition} options.attenuationDefinition
+ * @param {VirtualModuleSource | SourceModuleDescriptor} options.moduleDescriptor
+ * @returns {SourceModuleDescriptor}
+ */
+function attenuateModuleNow({
+  importAttenuatorNow,
+  attenuationDefinition,
+  moduleDescriptor,
+}) {
+  const moduleSource = getVirtualModuleSource(moduleDescriptor);
+  const attenuate = importAttenuatorForDefinitionNow(
+    attenuationDefinition,
+    importAttenuatorNow,
+    MODULE_ATTENUATOR,
+  );
+  return makeAttenuatedModuleDescriptor(moduleSource, attenuate);
+}
+
+/**
+ * Finds the attenuation which policy demands for an exit module, if any.
  *
  * @param {string} specifier - exit module name
- * @param {ModuleDescriptor} moduleDescriptor - reference to the exit module
  * @param {PackagePolicy | undefined} policy - local compartment policy
- * @param {DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
- * @returns {Promise<ModuleDescriptor>} - the attenuated module descriptor
+ * @returns {AttenuationDefinition | undefined} The attenuation to apply, or
+ * `undefined` if the module is to be used as it is
+ * @throws {Error} If policy does not allow the module at all
  */
-export const attenuateModuleHook = async (
-  specifier,
-  moduleDescriptor,
-  policy,
-  attenuators,
-) => {
+const getModuleAttenuationDefinition = (specifier, policy) => {
   if (!policy) {
-    return moduleDescriptor;
+    return undefined;
   }
   const policyValue = policyLookupHelper(policy, 'builtins', specifier);
   if (policyValue === true) {
-    return moduleDescriptor;
+    return undefined;
   }
 
   if (!policyValue) {
@@ -623,6 +713,31 @@ export const attenuateModuleHook = async (
         policy.builtins,
       )}`,
     );
+  }
+  return policyValue;
+};
+
+/**
+ * Throws if importing of the specifier is not allowed by the policy
+ *
+ * @param {string} specifier - exit module name
+ * @param {ModuleDescriptor} moduleDescriptor - reference to the exit module
+ * @param {PackagePolicy | undefined} policy - local compartment policy
+ * @param {ImportAttenuatorFn} importAttenuator - imports the attenuator which policy names
+ * @returns {Promise<ModuleDescriptor>} - the attenuated module descriptor
+ */
+export const attenuateModuleHook = async (
+  specifier,
+  moduleDescriptor,
+  policy,
+  importAttenuator,
+) => {
+  const attenuationDefinition = getModuleAttenuationDefinition(
+    specifier,
+    policy,
+  );
+  if (attenuationDefinition === undefined) {
+    return moduleDescriptor;
   }
   // Only virtual module sources and source-bearing descriptors are
   // attenuatable. NamespaceModuleDescriptor (the other half of
@@ -633,8 +748,45 @@ export const attenuateModuleHook = async (
       moduleDescriptor
     );
   return attenuateModule({
-    attenuators,
-    attenuationDefinition: policyValue,
+    importAttenuator,
+    attenuationDefinition,
+    moduleDescriptor: attenuatable,
+  });
+};
+
+/**
+ * Synchronous counterpart of {@link attenuateModuleHook}, for exit modules
+ * loaded by a dynamic require.
+ *
+ * Throws if importing of the specifier is not allowed by the policy
+ *
+ * @param {string} specifier - exit module name
+ * @param {ModuleDescriptor} moduleDescriptor - reference to the exit module
+ * @param {PackagePolicy | undefined} policy - local compartment policy
+ * @param {ImportNowAttenuatorFn} importAttenuatorNow - synchronously imports the attenuator which policy names
+ * @returns {ModuleDescriptor} - the attenuated module descriptor
+ */
+export const attenuateModuleNowHook = (
+  specifier,
+  moduleDescriptor,
+  policy,
+  importAttenuatorNow,
+) => {
+  const attenuationDefinition = getModuleAttenuationDefinition(
+    specifier,
+    policy,
+  );
+  if (attenuationDefinition === undefined) {
+    return moduleDescriptor;
+  }
+  // See attenuateModuleHook regarding which descriptors are attenuatable.
+  const attenuatable =
+    /** @type {VirtualModuleSource | SourceModuleDescriptor} */ (
+      moduleDescriptor
+    );
+  return attenuateModuleNow({
+    importAttenuatorNow,
+    attenuationDefinition,
     moduleDescriptor: attenuatable,
   });
 };
