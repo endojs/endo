@@ -36,11 +36,17 @@ const { assign } = Object;
  * worker-side code sends plain data instead. This reverses that encoding on
  * receipt.
  *
+ * Babel 8 types `ParseError` with `loc` and `pos`, which
+ * {@link ClonedParseError} does not carry across the worker boundary, so the
+ * revived error is a {@link BabelParseError} only by assertion.
+ *
  * @param {ClonedParseError} clonedError
  * @returns {BabelParseError}
  */
 const reviveParseError = ({ message, stack, code, reasonCode }) =>
-  assign(new Error(message), { code, reasonCode, stack });
+  /** @type {BabelParseError} */ (
+    assign(new Error(message), { code, reasonCode, stack })
+  );
 
 /**
  * Default idle timeout for workers.
