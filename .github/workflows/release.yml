@@ -56,11 +56,15 @@ jobs:
           git config user.name "github-actions[bot]"
 
       - name: Process Changesets
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         # This action will create/update Changesets' Release PR *or* create a
         # GitHub Release and tags if its Release PR was just merged
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
         with:
-          publish: yarn changeset tag
-          createGithubReleases: true
+          # As of action v2, a custom token must be passed via this input; the
+          # `GITHUB_TOKEN` env var and checkout credentials are ignored.
+          github-token: ${{ secrets.RELEASE_TOKEN }}
+          # Keep pushing the release commit and tags with the Git CLI (as v1
+          # did) instead of the v2 default of the GitHub API.
+          push-with-git-cli: true
+          publish-script: yarn changeset git-tag
+          create-github-releases: true
