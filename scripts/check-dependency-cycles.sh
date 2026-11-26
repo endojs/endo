@@ -1,20 +1,11 @@
 #!/bin/bash
-# Errors if number of cycle edges detected is too great
+# Fails if the workspace packages form a cycle through their regular
+# `dependencies`. `yarn workspaces foreach --topological` refuses to run on a
+# dependency cycle, so its exit status is the check.
+#
+# Requires a prior `yarn install` (even `--mode=skip-build` is fine).
 set -ueo pipefail
 
-MAX_EDGES=$1
+yarn workspaces foreach --all --topological exec true
 
-# one of these lines is "Cycles detected"
-LINE_COUNT=$(scripts/graph.sh |wc -l)
-
-CYCLIC_EDGE_COUNT=$((LINE_COUNT - 1))
-
-echo CYCLIC_EDGE_COUNT $CYCLIC_EDGE_COUNT
-
-if [[ $CYCLIC_EDGE_COUNT -gt $MAX_EDGES ]];
-then
-  echo Greater than MAX_EDGES "$MAX_EDGES"
-  exit 1
-fi
-
-echo Less than or equal to MAX_EDGES "$MAX_EDGES"
+echo "No cycles in 'dependencies' of workspace packages."
