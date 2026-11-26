@@ -44,14 +44,17 @@
     "@endo/env-options": "workspace:^",
     "@endo/harden": "workspace:^",
     "@endo/init": "workspace:^",
-    "ava": "^6 || ^7 || ^8",
     "ses": "workspace:^"
   },
   "devDependencies": {
     "@endo/panic": "workspace:^",
+    "ava": "catalog:dev",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
     "typescript": "catalog:dev"
+  },
+  "peerDependencies": {
+    "ava": "^6 || ^7 || ^8"
   },
   "files": [
     "./*.d.ts",
