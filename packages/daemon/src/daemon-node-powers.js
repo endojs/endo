@@ -309,11 +309,7 @@ export const makeCryptoPowers = crypto => {
  * @param {Config} config
  * @returns {DaemonicPersistencePowers}
  */
-export const makeDaemonicPersistencePowers = (
-  filePowers,
-  cryptoPowers,
-  config,
-) => {
+const makeDaemonicPersistencePowers = (filePowers, cryptoPowers, config) => {
   const initializePersistence = async () => {
     const { statePath, ephemeralStatePath, cachePath } = config;
     const statePathP = filePowers.makePath(statePath);
@@ -460,7 +456,7 @@ export const makeDaemonicPersistencePowers = (
  * @param {typeof import('fs')} fs
  * @param {typeof import('child_process')} popen
  */
-export const makeDaemonicControlPowers = (
+const makeDaemonicControlPowers = (
   config,
   fileURLToPath,
   filePowers,

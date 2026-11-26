@@ -270,7 +270,7 @@ function readFloat64(bufferReader, name) {
  * @param {string} name
  * @returns {TypeHintTypes}
  */
-export function peekTypeHint(bufferReader, name) {
+function peekTypeHint(bufferReader, name) {
   const cc = bufferReader.peekByte();
   if (cc >= ZERO && cc <= NINE) {
     return 'number-prefix';

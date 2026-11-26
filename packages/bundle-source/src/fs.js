@@ -82,7 +82,7 @@ export const makeFileReader = (fileName, { fs, path }) => {
  * @param {(there: string) => FileWriter} make
  * @returns {FileWriter}
  */
-export const makeFileWriter = (
+const makeFileWriter = (
   fileName,
   { fs, path },
   make = there => makeFileWriter(there, { fs, path }, make),

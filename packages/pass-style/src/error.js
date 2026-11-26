@@ -74,7 +74,7 @@ const makeTypeError = () => {
   }
 };
 
-export const makeRepairError = () => {
+const makeRepairError = () => {
   if (!hardenIsNoop(harden)) {
     return undefined;
   }
@@ -152,7 +152,7 @@ export const makeRepairError = () => {
 };
 harden(makeRepairError);
 
-export const repairError = makeRepairError();
+const repairError = makeRepairError();
 
 // TODO: Maintenance hazard: Coordinate with the list of errors in the SES
 // whilelist.

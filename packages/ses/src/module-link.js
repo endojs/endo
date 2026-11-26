@@ -101,11 +101,7 @@ function validateModuleSource(moduleSource, moduleSpecifier) {
     )}, for module ${q(moduleSpecifier)}`;
 }
 
-export const instantiate = (
-  compartmentPrivateFields,
-  moduleAliases,
-  moduleRecord,
-) => {
+const instantiate = (compartmentPrivateFields, moduleAliases, moduleRecord) => {
   const { compartment, moduleSpecifier, resolvedImports, moduleSource } =
     moduleRecord;
   const { instances } = weakmapGet(compartmentPrivateFields, compartment);

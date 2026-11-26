@@ -62,7 +62,6 @@
   "dependencies": {
     "@endo/cjs-module-analyzer": "workspace:^",
     "@endo/errors": "workspace:^",
-    "@endo/harden": "workspace:^",
     "@endo/hex": "workspace:^",
     "@endo/module-source": "workspace:^",
     "@endo/path-compare": "workspace:^",
@@ -73,16 +72,11 @@
   "devDependencies": {
     "@endo/env-options": "workspace:^",
     "@endo/evasive-transform": "workspace:^",
-    "@endo/eventual-send": "workspace:^",
     "@endo/init": "workspace:^",
     "@endo/ses-ava": "workspace:^",
     "ava": "catalog:dev",
-    "babel-eslint": "^10.1.0",
     "c8": "catalog:dev",
     "eslint": "catalog:dev",
-    "eslint-config-prettier": "catalog:dev",
-    "eslint-plugin-eslint-comments": "catalog:dev",
-    "eslint-plugin-import": "catalog:dev",
     "prettier": "^3.5.3",
     "typescript": "catalog:dev"
   },

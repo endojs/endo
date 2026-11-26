@@ -145,7 +145,7 @@ function writeEndOfCentralDirectoryRecord(
  * @param {Array<FileRecord>} records
  * @param {string} comment
  */
-export function writeZipRecords(writer, records, comment = '') {
+function writeZipRecords(writer, records, comment = '') {
   // Write records with local headers.
   const locators = [];
   for (let i = 0; i < records.length; i += 1) {
