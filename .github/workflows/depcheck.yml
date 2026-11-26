@@ -31,13 +31,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-      - name: Install graphviz
-        run: |
-          sudo apt update
-          sudo apt install -y graphviz
+      - name: Install dependencies
+        run: yarn install --immutable --mode=skip-build
 
       - name: Check for cycles
-        run: scripts/check-dependency-cycles.sh 0
+        run: scripts/check-dependency-cycles.sh
 
         # Under Yarn "classic" this job also checked for mismatchedWorkspaceDependencies
         # (https://github.com/yarnpkg/yarn/blob/158d96dce95313d9a00218302631cd263877d164/src/cli/commands/workspaces.js#L49)
