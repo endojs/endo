@@ -483,10 +483,18 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
   );
 
   // Create three clients with artificial write latency for deterministic ordering
-  const clientKitA = await makeTestClient({ debugLabel: 'A', writeLatencyMs });
+  // Disable import collection on every client: GC-triggered `op:gc-answers`
+  // messages would otherwise be recorded and break the exact-length transcripts.
+  const clientOptions = { enableImportCollection: false };
+  const clientKitA = await makeTestClient({
+    debugLabel: 'A',
+    clientOptions,
+    writeLatencyMs,
+  });
   const clientKitC = await makeTestClient({
     debugLabel: 'C',
     makeDefaultSwissnumTable: () => cObjectTable,
+    clientOptions,
     writeLatencyMs,
   });
 
@@ -512,6 +520,7 @@ test('pipeline: three-party handoff shows B forwarding to C on behalf of A', asy
   clientKitB = await makeTestClient({
     debugLabel: 'B',
     makeDefaultSwissnumTable: () => bObjectTable,
+    clientOptions,
     writeLatencyMs,
   });
 
