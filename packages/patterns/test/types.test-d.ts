@@ -309,6 +309,20 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
 
 // ===== 4. Combinators: or → union, and → intersection, opt, eref =====
 
+// M.or() preserves literal arguments as a literal union.
+{
+  const p = M.or('start', 'continue', 'abort');
+  type T = TypeFromPattern<typeof p>;
+  expectType<'start' | 'continue' | 'abort'>(null as unknown as T);
+}
+
+// M.or() also preserves literal discriminants in record patterns.
+{
+  const p = M.or({ mode: 'start' }, { mode: 'continue' });
+  type T = TypeFromPattern<typeof p>;
+  expectType<{ mode: 'start' } | { mode: 'continue' }>(null as unknown as T);
+}
+
 // M.or() → union
 {
   const p = M.or(M.string(), M.nat());
@@ -321,6 +335,13 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   const p = M.and(M.string(), M.nat());
   type T = TypeFromPattern<typeof p>;
   expectType<string & bigint>(null as unknown as T);
+}
+
+// M.and() preserves literal fields in intersected record patterns.
+{
+  const p = M.and({ mode: 'start' }, { payload: M.string() });
+  type T = TypeFromPattern<typeof p>;
+  expectType<{ mode: 'start' } & { payload: string }>(null as unknown as T);
 }
 
 // M.opt() → T | void (void rather than undefined; see TFKindMap comment)
@@ -383,6 +404,19 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   }>(null as unknown as T);
 }
 
+// Literal required and optional fields remain narrow.
+{
+  const p = M.splitRecord(
+    { mode: M.or('start', 'continue') },
+    { phase: 'ready' },
+  );
+  type T = TypeFromPattern<typeof p>;
+  expectType<{
+    mode: 'start' | 'continue';
+    phase?: 'ready' | undefined;
+  }>(null as unknown as T);
+}
+
 // ===== 7. splitArray: required only, required + optional =====
 
 // Required only
@@ -400,6 +434,28 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   const p = M.splitArray([M.string()], [M.nat(), M.boolean()]);
   type T = TypeFromPattern<typeof p>;
   expectType<[string, bigint?, boolean?]>(null as unknown as T);
+}
+
+// Literal elements remain narrow while preserving the tuple shape.
+{
+  const p = M.splitArray([{ mode: 'start' }, { mode: 'continue' }], ['done']);
+  type T = TypeFromPattern<typeof p>;
+  expectType<[{ mode: 'start' }, { mode: 'continue' }, 'done'?]>(
+    null as unknown as T,
+  );
+}
+
+// Literal rest patterns remain narrow as well.
+{
+  const p = M.splitArray([], [], { mode: 'rest' });
+  type T = TypeFromPattern<typeof p>;
+  expectType<{ mode: 'rest' }[]>(null as unknown as T);
+}
+
+{
+  const p = M.splitRecord({}, {}, { mode: 'rest' });
+  type T = TypeFromPattern<typeof p>;
+  expectType<{ [key: string]: { mode: 'rest' } }>(null as unknown as T);
 }
 
 // ===== 8. Hint parameters (type narrowing) =====
@@ -553,6 +609,35 @@ expectType<null>(null as unknown as TypeFromPattern<null>);
   });
   type Methods = TypeFromInterfaceGuard<typeof FooI>;
   expectType<{ bar: (arg0: string) => bigint }>(null as unknown as Methods);
+}
+
+// A nested interface method guard keeps literal discriminants narrow.
+{
+  type Operation = { mode: 'start' } | { mode: 'continue' | 'abort' | 'skip' };
+  const OperationShape = M.or(
+    M.splitRecord({ mode: 'start' }),
+    M.splitRecord({ mode: M.or('continue', 'abort', 'skip') }),
+  );
+  expectType<Operation>(
+    null as unknown as TypeFromPattern<typeof OperationShape>,
+  );
+
+  const ControllerI = M.interface('Controller', {
+    handle: M.call(OperationShape).returns(M.boolean()),
+  });
+  type ControllerMethods = TypeFromInterfaceGuard<typeof ControllerI>;
+  expectType<{ handle: (arg0: Operation) => boolean }>(
+    null as unknown as ControllerMethods,
+  );
+
+  const methods: ControllerMethods = {
+    handle(operation) {
+      expectType<Operation>(operation);
+      return operation.mode === 'start';
+    },
+  };
+  // eslint-disable-next-line no-void
+  void methods;
 }
 
 // Multi-method interface
