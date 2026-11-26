@@ -13,6 +13,7 @@ import { asyncTrampoline, syncTrampoline } from '@endo/trampoline';
 import { resolve } from './node-module-specifier.js';
 import {
   attenuateModuleHook,
+  attenuateModuleNowHook,
   enforcePolicyByModule,
   enforcePackagePolicyByCanonicalName,
 } from './policy.js';
@@ -33,6 +34,7 @@ import { unpackReadPowers } from './powers.js';
  *   ChooseModuleDescriptorParams,
  *   ChooseModuleDescriptorYieldables,
  *   ExitModuleImportHook,
+ *   ExitModuleImportNowHook,
  *   FindRedirectParams,
  *   ImportHookMaker,
  *   ImportNowHookMaker,
@@ -260,6 +262,23 @@ const findRedirect = ({
 };
 
 /**
+ * Makes a virtual module source for an exit module given as a namespace
+ * object in the `modules` option.
+ *
+ * @param {any} ns
+ * @returns {VirtualModuleSource}
+ */
+const makeExitModuleSource = ns =>
+  freeze({
+    imports: [],
+    exports: ns ? keys(ns) : [],
+    execute: moduleExports => {
+      moduleExports.default = ns;
+      assign(moduleExports, ns);
+    },
+  });
+
+/**
  * @param {object} params
  * @param {Record<string, any>} [params.modules]
  * @param {ExitModuleImportHook} [params.exitModuleImportHook]
@@ -276,21 +295,41 @@ export const exitModuleImportHookMaker = ({
   }
   return async specifier => {
     if (modules && has(modules, specifier)) {
-      const ns = modules[specifier];
-      return freeze({
-        imports: [],
-        exports: ns ? keys(ns) : [],
-        execute: moduleExports => {
-          moduleExports.default = ns;
-          assign(moduleExports, ns);
-        },
-      });
+      return makeExitModuleSource(modules[specifier]);
     }
     if (exitModuleImportHook) {
       // The entryCompartmentName is a file URL when constructing an archive or
       // importing from a file system, but is merely a zip archive root
       // directory name when importing from an archive.
       return exitModuleImportHook(specifier, entryCompartmentName);
+    }
+    return undefined;
+  };
+};
+
+/**
+ * Synchronous counterpart of {@link exitModuleImportHookMaker}, so that an exit
+ * module given in the `modules` option can be loaded by a dynamic require as
+ * well as by a static one.
+ *
+ * @param {object} params
+ * @param {Record<string, any>} [params.modules]
+ * @param {ExitModuleImportNowHook} [params.exitModuleImportNowHook]
+ * @returns {ExitModuleImportNowHook|undefined}
+ */
+export const exitModuleImportNowHookMaker = ({
+  modules = undefined,
+  exitModuleImportNowHook = undefined,
+}) => {
+  if (!modules) {
+    return exitModuleImportNowHook;
+  }
+  return (specifier, packageLocation) => {
+    if (has(modules, specifier)) {
+      return makeExitModuleSource(modules[specifier]);
+    }
+    if (exitModuleImportNowHook) {
+      return exitModuleImportNowHook(specifier, packageLocation);
     }
     return undefined;
   };
@@ -665,7 +704,7 @@ export const makeImportHookMaker = (
   const makeImportHook = ({
     packageLocation,
     packageName: _packageName,
-    attenuators,
+    importAttenuator,
     parse,
     shouldDeferError,
     compartments,
@@ -765,7 +804,7 @@ export const makeImportHookMaker = (
                 moduleSpecifier,
                 record,
                 compartmentDescriptor.policy,
-                attenuators,
+                importAttenuator,
               );
               return attenuatedRecord;
             }
@@ -867,6 +906,7 @@ export function makeImportNowHookMaker(
   const makeImportNowHook = ({
     packageLocation,
     packageName: _packageName,
+    importNowAttenuator: importAttenuatorNow,
     parse,
     compartments,
     shouldDeferError,
@@ -905,7 +945,13 @@ export function makeImportNowHookMaker(
               moduleSpecifier,
             )} was not in the compartment map and an attempt was made to load it as a builtin`,
           });
-          return exitRecord;
+
+          return attenuateModuleNowHook(
+            moduleSpecifier,
+            exitRecord,
+            compartmentDescriptor.policy,
+            importAttenuatorNow,
+          );
         }
         throw Error(
           `Cannot find external module ${q(

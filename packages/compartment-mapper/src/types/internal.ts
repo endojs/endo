@@ -8,40 +8,39 @@
 import type { ImportHook, ImportNowHook, StaticModuleType } from 'ses';
 import type {
   CompartmentDescriptor,
+  CompartmentModuleConfiguration,
   Language,
   LanguageForExtension,
   LanguageForModuleSpecifier,
   PackageCompartmentDescriptor,
-  PackageCompartmentDescriptors,
-  CompartmentModuleConfiguration,
   PackageCompartmentDescriptorName,
+  PackageCompartmentDescriptors,
 } from './compartment-map-schema.js';
 import type {
   ArchiveOnlyOption,
   AsyncParseFn,
   CompartmentSources,
+  CompartmentsRenameFn,
   ComputeSha512Option,
   ExecuteOptions,
   ExitModuleImportHookOption,
   ExitModuleImportNowHookOption,
   FileUrlString,
-  ModuleSourceHook,
-  PackageConnectionsHook,
-  PreloadOption,
   LogOptions,
+  ModuleSourceHook,
+  ModuleTransform,
   ModuleTransforms,
+  PackageConnectionsHook,
   ParseFn,
   ParserForLanguage,
   PolicyOption,
+  PreloadOption,
   SearchSuffixesOption,
   SourceMapHook,
   SourceMapHookOption,
   Sources,
-  SyncModuleTransforms,
-  CompartmentsRenameFn,
-  RedundantPreloadHook,
-  ModuleTransform,
   SyncModuleTransform,
+  SyncModuleTransforms,
 } from './external.js';
 import type { PackageDescriptor } from './node-modules.js';
 import type { DeferredAttenuatorsProvider } from './policy.js';
@@ -101,10 +100,26 @@ export type MakeImportHookMakerOptions = MakeImportHookMakersOptions &
 export type MakeImportNowHookMakerOptions = MakeImportHookMakersOptions &
   ExitModuleImportNowHookOption;
 
+/**
+ * Asynchronously imports an attenuator by its specifier. A specifier of `null`
+ * means the default attenuator.
+ *
+ * This is the only way an {@link ImportHook} may obtain an attenuator.
+ */
+export type ImportAttenuatorFn = DeferredAttenuatorsProvider['import'];
+
+/**
+ * Synchronous counterpart of {@link ImportAttenuatorFn}.
+ *
+ * This is the only way an {@link ImportNowHook} (which handles dynamic
+ * `require`s) may obtain an attenuator, since it cannot wait for a `Promise`.
+ */
+export type ImportNowAttenuatorFn = DeferredAttenuatorsProvider['importNow'];
+
 export type ImportHookMaker = (params: {
   packageLocation: PackageCompartmentDescriptorName;
   packageName: string;
-  attenuators: DeferredAttenuatorsProvider;
+  importAttenuator: ImportAttenuatorFn;
   parse: ParseFn | AsyncParseFn;
   shouldDeferError: ShouldDeferError;
   compartments: Record<string, Compartment>;
@@ -113,13 +128,10 @@ export type ImportHookMaker = (params: {
 export type ImportNowHookMaker = (params: {
   packageLocation: PackageCompartmentDescriptorName;
   packageName: string;
+  importNowAttenuator: ImportNowAttenuatorFn;
   parse: ParseFn | AsyncParseFn;
   compartments: Record<string, Compartment>;
   shouldDeferError: ShouldDeferError;
-  // Unlike analogous prameters of ImportHookMaker, the Compartment Mapper
-  // ignores these two parameters, so they are expressly disallowed to avoid
-  // confusion about whether they would be respected.
-  attenuators?: never;
 }) => ImportNowHook;
 
 /**
@@ -341,3 +353,9 @@ export type ParserGeneratorConfig = {
   parserForLanguage: ParserForLanguage;
   transforms: Record<string, ModuleTransform | SyncModuleTransform>;
 };
+
+/**
+ * An attenuator function to which the params of its attenuation definition
+ * have already been applied.
+ */
+export type BoundAttenuator = (...args: any[]) => any;

@@ -38,7 +38,23 @@ export type ModuleAttenuatorFn<
 > = (params: Params, ns: T) => U;
 
 export type DeferredAttenuatorsProvider = {
+  /**
+   * Asynchronously imports an attenuator by its specifier. A specifier of `null`
+   * means the default attenuator.
+   *
+   * @param attenuatorSpecifier - The specifier of the attenuator to import.
+   * @returns A `Promise` that resolves to the {@link Attenuator}.
+   */
   import: (attenuatorSpecifier: string | null) => Promise<Attenuator>;
+
+  /**
+   * Synchronous counterpart of {@link DeferredAttenuatorsProvider.import}, for
+   * attenuating exit modules loaded by a dynamic require.
+   *
+   * @param attenuatorSpecifier - The specifier of the attenuator to import.
+   * @returns The {@link Attenuator}.
+   */
+  importNow: (attenuatorSpecifier: string | null) => Attenuator;
 };
 
 /**
